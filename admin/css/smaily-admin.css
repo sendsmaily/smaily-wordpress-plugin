@@ -1,0 +1,207 @@
+/* SPINNER */
+.loader {
+    display: inline-block;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 4px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 4px solid #e52766;
+    -webkit-animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite;
+  }
+  
+  @-webkit-keyframes spin {
+    0% {
+      -webkit-transform: rotate(0deg);
+    }
+    100% {
+      -webkit-transform: rotate(360deg);
+    }
+  }
+  
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Add animation to "page content" */
+  .animate-bottom {
+    position: relative;
+    -webkit-animation-name: animatebottom;
+    -webkit-animation-duration: 1s;
+    animation-name: animatebottom;
+    animation-duration: 1s;
+  }
+  
+  @-webkit-keyframes animatebottom {
+    from {
+      bottom: -100px;
+      opacity: 0;
+    }
+    to {
+      bottom: 0px;
+      opacity: 1;
+    }
+  }
+  
+  @keyframes animatebottom {
+    from {
+      bottom: -100px;
+      opacity: 0;
+    }
+    to {
+      bottom: 0;
+      opacity: 1;
+    }
+  }
+  
+  /* Validate button */
+  #validate-credentials-btn {
+    margin-bottom: 20px;
+  }
+  
+  /*  Smaily title */
+  #capital-s {
+    color: #e91e63;
+    font-weight: 500;
+    font-size: 150%;
+  }
+  
+  #smaily-title {
+    font-family: "Source Sans Pro", sans-serif;
+    letter-spacing: 1px;
+  }
+  
+  /*  Explanation text */
+  small {
+    display: block;
+  }
+  
+  #smaily-settings input {
+    max-width: 50%;
+  }
+  
+  #smaily-settings select {
+    min-width: 50%;
+  }
+  
+  .nav-tab-wrapper {
+    display: block;
+  }
+  
+  /* Enable checkboxes */
+  .smaily-toggle {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    top: -99999px;
+  }
+  
+  .smaily-toggle + label {
+    font-family: arial;
+    vertical-align: middle;
+    width: 80px;
+    height: 30px;
+    display: inline-block;
+    position: relative;
+    border-radius: 15px;
+    overflow: hidden;
+    outline: none;
+    border: none;
+    cursor: pointer;
+    background-color: #bdc3c7;
+    -webkit-transition: 0.25s ease-in-out;
+    -moz-transition: 0.25s ease-out;
+    -o-transition: 0.25s ease-out;
+    transition: 0.25s ease-out;
+  }
+  
+  .smaily-toggle + label:before {
+    content: "ON OFF";
+    width: 22px;
+    height: 22px;
+    left: 4px;
+    top: 4px;
+    border-radius: 11px;
+    z-index: 2;
+    position: absolute;
+    background: #7f8c9a;
+    font-size: 14.99px;
+    font-weight: 700;
+    text-transform: uppercase;
+    text-indent: -32px;
+    word-spacing: 40px;
+    color: #fff;
+    white-space: nowrap;
+    -webkit-transition: 0.25s ease-out;
+    -moz-transition: 0.25s ease-out;
+    -o-transition: 0.25s ease-out;
+    transition: 0.25s ease-out;
+  }
+  
+  .smaily-toggle:checked + label {
+    background-color: #e91e63;
+  }
+  
+  input.smaily-toggle:focus + label {
+    outline: 0;
+  }
+  
+  .smaily-toggle:checked + label:before {
+    background-color: white;
+    color: white;
+    left: 54px;
+  }
+  
+  /* Checkout tab display radio buttons */
+  #smaily_checkout_display_visibility label {
+    display: block;
+    padding-bottom: 10px;
+  }
+  
+  /* Checkout tab location select boxes */
+  #smaily_checkout_display_location select {
+    min-width: fit-content;
+  }
+  
+  /* RSS order select boxes */
+  #smaily_rss_order_options select {
+    min-width: fit-content;
+  }
+  
+  /* Messages animations */
+  @keyframes smaily-notice-error-animation {
+    from {background-color: #ecacac;}
+    to {background-color: white;}
+  }
+  
+  @-webkit-keyframes smaily-notice-error-animation {
+    from {background-color: #ecacac;}
+    to {background-color: white;}
+  }
+  
+  .error.smaily-notice {
+    animation: smaily-notice-error-animation 0.5s;
+    -webkit-animation: smaily-notice-error-animation 0.5s;
+  }
+  
+  @keyframes smaily-notice-success-animation {
+    from {background-color: #b6e2ba;}
+    to {background-color: white;}
+  }
+  
+  @-webkit-keyframes smaily-notice-success-animation {
+    from {background-color: #b6e2ba;}
+    to {background-color: white;}
+  }
+  
+  .notice-success.smaily-notice {
+    animation: smaily-notice-success-animation 0.5s;
+    -webkit-animation: smaily-notice-success-animation 0.5s;
+  }
