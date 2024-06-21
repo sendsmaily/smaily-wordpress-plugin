@@ -34,6 +34,14 @@ define('SMAILY_PLUGIN_PATH', plugin_dir_path(__FILE__));
  */
 define('SMAILY_PLUGIN_FILE', __FILE__);
 
+// Required to use functions is_plugin_active and deactivate_plugins.
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+/**
+ * The core plugin class.
+ */
+require SMAILY_PLUGIN_PATH . 'includes/smaily-lifecycle.class.php';
+
 /**
  * The core plugin class.
  */
@@ -46,13 +54,11 @@ require SMAILY_PLUGIN_PATH . 'includes/smaily.class.php';
  * then kicking off the plugin from this point in the file does
  * not affect the page life cycle.
  *
- * @since 1.0.0
  */
 if (!function_exists('run_smaily')) {
     function run_smaily()
     {
-        $smaily_plugin = new Smaily();
-        $smaily_plugin->run();
+        new Smaily();
     }
     run_smaily();
 }

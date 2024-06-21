@@ -52,7 +52,7 @@
 
 	$('#reset-form').on('click', function(e){
 		e.preventDefault();
-		$.post(ajaxurl, {action: 'smaily_admin_save', payload: 'op=resetForm'})
+		$.post(ajaxurl, {action: 'smaily_admin_save', payload: 'op=resetForm&nonce=' + $('#nonce').val()})
 		.done(function(response){
 			let $resp = JSON.parse(response);
 			if(!$resp.error){
@@ -102,18 +102,18 @@
 							selected = parseInt($autoresponders.val(), 10);
 
 						// Remove existing abandoned cart autoresponders.
-						$autoresponders.find('option').remove();
+						//$autoresponders.find('option').remove();
 
 						// Populate abandoned cart autoresponders.
-						$.each(response, function (index, item) {
-							$autoresponders.append(
-								$("<option>", {
-									value: item.id,
-									selected: item.id === selected,
-									text: item.name
-								})
-							);
-						});
+						// $.each(response, function (index, item) {
+						// 	$autoresponders.append(
+						// 		$("<option>", {
+						// 			value: item.id,
+						// 			selected: item.id === selected,
+						// 			text: item.name
+						// 		})
+						// 	);
+						// });
 
 						displayMessage(smaily_translations.validated);
 					}

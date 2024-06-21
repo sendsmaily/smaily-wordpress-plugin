@@ -3,7 +3,6 @@
 /**
  * The public-facing functionality of the plugin.
  *
- * @since      1.0.0
  * @package    Smaily
  * @subpackage Smaily/public
  */
@@ -14,7 +13,7 @@ class Smaily_Public
 	/**
 	 * The ID of this plugin.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @access private
 	 * @var    string  $plugin_name The ID of this plugin.
 	 */
@@ -23,7 +22,7 @@ class Smaily_Public
 	/**
 	 * The version of this plugin.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @access private
 	 * @var    string  $version The current version of this plugin.
 	 */
@@ -32,7 +31,7 @@ class Smaily_Public
 	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @access private
 	 * @var    Smaily_Options $options Handler for Options API.
 	 */
@@ -41,7 +40,6 @@ class Smaily_Public
 	/**
 	 * Initialize the class and set its properties.
 	 *
-	 * @since 1.0.0
 	 * @param Smaily_Options $options     Reference to options handler class.
 	 * @param string                $plugin_name The name of the plugin.
 	 * @param string                $version     The version of this plugin.
@@ -56,7 +54,7 @@ class Smaily_Public
 	/**
 	 * Register all shortcodes present in the function.
 	 *
-	 * @since  1.0.0
+	 *
 	 */
 	public function add_shortcodes()
 	{

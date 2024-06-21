@@ -3,7 +3,6 @@
 /**
  * The admin-specific functionality of the plugin.
  *
- * @since      1.0.0
  * @package    Smaily
  * @subpackage Smaily/admin
  */
@@ -13,7 +12,7 @@ class Smaily_Admin
     /**
      * The ID of this plugin.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @var    string  $plugin_name The ID of this plugin.
      */
@@ -22,7 +21,7 @@ class Smaily_Admin
     /**
      * The version of this plugin.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @var    string  $version The current version of this plugin.
      */
@@ -31,7 +30,7 @@ class Smaily_Admin
     /**
      * Handler for storing/retrieving data via Options API.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @var    Smaily_Options Handler for WordPress Options API.
      */
@@ -40,7 +39,6 @@ class Smaily_Admin
     /**
      * Initialize the class and set its properties.
      *
-     * @since 1.0.0
      * @param Smaily_Options $options     Reference to option handler class.
      * @param string                $plugin_name The name of this plugin.
      * @param string                $version     The version of this plugin.
@@ -55,7 +53,6 @@ class Smaily_Admin
     /**
      * Register the stylesheets for the admin area.
      *
-     * @since 1.0.0
      */
     public function enqueue_styles()
     {
@@ -69,7 +66,6 @@ class Smaily_Admin
     /**
      * Register the JavaScript for the admin area.
      *
-     * @since 1.0.0
      */
     public function enqueue_scripts()
     {
@@ -89,16 +85,30 @@ class Smaily_Admin
     }
 
     /**
+     * Adds setting link to plugin
+     *
+     * @param array $links Default links in plugin page.
+     * @return array    $links Updated array of links
+     */
+    public function settings_link($links)
+    {
+        // receive all current links and add custom link to the list.
+        $settings_link = '<a href="admin.php?page=smaily-settings">' . esc_html__('Settings', 'smaily') . '</a>';
+        // Settings before disable.
+        array_unshift($links, $settings_link);
+        return $links;
+    }
+
+    /**
      * Render admin page.
      *
-     * @since 1.0.0
      */
     public function smaily_admin_render()
     {
         // Load configuration data.
-        $credentials = $this->options->get_api_credentials();
-        $settings    = $this->options->get_settings();
-        $autoresponders  = $this->get_autoresponders();
+        $credentials        = $this->options->get_api_credentials();
+        $settings           = $this->options->get_settings();
+        $autoresponders     = $this->get_autoresponders();
 
         // Create admin template.
         $template = $this->generate_admin_template($credentials, $settings, $autoresponders);
@@ -110,7 +120,6 @@ class Smaily_Admin
     /**
      * Load newsletter subscription block.
      *
-     * @since 3.1.0
      */
     public function smaily_subscription_block_init($screen)
     {
@@ -146,7 +155,6 @@ class Smaily_Admin
     /**
      * Load subscribe widget.
      *
-     * @since 1.0.0
      */
     public function smaily_subscription_widget_init()
     {
@@ -157,10 +165,10 @@ class Smaily_Admin
     /**
      * Function is run when user performs action which is handled Ajax.
      *
-     * @since 1.0.0
      */
     public function smaily_admin_save()
     {
+
         // Ensure user has necessary permissions.
         if (!current_user_can('manage_options')) {
             echo wp_json_encode(
@@ -185,6 +193,17 @@ class Smaily_Admin
         $form_data = array();
 
         parse_str($_POST['payload'], $form_data);
+
+        // Ensure nonce is valid.
+        $nonce = isset($form_data['nonce']) ? $form_data['nonce'] : '';
+        if (!wp_verify_nonce(sanitize_key($nonce), 'smaily-settings-nonce')) {
+            echo wp_json_encode(
+                array(
+                    'error' => __('Nonce verification failed!', 'smaily'),
+                )
+            );
+            wp_die();
+        }
 
         // Validate posted operation.
         if (!isset($form_data['op'])) {
@@ -225,7 +244,7 @@ class Smaily_Admin
     /**
      * Function is run when user submits Smaily API credentials.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @param  array $form_data Posted form data (unserialized).
      * @return array Response of operation.
@@ -251,10 +270,9 @@ class Smaily_Admin
         }
 
         // Validate credentials with get request.
-        $rqst = (new Smaily_Request())
-            ->auth($params['username'], $params['password'])
-            ->set_url('https://' . $params['subdomain'] . '.sendsmaily.net/api/workflows.php?trigger_type=form_submitted')
-            ->get();
+        $rqst = Smaily_Request::get('workflows', array(
+            'trigger_type' => 'form_submitted'
+        ));
 
         // Error handilng.
         $code = isset($rqst['code']) ? $rqst['code'] : '';
@@ -282,7 +300,7 @@ class Smaily_Admin
     /**
      * Function is run when user regenerates opt-in form.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @return array Response of operation.
      */
@@ -302,7 +320,7 @@ class Smaily_Admin
     /**
      * Function is run when user presses save button.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @param  array $form_data Posted form data (deserialized).
      * @return array Response of operation.
@@ -327,41 +345,35 @@ class Smaily_Admin
         $form        = (isset($form_data['advanced-form']['form']) && is_string($form_data['advanced-form']['form'])) ? trim($form_data['advanced-form']['form']) : '';
 
         // Generate new form (if empty).
-        if (empty($form)) {
-            // Load configuration data.
-            $subdomain = $this->options->get_api_credentials()['subdomain'];
-
-            // Render template.
-            $template = $this->generate_optin_template('basic.php', $subdomain);
-            $form     = $template->render();
-        }
-
-        // Check if wooocommerce is active, if so proccess woocommerce related data
-        $woocommerce = array();
-        if (is_plugin_active('woocommerce/woocommerce.php')) {
-            $woocommerce = $this->process_woocommerce_data();
+        if (empty($form) && $is_advanced) {
+            echo wp_json_encode(
+                array(
+                    'error' => __('Disable advanced form option or fill out the form field!', 'smaily'),
+                )
+            );
+            wp_die();
         }
 
         $this->options->update_settings(
             array(
                 'is_advanced' => $is_advanced,
-                'form'        => $form,
-                'woocommerce' => $woocommerce
+                'form'        => $form
             )
         );
 
-        return array('error' => false);
-    }
+        // Check if wooocommerce is active, if so proccess woocommerce related data
+        if (Smaily_Helper::is_woocommerce_active()) {
+            $woocommerce = Smaily_WC\Data_Prepare::prepare_form_data($form_data);
+            $this->options->update_settings($woocommerce, 'woocommerce_settings');
+        }
 
-    private function process_woocommerce_data()
-    {
-        $wc_admin_intance = new Smaily_Woocommerce_Admin();
+        return array('error' => false);
     }
 
     /**
      * Generate newsletter opt-in form template and assign required variables via function parameters.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @param  string $template_name            Name of template file to use, without any prefixes (e.g advanced.php).
      * @param  string $subdomain                Smaily API subdomain.
@@ -386,7 +398,7 @@ class Smaily_Admin
     /**
      * Generate admin area template and assign required variables via function parameters.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @param  string $template_name            Name of template file to use, without any prefixes (e.g form.php).
      * @param  bool   $has_credentials          User has saved valid credentials? Yes/No.
@@ -412,7 +424,7 @@ class Smaily_Admin
     /**
      * Normalize subdomain into the bare necessity.
      *
-     * @since  1.0.0
+     *
      * @access private
      * @param  string $subdomain Messy subdomain, e.g http://demo.sendsmaily.net
      * @return string Clean subdomain, e.g demo
@@ -449,10 +461,9 @@ class Smaily_Admin
             return array();
         }
 
-        $result = (new Smaily_Request())
-            ->set_url('https://' . $api_credentials['subdomain'] . '.sendsmaily.net/api/workflows.php?trigger_type=form_submitted')
-            ->auth($api_credentials['username'], $api_credentials['password'])
-            ->get();
+        $result = Smaily_Request::get('workflows', array(
+            'trigger_type' => 'form_submitted'
+        ));
 
         if (empty($result['body'])) {
             return array();

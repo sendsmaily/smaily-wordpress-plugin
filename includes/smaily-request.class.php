@@ -3,7 +3,6 @@
 /**
  * Defines the request making functionality of the plugin.
  *
- * @since      1.0.0
  * @package    Smaily
  * @subpackage Smaily/includes
  */
@@ -12,99 +11,68 @@ class Smaily_Request
 {
 
 	/**
-	 * Request URL.
-	 *
-	 * @since    1.0.0
-	 * @access   protected
-	 * @var      string    $_url    The URL endpoint against which the request is made.
-	 */
-	protected $_url = null;
-
-	/**
-	 * Request data.
-	 *
-	 * @since    1.0.0
-	 * @access   protected
-	 * @var      array    $_data    The data which is sent via request.
-	 */
-	protected $_data = array();
-
-	/**
 	 * Smaily API Username.
 	 *
-	 * @since    1.0.0
 	 * @access   private
 	 * @var      string    $_username    Smaily API username used for authentication.
 	 */
-	private $_username = null;
+	private static $_username = null;
 
 	/**
 	 * Smaily API Password.
 	 *
-	 * @since    1.0.0
 	 * @access   private
 	 * @var      string    $_password    Smaily API password used for authentication.
 	 */
-	private $_password = null;
+	private static $_password = null;
+
+	/**
+	 * Smaily API subdomain
+	 *
+	 * @access   private
+	 * @var      string    $_subdomain    Smaily API subdomain used for authentication and requests.
+	 */
+	private static $_subdomain = null;
 
 	/**
 	 * Set Smaily API Credentials for request.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @param  string $username Smaily API Username.
 	 * @param  string $password Smaily API Password.
-	 * @return Smaily_Request For method chaining.
 	 */
-	public function auth($username, $password)
+	public static function set_credentials($credentials)
 	{
-		$this->_username = $username;
-		$this->_password = $password;
-		return $this;
+		self::$_subdomain 	= $credentials['subdomain'];
+		self::$_username 	= $credentials['username'];
+		self::$_password 	= $credentials['password'];
 	}
 
 	/**
-	 * Set request URL endpoint.
+	 * Execute the request.
 	 *
-	 * @since  1.0.0
-	 * @param  string $url Request endpoint.
-	 * @return Smaily_Request For method chaining.
-	 */
-	public function set_url($url)
-	{
-		$this->_url = $url;
-		return $this;
-	}
-
-	/**
-	 * Set data which is sent via request.
 	 *
-	 * @since  1.0.0
-	 * @param  array $data Request data.
-	 * @return Smaily_Request For method chaining.
-	 */
-	public function set_data(array $data)
-	{
-		$this->_data = $data;
-		return $this;
-	}
-
-	/**
-	 * Execute get request.
-	 *
-	 * @since  1.0.0
 	 * @return array $response. Data recieved back from making the request.
 	 */
-	public function get()
+	public static function request(string $endpoint, array $data, $method = 'GET')
 	{
 		$response  = array();
 		$useragent = 'smaily/' . SMAILY_PLUGIN_VERSION . ' (WordPress/' . get_bloginfo('version') . '; +' . get_bloginfo('url') . ')';
 		$args      = array(
 			'headers'    => array(
-				'Authorization' => 'Basic ' . base64_encode($this->_username . ':' . $this->_password),
+				'Authorization' => 'Basic ' . base64_encode(self::$_username . ':' . self::$_password),
 			),
 			'user-agent' => $useragent,
 		);
-		$api_call  = wp_remote_get($this->_url, $args);
+
+		switch ($method) {
+			case 'GET':
+				$api_call  = wp_remote_get('https://' . self::$_subdomain . '.sendsmaily.net/api/' . $endpoint . '.php?' . http_build_query($data), $args);
+				break;
+			case 'POST':
+				$api_call  = wp_remote_post('https://' . self::$_subdomain . '.sendsmaily.net/api/' . $endpoint . '.php', array_merge($args, $data));
+				break;
+		}
 
 		// Response code from Smaily API.
 		if (is_wp_error($api_call)) {
@@ -114,5 +82,27 @@ class Smaily_Request
 		$response['code'] = wp_remote_retrieve_response_code($api_call);
 
 		return $response;
+	}
+
+	/**
+	 * Execute get request.
+	 *
+	 *
+	 * @return array $response. Data recieved back from making the request.
+	 */
+	public static function get(string $endpoint, array $data)
+	{
+		return self::request($endpoint, $data, 'GET');
+	}
+
+	/**
+	 * Execute post request.
+	 *
+	 *
+	 * @return array $response. Data recieved back from making the request.
+	 */
+	public static function post(string $endpoint, array $data)
+	{
+		return self::request($endpoint, $data, 'POST');
 	}
 }

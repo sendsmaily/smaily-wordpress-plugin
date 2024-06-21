@@ -1,6 +1,6 @@
 <?php
 
-$has_woocommerce = is_plugin_active('woocommerce/woocommerce.php');
+$has_woocommerce = Smaily_Helper::is_woocommerce_active();
 $autoresponder_list = $this->autoresponders;
 
 $settings = $this->settings;
@@ -11,7 +11,7 @@ if ($has_woocommerce) {
 	$customer_sync_enabled   = (bool) (int) $this->settings['woocommerce']['customer_sync_enabled'];
 	$is_advanced             = isset($this->settings['is_advanced']) ? (bool) (int) $this->settings['is_advanced'] ?? false : false;
 	$advanced_form			 = isset($this->settings['form']) ? $this->settings['form'] ?? false : false;
-	$cart_cutoff			 = (bool) (int) $this->settings['woocommerce']['cart_cutoff'];
+	$cart_cutoff			 = (int) $this->settings['woocommerce']['cart_cutoff'];
 	$cart_enabled            = (bool) (int) $this->settings['woocommerce']['enable_cart'];
 	$cart_autoresponder_name = $this->settings['woocommerce']['cart_autoresponder'];
 	$cart_autoresponder_id   = (int) $this->settings['woocommerce']['cart_autoresponder_id'];
@@ -23,6 +23,7 @@ if ($has_woocommerce) {
 	$rss_limit               = $this->settings['woocommerce']['rss_limit'];
 	$rss_order_by            = $this->settings['woocommerce']['rss_order_by'];
 	$rss_order               = $this->settings['woocommerce']['rss_order'];
+	$rss_feed_url 		     = Smaily_WC\Data_Handler::make_rss_feed_url($rss_category, $rss_limit, $rss_order_by, $rss_order);
 	$cat_args 				 = array(
 		'orderby'    => 'name',
 		'order'      => 'asc',
@@ -289,7 +290,7 @@ if ($has_woocommerce) {
 							</tr>
 							<tr class="form-field">
 								<th scope="row">
-									<label for="abandoned_cart-fields">
+									<label for="abandoned-cart-fields">
 										<?php echo esc_html__('Additional cart fields', 'smaily'); ?>
 									</label>
 								</th>
@@ -349,9 +350,9 @@ if ($has_woocommerce) {
 						<tbody>
 							<tr class="form-field">
 								<th scope="row">
-									<label for="checkbox_description">
+									<span>
 										<?php echo esc_html__('Subscription checkbox', 'smaily'); ?>
-									</label>
+									</span>
 								</th>
 								<td>
 									<?php
@@ -398,7 +399,7 @@ if ($has_woocommerce) {
 											<?php echo esc_html__('After', 'smaily'); ?>
 										</option>
 									</select>
-									<select name="checkout_checkbox[location]">
+									<select id="checkout-checkbox-location" name="checkout_checkbox[location]">
 										<?php
 										$cb_loc_available = array(
 											'order_notes' => __('Order notes', 'smaily'),
@@ -508,9 +509,9 @@ if ($has_woocommerce) {
 							</tr>
 							<tr class="form-field">
 								<th scope="row">
-									<label>
+									<span>
 										<?php echo esc_html__('Product RSS feed', 'smaily'); ?>
-									</label>
+									</span>
 								</th>
 								<td>
 									<strong id="smaily-rss-feed-url" name="rss_feed_url">

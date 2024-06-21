@@ -3,7 +3,6 @@
 /**
  * Defines the widget functionality of the plugin.
  *
- * @since      1.0.0
  * @package    Smaily
  * @subpackage Smaily/includes
  */
@@ -14,7 +13,7 @@ class Smaily_Widget extends WP_Widget
 	/**
 	 * Admin model.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @access private
 	 * @var    Smaily_Admin
 	 */
@@ -23,7 +22,7 @@ class Smaily_Widget extends WP_Widget
 	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @access private
 	 * @var    Smaily_Options $options Handler for Options API.
 	 */
@@ -32,7 +31,6 @@ class Smaily_Widget extends WP_Widget
 	/**
 	 * Sets up a new instance of the widget.
 	 *
-	 * @since 1.0.0
 	 * @param Smaily_Options $options     Reference to options handler class.
 	 * @param Smaily_Admin   $admin_model Reference to admin class.
 	 */
@@ -48,7 +46,6 @@ class Smaily_Widget extends WP_Widget
 	/**
 	 * Outputs the content for the current widget instance.
 	 *
-	 * @since 1.0.0
 	 * @param array $args     Display arguments including 'before_title', 'after_title',
 	 *                        'before_widget', and 'after_widget'.
 	 * @param array $instance Settings for the current Search widget instance.
@@ -129,7 +126,7 @@ class Smaily_Widget extends WP_Widget
 	 * calculated value of $instance should be returned. If "false" is returned,
 	 * the instance won't be saved/updated.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @param  array $new_instance New instance.
 	 * @param  array $old_instance Old instance.
 	 * @return array
@@ -149,7 +146,7 @@ class Smaily_Widget extends WP_Widget
 	/**
 	 * Widget form on widgets page in admin panel.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @param  array $instance Widget fields array.
 	 */
 	public function form($instance)

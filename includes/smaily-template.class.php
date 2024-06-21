@@ -3,7 +3,6 @@
 /**
  * Defines the template generating and rendering functionality of the plugin.
  *
- * @since      1.0.0
  * @package    Smaily
  * @subpackage Smaily/includes
  */
@@ -14,7 +13,6 @@ class Smaily_Template
 	/**
 	 * Template name.
 	 *
-	 * @since    1.0.0
 	 * @access   protected
 	 * @var      string    $_template    Filename of template.
 	 */
@@ -23,7 +21,6 @@ class Smaily_Template
 	/**
 	 * Template variables.
 	 *
-	 * @since    1.0.0
 	 * @access   protected
 	 * @var      array    $_vars    Variables assigned to template.
 	 */
@@ -42,7 +39,7 @@ class Smaily_Template
 	/**
 	 * Render partial html.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @param  string $template Template.
 	 * @param  array  $params Template params.
 	 * @return string
@@ -57,7 +54,7 @@ class Smaily_Template
 	/**
 	 * Render template.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @return string|bool
 	 * @throws Exception Exeption.
 	 */
@@ -81,7 +78,7 @@ class Smaily_Template
 	/**
 	 * Dispatch template.
 	 *
-	 * @since  1.0.0
+	 *
 	 */
 	public function dispatch()
 	{
@@ -91,7 +88,7 @@ class Smaily_Template
 	/**
 	 * Assign template variables.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @param  string|array $name Name.
 	 * @param  object       $value [optional].
 	 * @return Smaily_Template
@@ -112,7 +109,7 @@ class Smaily_Template
 	/**
 	 * Get language code currently in use.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @return string $lang Language code.
 	 */
 	private function get_language_code()
@@ -137,7 +134,7 @@ class Smaily_Template
 	/**
 	 * Get all assigned variables.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @return array
 	 */
 	public function get_vars()
@@ -148,7 +145,7 @@ class Smaily_Template
 	/**
 	 * Return assigned var value.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @param  string $name Name.
 	 * @return string|object|void
 	 */
@@ -164,7 +161,7 @@ class Smaily_Template
 	/**
 	 * Assign single param.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @param  string $name Name.
 	 * @param  object $value Value.
 	 */

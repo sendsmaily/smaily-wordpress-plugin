@@ -3,7 +3,6 @@
 /**
  * Define the Gutenberg newsletter subscription block functionality.
  *
- * @since      1.0.0
  * @package    Smaily
  * @subpackage Smaily/includes
  */
@@ -14,7 +13,7 @@ class Smaily_Block
 	/**
 	 * The ID of this plugin.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @access private
 	 * @var    string  $plugin_name The ID of this plugin.
 	 */
@@ -23,7 +22,7 @@ class Smaily_Block
 	/**
 	 * The version of this plugin.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @access private
 	 * @var    string  $version The current version of this plugin.
 	 */
@@ -32,7 +31,7 @@ class Smaily_Block
 	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
-	 * @since  1.0.0
+	 *
 	 * @access private
 	 * @var    Smaily_Options $options Handler for Options API.
 	 */
@@ -41,7 +40,6 @@ class Smaily_Block
 	/**
 	 * Initialize the class and set its properties.
 	 *
-	 * @since 1.0.0
 	 * @param Smaily_Options $options     Reference to options handler class.
 	 * @param string                $plugin_name The name of the plugin.
 	 * @param string                $version     The version of this plugin.
@@ -58,7 +56,6 @@ class Smaily_Block
 	 *
 	 * @param array $attributes
 	 * @param string $content
-	 * @since 1.0.0
 	 * @access public
 	 */
 	public function render($attributes, $content)
