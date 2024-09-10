@@ -19,12 +19,12 @@ class Smaily_Lifecycle
 		if (class_exists('WooCommerce')) {
 			$this->create_woocommerce_tables();
 			$this->set_scheduled_actions();
+
+			// Set to flush rewrite rules during init action if not yet flushed.
+			update_option('smaily_flush_rewrite_rules', true);
 		}
 
 		$this->run_migrations();
-
-		// Flush rewrite rules.
-		flush_rewrite_rules();
 	}
 
 	/**
@@ -67,6 +67,7 @@ class Smaily_Lifecycle
 		if ($plugin == 'woocommerce/woocommerce.php') {
 			$this->create_woocommerce_tables();
 			$this->set_scheduled_actions();
+			update_option('smaily_flush_rewrite_rules', true);
 		}
 	}
 
@@ -118,7 +119,7 @@ class Smaily_Lifecycle
 	 * Callback for plugin uninstall hook.
 	 *
 	 */
-	public function uninstall()
+	public static function uninstall()
 	{
 		global $wpdb;
 
@@ -126,7 +127,9 @@ class Smaily_Lifecycle
 		$wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}smaily_abandoned_carts");
 
 		delete_option('smaily_form_options');
+		delete_option('smaily_api_credentials');
 		delete_option('smaily_woocommerce_settings');
+		delete_option('smaily_cf7_settings');
 		delete_option('smaily_db_version');
 		delete_transient('smaily_plugin_updated');
 	}

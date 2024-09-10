@@ -2,8 +2,6 @@
 
 namespace Smaily_WC;
 
-use Smaily_Request;
-
 /**
  * Class Cron
  * Handles data synchronization between Smaily and WooCommerce.
@@ -13,7 +11,7 @@ class Cron
 	/**
 	 * @var \Smaily_Options Instance of Smaily_Options.
 	 */
-	protected $options;
+	private $options;
 
 	/**
 	 * Constructor.
@@ -48,7 +46,6 @@ class Cron
 	 */
 	public function smaily_sync_contacts()
 	{
-		\Smaily_Logger::info('smaily_sync_contacts Cron triggered');
 
 		$results = $this->options->get_settings();
 
@@ -120,8 +117,6 @@ class Cron
 	 */
 	public function smaily_abandoned_carts_email()
 	{
-		\Smaily_Logger::info('smaily_abandoned_carts_email Cron triggered');
-		return;
 
 		// Get Smaily settings.
 		$results = $this->options->get_settings();
@@ -277,10 +272,12 @@ class Cron
 				'force_opt_in'	=> 0
 			];
 
+			//\Smaily_Logger::error('Mail sent: ' . print_r($query, true));
+
 			// Send data to Smaily.
-			$response = Smaily_Request::post('autoresponder', ['body' => $query]);
+			$response = \Smaily_Request::post('autoresponder', ['body' => $query]);
 			// If data sent successfully update mail_sent status in database.
-			if (array_key_exists('code', $response) && $response['code'] === 101) {
+			if (isset($response['body']['code']) && $response['body']['code'] === 101) {
 				$this->update_mail_sent_status($customer_id);
 			} else {
 				// Log to file if errors.
@@ -383,8 +380,6 @@ class Cron
 	public function smaily_abandoned_carts_status()
 	{
 
-		\Smaily_Logger::info('smaily_abandoned_carts_status Cron triggered');
-		return;
 		global $wpdb;
 		$results = $this->options->get_settings();
 

@@ -1,37 +1,28 @@
 <?php
 
-/**
- * @package smaily_for_woocommerce
- */
-
-namespace Smaily_Inc\Base;
-
-use Smaily_Inc\Api\Api;
+namespace Smaily_WC;
 
 /**
  * Newsletter subscriber sync with Smaily contacts
- */
-
-use Smaily_Inc\Base\Data_Handler;
-
-/**
  * Send subscriber to Smaily mailing list when user updates profile
  */
-class SubscriberSynchronization
+class Subscriber_Synchronization
 {
 	/**
-	 * Class initialization
-	 *
-	 * @return void
+	 * @var \Smaily_Options Instance of Smaily_Options.
 	 */
-	public function register()
+	private $options;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param \Smaily_Options $options Instance of Smaily_Options.
+	 */
+	public function __construct(\Smaily_Options $options)
 	{
-		add_action('woocommerce_created_customer', array($this, 'smaily_newsletter_subscribe_update')); // register/checkout.
-		add_action('personal_options_update', array($this, 'smaily_newsletter_subscribe_update')); // edit own account admin.
-		add_action('edit_user_profile_update', array($this, 'smaily_newsletter_subscribe_update')); // edit other account admin.
-		add_action('woocommerce_save_account_details', array($this, 'smaily_newsletter_subscribe_update')); // edit WC account.
-		add_action('woocommerce_checkout_order_processed', array($this, 'smaily_checkout_subscribe_customer')); // Checkout newsletter checkbox.
+		$this->options = $options->get_settings();
 	}
+
 	/**
 	 * Make Api call with subscriber data when updating settings.
 	 *
@@ -47,10 +38,11 @@ class SubscriberSynchronization
 		}
 
 		// Get user data from WordPress, WooCommerce and Custom fields.
-		$data = Data_Handler::get_user_data($user_id);
+		$data = Data_Handler::get_user_data($user_id, $this->options);
+
 
 		// Make API call to Smaily for subscriber update.
-		Api::ApiCall('contact', '', ['body' => $data], 'POST');
+		\Smaily_Request::post('contact', ['body' => $data]);
 		// Subscribed to newsletter.
 	}
 
@@ -111,7 +103,7 @@ class SubscriberSynchronization
 
 		// Make API call  to Smaily for subscriber update.
 		if (isset($data['email'])) {
-			Api::ApiCall('contact', '', ['body' => $data], 'POST');
+			\Smaily_Request::post('contact', ['body' => $data]);
 		}
 		// Subscribed to newsletter.
 	}

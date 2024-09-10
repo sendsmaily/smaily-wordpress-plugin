@@ -1,72 +1,27 @@
 <?php
 
-/**
- * @package smaily_for_woocommerce
- */
-
-namespace Smaily_Inc\Pages;
-
-use Smaily_Inc\Base\Data_Handler;
+namespace Smaily_WC;
 
 /**
  * Adds and controlls WooCommerce Register and Account Details fields.
  * Adds and controlls WordPress User Profile and Admin Profile fields.
  */
-class ProfileSettings
+class Profile_Settings
 {
 
 	/**
-	 * Adds additional profile settings fields to user froms.
-	 *
-	 * @return void
+	 * @var \Smaily_Options Instance of Smaily_Options.
 	 */
-	public function register()
-	{
-
-		// Show additional profile fields only if credentials are validated.
-		$result = Data_Handler::get_smaily_results();
-
-		// No subdomain before successful credential validation.
-		if (!empty($result['result']['subdomain'])) {
-			// Add fields to registration form and account area.
-			add_action('woocommerce_register_form', array($this, 'smaily_print_user_frontend_fields'), 10);
-			add_action('woocommerce_edit_account_form', array($this, 'smaily_print_user_frontend_fields'), 10);
-
-			// Show fields in checkout area.
-			add_filter('woocommerce_checkout_fields', array($this, 'smaily_checkout_fields'), 10, 1);
-
-			// Add checkbox to admin preferred location.
-			$cb_location = self::generate_checkbox_location();
-			add_action($cb_location, array($this, 'smaily_checkout_newsletter_checkbox'));
-
-			// Add fields to admin area.
-			add_action('show_user_profile', array($this, 'smaily_print_user_admin_fields'), 30); // admin: edit profile.
-			add_action('edit_user_profile', array($this, 'smaily_print_user_admin_fields'), 30); // admin: edit other users.
-
-			// Save registration fields.
-			add_action('woocommerce_created_customer', array($this, 'smaily_save_account_fields')); // register/checkout.
-			add_action('personal_options_update', array($this, 'smaily_save_account_fields')); // edit own account admin.
-			add_action('edit_user_profile_update', array($this, 'smaily_save_account_fields')); // edit other account admin.
-			add_action('woocommerce_save_account_details', array($this, 'smaily_save_account_fields')); // edit WC account.
-		}
-	}
+	private $options;
 
 	/**
-	 * Generates correctly formatted woocommerce hook based of plugin settings.
+	 * Constructor.
 	 *
-	 * @return string
+	 * @param \Smaily_Options $options Instance of Smaily_Options.
 	 */
-	public static function generate_checkbox_location()
+	public function __construct(\Smaily_Options $options)
 	{
-		$settings = Data_Handler::get_smaily_results()['result'];
-
-		$order    = $settings['checkbox_order'];
-		$location = $settings['checkbox_location'];
-
-		// Syntax - woocommerce_before_checkout_billing_form.
-		$location = 'woocommerce_' . $order . '_' . $location;
-
-		return $location;
+		$this->options = $options->get_settings();
 	}
 
 	/**
@@ -76,9 +31,9 @@ class ProfileSettings
 	 */
 	public function smaily_checkout_newsletter_checkbox()
 	{
-		$settings = Data_Handler::get_smaily_results()['result'];
-		$checked  = intval($settings['checkbox_auto_checked']);
-		$enabled  = intval($settings['enable_checkbox']);
+		$settings = $this->options;
+		$checked  = intval($settings['woocommerce']['checkbox_auto_checked']);
+		$enabled  = intval($settings['woocommerce']['checkout_checkbox_enabled']);
 		if ($enabled) {
 			$checkbox  = '<p class="form-row form-row-wide smaily-for-woocommerce-newsletter">';
 			$checkbox .= '<label class="checkbox woocommerce-form__label woocommerce-form__label-for-checkbox">';
@@ -133,10 +88,9 @@ class ProfileSettings
 	 */
 	public function smaily_get_account_fields()
 	{
-
 		// Get fields from sync_additional.
-		$result = Data_Handler::get_smaily_results();
-		if (!empty($result['syncronize_additional'])) {
+		$result = $this->options;
+		if (!empty($result['woocommerce']['syncronize_additional'])) {
 			// All custom fields available.
 			$fields_available = array(
 				'user_gender' => array(
@@ -191,7 +145,7 @@ class ProfileSettings
 			);
 
 			// Add only new fields selected from syncronize_additional.
-			$syncronize_additional = $result['syncronize_additional'];
+			$syncronize_additional = $result['woocommerce']['syncronize_additional'];
 			foreach ($syncronize_additional as $key) {
 				if (array_key_exists($key, $fields_available)) {
 					$add_fields[$key] = $fields_available[$key];
@@ -228,6 +182,7 @@ class ProfileSettings
 	 */
 	public function smaily_checkout_fields($checkout_fields)
 	{
+
 		// Get available account fields.
 		$fields = $this->smaily_get_account_fields();
 		// Fields to append to billing information.

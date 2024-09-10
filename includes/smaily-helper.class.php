@@ -22,6 +22,62 @@ class Smaily_Helper
     }
 
     /**
+     * Check if Contact Form 7 is active.
+     *
+     * @return bool True if Contact Form 7 is active, false otherwise.
+     */
+    public static function is_cf7_active()
+    {
+        if (function_exists('is_plugin_active')) {
+            return is_plugin_active('contact-form-7/wp-contact-form-7.php');
+        } else {
+            return class_exists('WPCF7');
+        }
+    }
+
+    /**
+     * Check if the user is on an admin view. Since is_admin itself is not as reliable, incorporate additional checks. 
+     *
+     * @return bool True if the view is for admins.
+     */
+    public static function is_admin_screen()
+    {
+        $request_uri = $_SERVER['REQUEST_URI'];
+
+        return (function_exists('is_admin') && is_admin() ||
+            (
+                strpos($request_uri, '/wp-admin/') !== false ||
+                strpos($request_uri, 'admin-ajax.php') !== false
+            )
+        );
+    }
+
+    /**
+     * Check if the request is made by a browser for assets like favicon.
+     *
+     * @return bool True if the request is likely made by the browser.
+     */
+    public static function is_browser_request()
+    {
+        $request_uri = $_SERVER['REQUEST_URI'];
+
+        // Check for common browser-initiated requests
+        $browser_requests = [
+            '/favicon.ico',
+            '/apple-touch-icon',
+            '/apple-touch-icon-precomposed'
+        ];
+
+        foreach ($browser_requests as $request) {
+            if (strpos($request_uri, $request) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Sanitize array data for input.
      *
      * @param array $array Array to sanitize.
@@ -80,30 +136,32 @@ class Smaily_Helper
     {
         $allowedtags = array();
         $allowed_atts = array(
-            'align'      => array(),
-            'class'      => array(),
-            'type'       => array(),
-            'id'         => array(),
-            'dir'        => array(),
-            'lang'       => array(),
-            'style'      => array(),
-            'alt'        => array(),
-            'href'       => array(),
-            'rel'        => array(),
-            'rev'        => array(),
-            'target'     => array(),
-            'novalidate' => array(),
-            'type'       => array(),
-            'value'      => array(),
-            'name'       => array(),
-            'tabindex'   => array(),
-            'action'     => array(),
-            'method'     => array(),
-            'for'        => array(),
-            'width'      => array(),
-            'height'     => array(),
-            'data'       => array(),
-            'title'      => array(),
+            'align'         => array(),
+            'class'         => array(),
+            'type'          => array(),
+            'id'            => array(),
+            'dir'           => array(),
+            'lang'          => array(),
+            'style'         => array(),
+            'alt'           => array(),
+            'href'          => array(),
+            'rel'           => array(),
+            'rev'           => array(),
+            'target'        => array(),
+            'novalidate'    => array(),
+            'type'          => array(),
+            'value'         => array(),
+            'name'          => array(),
+            'tabindex'      => array(),
+            'action'        => array(),
+            'method'        => array(),
+            'for'           => array(),
+            'width'         => array(),
+            'height'        => array(),
+            'data'          => array(),
+            'title'         => array(),
+            'placeholder'   => array(),
+            'required'      => array()
         );
         $allowedtags['form']     = $allowed_atts;
         $allowedtags['label']    = $allowed_atts;
@@ -111,6 +169,7 @@ class Smaily_Helper
         $allowedtags['textarea'] = $allowed_atts;
         $allowedtags['style']    = $allowed_atts;
         $allowedtags['strong']   = $allowed_atts;
+        $allowedtags['button']   = $allowed_atts;
         $allowedtags['small']    = $allowed_atts;
         $allowedtags['table']    = $allowed_atts;
         $allowedtags['span']     = $allowed_atts;

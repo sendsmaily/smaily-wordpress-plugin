@@ -82,6 +82,18 @@ class Smaily_Admin
             'validated'  => __('Smaily settings successfully saved!', 'smaily'),
             'data_error' => __('Something went wrong with saving data!', 'smaily'),
         ));
+
+        if (Smaily_Helper::is_woocommerce_active()) {
+            // Make rss url accssible in admin js
+
+            wp_add_inline_script(
+                $this->plugin_name,
+                'var smaily_settings = ' . wp_json_encode([
+                    'rss_feed_url' => Smaily_WC\Data_Handler::make_rss_feed_url()
+                ]) . ';',
+                'before'
+            );
+        }
     }
 
     /**
@@ -269,6 +281,8 @@ class Smaily_Admin
             return __('Please enter password!', 'smaily');
         }
 
+        Smaily_Request::set_credentials($params);
+
         // Validate credentials with get request.
         $rqst = Smaily_Request::get('workflows', array(
             'trigger_type' => 'form_submitted'
@@ -367,7 +381,9 @@ class Smaily_Admin
             $this->options->update_settings($woocommerce, 'woocommerce_settings');
         }
 
-        return array('error' => false);
+        $autoresponders = $this->get_autoresponders();
+
+        return array('error' => false, 'autoresponders' => $autoresponders);
     }
 
     /**

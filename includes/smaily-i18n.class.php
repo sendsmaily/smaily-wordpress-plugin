@@ -19,7 +19,7 @@ class Smaily_I18n
 		load_plugin_textdomain(
 			'smaily',
 			false,
-			plugin_basename(SMAILY_PLUGIN_PATH) . '/lang/'
+			plugin_basename(SMAILY_PLUGIN_PATH) . '/languages/'
 		);
 	}
 }

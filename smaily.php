@@ -38,27 +38,20 @@ define('SMAILY_PLUGIN_FILE', __FILE__);
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 /**
- * The core plugin class.
+ * The plugin lifecycle.
  */
-require SMAILY_PLUGIN_PATH . 'includes/smaily-lifecycle.class.php';
+
+require_once SMAILY_PLUGIN_PATH . 'includes/smaily-lifecycle.class.php';
 
 /**
  * The core plugin class.
  */
-require SMAILY_PLUGIN_PATH . 'includes/smaily.class.php';
+require_once SMAILY_PLUGIN_PATH . 'includes/smaily.class.php';
 
 /**
  * Begins execution of the plugin.
  *
- * Since everything within the plugin is registered via hooks,
- * then kicking off the plugin from this point in the file does
- * not affect the page life cycle.
- *
  */
-if (!function_exists('run_smaily')) {
-    function run_smaily()
-    {
-        new Smaily();
-    }
-    run_smaily();
+if (class_exists('Smaily')) {
+    new Smaily();
 }

@@ -50,7 +50,7 @@ class Data_Handler
 			$url   = get_permalink($prod->get_id());
 			$image = wp_get_attachment_image_src(get_post_thumbnail_id($prod->get_id()), 'single-post-thumbnail');
 
-			$image        = $image[0];
+			$image        = $image[0] ?? '';
 			$create_time  = strtotime($prod->get_date_created());
 			$price_fields = '';
 			if ($discount > 0) {

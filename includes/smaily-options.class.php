@@ -57,6 +57,10 @@ class Smaily_Options
 			if (Smaily_Helper::is_woocommerce_active()) {
 				$this->settings['woocommerce'] = $this->get_woocommerce_settings_from_db();
 			}
+
+			if (Smaily_Helper::is_cf7_active()) {
+				$this->settings['cf7'] = $this->get_cf7_settings_from_db();
+			}
 		}
 		return $this->settings;
 	}
@@ -130,6 +134,25 @@ class Smaily_Options
 				'rss_category' => '',
 				'rss_order_by' => 'modified',
 				'rss_order' => 'DESC'
+			),
+			$settings
+		);
+	}
+
+	/**
+	 * Get Contact Form 7 settings stored in database.
+	 *
+	 *
+	 * @access private
+	 * @return array   Smaily Contact Form 7 settings in proper format
+	 */
+	private function get_cf7_settings_from_db()
+	{
+		$settings = get_option('smaily_cf7_settings', array());
+		return array_merge(
+			array(
+				'autoresponder_id' => 0,
+				'is_enabled'       => 0
 			),
 			$settings
 		);
