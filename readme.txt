@@ -1,4 +1,4 @@
-=== Smaily combined ===
+=== Smaily ===
 Contributors: sendsmaily, kaarel, tomabel, marispulk, tanely
 Tags: woocommerce, smaily, newsletter, email, widget, plugin, sidebar, api, mail, marketing, contact form 7
 Requires PHP: 5.6

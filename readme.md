@@ -1,4 +1,4 @@
-# Smaily combined
+# Smaily
 
 Comprehensive Smaily integration for WordPress, WooCommerce, and Contact Form 7, offering seamless newsletter sign-up and automation features across your site.
 
