@@ -33,7 +33,7 @@ RUN wget -O /tmp/pcp.zip "https://downloads.wordpress.org/plugin/plugin-check.${
     && rm /tmp/pcp.zip
 
 # WooCommerce
-ENV WC_VERSION="9.2.3"
+ENV WC_VERSION="9.3.1"
 RUN wget -O /tmp/wc.zip "https://downloads.wordpress.org/plugin/woocommerce.${WC_VERSION}.zip" \
     && unzip /tmp/wc.zip -d  /usr/src/wordpress/wp-content/plugins \
     && rm /tmp/wc.zip
