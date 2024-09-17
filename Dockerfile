@@ -37,3 +37,8 @@ ENV WC_VERSION="9.3.1"
 RUN wget -O /tmp/wc.zip "https://downloads.wordpress.org/plugin/woocommerce.${WC_VERSION}.zip" \
     && unzip /tmp/wc.zip -d  /usr/src/wordpress/wp-content/plugins \
     && rm /tmp/wc.zip
+
+# MailHog
+RUN wget -O /tmp/mailhog.zip "https://downloads.wordpress.org/plugin/wp-mailhog-smtp.latest-stable.zip" \
+    && unzip /tmp/mailhog.zip -d  /usr/src/wordpress/wp-content/plugins \
+    && rm /tmp/mailhog.zip
