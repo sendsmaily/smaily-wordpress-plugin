@@ -13,7 +13,7 @@ services:
         define( 'WP_MAILHOG_HOST', 'mailhog' );
     volumes:
     - wordpress:/var/www/html
-    - ./:/var/www/html/wp-content/plugins/smaily-wordpress-plugin
+    - ./:/var/www/html/wp-content/plugins/smaily
 
   db:
     image: mysql:5.7
