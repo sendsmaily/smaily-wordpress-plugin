@@ -65,14 +65,14 @@ class Data_Handler
 			  <title><![CDATA[' . $prod->get_title() . ']]></title>
 			  <link>' . esc_url($url) . '</link>
 			  <guid isPermaLink="True">' . esc_url($url) . '</guid>
-			  <pubDate>' . date('D, d M Y H:i:s', $create_time) . '</pubDate>
+			  <pubDate>' . wp_date('D, d M Y H:i:s', $create_time) . '</pubDate>
 			  <description><![CDATA[' . $description . ']]></description>
 			  <enclosure url="' . esc_url($image) . '" />
 			  <smly:price>' . esc_attr($price) . '</smly:price>' . $price_fields . '
 			</item>
 			';
 		}
-		$rss  = '<?xml version="1.0" encoding="utf-8"?><rss xmlns:smly="https://sendsmaily.net/schema/editor/rss.xsd" version="2.0"><channel><title>Store</title><link>' . esc_url($base_url) . '</link><description>Product Feed</description><lastBuildDate>' . date('D, d M Y H:i:s') . '</lastBuildDate>';
+		$rss  = '<?xml version="1.0" encoding="utf-8"?><rss xmlns:smly="https://sendsmaily.net/schema/editor/rss.xsd" version="2.0"><channel><title>Store</title><link>' . esc_url($base_url) . '</link><description>Product Feed</description><lastBuildDate>' . wp_date('D, d M Y H:i:s') . '</lastBuildDate>';
 		$rss .= implode(' ', $items);
 		$rss .= '</channel></rss>';
 		header('Content-Type: application/xml');
