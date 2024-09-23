@@ -232,11 +232,14 @@ if ($has_woocommerce) {
 											'site_title'       => __('Site Title', 'smaily'),
 										);
 										// Add options for select and select them if allready saved before.
-										foreach ($sync_options as $value => $name) {
-											$selected = in_array($value, $sync_additional, true) ? 'selected' : '';
-											echo ("<option value='$value' $selected>$name</option>");
-										}
-										?>
+										foreach ($sync_options as $value => $name): ?>
+											<option 
+												value="<?= esc_html($value) ?>"
+												<?= in_array($value, $sync_additional, true) ? 'selected' : '' ?>
+											>
+												<?= esc_html($name) ?>
+											</option>
+											<?php endforeach ?>
 									</select>
 									<small class="form-text text-muted">
 										<?php
@@ -276,7 +279,10 @@ if ($has_woocommerce) {
 									<select id="abandoned-cart-autoresponder" name="abandoned_cart[autoresponder]">
 										<?php if (!empty($autoresponder_list)) : ?>
 											<?php foreach ($autoresponder_list as $autoresponder_id => $autoresponder_name) : ?>
-												<option <?php selected($cart_autoresponder_id, $autoresponder_id); ?> value="<?php echo $autoresponder_id; ?>">
+												<option
+													value="<?= esc_html($autoresponder_id) ?>"
+													<?php selected($cart_autoresponder_id, $autoresponder_id); ?>
+												>
 													<?php echo esc_html($autoresponder_name); ?>
 												</option>
 											<?php endforeach; ?>
@@ -310,11 +316,14 @@ if ($has_woocommerce) {
 											'product_images'    => __('Product Images', 'smaily')
 										);
 										// Add options for select and select them if allready saved before.
-										foreach ($cart_fields as $value => $name) {
-											$select = in_array($value, $cart_options, true) ? 'selected' : '';
-											echo ("<option value='$value' $select>$name</option>");
-										}
-										?>
+										foreach ($cart_fields as $value => $name): ?>
+											<option
+												value="<?= esc_html($value) ?>"
+												<?= in_array($value, $cart_options, true) ? 'selected' : '' ?>
+											>
+												<?= esc_html($name) ?>
+											</option>
+										<?php endforeach ?>
 									</select>
 									<small id="cart-options-help" class="form-text text-muted">
 										<?php
@@ -333,7 +342,7 @@ if ($has_woocommerce) {
 									</label>
 								</th>
 								<td> <?php echo esc_html__('Consider cart abandoned after:', 'smaily'); ?>
-									<input id="abandoned-cart-delay" name="abandoned_cart[delay]" style="width:65px;" value="<?php echo ($cart_cutoff) ? $cart_cutoff : ''; ?>" type="number" min="10" />
+									<input id="abandoned-cart-delay" name="abandoned_cart[delay]" style="width:65px;" value="<?php echo ($cart_cutoff) ? esc_html($cart_cutoff) : ''; ?>" type="number" min="10" />
 									<?php echo esc_html__('minute(s)', 'smaily'); ?>
 
 									<small class="form-text text-muted">
@@ -410,7 +419,10 @@ if ($has_woocommerce) {
 										// Display option and select saved value.
 										foreach ($cb_loc_available as $loc_value => $loc_translation) :
 										?>
-											<option value="<?php echo esc_html($loc_value); ?>" <?php echo $cb_loc_selected === $loc_value ? 'selected' : ''; ?>>
+											<option
+												value="<?php echo esc_html($loc_value); ?>"
+												<?php echo $cb_loc_selected === $loc_value ? 'selected' : ''; ?>
+											>
 												<?php echo esc_html($loc_translation); ?>
 											</option>
 										<?php endforeach; ?>
