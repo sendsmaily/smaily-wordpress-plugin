@@ -59,9 +59,9 @@ class Smaily_Widget extends WP_Widget
 		$failure_url   = isset($instance['failure_url']) ? $instance['failure_url'] : '';
 		$autoresponder = isset($instance['autoresponder']) ? $instance['autoresponder'] : '';
 
-		echo $args['before_widget'];
+		echo wp_kses_post($args['before_widget']);
 		if ($title) {
-			echo $args['before_title'] . $title . $args['after_title'];
+			echo wp_kses_post($args['before_title']) . esc_html($title) . wp_kses_post($args['after_title']);
 		}
 
 		// Load configuration data.
@@ -116,9 +116,11 @@ class Smaily_Widget extends WP_Widget
 		);
 
 		// Render template.
+		// Values are escaped in the template itself.
+		// phpcs:ignore  WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $template->render();
 
-		echo $args['after_widget'];
+		echo wp_kses_post($args['after_widget']);
 	}
 
 	/**
@@ -163,47 +165,43 @@ class Smaily_Widget extends WP_Widget
 		);
 
 		// Widget title.
-		$title_id          = esc_attr($this->get_field_id('title'));
-		$title_name        = esc_attr($this->get_field_name('title'));
-		$instance['title'] = esc_attr($instance['title']);
+		$title_id          = $this->get_field_id('title');
+		$title_name        = $this->get_field_name('title');
 		echo '<p>
-			<label for="' . $title_id . '">' . __('Title', 'smaily') . ':</label>
-			<input class="widefat" id="' . $title_id . '" name="' . $title_name . '" type="text" value="' . $instance['title'] . '" />
+			<label for="' . esc_attr($title_id) . '">' . esc_html__('Title', 'smaily') . ':</label>
+			<input class="widefat" id="' . esc_attr($title_id) . '" name="' . esc_attr($title_name) . '" type="text" value="' . esc_attr($instance['title']) . '" />
 		</p>';
 
 		// Display checkbox for name field.
-		$show_name_id          = esc_attr($this->get_field_id('show_name'));
-		$show_name_name        = esc_attr($this->get_field_name('show_name'));
+		$show_name_id          = $this->get_field_id('show_name');
+		$show_name_name        = $this->get_field_name('show_name');
 		$instance['show_name'] = esc_attr($instance['show_name']);
 		echo '<p>
-			<input class="checkbox" id="' . $show_name_id . '" name="' . $show_name_name . '" type="checkbox"' . ($instance['show_name'] ? 'checked' : '') . ' />
-			<label for="' . $show_name_id . '">' . __('Display name field?', 'smaily') . '</label>' .
+			<input class="checkbox" id="' . esc_attr($show_name_id) . '" name="' . esc_attr($show_name_name) . '" type="checkbox"' . ($instance['show_name'] ? 'checked' : '') . ' />
+			<label for="' . esc_attr($show_name_id) . '">' . esc_html__('Display name field?', 'smaily') . '</label>' .
 			'</p>';
 
 		// Display inputs for success/failure URLs.
-		$success_url_id          = esc_attr($this->get_field_id('success_url'));
-		$success_url             = esc_attr($this->get_field_name('success_url'));
-		$instance['success_url'] = esc_attr($instance['success_url']);
+		$success_url_id          = $this->get_field_id('success_url');
+		$success_url_name             = $this->get_field_name('success_url');
 		echo '<p>
-			<label for="' . $success_url_id . '">' . __('Success URL', 'smaily') . ':</label>
-			<input id="' . $success_url_id . '" name="' . $success_url . '" type="text" value="' . $instance['success_url'] . '" />
+			<label for="' . esc_attr($success_url_id) . '">' . esc_html__('Success URL', 'smaily') . ':</label>
+			<input id="' . esc_attr($success_url_id) . '" name="' . esc_attr($success_url_name) . '" type="text" value="' . esc_url($instance['success_url']) . '" />
 		</p>';
 
-		$failure_url_id          = esc_attr($this->get_field_id('failure_url'));
-		$failure_url             = esc_attr($this->get_field_name('failure_url'));
-		$instance['failure_url'] = esc_attr($instance['failure_url']);
+		$failure_url_id          = $this->get_field_id('failure_url');
+		$failure_url_name             = $this->get_field_name('failure_url');
 		echo '<p>
-			<label for="' . $failure_url_id . '">' . __('Failure URL', 'smaily') . ':</label>
-			<input id="' . $failure_url_id . '" name="' . $failure_url . '" type="text" value="' . $instance['failure_url'] . '" />
+			<label for="' . esc_attr($failure_url_id) . '">' . esc_html__('Failure URL', 'smaily') . ':</label>
+			<input id="' . esc_attr($failure_url_id) . '" name="' . esc_attr($failure_url_name) . '" type="text" value="' . esc_url($instance['failure_url']) . '" />
 		</p>';
 
 		// Display autoresponder select menu.
-		$autoresponder_id          = esc_attr($this->get_field_id('autoresponder'));
-		$autoresponder             = esc_attr($this->get_field_name('autoresponder'));
-		$instance['autoresponder'] = esc_attr($instance['autoresponder']);
+		$autoresponder_id          = $this->get_field_id('autoresponder');
+		$autoresponder             = $this->get_field_name('autoresponder');
 		echo '<p>
-			<label for="' . $autoresponder_id . '">' . esc_html__('Autoresponders', 'smaily') . ':</label>
-			<select id="' . $autoresponder_id . '" name="' . $autoresponder . '">
+			<label for="' . esc_attr($autoresponder_id) . '">' . esc_html__('Autoresponders', 'smaily') . ':</label>
+			<select id="' . esc_attr($autoresponder_id) . '" name="' . esc_attr($autoresponder) . '">
 			<option value="">' . esc_html__('No autoresponder', 'smaily') . '</option>';
 		foreach ($this->admin_model->get_autoresponders() as $id => $title) {
 			echo '<option value="' . esc_attr($id) . '"' . selected($instance['autoresponder'], $id, false) . '>' . esc_attr($title) . '</option>';

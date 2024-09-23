@@ -42,7 +42,22 @@ class Profile_Settings
 			$checkbox .= '</label>';
 			$checkbox .= '</p>';
 
-			echo $checkbox;
+			echo wp_kses($checkbox, array(
+				'p' => array(
+					'class' => array(),
+				),
+				'label' => array(
+					'class' => array(),
+				),
+				'input' => array(
+					'type' => array(),
+					'class' => array(),
+					'name' => array(),
+					'id' => array(),
+					'value' => array(),
+				),
+				'span' => array(),
+			));
 		}
 	}
 

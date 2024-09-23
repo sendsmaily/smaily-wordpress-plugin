@@ -76,7 +76,10 @@ class Data_Handler
 		$rss .= implode(' ', $items);
 		$rss .= '</channel></rss>';
 		header('Content-Type: application/xml');
-		echo $rss; // All values escaped before.
+
+		// All values escaped before.
+		// phpcs:ignore  WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $rss;
 	}
 
 	/**

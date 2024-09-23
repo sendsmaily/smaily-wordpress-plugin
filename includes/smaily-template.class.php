@@ -63,7 +63,7 @@ class Smaily_Template
 		$file_name = SMAILY_PLUGIN_PATH . $this->_template;
 		// Check for template file.
 		if (empty($this->_template) || !file_exists($file_name) || !is_readable($file_name)) {
-			throw new Exception('Could not find template "' . $file_name . '"! Please check for file existence.');
+			throw new Exception('Could not find template "' . esc_html($file_name) . '"! Please check for file existence.');
 			return false;
 		}
 
@@ -82,6 +82,8 @@ class Smaily_Template
 	 */
 	public function dispatch()
 	{
+		// Template tiself is responsible for excaping values.
+		// phpcs:ignore  WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $this->render();
 	}
 
