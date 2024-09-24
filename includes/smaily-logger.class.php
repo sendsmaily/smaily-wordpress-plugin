@@ -33,9 +33,6 @@ class Smaily_Logger
             return;
         }
 
-        global $wp_filesystem;
-        WP_Filesystem();
-
         $log_message = sprintf('[%s] %s: %s', current_time('mysql'), strtoupper($level), $message);
 
         // Check if the logs directory exists, if not create it.
