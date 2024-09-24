@@ -1,6 +1,6 @@
 <?php
 /**
- * We use file operations outside WP to make directories in recursive mode and appending logs to file end instead of writing empty files.
+ * We use file operations outside WP to make directories in recursive mode and appending logs to file end instead of always writing new files.
  * 
  * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_mkdir, WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
  */
