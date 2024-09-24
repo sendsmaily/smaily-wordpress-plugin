@@ -256,37 +256,37 @@ class Profile_Settings
 	}
 
 	/**
-	 *  Save registration fields
+	 *  Save registration fields during checkout customer creation or while editing your WC account.
 	 *
-	 * @param int $customer_id Customer id from WooCommerce.
+	 * @param int $customer_id Customer ID.
 	 * @return void
 	 */
-	public function smaily_save_account_fields($customer_id)
+	public function smaily_save_wc_account_fields($customer_id): void
 	{
-		// Get account field data.
-		$fields         = $this->smaily_get_account_fields();
-		$sanitized_data = array();
-
-		foreach ($fields as $key => $field_args) {
-			if (!$this->smaily_is_field_visible($field_args)) {
-				continue;
-			}
-
-			$sanitize = isset($field_args['sanitize']) ? $field_args['sanitize'] : 'wc_clean';
-			$value    = isset($_POST[$key]) ? call_user_func($sanitize, $_POST[$key]) : '';
-
-			if ($this->smaily_is_userdata($key)) {
-				$sanitized_data[$key] = $value;
-				continue;
-			}
-
-			update_user_meta($customer_id, $key, $value);
+		$nonce_val = isset($_REQUEST['save-account-details-nonce']) ? sanitize_text_field(wp_unslash($_REQUEST['save-account-details-nonce'])) : '';
+		if (! wp_verify_nonce(sanitize_key($nonce_val) , 'save_account_details') ) {
+			return;
 		}
 
-		if (!empty($sanitized_data)) {
-			$sanitized_data['ID'] = $customer_id;
-			wp_update_user($sanitized_data);
+		$sanitized_data = $this->sanitize_request_smaily_account_fields();
+		$this->save_account_fields($customer_id, $sanitized_data);
+	}
+
+	/**
+	 *  Save registration fields triggered from editing own account or other user accounts in admin area.
+	 *
+	 * @param int $user_id User ID.
+	 * @return void
+	 */
+	public function smaily_save_account_fields($user_id)
+	{
+		$nonce_val = isset($_REQUEST['_wpnonce']) ? sanitize_text_field(wp_unslash($_REQUEST['_wpnonce'])) : '';
+		if (! wp_verify_nonce(sanitize_key($nonce_val) , 'update-user_' . $user_id ) ) {
+			return;
 		}
+
+		$sanitized_data = $this->sanitize_request_smaily_account_fields();
+		$this->save_account_fields($user_id, $sanitized_data);
 	}
 
 
@@ -295,12 +295,66 @@ class Profile_Settings
 	 */
 
 	/**
-	 * Get currently editing user ID (frontend account/edit profile/edit other user)
+	 * Parses the request and returns array of selected customer synchronization additional fields that have been sanitized.
+	 * Nonce field should be verified prior to calling this function.
+	 * 
+	 * @return array
+	 */
+	private function sanitize_request_smaily_account_fields()
+	{
+		$fields = [];
+
+		foreach ($this->smaily_get_account_fields() as $key => $field_args) {
+			if (!$this->smaily_is_field_visible($field_args)) {
+				continue;
+			}
+
+			$sanitize = isset($field_args['sanitize']) ? $field_args['sanitize'] : 'wc_clean';
+			// Sanitization not picked up by linter.
+			// phpcs:ignore  WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
+			$value    = isset($_POST[$key]) ? call_user_func($sanitize, wp_unslash($_POST[$key])) : '';
+
+			$fields[$key] = $value;
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * Updates user metadata and user in the database.
+	 * 
+	 * @param int $user_id
+	 * @param array $fields
+	 * @return void
+	 */
+	private function save_account_fields($user_id, $fields)
+	{
+		$user_data = [];
+
+		foreach ($fields as $key => $value) {
+			if ($this->smaily_is_userdata(key: $key)) {
+				$user_data[$key] = $value;
+				continue;
+			}
+
+			update_user_meta($user_id, $key, $value);
+		}
+
+		if (!empty($user_data)) {
+			$sanitized_data['ID'] = $user_id;
+			wp_update_user($sanitized_data);
+		}
+	}
+
+	/**
+	 * Get currently editing user ID (frontend account/edit profile/edit other user).
+	 * Nonce field should be verified prior to calling this function.
 	 *
 	 * @return int $user_id Current user ID
 	 */
 	public function smaily_get_edit_user_id()
 	{
+		// phpcs:ignore  WordPress.Security.NonceVerification.Recommended
 		return isset($_GET['user_id']) ? (int) $_GET['user_id'] : get_current_user_id();
 	}
 

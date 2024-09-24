@@ -209,7 +209,6 @@ class Smaily
             $smaily_sub_sync = new \Smaily_WC\Subscriber_Synchronization($this->options);
 
             add_action('personal_options_update', array($smaily_sub_sync, 'smaily_newsletter_subscribe_update'), 11); // edit own account admin.
-
             add_action('edit_user_profile_update', array($smaily_sub_sync, 'smaily_newsletter_subscribe_update'), 11); // edit other account admin.
 
             // No subdomain before successful credential validation.
@@ -218,7 +217,6 @@ class Smaily
                 $smaily_profile_settings = new Smaily_WC\Profile_Settings($this->options);
 
                 add_action('personal_options_update', array($smaily_profile_settings, 'smaily_save_account_fields'), 10); // edit own account admin.
-
                 add_action('edit_user_profile_update', array($smaily_profile_settings, 'smaily_save_account_fields'), 10); // edit other account admin.
 
                 // Add fields to admin area.
@@ -284,9 +282,8 @@ class Smaily
                 add_action($location, array($smaily_profile_settings, 'smaily_checkout_newsletter_checkbox'));
 
                 // Save registration fields.
-                add_action('woocommerce_created_customer', array($smaily_profile_settings, 'smaily_save_account_fields'), 10); // register/checkout.
-
-                add_action('woocommerce_save_account_details', array($smaily_profile_settings, 'smaily_save_account_fields'), 10); // edit WC account.
+                add_action('woocommerce_created_customer', array($smaily_profile_settings, 'smaily_save_wc_account_fields'), 10); // register/checkout.
+                add_action('woocommerce_save_account_details', array($smaily_profile_settings, 'smaily_save_wc_account_fields'), 10); // edit WC account.
 
             }
         }
