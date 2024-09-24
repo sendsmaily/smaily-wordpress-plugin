@@ -161,7 +161,7 @@ class Smaily_Admin
             true
         );
 
-        wp_add_inline_script($this->plugin_name . '-subscription', 'const autoresponders = ' . json_encode($autoresponders), 'before');
+        wp_add_inline_script($this->plugin_name . '-subscription', "window.autoresponders = '" . wp_json_encode($autoresponders) . "';" , 'before');
     }
 
     /**
