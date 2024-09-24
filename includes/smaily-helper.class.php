@@ -36,12 +36,14 @@ class Smaily_Helper
     }
 
     /**
-     * Check if the user is on an admin view. Since is_admin itself is not as reliable, incorporate additional checks. 
+     * Check if the user is on an admin view. Since is_admin itself is not as reliable, incorporate additional checks.
      *
      * @return bool True if the view is for admins.
      */
     public static function is_admin_screen()
     {
+        // PHP auto populated field.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
         $request_uri = $_SERVER['REQUEST_URI'];
 
         return (function_exists('is_admin') && is_admin() ||
@@ -59,6 +61,8 @@ class Smaily_Helper
      */
     public static function is_browser_request()
     {
+        // PHP auto populated field.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
         $request_uri = $_SERVER['REQUEST_URI'];
 
         // Check for common browser-initiated requests
@@ -125,6 +129,8 @@ class Smaily_Helper
      */
     private static function is_html($string)
     {
+        // Consider script and style tags also part of HTML.
+        // phpcs:ignore  WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
         return $string !== strip_tags($string);
     }
 
