@@ -1,8 +1,10 @@
 <?php
-
 /**
  * Define all the logic related to plugin lifecycle
  *
+ * 
+ * Using custom database table that requires direct queries.
+ * @phpcs:disable WordPress.DB.DirectDatabaseQuery
  * @package    Smaily
  * @subpackage Smaily/includes
  */
@@ -82,9 +84,10 @@ class Smaily_Lifecycle
 
 		// Create smaily_abandoned_cart table if it does not exist.
 		$abandoned_table_name = $wpdb->prefix . 'smaily_abandoned_carts';
+		$query = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $abandoned_table_name));
 
 		// Check if the table already exists.
-		if ($wpdb->get_var("SHOW TABLES LIKE '$abandoned_table_name'") != $abandoned_table_name) {
+		if ($query != $abandoned_table_name) {
 			$abandoned = "CREATE TABLE $abandoned_table_name (
 				customer_id int(11) NOT NULL,
 				cart_updated datetime DEFAULT '0000-00-00 00:00:00',

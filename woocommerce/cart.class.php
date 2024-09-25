@@ -1,4 +1,9 @@
 <?php
+/**
+ * Using custom database table that requires direct queries.
+ * @phpcs:disable WordPress.DB.DirectDatabaseQuery
+ * 
+ */
 
 namespace Smaily_WC;
 
@@ -89,7 +94,6 @@ class Cart
 					array('customer_id' => $user_id)
 				);
 			} else {
-				// Delete cart if empty.
 				$wpdb->delete(
 					$table,
 					array(
