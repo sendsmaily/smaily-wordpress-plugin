@@ -1,14 +1,14 @@
 === Smaily ===
 Contributors: sendsmaily, kaarel, tomabel, marispulk, tanely
-Tags: woocommerce, smaily, newsletter, email, widget, plugin, sidebar, api, mail, marketing, contact form 7
+Tags: smaily, newsletter, email, mail, marketing
 Requires PHP: 5.6
 Requires at least: 4.5
 Tested up to: 8.1
 WC tested up to: 8.7.0
-Stable tag: 4.0.0
+Stable tag: 1.0.0
 License: GPLv3 or later
 
-Comprehensive Smaily integration for WordPress, WooCommerce, and Contact Form 7, offering seamless newsletter sign-up and automation features across your site.
+The Smaily plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution.
 
 == Description ==
 
