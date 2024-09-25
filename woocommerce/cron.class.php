@@ -1,4 +1,9 @@
 <?php
+/**
+ * Using custom database table that requires direct queries.
+ * @phpcs:disable WordPress.DB.DirectDatabaseQuery
+ * 
+ */
 
 namespace Smaily_WC;
 
@@ -88,8 +93,8 @@ class Cron
 			// Get all users with subscribed status.
 			$users = get_users(
 				array(
-					'meta_key'   => 'user_newsletter',
-					'meta_value' => 1,
+					'meta_key'   => 'user_newsletter', // phpcs:ignore WordPress.DB.SlowDBQuery
+					'meta_value' => 1, // phpcs:ignore WordPress.DB.SlowDBQuery
 				)
 			);
 
