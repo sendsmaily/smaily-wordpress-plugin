@@ -24,26 +24,67 @@ class Subscriber_Synchronization
 	}
 
 	/**
-	 * Make Api call with subscriber data when updating settings.
+	 * Make API call with subscriber data when updating user profile in admin page settings.
 	 *
-	 * @param [type] $user_id Id of the user being updated.
+	 * @param int $user_id ID of the user being updated.
 	 * @return void
 	 */
 	public function smaily_newsletter_subscribe_update($user_id)
 	{
+		$nonce_val = isset($_POST['_wpnonce']) ? sanitize_key(wp_unslash($_POST['_wpnonce'])) : '';
+		if (! wp_verify_nonce($nonce_val , 'update-user_' . $user_id ) ) {
+			return;
+		}
 
 		// Make API call for user transfer only if user is subscribed.
 		if (!isset($_POST['user_newsletter'])) {
 			return;
 		}
 
-		// Get user data from WordPress, WooCommerce and Custom fields.
-		$data = Data_Handler::get_user_data($user_id, $this->options);
+		$this->update_subscriber($user_id);
+	}
 
+	/**
+	 * Make API call with subscriber data when customer account is created.
+	 * 
+	 * @param integer $customer_id New customer ID.
+	 *
+	 * @return void
+	 */
+	public function smaily_wc_created_customer_update($customer_id)
+	{
+		$nonce_val = isset($_POST['woocommerce-process-checkout-nonce']) ? sanitize_key(wp_unslash($_POST['woocommerce-process-checkout-nonce'])) : '';
+		if (! wp_verify_nonce($nonce_val , 'woocommerce-process_checkout' ) ) {
+			return;
+		}
 
-		// Make API call to Smaily for subscriber update.
-		\Smaily_Request::post('contact', ['body' => $data]);
-		// Subscribed to newsletter.
+		// Make API call for user transfer only if user is subscribed.
+		if (!isset($_POST['user_newsletter'])) {
+			return;
+		}
+
+		$this->update_subscriber($customer_id);
+	}
+
+	/**
+	 * Make API call with subscriber data when customer account account details are updated.
+	 *
+	 * @param int $customer_ir ID of the customer.
+	 * @return void
+	 */
+	public function smaily_wc_newsletter_subscribe_update($customer_id)
+	{
+		$nonce_val = isset($_POST['save-account-details-nonce']) ? sanitize_key(wp_unslash($_POST['save-account-details-nonce'])) : '';
+		if (! wp_verify_nonce($nonce_val , 'save_account_details' ) ) {
+			return;
+		}
+
+		// Make API call for user transfer only if user is subscribed.
+		if (!isset($_POST['user_newsletter'])) {
+			return;
+		}
+
+		$this->update_subscriber($customer_id);
 	}
 
 	/**
@@ -54,6 +95,10 @@ class Subscriber_Synchronization
 	 */
 	public function smaily_checkout_subscribe_customer($order_id)
 	{
+		$nonce_val = isset($_POST['woocommerce-process-checkout-nonce']) ? sanitize_key(wp_unslash($_POST['woocommerce-process-checkout-nonce'])) : '';
+		if (! wp_verify_nonce($nonce_val , 'woocommerce-process_checkout' ) ) {
+			return;
+		}
 
 		if (!isset($_POST['user_newsletter'])) {
 			return;
@@ -105,6 +150,32 @@ class Subscriber_Synchronization
 		if (isset($data['email'])) {
 			\Smaily_Request::post('contact', ['body' => $data]);
 		}
-		// Subscribed to newsletter.
+	}
+
+	/**
+	 * Update subscriber with data defined by synchronize additional field options.
+	 * 
+	 * @param int $user_id
+	 * @return void
+	 */
+	private function update_subscriber($user_id)
+	{
+		// Get user data from WordPress, WooCommerce and Custom fields.
+		$data = Data_Handler::get_user_data($user_id, $this->options);
+
+		// Make API call to Smaily for subscriber update.
+		$response = \Smaily_Request::post('contact', ['body' => $data]);
+
+		if (empty($response)) {
+			\Smaily_Logger::error(sprintf('Updating subscriber with id "%d" failed with unknown error', $user_id));
+		}
+
+		if (isset($response['error'])) {
+			\Smaily_Logger::error(sprintf('Updating subscriber with id "%d" failed with an error: %s', $user_id, $response['error']));
+		}
+
+		if (isset($response['body']['code']) && $response['body']['code'] !== 101) {
+			\Smaily_Logger::error( sprintf("Updating subscriber failed: %s", wp_json_encode($response)));
+		}
 	}
 }

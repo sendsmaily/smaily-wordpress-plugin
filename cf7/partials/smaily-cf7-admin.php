@@ -8,7 +8,7 @@
  */
 
 ?>
-<?php if (!isset($_GET['post'])) : ?>
+<?php if (!isset($_GET['post'])): // phpcs:ignore  WordPress.Security.NonceVerification.Recommended?>
 	<div id='form-id-unknown'>
 		<p id='smailyforcf7-form-id-error' style='padding:15px; background-color:#f2dede; margin:0 0 10px;'>
 			<?php esc_html_e(
