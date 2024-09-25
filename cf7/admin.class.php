@@ -32,6 +32,11 @@ class Admin
      */
     public function save($args)
     {
+        $nonce_val = isset($_POST['_wpnonce']) ? sanitize_key(wp_unslash($_POST['_wpnonce'])) : '';
+        if (! wp_verify_nonce($nonce_val , 'wpcf7-save-contact-form_' . $args->id() ) ) {
+            return;
+        }
+
         $can_user_edit = current_user_can('wpcf7_edit_contact_form', $args->id());
 
         if (empty($_POST) || !$can_user_edit) {

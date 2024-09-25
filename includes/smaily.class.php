@@ -256,10 +256,9 @@ class Smaily
 
             $smaily_sub_sync = new \Smaily_WC\Subscriber_Synchronization($this->options);
 
-            add_action('woocommerce_created_customer', array($smaily_sub_sync, 'smaily_newsletter_subscribe_update'), 11); // register/checkout.
-            add_action('woocommerce_save_account_details', array($smaily_sub_sync, 'smaily_newsletter_subscribe_update'), 11); // edit WC account.
+            add_action('woocommerce_created_customer', array($smaily_sub_sync, 'smaily_wc_created_customer_update'), 11); // register/checkout.
+            add_action('woocommerce_save_account_details', array($smaily_sub_sync, 'smaily_wc_newsletter_subscribe_update'), 11); // edit WC account.
             add_action('woocommerce_checkout_order_processed', array($smaily_sub_sync, 'smaily_checkout_subscribe_customer')); // Checkout newsletter checkbox.
-
 
             // No subdomain before successful credential validation.
             if ($this->options->has_credentials()) {

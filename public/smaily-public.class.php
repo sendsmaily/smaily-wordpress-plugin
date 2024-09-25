@@ -106,11 +106,11 @@ class Smaily_Public
 		if ($credentials_not_valid) {
 			$form_has_response = true;
 			$response_message  = __('Smaily credentials not validated. Subscription form will not work!', 'smaily');
-		} elseif (isset($_GET['code']) && (int) $_GET['code'] === 101) {
+		} elseif (isset($_GET['code']) && (int) $_GET['code'] === 101) { // phpcs:ignore WordPress.Security.NonceVerification
 			$form_is_successful = true;
-		} elseif (isset($_GET['code']) || !empty($_GET['code'])) {
+		} elseif (isset($_GET['code']) || !empty($_GET['code'])) { // phpcs:ignore WordPress.Security.NonceVerification
 			$form_has_response = true;
-			switch ((int) $_GET['code']) {
+			switch ((int) $_GET['code']) { // phpcs:ignore WordPress.Security.NonceVerification
 				case 201:
 					$response_message = __('Form was not submitted using POST method.', 'smaily');
 					break;
