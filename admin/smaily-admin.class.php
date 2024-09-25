@@ -153,11 +153,12 @@ class Smaily_Admin
             );
         }
 
+        $blocks_assets = require(SMAILY_PLUGIN_PATH . 'blocks/index.asset.php');
         wp_enqueue_script(
             $this->plugin_name . '-subscription',
             SMAILY_PLUGIN_URL . '/blocks/index.js',
             array(),
-            false,
+            $blocks_assets['version'],
             true
         );
 
@@ -192,7 +193,7 @@ class Smaily_Admin
         }
 
         // Allow only posted data.
-        if (empty($_POST)) {
+        if (empty($_POST) || empty($_POST['payload'])) {
             echo wp_json_encode(
                 array(
                     'error' => __('Something went wrong, incorrect request method!', 'smaily'),
@@ -204,7 +205,9 @@ class Smaily_Admin
         // Parse form data out of the serialization.
         $form_data = array();
 
-        parse_str($_POST['payload'], $form_data);
+        // $form_data values should be sanitized instead of serialized payload.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 
+        parse_str(wp_unslash($_POST['payload']), $form_data);
 
         // Ensure nonce is valid.
         $nonce = isset($form_data['nonce']) ? $form_data['nonce'] : '';
