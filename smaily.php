@@ -2,12 +2,12 @@
 /*
  * Plugin Name:       Smaily
  * Text Domain:       smaily
- * Description:       Smaily integration plugin that includes WooCommerce and Contact Form 7 implementations.
+ * Description:       Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations.
  * Version:           1.0.0
  * Author:            Sendsmaily LLC
  * Author URI:        https://smaily.com
- * License:           GPL-2.0+
- * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
+ * License:           GPL-3.0+
+ * License URI:       https://www.gnu.org/licenses/gpl-3.0.en.html
 */
 
 if (!defined('ABSPATH')) {
