@@ -7,8 +7,8 @@
  * @subpackage Smaily/includes
  */
 
-class Smaily_Template
-{
+class Smaily_Template {
+
 
 	/**
 	 * Template name.
@@ -31,8 +31,7 @@ class Smaily_Template
 	 *
 	 * @param string $file Input file.
 	 */
-	public function __construct($file = null)
-	{
+	public function __construct( $file = null ) {
 		$this->_template = $file;
 	}
 
@@ -44,10 +43,9 @@ class Smaily_Template
 	 * @param  array  $params Template params.
 	 * @return string
 	 */
-	public function partial($template, $params = array())
-	{
-		$template = new self($template);
-		$template->assign($params);
+	public function partial( $template, $params = array() ) {
+		$template = new self( $template );
+		$template->assign( $params );
 		return $template->render();
 	}
 
@@ -58,18 +56,17 @@ class Smaily_Template
 	 * @return string|bool
 	 * @throws Exception Exeption.
 	 */
-	public function render()
-	{
+	public function render() {
 		$file_name = SMAILY_PLUGIN_PATH . $this->_template;
 		// Check for template file.
-		if (empty($this->_template) || !file_exists($file_name) || !is_readable($file_name)) {
-			throw new Exception('Could not find template "' . esc_html($file_name) . '"! Please check for file existence.');
+		if ( empty( $this->_template ) || ! file_exists( $file_name ) || ! is_readable( $file_name ) ) {
+			throw new Exception( 'Could not find template "' . esc_html( $file_name ) . '"! Please check for file existence.' );
 			return false;
 		}
 
 		// Output template.
 		ob_start();
-		include($file_name);
+		include $file_name;
 		$output = ob_get_contents();
 		ob_end_clean();
 		return $output;
@@ -80,8 +77,7 @@ class Smaily_Template
 	 *
 	 *
 	 */
-	public function dispatch()
-	{
+	public function dispatch() {
 		// Template tiself is responsible for excaping values.
 		// phpcs:ignore  WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $this->render();
@@ -95,14 +91,13 @@ class Smaily_Template
 	 * @param  object       $value [optional].
 	 * @return Smaily_Template
 	 */
-	public function assign($name, $value = null)
-	{
-		if (is_array($name) && !empty($name) && empty($value)) {
-			foreach ($name as $key => $value) {
-				$this->_vars[$key] = $value;
+	public function assign( $name, $value = null ) {
+		if ( is_array( $name ) && ! empty( $name ) && empty( $value ) ) {
+			foreach ( $name as $key => $value ) {
+				$this->_vars[ $key ] = $value;
 			}
-		} elseif (is_string($name) && !empty($name) && !empty($value)) {
-			$this->_vars[$name] = $value;
+		} elseif ( is_string( $name ) && ! empty( $name ) && ! empty( $value ) ) {
+			$this->_vars[ $name ] = $value;
 		}
 
 		return $this;
@@ -114,20 +109,19 @@ class Smaily_Template
 	 *
 	 * @return string $lang Language code.
 	 */
-	private function get_language_code()
-	{
+	private function get_language_code() {
 		// Language code if using WPML.
 		$lang = '';
-		if (defined('ICL_LANGUAGE_CODE')) {
+		if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
 			$lang = ICL_LANGUAGE_CODE;
 			// Language code if using polylang.
-		} elseif (function_exists('pll_current_language')) {
+		} elseif ( function_exists( 'pll_current_language' ) ) {
 			$lang = pll_current_language();
 		} else {
 			$lang = get_locale();
-			if (strlen($lang) > 0) {
+			if ( strlen( $lang ) > 0 ) {
 				// Remove any value past underscore if exists.
-				$lang = explode('_', $lang)[0];
+				$lang = explode( '_', $lang )[0];
 			}
 		}
 		return $lang;
@@ -139,8 +133,7 @@ class Smaily_Template
 	 *
 	 * @return array
 	 */
-	public function get_vars()
-	{
+	public function get_vars() {
 		return $this->_vars;
 	}
 
@@ -151,13 +144,12 @@ class Smaily_Template
 	 * @param  string $name Name.
 	 * @return string|object|void
 	 */
-	public function __get($name)
-	{
-		if (!is_string($name) || empty($name) || !isset($this->_vars[$name])) {
+	public function __get( $name ) {
+		if ( ! is_string( $name ) || empty( $name ) || ! isset( $this->_vars[ $name ] ) ) {
 			return '';
 		}
 
-		return $this->_vars[$name];
+		return $this->_vars[ $name ];
 	}
 
 	/**
@@ -167,8 +159,7 @@ class Smaily_Template
 	 * @param  string $name Name.
 	 * @param  object $value Value.
 	 */
-	public function __set($name, $value)
-	{
-		$this->_vars[$name] = $value;
+	public function __set( $name, $value ) {
+		$this->_vars[ $name ] = $value;
 	}
 }

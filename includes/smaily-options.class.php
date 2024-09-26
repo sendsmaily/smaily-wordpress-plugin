@@ -8,8 +8,8 @@
  * @subpackage Smaily/includes
  */
 
-class Smaily_Options
-{
+class Smaily_Options {
+
 
 	/**
 	 * Smaily API credentials
@@ -35,9 +35,8 @@ class Smaily_Options
 	 *
 	 * @return array   $api_credentials Smaily API credentials
 	 */
-	public function get_api_credentials()
-	{
-		if (is_null($this->api_credentials)) {
+	public function get_api_credentials() {
+		if ( is_null( $this->api_credentials ) ) {
 			$this->api_credentials = $this->get_api_credentials_from_db();
 		}
 		return $this->api_credentials;
@@ -49,16 +48,15 @@ class Smaily_Options
 	 *
 	 * @return array   $settings Newsletter signup form settings.
 	 */
-	public function get_settings()
-	{
-		if (is_null($this->settings)) {
+	public function get_settings() {
+		if ( is_null( $this->settings ) ) {
 			$this->settings = $this->get_form_options_from_db();
 
-			if (Smaily_Helper::is_woocommerce_active()) {
+			if ( Smaily_Helper::is_woocommerce_active() ) {
 				$this->settings['woocommerce'] = $this->get_woocommerce_settings_from_db();
 			}
 
-			if (Smaily_Helper::is_cf7_active()) {
+			if ( Smaily_Helper::is_cf7_active() ) {
 				$this->settings['cf7'] = $this->get_cf7_settings_from_db();
 			}
 		}
@@ -72,11 +70,10 @@ class Smaily_Options
 	 * @access private
 	 * @return array   API credentials in proper format.
 	 */
-	private function get_api_credentials_from_db()
-	{
-		$credentials = get_option('smaily_api_credentials', array());
+	private function get_api_credentials_from_db() {
+		$credentials = get_option( 'smaily_api_credentials', array() );
 
-		$credentials = !empty($credentials) ? $credentials : array();
+		$credentials = ! empty( $credentials ) ? $credentials : array();
 
 		return array_merge(
 			array(
@@ -95,13 +92,12 @@ class Smaily_Options
 	 * @access private
 	 * @return array   Smaily form options in proper format
 	 */
-	private function get_form_options_from_db()
-	{
-		$settings = get_option('smaily_form_options', array());
+	private function get_form_options_from_db() {
+		$settings = get_option( 'smaily_form_options', array() );
 		return array_merge(
 			array(
 				'form'        => '',
-				'is_advanced' => false
+				'is_advanced' => false,
 			),
 			$settings
 		);
@@ -114,26 +110,25 @@ class Smaily_Options
 	 * @access private
 	 * @return array   Smaily woocommerce settings in proper format
 	 */
-	private function get_woocommerce_settings_from_db()
-	{
-		$settings = get_option('smaily_woocommerce_settings', array());
+	private function get_woocommerce_settings_from_db() {
+		$settings = get_option( 'smaily_woocommerce_settings', array() );
 		return array_merge(
 			array(
-				'customer_sync_enabled' => 0,
-				'syncronize_additional' => array(),
-				'enable_cart' => 0,
-				'cart_autoresponder' => '',
-				'cart_autoresponder_id' => 0,
-				'cart_cutoff' => 0,
-				'cart_options' => array(),
+				'customer_sync_enabled'     => 0,
+				'syncronize_additional'     => array(),
+				'enable_cart'               => 0,
+				'cart_autoresponder'        => '',
+				'cart_autoresponder_id'     => 0,
+				'cart_cutoff'               => 0,
+				'cart_options'              => array(),
 				'checkout_checkbox_enabled' => 0,
-				'checkbox_auto_checked' => 0,
-				'checkbox_order' => 'after',
-				'checkbox_location' => 'checkout_billing_form',
-				'rss_limit' => 50,
-				'rss_category' => '',
-				'rss_order_by' => 'modified',
-				'rss_order' => 'DESC'
+				'checkbox_auto_checked'     => 0,
+				'checkbox_order'            => 'after',
+				'checkbox_location'         => 'checkout_billing_form',
+				'rss_limit'                 => 50,
+				'rss_category'              => '',
+				'rss_order_by'              => 'modified',
+				'rss_order'                 => 'DESC',
 			),
 			$settings
 		);
@@ -146,13 +141,12 @@ class Smaily_Options
 	 * @access private
 	 * @return array   Smaily Contact Form 7 settings in proper format
 	 */
-	private function get_cf7_settings_from_db()
-	{
-		$settings = get_option('smaily_cf7_settings', array());
+	private function get_cf7_settings_from_db() {
+		$settings = get_option( 'smaily_cf7_settings', array() );
 		return array_merge(
 			array(
 				'autoresponder_id' => 0,
-				'is_enabled'       => 0
+				'is_enabled'       => 0,
 			),
 			$settings
 		);
@@ -164,13 +158,12 @@ class Smaily_Options
 	 *
 	 * @param array $api_credentials Smaily API credentials.
 	 */
-	public function update_api_credentials($api_credentials)
-	{
+	public function update_api_credentials( $api_credentials ) {
 		// Update_option will sanitize input before saving. We should sanitize as well.
-		if (is_array($api_credentials)) {
-			$this->api_credentials = array_map('sanitize_text_field', $api_credentials);
+		if ( is_array( $api_credentials ) ) {
+			$this->api_credentials = array_map( 'sanitize_text_field', $api_credentials );
 		}
-		update_option('smaily_api_credentials', $this->api_credentials, false);
+		update_option( 'smaily_api_credentials', $this->api_credentials, false );
 	}
 
 	/**
@@ -178,13 +171,12 @@ class Smaily_Options
 	 *
 	 * @param array $settings Smaily settings.
 	 */
-	public function update_settings($settings, $settings_type = 'form_options')
-	{
-		if (is_array($settings)) {
-			$settings = Smaily_Helper::sanitize_array($settings);
+	public function update_settings( $settings, $settings_type = 'form_options' ) {
+		if ( is_array( $settings ) ) {
+			$settings       = Smaily_Helper::sanitize_array( $settings );
 			$this->settings = $settings;
 		}
-		update_option('smaily_' . $settings_type, $settings);
+		update_option( 'smaily_' . $settings_type, $settings );
 	}
 
 	/**
@@ -193,9 +185,8 @@ class Smaily_Options
 	 *
 	 * @return boolean True if $api_credentials has correct key structure and no empty values.
 	 */
-	public function has_credentials()
-	{
+	public function has_credentials() {
 		$api_credentials = $this->get_api_credentials();
-		return !empty($api_credentials['subdomain']) && !empty($api_credentials['username']) && !empty($api_credentials['password']);
+		return ! empty( $api_credentials['subdomain'] ) && ! empty( $api_credentials['username'] ) && ! empty( $api_credentials['password'] );
 	}
 }

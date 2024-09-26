@@ -1,0 +1,21 @@
+{
+    "name": "smaily/smaily-wordpress-plugin",
+    "description": "The Smaily plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution",
+    "type": "project",
+    "license": "GPL-3",
+    "minimum-stability": "stable",
+    "require-dev": {
+        "squizlabs/php_codesniffer": "^3.10",
+        "wp-coding-standards/wpcs": "^3.1",
+        "phpcompatibility/phpcompatibility-wp": "^2.1"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "scripts": {
+        "lint": "phpcs .",
+        "format": "phpcbf ."
+    }
+}
