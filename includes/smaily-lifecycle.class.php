@@ -2,28 +2,27 @@
 /**
  * Define all the logic related to plugin lifecycle
  *
- * 
+ *
  * Using custom database table that requires direct queries.
  * @phpcs:disable WordPress.DB.DirectDatabaseQuery
  * @package    Smaily
  * @subpackage Smaily/includes
  */
 
-class Smaily_Lifecycle
-{
+class Smaily_Lifecycle {
+
 
 	/**
 	 * Callback for plugin activation hook.
 	 *
 	 */
-	public function activate()
-	{
-		if (class_exists('WooCommerce')) {
+	public function activate() {
+		if ( class_exists( 'WooCommerce' ) ) {
 			$this->create_woocommerce_tables();
 			$this->set_scheduled_actions();
 
 			// Set to flush rewrite rules during init action if not yet flushed.
-			update_option('smaily_flush_rewrite_rules', true);
+			update_option( 'smaily_flush_rewrite_rules', true );
 		}
 
 		$this->run_migrations();
@@ -38,25 +37,24 @@ class Smaily_Lifecycle
 	 * - Sending abandoned cart emails every 15 minutes.
 	 * Additionally, it flushes the rewrite rules.
 	 */
-	private function set_scheduled_actions()
-	{
+	private function set_scheduled_actions() {
 
 		// Check if the daily sync action is already scheduled.
-		if (!wp_next_scheduled('smaily_cron_sync_contacts')) {
+		if ( ! wp_next_scheduled( 'smaily_cron_sync_contacts' ) ) {
 			// Add Cron job to sync customers.
-			wp_schedule_event(time(), 'daily', 'smaily_cron_sync_contacts');
+			wp_schedule_event( time(), 'daily', 'smaily_cron_sync_contacts' );
 		}
 
 		// Check if the abandoned cart status action is already scheduled.
-		if (!wp_next_scheduled('smaily_cron_abandoned_carts_status')) {
+		if ( ! wp_next_scheduled( 'smaily_cron_abandoned_carts_status' ) ) {
 			// Schedule event to track abandoned statuses.
-			wp_schedule_event(time(), 'smaily_15_minutes', 'smaily_cron_abandoned_carts_status');
+			wp_schedule_event( time(), 'smaily_15_minutes', 'smaily_cron_abandoned_carts_status' );
 		}
 
 		// Check if the abandoned cart email action is already scheduled.
-		if (!wp_next_scheduled('smaily_cron_abandoned_carts_email')) {
+		if ( ! wp_next_scheduled( 'smaily_cron_abandoned_carts_email' ) ) {
 			// Schedule event to send emails.
-			wp_schedule_event(time(), 'smaily_15_minutes', 'smaily_cron_abandoned_carts_email');
+			wp_schedule_event( time(), 'smaily_15_minutes', 'smaily_cron_abandoned_carts_email' );
 		}
 	}
 
@@ -64,30 +62,28 @@ class Smaily_Lifecycle
 	 * Checks if additional featured plugins are being activated, creates tables if needed and schedules events
 	 *
 	 */
-	public function check_for_dependency($plugin, $network)
-	{
-		if ($plugin == 'woocommerce/woocommerce.php') {
+	public function check_for_dependency( $plugin, $network ) {
+		if ( $plugin === 'woocommerce/woocommerce.php' ) {
 			$this->create_woocommerce_tables();
 			$this->set_scheduled_actions();
-			update_option('smaily_flush_rewrite_rules', true);
+			update_option( 'smaily_flush_rewrite_rules', true );
 		}
 	}
 
 	/**
-	 * Check if woocommerce related tables have been created, if not create 
+	 * Check if woocommerce related tables have been created, if not create
 	 */
-	private function create_woocommerce_tables()
-	{
+	private function create_woocommerce_tables() {
 		global $wpdb;
 
 		$charset_collate = $wpdb->get_charset_collate();
 
 		// Create smaily_abandoned_cart table if it does not exist.
 		$abandoned_table_name = $wpdb->prefix . 'smaily_abandoned_carts';
-		$query = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $abandoned_table_name));
+		$query                = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $abandoned_table_name ) );
 
 		// Check if the table already exists.
-		if ($query != $abandoned_table_name) {
+		if ( $query !== $abandoned_table_name ) {
 			$abandoned = "CREATE TABLE $abandoned_table_name (
 				customer_id int(11) NOT NULL,
 				cart_updated datetime DEFAULT '0000-00-00 00:00:00',
@@ -98,43 +94,40 @@ class Smaily_Lifecycle
 				mail_sent_time datetime DEFAULT '0000-00-00 00:00:00',
 				PRIMARY KEY  (customer_id)
 			) $charset_collate;";
-			require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-			dbDelta($abandoned);
+			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+			dbDelta( $abandoned );
 		}
 	}
-
 
 	/**
 	 * Callback for plugin deactivation hook.
 	 *
 	 */
-	public function deactivate()
-	{
+	public function deactivate() {
 		// Flush rewrite rules.
 		flush_rewrite_rules();
 		// Stop Cron.
-		wp_clear_scheduled_hook('smaily_cron_sync_contacts');
-		wp_clear_scheduled_hook('smaily_cron_abandoned_carts_email');
-		wp_clear_scheduled_hook('smaily_cron_abandoned_carts_status');
+		wp_clear_scheduled_hook( 'smaily_cron_sync_contacts' );
+		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_email' );
+		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_status' );
 	}
 
 	/**
 	 * Callback for plugin uninstall hook.
 	 *
 	 */
-	public static function uninstall()
-	{
+	public static function uninstall() {
 		global $wpdb;
 
 		// Delete Smaily plugin abandoned cart table.
-		$wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}smaily_abandoned_carts");
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}smaily_abandoned_carts" );
 
-		delete_option('smaily_form_options');
-		delete_option('smaily_api_credentials');
-		delete_option('smaily_woocommerce_settings');
-		delete_option('smaily_cf7_settings');
-		delete_option('smaily_db_version');
-		delete_transient('smaily_plugin_updated');
+		delete_option( 'smaily_form_options' );
+		delete_option( 'smaily_api_credentials' );
+		delete_option( 'smaily_woocommerce_settings' );
+		delete_option( 'smaily_cf7_settings' );
+		delete_option( 'smaily_db_version' );
+		delete_transient( 'smaily_plugin_updated' );
 	}
 
 	/**
@@ -143,13 +136,12 @@ class Smaily_Lifecycle
 	 * Start migrations if plugin was updated.
 	 *
 	 */
-	public function update()
-	{
-		if (get_transient('smaily_plugin_updated') !== true) {
+	public function update() {
+		if ( get_transient( 'smaily_plugin_updated' ) !== true ) {
 			return;
 		}
 		$this->run_migrations();
-		delete_transient('smaily_plugin_updated');
+		delete_transient( 'smaily_plugin_updated' );
 	}
 
 	/**
@@ -161,21 +153,20 @@ class Smaily_Lifecycle
 	 * @param Plugin_Upgrader $upgrader_object Instance of WP_Upgrader.
 	 * @param array           $options         Array of bulk item update data.
 	 */
-	public function check_for_update($upgrader_object, $options)
-	{
-		$smaily_basename = plugin_basename(SMAILY_PLUGIN_FILE);
+	public function check_for_update( $upgrader_object, $options ) {
+		$smaily_basename = plugin_basename( SMAILY_PLUGIN_FILE );
 
 		$plugin_was_updated = $options['action'] === 'update' && $options['type'] === 'plugin';
-		if (!isset($options['plugins']) || !$plugin_was_updated) {
+		if ( ! isset( $options['plugins'] ) || ! $plugin_was_updated ) {
 			return;
 		}
 
 		// $options['plugins'] is string during single update, array if multiple plugins updated.
 		$updated_plugins = (array) $options['plugins'];
 
-		foreach ($updated_plugins as $plugin_basename) {
-			if ($smaily_basename === $plugin_basename) {
-				return set_transient('smaily_plugin_updated', true);
+		foreach ( $updated_plugins as $plugin_basename ) {
+			if ( $smaily_basename === $plugin_basename ) {
+				return set_transient( 'smaily_plugin_updated', true );
 			}
 		}
 	}
@@ -187,36 +178,35 @@ class Smaily_Lifecycle
 	 *
 	 * @access private
 	 */
-	private function run_migrations()
-	{
+	private function run_migrations() {
 		$plugin_version = SMAILY_PLUGIN_VERSION;
-		$db_version     = get_option('smaily_db_version', '0.0.0');
+		$db_version     = get_option( 'smaily_db_version', '0.0.0' );
 
-		if ($plugin_version === $db_version) {
+		if ( $plugin_version === $db_version ) {
 			return;
 		}
 
 		$migrations = array();
 
-		foreach ($migrations as $migration_version => $migration_file) {
+		foreach ( $migrations as $migration_version => $migration_file ) {
 			// Database is up-to-date with plugin version.
-			if (version_compare($db_version, $migration_version, '>=')) {
+			if ( version_compare( $db_version, $migration_version, '>=' ) ) {
 				continue;
 			}
 
 			$migration_file = SMAILY_PLUGIN_PATH . 'migrations/' . $migration_file;
-			if (!file_exists($migration_file)) {
+			if ( ! file_exists( $migration_file ) ) {
 				continue;
 			}
 
 			$upgrade = null;
 			require_once $migration_file;
-			if (is_callable($upgrade)) {
+			if ( is_callable( $upgrade ) ) {
 				$upgrade();
 			}
 		}
 
 		// Migrations finished.
-		update_option('smaily_db_version', $plugin_version);
+		update_option( 'smaily_db_version', $plugin_version );
 	}
 }

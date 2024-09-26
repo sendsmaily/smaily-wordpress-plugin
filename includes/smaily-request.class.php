@@ -7,8 +7,8 @@
  * @subpackage Smaily/includes
  */
 
-class Smaily_Request
-{
+class Smaily_Request {
+
 
 	/**
 	 * Smaily API Username.
@@ -41,11 +41,10 @@ class Smaily_Request
 	 * @param  string $username Smaily API Username.
 	 * @param  string $password Smaily API Password.
 	 */
-	public static function set_credentials($credentials)
-	{
-		self::$_subdomain 	= $credentials['subdomain'];
-		self::$_username 	= $credentials['username'];
-		self::$_password 	= $credentials['password'];
+	public static function set_credentials( $credentials ) {
+		self::$_subdomain = $credentials['subdomain'];
+		self::$_username  = $credentials['username'];
+		self::$_password  = $credentials['password'];
 	}
 
 	/**
@@ -54,32 +53,31 @@ class Smaily_Request
 	 *
 	 * @return array $response. Data recieved back from making the request.
 	 */
-	public static function request(string $endpoint, array $data, $method = 'GET')
-	{
+	public static function request( string $endpoint, array $data, $method = 'GET' ) {
 		$response  = array();
-		$useragent = 'smaily/' . SMAILY_PLUGIN_VERSION . ' (WordPress/' . get_bloginfo('version') . '; +' . get_bloginfo('url') . ')';
+		$useragent = 'smaily/' . SMAILY_PLUGIN_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . '; +' . get_bloginfo( 'url' ) . ')';
 		$args      = array(
 			'headers'    => array(
-				'Authorization' => 'Basic ' . base64_encode(self::$_username . ':' . self::$_password),
+				'Authorization' => 'Basic ' . base64_encode( self::$_username . ':' . self::$_password ),
 			),
 			'user-agent' => $useragent,
 		);
 
-		switch ($method) {
+		switch ( $method ) {
 			case 'GET':
-				$api_call  = wp_remote_get('https://' . self::$_subdomain . '.sendsmaily.net/api/' . $endpoint . '.php?' . http_build_query($data), $args);
+				$api_call = wp_remote_get( 'https://' . self::$_subdomain . '.sendsmaily.net/api/' . $endpoint . '.php?' . http_build_query( $data ), $args );
 				break;
 			case 'POST':
-				$api_call  = wp_remote_post('https://' . self::$_subdomain . '.sendsmaily.net/api/' . $endpoint . '.php', array_merge($args, $data));
+				$api_call = wp_remote_post( 'https://' . self::$_subdomain . '.sendsmaily.net/api/' . $endpoint . '.php', array_merge( $args, $data ) );
 				break;
 		}
 
 		// Response code from Smaily API.
-		if (is_wp_error($api_call)) {
-			$response = array('error' => $api_call->get_error_message());
+		if ( is_wp_error( $api_call ) ) {
+			$response = array( 'error' => $api_call->get_error_message() );
 		}
-		$response['body'] = json_decode(wp_remote_retrieve_body($api_call), true);
-		$response['code'] = wp_remote_retrieve_response_code($api_call);
+		$response['body'] = json_decode( wp_remote_retrieve_body( $api_call ), true );
+		$response['code'] = wp_remote_retrieve_response_code( $api_call );
 
 		return $response;
 	}
@@ -90,9 +88,8 @@ class Smaily_Request
 	 *
 	 * @return array $response. Data recieved back from making the request.
 	 */
-	public static function get(string $endpoint, array $data)
-	{
-		return self::request($endpoint, $data, 'GET');
+	public static function get( string $endpoint, array $data ) {
+		return self::request( $endpoint, $data, 'GET' );
 	}
 
 	/**
@@ -101,8 +98,7 @@ class Smaily_Request
 	 *
 	 * @return array $response. Data recieved back from making the request.
 	 */
-	public static function post(string $endpoint, array $data)
-	{
-		return self::request($endpoint, $data, 'POST');
+	public static function post( string $endpoint, array $data ) {
+		return self::request( $endpoint, $data, 'POST' );
 	}
 }

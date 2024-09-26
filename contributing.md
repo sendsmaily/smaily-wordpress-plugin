@@ -9,6 +9,9 @@ First off, thanks for taking the time to contribute!
   - [Starting the environment](#starting-the-environment)
   - [Stopping the environment](#stopping-the-environment)
   - [Resetting the environment](#resetting-the-environment)
+  - [Developing the plugin](#developing-the-plugin)
+    - [Development options](#development-options)
+    - [Code Sniffing and Linting](#code-sniffing-and-linting)
 
 # Getting started
 
@@ -69,3 +72,38 @@ Environment can be stopped by executing:
 If you need to reset the installation, just simply delete environment's Docker volumes. Easiest way to achieve this is by running:
 
     $ docker compose down --remove-orphans --volumes
+
+## Developing the plugin
+
+### Development options
+
+This module can be developed both locally and in a containerized environment. Visual Studio Code offers support for developing the plugin inside a remote container, providing the following benefits:
+
+- IntelliSense Support: Access to IntelliSense for WordPress internal functions, enhancing the development experience.
+- Seamless Environment: The remote container replicates the WordPress environment, reducing compatibility issues.
+
+For quick edits or when a remote container is not required, you can also modify the files directly on your local machine. These changes will be immediately reflected in the running WordPress instance.
+
+### Code Sniffing and Linting
+
+This repository uses PHP CodeSniffer with specific rules defined in the `phpcs.xml` file. To run the code sniffer locally, you need to have [Composer](https://getcomposer.org/) installed. The remote container environment is already set up with Composer.
+
+To install PHP CodeSniffer and the required coding standards, run the following command:
+
+```
+$ composer install
+```
+
+> **Note!** When running the command inside container the `vendor` directory is created with `root` permissions. This may cause issues when executing Composer-related functions locally afterwards.
+
+You can check for linting errors by executing:
+
+```
+$ composer run lint
+```
+
+Some reported errors can be automatically fixed. To apply these fixes, run:
+
+```
+$ composer run format
+```
