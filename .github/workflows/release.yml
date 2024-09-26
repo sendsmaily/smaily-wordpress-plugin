@@ -1,0 +1,51 @@
+name: Build release package
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      WP_PLUGIN_NAME: smaily
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        path: ${{ env.WP_PLUGIN_NAME }}
+
+    - name: Compress ZIP
+      uses: thedoctor0/zip-release@0.7.5
+      with:
+        filename: build.zip
+        path: ${{ env.WP_PLUGIN_NAME }}
+        exclusions: >
+          /${{ env.WP_PLUGIN_NAME }}/.git*
+          /${{ env.WP_PLUGIN_NAME }}/.vscode*
+          /${{ env.WP_PLUGIN_NAME }}/assets*
+          /${{ env.WP_PLUGIN_NAME }}/compose.yaml
+          /${{ env.WP_PLUGIN_NAME }}/composer.json
+          /${{ env.WP_PLUGIN_NAME }}/composer.lock
+          /${{ env.WP_PLUGIN_NAME }}/contributing.md
+          /${{ env.WP_PLUGIN_NAME }}/Dockerfile
+          /${{ env.WP_PLUGIN_NAME }}/languages/*
+          /${{ env.WP_PLUGIN_NAME }}/phpcs.xml
+          /${{ env.WP_PLUGIN_NAME }}/readme.md
+          /${{ env.WP_PLUGIN_NAME }}/release.sh
+
+    - name: Get release URL
+      id: get_release_url
+      uses: bruceadams/get-release@v1.3.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload release assets
+      uses: actions/upload-release-asset@v1.0.2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release_url.outputs.upload_url }}
+        asset_path: ./build.zip
+        asset_name: ${{ env.WP_PLUGIN_NAME }}.zip
+        asset_content_type: application/zip
