@@ -29,7 +29,6 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 ### 1.0.0
 - Combined Smaily for Contact Form 7, Smaily for WP, and Smaily for WooCommerce into a single plugin for a streamlined experience.
-- Added support for WordPress 6.2.
 - Integrated advanced form options and autoresponder support across all platforms.
 
 ### Previous Entries

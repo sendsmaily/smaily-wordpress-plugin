@@ -3,7 +3,7 @@ Contributors: sendsmaily, kaarel, tomabel, marispulk, tanely
 Tags: smaily, newsletter, email, mail, marketing
 Requires PHP: 5.6
 Requires at least: 4.5
-Tested up to: 8.1
+Tested up to: 6.7
 WC tested up to: 8.7.0
 Stable tag: 1.0.0
 License: GPLv3 or later
@@ -41,7 +41,6 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 ### 1.0.0
 - Combined Smaily for Contact Form 7, Smaily for WP, and Smaily for WooCommerce into a single plugin for a streamlined experience.
-- Added support for WordPress 6.2.
 - Integrated advanced form options and autoresponder support across all platforms.
 
 ### Previous Entries
