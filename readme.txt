@@ -28,6 +28,22 @@ Smaily plugin now combines the flexibility of Contact Form 7 and WooCommerce wit
 
 For documentation, feature requests, and support, visit our [Help Center](https://smaily.com/help/user-manuals/).
 
+== External services ==
+
+This plugin uses [Smaily Public API](https://smaily.com/help/api/) to communicate with your Smaily account. This is needed to establish a connection
+and transfer information between your WordPress site and your Smaily account. The plugin uses the API for following functionality:
+
+- validating Smaily account connection with API key
+- listing available automation workflows
+- triggering automation workflows on form submissions and during sending abandoned cart reminders
+- managing user subscription status during customer synchronization
+- updating user subscription status when unsubscribing from newsletters
+
+You can manage how much information is shared between your WordPress site and Smaily account by configuring the plugin settings.
+
+Privacy Policy: [Smaily Privacy Policy](https://smaily.com/privacy-policy/)
+Terms of Service: [Smaily Terms of Service](https://smaily.com/terms-of-service/)
+
 = Contribute =
 
 Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-wordpress-plugin). We welcome new issues and pull requests.
