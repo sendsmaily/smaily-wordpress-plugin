@@ -10,6 +10,13 @@
  */
 
 class Smaily_Lifecycle {
+
+	/**
+	 * Service name.
+	 * @var string
+	 */
+	const SERVICE = 'lifecycle';
+
 	/**
 	 * Callback for plugin activation hook.
 	 *
@@ -26,7 +33,7 @@ class Smaily_Lifecycle {
 		Smaily_Logger::create_log_tables();
 		$this->run_migrations();
 
-		Smaily_Logger::info( 'Plugin activated' );
+		Smaily_Logger::info( 'Plugin activated', self::SERVICE );
 	}
 
 	/**
@@ -112,7 +119,7 @@ class Smaily_Lifecycle {
 		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_email' );
 		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_status' );
 
-		Smaily_Logger::info( 'Plugin deactivated' );
+		Smaily_Logger::info( 'Plugin deactivated', self::SERVICE );
 	}
 
 	/**

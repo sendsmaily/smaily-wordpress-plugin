@@ -14,6 +14,12 @@ namespace Smaily_WC;
 class Cron {
 
 	/**
+	 * Service name.
+	 * @var string
+	 */
+	const SERVICE = 'cron';
+
+	/**
 	 * @var \Smaily_Options Instance of Smaily_Options.
 	 */
 	private $options;
@@ -49,67 +55,88 @@ class Cron {
 	 * @return void
 	 */
 	public function smaily_sync_contacts() {
-
 		$results = $this->options->get_settings();
 
 		// Check if contact sync is enabled.
-		if ( (int) $results['woocommerce']['customer_sync_enabled'] === 1 ) {
+		if ( (int) $results['woocommerce']['customer_sync_enabled'] !== 1 ) {
+			return;
+		}
 
-			// List value 2  = unsubscribers list.
-			$data = array(
-				'list' => 2,
-			);
+		// List value 2  = unsubscribers list.
+		$data = array(
+			'list' => 2,
+		);
 
-			// Make API call to Smaily to get unsubscribers.
-			$unsubscribers = \Smaily_Request::get( 'contact', $data );
+		// Make API call to Smaily to get unsubscribers.
+		$response = \Smaily_Request::get( 'contact', $data );
 
-			if ( $unsubscribers['code'] !== 200 ) {
-				\Smaily_Logger::warning( 'Unable to retrieve unsubsribed users!' );
-				return;
+		if ( empty( $response ) ) {
+			\Smaily_Logger::error( 'Failed to get unsubscribers - received an empty response', self::SERVICE );
+		}
+
+		if ( isset( $response['error'] ) ) {
+			\Smaily_Logger::error( sprintf( 'Receiving unsusbsribers failed with an error: %s', $response['error'] ), self::SERVICE );
+		}
+
+		if ( isset( $response['code'] ) && $response['code'] !== 200 ) {
+			\Smaily_Logger::error( sprintf( 'Unable to retrieve unsubscribed users: %s', wp_json_encode( $response ) ), self::SERVICE );
+			return;
+		}
+
+		$unsubscribers = $response['body'];
+		// List of unsubscribed emails.
+		$unsubscribers_emails = array();
+		foreach ( $unsubscribers as $value ) {
+			array_push( $unsubscribers_emails, $value['email'] );
+		}
+
+		// Change WooCommerce subscriber status based on Smaily unsubscribers.
+		foreach ( $unsubscribers_emails as $user_email ) {
+			// get user by email from unsubscribers list.
+			$wordpress_unsubscriber = get_user_by( 'email', $user_email );
+			// set user subscribed status to 0.
+			if ( ! empty( $wordpress_unsubscriber ) ) {
+				update_user_meta( $wordpress_unsubscriber->ID, 'user_newsletter', 0, 1 );
 			}
+		}
 
-			$unsubscribers = $unsubscribers['body'];
-			// List of unsubscribed emails.
-			$unsubscribers_emails = array();
-			foreach ( $unsubscribers as $value ) {
-				array_push( $unsubscribers_emails, $value['email'] );
-			}
+		update_user_meta( 1, 'user_newsletter', 1 );
 
-			// Change WooCommerce subscriber status based on Smaily unsubscribers.
-			foreach ( $unsubscribers_emails as $user_email ) {
+		// Get all users with subscribed status.
+		$users = get_users(
+			array(
+				'meta_key'   => 'user_newsletter', // phpcs:ignore WordPress.DB.SlowDBQuery
+				'meta_value' => 1, // phpcs:ignore WordPress.DB.SlowDBQuery
+			)
+		);
 
-				// get user by email from unsubscribers list.
-				$wordpress_unsubscriber = get_user_by( 'email', $user_email );
-				// set user subscribed status to 0.
-				if ( ! empty( $wordpress_unsubscriber ) ) {
-					update_user_meta( $wordpress_unsubscriber->ID, 'user_newsletter', 0, 1 );
-				}
-			}
+		// If no subscribers.
+		if ( empty( $users ) ) {
+			\Smaily_Logger::info( 'No subscribers for synchronization!', self::SERVICE );
+			return;
+		}
 
-			update_user_meta( 1, 'user_newsletter', 1 );
+		$list = array();
+		foreach ( $users as $user ) {
+			$subscriber = Data_Handler::get_user_data( $user->ID, $results );
+			array_push( $list, $subscriber );
+		}
 
-			// Get all users with subscribed status.
-			$users = get_users(
-				array(
-					'meta_key'   => 'user_newsletter', // phpcs:ignore WordPress.DB.SlowDBQuery
-					'meta_value' => 1, // phpcs:ignore WordPress.DB.SlowDBQuery
-				)
-			);
+		// Update all subscribers to Smaily.
+		$response = \Smaily_Request::post( 'contact', array( 'body' => $list ) );
 
-			// If no subscribers.
-			if ( empty( $users ) ) {
-				\Smaily_Logger::info( 'No subscribers!' );
-				return;
-			}
+		if ( empty( $response ) ) {
+			\Smaily_Logger::error( 'Failed to send subscribers to Smaily - received an empty response', self::SERVICE );
+			return;
+		}
 
-			$list = array();
-			foreach ( $users as $user ) {
-				$subscriber = Data_Handler::get_user_data( $user->ID, $results );
-				array_push( $list, $subscriber );
-			}
+		if ( isset( $response['error'] ) ) {
+			\Smaily_Logger::error( sprintf( 'Failed to send subscribers to Smaily with an error: %s', $response['error'] ), self::SERVICE );
+			return;
+		}
 
-			// Update all subscribers to Smaily.
-			\Smaily_Request::post( 'contact', array( 'body' => $list ) );
+		if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
+			\Smaily_Logger::error( sprintf( 'Unable to send subscribers to Smaily: %s', wp_json_encode( $response ) ), self::SERVICE );
 		}
 	}
 
@@ -119,7 +146,6 @@ class Cron {
 	 * @return void
 	 */
 	public function smaily_abandoned_carts_email() {
-
 		// Get Smaily settings.
 		$results = $this->options->get_settings();
 		if ( ! isset( $results['woocommerce']['enable_cart'] ) ) {
@@ -272,18 +298,25 @@ class Cron {
 				'addresses'     => array( $addresses ),
 				'force_opt_in'  => 0,
 			);
-
-			//\Smaily_Logger::error('Mail sent: ' . print_r($query, true));
-
 			// Send data to Smaily.
 			$response = \Smaily_Request::post( 'autoresponder', array( 'body' => $query ) );
-			// If data sent successfully update mail_sent status in database.
-			if ( isset( $response['body']['code'] ) && $response['body']['code'] === 101 ) {
-				$this->update_mail_sent_status( $customer_id );
-			} else {
-				// Log to file if errors.
-				\Smaily_Logger::error( wp_json_encode( $response ) );
+
+			if ( empty( $response ) ) {
+				\Smaily_Logger::error( 'Failed to trigger abandoned cart email flow - received an empty response', self::SERVICE );
+				return;
 			}
+
+			if ( isset( $response['error'] ) ) {
+				\Smaily_Logger::error( sprintf( 'Failed to send abandoned cart email with an error: %s', $response['error'] ), self::SERVICE );
+				return;
+			}
+
+			if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
+				\Smaily_Logger::error( sprintf( 'Failed to send abandoned cart email: %s', wp_json_encode( $response ) ), self::SERVICE );
+				return;
+			}
+
+			$this->update_mail_sent_status( $customer_id );
 		}
 	}
 
