@@ -1,62 +1,49 @@
 <?php
-/**
- * We use file operations outside WP to make directories in recursive mode and appending logs to file end instead of always writing new files.
- *
- * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_mkdir, WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
- */
 
 /**
  * Logger class for smaily plugin logging
  */
 class Smaily_Logger {
 
-
 	/**
-	 * Folder path where logs are stored.
+	 * The table where the logs are stored.
 	 *
 	 */
-	const LOG_DIR = SMAILY_PLUGIN_PATH . 'logs';
+	public static $table_name = 'smaily_logs';
 
-	/**
-	 * File path where logs are stored.
-	 *
-	 */
-	const LOG_FILE = self::LOG_DIR . '/debug.log';
+	public static function create_log_tables() {
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		global $wpdb;
 
-	/**
-	 * .htaccess file path to mitigate folder traversal.
-	 *
-	 */
-	const HTACCESS_FILE = self::LOG_DIR . '/.htaccess';
+		$table_name      = $wpdb->prefix . self::$table_name;
+		$charset_collate = $wpdb->get_charset_collate();
+		$query           = sprintf(
+			"CREATE TABLE %s (
+				log_id int NOT NULL AUTO_INCREMENT,
+				log_level varchar(255) DEFAULT NULL,
+				log_message varchar(255) DEFAULT NULL,
+				log_service varchar(255) DEFAULT NULL,
+				log_time DATETIME DEFAULT '0000-00-00 00:00:00',
+				PRIMARY KEY (log_id)
+				) %s;
+			",
+			$table_name,
+			$charset_collate
+		);
 
-	/**
-	 * Log a message to the WordPress debug log.
-	 *
-	 * @param string $message The message to log.
-	 * @param string $level The log level (e.g., 'info', 'warning', 'error').
-	 */
-	public static function log( $message, $level = 'info' ) {
-		if ( ! defined( 'WP_DEBUG' ) || ! WP_DEBUG ) {
-			return;
-		}
+		return maybe_create_table( $table_name, $query );
+	}
 
-		if ( ! defined( 'WP_DEBUG_LOG' ) || ! WP_DEBUG_LOG ) {
-			return;
-		}
+	public static function drop_log_tables() {
+		global $wpdb;
 
-		$log_message = sprintf( '[%s] %s: %s', current_time( 'mysql' ), strtoupper( $level ), $message );
-
-		// Check if the logs directory exists, if not create it.
-		if ( ! is_dir( self::LOG_DIR ) ) {
-			mkdir( self::LOG_DIR, 0755, true );
-
-			// Create .htaccess file to prevent direct access.
-			$htaccess_content = 'Deny from all';
-			file_put_contents( self::HTACCESS_FILE, $htaccess_content );
-		}
-
-		// Write the log message to the log file.
-		file_put_contents( self::LOG_FILE, $log_message . PHP_EOL, FILE_APPEND );
+		$table_name = $wpdb->prefix . self::$table_name;
+		$wpdb->query(
+			$wpdb->prepare(
+				'DROP TABLE IF EXISTS %s',
+				$table_name
+			)
+		);
 	}
 
 	/**
@@ -64,8 +51,8 @@ class Smaily_Logger {
 	 *
 	 * @param string $message The message to log.
 	 */
-	public static function info( $message ) {
-		self::log( $message, 'info' );
+	public static function info( $message, $service = 'general' ) {
+		self::log( $message, 'info', $service );
 	}
 
 	/**
@@ -73,8 +60,8 @@ class Smaily_Logger {
 	 *
 	 * @param string $message The message to log.
 	 */
-	public static function warning( $message ) {
-		self::log( $message, 'warning' );
+	public static function warning( $message, $service = 'general' ) {
+		self::log( $message, 'warning', $service );
 	}
 
 	/**
@@ -82,7 +69,35 @@ class Smaily_Logger {
 	 *
 	 * @param string $message The message to log.
 	 */
-	public static function error( $message ) {
-		self::log( $message, 'error' );
+	public static function error( $message, $service = 'general' ) {
+		self::log( $message, 'error', $service );
+	}
+
+	/**
+	 * Log a message.
+	 *
+	 * @param string $message The message to log.
+	 * @param string $level The log level (e.g., 'info', 'warning', 'error').
+	 * @param string $service The service that logged the message.
+	 */
+	private static function log( $message, $level, $service ) {
+		if ( empty( $message ) || empty( $level ) || empty( $service ) ) {
+			// Throw error?
+			return;
+		}
+
+		global $wpdb;
+		$wpdb->query(
+			$wpdb->prepare(
+				'INSERT INTO %i
+				( log_level, log_message, log_service, log_time )
+				VALUES ( %s, %s, %s, %s )',
+				$wpdb->prefix . self::$table_name,
+				$level,
+				$message,
+				$service,
+				current_time( 'mysql' )
+			)
+		);
 	}
 }

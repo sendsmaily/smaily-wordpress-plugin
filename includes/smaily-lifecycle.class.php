@@ -10,8 +10,6 @@
  */
 
 class Smaily_Lifecycle {
-
-
 	/**
 	 * Callback for plugin activation hook.
 	 *
@@ -25,7 +23,10 @@ class Smaily_Lifecycle {
 			update_option( 'smaily_flush_rewrite_rules', true );
 		}
 
+		Smaily_Logger::create_log_tables();
 		$this->run_migrations();
+
+		Smaily_Logger::info( 'Plugin activated' );
 	}
 
 	/**
@@ -110,6 +111,8 @@ class Smaily_Lifecycle {
 		wp_clear_scheduled_hook( 'smaily_cron_sync_contacts' );
 		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_email' );
 		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_status' );
+
+		Smaily_Logger::info( 'Plugin deactivated' );
 	}
 
 	/**
@@ -121,6 +124,8 @@ class Smaily_Lifecycle {
 
 		// Delete Smaily plugin abandoned cart table.
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}smaily_abandoned_carts" );
+
+		Smaily_Logger::drop_log_tables();
 
 		delete_option( 'smaily_form_options' );
 		delete_option( 'smaily_api_credentials' );
