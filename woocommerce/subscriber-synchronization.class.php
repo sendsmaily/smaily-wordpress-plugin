@@ -2,6 +2,8 @@
 
 namespace Smaily_WC;
 
+use Smaily_Logger;
+
 /**
  * Newsletter subscriber sync with Smaily contacts
  * Send subscriber to Smaily mailing list when user updates profile
@@ -12,12 +14,18 @@ class Subscriber_Synchronization {
 	 * Service name.
 	 * @var string
 	 */
-	const SERVICE = 'subscriber_synchronization';
+	const SERVICE = 'woocommerce_subscriber_synchronization';
 
 	/**
 	 * @var \Smaily_Options Instance of Smaily_Options.
 	 */
 	private $options;
+
+	/**
+	 * Logger.
+	 * @var Smaily_Logger
+	 */
+	private $logger;
 
 	/**
 	 * Constructor.
@@ -26,6 +34,7 @@ class Subscriber_Synchronization {
 	 */
 	public function __construct( \Smaily_Options $options ) {
 		$this->options = $options->get_settings();
+		$this->logger  = new Smaily_Logger( self::SERVICE );
 	}
 
 	/**
@@ -154,17 +163,15 @@ class Subscriber_Synchronization {
 		$response = \Smaily_Request::post( 'contact', array( 'body' => $data ) );
 
 		if ( empty( $response ) ) {
-			\Smaily_Logger::error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with unknown error.', $order_id ), self::SERVICE );
-			return;
+			return $this->logger->log_error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with unknown error.', $order_id ) );
 		}
 
 		if ( isset( $response['error'] ) ) {
-			\Smaily_Logger::error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with an error: %s', $order_id, $response['error'] ), self::SERVICE );
-			return;
+			return $this->logger->log_error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with an error: %s', $order_id, $response['error'] ) );
 		}
 
 		if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
-			\Smaily_Logger::error( sprintf( 'Failed to subscribe customer during checkout: %s', wp_json_encode( $response ) ), self::SERVICE );
+			return $this->logger->log_error( sprintf( 'Failed to subscribe customer during checkout: %s', wp_json_encode( $response ) ) );
 		}
 	}
 
@@ -182,17 +189,15 @@ class Subscriber_Synchronization {
 		$response = \Smaily_Request::post( 'contact', array( 'body' => $data ) );
 
 		if ( empty( $response ) ) {
-			\Smaily_Logger::error( sprintf( 'Updating subscriber with id "%d" failed with unknown error', $user_id ), self::SERVICE );
-			return;
+			return $this->logger->log_error( sprintf( 'Updating subscriber with id "%d" failed with unknown error', $user_id ) );
 		}
 
 		if ( isset( $response['error'] ) ) {
-			\Smaily_Logger::error( sprintf( 'Updating subscriber with id "%d" failed with an error: %s', $user_id, $response['error'] ), self::SERVICE );
-			return;
+			return $this->logger->log_error( sprintf( 'Updating subscriber with id "%d" failed with an error: %s', $user_id, $response['error'] ) );
 		}
 
 		if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
-			\Smaily_Logger::error( sprintf( 'Updating subscriber failed: %s', wp_json_encode( $response ) ), self::SERVICE );
+			return $this->logger->log_error( sprintf( 'Updating subscriber failed: %s', wp_json_encode( $response ) ) );
 		}
 	}
 }
