@@ -1,4 +1,10 @@
 <?php
+/**
+ * WordPress Filesystem API does not provide a good functionality to append content to files. We use file_put_contents to append to the debug log.
+ *
+ * phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+ */
+
 
 /**
  * Logger class for smaily plugin logging
@@ -10,11 +16,16 @@ class Smaily_Logger {
 	const LEVEL_ERROR   = 'error';
 
 	/**
-	 * Table name where logs are stored without the prefix.
+	 * Folder where logs are stored.
 	 *
 	 * @var string
 	 */
-	const TABLE_NAME = 'smaily_logs';
+	const FOLDER_NAME = 'smaily_uploads';
+
+	/**
+	 * Filename where logs are stored.
+	 */
+	const FILE_NAME = 'log.txt';
 
 	/**
 	 * The service using the logger.
@@ -37,7 +48,7 @@ class Smaily_Logger {
 	 * @param string $message
 	 * @return void
 	 */
-	public function log_info( $message ) {
+	public function info( $message ) {
 		self::log( $message, self::LEVEL_INFO, $this->service );
 	}
 
@@ -47,7 +58,7 @@ class Smaily_Logger {
 	 * @param mixed $message
 	 * @return void
 	 */
-	public function log_warning( $message ) {
+	public function warning( $message ) {
 		self::log( $message, self::LEVEL_WARNING, $this->service );
 	}
 
@@ -57,92 +68,46 @@ class Smaily_Logger {
 	 * @param mixed $message
 	 * @return void
 	 */
-	public function log_error( $message ) {
+	public function error( $message ) {
 		self::log( $message, self::LEVEL_ERROR, $this->service );
-	}
-
-	/**
-	 * Log an informational message.
-	 *
-	 * @param string $message The message to log.
-	 */
-	public static function info( $message, $service = 'general' ) {
-		self::log( $message, self::LEVEL_INFO, $service );
-	}
-
-	/**
-	 * Log a warning message.
-	 *
-	 * @param string $message The message to log.
-	 */
-	public static function warning( $message, $service = 'general' ) {
-		self::log( $message, self::LEVEL_WARNING, $service );
-	}
-
-	/**
-	 * Log an error message.
-	 *
-	 * @param string $message The message to log.
-	 */
-	public static function error( $message, $service = 'general' ) {
-		self::log( $message, self::LEVEL_ERROR, $service );
-	}
-
-	public static function get_log_messages() {
-		global $wpdb;
-
-		return $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT * FROM %i ORDER BY log_id DESC',
-				$wpdb->prefix . self::TABLE_NAME
-			),
-			'ARRAY_A'
-		);
 	}
 
 	/**
 	 * Create tables required for storing log messages.
 	 *
-	 * @return bool
 	 */
-	public static function create_log_tables() {
-		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-		global $wpdb;
+	public static function create_log_folder() {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		WP_Filesystem();
 
-		$table_name      = $wpdb->prefix . self::TABLE_NAME;
-		$charset_collate = $wpdb->get_charset_collate();
-		$query           = sprintf(
-			'CREATE TABLE %s (
-				log_id int NOT NULL AUTO_INCREMENT,
-				log_level varchar(255) DEFAULT NULL,
-				log_message TEXT DEFAULT NULL,
-				log_service varchar(255) DEFAULT NULL,
-				log_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-				PRIMARY KEY (log_id)
-				) %s;
-			',
-			$table_name,
-			$charset_collate
-		);
+		global $wp_filesystem;
 
-		return maybe_create_table( $table_name, $query );
+		$upload_dir        = wp_upload_dir();
+		$smaily_upload_dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . self::FOLDER_NAME;
+
+		wp_mkdir_p( $smaily_upload_dir );
+
+		$htacces_path = $smaily_upload_dir . DIRECTORY_SEPARATOR . '.htaccess';
+		if ( ! $wp_filesystem->exists( $htacces_path ) ) {
+			$wp_filesystem->put_contents( $htacces_path, 'deny from all' );
+		}
 	}
 
 	/**
-	 * Drop log tables.
+	 * Delete log folder.
 	 *
 	 * @return void
 	 */
-	public static function drop_log_tables() {
-		global $wpdb;
+	public static function delete_log_folder() {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		WP_Filesystem();
 
-		$table_name = $wpdb->prefix . self::TABLE_NAME;
-		$wpdb->query(
-			$wpdb->prepare(
-				'DROP TABLE IF EXISTS %s',
-				$table_name
-			)
-		);
+		global $wp_filesystem;
+
+		$upload_dir        = wp_upload_dir();
+		$smaily_upload_dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . self::FOLDER_NAME;
+
+		$wp_filesystem->rmdir( $smaily_upload_dir, true );
 	}
 
 	/**
@@ -153,22 +118,13 @@ class Smaily_Logger {
 	 * @param string $service The service that logged the message.
 	 */
 	private static function log( $message, $level, $service ) {
-		if ( empty( $message ) || empty( $level ) || empty( $service ) ) {
-			// Throw error?
-			return;
-		}
+		$message = sprintf( '[%s] [%s] : %s : %s', current_time( 'mysql' ), $service, strtoupper( $level ), $message );
 
-		global $wpdb;
-		$wpdb->query(
-			$wpdb->prepare(
-				'INSERT INTO %i
-				( log_level, log_message, log_service )
-				VALUES ( %s, %s, %s )',
-				$wpdb->prefix . self::TABLE_NAME,
-				$level,
-				$message,
-				$service
-			)
-		);
+		$upload_dir        = wp_upload_dir();
+		$smaily_upload_dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . self::FOLDER_NAME;
+		$file              = $smaily_upload_dir . DIRECTORY_SEPARATOR . self::FILE_NAME;
+
+		// Write the log message to the log file.
+		file_put_contents( $file, $message . PHP_EOL, FILE_APPEND );
 	}
 }

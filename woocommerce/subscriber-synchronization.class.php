@@ -163,15 +163,15 @@ class Subscriber_Synchronization {
 		$response = \Smaily_Request::post( 'contact', array( 'body' => $data ) );
 
 		if ( empty( $response ) ) {
-			return $this->logger->log_error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with unknown error.', $order_id ) );
+			return $this->logger->error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with unknown error.', $order_id ) );
 		}
 
 		if ( isset( $response['error'] ) ) {
-			return $this->logger->log_error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with an error: %s', $order_id, $response['error'] ) );
+			return $this->logger->error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with an error: %s', $order_id, $response['error'] ) );
 		}
 
 		if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
-			return $this->logger->log_error( sprintf( 'Failed to subscribe customer during checkout: %s', wp_json_encode( $response ) ) );
+			return $this->logger->error( sprintf( 'Failed to subscribe customer during checkout: %s', wp_json_encode( $response ) ) );
 		}
 	}
 
@@ -189,15 +189,15 @@ class Subscriber_Synchronization {
 		$response = \Smaily_Request::post( 'contact', array( 'body' => $data ) );
 
 		if ( empty( $response ) ) {
-			return $this->logger->log_error( sprintf( 'Updating subscriber with id "%d" failed with unknown error', $user_id ) );
+			return $this->logger->error( sprintf( 'Updating subscriber with id "%d" failed with unknown error', $user_id ) );
 		}
 
 		if ( isset( $response['error'] ) ) {
-			return $this->logger->log_error( sprintf( 'Updating subscriber with id "%d" failed with an error: %s', $user_id, $response['error'] ) );
+			return $this->logger->error( sprintf( 'Updating subscriber with id "%d" failed with an error: %s', $user_id, $response['error'] ) );
 		}
 
 		if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
-			return $this->logger->log_error( sprintf( 'Updating subscriber failed: %s', wp_json_encode( $response ) ) );
+			return $this->logger->error( sprintf( 'Updating subscriber failed: %s', wp_json_encode( $response ) ) );
 		}
 	}
 }
