@@ -7,6 +7,8 @@
 
 namespace Smaily_WC;
 
+use Smaily_Logger;
+
 /**
  * Class Cron
  * Handles data synchronization between Smaily and WooCommerce.
@@ -17,12 +19,18 @@ class Cron {
 	 * Service name.
 	 * @var string
 	 */
-	const SERVICE = 'cron';
+	const SERVICE = 'woocommerce_cron';
 
 	/**
 	 * @var \Smaily_Options Instance of Smaily_Options.
 	 */
 	private $options;
+
+	/**
+	 * Logger
+	 * @var Smaily_Logger
+	 */
+	private $logger;
 
 	/**
 	 * Constructor.
@@ -31,6 +39,7 @@ class Cron {
 	 */
 	public function __construct( \Smaily_Options $options ) {
 		$this->options = $options;
+		$this->logger  = new Smaily_Logger( self::SERVICE );
 	}
 
 	/**
@@ -71,16 +80,15 @@ class Cron {
 		$response = \Smaily_Request::get( 'contact', $data );
 
 		if ( empty( $response ) ) {
-			\Smaily_Logger::error( 'Failed to get unsubscribers - received an empty response', self::SERVICE );
+			return $this->logger->log_error( 'Failed to get unsubscribers - received an empty response' );
 		}
 
 		if ( isset( $response['error'] ) ) {
-			\Smaily_Logger::error( sprintf( 'Receiving unsusbsribers failed with an error: %s', $response['error'] ), self::SERVICE );
+			return $this->logger->log_error( sprintf( 'Receiving unsusbsribers failed with an error: %s', $response['error'] ) );
 		}
 
 		if ( isset( $response['code'] ) && $response['code'] !== 200 ) {
-			\Smaily_Logger::error( sprintf( 'Unable to retrieve unsubscribed users: %s', wp_json_encode( $response ) ), self::SERVICE );
-			return;
+			return $this->logger->log_error( sprintf( 'Unable to retrieve unsubscribed users: %s', wp_json_encode( $response ) ) );
 		}
 
 		$unsubscribers = $response['body'];
@@ -112,8 +120,7 @@ class Cron {
 
 		// If no subscribers.
 		if ( empty( $users ) ) {
-			\Smaily_Logger::info( 'No subscribers for synchronization!', self::SERVICE );
-			return;
+			return $this->logger->log_info( 'No subscribers for synchronization!' );
 		}
 
 		$list = array();
@@ -126,17 +133,15 @@ class Cron {
 		$response = \Smaily_Request::post( 'contact', array( 'body' => $list ) );
 
 		if ( empty( $response ) ) {
-			\Smaily_Logger::error( 'Failed to send subscribers to Smaily - received an empty response', self::SERVICE );
-			return;
+			return $this->logger->log_error( 'Failed to send subscribers to Smaily - received an empty response' );
 		}
 
 		if ( isset( $response['error'] ) ) {
-			\Smaily_Logger::error( sprintf( 'Failed to send subscribers to Smaily with an error: %s', $response['error'] ), self::SERVICE );
-			return;
+			return $this->logger->log_error( sprintf( 'Failed to send subscribers to Smaily with an error: %s', $response['error'] ) );
 		}
 
 		if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
-			\Smaily_Logger::error( sprintf( 'Unable to send subscribers to Smaily: %s', wp_json_encode( $response ) ), self::SERVICE );
+			return $this->logger->log_error( sprintf( 'Unable to send subscribers to Smaily: %s', wp_json_encode( $response ) ) );
 		}
 	}
 
@@ -302,18 +307,15 @@ class Cron {
 			$response = \Smaily_Request::post( 'autoresponder', array( 'body' => $query ) );
 
 			if ( empty( $response ) ) {
-				\Smaily_Logger::error( 'Failed to trigger abandoned cart email flow - received an empty response', self::SERVICE );
-				return;
+				return $this->logger->log_error( 'Failed to trigger abandoned cart email flow - received an empty response' );
 			}
 
 			if ( isset( $response['error'] ) ) {
-				\Smaily_Logger::error( sprintf( 'Failed to send abandoned cart email with an error: %s', $response['error'] ), self::SERVICE );
-				return;
+				return $this->logger->log_error( sprintf( 'Failed to send abandoned cart email with an error: %s', $response['error'] ) );
 			}
 
 			if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
-				\Smaily_Logger::error( sprintf( 'Failed to send abandoned cart email: %s', wp_json_encode( $response ) ), self::SERVICE );
-				return;
+				return $this->logger->log_error( sprintf( 'Failed to send abandoned cart email: %s', wp_json_encode( $response ) ) );
 			}
 
 			$this->update_mail_sent_status( $customer_id );
@@ -323,7 +325,7 @@ class Cron {
 	/**
 	 * Get product sale display price without html tags.
 	 *
-	 * @param WC_Product $product WooCommerce product object.
+	 * @param \WC_Product $product WooCommerce product object.
 	 * @return string
 	 */
 	public function get_sale_price( $product ) {
@@ -342,7 +344,7 @@ class Cron {
 	/**
 	 * Get product regular display price without html tags.
 	 *
-	 * @param WC_Product $product WooCommerce product object.
+	 * @param \WC_Product $product WooCommerce product object.
 	 * @return string
 	 */
 	public function get_base_price( $product ) {
