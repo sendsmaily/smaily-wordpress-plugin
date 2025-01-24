@@ -73,7 +73,7 @@ class Smaily_Logger {
 	}
 
 	/**
-	 * Create tables required for storing log messages.
+	 * Create folders required for storing log messages.
 	 *
 	 */
 	public static function create_log_folder() {
@@ -124,7 +124,6 @@ class Smaily_Logger {
 		$smaily_upload_dir = $upload_dir['basedir'] . DIRECTORY_SEPARATOR . self::FOLDER_NAME;
 		$file              = $smaily_upload_dir . DIRECTORY_SEPARATOR . self::FILE_NAME;
 
-		// Write the log message to the log file.
 		file_put_contents( $file, $message . PHP_EOL, FILE_APPEND );
 	}
 }
