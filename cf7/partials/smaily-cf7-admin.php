@@ -7,6 +7,11 @@
  * @author  Smaily
  */
 
+// Exit if accessed directly
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 ?>
 <?php if ( ! isset( $_GET['post'] ) ) : // phpcs:ignore  WordPress.Security.NonceVerification.Recommended ?>
 	<div id='form-id-unknown'>

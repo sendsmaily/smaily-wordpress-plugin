@@ -1,5 +1,10 @@
 <?php
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 $has_woocommerce    = Smaily_Helper::is_woocommerce_active();
 $autoresponder_list = $this->autoresponders;
 
