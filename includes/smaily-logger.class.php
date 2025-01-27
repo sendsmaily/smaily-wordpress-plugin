@@ -67,11 +67,12 @@ class Smaily_Logger {
 		}
 
 		if ( is_array( $message ) || is_object( $message ) ) {
-			$message = print_r( $message, true );
+			$message = wp_json_encode( $message );
 		}
 
 		$message = sprintf( 'PHP %s: Smaily-%s: %s', strtoupper( $level ), $service, $message );
 
+		// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( $message );
 	}
 }
