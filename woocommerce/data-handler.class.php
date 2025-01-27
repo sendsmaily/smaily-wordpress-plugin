@@ -28,7 +28,7 @@ class Data_Handler {
 			}
 
 			$price = floatval( $product->get_price() );
-			$price = number_format( floatval( $price ), 2, '.', ',' ) . html_entity_decode( $currencysymbol );
+			$price = number_format( floatval( $price ), 2, '.', ',' ) . html_entity_decode( $currencysymbol, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
 
 			$discount = 0;
 			// Get product price when on sale.
@@ -43,7 +43,7 @@ class Data_Handler {
 					$discount = round( 100 - ( $sale_price / $regular_price * 100 ), 2 );
 				}
 				// Format price and add currency symbol.
-				$regular_price = number_format( floatval( $regular_price ), 2, '.', ',' ) . html_entity_decode( $currencysymbol );
+				$regular_price = number_format( floatval( $regular_price ), 2, '.', ',' ) . html_entity_decode( $currencysymbol, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
 			}
 
 			$url   = get_permalink( $prod->get_id() );

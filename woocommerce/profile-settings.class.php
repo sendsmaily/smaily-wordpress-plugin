@@ -325,7 +325,7 @@ class Profile_Settings {
 		$user_data = array();
 
 		foreach ( $fields as $key => $value ) {
-			if ( $this->smaily_is_userdata( key: $key ) ) {
+			if ( $this->smaily_is_userdata( $key ) ) {
 				$user_data[ $key ] = $value;
 				continue;
 			}

@@ -288,7 +288,7 @@ class Cron {
 					}
 
 					foreach ( $product as $key => $value ) {
-						$addresses[ $key . '_' . $i ] = htmlspecialchars( $value );
+						$addresses[ $key . '_' . $i ] = htmlspecialchars( $value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
 					}
 					++$i;
 				}
@@ -338,7 +338,7 @@ class Cron {
 			)
 		);
 
-		return wp_strip_all_tags( html_entity_decode( $price ) );
+		return wp_strip_all_tags( html_entity_decode( $price, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) );
 	}
 
 	/**
@@ -358,7 +358,7 @@ class Cron {
 			)
 		);
 
-		return wp_strip_all_tags( html_entity_decode( $price ) );
+		return wp_strip_all_tags( html_entity_decode( $price, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) );
 	}
 
 	/**
