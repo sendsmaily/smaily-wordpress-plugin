@@ -31,7 +31,7 @@ class Smaily_Logger {
 	 * @return void
 	 */
 	public function info( $message ) {
-		self::log( $message, self::LEVEL_INFO, $this->service );
+		$this->log( $message, self::LEVEL_INFO );
 	}
 
 	/**
@@ -41,7 +41,7 @@ class Smaily_Logger {
 	 * @return void
 	 */
 	public function warning( $message ) {
-		self::log( $message, self::LEVEL_WARNING, $this->service );
+		$this->log( $message, self::LEVEL_WARNING );
 	}
 
 	/**
@@ -51,7 +51,7 @@ class Smaily_Logger {
 	 * @return void
 	 */
 	public function error( $message ) {
-		self::log( $message, self::LEVEL_ERROR, $this->service );
+		$this->log( $message, self::LEVEL_ERROR );
 	}
 
 	/**
@@ -59,10 +59,9 @@ class Smaily_Logger {
 	 *
 	 * @param string|array|object $message The message to log.
 	 * @param string $level The log level (e.g., 'info', 'warning', 'error').
-	 * @param string $service The service that logged the message.
 	 */
-	private static function log( $message, $level, $service ) {
-		if ( empty( $message ) || empty( $service ) || empty( $service ) ) {
+	private function log( $message, $level ) {
+		if ( empty( $message ) || empty( $level ) ) {
 			return;
 		}
 
@@ -70,7 +69,7 @@ class Smaily_Logger {
 			$message = wp_json_encode( $message );
 		}
 
-		$message = sprintf( 'PHP %s: Smaily-%s: %s', strtoupper( $level ), $service, $message );
+		$message = sprintf( 'PHP %s: Smaily-%s: %s', strtoupper( $level ), $this->service, $message );
 
 		// phpcs:disable WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( $message );
