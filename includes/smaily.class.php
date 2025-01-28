@@ -102,16 +102,17 @@ class Smaily {
 	 * - Smaily_WC\Cron.                        Handles data synchronization between Smaily and WooCommerce.
 	 * - Smaily_WC\Cart                         Manages status of user cart in smaily_abandoned_carts table.
 	 * - Smaily_WC\Subscriber_Synchronization   Defines functionality for user subscriptions
-	 * - Smaily_WC\Profile_Settings.            Adds and controlls WordPress/Woocommerce fields.
+	 * - Smaily_WC\Profile_Settings.            Adds and controls WordPress/Woocommerce fields.
 	 * - Smaily_WC\Smaily_Rss.                  Handles RSS generation for Smaily newsletter.
 	 *
 	 * Create an instance of the loader which will be used to register the hooks
 	 * with WordPress.
 	 *
-	 * Coctact Form 7 related dependencied
+	 * Contact Form 7 related dependencies
 	 *
 	 * - Smaily_CF7\Admin                       Defines all hooks for the admin area of contact form 7
 	 * - Smaily_CF7\Smaily_Public               Defines the public facing functionality
+	 * - Smaily_CF7\Smaily_CF7_Service          Defines the logic to display a block under Contact Form 7 integration section.
 	 *
 	 * @access private
 	 */
@@ -135,7 +136,6 @@ class Smaily {
 		Smaily_Request::set_credentials( $credentials );
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/data-handler.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/data-prepare.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cron.class.php';
@@ -148,6 +148,7 @@ class Smaily {
 		if ( Smaily_Helper::is_cf7_active() ) {
 			require_once SMAILY_PLUGIN_PATH . 'cf7/admin.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'cf7/public.class.php';
+			require_once SMAILY_PLUGIN_PATH . 'cf7/service.class.php';
 		}
 	}
 
@@ -225,6 +226,7 @@ class Smaily {
 			$smaily_cf7_admin = new Smaily_CF7\Admin( $this->options );
 			add_action( 'wpcf7_editor_panels', array( $smaily_cf7_admin, 'add_tab' ), -1 );
 			add_action( 'wpcf7_after_save', array( $smaily_cf7_admin, 'save' ) );
+			add_action( 'wpcf7_init', array( $smaily_cf7_admin, 'register_service' ) );
 		}
 	}
 
@@ -236,7 +238,6 @@ class Smaily {
 	 * @access private
 	 */
 	private function define_public_hooks() {
-
 		$plugin_public = new Smaily_Public( $this->options, $this->get_plugin_name(), $this->get_version() );
 		add_action( 'init', array( $plugin_public, 'add_shortcodes' ) );
 
@@ -319,7 +320,6 @@ class Smaily {
 		if ( Smaily_Helper::is_woocommerce_active() ) {
 
 			// Cron specific hooks
-
 			$smaily_cron = new Smaily_WC\Cron( $this->options );
 
 			// Register the custom schedule early

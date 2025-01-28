@@ -2,6 +2,11 @@
 
 namespace Smaily_CF7;
 
+defined( 'ABSPATH' ) || exit;
+
+use WPCF7_Integration;
+use WPCF7_ContactForm;
+
 /**
  * Class for managing all admin related functionality of Contact Form 7 integration
  */
@@ -21,6 +26,18 @@ class Admin {
 	 */
 	public function __construct( \Smaily_Options $options ) {
 		$this->options = $options;
+	}
+
+	/**
+	 * Registers the Smaily service.
+	 */
+	public function register_service() {
+		$integration = WPCF7_Integration::get_instance();
+
+		$integration->add_service(
+			'smaily',
+			Smaily_CF7_Service::get_instance()
+		);
 	}
 
 	/**
