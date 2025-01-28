@@ -3,84 +3,9 @@
 namespace Smaily_WC;
 
 /**
- * Handles woocommerce related data retrieval
+ * Handles WooCommerce related data retrieval
  */
 class Data_Handler {
-
-
-	/**
-	 * Generates RSS-feed based on products in WooCommerce store.
-	 *
-	 * @param string  $category Filter by products category.
-	 * @param integer $limit Default value 50.
-	 * @return void $rss Rss-feed for Smaily template.
-	 */
-	public static function generate_rss_feed( $category, $limit, $order_by, $order ) {
-		$products       = self::get_products( $category, $limit, $order_by, $order );
-		$base_url       = get_site_url();
-		$currencysymbol = get_woocommerce_currency_symbol();
-		$items          = array();
-		foreach ( $products as $prod ) {
-			if ( function_exists( 'wc_get_product' ) ) {
-				$product = wc_get_product( $prod->get_id() );
-			} else {
-				$product = new \WC_Product( $prod->get_id() );
-			}
-
-			$price = floatval( $product->get_price() );
-			$price = number_format( floatval( $price ), 2, '.', ',' ) . html_entity_decode( $currencysymbol, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
-
-			$discount = 0;
-			// Get product price when on sale.
-			if ( $product->is_on_sale() ) {
-				// Regular price.
-				$regular_price = (float) $product->get_regular_price();
-				if ( $regular_price > 0 ) {
-					// Active price (the "Sale price" when on-sale).
-					$sale_price   = (float) $product->get_price();
-					$saving_price = $regular_price - $sale_price;
-					// Discount precentage.
-					$discount = round( 100 - ( $sale_price / $regular_price * 100 ), 2 );
-				}
-				// Format price and add currency symbol.
-				$regular_price = number_format( floatval( $regular_price ), 2, '.', ',' ) . html_entity_decode( $currencysymbol, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
-			}
-
-			$url   = get_permalink( $prod->get_id() );
-			$image = wp_get_attachment_image_src( get_post_thumbnail_id( $prod->get_id() ), 'single-post-thumbnail' );
-
-			$image        = $image[0] ?? '';
-			$create_time  = strtotime( $prod->get_date_created() );
-			$price_fields = '';
-			if ( $discount > 0 ) {
-				$price_fields = '
-			  <smly:old_price>' . esc_attr( $regular_price ) . '</smly:old_price>
-			  <smly:discount>-' . esc_attr( $discount ) . '%</smly:discount>';
-			}
-			// Parse image to form element.
-			$description = do_shortcode( $prod->get_description() );
-
-			$items[] = '<item>
-			  <title><![CDATA[' . $prod->get_title() . ']]></title>
-			  <link>' . esc_url( $url ) . '</link>
-			  <guid isPermaLink="True">' . esc_url( $url ) . '</guid>
-			  <pubDate>' . wp_date( 'D, d M Y H:i:s', $create_time ) . '</pubDate>
-			  <description><![CDATA[' . $description . ']]></description>
-			  <enclosure url="' . esc_url( $image ) . '" />
-			  <smly:price>' . esc_attr( $price ) . '</smly:price>' . $price_fields . '
-			</item>
-			';
-		}
-		$rss  = '<?xml version="1.0" encoding="utf-8"?><rss xmlns:smly="https://sendsmaily.net/schema/editor/rss.xsd" version="2.0"><channel><title>Store</title><link>' . esc_url( $base_url ) . '</link><description>Product Feed</description><lastBuildDate>' . wp_date( 'D, d M Y H:i:s' ) . '</lastBuildDate>';
-		$rss .= implode( ' ', $items );
-		$rss .= '</channel></rss>';
-		header( 'Content-Type: application/xml' );
-
-		// All values escaped before.
-		// phpcs:ignore  WordPress.Security.EscapeOutput.OutputNotEscaped
-		echo $rss;
-	}
-
 	/**
 	 * Get published products from WooCommerce database.
 	 *
@@ -110,8 +35,8 @@ class Data_Handler {
 		if ( ! empty( $category ) ) {
 			$product['category'] = array( $category );
 		}
-		$wprod = wc_get_products( $product );
-		return $wprod;
+
+		return wc_get_products( $product );
 	}
 
 	/**
@@ -175,42 +100,5 @@ class Data_Handler {
 		}
 
 		return $user_sync_data;
-	}
-
-	/**
-	 * Get Product RSS Feed URL.
-	 *
-	 * @param string $rss_category Category slug.
-	 * @param int $rss_limit Limit of products.
-	 * @param string $rss_order_by Order products by.
-	 * @param string $rss_order ASC/DESC order
-	 * @return string
-	 */
-	public static function make_rss_feed_url( $rss_category = null, $rss_limit = null, $rss_order_by = null, $rss_order = null ) {
-		global $wp_rewrite;
-
-		$site_url   = get_site_url( null, 'smaily-rss-feed' );
-		$parameters = array();
-
-		if ( isset( $rss_category ) && $rss_category !== '' ) {
-			$parameters['category'] = $rss_category;
-		}
-		if ( isset( $rss_limit ) ) {
-			$parameters['limit'] = $rss_limit;
-		}
-		if ( isset( $rss_order_by ) && $rss_order_by !== 'none' ) {
-			$parameters['order_by'] = $rss_order_by;
-		}
-		if ( isset( $rss_order ) && $rss_order_by !== 'none' && $rss_order_by !== 'rand' ) {
-			$parameters['order'] = $rss_order;
-		}
-
-		// Handle URL when permalinks have not been enabled.
-		if ( $wp_rewrite->using_permalinks() === false ) {
-			$site_url                      = get_site_url();
-			$parameters['smaily-rss-feed'] = 'true';
-		}
-
-		return add_query_arg( $parameters, $site_url );
 	}
 }

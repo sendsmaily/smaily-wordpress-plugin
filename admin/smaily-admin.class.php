@@ -91,7 +91,7 @@ class Smaily_Admin {
 				$this->plugin_name,
 				'var smaily_settings = ' . wp_json_encode(
 					array(
-						'rss_feed_url' => Smaily_WC\Data_Handler::make_rss_feed_url(),
+						'rss_feed_url' => Smaily_WC\Rss::make_rss_feed_url(),
 					)
 				) . ';',
 				'before'
@@ -179,7 +179,6 @@ class Smaily_Admin {
 	 *
 	 */
 	public function smaily_admin_save() {
-
 		// Ensure user has necessary permissions.
 		if ( ! current_user_can( 'manage_options' ) ) {
 			echo wp_json_encode(

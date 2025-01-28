@@ -28,7 +28,7 @@ if ( $has_woocommerce ) {
 	$rss_limit               = $this->settings['woocommerce']['rss_limit'];
 	$rss_order_by            = $this->settings['woocommerce']['rss_order_by'];
 	$rss_order               = $this->settings['woocommerce']['rss_order'];
-	$rss_feed_url            = Smaily_WC\Data_Handler::make_rss_feed_url( $rss_category, $rss_limit, $rss_order_by, $rss_order );
+	$rss_feed_url            = Smaily_WC\Rss::make_rss_feed_url( $rss_category, $rss_limit, $rss_order_by, $rss_order );
 	$cat_args                = array(
 		'taxonomy'   => 'product_cat',
 		'orderby'    => 'name',
