@@ -93,7 +93,6 @@ class Smaily_Public {
 		$form_is_successful = false;
 		$response_message   = null;
 
-		// TODO: Don't need credentials for basic form.
 		$credentials_not_valid = empty( $api_credentials['subdomain'] ) || empty( $api_credentials['username'] ) || empty( $api_credentials['password'] );
 		if ( $credentials_not_valid ) {
 			$form_has_response = true;
