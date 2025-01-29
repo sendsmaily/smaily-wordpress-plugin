@@ -37,32 +37,6 @@
 			.insertBefore(message, document.getElementById('tabs'))
 	}
 
-	function smailyToggleAdvanced() {
-		if ($('#is_advanced').is(':checked')) {
-			$('.is-advanced-row').show()
-			$('#is_advanced').val(1)
-		} else {
-			$('.is-advanced-row').hide()
-			$('#is_advanced').val(0)
-		}
-	}
-	smailyToggleAdvanced()
-	$('#is_advanced').on('change', smailyToggleAdvanced)
-
-	$('#reset-form').on('click', function (e) {
-		e.preventDefault()
-		$.post(ajaxurl, {
-			action: 'smaily_admin_save',
-			payload: 'op=resetForm&nonce=' + $('#nonce').val(),
-		}).done(function (response) {
-			let $resp = JSON.parse(response)
-			if (!$resp.error) {
-				$('#smaily-advanced-form').val($resp.content)
-				displayMessage($resp.message)
-			}
-		})
-	})
-
 	// Top tabs handler.
 	$('#tabs').tabs()
 	// Add custom class for active tab.

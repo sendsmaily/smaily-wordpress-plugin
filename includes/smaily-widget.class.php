@@ -64,16 +64,11 @@ class Smaily_Widget extends WP_Widget {
 
 		// Load configuration data.
 		$api_credentials = $this->options->get_api_credentials();
-		$settings        = $this->options->get_settings();
 
-		// Create admin template.
-		$file     = $settings['is_advanced'] === true ? 'advanced.php' : 'basic.php';
-		$template = new Smaily_Template( 'public/partials/smaily-public-' . $file );
+		$template = new Smaily_Template( 'public/partials/smaily-public-basic.php' );
 		$template->assign(
 			array(
 				'domain'           => $api_credentials['subdomain'],
-				'form'             => $settings['form'],
-				'is_advanced'      => $settings['is_advanced'],
 				'show_name'        => $show_name,
 				'success_url'      => $success_url,
 				'failure_url'      => $failure_url,

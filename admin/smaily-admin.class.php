@@ -66,7 +66,7 @@ class Smaily_Admin {
 	 *
 	 */
 	public function enqueue_scripts() {
-		wp_register_script( $this->plugin_name . '-jscolor', SMAILY_PLUGIN_URL . '/admin/js/jscolor.min.js', null, $this->version, true );
+		wp_register_script( $this->plugin_name . '-jscolor', SMAILY_PLUGIN_URL . '/admin/js/jscolor.min.js', array(), $this->version, true );
 		wp_register_script( $this->plugin_name, SMAILY_PLUGIN_URL . '/admin/js/smaily-admin.js', array( 'jquery', 'jquery-ui-tabs' ), $this->version, true );
 		wp_register_script( $this->plugin_name . '-widget', SMAILY_PLUGIN_URL . '/admin/js/admin-widget.js', array( 'jquery', $this->plugin_name . '-jscolor' ), $this->version, true );
 
@@ -85,8 +85,7 @@ class Smaily_Admin {
 		);
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-			// Make rss url accssible in admin js
-
+			// Make RSS URL accessible in admin .js.
 			wp_add_inline_script(
 				$this->plugin_name,
 				'var smaily_settings = ' . wp_json_encode(
@@ -102,8 +101,8 @@ class Smaily_Admin {
 	/**
 	 * Adds setting link to plugin
 	 *
-	 * @param array $links Default links in plugin page.
-	 * @return array    $links Updated array of links
+	 * @param array  $links Default links in plugin page.
+	 * @return array Updated array of links
 	 */
 	public function settings_link( $links ) {
 		// receive all current links and add custom link to the list.
@@ -203,7 +202,7 @@ class Smaily_Admin {
 		$form_data = array();
 
 		// $form_data values should be sanitized instead of serialized payload.
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 
 		parse_str( wp_unslash( $_POST['payload'] ), $form_data );
 
 		// Ensure nonce is valid.
@@ -217,37 +216,13 @@ class Smaily_Admin {
 			wp_die();
 		}
 
-		// Validate posted operation.
-		if ( ! isset( $form_data['op'] ) ) {
-			$form_data['op'] = 'save';
-		}
-
-		$valid_operations = array( 'resetForm', 'save' );
-
-		if ( ! in_array( $form_data['op'], $valid_operations, true ) ) {
-			echo wp_json_encode(
-				array(
-					'error' => __( 'Something went wrong, incorrect operation!', 'smaily' ),
-				)
-			);
-			wp_die();
-		}
-
 		$result = array(
 			'message' => '',
 			'error'   => true,
 			'content' => '',
 		);
 
-		// Switch to action.
-		switch ( $form_data['op'] ) {
-			case 'resetForm':
-				$result = array_merge( $result, $this->reset_form() );
-				break;
-			case 'save':
-				$result = array_merge( $result, $this->save( $form_data ) );
-				break;
-		}
+		$result = array_merge( $result, $this->save( $form_data ) );
 
 		echo wp_json_encode( $result );
 		wp_die();
@@ -259,7 +234,7 @@ class Smaily_Admin {
 	 *
 	 * @access private
 	 * @param  array $form_data Posted form data (unserialized).
-	 * @return array Response of operation.
+	 * @return string|bool Response of operation.
 	 */
 	private function validate_api_credentials( $form_data ) {
 		// Get and sanitize request params.
@@ -290,7 +265,7 @@ class Smaily_Admin {
 			)
 		);
 
-		// Error handilng.
+		// Error handling.
 		$code = isset( $rqst['code'] ) ? $rqst['code'] : '';
 		if ( $code !== 200 ) {
 			if ( $code === 401 ) {
@@ -311,25 +286,6 @@ class Smaily_Admin {
 
 		// Return response.
 		return true;
-	}
-
-	/**
-	 * Function is run when user regenerates opt-in form.
-	 *
-	 *
-	 * @access private
-	 * @return array Response of operation.
-	 */
-	private function reset_form() {
-		$subdomain = $this->options->get_api_credentials()['subdomain'];
-		$template  = $this->generate_optin_template( 'basic.php', $subdomain );
-
-		// Return response.
-		return array(
-			'message' => __( 'Newsletter subscription form reset to default.', 'smaily' ),
-			'error'   => false,
-			'content' => $template->render(),
-		);
 	}
 
 	/**
@@ -356,64 +312,17 @@ class Smaily_Admin {
 			}
 		}
 
-		// Get parameters.
-		$is_advanced = ( isset( $form_data['advanced-form']['is_advanced'] ) && ! empty( $form_data['advanced-form']['is_advanced'] ) ) ? true : false;
-		$form        = ( isset( $form_data['advanced-form']['form'] ) && is_string( $form_data['advanced-form']['form'] ) ) ? trim( $form_data['advanced-form']['form'] ) : '';
-
-		// Generate new form (if empty).
-		if ( empty( $form ) && $is_advanced ) {
-			echo wp_json_encode(
-				array(
-					'error' => __( 'Disable advanced form option or fill out the form field!', 'smaily' ),
-				)
-			);
-			wp_die();
-		}
-
-		$this->options->update_settings(
-			array(
-				'is_advanced' => $is_advanced,
-				'form'        => $form,
-			)
-		);
-
-		// Check if wooocommerce is active, if so proccess woocommerce related data
+		// Check if WooCommerce is active, if so process WooCommerce related data
 		if ( Smaily_Helper::is_woocommerce_active() ) {
 			$woocommerce = Smaily_WC\Data_Prepare::prepare_form_data( $form_data );
 			$this->options->update_settings( $woocommerce, 'woocommerce_settings' );
 		}
 
-		$autoresponders = $this->get_autoresponders();
-
 		return array(
 			'error'          => false,
-			'autoresponders' => $autoresponders,
+			'autoresponders' => $this->get_autoresponders(),
 		);
 	}
-
-	/**
-	 * Generate newsletter opt-in form template and assign required variables via function parameters.
-	 *
-	 *
-	 * @access private
-	 * @param  string $template_name            Name of template file to use, without any prefixes (e.g advanced.php).
-	 * @param  string $subdomain                Smaily API subdomain.
-	 * @param  string $newsletter_form          HTML of newsletter subscription form.
-	 * @return Smaily_Template $template Template of admin form.
-	 */
-	private function generate_optin_template( $template_name, $subdomain, $newsletter_form = '' ) {
-		// Generate form contents.
-		$template = new Smaily_Template( 'public/partials/smaily-public-' . $template_name );
-
-		$template->assign(
-			array(
-				'domain' => $subdomain,
-				'form'   => $newsletter_form,
-			)
-		);
-		return $template;
-	}
-
 
 	/**
 	 * Generate admin area template and assign required variables via function parameters.

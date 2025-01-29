@@ -8,14 +8,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 $has_woocommerce    = Smaily_Helper::is_woocommerce_active();
 $autoresponder_list = $this->autoresponders;
 
-$settings = $this->settings;
-
 if ( $has_woocommerce ) {
 	$sync_additional         = $this->settings['woocommerce']['syncronize_additional'];
 	$cart_options            = $this->settings['woocommerce']['cart_options'];
 	$customer_sync_enabled   = (bool) (int) $this->settings['woocommerce']['customer_sync_enabled'];
-	$is_advanced             = isset( $this->settings['is_advanced'] ) ? (bool) (int) $this->settings['is_advanced'] ?? false : false;
-	$advanced_form           = isset( $this->settings['form'] ) ? $this->settings['form'] ?? false : false;
 	$cart_cutoff             = (int) $this->settings['woocommerce']['cart_cutoff'];
 	$cart_enabled            = (bool) (int) $this->settings['woocommerce']['enable_cart'];
 	$cart_autoresponder_name = $this->settings['woocommerce']['cart_autoresponder'];
@@ -69,11 +65,6 @@ if ( $has_woocommerce ) {
 				<li>
 					<a href="#general" class="nav-tab nav-tab-active">
 						<?php esc_html_e( 'General', 'smaily' ); ?>
-					</a>
-				</li>
-				<li>
-					<a href="#newsletter" class="nav-tab">
-						<?php esc_html_e( 'Newsletter', 'smaily' ); ?>
 					</a>
 				</li>
 				<?php if ( $has_woocommerce ) : ?>
@@ -176,42 +167,6 @@ if ( $has_woocommerce ) {
 				</table>
 			</div>
 
-			<div id="newsletter">
-				<table class="form-table">
-					<tbody>
-						<tr class="form-field">
-							<th scope="row">
-								<label for="is_advanced">
-									<?php esc_html_e( 'Is it advanced?', 'smaily' ); ?>
-								</label>
-								<p style="font-size:10px; font-weight: 400;">
-									<?php esc_html_e( 'Note: When you save with advanced option switched OFF, default form will be used.', 'smaily' ); ?>
-								</p>
-							</th>
-							<td>
-								<input name="advanced-form[is_advanced]" type="checkbox" <?php checked( $this->settings['is_advanced'] ); ?> class="smaily-toggle" id="is_advanced" value="<?php echo (int) esc_html( $this->settings['is_advanced'] ); ?>" />
-								<label for="is_advanced"></label>
-							</td>
-						</tr>
-						<tr class="form-field is-advanced-row">
-							<th scope="row">
-								<label for="smaily-advanced-form">
-									<?php esc_html_e( 'Advanced form', 'smaily' ); ?>
-									<a id="reset-form" href="#">
-										<?php esc_html_e( '(generate)', 'smaily' ); ?>
-									</a>
-								</label>
-							</th>
-							<td>
-								<textarea name="advanced-form[form]" id="smaily-advanced-form" cols="15" rows="15">
-									<?php echo esc_html( $this->settings['form'] ); ?>
-								</textarea>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-
 			<?php if ( $has_woocommerce ) : ?>
 				<div id="customer">
 					<table class="form-table">
@@ -249,7 +204,7 @@ if ( $has_woocommerce ) {
 											'user_phone'  => __( 'Phone', 'smaily' ),
 											'site_title'  => __( 'Site Title', 'smaily' ),
 										);
-										// Add options for select and select them if allready saved before.
+										// Add options for select and select them if already saved before.
 										foreach ( $sync_options as $value => $name ) :
 											?>
 											<option 

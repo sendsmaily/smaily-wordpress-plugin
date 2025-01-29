@@ -10,7 +10,6 @@ Comprehensive Smaily integration for WordPress, WooCommerce, and Contact Form 7,
 - **Abandoned cart reminder emails** for WooCommerce.
 - **Two-way synchronization** between Smaily and WooCommerce.
 - **Subscription Widget** available for easy integration on any page.
-- Supports **custom advanced HTML forms** and **autoresponders**.
 
 ## Documentation & Support
 
@@ -47,7 +46,6 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 ### 1.0.0
 - Combined Smaily for Contact Form 7, Smaily for WP, and Smaily for WooCommerce into a single plugin for a streamlined experience.
-- Integrated advanced form options and autoresponder support across all platforms.
 
 ### Previous Entries
 Refer to individual plugin changelogs for historical updates.

@@ -46,12 +46,10 @@ class Smaily_Options {
 	 * Get smaily settings.
 	 *
 	 *
-	 * @return array   $settings Newsletter signup form settings.
+	 * @return array Smaily module settings.
 	 */
 	public function get_settings() {
 		if ( is_null( $this->settings ) ) {
-			$this->settings = $this->get_form_options_from_db();
-
 			if ( Smaily_Helper::is_woocommerce_active() ) {
 				$this->settings['woocommerce'] = $this->get_woocommerce_settings_from_db();
 			}
@@ -60,7 +58,8 @@ class Smaily_Options {
 				$this->settings['cf7'] = $this->get_cf7_settings_from_db();
 			}
 		}
-		return $this->settings;
+
+		return $this->settings ?? array();
 	}
 
 	/**
@@ -82,24 +81,6 @@ class Smaily_Options {
 				'password'  => '',
 			),
 			$credentials
-		);
-	}
-
-	/**
-	 * Get smaily form options stored in database.
-	 *
-	 *
-	 * @access private
-	 * @return array   Smaily form options in proper format
-	 */
-	private function get_form_options_from_db() {
-		$settings = get_option( 'smaily_form_options', array() );
-		return array_merge(
-			array(
-				'form'        => '',
-				'is_advanced' => false,
-			),
-			$settings
 		);
 	}
 
@@ -167,15 +148,24 @@ class Smaily_Options {
 	}
 
 	/**
-	 * Overwrite settings in the database.
+	 * Update module settings. For updating credentials use update_api_credentials function.
 	 *
-	 * @param array $settings Smaily settings.
+	 * @param array $settings Array of settings for the setting type.
+	 * @param string $settings_type woocommerce_settings | cf7_settings
+	 * @return void
 	 */
-	public function update_settings( $settings, $settings_type = 'form_options' ) {
+	public function update_settings( $settings, $settings_type ) {
+		$allowed_setting_types = array( 'woocommerce_settings', 'cf7_settings' );
+
+		if ( ! in_array( $settings_type, $allowed_setting_types, true ) ) {
+			throw new InvalidArgumentException( 'Updating Smaily with unknown settings type: ' . esc_textarea( $settings_type ) );
+		}
+
 		if ( is_array( $settings ) ) {
 			$settings       = Smaily_Helper::sanitize_array( $settings );
 			$this->settings = $settings;
 		}
+
 		update_option( 'smaily_' . $settings_type, $settings );
 	}
 
