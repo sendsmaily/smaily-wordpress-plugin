@@ -131,41 +131,6 @@ class Smaily_Admin {
 	}
 
 	/**
-	 * Load newsletter subscription block.
-	 *
-	 */
-	public function smaily_subscription_block_init( $screen ) {
-		if ( ! in_array( $screen, array( 'site-editor.php', 'post.php', 'page.php' ), true ) ) {
-			return;
-		}
-
-		$autoresponders = array(
-			array(
-				'label' => __( 'No autoresponder', 'smaily' ),
-				'value' => '',
-			),
-		);
-
-		foreach ( $this->get_autoresponders() as $autoresponder_id => $title ) {
-			$autoresponders[] = array(
-				'label' => $title,
-				'value' => (string) $autoresponder_id,
-			);
-		}
-
-		$blocks_assets = require SMAILY_PLUGIN_PATH . 'blocks/index.asset.php';
-		wp_enqueue_script(
-			$this->plugin_name . '-subscription',
-			SMAILY_PLUGIN_URL . '/blocks/index.js',
-			array(),
-			$blocks_assets['version'],
-			true
-		);
-
-		wp_add_inline_script( $this->plugin_name . '-subscription', "window.autoresponders = '" . wp_json_encode( $autoresponders ) . "';", 'before' );
-	}
-
-	/**
 	 * Load subscribe widget.
 	 *
 	 */

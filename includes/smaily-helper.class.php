@@ -213,4 +213,44 @@ class Smaily_Helper {
 
 		return $allowedtags;
 	}
+
+	/**
+	 * Try to get current webpage language code. Returns an empty string if no language could be determined.
+	 *
+	 * @return string
+	 */
+	public static function maybe_get_current_language_code() {
+		$lang = '';
+		if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
+			$lang = ICL_LANGUAGE_CODE;
+			// Language code if using polylang.
+		} elseif ( function_exists( 'pll_current_language' ) ) {
+			$lang = pll_current_language();
+		} else {
+			$lang = get_locale();
+			if ( strlen( $lang ) > 0 ) {
+				// Remove any value past underscore if exists.
+				$lang = explode( '_', $lang )[0];
+			}
+		}
+
+		return $lang;
+	}
+
+	/**
+	 * Get the current URL of the webpage. Defaults to site URL when request URL couldn't be determined.
+	 *
+	 * @return string
+	 */
+	public static function get_current_url() {
+		if ( ! isset( $_SERVER['HTTP_HOST'] ) || ! isset( $_SERVER['REQUEST_URI'] ) ) {
+			return get_site_url();
+		}
+
+		$protocol = is_ssl() ? 'https://' : 'http://';
+		$host     = sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) );
+		$uri      = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+
+		return $protocol . $host . $uri;
+	}
 }

@@ -172,14 +172,7 @@ class Smaily {
 	 * @access private
 	 */
 	public function init_blocks() {
-		$plugin_block = new Smaily_Block( $this->options, $this->get_plugin_name(), $this->get_version() );
-
-		register_block_type(
-			SMAILY_PLUGIN_PATH . '/blocks',
-			array(
-				'render_callback' => array( $plugin_block, 'render' ),
-			)
-		);
+		register_block_type( SMAILY_PLUGIN_PATH . '/block/build/block' );
 	}
 
 	/**
@@ -194,7 +187,6 @@ class Smaily {
 		$plugin_admin = new Smaily_Admin( $this->options, $plugin_name, $this->get_version() );
 		add_action( 'admin_enqueue_scripts', array( $plugin_admin, 'enqueue_styles' ) );
 		add_action( 'admin_enqueue_scripts', array( $plugin_admin, 'enqueue_scripts' ) );
-		add_action( 'admin_enqueue_scripts', array( $plugin_admin, 'smaily_subscription_block_init' ) );
 		add_action( 'wp_ajax_smaily_admin_save', array( $plugin_admin, 'smaily_admin_save' ) );
 		add_action( 'widgets_init', array( $plugin_admin, 'smaily_subscription_widget_init' ) );
 		add_action( 'admin_menu', array( $plugin_admin, 'smaily_admin_render' ) );

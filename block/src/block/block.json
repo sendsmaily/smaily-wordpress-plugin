@@ -1,0 +1,64 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "smaily/newsletter-block",
+	"version": "1.0.0",
+	"title": "Smaily",
+	"category": "widgets",
+	"description": "Smaily newsletter subscription form.",
+	"example": {},
+	"attributes": {
+		"subdomain": {
+			"type": "string",
+			"default": ""
+		},
+		"title": {
+			"type": "string",
+			"default": ""
+		},
+		"show_name_field": {
+			"type": "boolean",
+			"default": false
+		},
+		"name_input_label": {
+			"type": "string",
+			"default": "Name"
+		},
+		"subscribe_button_label": {
+			"type": "string",
+			"default": "Subscribe"
+		},
+		"email_input_label": {
+			"type": "string",
+			"default": "Email"
+		},
+		"success_url": {
+			"type": "string",
+			"default": ""
+		},
+		"error_url": {
+			"type": "string",
+			"default": ""
+		},
+		"autoresponder_id": {
+			"type": "string",
+			"default": ""
+		}
+	},
+	"supports": {
+		"color": {
+			"background": false,
+			"text": true
+		},
+		"typography": {
+			"fontSize": true
+		},
+		"html": false
+	},
+	"textdomain": "smaily",
+	"editorScript": "file:./index.js",
+	"editorStyle": "file:./index.css",
+	"style": "file:./style-index.css",
+	"render": "file:./render.php",
+	"viewScript": "file:./view.js"
+}
