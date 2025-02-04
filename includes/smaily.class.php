@@ -172,7 +172,7 @@ class Smaily {
 	 * @access private
 	 */
 	public function init_blocks() {
-		register_block_type( SMAILY_PLUGIN_PATH . '/block/build/block' );
+		register_block_type( SMAILY_PLUGIN_PATH . '/blocks/newsletter-signup/build' );
 	}
 
 	/**

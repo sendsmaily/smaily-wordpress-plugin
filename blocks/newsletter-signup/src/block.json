@@ -12,10 +12,6 @@
 			"type": "string",
 			"default": ""
 		},
-		"title": {
-			"type": "string",
-			"default": ""
-		},
 		"show_name_field": {
 			"type": "boolean",
 			"default": false
@@ -32,6 +28,14 @@
 			"type": "string",
 			"default": "Email"
 		},
+		"success_message": {
+			"type": "string",
+			"default": ""
+		},
+		"error_message": {
+			"type": "string",
+			"default": ""
+		},
 		"success_url": {
 			"type": "string",
 			"default": ""
@@ -47,7 +51,7 @@
 	},
 	"supports": {
 		"color": {
-			"background": false,
+			"background": true,
 			"text": true
 		},
 		"typography": {
@@ -57,8 +61,6 @@
 	},
 	"textdomain": "smaily",
 	"editorScript": "file:./index.js",
-	"editorStyle": "file:./index.css",
 	"style": "file:./style-index.css",
-	"render": "file:./render.php",
-	"viewScript": "file:./view.js"
+	"render": "file:./render.php"
 }

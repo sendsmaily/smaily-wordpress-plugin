@@ -4,7 +4,7 @@
 	"description": "Smaily newsletter subscription block.",
 	"author": "Smaily",
 	"license": "GPL-2.0-or-later",
-	"main": "build/block/index.js",
+	"main": "build/index.js",
 	"scripts": {
 		"build": "wp-scripts build --webpack-copy-php",
 		"format": "wp-scripts format",
@@ -15,6 +15,8 @@
 		"start": "wp-scripts start --webpack-copy-php"
 	},
 	"devDependencies": {
+		"@wordpress/prettier-config": "^4.17.0",
 		"@wordpress/scripts": "^30.9.0"
-	}
+	},
+	"prettier": "@wordpress/prettier-config"
 }
