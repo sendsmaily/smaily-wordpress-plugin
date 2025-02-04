@@ -44,7 +44,7 @@ During first run WordPress installation wizard guides you through the setup proc
 The repository is split into multiple parts:
 
 - `admin` - administrator interface related components;
-- `block` - Gutenberg blocks component;
+- `blocks` - Gutenberg blocks components;
 - `cf7` - Contact Form 7 plugin integration;
 - `gfx` - illustrations & media;
 - `includes` - functionality separated into class based components;
