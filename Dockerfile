@@ -38,6 +38,15 @@ RUN apt-get update \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Install node and npm.
+ENV NODE_VERSION=22.13.1
+RUN wget -O /tmp/node.tar.xz "https://nodejs.org/dist/v22.13.1/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+    && mkdir /tmp/node && tar -xvf /tmp/node.tar.xz -C /tmp/node --strip-components=1 \
+    && mv /tmp/node/bin/* /usr/local/bin \
+    && mv /tmp/node/include/* /usr/local/include \
+    && mv /tmp/node/lib/* /usr/local/lib \
+    && mv /tmp/node/share/* /usr/local/share
+
 # Compile and install PHP transliterator.
 RUN docker-php-ext-configure intl \
     && docker-php-ext-install intl
