@@ -16,6 +16,7 @@
     },
     "scripts": {
         "lint": "phpcs .",
-        "format": "phpcbf ."
+        "format": "phpcbf .",
+        "build-blocks": "npm --prefix blocks/newsletter-signup/ ci blocks/newsletter-signup/ && npm run build --prefix blocks/newsletter-signup/"
     }
 }
