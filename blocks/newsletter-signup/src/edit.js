@@ -5,8 +5,6 @@ import {
 	Card,
 	CardHeader,
 	CardBody,
-	Flex,
-	FlexItem,
 	TextControl,
 	ToggleControl,
 	PanelBody,
@@ -15,6 +13,20 @@ import {
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
 
 export default function Edit( { attributes, setAttributes } ) {
+	const blockProps = useBlockProps( {
+		className: 'wp-block-smaily-newsletter-block-wrapper',
+		style: {
+			'--smaily-subscribe-button-bg-color':
+				getColorCode(
+					attributes.style?.elements?.button?.color?.background
+				) ?? attributes.subscribe_button_bg_color,
+			'--smaily-subscribe-button-text-color':
+				getColorCode(
+					attributes.style?.elements?.button?.color?.text
+				) ?? attributes.subscribe_button_text_color,
+		},
+	} );
+
 	const {
 		autoresponder_id,
 		error_url,
@@ -30,7 +42,7 @@ export default function Edit( { attributes, setAttributes } ) {
 
 	return (
 		<>
-			<Card { ...useBlockProps() } isBorderless={ true }>
+			<Card isBorderless={ true } { ...blockProps }>
 				<CardHeader
 					style={ { flexDirection: 'column', alignItems: 'inherit' } }
 				>
@@ -71,7 +83,11 @@ export default function Edit( { attributes, setAttributes } ) {
 							value=""
 							required
 						/>
-						<Button variant="primary" type="submit">
+						<Button
+							className="smaily-newsletter-block-button-submit"
+							variant="primary"
+							type="submit"
+						>
 							{ subscribe_button_label }
 						</Button>
 					</form>
@@ -174,4 +190,20 @@ export default function Edit( { attributes, setAttributes } ) {
 			</InspectorControls>
 		</>
 	);
+}
+
+function getColorCode( color ) {
+	if ( typeof color !== 'string' || color == '' ) {
+		return null;
+	}
+
+	if ( color.startsWith( 'var:preset|' ) ) {
+		const colorCode = color
+			.replace( 'var:preset|', '--wp--preset--' )
+			.replace( '|', '--' );
+		return `var(${ colorCode })`;
+	}
+
+	// HEX
+	return color;
 }

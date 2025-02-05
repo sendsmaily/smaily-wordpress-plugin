@@ -24,6 +24,14 @@
 			"type": "string",
 			"default": "Subscribe"
 		},
+		"subscribe_button_bg_color": {
+			"type": "string",
+			"default": "var(--wp-admin-theme-color)"
+		},
+		"subscribe_button_text_color": {
+			"type": "string",
+			"default": "var(--wp-components-color-accent-inverted,#fff)"
+		},
 		"email_input_label": {
 			"type": "string",
 			"default": "Email"
@@ -52,7 +60,8 @@
 	"supports": {
 		"color": {
 			"background": true,
-			"text": true
+			"text": true,
+			"button": true
 		},
 		"typography": {
 			"fontSize": true

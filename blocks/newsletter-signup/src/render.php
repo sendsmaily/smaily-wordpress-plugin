@@ -6,12 +6,29 @@ $has_response = isset( $_GET['code'] );
 $is_success   = $has_response && $_GET['code'] === '101';
 $is_error     = $has_response && ! $is_success;
 
-$language_code = Smaily_Helper::maybe_get_current_language_code();
-$current_url   = Smaily_Helper::get_current_url();
+$language_code = \Smaily_Helper::maybe_get_current_language_code();
+$current_url   = \Smaily_Helper::get_current_url();
+
+$subscribe_button_bg_color = $attributes['subscribe_button_bg_color'];
+if ( isset( $attributes['style']['elements']['button']['color']['background'] ) ) {
+	$subscribe_button_bg_color = \Smaily_Block::parse_color_preset( $attributes['style']['elements']['button']['color']['background'] );
+}
+
+$subscribe_button_text_color = $attributes['subscribe_button_text_color'];
+if ( isset( $attributes['style']['elements']['button']['color']['text'] ) ) {
+	$subscribe_button_text_color = \Smaily_Block::parse_color_preset( $attributes['style']['elements']['button']['color']['text'] );
+}
+
+$block_attributes = get_block_wrapper_attributes(
+	array(
+		'class' => 'wp-block-smaily-newsletter-block-wrapper',
+		'style' => sprintf( '--smaily-subscribe-button-bg-color: %s; --smaily-subscribe-button-text-color: %s;', $subscribe_button_bg_color, $subscribe_button_text_color ),
+	)
+);
 
 ?>
 
-<div <?php echo wp_kses_data( get_block_wrapper_attributes( array( 'class' => 'wp-block-smaily-newsletter-block-wrapper' ) ) ); ?>>
+<div <?php echo wp_kses_data( $block_attributes ); ?>>
 	<?php if ( $has_response ) : ?>
 		<div class="smaily-newsletter-block-notice-container">
 			<?php if ( $is_success && ! empty( $attributes['success_message'] ) ) : ?>
@@ -59,7 +76,7 @@ $current_url   = Smaily_Helper::get_current_url();
 				</label>
 				<input type="email" name="email" id="smaily-newsletter-block-input-email" class="smaily-newsletter-block-regular-text" required>
 			</div>
-			<button class="components-button is-primary" type="submit">
+			<button class="smaily-newsletter-block-button-submit components-button is-primary" type="submit">
 				<?php echo esc_html( $attributes['subscribe_button_label'] ); ?>
 			</button>
 		</form>

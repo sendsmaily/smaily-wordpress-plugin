@@ -31,23 +31,17 @@
 			border: 1px solid #949494;
 			border-radius: 2px;
 			transition: box-shadow .1s linear;
-			border-color: var(--wp-admin-theme-color);
-			box-shadow: 0 0 0 .5px var(--wp-admin-theme-color);
 			outline: 2px solid #0000;
 		}
 	}
 
 	.smaily-newsletter-block-button-submit {
-		background: var(--wp-admin-theme-color);
-		color: var(--wp-components-color-accent-inverted,#fff);
-		outline: 1px solid #0000;
-		text-decoration: none;
-		text-shadow: none;
-		cursor: pointer;
-		border-width: 0;
-		border-style: none;
-		border-radius: 2px;
-		padding: 6px 12px;
-		height: 36px;
+		background-color: var(--smaily-subscribe-button-bg-color);
+		color: var(--smaily-subscribe-button-text-color);
+	}
+
+	.smaily-newsletter-block-button-submit:hover:not(:disabled) {
+		background-color: var(--smaily-subscribe-button-bg-color);
+		color: var(--smaily-subscribe-button-text-color);
 	}
 }
