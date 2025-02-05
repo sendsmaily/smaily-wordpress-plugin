@@ -31,32 +31,20 @@ export default function Edit( { attributes, setAttributes } ) {
 	return (
 		<>
 			<Card { ...useBlockProps() } isBorderless={ true }>
-				{ ( error_message !== '' || success_message !== '' ) && (
-					<CardHeader>
-						<Flex direction="column">
-							{ success_message !== '' && (
-								<FlexItem>
-									<Notice
-										status="success"
-										isDismissible={ false }
-									>
-										{ success_message }
-									</Notice>
-								</FlexItem>
-							) }
-							{ error_message !== '' && (
-								<FlexItem>
-									<Notice
-										status="error"
-										isDismissible={ false }
-									>
-										{ error_message }
-									</Notice>
-								</FlexItem>
-							) }
-						</Flex>
-					</CardHeader>
-				) }
+				<CardHeader
+					style={ { flexDirection: 'column', alignItems: 'inherit' } }
+				>
+					{ success_message !== '' && (
+						<Notice status="success" isDismissible={ false }>
+							{ success_message }
+						</Notice>
+					) }
+					{ error_message !== '' && (
+						<Notice status="error" isDismissible={ false }>
+							{ error_message }
+						</Notice>
+					) }
+				</CardHeader>
 				<CardBody>
 					<form
 						class="container"

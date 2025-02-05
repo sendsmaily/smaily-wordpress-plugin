@@ -172,6 +172,7 @@ class Smaily {
 	 * @access private
 	 */
 	public function init_blocks() {
+		wp_enqueue_style( 'wp-components' );
 		register_block_type( SMAILY_PLUGIN_PATH . '/blocks/newsletter-signup/build' );
 	}
 
