@@ -58,10 +58,15 @@
 		}
 	},
 	"supports": {
+		"align": true,
 		"color": {
 			"background": true,
 			"text": true,
 			"button": true
+		},
+		"spacing": {
+			"margin": true,
+			"padding": true
 		},
 		"typography": {
 			"fontSize": true
