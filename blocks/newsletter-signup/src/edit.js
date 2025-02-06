@@ -1,18 +1,23 @@
+import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
-
+import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
+import { useState, useEffect } from '@wordpress/element';
 import {
-	Notice,
+	Button,
 	Card,
-	CardHeader,
 	CardBody,
+	CardHeader,
+	Notice,
+	PanelBody,
+	SelectControl,
+	Spinner,
 	TextControl,
 	ToggleControl,
-	PanelBody,
-	Button,
 } from '@wordpress/components';
-import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
 
 export default function Edit( { attributes, setAttributes } ) {
+	const [ autoresponders, setAutoresponders ] = useState( null );
+
 	const blockProps = useBlockProps( {
 		className: 'wp-block-smaily-newsletter-block-wrapper',
 		style: {
@@ -28,17 +33,31 @@ export default function Edit( { attributes, setAttributes } ) {
 	} );
 
 	const {
+		subdomain,
 		autoresponder_id,
 		error_url,
 		name_input_label,
 		show_name_field,
 		success_message,
 		error_message,
-		subdomain,
 		subscribe_button_label,
 		email_input_label,
 		success_url,
 	} = attributes;
+
+	useEffect( () => {
+		( async () => {
+			const autoresponders = await apiFetch( {
+				path: '/smaily/v1/autoresponders',
+			} );
+
+			setAutoresponders( autoresponders );
+		} )();
+	}, [] );
+
+	if ( autoresponders === null ) {
+		return <Spinner />;
+	}
 
 	return (
 		<>
@@ -178,13 +197,20 @@ export default function Edit( { attributes, setAttributes } ) {
 						}
 						help={ __( 'Defaults to current page URL.', 'smaily' ) }
 					/>
-					<TextControl
-						label={ __( 'Autoresponder ID', 'smaily' ) }
-						value={ autoresponder_id }
+					<SelectControl
+						label={ __( 'Autoresponder', 'smaily' ) }
 						name="autoresponder_id"
+						value={ autoresponder_id }
 						onChange={ ( val ) =>
 							setAttributes( { autoresponder_id: val } )
 						}
+						options={ [
+							{
+								label: __( 'No autoresponder', 'smaily' ),
+								value: '',
+							},
+							...autoresponders,
+						] }
 					/>
 				</PanelBody>
 			</InspectorControls>

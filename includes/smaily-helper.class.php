@@ -5,8 +5,6 @@
  */
 
 class Smaily_Helper {
-
-
 	/**
 	 * Check if WooCommerce is active.
 	 *
