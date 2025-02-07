@@ -1,7 +1,7 @@
 import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
-import { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect, useRef } from '@wordpress/element';
 import {
 	Button,
 	Card,
@@ -16,7 +16,9 @@ import {
 } from '@wordpress/components';
 
 export default function Edit( { attributes, setAttributes } ) {
+	const [ subdomain, setSubdomain ] = useState( null );
 	const [ autoresponders, setAutoresponders ] = useState( null );
+	const settingsURL = useRef();
 
 	const blockProps = useBlockProps( {
 		className: 'wp-block-smaily-newsletter-block-wrapper',
@@ -33,7 +35,6 @@ export default function Edit( { attributes, setAttributes } ) {
 	} );
 
 	const {
-		subdomain,
 		autoresponder_id,
 		error_url,
 		name_input_label,
@@ -47,16 +48,51 @@ export default function Edit( { attributes, setAttributes } ) {
 
 	useEffect( () => {
 		( async () => {
-			const autoresponders = await apiFetch( {
-				path: '/smaily/v1/autoresponders',
+			const ar = await apiFetch( { path: '/smaily/v1/autoresponders' } );
+			setAutoresponders( ar );
+
+			const config = await apiFetch( {
+				path: '/smaily/v1/configuration',
 			} );
 
-			setAutoresponders( autoresponders );
+			console.log( config );
+			setSubdomain( config[ 'subdomain' ] );
+			settingsURL.current = config[ 'settings_url' ];
 		} )();
 	}, [] );
 
-	if ( autoresponders === null ) {
+	const handleRedirect = async () => {
+		if ( settingsURL.current ) {
+			window.location.href = settingsURL.current;
+		}
+	};
+
+	if ( autoresponders === null || subdomain === null ) {
 		return <Spinner />;
+	}
+
+	if ( subdomain === '' ) {
+		return (
+			<Notice
+				status="error"
+				isDismissible={ false }
+				actions={ [
+					{
+						label: __( 'Go to plugin settings', 'smaily' ),
+						onClick: handleRedirect,
+						variant: 'primary',
+					},
+				] }
+			>
+				<h3>{ __( 'Plugin setup is not complete!', 'smaily' ) }</h3>
+				<p>
+					{ __(
+						'Please connect your Smaily account before adding a form!',
+						'smaily'
+					) }
+				</p>
+			</Notice>
+		);
 	}
 
 	return (
@@ -77,12 +113,7 @@ export default function Edit( { attributes, setAttributes } ) {
 					) }
 				</CardHeader>
 				<CardBody>
-					<form
-						class="container"
-						action={ `https://${ subdomain }.sendsmaily.net/api/opt-in/` }
-						method="post"
-						autocomplete="off"
-					>
+					<form class="container">
 						{ show_name_field && (
 							<TextControl
 								type="text"
@@ -114,14 +145,6 @@ export default function Edit( { attributes, setAttributes } ) {
 			</Card>
 			<InspectorControls>
 				<PanelBody title={ __( 'Visible fields', 'smaily' ) }>
-					<TextControl
-						label={ __( 'Subdomain', 'smaily' ) }
-						value={ subdomain }
-						name="subdomain"
-						onChange={ ( val ) =>
-							setAttributes( { subdomain: val } )
-						}
-					/>
 					<ToggleControl
 						label={ __( 'Display name field?', 'smaily' ) }
 						checked={ show_name_field }

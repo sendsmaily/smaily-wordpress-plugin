@@ -49,6 +49,29 @@ class Smaily_API {
 	 */
 	public function register_endpoints() {
 		$this->register_endpoint( 'v1', '/autoresponders', 'GET', 'list_autoresponders' );
+		$this->register_endpoint( 'v1', '/configuration', 'GET', 'get_configuration' );
+	}
+
+	/**
+	 * Get plugin configuration.
+	 *
+	 * @return array
+	 */
+	public function get_configuration() {
+		$configuration = array(
+			'subdomain'    => '',
+			'settings_url' => '',
+		);
+
+		$credentials = $this->options->get_api_credentials();
+
+		return array_merge(
+			$configuration,
+			array(
+				'subdomain'    => $credentials['subdomain'],
+				'settings_url' => admin_url( 'admin.php?page=smaily-settings' ),
+			)
+		);
 	}
 
 	/**
