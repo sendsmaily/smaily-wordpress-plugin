@@ -99,6 +99,7 @@ export default function Edit( { attributes, setAttributes } ) {
 		<>
 			<Card isBorderless={ true } { ...blockProps }>
 				<CardHeader
+					className="smaily-newsletter-block-notice-container"
 					style={ { flexDirection: 'column', alignItems: 'inherit' } }
 				>
 					{ success_message !== '' && (
