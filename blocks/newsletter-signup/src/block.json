@@ -64,9 +64,6 @@
 			"margin": true,
 			"padding": true
 		},
-		"typography": {
-			"fontSize": true
-		},
 		"html": false
 	},
 	"textdomain": "smaily",
