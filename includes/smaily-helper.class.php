@@ -217,7 +217,7 @@ class Smaily_Helper {
 	 *
 	 * @return string
 	 */
-	public static function maybe_get_current_language_code() {
+	public static function get_current_language_code() {
 		$lang = '';
 		if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
 			$lang = ICL_LANGUAGE_CODE;

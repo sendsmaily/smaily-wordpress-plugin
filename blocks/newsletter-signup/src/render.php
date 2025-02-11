@@ -6,7 +6,7 @@ $has_response = isset( $_GET['code'] );
 $is_success   = $has_response && $_GET['code'] === '101';
 $is_error     = $has_response && ! $is_success;
 
-$language_code = \Smaily_Helper::maybe_get_current_language_code();
+$language_code = \Smaily_Helper::get_current_language_code();
 $current_url   = \Smaily_Helper::get_current_url();
 
 $subscribe_button_bg_color = $attributes['subscribe_button_bg_color'];
