@@ -40,7 +40,7 @@ $block_attributes = get_block_wrapper_attributes(
 			<?php endif; ?>
 			<?php if ( $is_error && ! empty( $attributes['error_message'] ) ) : ?>
 				<div class="components-notice is-error" id="smaily-newsletter-block-error-message">
-					<div class="notice-content">
+					<div class="components-notice__content">
 						<?php echo esc_html( $attributes['error_message'] ); ?>
 					</div>
 				</div>
