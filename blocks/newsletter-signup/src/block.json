@@ -8,6 +8,10 @@
 	"description": "Smaily newsletter subscription form.",
 	"example": {},
 	"attributes": {
+		"subdomain": {
+			"type": "string",
+			"default": ""
+		},
 		"showNameField": {
 			"type": "boolean",
 			"default": false

@@ -21,7 +21,6 @@ const DEFAULT_BUTTON_BACKGROUND_COLOR = 'var(--wp-admin-theme-color, #007cba)';
 const DEFAULT_BUTTON_WIDTH = 'auto';
 
 export default function Edit( { attributes, setAttributes } ) {
-	const [ subdomain, setSubdomain ] = useState( null );
 	const [ autoresponders, setAutoresponders ] = useState( null );
 
 	const settingsURL = useRef();
@@ -67,6 +66,7 @@ export default function Edit( { attributes, setAttributes } ) {
 	}, [ attributes.style?.elements?.button?.color?.text, setAttributes ] );
 
 	const {
+		subdomain,
 		autoresponderId,
 		emailInputLabel,
 		errorMessage,
@@ -81,14 +81,14 @@ export default function Edit( { attributes, setAttributes } ) {
 
 	useEffect( () => {
 		( async () => {
-			const ar = await apiFetch( { path: '/smaily/v1/autoresponders' } );
+			const [ ar, config ] = await Promise.all([
+				apiFetch( { path: '/smaily/v1/autoresponders' } ),
+				apiFetch( {
+					path: '/smaily/v1/configuration',
+				} )
+			])
 			setAutoresponders( ar );
-
-			const config = await apiFetch( {
-				path: '/smaily/v1/configuration',
-			} );
-
-			setSubdomain( config.subdomain );
+			setAttributes( { subdomain: config.subdomain } );
 			settingsURL.current = config.settings_url;
 		} )();
 	}, [] );
@@ -99,7 +99,7 @@ export default function Edit( { attributes, setAttributes } ) {
 		}
 	};
 
-	if ( autoresponders === null || subdomain === null ) {
+	if ( autoresponders === null ) {
 		return <Spinner />;
 	}
 
