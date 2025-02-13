@@ -61,24 +61,4 @@ class Smaily_Block {
 		$plugin_public = new Smaily_Public( $this->options, $this->plugin_name, $this->version );
 		return $plugin_public->smaily_shortcode_render( $attributes );
 	}
-
-	/**
-	 * Parses preset colors from preset patterns to color variables used in CSS files.
-	 *
-	 * @param mixed $color pattern var:preset|[color-type]|[color-name]
-	 * @return null|string var(--wp--preset--[color-type]--[color-name])
-	 */
-	public static function parse_color_preset( $color ) {
-		if ( gettype( $color ) !== 'string' || $color === '' ) {
-			return null;
-		}
-
-		if ( str_starts_with( $color, 'var:preset|' ) ) {
-			$color_code = str_replace( 'var:preset|', '--wp--preset--', $color );
-			$color_code = str_replace( '|', '--', $color_code );
-			return sprintf( 'var(%s)', $color_code );
-		}
-
-		return $color;
-	}
 }

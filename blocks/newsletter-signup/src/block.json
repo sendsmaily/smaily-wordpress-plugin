@@ -20,15 +20,15 @@
 			"type": "string",
 			"default": "Subscribe"
 		},
-		"subscribe_button_bg_color": {
+		"subscribeButtonBackgroundColor": {
 			"type": "string",
 			"default": "var(--wp-admin-theme-color)"
 		},
-		"subscribe_button_text_color": {
+		"subscribeButtonTextColor": {
 			"type": "string",
 			"default": "var(--wp-components-color-accent-inverted,#fff)"
 		},
-		"subscribe_button_width": {
+		"subscribeButtonWidth": {
 			"type": "string",
 			"default": "auto"
 		},

@@ -9,24 +9,14 @@ $is_error     = $has_response && ! $is_success;
 $language_code = \Smaily_Helper::get_current_language_code();
 $current_url   = \Smaily_Helper::get_current_url();
 
-$subscribe_button_bg_color = $attributes['subscribe_button_bg_color'];
-if ( isset( $attributes['style']['elements']['button']['color']['background'] ) ) {
-	$subscribe_button_bg_color = \Smaily_Block::parse_color_preset( $attributes['style']['elements']['button']['color']['background'] );
-}
-
-$subscribe_button_text_color = $attributes['subscribe_button_text_color'];
-if ( isset( $attributes['style']['elements']['button']['color']['text'] ) ) {
-	$subscribe_button_text_color = \Smaily_Block::parse_color_preset( $attributes['style']['elements']['button']['color']['text'] );
-}
-
 $block_attributes = get_block_wrapper_attributes(
 	array(
 		'class' => 'wp-block-smaily-newsletter-block-wrapper',
 		'style' => sprintf(
 			'--smaily-subscribe-button-bg-color: %s; --smaily-subscribe-button-text-color: %s; --smaily-subscribe-button-width: %s;',
-			esc_attr( $subscribe_button_bg_color ),
-			esc_attr( $subscribe_button_text_color ),
-			esc_attr( $attributes['subscribe_button_width'] )
+			esc_attr( $attributes['subscribeButtonBackgroundColor'] ),
+			esc_attr( $attributes['subscribeButtonTextColor'] ),
+			esc_attr( $attributes['subscribeButtonWidth'] )
 		),
 	)
 );

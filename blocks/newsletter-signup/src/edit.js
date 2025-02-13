@@ -15,26 +15,56 @@ import {
 	ToggleControl,
 } from '@wordpress/components';
 
+const DEFAULT_BUTTON_TEXT_COLOR =
+	'var(--wp-components-color-accent-inverted, #ffffff)';
+const DEFAULT_BUTTON_BACKGROUND_COLOR = 'var(--wp-admin-theme-color, #007cba)';
+const DEFAULT_BUTTON_WIDTH = 'auto';
+
 export default function Edit( { attributes, setAttributes } ) {
 	const [ subdomain, setSubdomain ] = useState( null );
 	const [ autoresponders, setAutoresponders ] = useState( null );
+
 	const settingsURL = useRef();
 
 	const blockProps = useBlockProps( {
 		className: 'wp-block-smaily-newsletter-block-wrapper',
 		style: {
 			'--smaily-subscribe-button-bg-color':
-				getColorCode(
-					attributes.style?.elements?.button?.color?.background
-				) ?? attributes.subscribe_button_bg_color,
+				attributes.subscribeButtonBackgroundColor,
 			'--smaily-subscribe-button-text-color':
-				getColorCode(
-					attributes.style?.elements?.button?.color?.text
-				) ?? attributes.subscribe_button_text_color,
-			'--smaily-subscribe-button-width':
-				attributes.subscribe_button_width,
+				attributes.subscribeButtonTextColor,
+			'--smaily-subscribe-button-width': attributes.subscribeButtonWidth,
 		},
 	} );
+
+	useEffect( () => {
+		if ( attributes.style?.elements?.button?.color?.background ) {
+			const colorCode = getColorCode(
+				attributes.style.elements.button.color.background
+			);
+			setAttributes( { subscribeButtonBackgroundColor: colorCode } );
+		} else {
+			setAttributes( {
+				subscribeButtonBackgroundColor: DEFAULT_BUTTON_BACKGROUND_COLOR,
+			} );
+		}
+	}, [
+		attributes.style?.elements?.button?.color?.background,
+		setAttributes,
+	] );
+
+	useEffect( () => {
+		if ( attributes.style?.elements?.button?.color?.text ) {
+			const colorCode = getColorCode(
+				attributes.style.elements.button.color.text
+			);
+			setAttributes( { subscribeButtonTextColor: colorCode } );
+		} else {
+			setAttributes( {
+				subscribeButtonTextColor: DEFAULT_BUTTON_TEXT_COLOR,
+			} );
+		}
+	}, [ attributes.style?.elements?.button?.color?.text, setAttributes ] );
 
 	const {
 		autoresponderId,
@@ -44,6 +74,7 @@ export default function Edit( { attributes, setAttributes } ) {
 		nameInputLabel,
 		showNameField,
 		subscribeButtonLabel,
+		subscribeButtonWidth,
 		successMessage,
 		successURL,
 	} = attributes;
@@ -183,12 +214,12 @@ export default function Edit( { attributes, setAttributes } ) {
 					/>
 					<ToggleControl
 						label={ __( 'Full width subscribe button', 'smaily' ) }
-						checked={ attributes.subscribe_button_width === '100%' }
+						checked={ subscribeButtonWidth === '100%' }
 						onChange={ ( checked ) =>
 							setAttributes( {
-								subscribe_button_width: checked
+								subscribeButtonWidth: checked
 									? '100%'
-									: 'auto',
+									: DEFAULT_BUTTON_WIDTH,
 							} )
 						}
 						name="show_name"
