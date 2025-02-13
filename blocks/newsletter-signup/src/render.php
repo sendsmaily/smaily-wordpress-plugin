@@ -2,8 +2,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$has_response = isset( $_GET['code'] );
-$is_success   = $has_response && $_GET['code'] === '101';
+$has_response = isset( $_GET['code'] ); //phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$is_success   = $has_response && $_GET['code'] === '101'; //phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $is_error     = $has_response && ! $is_success;
 
 $language_code = \Smaily_Helper::get_current_language_code();
