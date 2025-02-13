@@ -22,7 +22,7 @@
         <include-pattern>*\.php$</include-pattern>
     </rule>
 
-    <config name="minimum_supported_wp_version" value="4.5" />
+    <config name="minimum_supported_wp_version" value="5.0" />
 
     <rule ref="WordPress.WP.I18n">
         <properties>
