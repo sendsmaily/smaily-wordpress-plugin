@@ -146,7 +146,7 @@ export default function Edit( { attributes, setAttributes } ) {
 					) }
 				</CardHeader>
 				<CardBody>
-					<form className="container">
+					<form>
 						{ showNameField && (
 							<TextControl
 								type="text"
