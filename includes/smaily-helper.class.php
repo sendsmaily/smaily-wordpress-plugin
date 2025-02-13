@@ -37,16 +37,16 @@ class Smaily_Helper {
 	 * @return bool True if the view is for admins.
 	 */
 	public static function is_admin_screen() {
-		// PHP auto populated field.
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-		$request_uri = $_SERVER['REQUEST_URI'];
+		if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
+			return false;
+		}
 
-		return ( function_exists( 'is_admin' ) && is_admin() ||
+		$request_uri = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+		return function_exists( 'is_admin' ) && is_admin() ||
 			(
 				strpos( $request_uri, '/wp-admin/' ) !== false ||
 				strpos( $request_uri, 'admin-ajax.php' ) !== false
-			)
-		);
+			);
 	}
 
 	/**
@@ -55,9 +55,11 @@ class Smaily_Helper {
 	 * @return bool True if the request is likely made by the browser.
 	 */
 	public static function is_browser_request() {
-		// PHP auto populated field.
-        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-		$request_uri = $_SERVER['REQUEST_URI'];
+		if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
+			return false;
+		}
+
+		$request_uri = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 
 		// Check for common browser-initiated requests
 		$browser_requests = array(

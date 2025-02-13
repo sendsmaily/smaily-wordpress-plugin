@@ -165,9 +165,6 @@ class Smaily_Admin {
 
 		// Parse form data out of the serialization.
 		$form_data = array();
-
-		// $form_data values should be sanitized instead of serialized payload.
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized 
 		parse_str( wp_unslash( $_POST['payload'] ), $form_data );
 
 		// Ensure nonce is valid.

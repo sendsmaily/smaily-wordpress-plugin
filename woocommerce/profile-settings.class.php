@@ -3,8 +3,8 @@
 namespace Smaily_WC;
 
 /**
- * Adds and controlls WooCommerce Register and Account Details fields.
- * Adds and controlls WordPress User Profile and Admin Profile fields.
+ * Adds and controls WooCommerce Register and Account Details fields.
+ * Adds and controls WordPress User Profile and Admin Profile fields.
  */
 class Profile_Settings {
 
@@ -304,8 +304,6 @@ class Profile_Settings {
 			}
 
 			$sanitize = isset( $field_args['sanitize'] ) ? $field_args['sanitize'] : 'wc_clean';
-			// Sanitization not picked up by linter.
-			// phpcs:ignore  WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.NonceVerification.Missing
 			$value = isset( $_POST[ $key ] ) ? call_user_func( $sanitize, wp_unslash( $_POST[ $key ] ) ) : '';
 
 			$fields[ $key ] = $value;

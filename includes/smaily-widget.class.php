@@ -109,8 +109,6 @@ class Smaily_Widget extends WP_Widget {
 		);
 
 		// Render template.
-		// Values are escaped in the template itself.
-		// phpcs:ignore  WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $template->render();
 
 		echo wp_kses_post( $args['after_widget'] );

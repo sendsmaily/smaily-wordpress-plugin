@@ -11,6 +11,8 @@
     <arg name="parallel" value="8" />
     <arg name="extensions" value="php" />
 
+    <rule ref="WordPress.Security" />
+
     <rule ref="WordPress-Core">
         <exclude name="WordPress.PHP.YodaConditions.NotYoda" />
     </rule>

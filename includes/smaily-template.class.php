@@ -78,8 +78,6 @@ class Smaily_Template {
 	 *
 	 */
 	public function dispatch() {
-		// Template tiself is responsible for excaping values.
-		// phpcs:ignore  WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo $this->render();
 	}
 
