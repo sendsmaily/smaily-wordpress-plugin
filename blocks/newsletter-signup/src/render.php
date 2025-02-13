@@ -22,7 +22,12 @@ if ( isset( $attributes['style']['elements']['button']['color']['text'] ) ) {
 $block_attributes = get_block_wrapper_attributes(
 	array(
 		'class' => 'wp-block-smaily-newsletter-block-wrapper',
-		'style' => sprintf( '--smaily-subscribe-button-bg-color: %s; --smaily-subscribe-button-text-color: %s;', $subscribe_button_bg_color, $subscribe_button_text_color ),
+		'style' => sprintf(
+			'--smaily-subscribe-button-bg-color: %s; --smaily-subscribe-button-text-color: %s; --smaily-subscribe-button-width: %s;',
+			esc_attr( $subscribe_button_bg_color ),
+			esc_attr( $subscribe_button_text_color ),
+			esc_attr( $attributes['subscribe_button_width'] )
+		),
 	)
 );
 

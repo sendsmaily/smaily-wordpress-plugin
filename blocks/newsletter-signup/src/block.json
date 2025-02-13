@@ -28,6 +28,10 @@
 			"type": "string",
 			"default": "var(--wp-components-color-accent-inverted,#fff)"
 		},
+		"subscribe_button_width": {
+			"type": "string",
+			"default": "auto"
+		},
 		"emailInputLabel": {
 			"type": "string",
 			"default": "Email"

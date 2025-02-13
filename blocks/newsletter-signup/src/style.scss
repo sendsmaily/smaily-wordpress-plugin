@@ -39,6 +39,8 @@
 	.smaily-newsletter-block-button-submit {
 		background-color: var(--smaily-subscribe-button-bg-color);
 		color: var(--smaily-subscribe-button-text-color);
+		justify-content: center;
+		width: var(--smaily-subscribe-button-width);
 	}
 
 	.smaily-newsletter-block-button-submit:hover:not(:disabled) {

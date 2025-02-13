@@ -31,18 +31,20 @@ export default function Edit( { attributes, setAttributes } ) {
 				getColorCode(
 					attributes.style?.elements?.button?.color?.text
 				) ?? attributes.subscribe_button_text_color,
+			'--smaily-subscribe-button-width':
+				attributes.subscribe_button_width,
 		},
 	} );
 
 	const {
 		autoresponderId,
+		emailInputLabel,
+		errorMessage,
 		errorURL,
 		nameInputLabel,
 		showNameField,
-		successMessage,
-		errorMessage,
 		subscribeButtonLabel,
-		emailInputLabel,
+		successMessage,
 		successURL,
 	} = attributes;
 
@@ -144,7 +146,7 @@ export default function Edit( { attributes, setAttributes } ) {
 			<InspectorControls>
 				<PanelBody title={ __( 'Visible fields', 'smaily' ) }>
 					<ToggleControl
-						label={ __( 'Display name field?', 'smaily' ) }
+						label={ __( 'Display name field', 'smaily' ) }
 						checked={ showNameField }
 						onChange={ () =>
 							setAttributes( {
@@ -178,6 +180,18 @@ export default function Edit( { attributes, setAttributes } ) {
 						onChange={ ( val ) =>
 							setAttributes( { subscribeButtonLabel: val } )
 						}
+					/>
+					<ToggleControl
+						label={ __( 'Full width subscribe button', 'smaily' ) }
+						checked={ attributes.subscribe_button_width === '100%' }
+						onChange={ ( checked ) =>
+							setAttributes( {
+								subscribe_button_width: checked
+									? '100%'
+									: 'auto',
+							} )
+						}
+						name="show_name"
 					/>
 					<TextControl
 						label={ __( 'Success message', 'smaily' ) }
