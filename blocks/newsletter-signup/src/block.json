@@ -8,15 +8,15 @@
 	"description": "Smaily newsletter subscription form.",
 	"example": {},
 	"attributes": {
-		"show_name_field": {
+		"showNameField": {
 			"type": "boolean",
 			"default": false
 		},
-		"name_input_label": {
+		"nameInputLabel": {
 			"type": "string",
 			"default": "Name"
 		},
-		"subscribe_button_label": {
+		"subscribeButtonLabel": {
 			"type": "string",
 			"default": "Subscribe"
 		},
@@ -28,27 +28,27 @@
 			"type": "string",
 			"default": "var(--wp-components-color-accent-inverted,#fff)"
 		},
-		"email_input_label": {
+		"emailInputLabel": {
 			"type": "string",
 			"default": "Email"
 		},
-		"success_message": {
+		"successMessage": {
 			"type": "string",
 			"default": ""
 		},
-		"error_message": {
+		"errorMessage": {
 			"type": "string",
 			"default": ""
 		},
-		"success_url": {
+		"successURL": {
 			"type": "string",
 			"default": ""
 		},
-		"error_url": {
+		"errorURL": {
 			"type": "string",
 			"default": ""
 		},
-		"autoresponder_id": {
+		"autoresponderId": {
 			"type": "string",
 			"default": ""
 		}

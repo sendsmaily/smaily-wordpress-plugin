@@ -31,17 +31,17 @@ $block_attributes = get_block_wrapper_attributes(
 <div <?php echo wp_kses_data( $block_attributes ); ?>>
 	<?php if ( $has_response ) : ?>
 		<div class="smaily-newsletter-block-notice-container">
-			<?php if ( $is_success && ! empty( $attributes['success_message'] ) ) : ?>
+			<?php if ( $is_success && ! empty( $attributes['successMessage'] ) ) : ?>
 				<div class="components-notice is-success" id="smaily-newsletter-block-success-message">
 					<div class="components-notice__content">
-						<?php echo esc_html( $attributes['success_message'] ); ?>
+						<?php echo esc_html( $attributes['successMessage'] ); ?>
 					</div>
 				</div>
 			<?php endif; ?>
-			<?php if ( $is_error && ! empty( $attributes['error_message'] ) ) : ?>
+			<?php if ( $is_error && ! empty( $attributes['errorMessage'] ) ) : ?>
 				<div class="components-notice is-error" id="smaily-newsletter-block-error-message">
 					<div class="components-notice__content">
-						<?php echo esc_html( $attributes['error_message'] ); ?>
+						<?php echo esc_html( $attributes['errorMessage'] ); ?>
 					</div>
 				</div>
 			<?php endif; ?>
@@ -54,30 +54,30 @@ $block_attributes = get_block_wrapper_attributes(
 			method="post"
 			autocomplete="off"
 		>
-			<?php if ( ! empty( $attributes['autoresponder_id'] ) ) : ?>
-				<input type="hidden" name="autoresponder" value="<?php echo esc_html( $attributes['autoresponder_id'] ); ?>" />
+			<?php if ( ! empty( $attributes['autoresponderId'] ) ) : ?>
+				<input type="hidden" name="autoresponder" value="<?php echo esc_html( $attributes['autoresponderId'] ); ?>" />
 			<?php endif ?>
 			<?php if ( ! empty( $language_code ) ) : ?>
 				<input type="hidden" name="lang" value="<?php echo esc_html( $language_code ); ?>" />
 			<?php endif ?>
-			<input type="hidden" name="success_url" value="<?php echo ! empty( $attributes['success_url'] ) ? esc_url( $attributes['success_url'] ) : esc_url( $current_url ); ?>" />
-			<input type="hidden" name="failure_url" value="<?php echo ! empty( $attributes['error_url'] ) ? esc_url( $attributes['error_url'] ) : esc_url( $current_url ); ?>" />
-			<?php if ( $attributes['show_name_field'] === true ) : ?>
+			<input type="hidden" name="successURL" value="<?php echo ! empty( $attributes['successURL'] ) ? esc_url( $attributes['successURL'] ) : esc_url( $current_url ); ?>" />
+			<input type="hidden" name="failure_url" value="<?php echo ! empty( $attributes['errorURL'] ) ? esc_url( $attributes['errorURL'] ) : esc_url( $current_url ); ?>" />
+			<?php if ( $attributes['showNameField'] === true ) : ?>
 			<div class="smaily-newsletter-block-form-control">
 				<label for="name">
-					<?php echo esc_html( $attributes['name_input_label'] ); ?>
+					<?php echo esc_html( $attributes['nameInputLabel'] ); ?>
 				</label>
 				<input type="text" name="name" id="smaily-newsletter-block-input-name" class="smaily-newsletter-block-regular-text">
 			</div>
 			<?php endif ?>
 			<div class="smaily-newsletter-block-form-control">
 				<label for="email">
-					<?php echo esc_html( $attributes['email_input_label'] ); ?>
+					<?php echo esc_html( $attributes['emailInputLabel'] ); ?>
 				</label>
 				<input type="email" name="email" id="smaily-newsletter-block-input-email" class="smaily-newsletter-block-regular-text" required>
 			</div>
 			<button class="smaily-newsletter-block-button-submit components-button is-primary" type="submit">
-				<?php echo esc_html( $attributes['subscribe_button_label'] ); ?>
+				<?php echo esc_html( $attributes['subscribeButtonLabel'] ); ?>
 			</button>
 		</form>
 	</div>

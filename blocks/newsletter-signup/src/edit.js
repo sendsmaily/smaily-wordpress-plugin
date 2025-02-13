@@ -35,15 +35,15 @@ export default function Edit( { attributes, setAttributes } ) {
 	} );
 
 	const {
-		autoresponder_id,
-		error_url,
-		name_input_label,
-		show_name_field,
-		success_message,
-		error_message,
-		subscribe_button_label,
-		email_input_label,
-		success_url,
+		autoresponderId,
+		errorURL,
+		nameInputLabel,
+		showNameField,
+		successMessage,
+		errorMessage,
+		subscribeButtonLabel,
+		emailInputLabel,
+		successURL,
 	} = attributes;
 
 	useEffect( () => {
@@ -55,9 +55,8 @@ export default function Edit( { attributes, setAttributes } ) {
 				path: '/smaily/v1/configuration',
 			} );
 
-			console.log( config );
-			setSubdomain( config[ 'subdomain' ] );
-			settingsURL.current = config[ 'settings_url' ];
+			setSubdomain( config.subdomain );
+			settingsURL.current = config.settings_url;
 		} )();
 	}, [] );
 
@@ -102,25 +101,25 @@ export default function Edit( { attributes, setAttributes } ) {
 					className="smaily-newsletter-block-notice-container"
 					style={ { flexDirection: 'column', alignItems: 'inherit' } }
 				>
-					{ success_message !== '' && (
+					{ successMessage !== '' && (
 						<Notice status="success" isDismissible={ false }>
-							{ success_message }
+							{ successMessage }
 						</Notice>
 					) }
-					{ error_message !== '' && (
+					{ errorMessage !== '' && (
 						<Notice status="error" isDismissible={ false }>
-							{ error_message }
+							{ errorMessage }
 						</Notice>
 					) }
 				</CardHeader>
 				<CardBody>
-					<form class="container">
-						{ show_name_field && (
+					<form className="container">
+						{ showNameField && (
 							<TextControl
 								type="text"
 								name="name"
 								label={
-									name_input_label !== '' && name_input_label
+									nameInputLabel !== '' && nameInputLabel
 								}
 								value=""
 							/>
@@ -128,9 +127,7 @@ export default function Edit( { attributes, setAttributes } ) {
 						<TextControl
 							type="email"
 							name="email"
-							label={
-								email_input_label !== '' && email_input_label
-							}
+							label={ emailInputLabel !== '' && emailInputLabel }
 							value=""
 							required
 						/>
@@ -139,7 +136,7 @@ export default function Edit( { attributes, setAttributes } ) {
 							variant="primary"
 							type="submit"
 						>
-							{ subscribe_button_label }
+							{ subscribeButtonLabel }
 						</Button>
 					</form>
 				</CardBody>
@@ -148,54 +145,54 @@ export default function Edit( { attributes, setAttributes } ) {
 				<PanelBody title={ __( 'Visible fields', 'smaily' ) }>
 					<ToggleControl
 						label={ __( 'Display name field?', 'smaily' ) }
-						checked={ show_name_field }
+						checked={ showNameField }
 						onChange={ () =>
 							setAttributes( {
-								show_name_field: ! show_name_field,
+								showNameField: ! showNameField,
 							} )
 						}
 						name="show_name"
 					/>
-					{ show_name_field && (
+					{ showNameField && (
 						<TextControl
 							label={ __( 'Name field label', 'smaily' ) }
-							value={ name_input_label }
-							name="name_input_label"
+							value={ nameInputLabel }
+							name="nameInputLabel"
 							onChange={ ( val ) =>
-								setAttributes( { name_input_label: val } )
+								setAttributes( { nameInputLabel: val } )
 							}
 						/>
 					) }
 					<TextControl
 						label={ __( 'Email field label', 'smaily' ) }
-						value={ email_input_label }
-						name="email_input_label"
+						value={ emailInputLabel }
+						name="emailInputLabel"
 						onChange={ ( val ) =>
-							setAttributes( { email_input_label: val } )
+							setAttributes( { emailInputLabel: val } )
 						}
 					/>
 					<TextControl
 						label={ __( 'Subscribe button label', 'smaily' ) }
-						value={ subscribe_button_label }
-						name="subscribe_button_label"
+						value={ subscribeButtonLabel }
+						name="subscribeButtonLabel"
 						onChange={ ( val ) =>
-							setAttributes( { subscribe_button_label: val } )
+							setAttributes( { subscribeButtonLabel: val } )
 						}
 					/>
 					<TextControl
 						label={ __( 'Success message', 'smaily' ) }
-						value={ success_message }
-						name="success_message"
+						value={ successMessage }
+						name="successMessage"
 						onChange={ ( val ) =>
-							setAttributes( { success_message: val } )
+							setAttributes( { successMessage: val } )
 						}
 					/>
 					<TextControl
 						label={ __( 'Error message', 'smaily' ) }
-						value={ error_message }
-						name="error_message"
+						value={ errorMessage }
+						name="errorMessage"
 						onChange={ ( val ) =>
-							setAttributes( { error_message: val } )
+							setAttributes( { errorMessage: val } )
 						}
 					/>
 				</PanelBody>
@@ -205,28 +202,28 @@ export default function Edit( { attributes, setAttributes } ) {
 				>
 					<TextControl
 						label={ __( 'Success URL', 'smaily' ) }
-						value={ success_url }
-						name="success_url"
+						value={ successURL }
+						name="successURL"
 						onChange={ ( val ) =>
-							setAttributes( { success_url: val } )
+							setAttributes( { successURL: val } )
 						}
 						help={ __( 'Defaults to current page URL.', 'smaily' ) }
 					/>
 					<TextControl
 						label={ __( 'Failure URL', 'smaily' ) }
-						value={ error_url }
+						value={ errorURL }
 						name="failure_url"
 						onChange={ ( val ) =>
-							setAttributes( { error_url: val } )
+							setAttributes( { errorURL: val } )
 						}
 						help={ __( 'Defaults to current page URL.', 'smaily' ) }
 					/>
 					<SelectControl
 						label={ __( 'Autoresponder', 'smaily' ) }
-						name="autoresponder_id"
-						value={ autoresponder_id }
+						name="autoresponderId"
+						value={ autoresponderId }
 						onChange={ ( val ) =>
-							setAttributes( { autoresponder_id: val } )
+							setAttributes( { autoresponderId: val } )
 						}
 						options={ [
 							{
@@ -243,7 +240,7 @@ export default function Edit( { attributes, setAttributes } ) {
 }
 
 function getColorCode( color ) {
-	if ( typeof color !== 'string' || color == '' ) {
+	if ( typeof color !== 'string' || color === '' ) {
 		return null;
 	}
 

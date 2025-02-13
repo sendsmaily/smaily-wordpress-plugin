@@ -27,7 +27,7 @@ const smailyIcon = (
 registerBlockType( metadata.name, {
 	edit: Edit,
 	icon: smailyIcon,
-	title: __( metadata.title, 'smaily' ),
-	description: __( metadata.description, 'smaily' ),
+	title: __( 'Smaily Sign-Up Form', 'smaily' ),
+	description: __( 'Smaily newsletter subscription form.', 'smaily' ),
 	keywords: [ __( 'email', 'smaily' ), __( 'newsletter', 'smaily' ) ],
 } );
