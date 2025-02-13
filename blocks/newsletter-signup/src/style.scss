@@ -7,7 +7,7 @@
 		flex-direction: column;
 		gap: 8px;
 		padding-bottom: 16px;
-		color: var(--wp--preset--color--contrast, black);
+		color: var(--wp--preset--color--contrast, #000);
 	}
 
 	.smaily-newsletter-block-form-control {
@@ -23,7 +23,7 @@
 			line-height: 1.4;
 			text-transform: uppercase;
 			margin-bottom: 8px;
-			padding: 0px;
+			padding: 0;
 		}
 
 		input {
@@ -31,7 +31,7 @@
 			margin: 0;
 			border: 1px solid #949494;
 			border-radius: 2px;
-			transition: box-shadow .1s linear;
+			transition: box-shadow 0.1s linear;
 			outline: 2px solid #0000;
 		}
 	}
