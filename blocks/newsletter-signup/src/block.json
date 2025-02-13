@@ -64,6 +64,18 @@
 			"margin": true,
 			"padding": true
 		},
+		"__experimentalBorder": {
+			"color": true,
+			"radius": true,
+			"style": true,
+			"width": true,
+			"__experimentalDefaultControls": {
+				"color": true,
+				"radius": true,
+				"style": true,
+				"width": true
+			}
+		},
 		"html": false
 	},
 	"textdomain": "smaily",
