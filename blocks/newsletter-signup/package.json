@@ -15,8 +15,8 @@
 		"start": "wp-scripts start --webpack-copy-php"
 	},
 	"devDependencies": {
-		"@wordpress/prettier-config": "^4.17.0",
-		"@wordpress/scripts": "^30.9.0"
+		"@wordpress/prettier-config": "^4.18.0",
+		"@wordpress/scripts": "^30.11.0"
 	},
 	"prettier": "@wordpress/prettier-config"
 }
