@@ -92,10 +92,12 @@ class Smaily_Options {
 	 * @return array   Smaily woocommerce settings in proper format
 	 */
 	private function get_woocommerce_settings_from_db() {
+		// TODO: Get new options.
+
 		$settings = get_option( 'smaily_woocommerce_settings', array() );
 		return array_merge(
 			array(
-				'customer_sync_enabled'     => 0,
+				'customer_sync_enabled'     => get_option( 'smaily_customer_sync_enabled' ),
 				'syncronize_additional'     => array(),
 				'enable_cart'               => 0,
 				'cart_autoresponder'        => '',
