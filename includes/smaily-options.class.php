@@ -9,17 +9,6 @@
  */
 
 class Smaily_Options {
-
-
-	/**
-	 * Smaily API credentials
-	 *
-	 *
-	 * @access private
-	 * @var    array   $api_credentials Smaily API credentials.
-	 */
-	private $api_credentials;
-
 	/**
 	 * Newsletter signup form settings.
 	 *
@@ -32,14 +21,21 @@ class Smaily_Options {
 	/**
 	 * Get API credentials.
 	 *
-	 *
-	 * @return array   $api_credentials Smaily API credentials
+	 * @return array{subdomain: string, username: string, password: string} Smaily API credentials
 	 */
 	public function get_api_credentials() {
-		if ( is_null( $this->api_credentials ) ) {
-			$this->api_credentials = $this->get_api_credentials_from_db();
-		}
-		return $this->api_credentials;
+		$credentials = get_option( 'smaily_api_credentials', array() );
+		$password    = isset( $credentials['password'] ) ? Smaily_Cypher::decrypt( $credentials['password'] ) : '';
+
+		unset( $credentials['password'] );
+		return array_merge(
+			array(
+				'subdomain' => '',
+				'username'  => '',
+				'password'  => $password,
+			),
+			$credentials
+		);
 	}
 
 	/**
@@ -60,28 +56,6 @@ class Smaily_Options {
 		}
 
 		return $this->settings ?? array();
-	}
-
-	/**
-	 * Get API credentials stored in database.
-	 *
-	 *
-	 * @access private
-	 * @return array   API credentials in proper format.
-	 */
-	private function get_api_credentials_from_db() {
-		$credentials = get_option( 'smaily_api_credentials', array() );
-
-		$credentials = ! empty( $credentials ) ? $credentials : array();
-
-		return array_merge(
-			array(
-				'subdomain' => '',
-				'username'  => '',
-				'password'  => '',
-			),
-			$credentials
-		);
 	}
 
 	/**
@@ -133,20 +107,6 @@ class Smaily_Options {
 			),
 			$settings
 		);
-	}
-
-	/**
-	 * Overwrite API credentials entry in database with provided parameter.
-	 * Disable auto-loading as API credentials are delicate.
-	 *
-	 * @param array $api_credentials Smaily API credentials.
-	 */
-	public function update_api_credentials( $api_credentials ) {
-		// Update_option will sanitize input before saving. We should sanitize as well.
-		if ( is_array( $api_credentials ) ) {
-			$this->api_credentials = array_map( 'sanitize_text_field', $api_credentials );
-		}
-		update_option( 'smaily_api_credentials', $this->api_credentials, false );
 	}
 
 	/**
