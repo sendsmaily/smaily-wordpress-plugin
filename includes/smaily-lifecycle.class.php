@@ -138,6 +138,8 @@ class Smaily_Lifecycle {
 		// Delete Smaily plugin abandoned cart table.
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}smaily_abandoned_carts" );
 
+		// TODO: Delete options.
+
 		delete_option( 'smaily_form_options' );
 		delete_option( 'smaily_api_credentials' );
 		delete_option( 'smaily_woocommerce_settings' );
