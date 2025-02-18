@@ -69,6 +69,7 @@ class Smaily_Admin {
 				),
 				'register_settings'  => array( $this, 'register_connection_tab_settings' ),
 				'option_group'       => 'smaily_settings_connection',
+				'page'               => 'smaily_settings_tab_connection',
 			),
 		);
 
@@ -85,6 +86,7 @@ class Smaily_Admin {
 				),
 				'register_settings'  => array( $this, 'register_customer_sync_tab_settings' ),
 				'option_group'       => 'smaily_settings_customer_sync',
+				'page'               => 'smaily_settings_tab_customer_sync',
 			);
 
 			$this->tabs['abandoned_cart'] = array(
@@ -99,6 +101,7 @@ class Smaily_Admin {
 				),
 				'register_settings'  => array( $this, 'register_abandoned_cart_tab_settings' ),
 				'option_group'       => 'smaily_settings_abandoned_cart',
+				'page'               => 'smaily_settings_tab_abandoned_cart',
 			);
 
 			$this->tabs['rss'] = array(
@@ -113,17 +116,8 @@ class Smaily_Admin {
 				),
 				'register_settings'  => array( $this, 'register_rss_tab_settings' ),
 				'option_group'       => 'smaily_settings_rss',
+				'page'               => 'smaily_settings_tab_rss',
 			);
-		}
-	}
-
-	/**
-	 * Register the settings tabs and add their sections and fields.
-	 *
-	 */
-	public function settings_init() {
-		foreach ( $this->tabs as $tab => $options ) {
-			$options['register_settings']();
 		}
 	}
 
@@ -137,14 +131,21 @@ class Smaily_Admin {
 	}
 
 	/**
+	 * Register the settings tabs and add their sections and fields.
+	 *
+	 */
+	public function settings_init() {
+		foreach ( $this->tabs as $tab => $options ) {
+			$options['register_settings']( $options['option_group'], $options['page'] );
+		}
+	}
+
+	/**
 	 * Register the connection tab settings fields.
 	 *
 	 */
-	private function register_connection_tab_settings() {
-		$option_group = 'smaily_settings_connection';
-		$page         = 'smaily_settings_tab_connection';
-		$section      = 'smaily_settings_connection_section';
-
+	private function register_connection_tab_settings( $option_group, $page ) {
+		$section = 'smaily_settings_connection_section';
 		register_setting(
 			$option_group,
 			'smaily_api_credentials',
@@ -180,9 +181,7 @@ class Smaily_Admin {
 	 *
 	 * @return void
 	 */
-	private function register_customer_sync_tab_settings() {
-		$option_group          = 'smaily_settings_customer_sync';
-		$page                  = 'smaily_settings_tab_customer_sync';
+	private function register_customer_sync_tab_settings( $option_group, $page ) {
 		$customer_sync_section = 'smaily_settings_customer_sync_customer_sync_section';
 
 		register_setting(
@@ -250,9 +249,7 @@ class Smaily_Admin {
 	 *
 	 * @return void
 	 */
-	private function register_abandoned_cart_tab_settings() {
-		$option_group           = 'smaily_settings_abandoned_cart';
-		$page                   = 'smaily_settings_tab_abandoned_cart';
+	private function register_abandoned_cart_tab_settings( $option_group, $page ) {
 		$abandoned_cart_section = 'smaily_settings_abandoned_cart_section';
 		register_setting(
 			$option_group,
@@ -386,10 +383,8 @@ class Smaily_Admin {
 	 *
 	 * @return void
 	 */
-	private function register_rss_tab_settings() {
-		$option_group = 'smaily_settings_rss';
-		$page         = 'smaily_settings_tab_rss';
-		$rss_section  = 'smaily_settings_rss_section';
+	private function register_rss_tab_settings( $option_group, $page ) {
+		$rss_section = 'smaily_settings_rss_section';
 
 		register_setting(
 			$option_group,
