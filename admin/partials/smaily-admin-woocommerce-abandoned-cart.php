@@ -6,7 +6,7 @@ $mandatory   = array(
 	'user_email' => true,
 	'store_url'  => true,
 );
-$sync_fields = get_option( 'smaily_abandoned_sync_fields' );
+$sync_fields = get_option( 'smaily_abandoned_cart_fields' );
 $labels      = array(
 	'user_email'          => __( 'Email', 'smaily' ),
 	'store_url'           => __( 'Store URL', 'smaily' ),
@@ -31,7 +31,7 @@ $labels      = array(
 				<?php endif; ?>
 				type="checkbox"
 				id="smaily_abandoned_<?php echo esc_attr( $field ); ?>"
-				name="smaily_abandoned_sync_fields[<?php echo esc_attr( $field ); ?>]"
+				name="smaily_abandoned_cart_fields[<?php echo esc_attr( $field ); ?>]"
 				value="1"
 				<?php checked( $enabled, true ); ?>
 			/>

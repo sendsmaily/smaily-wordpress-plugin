@@ -67,27 +67,25 @@ class Smaily_Options {
 	 */
 	private function get_woocommerce_settings_from_db() {
 		// TODO: Get new options.
+		$cart = get_option( 'smaily_abandoned_cart_status' );
+		$cart_enabled = $cart['enabled'] ?? false;
+		$cart_autoresponder_id = $cart['autoresponder_id'] ?? 0;
 
-		$settings = get_option( 'smaily_woocommerce_settings', array() );
-		return array_merge(
-			array(
-				'customer_sync_enabled'     => get_option( 'smaily_customer_sync_enabled' ),
-				'syncronize_additional'     => array(),
-				'enable_cart'               => 0,
-				'cart_autoresponder'        => '',
-				'cart_autoresponder_id'     => 0,
-				'cart_cutoff'               => 0,
-				'cart_options'              => array(),
-				'checkout_checkbox_enabled' => 0,
-				'checkbox_auto_checked'     => 0,
-				'checkbox_order'            => 'after',
-				'checkbox_location'         => 'checkout_billing_form',
-				'rss_limit'                 => 50,
-				'rss_category'              => '',
-				'rss_order_by'              => 'modified',
-				'rss_order'                 => 'DESC',
-			),
-			$settings
+		return array(
+			'customer_sync_enabled'     => get_option( 'smaily_customer_sync_enabled' ),
+			'syncronize_additional'     => get_option( 'smaily_customer_sync_fields' ),
+			'enable_cart'               => $cart_enabled,
+			'cart_autoresponder'        => '',
+			'cart_autoresponder_id'     => $cart_autoresponder_id,
+			'cart_cutoff'               => (int) get_option( 'smaily_abandoned_cart_cutoff' ),
+			'cart_options'              => get_option( 'smaily_abandoned_cart_fields' ),
+			'checkout_checkbox_enabled' => get_option( 'smaily_checkout_subscription_enabled' ),
+			'checkbox_order'            => get_option( 'smaily_checkout_subscription_position' ),
+			'checkbox_location'         => get_option( 'smaily_checkout_subscription_location' ),
+			'rss_limit'                 => get_option( 'smaily_rss_limit' ),
+			'rss_category'              => get_option( 'smaily_rss_category' ),
+			'rss_order_by'              => get_option( 'smaily_rss_sort_by' ),
+			'rss_order'                 => get_option( 'smaily_rss_order_by' ),
 		);
 	}
 

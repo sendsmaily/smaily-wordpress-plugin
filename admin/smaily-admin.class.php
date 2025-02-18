@@ -266,7 +266,17 @@ class Smaily_Admin {
 
 		register_setting(
 			$option_group,
-			'smaily_abandoned_sync_fields',
+			'smaily_abandoned_cart_cutoff',
+			array(
+				'type'              => 'number',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => 10,
+			)
+		);
+
+		register_setting(
+			$option_group,
+			'smaily_abandoned_cart_fields',
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this, 'sanitize_abandoned_cart_fields' ),
@@ -305,7 +315,20 @@ class Smaily_Admin {
 		);
 
 		add_settings_field(
-			'abandoned_sync_fields',
+			'smaily_abandoned_cart_cutoff',
+			__( 'Cart cutoff time (minutes)', 'smaily' ),
+			array( $this, 'render_number_field' ),
+			$page,
+			$abandoned_cart_section,
+			array(
+				'option_name' => 'smaily_abandoned_cart_cutoff',
+				'min'         => 10,
+				'help'        => __( 'Minimum 10 minutes', 'smaily' ),
+			)
+		);
+
+		add_settings_field(
+			'smaily_abandoned_cart_fields',
 			__( 'Additional Fields', 'smaily' ),
 			array( $this, 'render_abandoned_additional_fields' ),
 			$page,
@@ -412,7 +435,7 @@ class Smaily_Admin {
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => 'date',
+				'default'           => 'modified',
 			)
 		);
 
@@ -422,7 +445,7 @@ class Smaily_Admin {
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => 'ASC',
+				'default'           => 'DESC',
 			)
 		);
 
@@ -744,12 +767,12 @@ class Smaily_Admin {
 	 * @return void
 	 */
 	public function render_number_field( $args ) {
-		$option = get_option( $args['option_name'] );
-		$id     = sprintf( 'smaily_%s', $args['option_name'] );
-		$name   = $args['option_name'];
-		$min    = $args['min'];
-		$max    = $args['max'];
-		$help   = $args['help'] ?? '';
+		$val  = get_option( $args['option_name'] );
+		$id   = sprintf( 'smaily_%s', $args['option_name'] );
+		$name = $args['option_name'];
+		$min  = $args['min'] ?? '';
+		$max  = $args['max'] ?? '';
+		$help = $args['help'] ?? '';
 		?>
 		<fieldset>
 			<label for="<?php echo esc_attr( $id ); ?>">
@@ -761,7 +784,7 @@ class Smaily_Admin {
 					max="<?php echo esc_attr( $max ); ?>"
 					id="<?php echo esc_attr( $id ); ?>"
 					name="<?php echo esc_attr( $name ); ?>"
-					value="<?php echo esc_attr( $option ); ?>"
+					value="<?php echo esc_attr( $val ); ?>"
 				/>
 				<?php if ( ! empty( $help ) ) : ?>
 					<small class="form-text text-muted">
