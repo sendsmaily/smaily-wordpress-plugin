@@ -7,6 +7,8 @@
  * @subpackage Smaily/admin
  */
 
+use Smaily_WC\Rss;
+
 class Smaily_Admin {
 	/**
 	 * The ID of this plugin.
@@ -67,18 +69,6 @@ class Smaily_Admin {
 				),
 				'register_settings'  => array( $this, 'register_connection_tab_settings' ),
 			),
-			'rss'        => array(
-				'title'              => __( 'RSS', 'smaily' ),
-				'submit_button_text' => __( 'Save', 'smaily' ),
-				'url'                => add_query_arg(
-					array(
-						'page' => 'smaily-settings',
-						'tab'  => 'rss',
-					),
-					''
-				),
-				'register_settings'  => array( $this, 'register_rss_tab_settings' ),
-			),
 		);
 
 		if ( Smaily_Helper::is_woocommerce_active() && $this->options->has_credentials() ) {
@@ -106,6 +96,19 @@ class Smaily_Admin {
 					''
 				),
 				'register_settings'  => array( $this, 'register_abandoned_cart_tab_settings' ),
+			);
+
+			$this->tabs['rss'] = array(
+				'title'              => __( 'RSS', 'smaily' ),
+				'submit_button_text' => __( 'Save', 'smaily' ),
+				'url'                => add_query_arg(
+					array(
+						'page' => 'smaily-settings',
+						'tab'  => 'rss',
+					),
+					''
+				),
+				'register_settings'  => array( $this, 'register_rss_tab_settings' ),
 			);
 		}
 	}
@@ -430,7 +433,7 @@ class Smaily_Admin {
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => Smaily_WC\Rss::make_rss_feed_url(
+				'default'           => Rss::make_rss_feed_url(
 					get_option( 'smaily_rss_category' ),
 					get_option( 'smaily_rss_limit' ),
 					get_option( 'smaily_rss_sort_by' ),
@@ -865,7 +868,7 @@ class Smaily_Admin {
 	 * @return void
 	 */
 	public function render_rss_url() {
-		$url = Smaily_WC\Rss::make_rss_feed_url(
+		$url = Rss::make_rss_feed_url(
 			get_option( 'smaily_rss_category' ),
 			get_option( 'smaily_rss_limit' ),
 			get_option( 'smaily_rss_sort_by' ),
