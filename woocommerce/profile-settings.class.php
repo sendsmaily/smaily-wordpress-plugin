@@ -30,12 +30,11 @@ class Profile_Settings {
 	 */
 	public function smaily_checkout_newsletter_checkbox() {
 		$settings = $this->options;
-		$checked  = intval( $settings['woocommerce']['checkbox_auto_checked'] );
 		$enabled  = intval( $settings['woocommerce']['checkout_checkbox_enabled'] );
 		if ( $enabled ) {
 			$checkbox  = '<p class="form-row form-row-wide smaily-for-woocommerce-newsletter">';
 			$checkbox .= '<label class="checkbox woocommerce-form__label woocommerce-form__label-for-checkbox">';
-			$checkbox .= '<input type="checkbox" class="input-checkbox woocommerce-form__input woocommerce-form__input-checkbox" name="user_newsletter" id="smaily-checkout-subscribe" value="1"' . checked( $checked, 1, false ) . ' />';
+			$checkbox .= '<input type="checkbox" class="input-checkbox woocommerce-form__input woocommerce-form__input-checkbox" name="user_newsletter" id="smaily-checkout-subscribe" value="1"' . ' />';
 			$checkbox .= '<span>' . __( 'Subscribe to newsletter', 'smaily' ) . '</span>';
 			$checkbox .= '</label>';
 			$checkbox .= '</p>';
