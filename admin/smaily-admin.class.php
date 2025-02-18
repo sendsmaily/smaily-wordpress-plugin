@@ -528,15 +528,6 @@ class Smaily_Admin {
 	}
 
 	/**
-	 * Lists available admin page tabs.
-	 *
-	 * @return array
-	 */
-	public function list_admin_page_tabs() {
-		return $this->tabs;
-	}
-
-	/**
 	 * Renders header section for Smaily API credentials form.
 	 *
 	 * @return void
@@ -1089,6 +1080,15 @@ class Smaily_Admin {
 	}
 
 	/**
+	 * Lists available admin page tabs.
+	 *
+	 * @return array
+	 */
+	public function list_admin_page_tabs() {
+		return $this->tabs;
+	}
+
+	/**
 	 * Register the stylesheets for the admin area.
 	 *
 	 */
@@ -1112,16 +1112,6 @@ class Smaily_Admin {
 		wp_enqueue_script( $this->plugin_name . '-jscolor' );
 		wp_enqueue_script( $this->plugin_name );
 		wp_enqueue_script( $this->plugin_name . '-widget' );
-
-		wp_localize_script(
-			$this->plugin_name,
-			'smaily_translations',
-			array(
-				'went_wrong' => __( 'Something went wrong connecting to Smaily!', 'smaily' ),
-				'validated'  => __( 'Smaily settings successfully saved!', 'smaily' ),
-				'data_error' => __( 'Something went wrong with saving data!', 'smaily' ),
-			)
-		);
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
 			// Make RSS URL accessible in admin .js.
