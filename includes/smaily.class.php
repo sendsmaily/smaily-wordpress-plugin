@@ -141,7 +141,6 @@ class Smaily {
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cart.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cron.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/data-handler.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/data-prepare.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/profile-settings.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/rss.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/subscriber-synchronization.class.php';
