@@ -926,7 +926,7 @@ class Smaily_Admin {
 	 */
 	public function save_api_credentials( $input ) {
 		// Reset credentials if disconnecting.
-		if ( $input['enabled'] === '1' ) {
+		if ( isset( $input['enabled'] ) && $input['enabled'] === '1' ) {
 			add_settings_error(
 				'smaily_messages',
 				'credentials_validated',
@@ -934,7 +934,6 @@ class Smaily_Admin {
 				'success'
 			);
 
-			delete_option( 'smaily_api_credentials' );
 			return array(
 				'subdomain' => '',
 				'username'  => '',
@@ -979,8 +978,8 @@ class Smaily_Admin {
 				'API credentials validated successfully!',
 				'success'
 			);
-
-			return $validated; // Save the sanitized, validated values
+			$validated['password'] = Smaily_Cypher::encrypt( $input['password'] );
+			return $validated;
 		} else {
 			switch ( $credentials_valid[1] ) {
 				case 404:

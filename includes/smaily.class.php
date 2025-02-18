@@ -117,17 +117,18 @@ class Smaily {
 	 * @access private
 	 */
 	private function load_dependencies() {
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-helper.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-logger.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin.class.php';
+		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-api.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-block.class.php';
+		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
+		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-helper.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-i18n.class.php';
+		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-logger.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-options.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-request.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-template.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-widget.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'public/smaily-public.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-api.class.php';
 
 		$this->options = new Smaily_Options();
 
@@ -137,13 +138,13 @@ class Smaily {
 		Smaily_Request::set_credentials( $credentials );
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
+			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cart.class.php';
+			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cron.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/data-handler.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/data-prepare.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cron.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cart.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/subscriber-synchronization.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/rss.class.php';
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/profile-settings.class.php';
+			require_once SMAILY_PLUGIN_PATH . 'woocommerce/rss.class.php';
+			require_once SMAILY_PLUGIN_PATH . 'woocommerce/subscriber-synchronization.class.php';
 		}
 
 		if ( Smaily_Helper::is_cf7_active() ) {

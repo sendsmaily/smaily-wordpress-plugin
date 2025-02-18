@@ -1,0 +1,38 @@
+<?php
+/**
+ * Defines the encryption and decryption functionality.
+ *
+ * @package    Smaily
+ * @subpackage Smaily/includes
+ */
+
+class Smaily_Cypher {
+	const CYPHER = 'AES-256-CBC';
+
+	public static function encrypt( $password ) {
+		$salt = hash( 'sha256', SECURE_AUTH_KEY );
+		$iv   = substr( AUTH_KEY, 0, openssl_cipher_iv_length( self::CYPHER ) );
+		$raw  = openssl_encrypt( $password, self::CYPHER, $salt, OPENSSL_RAW_DATA, $iv );
+		$hmac = hash_hmac( 'sha256', $raw, $salt, true );
+
+		return base64_encode( $iv . $hmac . $raw );
+	}
+
+	public static function decrypt( $cyphertext ) {
+		$salt    = hash( 'sha256', SECURE_AUTH_KEY );
+		$iv_len  = openssl_cipher_iv_length( self::CYPHER );
+		$sha_len = 32;
+
+		$decoded = base64_decode( $cyphertext );
+		$iv      = substr( AUTH_KEY, 0, $iv_len );
+		$hmac    = substr( $decoded, $iv_len, $sha_len );
+		$raw     = substr( $decoded, $iv_len + $sha_len );
+		$pw      = openssl_decrypt( $raw, self::CYPHER, $salt, OPENSSL_RAW_DATA, $iv );
+		$calc    = hash_hmac( 'sha256', $raw, $salt, true );
+		if ( hash_equals( $hmac, $calc ) ) {
+			return $pw;
+		}
+
+		return '';
+	}
+}
