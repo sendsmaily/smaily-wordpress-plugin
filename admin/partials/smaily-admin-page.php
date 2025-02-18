@@ -31,7 +31,7 @@ settings_errors( 'smaily_messages' );
 		</nav>
 		<?php
 			settings_fields( $tabs[ $current_tab ]['option_group'] );
-			do_settings_sections( sprintf( 'smaily_settings_tab_%s', $current_tab ) );
+			do_settings_sections( $tabs[ $current_tab ]['page'] );
 			submit_button( $tabs[ $current_tab ]['submit_button_text'] );
 		?>
 	</form>
