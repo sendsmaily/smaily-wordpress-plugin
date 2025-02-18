@@ -8,8 +8,6 @@
  */
 
 class Smaily_Request {
-
-
 	/**
 	 * Smaily API Username.
 	 *
@@ -51,7 +49,7 @@ class Smaily_Request {
 	 * Execute the request.
 	 *
 	 *
-	 * @return array $response. Data recieved back from making the request.
+	 * @return array $response. Data received back from making the request.
 	 */
 	public static function request( string $endpoint, array $data, $method = 'GET' ) {
 		$response  = array();
@@ -86,7 +84,7 @@ class Smaily_Request {
 	 * Execute get request.
 	 *
 	 *
-	 * @return array $response. Data recieved back from making the request.
+	 * @return array $response. Data received back from making the request.
 	 */
 	public static function get( string $endpoint, array $data ) {
 		return self::request( $endpoint, $data, 'GET' );
@@ -96,7 +94,7 @@ class Smaily_Request {
 	 * Execute post request.
 	 *
 	 *
-	 * @return array $response. Data recieved back from making the request.
+	 * @return array $response. Data received back from making the request.
 	 */
 	public static function post( string $endpoint, array $data ) {
 		return self::request( $endpoint, $data, 'POST' );
