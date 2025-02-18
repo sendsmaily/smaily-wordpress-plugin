@@ -191,6 +191,7 @@ class Smaily {
 		$plugin_api   = new Smaily_API( $this->options, $plugin_admin );
 		add_action( 'admin_init', array( $plugin_admin, 'settings_init' ) );
 		add_action( 'admin_menu', array( $plugin_admin, 'settings_page' ) );
+		add_action( 'pre_update_option_smaily_api_credentials', array( $plugin_admin, 'validate_api_credentials_after_save' ), 10, 3 );
 		add_action( 'admin_enqueue_scripts', array( $plugin_admin, 'enqueue_styles' ) );
 		add_action( 'admin_enqueue_scripts', array( $plugin_admin, 'enqueue_scripts' ) );
 		add_action( 'wp_ajax_smaily_admin_save', array( $plugin_admin, 'smaily_admin_save' ) );

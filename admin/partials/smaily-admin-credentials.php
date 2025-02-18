@@ -5,15 +5,14 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$credentials = get_option( 'smaily_api_credentials' );
-$subdomain   = $credentials['subdomain'];
-$username    = $credentials['username'];
-$password    = $credentials['password'];
-$enabled     = $subdomain && $username && $password;
+$account   = $this->get_connected_api_account();
+$subdomain = $account['subdomain'];
+$username  = $account['username'];
+$connected = $subdomain && $username;
 ?>
 
 <fieldset>
-	<input type="hidden" name="smaily_api_credentials[enabled]" value="<?php echo esc_attr( $enabled ); ?>" />
+	<input type="hidden" name="smaily_api_credentials[enabled]" value="<?php echo esc_attr( $connected ); ?>" />
 	<p class="form-field">
 		<label for="smaily_subdomain">
 			<?php esc_html_e( 'Subdomain', 'smaily' ); ?>
@@ -55,7 +54,7 @@ $enabled     = $subdomain && $username && $password;
 			/>
 		</label>
 	</p>
-	<?php if ( ! $enabled ) : ?>
+	<?php if ( ! $connected ) : ?>
 	<p class="form-field">
 		<label for="smaily_password">
 			<?php esc_html_e( 'Password', 'smaily' ); ?>
@@ -67,7 +66,7 @@ $enabled     = $subdomain && $username && $password;
 				id="smaily_password"
 				name="smaily_api_credentials[password]"
 				type="password"
-				value="<?php echo esc_attr( $password ); ?>"
+				value=""
 			/>
 		</label>
 	</p>

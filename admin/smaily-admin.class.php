@@ -68,6 +68,7 @@ class Smaily_Admin {
 					''
 				),
 				'register_settings'  => array( $this, 'register_connection_tab_settings' ),
+				'option_group'       => 'smaily_settings_connection',
 			),
 		);
 
@@ -83,6 +84,7 @@ class Smaily_Admin {
 					''
 				),
 				'register_settings'  => array( $this, 'register_customer_sync_tab_settings' ),
+				'option_group'       => 'smaily_settings_customer_sync',
 			);
 
 			$this->tabs['abandoned_cart'] = array(
@@ -96,6 +98,7 @@ class Smaily_Admin {
 					''
 				),
 				'register_settings'  => array( $this, 'register_abandoned_cart_tab_settings' ),
+				'option_group'       => 'smaily_settings_abandoned_cart',
 			);
 
 			$this->tabs['rss'] = array(
@@ -109,6 +112,7 @@ class Smaily_Admin {
 					''
 				),
 				'register_settings'  => array( $this, 'register_rss_tab_settings' ),
+				'option_group'       => 'smaily_settings_rss',
 			);
 		}
 	}
@@ -146,7 +150,7 @@ class Smaily_Admin {
 			'smaily_api_credentials',
 			array(
 				'type'              => 'array',
-				'sanitize_callback' => array( $this, 'save_api_credentials' ),
+				'sanitize_callback' => array( $this, 'sanitize_api_credentials' ),
 				'default'           => array(
 					'subdomain' => '',
 					'username'  => '',
@@ -919,12 +923,11 @@ class Smaily_Admin {
 	}
 
 	/**
-	 * Validates API credentials by making request to Smaily. When requests succeeds
-	 * stores the sanitized credentials.
+	 * Sanitize input user input for credentials fields.
 	 *
 	 * @param array $input
 	 */
-	public function save_api_credentials( $input ) {
+	public function sanitize_api_credentials( $input ) {
 		// Reset credentials if disconnecting.
 		if ( isset( $input['enabled'] ) && $input['enabled'] === '1' ) {
 			add_settings_error(
@@ -941,8 +944,6 @@ class Smaily_Admin {
 			);
 		}
 
-		$validated = array();
-
 		$validation_errors = array();
 		if ( empty( trim( $input['subdomain'] ) ) ) {
 			$validation_errors[] = __( 'Please enter subdomain!', 'smaily' );
@@ -953,11 +954,6 @@ class Smaily_Admin {
 		if ( empty( trim( $input['password'] ) ) ) {
 			$validation_errors[] = __( 'Please enter password!', 'smaily' );
 		}
-
-		$validated['subdomain'] = $this->normalize_subdomain( sanitize_text_field( $input['subdomain'] ) );
-		$validated['username']  = trim( sanitize_text_field( $input['username'] ) );
-		$validated['password']  = $input['password'];
-
 		if ( ! empty( $validation_errors ) ) {
 			$validation_errors = implode( '<br>', $validation_errors );
 			add_settings_error(
@@ -970,7 +966,37 @@ class Smaily_Admin {
 			return get_option( 'smaily_api_credentials' ); // Prevent saving invalid credentials
 		}
 
-		$credentials_valid = $this->validate_api_credentials( $validated['subdomain'], $validated['username'], $validated['password'] );
+		$validated              = array();
+		$validated['subdomain'] = $this->normalize_subdomain( sanitize_text_field( $input['subdomain'] ) );
+		$validated['username']  = trim( sanitize_text_field( $input['username'] ) );
+		$validated['password']  = sanitize_text_field( $input['password'] ); // TODO: Check if sanitization is affects.
+
+		return $validated;
+	}
+
+	/**
+	 * Validates API credentials by making a request to Smaily before updating settings.
+	 * After successful validation stores the credentials with encrypted password.
+	 *
+	 * https://developer.wordpress.org/reference/hooks/pre_update_option_option/
+	 * @param array $new_value
+	 * @param array $old_value
+	 * @param string $option
+	 */
+	public function validate_api_credentials_after_save( $new_value, $old_value, $option ) {
+		// Using separate function instead of sanitize callback as the sanitize callback is
+		// occasionally executed twice.
+		// The flow can be sanitize -> validate after save -> sanitize
+		// https://core.trac.wordpress.org/ticket/21989
+
+		if ( $new_value['subdomain'] === ''
+			&& $new_value['username'] === ''
+			&& $new_value['password'] === ''
+		) {
+			return $new_value;
+		}
+
+		$credentials_valid = $this->validate_api_credentials( $new_value['subdomain'], $new_value['username'], $new_value['password'] );
 		if ( $credentials_valid[0] === true ) {
 			add_settings_error(
 				'smaily_messages',
@@ -978,8 +1004,12 @@ class Smaily_Admin {
 				'API credentials validated successfully!',
 				'success'
 			);
-			$validated['password'] = Smaily_Cypher::encrypt( $input['password'] );
-			return $validated;
+
+			return array(
+				'subdomain' => $new_value['subdomain'],
+				'username'  => $new_value['username'],
+				'password'  => Smaily_Cypher::encrypt( $new_value['password'] ),
+			);
 		} else {
 			switch ( $credentials_valid[1] ) {
 				case 404:
@@ -1000,7 +1030,7 @@ class Smaily_Admin {
 					break;
 			}
 
-			return get_option( 'smaily_api_credentials' ); // Prevent saving invalid credentials
+			return $old_value;
 		}
 	}
 
@@ -1236,16 +1266,34 @@ class Smaily_Admin {
 	 * @return bool
 	 */
 	public function are_credentials_valid() {
-		$credentials = get_option( 'smaily_api_credentials' );
-		$subdomain   = $credentials['subdomain'];
-		$username    = $credentials['username'];
-		$password    = $credentials['password'];
-		$enabled     = $subdomain && $username && $password;
+		$credentials = $this->options->get_api_credentials();
+		if ( ! $credentials ) {
+			return true;
+		}
+
+		$subdomain = $credentials['subdomain'];
+		$username  = $credentials['username'];
+		$password  = $credentials['password'];
+		$enabled   = $subdomain && $username && $password;
 
 		if ( ! $enabled ) {
 			return true;
 		}
 
 		return $this->validate_api_credentials( $subdomain, $username, $password )[0];
+	}
+
+	/**
+	 * Get the current API account details including subdomain and username.
+	 *
+	 * @return array{subdomain: string, username: string}
+	 */
+	public function get_connected_api_account() {
+		$credentials = $this->options->get_api_credentials();
+
+		return array(
+			'subdomain' => $credentials['subdomain'],
+			'username'  => $credentials['username'],
+		);
 	}
 }

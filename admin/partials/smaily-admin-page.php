@@ -30,7 +30,7 @@ settings_errors( 'smaily_messages' );
 			<?php endforeach ?>
 		</nav>
 		<?php
-			settings_fields( sprintf( 'smaily_settings_%s', $current_tab ) );
+			settings_fields( $tabs[ $current_tab ]['option_group'] );
 			do_settings_sections( sprintf( 'smaily_settings_tab_%s', $current_tab ) );
 			submit_button( $tabs[ $current_tab ]['submit_button_text'] );
 		?>
