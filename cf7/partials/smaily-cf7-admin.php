@@ -54,11 +54,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<?php esc_html_e( 'No autoresponder', 'smaily' ); ?>
 						</option>
 						<?php foreach ( $autoresponder_list as $autoresponder_id => $autoresponder_title ) : ?>
-							<option value='<?php echo esc_html( $autoresponder_id ); ?>' 
-														<?php
-														if ( $default_autoresponder === $autoresponder_id ) :
-															?>
-								selected='selected' <?php endif; ?>>
+							<option value='<?php echo esc_html( $autoresponder_id ); ?>'
+								<?php if ( $default_autoresponder === $autoresponder_id ) : ?>
+									selected='selected'
+								<?php endif; ?>
+							>
 								<?php echo esc_html( $autoresponder_title ); ?>
 							</option>
 						<?php endforeach; ?>

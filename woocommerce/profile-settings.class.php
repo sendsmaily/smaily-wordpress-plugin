@@ -103,7 +103,7 @@ class Profile_Settings {
 	public function smaily_get_account_fields() {
 		// Get fields from sync_additional.
 		$result = $this->options;
-		if ( ! empty( $result['woocommerce']['syncronize_additional'] ) ) {
+		if ( ! empty( $result['woocommerce']['synchronize_additional'] ) ) {
 			// All custom fields available.
 			$fields_available = array(
 				'user_gender' => array(
@@ -157,9 +157,9 @@ class Profile_Settings {
 				),
 			);
 
-			// Add only new fields selected from syncronize_additional.
-			$syncronize_additional = $result['woocommerce']['syncronize_additional'];
-			foreach ( $syncronize_additional as $key ) {
+			// Add only new fields selected from synchronize_additional.
+			$synchronize_additional = $result['woocommerce']['synchronize_additional'];
+			foreach ( $synchronize_additional as $key ) {
 				if ( array_key_exists( $key, $fields_available ) ) {
 					$add_fields[ $key ] = $fields_available[ $key ];
 				}

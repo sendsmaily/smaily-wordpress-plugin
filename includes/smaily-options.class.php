@@ -10,13 +10,43 @@
 
 class Smaily_Options {
 	/**
-	 * Newsletter signup form settings.
+	 * Default values for customer sync fields.
 	 *
-	 *
-	 * @access private
-	 * @var    array   $settings Newsletter signup form settings.
+	 * @var array
 	 */
-	private $settings;
+	const CUSTOMER_SYNC_DEFAULT_FIELDS = array(
+		'store_url'        => true,
+		'user_email'       => true,
+		'customer_group'   => false,
+		'customer_id'      => false,
+		'first_name'       => false,
+		'first_registered' => false,
+		'last_name'        => false,
+		'nickname'         => false,
+		'site_title'       => false,
+		'user_dob'         => false,
+		'user_gender'      => false,
+		'user_phone'       => false,
+	);
+
+	/**
+	 * Default values for abandoned cart fields.
+	 *
+	 * @var array
+	 */
+	const ABANDONED_CART_DEFAULT_FIELDS = array(
+		'store_url'           => true,
+		'user_email'          => true,
+		'first_name'          => false,
+		'last_name'           => false,
+		'product_base_price'  => false,
+		'product_description' => false,
+		'product_images'      => false,
+		'product_name'        => false,
+		'product_price'       => false,
+		'product_quantity'    => false,
+		'product_sku'         => false,
+	);
 
 	/**
 	 * Get API credentials.
@@ -26,8 +56,8 @@ class Smaily_Options {
 	public function get_api_credentials() {
 		$credentials = get_option( 'smaily_api_credentials', array() );
 		$password    = isset( $credentials['password'] ) ? Smaily_Cypher::decrypt( $credentials['password'] ) : '';
-
 		unset( $credentials['password'] );
+
 		return array_merge(
 			array(
 				'subdomain' => '',
@@ -45,17 +75,17 @@ class Smaily_Options {
 	 * @return array Smaily module settings.
 	 */
 	public function get_settings() {
-		if ( is_null( $this->settings ) ) {
-			if ( Smaily_Helper::is_woocommerce_active() ) {
-				$this->settings['woocommerce'] = $this->get_woocommerce_settings_from_db();
-			}
+		$settings = array();
 
-			if ( Smaily_Helper::is_cf7_active() ) {
-				$this->settings['cf7'] = $this->get_cf7_settings_from_db();
-			}
+		if ( Smaily_Helper::is_woocommerce_active() ) {
+			$settings['woocommerce'] = $this->get_woocommerce_settings_from_db();
 		}
 
-		return $this->settings ?? array();
+		if ( Smaily_Helper::is_cf7_active() ) {
+			$settings['cf7'] = $this->get_cf7_settings_from_db();
+		}
+
+		return $settings;
 	}
 
 	/**
@@ -66,17 +96,13 @@ class Smaily_Options {
 	 * @return array   Smaily woocommerce settings in proper format
 	 */
 	private function get_woocommerce_settings_from_db() {
-		// TODO: Get new options.
-		$cart = get_option( 'smaily_abandoned_cart_status' );
-		$cart_enabled = $cart['enabled'] ?? false;
-		$cart_autoresponder_id = $cart['autoresponder_id'] ?? 0;
+		$cart_status = get_option( 'smaily_abandoned_cart_status' );
 
 		return array(
 			'customer_sync_enabled'     => get_option( 'smaily_customer_sync_enabled' ),
-			'syncronize_additional'     => get_option( 'smaily_customer_sync_fields' ),
-			'enable_cart'               => $cart_enabled,
-			'cart_autoresponder'        => '',
-			'cart_autoresponder_id'     => $cart_autoresponder_id,
+			'synchronize_additional'    => get_option( 'smaily_customer_sync_fields' ),
+			'enable_cart'               => $cart_status['enabled'],
+			'cart_autoresponder_id'     => $cart_status['autoresponder_id'],
 			'cart_cutoff'               => (int) get_option( 'smaily_abandoned_cart_cutoff' ),
 			'cart_options'              => get_option( 'smaily_abandoned_cart_fields' ),
 			'checkout_checkbox_enabled' => get_option( 'smaily_checkout_subscription_enabled' ),

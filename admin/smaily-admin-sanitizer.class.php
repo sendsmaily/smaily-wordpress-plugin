@@ -2,6 +2,8 @@
 
 namespace Smaily_Admin;
 
+use Smaily_Options;
+
 class Sanitizer {
 	/**
 	 * Stores abandoned cart enabled status and validates that autoresponder is selected
@@ -88,24 +90,11 @@ class Sanitizer {
 	 * @return array
 	 */
 	public function sanitize_customer_sync_fields( $input ) {
-		$default_fields = array(
-			'user_email'       => true,
-			'store_url'        => true,
-			'customer_group'   => false,
-			'customer_id'      => false,
-			'user_dob'         => false,
-			'first_registered' => false,
-			'first_name'       => false,
-			'user_gender'      => false,
-			'last_name'        => false,
-			'nickname'         => false,
-			'user_phone'       => false,
-			'site_title'       => false,
-		);
+		$default_fields = Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS;
 
 		$sanitized = array();
-		foreach ( $default_fields as $field => $default_value ) {
-			$sanitized[ $field ] = isset( $input[ $field ] ) ? true : false;
+		foreach ( $default_fields as $field ) {
+			$sanitized[ $field ] = ! empty( $input[ $field ] ) && $input[ $field ] !== '0';
 		}
 
 		return $sanitized;
@@ -118,23 +107,11 @@ class Sanitizer {
 	 * @return array
 	 */
 	public function sanitize_abandoned_cart_fields( $input ) {
-		$default_fields = array(
-			'user_email'          => true,
-			'store_url'           => true,
-			'first_name'          => false,
-			'last_name'           => false,
-			'product_name'        => false,
-			'product_description' => false,
-			'product_sku'         => false,
-			'product_quantity'    => false,
-			'product_base_price'  => false,
-			'product_price'       => false,
-			'product_images'      => false,
-		);
+		$default_fields = Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS;
 
 		$sanitized = array();
-		foreach ( $default_fields as $field => $default_value ) {
-			$sanitized[ $field ] = isset( $input[ $field ] ) ? true : false;
+		foreach ( $default_fields as $field ) {
+			$sanitized[ $field ] = ! empty( $input[ $field ] ) && $input[ $field ] !== '0';
 		}
 
 		return $sanitized;

@@ -97,20 +97,7 @@ class Settings {
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this->sanitizer, 'sanitize_customer_sync_fields' ),
-				'default'           => array(
-					'user_email'       => true,
-					'store_url'        => true,
-					'customer_group'   => false,
-					'customer_id'      => false,
-					'user_dob'         => false,
-					'first_registered' => false,
-					'first_name'       => false,
-					'user_gender'      => false,
-					'last_name'        => false,
-					'nickname'         => false,
-					'user_phone'       => false,
-					'site_title'       => false,
-				),
+				'default'           => Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS,
 			)
 		);
 
@@ -178,19 +165,7 @@ class Settings {
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this->sanitizer, 'sanitize_abandoned_cart_fields' ),
-				'default'           => array(
-					'user_email'          => true,
-					'store_url'           => true,
-					'first_name'          => false,
-					'last_name'           => false,
-					'product_name'        => false,
-					'product_description' => false,
-					'product_sku'         => false,
-					'product_quantity'    => false,
-					'product_base_price'  => false,
-					'product_price'       => false,
-					'product_images'      => false,
-				),
+				'default'           => Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS,
 			)
 		);
 

@@ -51,8 +51,8 @@ class Data_Handler {
 		$user_data = get_userdata( $user_id );
 		$user_meta = get_user_meta( $user_id );
 
-		// Get admin panel "Syncronize additional fields".
-		$syncronize_additional = $options['woocommerce']['syncronize_additional'];
+		// Get admin panel "Synchronize additional fields".
+		$synchronize_additional = $options['woocommerce']['synchronize_additional'];
 
 		// Gather user information into variables if available.
 		$email          = isset( $user_data->user_email ) ? $user_data->user_email : '';
@@ -93,8 +93,8 @@ class Data_Handler {
 		);
 
 		// Sync also fields selected from admin panel.
-		if ( ! empty( $syncronize_additional ) ) {
-			foreach ( $syncronize_additional as $sync_option ) {
+		if ( ! empty( $synchronize_additional ) ) {
+			foreach ( $synchronize_additional as $sync_option ) {
 				$user_sync_data[ $sync_option ] = $all_user_data[ $sync_option ];
 			}
 		}
