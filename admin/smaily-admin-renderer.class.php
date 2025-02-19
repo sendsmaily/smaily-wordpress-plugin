@@ -1,0 +1,353 @@
+<?php
+
+namespace Smaily_Admin;
+
+use Smaily_Options;
+use Smaily_WC\Rss;
+
+class Renderer {
+	/**
+	 * Smaily options.
+	 *
+	 * @var Smaily_Options
+	 */
+	private $options;
+
+	/**
+	 * Class constructor.
+	 *
+	 * @param Smaily_Options $options
+	 */
+	public function __construct( Smaily_Options $options ) {
+		$this->options = $options;
+	}
+
+	/**
+	 * Renders header section for Smaily API credentials form.
+	 *
+	 * @return void
+	 */
+	public function render_connection_section_header() {
+		?>
+		<?php if ( ! $this->are_credentials_valid() ) : ?>
+			<div class="error smaily-notice is-dismissible">
+				<p>
+					<?php
+					esc_html_e(
+						'There seems to be a problem with your connection to Smaily. Please revalidate your credentials!',
+						'smaily'
+					);
+					?>
+				</p>
+			</div>
+		<?php endif; ?>
+		<div>
+			<p>
+				<?php esc_html_e( 'Start by setting up the connection between Smaily and you website. To do this, you need to create API credentials in Smaily and enter them below.', 'smaily' ); ?>
+			</p>
+			<a href="https://smaily.com/help/api/general/create-api-user/" target="_blank">
+				<?php esc_html_e( 'How to create API credentials?', 'smaily' ); ?>
+			</a>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render API credentials fields HTML form content.
+	 *
+	 * @return void
+	 */
+	public function render_credentials_fields() {
+		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-credentials.php';
+	}
+
+	/**
+	 * Render customer synchronization additional fields HTML content.
+	 *
+	 * @return void
+	 */
+	public function render_sync_additional_fields() {
+		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-woocommerce-customer-sync.php';
+	}
+
+	/**
+	 * Renders customer synchronization tab header HTML content.
+	 *
+	 * @return void
+	 */
+	public function render_customer_sync_section_header() {
+		?>
+		<div>
+			<p>
+				<?php esc_html_e( 'Customer Synchronization allows you to automate synchronizing newsletter subscribers and their information directly to Smaily.', 'smaily' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render abandoned cart tab header HTML content.
+	 *
+	 * @return void
+	 */
+	public function render_abandoned_cart_section_header() {
+		?>
+		<div>
+			<p>
+				<?php esc_html_e( 'This is the Smaily WooCommerce Abandoned Cart plugin. It allows you to send abandoned cart emails to your customers.', 'smaily' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders abandoned cart status field HTML content.
+	 *
+	 * @param array $args
+	 * @return void
+	 */
+	public function render_abandoned_cart_status_field( $args ) {
+		$autoresponders           = $args['autoresponders'];
+		$abandoned_cart_status    = get_option( 'smaily_abandoned_cart_status' );
+		$enabled                  = $abandoned_cart_status['enabled'];
+		$current_autoresponder_id = $abandoned_cart_status['autoresponder_id'];
+		?>
+		<fieldset>
+			<label for="smaily_abandoned_cart_status[enabled]">
+				<input
+					type="checkbox"
+					id="smaily_abandoned_cart_status_enabled"
+					name="smaily_abandoned_cart_status[enabled]"
+					value="1"
+					<?php checked( $enabled, true ); ?>
+				/>
+				<?php esc_html_e( 'Enabled', 'smaily' ); ?>
+			</label>
+		</fieldset>
+		<fieldset>
+			<select name="smaily_abandoned_cart_status[autoresponder_id]">
+				<?php if ( ! empty( $autoresponders ) ) : ?>
+					<?php foreach ( $autoresponders as $autoresponder_id => $autoresponder_name ) : ?>
+						<option
+							value="<?php echo esc_attr( $autoresponder_id ); ?>"
+							<?php selected( $autoresponder_id, $current_autoresponder_id ); ?>
+						>
+							<?php echo esc_html( $autoresponder_name ); ?>
+						</option>
+					<?php endforeach; ?>
+				<?php else : ?>
+					<option value="">
+						<?php esc_html_e( 'No automations created', 'smaily' ); ?>
+					</option>
+				<?php endif; ?>
+			</select>
+		</fieldset>
+		<?php
+	}
+
+	/**
+	 * Render abandoned cart additional fields HTML content.
+	 *
+	 * @return void
+	 */
+	public function render_abandoned_additional_fields() {
+		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-woocommerce-abandoned-cart.php';
+	}
+
+	/**
+	 * Render checkout subscription section header HTML content.
+	 *
+	 * @return void
+	 */
+	public function render_checkout_subscription_section_header() {
+		?>
+		<div>
+			<p>
+				<?php esc_html_e( 'Customers can subscribe by checking "subscribe to newsletter" checkbox on checkout page.', 'smaily' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render RSS tab header HTML content.
+	 *
+	 * @return void
+	 */
+	public function render_rss_section_header() {
+		?>
+		<div>
+			<p>
+				<?php esc_html_e( 'Smaily RSS feed allows you insert product feeds to email templates.', 'smaily' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render RSS URL HTML content.
+	 *
+	 * @return void
+	 */
+	public function render_rss_url() {
+		$url = Rss::make_rss_feed_url(
+			get_option( 'smaily_rss_category' ),
+			get_option( 'smaily_rss_limit' ),
+			get_option( 'smaily_rss_sort_by' ),
+			get_option( 'smaily_rss_order_by' )
+		);
+		?>
+		<fieldset>
+			<strong id="smaily-rss-feed-url" name="rss_feed_url" class="smaily-rss-options">
+				<?php echo esc_url( $url ); ?>
+			</strong>
+			<small class="form-text text-muted">
+				<?php
+				esc_html_e(
+					"Copy this URL into your template editor's RSS block, to receive RSS-feed.",
+					'smaily'
+				);
+				?>
+			</small>
+		</fieldset>
+		<?php
+	}
+
+	/**
+	 * Renders enabled field checkbox input.
+	 *
+	 * @param array $args
+	 * @return void
+	 */
+	public function render_enabled_field( $args ) {
+		$value = get_option( $args['option_name'], false );
+		$name  = $args['option_name'];
+		$id    = $args['id'] ?? '';
+		$help  = $args['help'] ?? '';
+		?>
+		<fieldset>
+			<label for="<?php echo esc_attr( $name ); ?>">
+				<input
+					type="checkbox"
+					id="<?php echo esc_attr( $id ); ?>"
+					name="<?php echo esc_attr( $name ); ?>"
+					value="1"
+					<?php checked( $value, true ); ?>
+				/>
+				<?php esc_html_e( 'Enabled', 'smaily' ); ?>
+			</label>
+			<?php if ( ! empty( $help ) ) : ?>
+				<small class="form-text text-muted">
+					<?php echo esc_html( $help ); ?>
+				</small>
+			<?php endif; ?>
+		</fieldset>
+		<?php
+	}
+
+	/**
+	 * Render number field HTML content.
+	 *
+	 * @param array $args
+	 * @return void
+	 */
+	public function render_number_field( $args ) {
+		$value = get_option( $args['option_name'] );
+		$name  = $args['option_name'];
+		$id    = $args['id'] ?? '';
+		$min   = $args['min'] ?? '';
+		$max   = $args['max'] ?? '';
+		$help  = $args['help'] ?? '';
+		$class = $args['class'] ?? '';
+		?>
+		<fieldset>
+			<label for="<?php echo esc_attr( $name ); ?>">
+				<input
+					type="number"
+					id="<?php echo esc_attr( $id ); ?>"
+					class="<?php echo esc_attr( $class ); ?>"
+					min="<?php echo esc_attr( $min ); ?>"
+					max="<?php echo esc_attr( $max ); ?>"
+					id="<?php echo esc_attr( $id ); ?>"
+					name="<?php echo esc_attr( $name ); ?>"
+					value="<?php echo esc_attr( $value ); ?>"
+				/>
+				<?php if ( ! empty( $help ) ) : ?>
+					<small class="form-text text-muted">
+						<?php echo esc_html( $help ); ?>
+					</small>
+				<?php endif; ?>
+			</label>
+		</fieldset>
+		<?php
+	}
+
+	/**
+	 * Render select field HTML content.
+	 *
+	 * @param array $args
+	 * @return void
+	 */
+	public function render_select_field( $args ) {
+		$value   = get_option( $args['option_name'] );
+		$name    = $args['option_name'];
+		$options = $args['options'];
+		$id      = $args['id'] ?? '';
+		$class   = $args['class'] ?? '';
+		$help    = $args['help'] ?? '';
+		?>
+		<fieldset>
+			<select id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $name ); ?>" class="<?php echo esc_attr( $class ); ?>">
+				<?php foreach ( $options as $option_value => $option_name ) : ?>
+					<option value="<?php echo esc_attr( $option_value ); ?>" <?php selected( $option_value, $value ); ?>>
+						<?php echo esc_html( $option_name ); ?>
+					</option>
+				<?php endforeach; ?>
+			</select>
+			<?php if ( ! empty( $help ) ) : ?>
+				<small class="form-text text-muted">
+					<?php echo esc_html( $help ); ?>
+				</small>
+			<?php endif; ?>
+		</fieldset>
+		<?php
+	}
+
+	/**
+	 * Check if the current credentials are stale.
+	 * If the User has not connected to Smaily, the credentials are considered valid.
+	 *
+	 * @return bool
+	 */
+	public function are_credentials_valid() {
+		$credentials = $this->options->get_api_credentials();
+		if ( ! $credentials ) {
+			return true;
+		}
+
+		$subdomain = $credentials['subdomain'];
+		$username  = $credentials['username'];
+		$password  = $credentials['password'];
+		$enabled   = $subdomain && $username && $password;
+
+		if ( ! $enabled ) {
+			return true;
+		}
+
+		return Admin::validate_api_credentials( $subdomain, $username, $password )[0];
+	}
+
+	/**
+	 * Get the current API account details including subdomain and username.
+	 *
+	 * @return array{subdomain: string, username: string}
+	 */
+	public function get_connected_api_account() {
+		$credentials = $this->options->get_api_credentials();
+
+		return array(
+			'subdomain' => $credentials['subdomain'],
+			'username'  => $credentials['username'],
+		);
+	}
+}

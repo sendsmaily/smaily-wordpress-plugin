@@ -7,6 +7,8 @@
  * @subpackage Smaily/includes
  */
 
+use Smaily_Admin\Admin;
+
 class Smaily_Widget extends WP_Widget {
 
 
@@ -15,7 +17,7 @@ class Smaily_Widget extends WP_Widget {
 	 *
 	 *
 	 * @access private
-	 * @var    Smaily_Admin
+	 * @var    Admin
 	 */
 	private $admin_model;
 
@@ -32,9 +34,9 @@ class Smaily_Widget extends WP_Widget {
 	 * Sets up a new instance of the widget.
 	 *
 	 * @param Smaily_Options $options     Reference to options handler class.
-	 * @param Smaily_Admin   $admin_model Reference to admin class.
+	 * @param Admin   $admin_model Reference to admin class.
 	 */
-	public function __construct( Smaily_Options $options, Smaily_Admin $admin_model ) {
+	public function __construct( Smaily_Options $options, Admin $admin_model ) {
 		$widget_ops = array( 'description' => __( 'Smaily newsletter subscription form', 'smaily' ) );
 		parent::__construct( 'smaily_subscription_widget', __( 'Smaily Newsletter Subscription', 'smaily' ), $widget_ops );
 

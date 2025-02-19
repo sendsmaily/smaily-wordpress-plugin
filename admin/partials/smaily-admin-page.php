@@ -1,6 +1,6 @@
 <?php
 /**
- * @var Smaily_Admin $this
+ * @var Smaily_Admin\Admin $this
  */
 
 defined( 'ABSPATH' ) || exit;

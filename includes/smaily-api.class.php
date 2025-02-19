@@ -7,6 +7,8 @@
  * @subpackage Smaily/includes
  */
 
+use Smaily_Admin\Admin;
+
 class Smaily_API {
 	/**
 	 * API namespace.
@@ -18,7 +20,7 @@ class Smaily_API {
 	 *
 	 *
 	 * @access private
-	 * @var    Smaily_Admin
+	 * @var    Admin
 	 */
 	private $admin_model;
 
@@ -35,9 +37,9 @@ class Smaily_API {
 	 * Sets up a new instance of the API.
 	 *
 	 * @param Smaily_Options $options     Reference to options handler class.
-	 * @param Smaily_Admin   $admin_model Reference to admin class.
+	 * @param Admin   $admin_model Reference to admin class.
 	 */
-	public function __construct( Smaily_Options $options, Smaily_Admin $admin_model ) {
+	public function __construct( Smaily_Options $options, Admin $admin_model ) {
 		$this->options     = $options;
 		$this->admin_model = $admin_model;
 	}

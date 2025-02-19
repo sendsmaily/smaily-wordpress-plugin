@@ -1,5 +1,7 @@
 <?php
 
+use Smaily_Admin\Admin;
+
 /**
  * The core plugin class.
  *
@@ -117,6 +119,11 @@ class Smaily {
 	 * @access private
 	 */
 	private function load_dependencies() {
+		// TODO: AUTOLOAD
+
+		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-renderer.class.php';
+		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
+		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-api.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-block.class.php';
@@ -186,7 +193,7 @@ class Smaily {
 	 */
 	private function define_admin_hooks() {
 		$plugin_name  = $this->get_plugin_name();
-		$plugin_admin = new Smaily_Admin( $this->options, $plugin_name, $this->get_version() );
+		$plugin_admin = new Admin( $this->options, $plugin_name, $this->get_version() );
 		$plugin_api   = new Smaily_API( $this->options, $plugin_admin );
 		add_action( 'admin_init', array( $plugin_admin, 'settings_init' ) );
 		add_action( 'admin_menu', array( $plugin_admin, 'settings_page' ) );
