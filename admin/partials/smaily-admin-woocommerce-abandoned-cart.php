@@ -5,10 +5,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$mandatory   = array(
-	'user_email' => true,
-	'store_url'  => true,
-);
+$mandatory   = array( 'user_email', 'store_url' );
 $sync_fields = get_option( 'smaily_abandoned_cart_fields' );
 $labels      = array(
 	'user_email'          => __( 'Email', 'smaily' ),
@@ -26,20 +23,26 @@ $labels      = array(
 
 ?>
 <fieldset >
-	<?php foreach ( array_merge( $sync_fields, $mandatory ) as $field => $enabled ) : ?>
+	<?php foreach ( $sync_fields as $field => $enabled ) : ?>
 		<label for="smaily_abandoned_<?php echo esc_attr( $field ); ?>">
 			<input
-				<?php if ( isset( $mandatory[ $field ] ) ) : ?>
+				<?php if ( in_array( $field, $mandatory, true ) ) : ?>
 					disabled
 				<?php endif; ?>
 				type="checkbox"
 				id="smaily_abandoned_<?php echo esc_attr( $field ); ?>"
 				name="smaily_abandoned_cart_fields[<?php echo esc_attr( $field ); ?>]"
 				value="1"
-				<?php checked( $enabled, true ); ?>
+				<?php checked( $enabled ); ?>
 			/>
 			<?php echo esc_html( $labels[ $field ] ); ?>
 		</label>
+
+		<?php if ( in_array( $field, $mandatory, true ) ) : ?>
+			<!-- Hidden field to ensure mandatory fields are always saved -->
+			<input type="hidden" name="smaily_abandoned_cart_fields[<?php echo esc_attr( $field ); ?>]" value="1" />
+		<?php endif; ?>
+
 		<br>
 	<?php endforeach; ?>
 	<small class="form-text text-muted">
