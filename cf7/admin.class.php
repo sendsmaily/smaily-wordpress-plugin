@@ -105,7 +105,7 @@ class Admin {
 		$has_credentials = $this->options->has_credentials();
 
 		// Fetch autoresponder data here for view.
-		$autoresponder_list = $this->get_autoresponders();
+		$autoresponder_list = $this->get_autoresponders(); //TODO: Move this to smaily API.
 
 		$form_tags       = \WPCF7_FormTagsManager::get_instance()->get_scanned_tags();
 		$captcha_enabled = $this->is_captcha_enabled( $form_tags );

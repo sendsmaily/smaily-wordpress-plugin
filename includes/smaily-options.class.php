@@ -49,12 +49,106 @@ class Smaily_Options {
 	);
 
 	/**
+	 * Default values for abandoned cart status.
+	 *
+	 * @var array
+	 */
+	const ABANDONED_CART_DEFAULT_STATUS = array(
+		'enabled'          => false,
+		'autoresponder_id' => 0,
+	);
+
+	/**
+	 * Default cart cutoff time in minutes.
+	 *
+	 * @var array
+	 */
+	const ABANDONED_CART_DEFAULT_CUTOFF = 10;
+
+	/**
+	 * Default position for checkout subscription checkbox.
+	 *
+	 * @var array
+	 */
+	const CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION = 'before';
+
+	/**
+	 * Default location for checkout subscription checkbox.
+	 *
+	 * @var array
+	 */
+	const CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION = 'order_notes';
+
+	/**
+	 * Default number of RSS feed items.
+	 *
+	 * @var array
+	 */
+	const RSS_DEFAULT_LIMIT = 50;
+
+	/**
+	 * Default RSS feed sort by.
+	 *
+	 * @var array
+	 */
+	const RSS_DEFAULT_SORT_BY = 'modified';
+
+	/**
+	 * Default RSS feed order by.
+	 *
+	 * @var array
+	 */
+	const RSS_DEFAULT_ORDER_BY = 'DESC';
+
+
+	const API_CREDENTIALS_OPTION                = 'smaily_api_credentials';
+	const CUSTOMER_SYNC_ENABLED_OPTION          = 'smaily_customer_sync_enabled';
+	const CUSTOMER_SYNC_FIELDS_OPTION           = 'smaily_customer_sync_fields';
+	const ABANDONED_CART_STATUS_OPTION          = 'smaily_abandoned_cart_status';
+	const ABANDONED_CART_CUTOFF_OPTION          = 'smaily_abandoned_cart_cutoff';
+	const ABANDONED_CART_FIELDS_OPTION          = 'smaily_abandoned_cart_fields';
+	const CHECKOUT_SUBSCRIPTION_ENABLED_OPTION  = 'smaily_checkout_subscription_enabled';
+	const CHECKOUT_SUBSCRIPTION_POSITION_OPTION = 'smaily_checkout_subscription_position';
+	const CHECKOUT_SUBSCRIPTION_LOCATION_OPTION = 'smaily_checkout_subscription_location';
+	const RSS_LIMIT_OPTION                      = 'smaily_rss_limit';
+	const RSS_CATEGORY_OPTION                   = 'smaily_rss_category';
+	const RSS_SORT_BY_OPTION                    = 'smaily_rss_sort_by';
+	const RSS_ORDER_BY_OPTION                   = 'smaily_rss_order_by';
+	const RSS_URL_OPTION                        = 'smaily_rss_url';
+	const DATABASE_VERSION_OPTION               = 'smaily_db_version';
+	const CONTACT_FORM_7_STATUS_OPTION          = 'smaily_cf7_status';
+
+	/**
+	 * Array of all option fields.
+	 *
+	 * @var array
+	 */
+	const OPTION_FIELDS = array(
+		self::API_CREDENTIALS_OPTION,
+		self::CUSTOMER_SYNC_ENABLED_OPTION,
+		self::CUSTOMER_SYNC_FIELDS_OPTION,
+		self::ABANDONED_CART_STATUS_OPTION,
+		self::ABANDONED_CART_CUTOFF_OPTION,
+		self::ABANDONED_CART_FIELDS_OPTION,
+		self::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION,
+		self::CHECKOUT_SUBSCRIPTION_POSITION_OPTION,
+		self::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION,
+		self::RSS_LIMIT_OPTION,
+		self::RSS_CATEGORY_OPTION,
+		self::RSS_SORT_BY_OPTION,
+		self::RSS_ORDER_BY_OPTION,
+		self::RSS_URL_OPTION,
+		self::DATABASE_VERSION_OPTION,
+		self::CONTACT_FORM_7_STATUS_OPTION,
+	);
+
+	/**
 	 * Get API credentials.
 	 *
 	 * @return array{subdomain: string, username: string, password: string} Smaily API credentials
 	 */
 	public function get_api_credentials() {
-		$credentials = get_option( 'smaily_api_credentials', array() );
+		$credentials = get_option( Smaily_Options::API_CREDENTIALS_OPTION, array() );
 		$password    = isset( $credentials['password'] ) ? Smaily_Cypher::decrypt( $credentials['password'] ) : '';
 		unset( $credentials['password'] );
 
@@ -96,22 +190,22 @@ class Smaily_Options {
 	 * @return array   Smaily woocommerce settings in proper format
 	 */
 	private function get_woocommerce_settings_from_db() {
-		$cart_status = get_option( 'smaily_abandoned_cart_status' );
+		$cart_status = get_option( self::ABANDONED_CART_STATUS_OPTION, self::ABANDONED_CART_DEFAULT_STATUS );
 
 		return array(
-			'customer_sync_enabled'     => get_option( 'smaily_customer_sync_enabled' ),
-			'synchronize_additional'    => get_option( 'smaily_customer_sync_fields' ),
+			'customer_sync_enabled'     => get_option( self::CUSTOMER_SYNC_ENABLED_OPTION ),
+			'synchronize_additional'    => get_option( self::CUSTOMER_SYNC_FIELDS_OPTION, self::CUSTOMER_SYNC_DEFAULT_FIELDS ),
 			'enable_cart'               => $cart_status['enabled'],
 			'cart_autoresponder_id'     => $cart_status['autoresponder_id'],
-			'cart_cutoff'               => (int) get_option( 'smaily_abandoned_cart_cutoff' ),
-			'cart_options'              => get_option( 'smaily_abandoned_cart_fields' ),
-			'checkout_checkbox_enabled' => get_option( 'smaily_checkout_subscription_enabled' ),
-			'checkbox_order'            => get_option( 'smaily_checkout_subscription_position' ),
-			'checkbox_location'         => get_option( 'smaily_checkout_subscription_location' ),
-			'rss_limit'                 => get_option( 'smaily_rss_limit' ),
-			'rss_category'              => get_option( 'smaily_rss_category' ),
-			'rss_order_by'              => get_option( 'smaily_rss_sort_by' ),
-			'rss_order'                 => get_option( 'smaily_rss_order_by' ),
+			'cart_cutoff'               => (int) get_option( self::ABANDONED_CART_CUTOFF_OPTION, self::ABANDONED_CART_DEFAULT_CUTOFF ),
+			'cart_options'              => get_option( self::ABANDONED_CART_FIELDS_OPTION, self::ABANDONED_CART_DEFAULT_FIELDS ),
+			'checkout_checkbox_enabled' => get_option( self::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION ),
+			'checkbox_order'            => get_option( self::CHECKOUT_SUBSCRIPTION_POSITION_OPTION, self::CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION ),
+			'checkbox_location'         => get_option( self::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION, self::CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION ),
+			'rss_limit'                 => get_option( self::RSS_LIMIT_OPTION, self::RSS_DEFAULT_LIMIT ),
+			'rss_category'              => get_option( self::RSS_CATEGORY_OPTION, '' ),
+			'rss_order_by'              => get_option( self::RSS_SORT_BY_OPTION, self::RSS_DEFAULT_SORT_BY ),
+			'rss_order'                 => get_option( self::RSS_ORDER_BY_OPTION, self::RSS_DEFAULT_ORDER_BY ),
 		);
 	}
 
@@ -123,7 +217,7 @@ class Smaily_Options {
 	 * @return array   Smaily Contact Form 7 settings in proper format
 	 */
 	private function get_cf7_settings_from_db() {
-		$settings = get_option( 'smaily_cf7_settings', array() );
+		$settings = get_option( self::CONTACT_FORM_7_STATUS_OPTION, array() );
 		return array_merge(
 			array(
 				'autoresponder_id' => 0,
@@ -164,5 +258,11 @@ class Smaily_Options {
 	public function has_credentials() {
 		$api_credentials = $this->get_api_credentials();
 		return ! empty( $api_credentials['subdomain'] ) && ! empty( $api_credentials['username'] ) && ! empty( $api_credentials['password'] );
+	}
+
+	public static function delete_all_options() {
+		foreach ( self::OPTION_FIELDS as $option ) {
+			delete_option( $option );
+		}
 	}
 }

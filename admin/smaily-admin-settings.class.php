@@ -45,7 +45,7 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			'smaily_api_credentials',
+			Smaily_Options::API_CREDENTIALS_OPTION,
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this->sanitizer, 'sanitize_api_credentials' ),
@@ -65,7 +65,7 @@ class Settings {
 		);
 
 		add_settings_field(
-			'api_credentials',
+			Smaily_Options::API_CREDENTIALS_OPTION,
 			__( 'Credentials', 'smaily' ),
 			array( $this->renderer, 'render_credentials_fields' ),
 			$page,
@@ -83,7 +83,7 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			'smaily_customer_sync_enabled',
+			Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION,
 			array(
 				'type'              => 'boolean',
 				'sanitize_callback' => 'rest_sanitize_boolean',
@@ -93,7 +93,7 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			'smaily_customer_sync_fields',
+			Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION,
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this->sanitizer, 'sanitize_customer_sync_fields' ),
@@ -109,18 +109,18 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_customer_sync_enabled',
+			Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION,
 			__( 'Enable Customer Synchronization', 'smaily' ),
 			array( $this->renderer, 'render_enabled_field' ),
 			$page,
 			$customer_sync_section,
 			array(
-				'option_name' => 'smaily_customer_sync_enabled',
+				'option_name' => Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION,
 			)
 		);
 
 		add_settings_field(
-			'smaily_customer_sync_fields',
+			Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION,
 			__( 'Additional Fields', 'smaily' ),
 			array( $this->renderer, 'render_sync_additional_fields' ),
 			$page,
@@ -138,7 +138,7 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			'smaily_abandoned_cart_status',
+			Smaily_Options::ABANDONED_CART_STATUS_OPTION,
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this->sanitizer, 'sanitize_abandoned_cart_status' ),
@@ -151,17 +151,17 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			'smaily_abandoned_cart_cutoff',
+			Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
 			array(
 				'type'              => 'number',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => 10,
+				'default'           => Smaily_Options::ABANDONED_CART_DEFAULT_CUTOFF,
 			)
 		);
 
 		register_setting(
 			$option_group,
-			'smaily_abandoned_cart_fields',
+			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
 			array(
 				'type'              => 'array',
 				'sanitize_callback' => array( $this->sanitizer, 'sanitize_abandoned_cart_fields' ),
@@ -177,7 +177,7 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_abandoned_cart_status',
+			Smaily_Options::ABANDONED_CART_STATUS_OPTION,
 			__( 'Enable Abandoned Cart', 'smaily' ),
 			array( $this->renderer, 'render_abandoned_cart_status_field' ),
 			$page,
@@ -188,20 +188,20 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_abandoned_cart_cutoff',
+			Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
 			__( 'Cart cutoff time (minutes)', 'smaily' ),
 			array( $this->renderer, 'render_number_field' ),
 			$page,
 			$abandoned_cart_section,
 			array(
-				'option_name' => 'smaily_abandoned_cart_cutoff',
-				'min'         => 10,
+				'option_name' => Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
+				'min'         => Smaily_Options::ABANDONED_CART_DEFAULT_CUTOFF,
 				'help'        => __( 'Minimum 10 minutes', 'smaily' ),
 			)
 		);
 
 		add_settings_field(
-			'smaily_abandoned_cart_fields',
+			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
 			__( 'Additional Fields', 'smaily' ),
 			array( $this->renderer, 'render_abandoned_additional_fields' ),
 			$page,
@@ -211,7 +211,7 @@ class Settings {
 		$checkout_subscription_section = 'smaily_settings_checkout_subscription_section';
 		register_setting(
 			$option_group,
-			'smaily_checkout_subscription_enabled',
+			Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION,
 			array(
 				'type'              => 'boolean',
 				'sanitize_callback' => 'rest_sanitize_boolean',
@@ -221,21 +221,21 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			'smaily_checkout_subscription_position',
+			Smaily_Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION,
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => 'before',
+				'default'           => Smaily_Options::CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION,
 			)
 		);
 
 		register_setting(
 			$option_group,
-			'smaily_checkout_subscription_location',
+			Smaily_Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION,
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => 'order_notes',
+				'default'           => Smaily_Options::CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION,
 			)
 		);
 
@@ -247,24 +247,24 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_checkout_subscription_enabled',
+			Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION,
 			__( 'Enable Checkout Subscription', 'smaily' ),
 			array( $this->renderer, 'render_enabled_field' ),
 			$page,
 			$checkout_subscription_section,
 			array(
-				'option_name' => 'smaily_checkout_subscription_enabled',
+				'option_name' => Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION,
 			)
 		);
 
 		add_settings_field(
-			'smaily_checkout_subscription_position',
+			Smaily_Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION,
 			__( 'Position', 'smaily' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$checkout_subscription_section,
 			array(
-				'option_name' => 'smaily_checkout_subscription_position',
+				'option_name' => Smaily_Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION,
 				'options'     => array(
 					'before' => __( 'Before', 'smaily' ),
 					'after'  => __( 'After', 'smaily' ),
@@ -273,13 +273,13 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_checkout_subscription_location',
+			Smaily_Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION,
 			__( 'Location', 'smaily' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$checkout_subscription_section,
 			array(
-				'option_name' => 'smaily_checkout_subscription_location',
+				'option_name' => Smaily_Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION,
 				'options'     => array(
 					'order_notes'                => __( 'Order notes', 'smaily' ),
 					'checkout_billing_form'      => __( 'Billing form', 'smaily' ),
@@ -300,17 +300,17 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			'smaily_rss_limit',
+			Smaily_Options::RSS_LIMIT_OPTION,
 			array(
 				'type'              => 'number',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => 50,
+				'default'           => Smaily_Options::RSS_DEFAULT_LIMIT,
 			)
 		);
 
 		register_setting(
 			$option_group,
-			'smaily_rss_category',
+			Smaily_Options::RSS_CATEGORY_OPTION,
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
@@ -320,35 +320,35 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			'smaily_rss_sort_by',
+			Smaily_Options::RSS_SORT_BY_OPTION,
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => 'modified',
+				'default'           => Smaily_Options::RSS_DEFAULT_SORT_BY,
 			)
 		);
 
 		register_setting(
 			$option_group,
-			'smaily_rss_order_by',
+			Smaily_Options::RSS_ORDER_BY_OPTION,
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => 'DESC',
+				'default'           => Smaily_Options::RSS_DEFAULT_ORDER_BY,
 			)
 		);
 
 		register_setting(
 			$option_group,
-			'smaily_rss_url',
+			Smaily_Options::RSS_URL_OPTION,
 			array(
 				'type'              => 'text',
 				'sanitize_callback' => 'sanitize_text_field',
 				'default'           => Rss::make_rss_feed_url(
-					get_option( 'smaily_rss_category' ),
-					get_option( 'smaily_rss_limit' ),
-					get_option( 'smaily_rss_sort_by' ),
-					get_option( 'smaily_rss_order_by' )
+					get_option( Smaily_Options::RSS_CATEGORY_OPTION, null ),
+					get_option( Smaily_Options::RSS_LIMIT_OPTION, null ),
+					get_option( Smaily_Options::RSS_SORT_BY_OPTION, null ),
+					get_option( Smaily_Options::RSS_ORDER_BY_OPTION, null )
 				),
 			)
 		);
@@ -361,13 +361,13 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_rss_limit',
+			Smaily_Options::RSS_LIMIT_OPTION,
 			__( 'Limit', 'smaily' ),
 			array( $this->renderer, 'render_number_field' ),
 			$page,
 			$rss_section,
 			array(
-				'option_name' => 'smaily_rss_limit',
+				'option_name' => Smaily_Options::RSS_LIMIT_OPTION,
 				'min'         => 1,
 				'max'         => 250,
 				'help'        => __( 'Limit how many products you will add to your field. Maximum 250.', 'smaily' ),
@@ -386,13 +386,13 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_rss_category',
+			Smaily_Options::RSS_CATEGORY_OPTION,
 			__( 'Product Category', 'smaily' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$rss_section,
 			array(
-				'option_name' => 'smaily_rss_category',
+				'option_name' => Smaily_Options::RSS_CATEGORY_OPTION,
 				'options'     => array(
 					'' => __( 'All', 'smaily' ),
 				) + wp_list_pluck( $product_categories, 'name', 'slug' ),
@@ -403,13 +403,13 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_rss_sort_by',
+			Smaily_Options::RSS_SORT_BY_OPTION,
 			__( 'Sort by', 'smaily' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$rss_section,
 			array(
-				'option_name' => 'smaily_rss_sort_by',
+				'option_name' => Smaily_Options::RSS_SORT_BY_OPTION,
 				'options'     => array(
 					'date'     => __( 'Created At', 'smaily' ),
 					'id'       => __( 'ID', 'smaily' ),
@@ -424,13 +424,13 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_rss_order_by',
+			Smaily_Options::RSS_ORDER_BY_OPTION,
 			__( 'Order by', 'smaily' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$rss_section,
 			array(
-				'option_name' => 'smaily_rss_order_by',
+				'option_name' => Smaily_Options::RSS_ORDER_BY_OPTION,
 				'options'     => array(
 					'ASC'  => __( 'Ascending', 'smaily' ),
 					'DESC' => __( 'Descending', 'smaily' ),
@@ -441,7 +441,7 @@ class Settings {
 		);
 
 		add_settings_field(
-			'smaily_rss_url',
+			Smaily_Options::RSS_URL_OPTION,
 			__( 'Product RSS feed', 'smaily' ),
 			array( $this->renderer, 'render_rss_url' ),
 			$page,
@@ -456,12 +456,12 @@ class Settings {
 	 * @return array List of autoresponders in format [id => title].
 	 */
 	private function get_autoresponders() {
-		// TODO: Refactor this Request class.
-		Smaily_Request::set_credentials( $this->options->get_api_credentials() );
-
 		if ( ! $this->options->has_credentials() ) {
 			return array();
 		}
+
+		// TODO: Refactor this Request class. And refactor single implementation of this function.
+		Smaily_Request::set_credentials( $this->options->get_api_credentials() );
 
 		$result = Smaily_Request::get(
 			'workflows',

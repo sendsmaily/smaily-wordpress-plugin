@@ -419,7 +419,7 @@ class Cron {
 			// Abandoned carts table name.
 			$table = $wpdb->prefix . 'smaily_abandoned_carts';
 			// Cart cutoff in seconds.
-			$cutoff = (int) $results['woocommerce']['cart_cutoff'] * 60;
+			$cutoff = (int) $results['woocommerce']['cart_cutoff'] * MINUTE_IN_SECONDS;
 			// Current UTC timestamp - cutoff.
 			$limit = strtotime( gmdate( 'Y-m-d\TH:i:s\Z' ) ) - $cutoff;
 			$time  = gmdate( 'Y-m-d\TH:i:s\Z', $limit );

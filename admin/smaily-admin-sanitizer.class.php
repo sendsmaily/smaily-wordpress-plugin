@@ -23,7 +23,7 @@ class Sanitizer {
 				'error'
 			);
 
-			return get_option( 'smaily_abandoned_cart_status' );
+			return get_option( Smaily_Options::ABANDONED_CART_STATUS_OPTION );
 		}
 
 		return array(
@@ -73,7 +73,7 @@ class Sanitizer {
 				'error'
 			);
 
-			return get_option( 'smaily_api_credentials' );
+			return get_option( Smaily_Options::API_CREDENTIALS_OPTION );
 		}
 
 		return array(

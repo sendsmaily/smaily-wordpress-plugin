@@ -138,13 +138,8 @@ class Smaily_Lifecycle {
 		// Delete Smaily plugin abandoned cart table.
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}smaily_abandoned_carts" );
 
-		// TODO: Delete options.
+		Smaily_Options::delete_all_options();
 
-		delete_option( 'smaily_form_options' );
-		delete_option( 'smaily_api_credentials' );
-		delete_option( 'smaily_woocommerce_settings' );
-		delete_option( 'smaily_cf7_settings' );
-		delete_option( 'smaily_db_version' );
 		delete_transient( 'smaily_plugin_updated' );
 	}
 
@@ -198,7 +193,7 @@ class Smaily_Lifecycle {
 	 */
 	private function run_migrations() {
 		$plugin_version = SMAILY_PLUGIN_VERSION;
-		$db_version     = get_option( 'smaily_db_version', '0.0.0' );
+		$db_version     = get_option( Smaily_Options::DATABASE_VERSION_OPTION, '0.0.0' );
 
 		if ( $plugin_version === $db_version ) {
 			return;
@@ -225,6 +220,6 @@ class Smaily_Lifecycle {
 		}
 
 		// Migrations finished.
-		update_option( 'smaily_db_version', $plugin_version );
+		update_option( Smaily_Options::DATABASE_VERSION_OPTION, $plugin_version );
 	}
 }

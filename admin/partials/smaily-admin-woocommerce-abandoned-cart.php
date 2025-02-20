@@ -6,7 +6,7 @@
 defined( 'ABSPATH' ) || exit;
 
 $mandatory   = array( 'user_email', 'store_url' );
-$sync_fields = get_option( 'smaily_abandoned_cart_fields' );
+$sync_fields = get_option( Smaily_Options::ABANDONED_CART_FIELDS_OPTION, Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS );
 $labels      = array(
 	'user_email'          => __( 'Email', 'smaily' ),
 	'store_url'           => __( 'Store URL', 'smaily' ),

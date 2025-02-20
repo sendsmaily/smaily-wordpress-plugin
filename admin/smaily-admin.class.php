@@ -58,8 +58,6 @@ class Admin {
 	 */
 	private $settings;
 
-	private $renderer;
-
 	/**
 	 * Initialize the class and set its properties.
 	 *
@@ -136,8 +134,7 @@ class Admin {
 			);
 		}
 
-		$this->tabs     = $tabs;
-		$this->renderer = new Renderer( $options );
+		$this->tabs = $tabs;
 	}
 
 	/**

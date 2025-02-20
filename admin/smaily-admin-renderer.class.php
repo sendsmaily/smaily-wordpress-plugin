@@ -108,7 +108,7 @@ class Renderer {
 	 */
 	public function render_abandoned_cart_status_field( $args ) {
 		$autoresponders           = $args['autoresponders'];
-		$abandoned_cart_status    = get_option( 'smaily_abandoned_cart_status' );
+		$abandoned_cart_status    = get_option( Smaily_Options::ABANDONED_CART_STATUS_OPTION, Smaily_Options::ABANDONED_CART_DEFAULT_STATUS );
 		$enabled                  = $abandoned_cart_status['enabled'];
 		$current_autoresponder_id = $abandoned_cart_status['autoresponder_id'];
 		?>
@@ -191,10 +191,10 @@ class Renderer {
 	 */
 	public function render_rss_url() {
 		$url = Rss::make_rss_feed_url(
-			get_option( 'smaily_rss_category' ),
-			get_option( 'smaily_rss_limit' ),
-			get_option( 'smaily_rss_sort_by' ),
-			get_option( 'smaily_rss_order_by' )
+			get_option( Smaily_Options::RSS_CATEGORY_OPTION, null ),
+			get_option( Smaily_Options::RSS_LIMIT_OPTION, null ),
+			get_option( Smaily_Options::RSS_SORT_BY_OPTION, null ),
+			get_option( Smaily_Options::RSS_ORDER_BY_OPTION, null )
 		);
 		?>
 		<fieldset>
