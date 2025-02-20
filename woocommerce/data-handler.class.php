@@ -95,6 +95,10 @@ class Data_Handler {
 		// Sync also fields selected from admin panel.
 		if ( ! empty( $synchronize_additional ) ) {
 			foreach ( $synchronize_additional as $sync_option ) {
+				if ( $sync_option === 'user_email' || $sync_option === 'store_url' ) {
+					continue;
+				}
+
 				$user_sync_data[ $sync_option ] = $all_user_data[ $sync_option ];
 			}
 		}
