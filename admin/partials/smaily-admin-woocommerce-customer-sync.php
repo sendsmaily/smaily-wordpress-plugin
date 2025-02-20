@@ -25,14 +25,14 @@ $labels      = array(
 ?>
 <fieldset >
 	<?php foreach ( $sync_fields  as $field => $enabled ) : ?>
-		<label for="smaily_sync_<?php echo esc_attr( $field ); ?>">
+		<label for="<?php echo sprintf( '%s[%s]', esc_attr( Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION ), esc_attr( $field ) ); ?>">
 			<input
 				<?php if ( in_array( $field, $mandatory, true ) ) : ?>
 					disabled
 				<?php endif; ?>
 				type="checkbox"
 				id="smaily_sync_<?php echo esc_attr( $field ); ?>"
-				name="smaily_customer_sync_fields[<?php echo esc_attr( $field ); ?>]"
+				name="<?php echo sprintf( '%s[%s]', esc_attr( Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION ), esc_attr( $field ) ); ?>"
 				value="1"
 				<?php checked( $enabled || in_array( $field, $mandatory, true ) ); ?>
 			/>

@@ -24,25 +24,19 @@ $labels      = array(
 ?>
 <fieldset >
 	<?php foreach ( $sync_fields as $field => $enabled ) : ?>
-		<label for="smaily_abandoned_<?php echo esc_attr( $field ); ?>">
+		<label for="<?php echo sprintf( '%s[%s]', esc_attr( Smaily_Options::ABANDONED_CART_FIELDS_OPTION ), esc_attr( $field ) ); ?>">
 			<input
 				<?php if ( in_array( $field, $mandatory, true ) ) : ?>
 					disabled
 				<?php endif; ?>
 				type="checkbox"
 				id="smaily_abandoned_<?php echo esc_attr( $field ); ?>"
-				name="smaily_abandoned_cart_fields[<?php echo esc_attr( $field ); ?>]"
+				name="<?php echo sprintf( '%s[%s]', esc_attr( Smaily_Options::ABANDONED_CART_FIELDS_OPTION ), esc_attr( $field ) ); ?>"
 				value="1"
 				<?php checked( $enabled ); ?>
 			/>
 			<?php echo esc_html( $labels[ $field ] ); ?>
 		</label>
-
-		<?php if ( in_array( $field, $mandatory, true ) ) : ?>
-			<!-- Hidden field to ensure mandatory fields are always saved -->
-			<input type="hidden" name="smaily_abandoned_cart_fields[<?php echo esc_attr( $field ); ?>]" value="1" />
-		<?php endif; ?>
-
 		<br>
 	<?php endforeach; ?>
 	<small class="form-text text-muted">

@@ -411,9 +411,9 @@ class Settings {
 			array(
 				'option_name' => Smaily_Options::RSS_SORT_BY_OPTION,
 				'options'     => array(
+					'modified' => __( 'Modified At', 'smaily' ),
 					'date'     => __( 'Created At', 'smaily' ),
 					'id'       => __( 'ID', 'smaily' ),
-					'modified' => __( 'Modified At', 'smaily' ),
 					'name'     => __( 'Name', 'smaily' ),
 					'rand'     => __( 'Random', 'smaily' ),
 					'type'     => __( 'Type', 'smaily' ),
