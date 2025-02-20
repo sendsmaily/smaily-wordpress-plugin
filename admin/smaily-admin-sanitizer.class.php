@@ -90,10 +90,11 @@ class Sanitizer {
 	 * @return array
 	 */
 	public function sanitize_customer_sync_fields( $input ) {
+		error_log( print_r( $input, true ) );
 		$default_fields = Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS;
 
 		$sanitized = array();
-		foreach ( $default_fields as $field ) {
+		foreach ( $default_fields as $field => $value ) {
 			$sanitized[ $field ] = ! empty( $input[ $field ] ) && $input[ $field ] !== '0';
 		}
 
@@ -110,7 +111,7 @@ class Sanitizer {
 		$default_fields = Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS;
 
 		$sanitized = array();
-		foreach ( $default_fields as $field ) {
+		foreach ( $default_fields as $field => $value ) {
 			$sanitized[ $field ] = ! empty( $input[ $field ] ) && $input[ $field ] !== '0';
 		}
 
