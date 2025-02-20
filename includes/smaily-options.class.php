@@ -228,28 +228,6 @@ class Smaily_Options {
 	}
 
 	/**
-	 * Update module settings. For updating credentials use update_api_credentials function.
-	 *
-	 * @param array $settings Array of settings for the setting type.
-	 * @param string $settings_type woocommerce_settings | cf7_settings
-	 * @return void
-	 */
-	public function update_settings( $settings, $settings_type ) {
-		$allowed_setting_types = array( 'woocommerce_settings', 'cf7_settings' );
-
-		if ( ! in_array( $settings_type, $allowed_setting_types, true ) ) {
-			throw new InvalidArgumentException( 'Updating Smaily with unknown settings type: ' . esc_textarea( $settings_type ) );
-		}
-
-		if ( is_array( $settings ) ) {
-			$settings       = Smaily_Helper::sanitize_array( $settings );
-			$this->settings = $settings;
-		}
-
-		update_option( 'smaily_' . $settings_type, $settings );
-	}
-
-	/**
 	 * Has user saved Smaily API credentials to database?
 	 *
 	 *
