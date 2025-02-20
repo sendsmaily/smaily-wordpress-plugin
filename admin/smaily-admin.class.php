@@ -190,7 +190,7 @@ class Admin {
 			return $new_value;
 		}
 
-		$credentials_valid = self::validate_api_credentials( $new_value['subdomain'], $new_value['username'], $new_value['password'] );
+		$credentials_valid = $this->validate_api_credentials( $new_value['subdomain'], $new_value['username'], $new_value['password'] );
 		if ( $credentials_valid[0] === true ) {
 			add_settings_error(
 				'smaily_messages',
@@ -238,24 +238,11 @@ class Admin {
 	 * @param  string $password  Smaily password.
 	 * @return array{bool,int}  Success of operation and error code.
 	 */
-	public static function validate_api_credentials( $subdomain, $username, $password ) {
-		Smaily_Request::set_credentials(
-			array(
-				'subdomain' => $subdomain,
-				'username'  => $username,
-				'password'  => $password,
-			)
-		);
+	public function validate_api_credentials( $subdomain, $username, $password ) {
+		$request  = new Smaily_Request( $subdomain, $username, $password );
+		$response = $request->list_autoresponders();
 
-		// Validate credentials with get request.
-		$request = Smaily_Request::get(
-			'workflows',
-			array(
-				'trigger_type' => 'form_submitted',
-			)
-		);
-
-		$code = isset( $request['code'] ) ? $request['code'] : 0;
+		$code = isset( $response['code'] ) ? $response['code'] : 0;
 		if ( $code !== 200 ) {
 			return array( false, $code );
 		}

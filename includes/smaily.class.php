@@ -38,15 +38,6 @@ class Smaily {
 	protected $loader;
 
 	/**
-	 * Class responsible for all API requests to Smaily servers
-	 *
-	 *
-	 * @access protected
-	 * @var    Smaily_Request  $request Manages all http requests.
-	 */
-	protected $request;
-
-	/**
 	 * The unique identifier of this plugin.
 	 *
 	 *
@@ -92,8 +83,6 @@ class Smaily {
 	 * - Smaily_Block.     Define the Gutenberg newsletter subscription block functionality.
 	 * - Smaily_i18n.      Defines internationalization functionality.
 	 * - Smaily_Options.   Defines the database related queries of Options API.
-	 * - Smaily_Request.   Defines the request making functionality.
-	 * - Smaily_Template.  Defines the templating making functionality.
 	 * - Smaily_Widget.    Defines the widget functionality.
 	 * - Smaily_Public.    Defines all hooks for the public side of the site.
 	 *
@@ -133,16 +122,10 @@ class Smaily {
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-logger.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-options.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-request.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-template.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-widget.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'public/smaily-public.class.php';
 
 		$this->options = new Smaily_Options();
-
-		// Set credentials for API requests to smaily servers
-		$credentials = $this->options->get_api_credentials();
-
-		Smaily_Request::set_credentials( $credentials );
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
 			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cart.class.php';

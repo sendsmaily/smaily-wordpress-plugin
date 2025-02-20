@@ -2,7 +2,9 @@
 
 namespace Smaily_WC;
 
+use Smaily_Helper;
 use Smaily_Logger;
+use Smaily_Request;
 
 /**
  * Newsletter subscriber sync with Smaily contacts
@@ -122,25 +124,9 @@ class Subscriber_Synchronization {
 		// cases where site provides a default value for the field.
 		$data['is_unsubscribed'] = (int) $_POST['user_newsletter'] === 1 ? 0 : 1;
 
-		// Add store url for refrence in Smaily database.
-		$data['store'] = get_site_url();
-
-		// Language code if using WPML.
-		$lang = '';
-		if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
-			$lang = ICL_LANGUAGE_CODE;
-			// Language code if using polylang.
-		} elseif ( function_exists( 'pll_current_language' ) ) {
-			$lang = pll_current_language();
-		} else {
-			$lang = get_locale();
-			if ( strlen( $lang ) > 0 ) {
-				// Remove any value past underscore if exists.
-				$lang = explode( '_', $lang )[0];
-			}
-		}
-		// Add language code.
-		$data['language'] = $lang;
+		// Add store url for reference in Smaily database.
+		$data['store']    = get_site_url();
+		$data['language'] = Smaily_Helper::get_current_language_code();
 
 		// Append fields to data array when available.
 		// Add first name.
@@ -160,8 +146,8 @@ class Subscriber_Synchronization {
 			return;
 		}
 
-		$response = \Smaily_Request::post( 'contact', array( 'body' => $data ) );
-
+		$request  = new Smaily_Request( $this->options );
+		$response = $request->update_subscribers( $data );
 		if ( empty( $response ) ) {
 			return $this->logger->error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with unknown error.', $order_id ) );
 		}
@@ -182,12 +168,8 @@ class Subscriber_Synchronization {
 	 * @return void
 	 */
 	private function update_subscriber( $user_id ) {
-		// Get user data from WordPress, WooCommerce and Custom fields.
-		$data = Data_Handler::get_user_data( $user_id, $this->options );
-
-		// Make API call to Smaily for subscriber update.
-		$response = \Smaily_Request::post( 'contact', array( 'body' => $data ) );
-
+		$request  = new Smaily_Request( $this->options );
+		$response = $request->update_subscribers( Data_Handler::get_user_data( $user_id, $this->options ) );
 		if ( empty( $response ) ) {
 			return $this->logger->error( sprintf( 'Updating subscriber with id "%d" failed with unknown error', $user_id ) );
 		}

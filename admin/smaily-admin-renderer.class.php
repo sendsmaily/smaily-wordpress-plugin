@@ -3,6 +3,7 @@
 namespace Smaily_Admin;
 
 use Smaily_Options;
+use Smaily_Request;
 use Smaily_WC\Rss;
 
 class Renderer {
@@ -320,21 +321,18 @@ class Renderer {
 	 * @return bool
 	 */
 	public function are_credentials_valid() {
-		$credentials = $this->options->get_api_credentials();
-		if ( ! $credentials ) {
+		if ( ! $this->options->has_credentials() ) {
 			return true;
 		}
 
-		$subdomain = $credentials['subdomain'];
-		$username  = $credentials['username'];
-		$password  = $credentials['password'];
-		$enabled   = $subdomain && $username && $password;
+		$request  = new Smaily_Request( $this->options );
+		$response = $request->list_autoresponders();
 
-		if ( ! $enabled ) {
+		if ( $response['code'] === 200 ) {
 			return true;
 		}
 
-		return Admin::validate_api_credentials( $subdomain, $username, $password )[0];
+		return false;
 	}
 
 	/**

@@ -10,8 +10,6 @@
 use Smaily_Admin\Admin;
 
 class Smaily_Widget extends WP_Widget {
-
-
 	/**
 	 * Admin model.
 	 *
@@ -52,66 +50,69 @@ class Smaily_Widget extends WP_Widget {
 	 * @param array $instance Settings for the current Search widget instance.
 	 */
 	public function widget( $args, $instance ) {
+		// Allow overriding the template.
+		$template = locate_template( 'smaily/smaily-public-basic.php' );
+		if ( ! $template ) {
+			$template = SMAILY_PLUGIN_PATH . 'public/partials/smaily-public-basic.php';
+		}
+
 		$title = apply_filters( 'widget_title', empty( $instance['title'] ) ? '' : $instance['title'], $instance, $this->id_base );
 
-		$show_name     = isset( $instance['show_name'] ) ? $instance['show_name'] : false;
-		$success_url   = isset( $instance['success_url'] ) ? $instance['success_url'] : '';
-		$failure_url   = isset( $instance['failure_url'] ) ? $instance['failure_url'] : '';
-		$autoresponder = isset( $instance['autoresponder'] ) ? $instance['autoresponder'] : '';
-
 		echo wp_kses_post( $args['before_widget'] );
+
 		if ( $title ) {
 			echo wp_kses_post( $args['before_title'] ) . esc_html( $title ) . wp_kses_post( $args['after_title'] );
 		}
 
-		// Load configuration data.
-		$api_credentials = $this->options->get_api_credentials();
-
-		$template = new Smaily_Template( 'public/partials/smaily-public-basic.php' );
-		$template->assign(
-			array(
-				'domain'           => $api_credentials['subdomain'],
-				'show_name'        => $show_name,
-				'success_url'      => $success_url,
-				'failure_url'      => $failure_url,
-				'autoresponder_id' => $autoresponder,
-			)
-		);
-
-		// Display responses on Smaily subscription form.
+		$autoresponder_id   = isset( $instance['autoresponder'] ) ? $instance['autoresponder'] : '';
+		$failure_url        = empty( $instance['failure_url'] ) ?  Smaily_Helper::get_current_url(): $instance['failure_url'];
 		$form_has_response  = false;
 		$form_is_successful = false;
+		$language_code      = Smaily_Helper::get_current_language_code();
 		$response_message   = null;
+		$show_name          = isset( $instance['show_name'] ) ? $instance['show_name'] : false;
+		$subdomain          = $this->options->get_subdomain();
+		$success_url        = empty( $instance['success_url'] ) ? Smaily_Helper::get_current_url() : $instance['success_url'];
 
 		if ( ! $this->options->has_credentials() ) {
 			$form_has_response = true;
 			$response_message  = __( 'Smaily credentials not validated. Subscription form will not work!', 'smaily' );
-		} elseif ( isset( $_GET['code'] ) && (int) $_GET['code'] === 101 ) { // phpcs:ignore  WordPress.Security.NonceVerification.Recommended
-			$form_is_successful = true;
-		} elseif ( isset( $_GET['code'] ) || ! empty( $_GET['code'] ) ) { // phpcs:ignore  WordPress.Security.NonceVerification.Recommended
-			$form_has_response = true;
-			switch ( (int) $_GET['code'] ) { // phpcs:ignore  WordPress.Security.NonceVerification.Recommended
-				case 201:
-					$response_message = __( 'Form was not submitted using POST method.', 'smaily' );
-					break;
-				case 204:
-					$response_message = __( 'Input does not contain a recognizable email address.', 'smaily' );
-					break;
-				default:
-					$response_message = __( 'Could not add to subscriber list for an unknown reason. Probably something in Smaily.', 'smaily' );
-					break;
-			}
 		}
-		$template->assign(
-			array(
-				'form_has_response'  => $form_has_response,
-				'response_message'   => $response_message,
-				'form_is_successful' => $form_is_successful,
+
+		$code = isset( $_GET['code'] ) ? intval( $_GET['code'] ) : null;
+		switch ( $code ) {
+			case null:
+				break;
+			case 101:
+				$form_is_successful = true;
+				break;
+			case 201:
+				$form_has_response = true;
+				$response_message  = __( 'Form was not submitted using POST method.', 'smaily' );
+				break;
+			case 204:
+				$form_has_response = true;
+				$response_message  = __( 'Input does not contain a recognizable email address.', 'smaily' );
+				break;
+			default:
+				$form_has_response = true;
+				$response_message  = __( 'Could not add to subscriber list for an unknown reason. Probably something in Smaily.', 'smaily' );
+				break;
+		}
+
+		Smaily_Public::render_basic_form(
+			compact(
+				'autoresponder_id',
+				'failure_url',
+				'form_has_response',
+				'form_is_successful',
+				'language_code',
+				'response_message',
+				'show_name',
+				'subdomain',
+				'success_url'
 			)
 		);
-
-		// Render template.
-		echo $template->render();
 
 		echo wp_kses_post( $args['after_widget'] );
 	}
@@ -194,9 +195,36 @@ class Smaily_Widget extends WP_Widget {
 			<label for="' . esc_attr( $autoresponder_id ) . '">' . esc_html__( 'Autoresponders', 'smaily' ) . ':</label>
 			<select id="' . esc_attr( $autoresponder_id ) . '" name="' . esc_attr( $autoresponder ) . '">
 			<option value="">' . esc_html__( 'No autoresponder', 'smaily' ) . '</option>';
-		foreach ( $this->admin_model->get_autoresponders() as $id => $title ) {
+		foreach ( $this->get_autoresponders() as $id => $title ) {
 			echo '<option value="' . esc_attr( $id ) . '"' . selected( $instance['autoresponder'], $id, false ) . '>' . esc_attr( $title ) . '</option>';
 		}
 		echo '</select></p>';
+	}
+
+	/**
+	 * Make a request to Smaily asking for autoresponders.
+	 * Request is authenticated via saved credentials.
+	 *
+	 * @return array List of autoresponders in format [id => title].
+	 */
+	private function get_autoresponders() {
+		if ( ! $this->options->has_credentials() ) {
+			return array();
+		}
+
+		$request = new Smaily_Request( $this->options );
+		$result  = $request->list_autoresponders();
+
+		if ( empty( $result['body'] ) ) {
+			return array();
+		}
+
+		$autoresponder_list = array();
+		foreach ( $result['body'] as $autoresponder ) {
+			$id                        = $autoresponder['id'];
+			$title                     = $autoresponder['title'];
+			$autoresponder_list[ $id ] = $title;
+		}
+		return $autoresponder_list;
 	}
 }

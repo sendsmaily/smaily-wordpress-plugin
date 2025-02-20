@@ -163,6 +163,17 @@ class Smaily_Options {
 	}
 
 	/**
+	 * Get subdomain from API credentials.
+	 *
+	 *
+	 * @return string Smaily subdomain.
+	 */
+	public function get_subdomain() {
+		$credentials = get_option( self::API_CREDENTIALS_OPTION, array() );
+		return isset( $credentials['subdomain'] ) ? $credentials['subdomain'] : '';
+	}
+
+	/**
 	 * Get smaily settings.
 	 *
 	 *

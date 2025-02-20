@@ -8,6 +8,7 @@
 namespace Smaily_WC;
 
 use Smaily_Logger;
+use Smaily_Request;
 
 /**
  * Class Cron
@@ -71,14 +72,8 @@ class Cron {
 			return;
 		}
 
-		// List value 2  = unsubscribers list.
-		$data = array(
-			'list' => 2,
-		);
-
-		// Make API call to Smaily to get unsubscribers.
-		$response = \Smaily_Request::get( 'contact', $data );
-
+		$request  = new Smaily_Request( $this->options );
+		$response = $request->list_unsubsribers();
 		if ( empty( $response ) ) {
 			return $this->logger->error( 'Failed to get unsubscribers - received an empty response' );
 		}
@@ -130,9 +125,7 @@ class Cron {
 			array_push( $list, $subscriber );
 		}
 
-		// Update all subscribers to Smaily.
-		$response = \Smaily_Request::post( 'contact', array( 'body' => $list ) );
-
+		$response = $request->update_subscribers( $list );
 		if ( empty( $response ) ) {
 			return $this->logger->error( 'Failed to send subscribers to Smaily - received an empty response' );
 		}
@@ -297,17 +290,12 @@ class Cron {
 				}
 			}
 
-			// Add "abandoned_cart" param to the payload
+			// TODO: Why?
+			// Add "abandoned_cart" param to the payload.
 			$addresses['abandoned_cart'] = 'yes';
 
-			// Query for Smaily autoresponder.
-			$query = array(
-				'autoresponder' => $results['woocommerce']['cart_autoresponder_id'], // autoresponder ID.
-				'addresses'     => array( $addresses ),
-				'force_opt_in'  => 0,
-			);
-			// Send data to Smaily.
-			$response = \Smaily_Request::post( 'autoresponder', array( 'body' => $query ) );
+			$request  = new Smaily_Request( $this->options );
+			$response = $request->trigger_automation( (int) $results['woocommerce']['cart_autoresponder_id'], array( $addresses ), false );
 
 			if ( empty( $response ) ) {
 				return $this->logger->error( 'Failed to trigger abandoned cart email flow - received an empty response' );

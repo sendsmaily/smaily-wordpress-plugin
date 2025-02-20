@@ -460,15 +460,8 @@ class Settings {
 			return array();
 		}
 
-		// TODO: Refactor this Request class. And refactor single implementation of this function.
-		Smaily_Request::set_credentials( $this->options->get_api_credentials() );
-
-		$result = Smaily_Request::get(
-			'workflows',
-			array(
-				'trigger_type' => 'form_submitted',
-			)
-		);
+		$request = new Smaily_Request( $this->options );
+		$result  = $request->list_autoresponders();
 
 		if ( empty( $result['body'] ) ) {
 			return array();

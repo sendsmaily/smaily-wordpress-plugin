@@ -3,6 +3,7 @@
 namespace Smaily_CF7;
 
 use Smaily_Options;
+use Smaily_Request;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -165,19 +166,12 @@ class Admin {
 	 * @return array $autoresponder_list List of autoresponders in format [id => title].
 	 */
 	private function get_autoresponders() {
-		// Load configuration data.
-		$api_credentials = $this->options->get_api_credentials();
-
 		if ( ! $this->options->has_credentials() ) {
 			return array();
 		}
 
-		$result = \Smaily_Request::get(
-			'workflows',
-			array(
-				'trigger_type' => 'form_submitted',
-			)
-		);
+		$request = new Smaily_Request( $this->options );
+		$result  = $request->list_autoresponders();
 
 		if ( empty( $result['body'] ) ) {
 			return array();
@@ -189,6 +183,7 @@ class Admin {
 			$title                     = $autoresponder['title'];
 			$autoresponder_list[ $id ] = $title;
 		}
+
 		return $autoresponder_list;
 	}
 }

@@ -2,6 +2,8 @@
 
 namespace Smaily_CF7;
 
+use Smaily_Request;
+
 /**
  * The public-facing functionality of the plugin.
  */
@@ -92,20 +94,13 @@ class Smaily_Public {
 
 		$payload = \Smaily_Helper::sanitize_array( $payload );
 
-		$request = \Smaily_Request::post(
-			'autoresponder',
-			array(
-				'body' => array(
-					'autoresponder' => (int) $cf7_settings['autoresponder_id'],
-					'addresses'     => array( $payload ),
-				),
-			)
-		);
+		$request  = new Smaily_Request( $this->options );
+		$response = $request->trigger_automation( (int) $cf7_settings['autoresponder_id'], array( $payload ) );
 
-		if ( empty( $request['body'] ) ) {
+		if ( empty( $response['body'] ) ) {
 			$error_message = esc_html__( 'Something went wrong', 'smaily' );
-		} elseif ( 101 !== (int) $request['body']['code'] ) {
-			switch ( $request['body']['code'] ) {
+		} elseif ( 101 !== (int) $response['body']['code'] ) {
+			switch ( $response['body']['code'] ) {
 				case 201:
 					$error_message = esc_html__( 'Form was not submitted using POST method.', 'smaily' );
 					break;

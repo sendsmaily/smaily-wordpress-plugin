@@ -8,8 +8,6 @@
  */
 
 class Smaily_Public {
-
-
 	/**
 	 * The ID of this plugin.
 	 *
@@ -62,66 +60,110 @@ class Smaily_Public {
 	/**
 	 * Render Smaily form using shortcode.
 	 *
-	 * @param  array $atts Shortcode attributes.
-	 * @return string
+	 * @param  array $attrs Shortcode attributes.
 	 */
-	public function smaily_shortcode_render( $atts ) {
-		// Load configuration data.
-		$api_credentials  = $this->options->get_api_credentials();
-		$config           = array();
-		$config['domain'] = $api_credentials['subdomain'];
+	public function smaily_shortcode_render( $attrs ) {
+		// Allow overriding the template.
+		$template_path = locate_template( 'smaily/smaily-public-basic.php' );
+		if ( ! $template_path ) {
+			$template_path = SMAILY_PLUGIN_PATH . 'public/partials/smaily-public-basic.php';
+		}
 
-		// Parse attributes out of shortcode tag.
-		$shortcode_atts             = shortcode_atts(
+		$shortcode_attrs    = shortcode_atts(
 			array(
-				'success_url'      => get_site_url(),
-				'failure_url'      => get_site_url(),
+				'success_url'      => Smaily_Helper::get_current_url(),
+				'failure_url'      => Smaily_Helper::get_current_url(),
 				'show_name'        => false,
 				'autoresponder_id' => '',
 			),
-			$atts
+			$attrs
 		);
-		$config['success_url']      = $shortcode_atts['success_url'];
-		$config['failure_url']      = $shortcode_atts['failure_url'];
-		$config['show_name']        = $shortcode_atts['show_name'];
-		$config['autoresponder_id'] = $shortcode_atts['autoresponder_id'];
-
-		$template = new Smaily_Template( 'public/partials/smaily-public-basic.php' );
-		$template->assign( $config );
-		// Display responses on Smaily subscription form.
+		$autoresponder_id   = $shortcode_attrs['autoresponder_id'];
+		$failure_url        = $shortcode_attrs['failure_url'];
 		$form_has_response  = false;
 		$form_is_successful = false;
+		$language_code      = Smaily_Helper::get_current_language_code();
 		$response_message   = null;
+		$show_name          = $shortcode_attrs['show_name'];
+		$subdomain          = $this->options->get_subdomain();
+		$success_url        = $shortcode_attrs['success_url'];
 
-		$credentials_not_valid = empty( $api_credentials['subdomain'] ) || empty( $api_credentials['username'] ) || empty( $api_credentials['password'] );
-		if ( $credentials_not_valid ) {
+		if ( ! $this->options->has_credentials() ) {
 			$form_has_response = true;
 			$response_message  = __( 'Smaily credentials not validated. Subscription form will not work!', 'smaily' );
-		} elseif ( isset( $_GET['code'] ) && (int) $_GET['code'] === 101 ) { // phpcs:ignore WordPress.Security.NonceVerification
-			$form_is_successful = true;
-		} elseif ( isset( $_GET['code'] ) || ! empty( $_GET['code'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
-			$form_has_response = true;
-			switch ( (int) $_GET['code'] ) { // phpcs:ignore WordPress.Security.NonceVerification
-				case 201:
-					$response_message = __( 'Form was not submitted using POST method.', 'smaily' );
-					break;
-				case 204:
-					$response_message = __( 'Input does not contain a recognizable email address.', 'smaily' );
-					break;
-				default:
-					$response_message = __( 'Could not add to subscriber list for an unknown reason. Probably something in Smaily.', 'smaily' );
-					break;
-			}
 		}
 
-		$template->assign(
-			array(
-				'form_has_response'  => $form_has_response,
-				'response_message'   => $response_message,
-				'form_is_successful' => $form_is_successful,
+		$code = isset( $_GET['code'] ) ? intval( $_GET['code'] ) : null;
+		switch ( $code ) {
+			case null:
+				break;
+			case 101:
+				$form_is_successful = true;
+				break;
+			case 201:
+				$form_has_response = true;
+				$response_message  = __( 'Form was not submitted using POST method.', 'smaily' );
+				break;
+			case 204:
+				$form_has_response = true;
+				$response_message  = __( 'Input does not contain a recognizable email address.', 'smaily' );
+				break;
+			default:
+				$form_has_response = true;
+				$response_message  = __( 'Could not add to subscriber list for an unknown reason. Probably something in Smaily.', 'smaily' );
+				break;
+		}
+
+		Smaily_Public::render_basic_form(
+			compact(
+				'autoresponder_id',
+				'failure_url',
+				'form_has_response',
+				'form_is_successful',
+				'language_code',
+				'response_message',
+				'show_name',
+				'subdomain',
+				'success_url'
 			)
 		);
-		// Render template.
-		return $template->render();
+	}
+
+	/**
+	 * Renders basic form for subscribing to newsletter.
+	 *
+	 * @param array $parameters
+	 * @return void
+	 */
+	public static function render_basic_form( array $parameters ) {
+		?>
+		<form id="smly" action="https://<?php echo esc_attr( $parameters['subdomain'] ); ?>.sendsmaily.net/api/opt-in/" method="post">
+			<p class="error" style="padding:15px;background-color:#f2dede;margin:0 0 10px;display:<?php echo $parameters['form_has_response'] ? 'block' : 'none'; ?>">
+				<?php echo esc_html( $parameters['response_message'] ); ?>
+			</p>
+			<p class="success" style="padding:15px;background-color:#dff0d8;margin:0 0 10px;display:<?php echo $parameters['form_is_successful'] ? 'block' : 'none'; ?>">
+				<?php echo esc_html__( 'Thank you for subscribing to our newsletter.', 'smaily' ); ?>
+			</p>
+			<?php if ( $parameters['autoresponder_id'] ) : ?>
+				<input type="hidden" name="autoresponder" value="<?php echo esc_attr( $parameters['autoresponder_id'] ); ?>" />
+			<?php endif; ?>
+			<input type="hidden" name="lang" value="<?php echo esc_attr( $parameters['language_code'] ); ?>" />
+			<input type="hidden" name="success_url" value="<?php echo esc_url( $parameters['success_url'] ); ?>" />
+			<input type="hidden" name="failure_url" value="<?php echo esc_url( $parameters['failure_url'] ); ?>" />
+			<p>
+				<input type="text" name="email" value="" placeholder="<?php echo esc_html__( 'Email', 'smaily' ); ?>" required />
+			</p>
+			<?php if ( $parameters['show_name'] ) : ?>
+				<p>
+					<input type="text" name="name" value="" placeholder="<?php echo esc_html__( 'Name', 'smaily' ); ?>" />
+				</p>
+			<?php endif; ?>
+			<p>
+				<button type="submit">
+					<?php echo esc_html__( 'Subscribe', 'smaily' ); ?>
+				</button>
+			</p>
+		</form>
+		<?php
 	}
 }
