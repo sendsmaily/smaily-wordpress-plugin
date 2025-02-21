@@ -77,12 +77,12 @@ class Smaily_API {
 	}
 
 	/**
-	 * List available autoresponders.
+	 * List available autoresponders to be used as block options.
 	 *
 	 * @return array{label: string, value: string}
 	 */
 	public function list_autoresponders() {
-		$autoresponders = $this->admin_model->get_autoresponders();
+		$autoresponders = Admin::get_autoresponders( $this->options );
 
 		$response = array();
 		foreach ( $autoresponders as $id => $title ) {

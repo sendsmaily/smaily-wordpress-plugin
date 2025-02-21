@@ -251,6 +251,34 @@ class Admin {
 	}
 
 	/**
+	 * Make a request to Smaily asking for autoresponders.
+	 * Request is authenticated via saved credentials.
+	 *
+	 * @param Smaily_Options $options
+	 * @return array List of autoresponders in format [id => title].
+	 */
+	public static function get_autoresponders( Smaily_Options $options ) {
+		if ( ! $options->has_credentials() ) {
+			return array();
+		}
+
+		$request = new Smaily_Request( $options );
+		$result  = $request->list_autoresponders();
+
+		if ( empty( $result['body'] ) ) {
+			return array();
+		}
+
+		$autoresponder_list = array();
+		foreach ( $result['body'] as $autoresponder ) {
+			$id                        = $autoresponder['id'];
+			$title                     = $autoresponder['title'];
+			$autoresponder_list[ $id ] = $title;
+		}
+		return $autoresponder_list;
+	}
+
+	/**
 	 * Lists available admin page tabs.
 	 *
 	 * @return array

@@ -2,21 +2,18 @@
 
 namespace Smaily_CF7;
 
-use Smaily_Options;
-use Smaily_Request;
-
 defined( 'ABSPATH' ) || exit;
 
-use WPCF7_Integration;
+use Smaily_Admin\Admin as Smaily_Admin;
+use Smaily_Options;
 use WPCF7_ContactForm;
+use WPCF7_Integration;
 
 /**
  * Class for managing all admin related functionality of Contact Form 7 integration
  */
 
 class Admin {
-
-
 	/**
 	 * @var \Smaily_Options Instance of Smaily_Options.
 	 */
@@ -108,7 +105,7 @@ class Admin {
 		$has_credentials = $this->options->has_credentials();
 
 		// Fetch autoresponder data here for view.
-		$autoresponder_list = $this->get_autoresponders(); //TODO: Move this to smaily API.
+		$autoresponder_list = Smaily_Admin::get_autoresponders( $this->options );
 
 		$form_tags       = \WPCF7_FormTagsManager::get_instance()->get_scanned_tags();
 		$captcha_enabled = $this->is_captcha_enabled( $form_tags );
@@ -120,7 +117,7 @@ class Admin {
 	 * Search provided tags for Really Simple Captcha tags.
 	 *
 	 * Loops through all lists of tags until it finds 'basetype' key with value
-	 *  'captchac' or 'captchar'. If found, sets a var true and evaluates both for response.
+	 * 'captchac' or 'captchar'. If found, sets a var true and evaluates both for response.
 	 *
 	 * @param array $form_tags All Contact Form 7 tags in current form.
 	 * @return bool $simple_captcha_enabled
@@ -157,33 +154,5 @@ class Admin {
 			return true;
 		}
 		return false;
-	}
-
-	/**
-	 * Make a request to Smaily asking for autoresponders.
-	 * Request is authenticated via saved credentials.
-	 *
-	 * @return array $autoresponder_list List of autoresponders in format [id => title].
-	 */
-	private function get_autoresponders() {
-		if ( ! $this->options->has_credentials() ) {
-			return array();
-		}
-
-		$request = new Smaily_Request( $this->options );
-		$result  = $request->list_autoresponders();
-
-		if ( empty( $result['body'] ) ) {
-			return array();
-		}
-
-		$autoresponder_list = array();
-		foreach ( $result['body'] as $autoresponder ) {
-			$id                        = $autoresponder['id'];
-			$title                     = $autoresponder['title'];
-			$autoresponder_list[ $id ] = $title;
-		}
-
-		return $autoresponder_list;
 	}
 }

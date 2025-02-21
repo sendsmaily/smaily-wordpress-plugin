@@ -1,13 +1,13 @@
 // Run jQuery in no-conflict mode for WP development.
 jQuery( document ).ready(function($) {
 
-    // Initate jscolor.install on widget-added.
+    // Initiate jscolor.install on widget-added.
     $( document ).on( 'widget-added', function ( event, widget ) {
         // Load jscolor.
         jscolor.install();
     });
 
-    // Initate jscolor.install on widget update(save).
+    // Initiate jscolor.install on widget update(save).
     $( document ).on( 'widget-updated', function ( event, widget ) {
         // Load jscolor.
         jscolor.install();

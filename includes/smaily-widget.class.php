@@ -127,6 +127,7 @@ class Smaily_Widget extends WP_Widget {
 			)
 		);
 
+		$autoresponders        = Admin::get_autoresponders( $this->options );
 		$title_id              = $this->get_field_id( 'title' );
 		$title_name            = $this->get_field_name( 'title' );
 		$show_name_id          = $this->get_field_id( 'show_name' );
@@ -159,38 +160,11 @@ class Smaily_Widget extends WP_Widget {
 			<label for="<?php echo esc_attr( $autoresponder_id ); ?>"><?php esc_html_e( 'Autoresponder ID', 'smaily' ); ?>:</label>
 			<select id="<?php echo esc_attr( $autoresponder_id ); ?>" name="<?php echo esc_attr( $autoresponder_id_name ); ?>">
 				<option value=""><?php esc_html_e( 'No autoresponder', 'smaily' ); ?></option>
-				<?php foreach ( $this->get_autoresponders() as $id => $title ) : ?>
+				<?php foreach ( $autoresponders as $id => $title ) : ?>
 					<option value="<?php echo esc_attr( $id ); ?>" <?php selected( $instance['autoresponder_id'], $id ); ?>><?php echo esc_attr( $title ); ?></option>
 				<?php endforeach; ?>
 			</select>
 		</p>
 		<?php
-	}
-
-	/**
-	 * Make a request to Smaily asking for autoresponders.
-	 * Request is authenticated via saved credentials.
-	 *
-	 * @return array List of autoresponders in format [id => title].
-	 */
-	private function get_autoresponders() {
-		if ( ! $this->options->has_credentials() ) {
-			return array();
-		}
-
-		$request = new Smaily_Request( $this->options );
-		$result  = $request->list_autoresponders();
-
-		if ( empty( $result['body'] ) ) {
-			return array();
-		}
-
-		$autoresponder_list = array();
-		foreach ( $result['body'] as $autoresponder ) {
-			$id                        = $autoresponder['id'];
-			$title                     = $autoresponder['title'];
-			$autoresponder_list[ $id ] = $title;
-		}
-		return $autoresponder_list;
 	}
 }

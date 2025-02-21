@@ -3,7 +3,6 @@
 namespace Smaily_Admin;
 
 use Smaily_Options;
-use Smaily_Request;
 use Smaily_WC\Rss;
 
 class Settings {
@@ -183,7 +182,7 @@ class Settings {
 			$page,
 			$abandoned_cart_section,
 			array(
-				'autoresponders' => $this->get_autoresponders(),
+				'autoresponders' => Admin::get_autoresponders( $this->options ),
 			)
 		);
 
@@ -447,32 +446,5 @@ class Settings {
 			$page,
 			$rss_section
 		);
-	}
-
-	/**
-	 * Make a request to Smaily asking for autoresponders.
-	 * Request is authenticated via saved credentials.
-	 *
-	 * @return array List of autoresponders in format [id => title].
-	 */
-	private function get_autoresponders() {
-		if ( ! $this->options->has_credentials() ) {
-			return array();
-		}
-
-		$request = new Smaily_Request( $this->options );
-		$result  = $request->list_autoresponders();
-
-		if ( empty( $result['body'] ) ) {
-			return array();
-		}
-
-		$autoresponder_list = array();
-		foreach ( $result['body'] as $autoresponder ) {
-			$id                        = $autoresponder['id'];
-			$title                     = $autoresponder['title'];
-			$autoresponder_list[ $id ] = $title;
-		}
-		return $autoresponder_list;
 	}
 }
