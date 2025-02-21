@@ -96,7 +96,6 @@ class Sanitizer {
 	 * @return array
 	 */
 	public function sanitize_customer_sync_fields( $input ) {
-		error_log( print_r( $input, true ) );
 		$default_fields = Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS;
 
 		$sanitized = array();

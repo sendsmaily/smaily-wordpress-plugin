@@ -35,7 +35,7 @@ $labels      = array(
 				id="smaily_abandoned_<?php echo esc_attr( $field ); ?>"
 				name="<?php echo sprintf( '%s[%s]', esc_attr( Smaily_Options::ABANDONED_CART_FIELDS_OPTION ), esc_attr( $field ) ); ?>"
 				value="1"
-				<?php checked( $enabled ); ?>
+				<?php checked( $enabled || in_array( $field, $mandatory, true ) ); ?>
 			/>
 			<?php echo esc_html( $labels[ $field ] ); ?>
 		</label>
