@@ -20,7 +20,7 @@ class Profile_Settings {
 	 * @param \Smaily_Options $options Instance of Smaily_Options.
 	 */
 	public function __construct( \Smaily_Options $options ) {
-		$this->options = $options->get_settings();
+		$this->options = $options;
 	}
 
 	/**
@@ -29,36 +29,18 @@ class Profile_Settings {
 	 * @return void
 	 */
 	public function smaily_checkout_newsletter_checkbox() {
-		$settings = $this->options;
+		$settings = $this->options->get_settings();
 		$enabled  = intval( $settings['woocommerce']['checkout_checkbox_enabled'] );
-		if ( $enabled ) {
-			$checkbox  = '<p class="form-row form-row-wide smaily-for-woocommerce-newsletter">';
-			$checkbox .= '<label class="checkbox woocommerce-form__label woocommerce-form__label-for-checkbox">';
-			$checkbox .= '<input type="checkbox" class="input-checkbox woocommerce-form__input woocommerce-form__input-checkbox" name="user_newsletter" id="smaily-checkout-subscribe" value="1"' . ' />';
-			$checkbox .= '<span>' . __( 'Subscribe to newsletter', 'smaily' ) . '</span>';
-			$checkbox .= '</label>';
-			$checkbox .= '</p>';
-
-			echo wp_kses(
-				$checkbox,
-				array(
-					'p'     => array(
-						'class' => array(),
-					),
-					'label' => array(
-						'class' => array(),
-					),
-					'input' => array(
-						'type'  => array(),
-						'class' => array(),
-						'name'  => array(),
-						'id'    => array(),
-						'value' => array(),
-					),
-					'span'  => array(),
-				)
-			);
-		}
+		?>
+		<?php if ( $enabled ) : ?>
+			<p class="form-row form-row-wide smaily-for-woocommerce-newsletter">
+				<label class="checkbox woocommerce-form__label woocommerce-form__label-for-checkbox">
+					<input type="checkbox" class="input-checkbox woocommerce-form__input woocommerce-form__input-checkbox" name="user_newsletter" id="smaily-checkout-subscribe" value="1" />
+					<span><?php esc_html_e( 'Subscribe to newsletter', 'smaily' ); ?></span>
+				</label>
+			</p>
+		<?php endif; ?>
+		<?php
 	}
 
 	/**
@@ -102,7 +84,7 @@ class Profile_Settings {
 	 */
 	public function smaily_get_account_fields() {
 		// Get fields from sync_additional.
-		$result = $this->options;
+		$result = $this->options->get_settings();
 		if ( ! empty( $result['woocommerce']['synchronize_additional'] ) ) {
 			// All custom fields available.
 			$fields_available = array(
@@ -194,14 +176,11 @@ class Profile_Settings {
 	 * @return array $checkout_fields Updated checkout fields
 	 */
 	public function smaily_checkout_fields( $checkout_fields ) {
-
-		// Get available account fields.
 		$fields = $this->smaily_get_account_fields();
 		// Fields to append to billing information.
 		$billing_details_list = array( 'user_gender', 'user_phone', 'user_dob' );
 
 		foreach ( $fields as $key => $field_args ) {
-
 			if ( ! empty( $field_args['hide_in_checkout'] ) ) {
 				continue;
 			}
@@ -258,12 +237,7 @@ class Profile_Settings {
 	 * @return void
 	 */
 	public function smaily_save_wc_account_fields( $customer_id ) {
-		$nonce_val = isset( $_REQUEST['save-account-details-nonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['save-account-details-nonce'] ) ) : '';
-		if ( ! wp_verify_nonce( sanitize_key( $nonce_val ), 'save_account_details' ) ) {
-			return;
-		}
-
-		$sanitized_data = $this->sanitize_request_smaily_account_fields();
+		$sanitized_data = $this->sanitize_request_smaily_account_fields( 'save-account-details-nonce', 'save_account_details' );
 		$this->save_account_fields( $customer_id, $sanitized_data );
 	}
 
@@ -274,12 +248,7 @@ class Profile_Settings {
 	 * @return void
 	 */
 	public function smaily_save_account_fields( $user_id ) {
-		$nonce_val = isset( $_REQUEST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ) : '';
-		if ( ! wp_verify_nonce( sanitize_key( $nonce_val ), 'update-user_' . $user_id ) ) {
-			return;
-		}
-
-		$sanitized_data = $this->sanitize_request_smaily_account_fields();
+		$sanitized_data = $this->sanitize_request_smaily_account_fields( '_wpnonce', 'update-user_' . $user_id );
 		$this->save_account_fields( $user_id, $sanitized_data );
 	}
 
@@ -294,18 +263,19 @@ class Profile_Settings {
 	 *
 	 * @return array
 	 */
-	private function sanitize_request_smaily_account_fields() {
-		$fields = array();
+	private function sanitize_request_smaily_account_fields( string $nonce_field, $action ) {
+		$nonce_val = isset( $_REQUEST[ $nonce_field ] ) ? sanitize_text_field( wp_unslash( $_REQUEST[ $nonce_field ] ) ) : '';
+		if ( ! wp_verify_nonce( sanitize_key( $nonce_val ), $action ) ) {
+			return array();
+		}
 
+		$fields = array();
 		foreach ( $this->smaily_get_account_fields() as $key => $field_args ) {
 			if ( ! $this->smaily_is_field_visible( $field_args ) ) {
 				continue;
 			}
 
-			$sanitize = isset( $field_args['sanitize'] ) ? $field_args['sanitize'] : 'wc_clean';
-			$value    = isset( $_POST[ $key ] ) ? call_user_func( $sanitize, wp_unslash( $_POST[ $key ] ) ) : '';
-
-			$fields[ $key ] = $value;
+			$fields[ $key ] = isset( $_POST[ $key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $key ] ) ) : '';
 		}
 
 		return $fields;
