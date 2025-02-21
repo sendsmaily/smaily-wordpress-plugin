@@ -101,9 +101,6 @@ class Cron {
 			}
 		}
 
-		// TODO: Why?
-		update_user_meta( 1, 'user_newsletter', 1 );
-
 		// Get all users with subscribed status.
 		$users = get_users(
 			array(
