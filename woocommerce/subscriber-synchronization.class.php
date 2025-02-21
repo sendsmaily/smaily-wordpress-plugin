@@ -1,4 +1,9 @@
 <?php
+/**
+ * Synchronize WooCommerce subscribers with Smaily contacts.
+ *
+ * @package Smaily_WC
+ */
 
 namespace Smaily_WC;
 
@@ -6,12 +11,7 @@ use Smaily_Helper;
 use Smaily_Logger;
 use Smaily_Request;
 
-/**
- * Newsletter subscriber sync with Smaily contacts
- * Send subscriber to Smaily mailing list when user updates profile
- */
 class Subscriber_Synchronization {
-
 	/**
 	 * Service name.
 	 * @var string

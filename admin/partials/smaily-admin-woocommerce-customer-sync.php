@@ -1,5 +1,7 @@
 <?php
 /**
+ * WooCommerce customer sync fields.
+ *
  * @var Smaily_Admin\Renderer $this
  */
 

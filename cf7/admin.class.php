@@ -1,4 +1,10 @@
 <?php
+/**
+ * The admin-specific functionality of the plugin.
+ *
+ * @package    Smaily
+ * @subpackage Smaily/admin
+ */
 
 namespace Smaily_CF7;
 
@@ -8,10 +14,6 @@ use Smaily_Admin\Admin as Smaily_Admin;
 use Smaily_Options;
 use WPCF7_ContactForm;
 use WPCF7_Integration;
-
-/**
- * Class for managing all admin related functionality of Contact Form 7 integration
- */
 
 class Admin {
 	/**

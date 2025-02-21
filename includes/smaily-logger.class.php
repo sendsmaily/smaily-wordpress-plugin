@@ -1,10 +1,9 @@
 <?php
-
 /**
  * Logger class for Smaily plugin logging.
  */
-class Smaily_Logger {
 
+class Smaily_Logger {
 	const LEVEL_INFO    = 'info';
 	const LEVEL_WARNING = 'warning';
 	const LEVEL_ERROR   = 'error';

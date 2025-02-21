@@ -1,5 +1,7 @@
 <?php
 /**
+ * The credentials form for the Smaily API.
+ *
  * @var Smaily_Admin\Renderer $this
  */
 

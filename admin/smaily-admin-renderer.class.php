@@ -1,4 +1,10 @@
 <?php
+/**
+ * Renders the settings page HTML for the Smaily plugin.
+ *
+ * @package    Smaily
+ * @subpackage Smaily/admin
+ */
 
 namespace Smaily_Admin;
 

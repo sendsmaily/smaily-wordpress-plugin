@@ -1,7 +1,4 @@
 <?php
-
-use Smaily_Admin\Admin;
-
 /**
  * The core plugin class.
  *
@@ -15,9 +12,9 @@ use Smaily_Admin\Admin;
  * @subpackage Smaily/includes
  */
 
+use Smaily_Admin\Admin;
+
 class Smaily {
-
-
 	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
@@ -108,8 +105,6 @@ class Smaily {
 	 * @access private
 	 */
 	private function load_dependencies() {
-		// TODO: AUTOLOAD
-
 		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-renderer.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
@@ -230,7 +225,6 @@ class Smaily {
 		add_action( 'init', array( $plugin_public, 'add_shortcodes' ) );
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-
 			$smaily_cart = new \Smaily_WC\Cart();
 			// Update cart status.
 			add_action( 'woocommerce_cart_updated', array( $smaily_cart, 'smaily_update_cart_details' ) );
@@ -306,7 +300,6 @@ class Smaily {
 		$this->define_public_hooks();
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-
 			// Cron specific hooks
 			$smaily_cron = new Smaily_WC\Cron( $this->options );
 

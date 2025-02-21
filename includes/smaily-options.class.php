@@ -1,5 +1,4 @@
 <?php
-
 /**
  * This class is used to work with the plugin's options
  * that take user input e.g API credentials, form settings.

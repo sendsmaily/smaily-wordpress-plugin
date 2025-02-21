@@ -1,13 +1,15 @@
 <?php
+/**
+ * Handles RSS generation for Smaily newsletter
+ *
+ * @package Smaily_WC
+ */
 
 namespace Smaily_WC;
 
 use Smaily_WC\Data_Handler;
 use WC_Product;
 
-/**
- * Handles RSS generation for Smaily newsletter
- */
 class Rss {
 	/**
 	 * Get Product RSS Feed URL.

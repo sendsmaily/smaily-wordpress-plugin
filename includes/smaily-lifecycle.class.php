@@ -10,7 +10,6 @@
  */
 
 class Smaily_Lifecycle {
-
 	/**
 	 * Service name.
 	 * @var string

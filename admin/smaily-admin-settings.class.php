@@ -1,4 +1,10 @@
 <?php
+/**
+ * Register the settings tabs and add their sections and fields.
+ *
+ * @package    Smaily
+ * @subpackage Smaily/admin
+ */
 
 namespace Smaily_Admin;
 

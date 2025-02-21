@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Defines the API functionality of the plugin.
  *

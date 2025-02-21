@@ -1,16 +1,15 @@
 <?php
+/**
+ * The public-facing functionality of the plugin.
+ *
+ * @package    Smaily_CF7
+ */
 
 namespace Smaily_CF7;
 
 use Smaily_Request;
 
-/**
- * The public-facing functionality of the plugin.
- */
-
 class Smaily_Public {
-
-
 	/**
 	 * The transliterator instance.
 	 *

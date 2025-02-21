@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Define the Gutenberg newsletter subscription block functionality.
  *
@@ -8,8 +7,6 @@
  */
 
 class Smaily_Block {
-
-
 	/**
 	 * The ID of this plugin.
 	 *

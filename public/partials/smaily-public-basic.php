@@ -1,4 +1,9 @@
 <?php
+/**
+ * Simple form for subscribing to a newsletter.
+ *
+ * @package    Smaily
+ */
 
 defined( 'ABSPATH' ) || exit;
 

@@ -1,17 +1,17 @@
 <?php
 /**
+ * Manages status of user cart in smaily_abandoned_carts table.
+ *
  * Using custom database table that requires direct queries.
  * @phpcs:disable WordPress.DB.DirectDatabaseQuery
  *
+ * @package Smaily_WC
  */
 
 namespace Smaily_WC;
 
 use Smaily_Helper;
 
-/**
- * Manages status of user cart in smaily_abandoned_carts table.
- */
 class Cart {
 
 

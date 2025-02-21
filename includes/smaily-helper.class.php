@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Smaily helper class with static methods
  */
@@ -124,14 +123,13 @@ class Smaily_Helper {
 	 */
 	private static function is_html( $value ) {
 		// Consider script and style tags also part of HTML.
-        // phpcs:ignore  WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
+		// phpcs:ignore  WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
 		return $value !== strip_tags( $value );
 	}
 
 	/**
 	 * Allowed HTML tags
 	 */
-
 	private static function allowed_html() {
 		$allowedtags             = array();
 		$allowed_atts            = array(

@@ -1,10 +1,12 @@
 <?php
+/**
+ * Handles WooCommerce related data retrieval
+ *
+ * @package Smaily_WC
+ */
 
 namespace Smaily_WC;
 
-/**
- * Handles WooCommerce related data retrieval
- */
 class Data_Handler {
 	/**
 	 * Get published products from WooCommerce database.

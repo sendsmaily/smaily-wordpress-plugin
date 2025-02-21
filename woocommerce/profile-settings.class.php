@@ -1,14 +1,14 @@
 <?php
-
-namespace Smaily_WC;
-
 /**
  * Adds and controls WooCommerce Register and Account Details fields.
  * Adds and controls WordPress User Profile and Admin Profile fields.
+ *
+ * @package Smaily_WC
  */
+
+namespace Smaily_WC;
+
 class Profile_Settings {
-
-
 	/**
 	 * @var \Smaily_Options Instance of Smaily_Options.
 	 */

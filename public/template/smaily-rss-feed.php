@@ -1,6 +1,8 @@
 <?php
 /**
- * Generates RSS-feed based on url-vars or gets last 50 products updated.
+ * Smaily WooCommerce RSS Feed Template
+ *
+ * @package Smaily
  */
 
 // Exit if accessed directly.

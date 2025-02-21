@@ -1,5 +1,7 @@
 <?php
 /**
+ * Smaily admin page template.
+ *
  * @var Smaily_Admin\Admin $this
  */
 

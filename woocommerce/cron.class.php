@@ -1,8 +1,11 @@
 <?php
 /**
+ * Cron class for Smaily WooCommerce integration.
+ *
  * Using custom database table that requires direct queries.
  * @phpcs:disable WordPress.DB.DirectDatabaseQuery
  *
+ * @package Smaily_WC
  */
 
 namespace Smaily_WC;
@@ -10,12 +13,7 @@ namespace Smaily_WC;
 use Smaily_Logger;
 use Smaily_Request;
 
-/**
- * Class Cron
- * Handles data synchronization between Smaily and WooCommerce.
- */
 class Cron {
-
 	/**
 	 * Service name.
 	 * @var string

@@ -1,9 +1,14 @@
 <?php
+/**
+ * The service class for Contact Form 7 integration.
+ *
+ * @package    Smaily
+ * @subpackage Smaily_CF7
+ */
 
 namespace Smaily_CF7;
 
 defined( 'ABSPATH' ) || exit;
-
 class_exists( 'WPCF7_Service' ) || exit;
 
 use WPCF7_Service;

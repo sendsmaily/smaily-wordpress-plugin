@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Defines the request making functionality of the plugin.
  *

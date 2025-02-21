@@ -1,5 +1,7 @@
 <?php
 /**
+ * WooCommerce abandoned cart fields settings.
+ *
  * @var Smaily_Admin\Renderer $this
  */
 

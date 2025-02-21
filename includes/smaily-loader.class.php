@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Register all actions and filters for the plugin.
  *
@@ -12,8 +11,6 @@
  */
 
 class Smaily_Loader {
-
-
 	/**
 	 * The array of actions registered with WordPress.
 	 *

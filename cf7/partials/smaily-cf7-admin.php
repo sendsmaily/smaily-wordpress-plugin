@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Content of Smaily for Contact Form 7 tab.
  *

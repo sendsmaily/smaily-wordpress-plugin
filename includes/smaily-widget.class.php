@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Defines the widget functionality of the plugin.
  *

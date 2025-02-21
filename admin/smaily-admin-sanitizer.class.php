@@ -1,4 +1,10 @@
 <?php
+/**
+ * Sanitizes user input.
+ *
+ * @package    Smaily
+ * @subpackage Smaily/admin
+ */
 
 namespace Smaily_Admin;
 
