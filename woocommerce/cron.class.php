@@ -175,12 +175,14 @@ class Cron {
 				continue;
 			}
 
-			// Data to send to Smaily API.
 			$addresses = array(
-				'email'      => $customer['email'],
-				'store'      => get_site_url(),
-				'first_name' => '',
-				'last_name'  => '',
+				// is_abandoned_cart field is a business requirement. If same account is used for marketing and abandoned cart, then it is necessary to distinguish
+				// between the two. The contact can receive abandoned cart emails, but not marketing emails.
+				'is_abandoned_cart' => 'true',
+				'email'             => $customer['email'],
+				'store'             => get_site_url(),
+				'first_name'        => '',
+				'last_name'         => '',
 			);
 			// Gather customer data.
 			$customer_data = array();
@@ -284,10 +286,6 @@ class Cron {
 					++$i;
 				}
 			}
-
-			// TODO: Why?
-			// Add "abandoned_cart" param to the payload.
-			$addresses['abandoned_cart'] = 'yes';
 
 			$request  = new Smaily_Request( $this->options );
 			$response = $request->trigger_automation( (int) $results['woocommerce']['cart_autoresponder_id'], array( $addresses ), false );
