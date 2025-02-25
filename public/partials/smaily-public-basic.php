@@ -7,7 +7,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$code             = isset( $_GET['code'] ) ? intval( $_GET['code'] ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$code             = isset( $_GET['code'] ) ? intval( $_GET['code'] ) : null;
 $messages         = array(
 	101 => __( 'Thank you for subscribing to our newsletter.', 'smaily' ),
 	201 => __( 'Form was not submitted using POST method.', 'smaily' ),

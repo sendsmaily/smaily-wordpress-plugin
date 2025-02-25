@@ -285,7 +285,6 @@ class Profile_Settings {
 	 * @return int $user_id Current user ID
 	 */
 	public function smaily_get_edit_user_id() {
-		// phpcs:ignore  WordPress.Security.NonceVerification.Recommended
 		return isset( $_GET['user_id'] ) ? (int) $_GET['user_id'] : get_current_user_id();
 	}
 

@@ -9,8 +9,8 @@ defined( 'ABSPATH' ) || exit;
 
 $tabs        = $this->list_admin_page_tabs();
 $current_tab = array_keys( $tabs )[0];
-if ( isset( $_GET['tab'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-	$tab = sanitize_text_field( wp_unslash( $_GET['tab'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+if ( isset( $_GET['tab'] ) ) {
+	$tab = sanitize_text_field( wp_unslash( $_GET['tab'] ) );
 	if ( array_key_exists( $tab, $tabs ) ) {
 		$current_tab = $tab;
 	}
