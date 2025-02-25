@@ -35,7 +35,7 @@ class Subscriber_Synchronization {
 	 * @param \Smaily_Options $options Instance of Smaily_Options.
 	 */
 	public function __construct( \Smaily_Options $options ) {
-		$this->options = $options->get_settings();
+		$this->options = $options;
 		$this->logger  = new Smaily_Logger( self::SERVICE );
 	}
 
@@ -169,7 +169,7 @@ class Subscriber_Synchronization {
 	 */
 	private function update_subscriber( $user_id ) {
 		$request  = new Smaily_Request( $this->options );
-		$response = $request->update_subscribers( Data_Handler::get_user_data( $user_id, $this->options ) );
+		$response = $request->update_subscribers( Data_Handler::get_user_data( $user_id ) );
 		if ( empty( $response ) ) {
 			return $this->logger->error( sprintf( 'Updating subscriber with id "%d" failed with unknown error', $user_id ) );
 		}
