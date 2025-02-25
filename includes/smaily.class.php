@@ -192,8 +192,7 @@ class Smaily {
 
 			// No subdomain before successful credential validation.
 			if ( $this->options->has_credentials() ) {
-
-				$smaily_profile_settings = new Smaily_WC\Profile_Settings( $this->options );
+				$smaily_profile_settings = new Smaily_WC\Profile_Settings();
 
 				add_action( 'personal_options_update', array( $smaily_profile_settings, 'smaily_save_account_fields' ), 10 ); // edit own account admin.
 				add_action( 'edit_user_profile_update', array( $smaily_profile_settings, 'smaily_save_account_fields' ), 10 ); // edit other account admin.
@@ -239,8 +238,7 @@ class Smaily {
 
 			// No subdomain before successful credential validation.
 			if ( $this->options->has_credentials() ) {
-
-				$smaily_profile_settings = new Smaily_WC\Profile_Settings( $this->options );
+				$smaily_profile_settings = new Smaily_WC\Profile_Settings();
 
 				// Add fields to registration form and account area.
 				add_action( 'woocommerce_register_form', array( $smaily_profile_settings, 'smaily_print_user_frontend_fields' ), 10 );

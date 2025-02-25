@@ -12,27 +12,12 @@ use Smaily_Options;
 
 class Profile_Settings {
 	/**
-	 * @var \Smaily_Options Instance of Smaily_Options.
-	 */
-	private $options;
-
-	/**
-	 * Constructor.
-	 *
-	 * @param \Smaily_Options $options Instance of Smaily_Options.
-	 */
-	public function __construct( \Smaily_Options $options ) {
-		$this->options = $options;
-	}
-
-	/**
 	 * Add newsletter subscribe button to admin preferred place in checkout page.
 	 *
 	 * @return void
 	 */
 	public function smaily_checkout_newsletter_checkbox() {
-		$settings = $this->options->get_settings();
-		$enabled  = intval( $settings['woocommerce']['checkout_checkbox_enabled'] );
+		$enabled = get_option( Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION );
 		?>
 		<?php if ( $enabled ) : ?>
 			<p class="form-row form-row-wide smaily-for-woocommerce-newsletter">
