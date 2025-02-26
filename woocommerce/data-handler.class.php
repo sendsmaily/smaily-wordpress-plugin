@@ -7,6 +7,7 @@
 
 namespace Smaily_WC;
 
+use Smaily_Helper;
 use Smaily_Options;
 
 class Data_Handler {
@@ -44,8 +45,9 @@ class Data_Handler {
 	}
 
 	/**
-	 * Get WooCommerce user data from database
+	 * Get user data for WooCommerce customer sync.
 	 *
+	 * @since 1.0.0
 	 * @param int $user_id User ID.
 	 * @return array Available user data.
 	 */
@@ -68,6 +70,9 @@ class Data_Handler {
 			}
 
 			switch ( $field ) {
+				case 'language':
+					$user_sync_data['language'] = Smaily_Helper::get_user_language_code( $user_id );
+					break;
 				case 'user_email':
 					$user_sync_data['email'] = $user->user_email;
 					break;
@@ -113,7 +118,6 @@ class Data_Handler {
 					break;
 			}
 		}
-
 		return $user_sync_data;
 	}
 }

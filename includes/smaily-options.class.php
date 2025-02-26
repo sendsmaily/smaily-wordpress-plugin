@@ -16,6 +16,7 @@ class Smaily_Options {
 	const CUSTOMER_SYNC_DEFAULT_FIELDS = array(
 		'store_url'        => true,
 		'user_email'       => true,
+		'language'         => true,
 		'customer_group'   => false,
 		'customer_id'      => false,
 		'first_name'       => false,
@@ -36,6 +37,7 @@ class Smaily_Options {
 	const ABANDONED_CART_DEFAULT_FIELDS = array(
 		'store_url'           => true,
 		'user_email'          => true,
+		'language'            => true,
 		'first_name'          => false,
 		'last_name'           => false,
 		'product_base_price'  => false,

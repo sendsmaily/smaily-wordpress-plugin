@@ -53,9 +53,9 @@ $block_attributes = get_block_wrapper_attributes(
 				<input type="hidden" name="autoresponder" value="<?php echo esc_html( $attributes['autoresponderId'] ); ?>" />
 			<?php endif ?>
 			<?php if ( ! empty( $language_code ) ) : ?>
-				<input type="hidden" name="lang" value="<?php echo esc_html( $language_code ); ?>" />
+				<input type="hidden" name="language" value="<?php echo esc_html( $language_code ); ?>" />
 			<?php endif ?>
-			<input type="hidden" name="successURL" value="<?php echo ! empty( $attributes['successURL'] ) ? esc_url( $attributes['successURL'] ) : esc_url( $current_url ); ?>" />
+			<input type="hidden" name="success_url" value="<?php echo ! empty( $attributes['successURL'] ) ? esc_url( $attributes['successURL'] ) : esc_url( $current_url ); ?>" />
 			<input type="hidden" name="failure_url" value="<?php echo ! empty( $attributes['errorURL'] ) ? esc_url( $attributes['errorURL'] ) : esc_url( $current_url ); ?>" />
 			<?php if ( $attributes['showNameField'] === true ) : ?>
 			<div class="smaily-newsletter-block-form-control">

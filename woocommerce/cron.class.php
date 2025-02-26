@@ -116,7 +116,7 @@ class Cron {
 
 		$list = array();
 		foreach ( $users as $user ) {
-			$subscriber = Data_Handler::get_user_data( $user->ID, $results );
+			$subscriber = Data_Handler::get_user_data( $user->ID );
 			array_push( $list, $subscriber );
 		}
 

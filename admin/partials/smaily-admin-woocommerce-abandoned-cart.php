@@ -7,13 +7,14 @@
 
 defined( 'ABSPATH' ) || exit;
 
-$mandatory   = array( 'user_email', 'store_url' );
+$mandatory   = array( 'user_email', 'store_url', 'language' );
 $sync_fields = get_option( Smaily_Options::ABANDONED_CART_FIELDS_OPTION, Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS );
 $labels      = array(
 	'user_email'          => __( 'Email', 'smaily' ),
 	'store_url'           => __( 'Store URL', 'smaily' ),
 	'first_name'          => __( 'Customer First Name', 'smaily' ),
 	'last_name'           => __( 'Customer Last Name', 'smaily' ),
+	'language'            => __( 'Language', 'smaily' ),
 	'product_name'        => __( 'Product Name', 'smaily' ),
 	'product_description' => __( 'Product Description', 'smaily' ),
 	'product_sku'         => __( 'Product SKU', 'smaily' ),

@@ -213,26 +213,67 @@ class Smaily_Helper {
 	}
 
 	/**
-	 * Try to get current webpage language code. Returns an empty string if no language could be determined.
+	 * Store the user language code.
 	 *
-	 * @return string
+	 * @since 1.0.0
+	 * @param int $user_id
+	 * @param string $language_code
+	 * @return void
 	 */
-	public static function get_current_language_code() {
-		$lang = '';
-		if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
-			$lang = ICL_LANGUAGE_CODE;
-			// Language code if using polylang.
-		} elseif ( function_exists( 'pll_current_language' ) ) {
-			$lang = pll_current_language();
-		} else {
-			$lang = get_locale();
-			if ( strlen( $lang ) > 0 ) {
-				// Remove any value past underscore if exists.
-				$lang = explode( '_', $lang )[0];
+	public static function set_user_language_code( int $user_id, string $language_code ) {
+		update_user_meta( $user_id, 'smaily_user_language', $language_code );
+	}
+
+	/**
+	 * Get the user language code. If user ID is provided, get the user's language code. Otherwise, get the current webpage language code.
+	 * Supports WPML.
+	 *
+	 * @since 1.0.0
+	 * @param int|null $user_id User ID.
+	 * @return string Language code.
+	 */
+	public static function get_user_language_code( $user_id = null ) {
+		if ( $user_id ) {
+			$lang = get_user_meta( $user_id, 'smaily_user_language', true );
+			if ( ! empty( $lang ) ) {
+				return $lang;
+			}
+
+			$wpml_lang = get_user_meta( $user_id, 'icl_admin_language', true );
+			if ( ! empty( $wpml_lang ) ) {
+				return $wpml_lang;
 			}
 		}
 
-		return $lang;
+		return self::get_current_language_code();
+	}
+
+	/**
+	 * Try to get current webpage language code. Returns an empty string if no language could be determined.
+	 * Supports WPML and Polylang language settings.
+	 *
+	 * Notice! This function is context dependent and not suitable for use in cron jobs or other non-HTTP requests.
+	 *
+	 * @since 1.0.0
+	 * @return string
+	 */
+	public static function get_current_language_code() {
+		// WPML.
+		if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
+			return ICL_LANGUAGE_CODE;
+		}
+
+		// Polylang.
+		if ( function_exists( 'pll_current_language' ) ) {
+			return pll_current_language();
+		}
+
+		$lang = get_locale();
+		if ( strlen( $lang ) > 0 ) {
+			return explode( '_', $lang )[0];
+		}
+
+		return '';
 	}
 
 	/**

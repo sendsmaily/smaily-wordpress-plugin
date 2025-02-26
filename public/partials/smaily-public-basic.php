@@ -30,7 +30,7 @@ $is_error         = $code !== null && ! $is_success;
 	<?php if ( $parameters['autoresponder_id'] ) : ?>
 		<input type="hidden" name="autoresponder" value="<?php echo esc_attr( $parameters['autoresponder_id'] ); ?>" />
 	<?php endif; ?>
-	<input type="hidden" name="lang" value="<?php echo esc_attr( $parameters['language_code'] ); ?>" />
+	<input type="hidden" name="language" value="<?php echo esc_attr( $parameters['language_code'] ); ?>" />
 	<input type="hidden" name="success_url" value="<?php echo esc_url( $parameters['success_url'] ); ?>" />
 	<input type="hidden" name="failure_url" value="<?php echo esc_url( $parameters['failure_url'] ); ?>" />
 	<p>

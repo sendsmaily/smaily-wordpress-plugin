@@ -6,8 +6,7 @@
  */
 
 defined( 'ABSPATH' ) || exit;
-
-$mandatory   = array( 'user_email', 'store_url' );
+$mandatory   = array( 'user_email', 'store_url', 'language' );
 $sync_fields = get_option( Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION, Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS );
 $labels      = array(
 	'customer_group'   => __( 'Customer Group', 'smaily' ),
@@ -15,6 +14,7 @@ $labels      = array(
 	'first_name'       => __( 'First name', 'smaily' ),
 	'first_registered' => __( 'First Registered', 'smaily' ),
 	'last_name'        => __( 'Last name', 'smaily' ),
+	'language'         => __( 'Language', 'smaily' ),
 	'nickname'         => __( 'Nickname', 'smaily' ),
 	'site_title'       => __( 'Site Title', 'smaily' ),
 	'store_url'        => __( 'Store URL', 'smaily' ),
