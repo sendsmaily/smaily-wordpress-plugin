@@ -10,8 +10,12 @@
 
 namespace Smaily_WC;
 
+use Smaily_Helper;
 use Smaily_Logger;
+use Smaily_Options;
 use Smaily_Request;
+use WC_Product;
+use WP_User;
 
 class Cron {
 	/**
@@ -63,10 +67,7 @@ class Cron {
 	 * @return void
 	 */
 	public function smaily_sync_contacts() {
-		$results = $this->options->get_settings();
-
-		// Check if contact sync is enabled.
-		if ( (int) $results['woocommerce']['customer_sync_enabled'] !== 1 ) {
+		if ( ! get_option( Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION ) ) {
 			return;
 		}
 
@@ -84,18 +85,14 @@ class Cron {
 			return $this->logger->error( sprintf( 'Unable to retrieve unsubscribed users: %s', wp_json_encode( $response ) ) );
 		}
 
-		$unsubscribers = $response['body'];
-		// List of unsubscribed emails.
 		$unsubscribers_emails = array();
-		foreach ( $unsubscribers as $value ) {
+		foreach ( $response['body'] as $value ) {
 			array_push( $unsubscribers_emails, $value['email'] );
 		}
 
 		// Change WooCommerce subscriber status based on Smaily unsubscribers.
 		foreach ( $unsubscribers_emails as $user_email ) {
-			// get user by email from unsubscribers list.
 			$wordpress_unsubscriber = get_user_by( 'email', $user_email );
-			// set user subscribed status to 0.
 			if ( ! empty( $wordpress_unsubscriber ) ) {
 				update_user_meta( $wordpress_unsubscriber->ID, 'user_newsletter', 0, 1 );
 			}
@@ -109,7 +106,6 @@ class Cron {
 			)
 		);
 
-		// If no subscribers.
 		if ( empty( $users ) ) {
 			return $this->logger->info( 'No subscribers for synchronization!' );
 		}
@@ -140,155 +136,31 @@ class Cron {
 	 * @return void
 	 */
 	public function smaily_abandoned_carts_email() {
-		// Get Smaily settings.
-		$results = $this->options->get_settings();
-		if ( ! isset( $results['woocommerce']['enable_cart'] ) ) {
-			// Something wrong with settings. Default value 0.
+		$status = get_option( Smaily_Options::ABANDONED_CART_STATUS_OPTION, Smaily_Options::ABANDONED_CART_DEFAULT_STATUS );
+		if ( ! $status['enabled'] ) {
 			return;
 		}
 
-		if ( (int) $results['woocommerce']['enable_cart'] !== 1 ) {
-			// Not activated.
-			return;
-		}
-
-		$abandoned_carts = $this->get_abandoned_carts();
-
-		foreach ( $abandoned_carts as $cart ) {
-			// Get cart details and cart data from cart.
-			$cart_data = unserialize( $cart['cart_content'] );
-			// Continue with sending data to Smaily if there are items in customer cart.
-			if ( empty( $cart_data ) ) {
+		$sync_fields = get_option(
+			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
+			Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS
+		);
+		foreach ( $this->get_abandoned_carts() as $cart ) {
+			$cart = maybe_unserialize( $cart['cart_content'] );
+			if ( empty( $cart ) ) {
 				continue;
 			}
 
-			// Customer fields available.
-			$customer_id   = $cart['customer_id'];
-			$customer_data = get_userdata( $customer_id );
-			$customer      = array(
-				'first_name' => ! empty( $customer_data ) ? $customer_data->first_name : '',
-				'last_name'  => ! empty( $customer_data ) ? $customer_data->last_name : '',
-				'email'      => ! empty( $customer_data ) ? $customer_data->user_email : '',
-			);
-			// Continue with data gathering only if there is an email value to send data to.
-			if ( empty( $customer['email'] ) ) {
+			$user = get_userdata( $cart['customer_id'] );
+			if ( empty( $user ) || empty( $user->user_email ) ) {
 				continue;
 			}
 
-			$addresses = array(
-				// is_abandoned_cart field is a business requirement. If same account is used for marketing and abandoned cart, then it is necessary to distinguish
-				// between the two. The contact can receive abandoned cart emails, but not marketing emails.
-				'is_abandoned_cart' => 'true',
-				'email'             => $customer['email'],
-				'store'             => get_site_url(),
-				'first_name'        => '',
-				'last_name'         => '',
-			);
-			// Gather customer data.
-			$customer_data = array();
-			$sync_values   = array( 'first_name', 'last_name' );
-			foreach ( $sync_values as $sync_value ) {
-				// Check if user has enabled extra field in settings.
-				if ( in_array( $sync_value, $results['woocommerce']['cart_options'], true ) ) {
-					// Add extra field if it's available in customer data.
-					if ( isset( $customer[ $sync_value ] ) ) {
-						$addresses[ $sync_value ] = $customer[ $sync_value ];
-					}
-				}
-			}
-
-			// Products data values available.
-			$cart_sync_values = array(
-				'product_name',
-				'product_description',
-				'product_sku',
-				'product_quantity',
-				'product_base_price',
-				'product_price',
-				'product_images',
-			);
-			// Add empty product data for addresses. Fields available would be filled out later with data.
-			// Required for legacy API so that all fields are always updated.
-			foreach ( $cart_sync_values as $key ) {
-				for ( $i = 1; $i < 11; $i++ ) {
-					$addresses[ $key . '_' . $i ] = '';
-				}
-			}
-			$selected_fields = array_intersect( $cart_sync_values, $results['woocommerce']['cart_options'] );
-			// Gather products data if user has selected at least one of additional product field to sync.
-
-			if ( ! empty( $selected_fields ) ) {
-				$products_data = array();
-				foreach ( $cart_data as $cart_item ) {
-					$product = array();
-
-					// Get product details if selected from user settings.
-					$details = wc_get_product( $cart_item['product_id'] );
-					if ( ! $details ) {
-						continue;
-					}
-
-					foreach ( $selected_fields as $selected_field ) {
-						switch ( $selected_field ) {
-							case 'product_name':
-								$product['product_name'] = $details->get_name();
-								break;
-							case 'product_description':
-								$product['product_description'] = $details->get_description();
-								break;
-							case 'product_sku':
-								$product['product_sku'] = $details->get_sku();
-								break;
-							case 'product_quantity':
-								$product['product_quantity'] = $cart_item['quantity'];
-								break;
-							case 'product_price':
-								$product['product_price'] = $this->get_sale_price( $details );
-								break;
-							case 'product_base_price':
-								$product['product_base_price'] = $this->get_base_price( $details );
-								break;
-							case 'product_images':
-								// Initialize an array to hold your image URLs
-								$image_urls = array();
-
-								// Get the URL of the main product image
-								if ( $details->get_image_id() ) {
-									$image_urls[] = wp_get_attachment_url( $details->get_image_id() );
-								}
-
-								// Get URLs of any additional gallery images
-								$gallery_image_ids = $details->get_gallery_image_ids();
-								foreach ( $gallery_image_ids as $image_id ) {
-									$image_urls[] = wp_get_attachment_url( $image_id );
-								}
-
-								$product['product_images'] = implode( ',', $image_urls );
-
-								break;
-						}
-					}
-
-					$products_data[] = $product;
-				}
-
-				// Append products array to API api call. Up to 10 product details.
-				$i = 1;
-				foreach ( $products_data as $product ) {
-					if ( $i > 10 ) {
-						$addresses['over_10_products'] = 'true';
-						break;
-					}
-
-					foreach ( $product as $key => $value ) {
-						$addresses[ $key . '_' . $i ] = htmlspecialchars( $value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
-					}
-					++$i;
-				}
-			}
+			$addresses = $this->prepare_user_data( $user, $sync_fields );
+			$products  = $this->prepare_products_data( $cart, $sync_fields );
 
 			$request  = new Smaily_Request( $this->options );
-			$response = $request->trigger_automation( (int) $results['woocommerce']['cart_autoresponder_id'], array( $addresses ), false );
+			$response = $request->trigger_automation( (int) $status['autoresponder_id'], array_merge( $addresses, $products ), false );
 
 			if ( empty( $response ) ) {
 				return $this->logger->error( 'Failed to trigger abandoned cart email flow - received an empty response' );
@@ -302,7 +174,7 @@ class Cron {
 				return $this->logger->error( sprintf( 'Failed to send abandoned cart email: %s', wp_json_encode( $response ) ) );
 			}
 
-			$this->update_mail_sent_status( $customer_id );
+			$this->update_mail_sent_status( $cart['customer_id'] );
 		}
 	}
 
@@ -332,7 +204,6 @@ class Cron {
 	 * @return string
 	 */
 	public function get_base_price( $product ) {
-
 		$price = wc_price(
 			wc_get_price_to_display(
 				$product,
@@ -352,7 +223,6 @@ class Cron {
 	 * @return void
 	 */
 	public function update_mail_sent_status( $customer_id ) {
-		// WordPress Database handler.
 		global $wpdb;
 
 		$table = $wpdb->prefix . 'smaily_abandoned_carts';
@@ -374,10 +244,7 @@ class Cron {
 	 * @return array
 	 */
 	public function get_abandoned_carts() {
-
-		// WordPress Database handler.
 		global $wpdb;
-		// Get all abandoned carts.
 		return $wpdb->get_results(
 			"
 			SELECT * FROM {$wpdb->prefix}smaily_abandoned_carts
@@ -394,7 +261,6 @@ class Cron {
 	 * @return void
 	 */
 	public function smaily_abandoned_carts_status() {
-
 		global $wpdb;
 		$results = $this->options->get_settings();
 
@@ -437,5 +303,157 @@ class Cron {
 				);
 			}
 		}
+	}
+
+	/**
+	 * Prepare user data for Smaily API.
+	 *
+	 * @param WP_User $user User data.
+	 * @param array   $options   User options.
+	 * @return array
+	 */
+	private function prepare_user_data( WP_User $user, array $options ) {
+		$addresses = array(
+			// is_abandoned_cart field is a business requirement. If same account is used for marketing and abandoned cart, then it is necessary to distinguish
+			// between the two. The contact can receive abandoned cart emails, but not marketing emails.
+			'is_abandoned_cart' => 'true',
+		);
+
+		foreach ( $options as $field => $enabled ) {
+			if ( ! $enabled ) {
+				continue;
+			}
+
+			switch ( $field ) {
+				case 'store_url':
+					$addresses['store'] = get_site_url();
+					break;
+				case 'user_email':
+					$addresses['email'] = $user->user_email;
+					break;
+				case 'language':
+					$addresses['language'] = Smaily_Helper::get_user_language_code( $user->ID );
+					break;
+				case 'first_name':
+					$addresses['first_name'] = $user->first_name;
+					break;
+				case 'last_name':
+					$addresses['last_name'] = $user->last_name;
+					break;
+				default:
+					break;
+			}
+		}
+
+		return $addresses;
+	}
+
+	/**
+	 * Prepare products data for Smaily API.
+	 *
+	 * @param array $cart_data Cart data.
+	 * @param array $options   Product options.
+	 * @return array
+	 */
+	private function prepare_products_data( array $cart_data, array $options ) {
+		$products = array();
+
+		$product_values = array(
+			'product_base_price',
+			'product_description',
+			'product_images',
+			'product_name',
+			'product_price',
+			'product_quantity',
+			'product_sku',
+		);
+		// Add empty product data for addresses. Fields available would be filled out later with data.
+		// Required for legacy API so that all fields are always updated.
+		foreach ( $product_values as $key ) {
+			for ( $i = 1; $i < 11; $i++ ) {
+				$products[ $key . '_' . $i ] = '';
+			}
+		}
+
+		$selected_fields = array_intersect( $product_values, array_keys( array_filter( $options ) ) );
+		if ( ! empty( $selected_fields ) ) {
+			$products_data = array();
+			foreach ( $cart_data as $cart_item ) {
+				$product = array();
+
+				// Get product details if selected from user settings.
+				$details = wc_get_product( $cart_item['product_id'] );
+				if ( ! $details ) {
+					continue;
+				}
+
+				foreach ( $selected_fields as $selected_field ) {
+					switch ( $selected_field ) {
+						case 'product_name':
+							$product['product_name'] = $details->get_name();
+							break;
+						case 'product_description':
+							$product['product_description'] = $details->get_description();
+							break;
+						case 'product_sku':
+							$product['product_sku'] = $details->get_sku();
+							break;
+						case 'product_quantity':
+							$product['product_quantity'] = $cart_item['quantity'];
+							break;
+						case 'product_price':
+							$product['product_price'] = $this->get_sale_price( $details );
+							break;
+						case 'product_base_price':
+							$product['product_base_price'] = $this->get_base_price( $details );
+							break;
+						case 'product_images':
+							$product['product_images'] = $this->get_product_images( $details );
+							break;
+					}
+				}
+
+				$products_data[] = $product;
+			}
+
+			// Append products array to API api call. Up to 10 product details.
+			$i = 1;
+			foreach ( $products_data as $product ) {
+				if ( $i > 10 ) {
+					$products['over_10_products'] = 'true';
+					break;
+				}
+
+				foreach ( $product as $key => $value ) {
+					$products[ $key . '_' . $i ] = htmlspecialchars( $value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 );
+				}
+				++$i;
+			}
+		}
+
+		return $products;
+	}
+
+	/**
+	 * Get product images.
+	 *
+	 * @param WC_Product $product WooCommerce product object.
+	 * @return string
+	 */
+	private function get_product_images( WC_Product $product ) {
+		$image_urls = array();
+
+		// Get the URL of the main product image
+		if ( $product->get_image_id() ) {
+			$image_urls[] = wp_get_attachment_url( $product->get_image_id() );
+		}
+
+		// Get URLs of any additional gallery images
+		$gallery_image_ids = $product->get_gallery_image_ids();
+		foreach ( $gallery_image_ids as $image_id ) {
+			$image_urls[] = wp_get_attachment_url( $image_id );
+		}
+
+		return implode( ',', $image_urls );
 	}
 }
