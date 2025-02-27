@@ -217,11 +217,10 @@ class Smaily_Helper {
 	 *
 	 * @since 1.0.0
 	 * @param int $user_id
-	 * @param string $language_code
 	 * @return void
 	 */
-	public static function set_user_language_code( int $user_id, string $language_code ) {
-		update_user_meta( $user_id, 'smaily_user_language', $language_code );
+	public static function set_user_language_code( int $user_id ) {
+		update_user_meta( $user_id, 'smaily_user_language', self::get_user_language_code( $user_id ) );
 	}
 
 	/**

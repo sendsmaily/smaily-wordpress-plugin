@@ -234,7 +234,7 @@ class Smaily {
 
 			add_action( 'woocommerce_created_customer', array( $smaily_sub_sync, 'smaily_wc_created_customer_update' ), 11 ); // register/checkout.
 			add_action( 'woocommerce_save_account_details', array( $smaily_sub_sync, 'smaily_wc_newsletter_subscribe_update' ), 11 ); // edit WC account.
-			add_action( 'woocommerce_checkout_order_processed', array( $smaily_sub_sync, 'smaily_checkout_subscribe_customer' ) ); // Checkout newsletter checkbox.
+			add_action( 'woocommerce_checkout_order_processed', array( $smaily_sub_sync, 'smaily_checkout_subscribe_customer' ), 11, 3 ); // Checkout newsletter checkbox.
 
 			// No subdomain before successful credential validation.
 			if ( $this->options->has_credentials() ) {
@@ -246,14 +246,6 @@ class Smaily {
 
 				// Show fields in checkout area.
 				add_filter( 'woocommerce_checkout_fields', array( $smaily_profile_settings, 'smaily_checkout_fields' ), 10, 1 );
-
-				// Add checkbox to admin preferred location.
-				$settings = $this->options->get_settings();
-				$order    = $settings['woocommerce']['checkbox_order'];
-				$location = $settings['woocommerce']['checkbox_location'];
-
-				$location = 'woocommerce_' . $order . '_' . $location;
-				add_action( $location, array( $smaily_profile_settings, 'smaily_checkout_newsletter_checkbox' ) );
 
 				// Save registration fields.
 				add_action( 'woocommerce_created_customer', array( $smaily_profile_settings, 'smaily_save_wc_account_fields' ), 10 ); // register/checkout.

@@ -106,10 +106,16 @@ class Data_Handler {
 						$user_sync_data['site_title'] = $title;
 					}
 					break;
+				case 'user_dob':
+					// 2014-03-28 to YYYY-MM-DD format.
+					$birthday = $meta['user_dob'][0] ?? '';
+					if ( ! empty( $birthday ) ) {
+						$user_sync_data['birthday'] = gmdate( 'Y-m-d', strtotime( $birthday ) );
+					}
+					break;
 				case 'first_name':
 				case 'last_name':
 				case 'nickname':
-				case 'user_dob':
 				case 'user_phone':
 					$value = $meta[ $field ][0] ?? '';
 					if ( ! empty( $value ) ) {

@@ -61,7 +61,7 @@ Optional values:
 - `last_name` - user's last name
 - `nickname` - user's nickname
 - `site_title` - site title (set in Settings > General)
-- `user_dob` - user's birthday
+- `birthday` - user's birthday in format YYYY-MM-DD
 - `user_gender` - user's gender
 - `user_phone` - user's phone number
 

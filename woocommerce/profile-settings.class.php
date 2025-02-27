@@ -12,31 +12,72 @@ use Smaily_Options;
 
 class Profile_Settings {
 	/**
-	 * Add newsletter subscribe button to admin preferred place in checkout page.
+	 * Fields to be added to WooCommerce account and checkout forms.
 	 *
-	 * @return void
+	 * @var array
 	 */
-	public function smaily_checkout_newsletter_checkbox() {
-		$enabled = get_option( Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION );
-		?>
-		<?php if ( $enabled ) : ?>
-			<p class="form-row form-row-wide smaily-for-woocommerce-newsletter">
-				<label class="checkbox woocommerce-form__label woocommerce-form__label-for-checkbox">
-					<input type="checkbox" class="input-checkbox woocommerce-form__input woocommerce-form__input-checkbox" name="user_newsletter" id="smaily-checkout-subscribe" value="1" />
-					<span><?php esc_html_e( 'Subscribe to newsletter', 'smaily' ); ?></span>
-				</label>
-			</p>
-		<?php endif; ?>
-		<?php
+	private $fields;
+
+	public function __construct() {
+		$fields = array(
+			'user_gender'     => array(
+				'type'                 => 'radio',
+				'label'                => __( 'Gender', 'smaily' ),
+				'required'             => false,
+				'class'                => array( 'tog' ),
+				'options'              => array(
+					1 => __( 'Male', 'smaily' ),
+					2 => __( 'Female', 'smaily' ),
+				),
+				'hide_in_account'      => false,
+				'hide_in_admin'        => false,
+				'hide_in_checkout'     => false,
+				'hide_in_registration' => false,
+			),
+			'user_phone'      => array(
+				'type'                 => 'tel',
+				'label'                => __( 'Phone', 'smaily' ),
+				'placeholder'          => __( 'Enter phone number', 'smaily' ),
+				'required'             => false,
+				'class'                => array( 'regular-text' ),
+				'hide_in_account'      => false,
+				'hide_in_admin'        => false,
+				'hide_in_checkout'     => true,
+				'hide_in_registration' => false,
+			),
+			'user_dob'        => array(
+				'type'                 => 'date',
+				'label'                => __( 'Birthday', 'smaily' ),
+				'placeholder'          => __( 'Enter birthday', 'smaily' ),
+				'required'             => false,
+				'class'                => array( 'regular-text' ),
+				'hide_in_account'      => false,
+				'hide_in_admin'        => false,
+				'hide_in_checkout'     => false,
+				'hide_in_registration' => false,
+			),
+			'user_newsletter' => array(
+				'type'                 => 'checkbox',
+				'label'                => __( 'Subscribe to newsletter', 'smaily' ),
+				'required'             => false,
+				'hide_in_account'      => false,
+				'hide_in_admin'        => false,
+				'hide_in_checkout'     => false,
+				'hide_in_registration' => false,
+			),
+		);
+
+		$enabled_fields = $this->filter_enabled_fields( $fields );
+		$this->fields   = apply_filters( 'smaily_account_fields', $enabled_fields );
 	}
 
 	/**
-	 * Add fields to registration area and account area
+	 * Add fields to registration area and account area.
 	 *
 	 * @return void
 	 */
 	public function smaily_print_user_frontend_fields() {
-		$fields            = $this->smaily_get_account_fields();
+		$fields            = $this->fields;
 		$is_user_logged_in = is_user_logged_in();
 
 		foreach ( $fields as $key => $field_args ) {
@@ -64,102 +105,28 @@ class Profile_Settings {
 	}
 
 	/**
-	 * Add additional account fields data
-	 *
-	 * @return array $smaily_account_fields New fields to add in forms.
-	 */
-	public function smaily_get_account_fields() {
-		$options = get_option(
-			Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION,
-			Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS
-		);
-
-		$fields_available = array(
-			'user_gender' => array(
-				'type'                 => 'radio',
-				'label'                => __( 'Gender', 'smaily' ),
-				'required'             => false,
-				'class'                => array( 'tog' ),
-				'options'              => array(
-					1 => __( 'Male', 'smaily' ),
-					2 => __( 'Female', 'smaily' ),
-				),
-				'hide_in_account'      => false,
-				'hide_in_admin'        => false,
-				'hide_in_checkout'     => false,
-				'hide_in_registration' => false,
-			),
-			'user_phone'  => array(
-				'type'                 => 'tel',
-				'label'                => __( 'Phone', 'smaily' ),
-				'placeholder'          => __( 'Enter phone number', 'smaily' ),
-				'required'             => false,
-				'class'                => array( 'regular-text' ),
-				'hide_in_account'      => false,
-				'hide_in_admin'        => false,
-				'hide_in_checkout'     => true,
-				'hide_in_registration' => false,
-			),
-			'user_dob'    => array(
-				'type'                 => 'date',
-				'label'                => __( 'Birthday', 'smaily' ),
-				'placeholder'          => __( 'Enter birthday', 'smaily' ),
-				'required'             => false,
-				'class'                => array( 'regular-text' ),
-				'hide_in_account'      => false,
-				'hide_in_admin'        => false,
-				'hide_in_checkout'     => false,
-				'hide_in_registration' => false,
-			),
-		);
-
-		$add_fields = array(
-			'user_newsletter' => array(
-				'type'                 => 'checkbox',
-				'label'                => __( 'Subscribe to newsletter', 'smaily' ),
-				'required'             => false,
-				'hide_in_account'      => false,
-				'hide_in_admin'        => false,
-				'hide_in_checkout'     => false,
-				'hide_in_registration' => false,
-			),
-		);
-
-		foreach ( $options as $key => $value ) {
-			if ( $value === false ) {
-				continue;
-			}
-
-			if ( array_key_exists( $key, $fields_available ) ) {
-				$add_fields[ $key ] = $fields_available[ $key ];
-			}
-		}
-
-		return apply_filters(
-			'smaily_account_fields',
-			$add_fields
-		);
-	}
-
-	/**
 	 * Show fields at checkout form
 	 *
 	 * @param array $checkout_fields Old checkout fields.
 	 * @return array $checkout_fields Updated checkout fields
 	 */
 	public function smaily_checkout_fields( $checkout_fields ) {
-		$fields = $this->smaily_get_account_fields();
-		// Fields to append to billing information.
-		$billing_details_list = array( 'user_gender', 'user_phone', 'user_dob' );
+		$fields       = $this->fields;
+		$billing_list = array( 'user_gender', 'user_phone', 'user_dob' );
 
 		foreach ( $fields as $key => $field_args ) {
-			if ( ! empty( $field_args['hide_in_checkout'] ) ) {
+			if ( $field_args['hide_in_checkout'] === true ) {
 				continue;
 			}
 
 			// Append billing details to customer billing details list.
-			if ( in_array( $key, $billing_details_list, true ) ) {
+			if ( in_array( $key, $billing_list, true ) ) {
 				$checkout_fields['billing'][ $key ] = $field_args;
+			}
+
+			// Append the checkout fields to the correct location.
+			if ( $key === 'user_newsletter' ) {
+				$this->add_checkout_subscription_checkbox( $checkout_fields );
 			}
 		}
 
@@ -172,7 +139,7 @@ class Profile_Settings {
 	 * @return void
 	 */
 	public function smaily_print_user_admin_fields() {
-		$fields = $this->smaily_get_account_fields();
+		$fields = $this->fields;
 		?>
 		<h2><?php esc_html_e( 'Additional Information', 'smaily' ); ?></h2>
 		<table class="form-table" id="smaily-additional-information">
@@ -196,7 +163,6 @@ class Profile_Settings {
 					</td>
 				</tr>
 			<?php } ?>
-
 		</table>
 		<?php
 	}
@@ -223,11 +189,6 @@ class Profile_Settings {
 		$this->save_account_fields( $user_id, $sanitized_data );
 	}
 
-
-	/**
-	 * Helper functions
-	 */
-
 	/**
 	 * Parses the request and returns array of selected customer synchronization additional fields that have been sanitized.
 	 * Nonce field should be verified prior to calling this function.
@@ -242,7 +203,7 @@ class Profile_Settings {
 
 		$fields = array();
 		$action = isset( $_POST['action'] ) ? sanitize_text_field( wp_unslash( $_POST['action'] ) ) : '';
-		foreach ( $this->smaily_get_account_fields() as $key => $field_args ) {
+		foreach ( $this->fields as $key => $field_args ) {
 			if ( ! $this->smaily_is_field_visible( $field_args, $action ) ) {
 				continue;
 			}
@@ -254,31 +215,6 @@ class Profile_Settings {
 	}
 
 	/**
-	 * Updates user metadata and user in the database.
-	 *
-	 * @param int $user_id
-	 * @param array $fields
-	 * @return void
-	 */
-	private function save_account_fields( $user_id, $fields ) {
-		$user_data = array();
-
-		foreach ( $fields as $key => $value ) {
-			if ( $this->smaily_is_userdata( $key ) ) {
-				$user_data[ $key ] = $value;
-				continue;
-			}
-
-			update_user_meta( $user_id, $key, $value );
-		}
-
-		if ( ! empty( $user_data ) ) {
-			$sanitized_data['ID'] = $user_id;
-			wp_update_user( $sanitized_data );
-		}
-	}
-
-	/**
 	 * Get currently editing user ID (frontend account/edit profile/edit other user).
 	 * Nonce field should be verified prior to calling this function.
 	 *
@@ -287,7 +223,6 @@ class Profile_Settings {
 	public function smaily_get_edit_user_id() {
 		return isset( $_GET['user_id'] ) ? (int) $_GET['user_id'] : get_current_user_id();
 	}
-
 
 	/**
 	 * Get user data based on key
@@ -339,6 +274,31 @@ class Profile_Settings {
 	}
 
 	/**
+	 * Updates user metadata and user in the database.
+	 *
+	 * @param int $user_id
+	 * @param array $fields
+	 * @return void
+	 */
+	private function save_account_fields( $user_id, $fields ) {
+		$user_data = array();
+
+		foreach ( $fields as $key => $value ) {
+			if ( $this->smaily_is_userdata( $key ) ) {
+				$user_data[ $key ] = $value;
+				continue;
+			}
+
+			update_user_meta( $user_id, $key, $value );
+		}
+
+		if ( ! empty( $user_data ) ) {
+			$sanitized_data['ID'] = $user_id;
+			wp_update_user( $sanitized_data );
+		}
+	}
+
+	/**
 	 *  Check if field is one of WordPress predefined fields.
 	 *
 	 * @param string $key Key to be checked.
@@ -348,7 +308,7 @@ class Profile_Settings {
 		$userdata = array(
 			'user_pass',
 			'user_login',
-			'user_nickname',
+			'user_nicename', // Not a typo. URL sanitized version of user_login.
 			'user_email',
 			'display_name',
 			'nickname',
@@ -365,5 +325,87 @@ class Profile_Settings {
 		);
 
 		return in_array( $key, $userdata, true );
+	}
+
+	/**
+	 * Filters out fields that are enabled by customer synchronization settings.
+	 *
+	 * @param array $fields
+	 * @return array
+	 */
+	private function filter_enabled_fields( array $fields ) {
+		$enabled_fields = array();
+
+		$sync_fields                   = get_option(
+			Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION,
+			Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS
+		);
+		$enabled_sync_fields           = array_keys( array_filter( $sync_fields ) );
+		$checkout_subscription_enabled = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION );
+
+		$account_fields         = array(
+			'user_gender',
+			'user_phone',
+			'user_dob',
+		);
+		$account_fields_enabled = array_intersect( $account_fields, $enabled_sync_fields );
+
+		if ( $checkout_subscription_enabled ) {
+			$enabled_fields['user_newsletter'] = $fields['user_newsletter'];
+		}
+
+		foreach ( $account_fields_enabled as $field ) {
+			$enabled_fields[ $field ] = $fields[ $field ];
+		}
+
+		return $enabled_fields;
+	}
+
+	/**
+	 * Add checkout subscription checkbox to checkout fields.
+	 *
+	 * @param array $checkout_fields Checkout fields.
+	 * @return void
+	 */
+	private function add_checkout_subscription_checkbox( &$checkout_fields ) {
+		// Check if the user has already subscribed to the newsletter.
+		// We don't want to override the user's choice.
+		$user_id = get_current_user_id();
+		$checked = get_user_meta( $user_id, 'user_newsletter', true );
+
+		if ( ! empty( $checked ) ) {
+			return;
+		}
+
+		$location = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION, Smaily_Options::CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION );
+		$position = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION, Smaily_Options::CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION );
+
+		if ( $position === 'before' ) {
+			$checkout_fields[ $this->parse_field_category( $location ) ] = array( 'user_newsletter' => $this->fields['user_newsletter'] ) + $checkout_fields[ $this->parse_field_category( $location ) ];
+		} else {
+			$checkout_fields[ $this->parse_field_category( $location ) ]['user_newsletter'] = $this->fields['user_newsletter'];
+		}
+	}
+
+	/**
+	 * Parse field category based on location.
+	 *
+	 * @param string $location Location of the field.
+	 * @return string $field_category Category of the field.
+	 */
+	private function parse_field_category( string $location ) {
+		if ( mb_strpos( $location, 'billing' ) ) {
+			return 'billing';
+		}
+
+		if ( mb_strpos( $location, 'shipping' ) ) {
+			return 'shipping';
+		}
+
+		if ( mb_strpos( $location, 'registration' ) ) {
+			return 'account';
+		}
+
+		return 'order';
 	}
 }
