@@ -42,7 +42,7 @@ class Smaily_Options {
 		'last_name'           => false,
 		'product_base_price'  => false,
 		'product_description' => false,
-		'product_images'      => false,
+		'product_image_url'   => false,
 		'product_name'        => false,
 		'product_price'       => false,
 		'product_quantity'    => false,

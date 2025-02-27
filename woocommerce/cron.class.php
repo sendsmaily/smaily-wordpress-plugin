@@ -361,7 +361,7 @@ class Cron {
 		$product_values = array(
 			'product_base_price',
 			'product_description',
-			'product_images',
+			'product_image_url',
 			'product_name',
 			'product_price',
 			'product_quantity',
@@ -407,8 +407,11 @@ class Cron {
 						case 'product_base_price':
 							$product['product_base_price'] = $this->get_base_price( $details );
 							break;
-						case 'product_images':
-							$product['product_images'] = $this->get_product_images( $details );
+						case 'product_image_url':
+							$url = $this->get_product_image_url( $details );
+							if ( ! empty( $url ) ) {
+								$product['product_image_url'] = $url;
+							}
 							break;
 					}
 				}
@@ -440,20 +443,24 @@ class Cron {
 	 * @param WC_Product $product WooCommerce product object.
 	 * @return string
 	 */
-	private function get_product_images( WC_Product $product ) {
-		$image_urls = array();
+	private function get_product_image_url( WC_Product $product ) {
+		$image_url = '';
 
-		// Get the URL of the main product image
 		if ( $product->get_image_id() ) {
-			$image_urls[] = wp_get_attachment_url( $product->get_image_id() );
+			$image_url = wp_get_attachment_url( $product->get_image_id() );
 		}
 
-		// Get URLs of any additional gallery images
+		// Default to featured image.
+		if ( ! empty( $image_url ) ) {
+			return $image_url;
+		}
+
+		// Try to get first gallery image.
 		$gallery_image_ids = $product->get_gallery_image_ids();
-		foreach ( $gallery_image_ids as $image_id ) {
-			$image_urls[] = wp_get_attachment_url( $image_id );
+		if ( ! empty( $gallery_image_ids ) ) {
+			return wp_get_attachment_url( $gallery_image_ids[0] );
 		}
 
-		return implode( ',', $image_urls );
+		return '';
 	}
 }

@@ -21,7 +21,7 @@ $labels      = array(
 	'product_quantity'    => __( 'Product Quantity', 'smaily' ),
 	'product_base_price'  => __( 'Product Base Price', 'smaily' ),
 	'product_price'       => __( 'Product Price', 'smaily' ),
-	'product_images'      => __( 'Product Images', 'smaily' ),
+	'product_image_url'   => __( 'Product Image', 'smaily' ),
 );
 
 ?>
