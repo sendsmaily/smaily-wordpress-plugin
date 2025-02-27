@@ -78,7 +78,7 @@ class Smaily_Options {
 	 *
 	 * @var array
 	 */
-	const CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION = 'order_notes';
+	const CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION = 'order';
 
 	/**
 	 * Default number of RSS feed items.
@@ -142,17 +142,53 @@ class Smaily_Options {
 		self::CONTACT_FORM_7_STATUS_OPTION,
 	);
 
+	/**
+	 * Checkout subscription checkbox possible positions.
+	 *
+	 * @var array
+	 */
 	const CHECKOUT_SUBSCRIPTION_POSITIONS = array(
 		'before',
 		'after',
 	);
 
+	/**
+	 * Checkout subscription positions with translatable labels.
+	 *
+	 * @return array{after: string, before: string}
+	 */
+	public static function get_checkout_subscription_position_options() {
+		return array(
+			'before' => __( 'Before', 'smaily' ),
+			'after'  => __( 'After', 'smaily' ),
+		);
+	}
+
+	/**
+	 * Checkout subscription checkbox possible locations.
+	 *
+	 * @var array
+	 */
 	const CHECKOUT_SUBSCRIPTION_LOCATIONS = array(
 		'account',
 		'billing',
 		'order',
 		'shipping',
 	);
+
+	/**
+	 * Checkout subscription locations with translatable labels.
+	 *
+	 * @return array{account: string, billing: string, order: string, shipping: string}
+	 */
+	public static function get_checkout_subscription_location_options() {
+		return array(
+			'account'  => __( 'Registration form', 'smaily' ),
+			'billing'  => __( 'Billing form', 'smaily' ),
+			'order'    => __( 'Order notes', 'smaily' ),
+			'shipping' => __( 'Shipping form', 'smaily' ),
+		);
+	}
 
 	/**
 	 * Get API credentials.

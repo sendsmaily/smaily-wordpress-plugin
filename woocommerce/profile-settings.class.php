@@ -381,31 +381,9 @@ class Profile_Settings {
 		$position = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION, Smaily_Options::CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION );
 
 		if ( $position === 'before' ) {
-			$checkout_fields[ $this->parse_field_category( $location ) ] = array( 'user_newsletter' => $this->fields['user_newsletter'] ) + $checkout_fields[ $this->parse_field_category( $location ) ];
+			$checkout_fields[ $location ] = array( 'user_newsletter' => $this->fields['user_newsletter'] ) + $checkout_fields[ $location ];
 		} else {
-			$checkout_fields[ $this->parse_field_category( $location ) ]['user_newsletter'] = $this->fields['user_newsletter'];
+			$checkout_fields[ $location ]['user_newsletter'] = $this->fields['user_newsletter'];
 		}
-	}
-
-	/**
-	 * Parse field category based on location.
-	 *
-	 * @param string $location Location of the field.
-	 * @return string $field_category Category of the field.
-	 */
-	private function parse_field_category( string $location ) {
-		if ( mb_strpos( $location, 'billing' ) ) {
-			return 'billing';
-		}
-
-		if ( mb_strpos( $location, 'shipping' ) ) {
-			return 'shipping';
-		}
-
-		if ( mb_strpos( $location, 'registration' ) ) {
-			return 'account';
-		}
-
-		return 'order';
 	}
 }

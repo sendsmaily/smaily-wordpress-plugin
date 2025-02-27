@@ -118,7 +118,7 @@ class Subscriber_Synchronization {
 			return;
 		}
 
-		$sync_options = get_option( Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION, Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS );
+		$sync_options        = get_option( Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION, Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS );
 		$enabled_sync_fields = array_keys( array_filter( $sync_options ) );
 
 		// Order is made by a registered user.
