@@ -205,10 +205,10 @@ class Settings {
 			array(
 				'option_name' => Smaily_Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION,
 				'options'     => array(
-					'order_notes'                => __( 'Order notes', 'smaily' ),
-					'checkout_billing_form'      => __( 'Billing form', 'smaily' ),
-					'checkout_shipping_form'     => __( 'Shipping form', 'smaily' ),
-					'checkout_registration_form' => __( 'Registration form', 'smaily' ),
+					'order'    => __( 'Order notes', 'smaily' ),
+					'billing'  => __( 'Billing form', 'smaily' ),
+					'shipping' => __( 'Shipping form', 'smaily' ),
+					'account'  => __( 'Registration form', 'smaily' ),
 				),
 			)
 		);

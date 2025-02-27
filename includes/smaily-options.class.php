@@ -100,6 +100,7 @@ class Smaily_Options {
 	 * @var array
 	 */
 	const RSS_DEFAULT_ORDER_BY = 'DESC';
+
 	const API_CREDENTIALS_OPTION                = 'smaily_api_credentials';
 	const CUSTOMER_SYNC_ENABLED_OPTION          = 'smaily_customer_sync_enabled';
 	const CUSTOMER_SYNC_FIELDS_OPTION           = 'smaily_customer_sync_fields';
@@ -142,15 +143,15 @@ class Smaily_Options {
 	);
 
 	const CHECKOUT_SUBSCRIPTION_POSITIONS = array(
-		'before' => __( 'Before', 'smaily' ),
-		'after' => __( 'After', 'smaily' ),
+		'before',
+		'after',
 	);
 
 	const CHECKOUT_SUBSCRIPTION_LOCATIONS = array(
-		'account' => __( 'Account', 'smaily' ),
-		'billing' => __( 'Billing', 'smaily' ),
-		'order'  => __( 'Order', 'smaily' ),
-		'shipping' => __( 'Shipping', 'smaily' ),
+		'account',
+		'billing',
+		'order',
+		'shipping',
 	);
 
 	/**
