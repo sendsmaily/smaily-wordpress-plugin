@@ -131,87 +131,6 @@ class Settings {
 			$page,
 			$customer_sync_section
 		);
-	}
-
-	/**
-	 * Registers abandoned cart related configuration options.
-	 *
-	 * @return void
-	 */
-	public function register_abandoned_cart_tab_settings( $option_group, $page ) {
-		$abandoned_cart_section = 'smaily_settings_abandoned_cart_section';
-
-		register_setting(
-			$option_group,
-			Smaily_Options::ABANDONED_CART_STATUS_OPTION,
-			array(
-				'type'              => 'array',
-				'sanitize_callback' => array( $this->sanitizer, 'sanitize_abandoned_cart_status' ),
-				'default'           => array(
-					'enabled'          => false,
-					'autoresponder_id' => '',
-				),
-			)
-		);
-
-		register_setting(
-			$option_group,
-			Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
-			array(
-				'type'              => 'number',
-				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => Smaily_Options::ABANDONED_CART_DEFAULT_CUTOFF,
-			)
-		);
-
-		register_setting(
-			$option_group,
-			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
-			array(
-				'type'              => 'array',
-				'sanitize_callback' => array( $this->sanitizer, 'sanitize_abandoned_cart_fields' ),
-				'default'           => Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS,
-			)
-		);
-
-		add_settings_section(
-			$abandoned_cart_section,
-			__( 'Abandoned Cart', 'smaily' ),
-			array( $this->renderer, 'render_abandoned_cart_section_header' ),
-			$page
-		);
-
-		add_settings_field(
-			Smaily_Options::ABANDONED_CART_STATUS_OPTION,
-			__( 'Enable Abandoned Cart', 'smaily' ),
-			array( $this->renderer, 'render_abandoned_cart_status_field' ),
-			$page,
-			$abandoned_cart_section,
-			array(
-				'autoresponders' => Admin::get_autoresponders( $this->options ),
-			)
-		);
-
-		add_settings_field(
-			Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
-			__( 'Cart cutoff time (minutes)', 'smaily' ),
-			array( $this->renderer, 'render_number_field' ),
-			$page,
-			$abandoned_cart_section,
-			array(
-				'option_name' => Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
-				'min'         => Smaily_Options::ABANDONED_CART_DEFAULT_CUTOFF,
-				'help'        => __( 'Minimum 10 minutes', 'smaily' ),
-			)
-		);
-
-		add_settings_field(
-			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
-			__( 'Additional Fields', 'smaily' ),
-			array( $this->renderer, 'render_abandoned_additional_fields' ),
-			$page,
-			$abandoned_cart_section
-		);
 
 		$checkout_subscription_section = 'smaily_settings_checkout_subscription_section';
 		register_setting(
@@ -292,6 +211,87 @@ class Settings {
 					'checkout_registration_form' => __( 'Registration form', 'smaily' ),
 				),
 			)
+		);
+	}
+
+	/**
+	 * Registers abandoned cart related configuration options.
+	 *
+	 * @return void
+	 */
+	public function register_abandoned_cart_tab_settings( $option_group, $page ) {
+		$abandoned_cart_section = 'smaily_settings_abandoned_cart_section';
+
+		register_setting(
+			$option_group,
+			Smaily_Options::ABANDONED_CART_STATUS_OPTION,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( $this->sanitizer, 'sanitize_abandoned_cart_status' ),
+				'default'           => array(
+					'enabled'          => false,
+					'autoresponder_id' => '',
+				),
+			)
+		);
+
+		register_setting(
+			$option_group,
+			Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
+			array(
+				'type'              => 'number',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => Smaily_Options::ABANDONED_CART_DEFAULT_CUTOFF,
+			)
+		);
+
+		register_setting(
+			$option_group,
+			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( $this->sanitizer, 'sanitize_abandoned_cart_fields' ),
+				'default'           => Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS,
+			)
+		);
+
+		add_settings_section(
+			$abandoned_cart_section,
+			__( 'Abandoned Cart', 'smaily' ),
+			array( $this->renderer, 'render_abandoned_cart_section_header' ),
+			$page
+		);
+
+		add_settings_field(
+			Smaily_Options::ABANDONED_CART_STATUS_OPTION,
+			__( 'Enable Abandoned Cart', 'smaily' ),
+			array( $this->renderer, 'render_abandoned_cart_status_field' ),
+			$page,
+			$abandoned_cart_section,
+			array(
+				'autoresponders' => Admin::get_autoresponders( $this->options ),
+			)
+		);
+
+		add_settings_field(
+			Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
+			__( 'Cart cutoff time (minutes)', 'smaily' ),
+			array( $this->renderer, 'render_number_field' ),
+			$page,
+			$abandoned_cart_section,
+			array(
+				'option_name' => Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
+				'min'         => Smaily_Options::ABANDONED_CART_DEFAULT_CUTOFF,
+				'help'        => __( 'Minimum 10 minutes', 'smaily' ),
+			)
+		);
+
+		add_settings_field(
+			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
+			__( 'Additional Fields', 'smaily' ),
+			array( $this->renderer, 'render_abandoned_additional_fields' ),
+			$page,
+			$abandoned_cart_section
 		);
 	}
 
