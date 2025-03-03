@@ -11,6 +11,8 @@ use Smaily_Helper;
 use Smaily_Logger;
 use Smaily_Options;
 use Smaily_Request;
+use WC_Order;
+use WP_REST_Request;
 
 class Subscriber_Synchronization {
 	/**
@@ -114,10 +116,37 @@ class Subscriber_Synchronization {
 			return;
 		}
 
-		if ( ! get_option( Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION ) ) {
+		if ( ! get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION ) ) {
 			return;
 		}
 
+		$this->order_optin_subscriber( $order );
+	}
+
+	/**
+	 * Subscribes customer in checkout form when subscribe newsletter box is checked.
+	 *
+	 * @param WC_Order        $order Order
+	 * @param WP_REST_Request $request Request
+	 * @return void
+	 */
+	public function smaily_checkout_subscribe_block_customer( WC_Order $order, WP_REST_Request $request ) {
+		if ( ! isset( $request['extensions'][ \Smaily_Checkout_Extend_Store_Endpoint::IDENTIFIER ]['user_newsletter'] ) ) {
+			return;
+		}
+
+		if ( $request['extensions'][ \Smaily_Checkout_Extend_Store_Endpoint::IDENTIFIER ]['user_newsletter'] !== true ) {
+			return;
+		}
+
+		if ( ! get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION ) ) {
+			return;
+		}
+
+		$this->order_optin_subscriber( $order );
+	}
+
+	private function order_optin_subscriber( WC_Order $order ) {
 		$sync_options        = get_option( Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION, Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS );
 		$enabled_sync_fields = array_keys( array_filter( $sync_options ) );
 
@@ -164,11 +193,11 @@ class Subscriber_Synchronization {
 		$request  = new Smaily_Request( $this->options );
 		$response = $request->update_subscribers( $posted_data );
 		if ( empty( $response ) ) {
-			return $this->logger->error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with unknown error.', $order_id ) );
+			return $this->logger->error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with unknown error.', $order->get_id() ) );
 		}
 
 		if ( isset( $response['error'] ) ) {
-			return $this->logger->error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with an error: %s', $order_id, $response['error'] ) );
+			return $this->logger->error( sprintf( 'Failed to subscribe customer during checkout. The order with id "%d" failed with an error: %s', $order->get_id(), $response['error'] ) );
 		}
 
 		if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {

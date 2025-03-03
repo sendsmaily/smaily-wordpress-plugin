@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "smaily/checkout-optin",
+	"version": "1.0.0",
+	"title": "Smaily Checkout Opt-In",
+	"category": "woocommerce",
+	"description": "Adds a newsletter subscription checkbox to the checkout.",
+	"supports": {
+		"html": false,
+		"align": false,
+		"multiple": false,
+		"reusable": false
+	},
+	"parent": [ "woocommerce/checkout-contact-information-block" ],
+	"attributes": {
+		"lock": {
+			"type": "object",
+			"default": {
+				"remove": true,
+				"move": true
+			}
+		},
+		"text": {
+			"type": "string",
+			"source": "html",
+			"selector": ".wp-block-smaily-checkout-optin",
+			"default": ""
+		}
+	},
+	"textdomain": "smaily",
+	"editorStyle": "file:./style-smaily-checkout-optin-block.css"
+}

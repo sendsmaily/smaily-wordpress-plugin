@@ -160,12 +160,17 @@ class Smaily {
 	 */
 	public function init_blocks() {
 		wp_enqueue_style( 'wp-components' );
+
 		register_block_type(
 			SMAILY_PLUGIN_PATH . '/blocks/newsletter-signup/build',
 			array(
 				'render_callback' => array( 'Smaily_Newsletter_Signup_Blocks_Integration', 'render' ),
 			)
 		);
+
+		if ( Smaily_Helper::is_woocommerce_active() ) {
+			register_block_type( SMAILY_PLUGIN_PATH . '/blocks/smaily-checkout-optin/build' );
+		}
 	}
 
 	/**
@@ -207,6 +212,23 @@ class Smaily {
 				add_action( 'show_user_profile', array( $smaily_profile_settings, 'smaily_print_user_admin_fields' ), 30 ); // admin: edit profile.
 				add_action( 'edit_user_profile', array( $smaily_profile_settings, 'smaily_print_user_admin_fields' ), 30 ); // admin: edit other users.
 
+				// Add opt-in checkbox to block checkout.
+				add_action(
+					'woocommerce_blocks_loaded',
+					function () {
+						require_once SMAILY_PLUGIN_PATH . '/blocks/smaily-checkout-optin/smaily-checkout-optin.php';
+						require_once SMAILY_PLUGIN_PATH . '/blocks/smaily-checkout-optin/smaily-checkout-extend-store-endpoint.php';
+
+						Smaily_Checkout_Extend_Store_Endpoint::init();
+
+						add_action(
+							'woocommerce_blocks_checkout_block_registration',
+							function ( $integration_registry ) {
+								$integration_registry->register( new SmailyCheckoutOptin_Blocks_Integration() );
+							}
+						);
+					}
+				);
 			}
 		}
 
@@ -241,6 +263,7 @@ class Smaily {
 			add_action( 'woocommerce_created_customer', array( $smaily_sub_sync, 'smaily_wc_created_customer_update' ), 11 ); // register/checkout.
 			add_action( 'woocommerce_save_account_details', array( $smaily_sub_sync, 'smaily_wc_newsletter_subscribe_update' ), 11 ); // edit WC account.
 			add_action( 'woocommerce_checkout_order_processed', array( $smaily_sub_sync, 'smaily_checkout_subscribe_customer' ), 11, 3 ); // Checkout newsletter checkbox.
+			add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( $smaily_sub_sync, 'smaily_checkout_subscribe_block_customer' ), 10, 2 ); // WC block checkout newsletter checkbox.
 
 			// No subdomain before successful credential validation.
 			if ( $this->options->has_credentials() ) {

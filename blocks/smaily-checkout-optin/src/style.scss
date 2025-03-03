@@ -1,0 +1,28 @@
+.wp-block-smaily-checkout-optin {
+	margin: 10px 0;
+	padding-top: 4px;
+	padding-bottom: 4px;
+	display: flex;
+	align-items: flex-start;
+
+	.block-editor-rich-text__editable {
+		vertical-align: middle;
+		line-height: 24px;
+	}
+
+	.wc-block-components-checkbox {
+		margin-right: 16px;
+		margin-top: 0;
+	}
+}
+
+.editor-styles-wrapper {
+
+	.wp-block-smaily-checkout-optin {
+
+		.wc-block-components-checkbox {
+			margin-right: 0;
+			margin-top: 0;
+		}
+	}
+}
