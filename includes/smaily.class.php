@@ -219,12 +219,12 @@ class Smaily {
 						require_once SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-optin.php';
 						require_once SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-extend-store-endpoint.php';
 
-						Smaily_Checkout_Extend_Store_Endpoint::init();
+						Smaily_Checkout_Optin_Extend_Store_Endpoint::init();
 
 						add_action(
 							'woocommerce_blocks_checkout_block_registration',
 							function ( $integration_registry ) {
-								$integration_registry->register( new SmailyCheckoutOptin_Blocks_Integration() );
+								$integration_registry->register( new Smaily_Checkout_Optin_Blocks_Integration() );
 							}
 						);
 					}

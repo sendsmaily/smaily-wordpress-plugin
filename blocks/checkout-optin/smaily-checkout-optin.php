@@ -7,7 +7,7 @@ define( 'SMAILY_CHECKOUT_OPTIN_VERSION', '1.0.0' );
 /**
  * Class for integrating with WooCommerce Blocks
  */
-class SmailyCheckoutOptin_Blocks_Integration implements IntegrationInterface {
+class Smaily_Checkout_Optin_Blocks_Integration implements IntegrationInterface {
 	/**
 	 * The name of the integration.
 	 *
