@@ -169,7 +169,7 @@ class Smaily {
 		);
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-			register_block_type( SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/build' );
+			register_block_type_from_metadata( SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/build' );
 		}
 	}
 
