@@ -1,7 +1,7 @@
 {
 	"name": "smaily-checkout-optin",
-	"version": "0.1.0",
-	"author": "The WordPress Contributors",
+	"version": "1.0.0",
+	"author": "Smaily",
 	"license": "GPL-2.0-or-later",
 	"main": "build/index.js",
 	"scripts": {
@@ -15,8 +15,9 @@
 	},
 	"devDependencies": {
 		"@woocommerce/dependency-extraction-webpack-plugin": "^3.1.0",
-		"@woocommerce/eslint-plugin": "^2.3.0",
 		"@wordpress/prettier-config": "^2.18.2",
-		"@wordpress/scripts": "^30.12.0"
-	}
+		"@wordpress/scripts": "^30.12.0",
+		"prettier": "npm:wp-prettier@^3.0.3"
+	},
+	"prettier": "@wordpress/prettier-config"
 }

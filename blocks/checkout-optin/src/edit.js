@@ -1,4 +1,3 @@
-import { __ } from '@wordpress/i18n';
 import { useBlockProps, RichText } from '@wordpress/block-editor';
 import { CheckboxControl } from '@woocommerce/blocks-checkout';
 import { getSetting } from '@woocommerce/settings';

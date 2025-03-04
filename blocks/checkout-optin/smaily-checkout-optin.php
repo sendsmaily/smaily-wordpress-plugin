@@ -79,7 +79,7 @@ class SmailyCheckoutOptin_Blocks_Integration implements IntegrationInterface {
 		);
 
 		wp_set_script_translations(
-			'smaily-checkout-optin-newsletter-block-editor', // script handle
+			'smaily-checkout-optin-block-editor', // script handle
 			'smaily', // text domain
 			__DIR__ . '/languages'
 		);

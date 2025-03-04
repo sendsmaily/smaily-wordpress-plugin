@@ -169,7 +169,7 @@ class Smaily {
 		);
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-			register_block_type( SMAILY_PLUGIN_PATH . '/blocks/smaily-checkout-optin/build' );
+			register_block_type( SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/build' );
 		}
 	}
 
@@ -216,8 +216,8 @@ class Smaily {
 				add_action(
 					'woocommerce_blocks_loaded',
 					function () {
-						require_once SMAILY_PLUGIN_PATH . '/blocks/smaily-checkout-optin/smaily-checkout-optin.php';
-						require_once SMAILY_PLUGIN_PATH . '/blocks/smaily-checkout-optin/smaily-checkout-extend-store-endpoint.php';
+						require_once SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-optin.php';
+						require_once SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-extend-store-endpoint.php';
 
 						Smaily_Checkout_Extend_Store_Endpoint::init();
 

@@ -2,7 +2,9 @@ import { useEffect, useState } from '@wordpress/element';
 import { CheckboxControl } from '@woocommerce/blocks-checkout';
 import { getSetting } from '@woocommerce/settings';
 
-const { optInDefaultText, smailyCheckoutOptinActive } = getSetting('smaily-checkout-optin_data');
+const { optInDefaultText, smailyCheckoutOptinActive } = getSetting(
+	'smaily-checkout-optin_data'
+);
 
 const Block = ( { children, checkoutExtensionData } ) => {
 	const [ checked, setChecked ] = useState( false );
