@@ -131,11 +131,11 @@ class Subscriber_Synchronization {
 	 * @return void
 	 */
 	public function smaily_checkout_subscribe_block_customer( WC_Order $order, WP_REST_Request $request ) {
-		if ( ! isset( $request['extensions'][ \Smaily_Checkout_Extend_Store_Endpoint::IDENTIFIER ]['user_newsletter'] ) ) {
+		if ( ! isset( $request['extensions'][ \Smaily_Checkout_Optin_Extend_Store_Endpoint::IDENTIFIER ]['user_newsletter'] ) ) {
 			return;
 		}
 
-		if ( $request['extensions'][ \Smaily_Checkout_Extend_Store_Endpoint::IDENTIFIER ]['user_newsletter'] !== true ) {
+		if ( $request['extensions'][ \Smaily_Checkout_Optin_Extend_Store_Endpoint::IDENTIFIER ]['user_newsletter'] !== true ) {
 			return;
 		}
 
