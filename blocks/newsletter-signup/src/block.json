@@ -1,12 +1,18 @@
 {
 	"$schema": "https://schemas.wp.org/trunk/block.json",
-	"apiVersion": 3,
+	"apiVersion": 2,
 	"name": "smaily/newsletter-block",
 	"version": "1.0.0",
 	"title": "Smaily Sign-Up Form",
 	"category": "widgets",
 	"description": "Smaily newsletter subscription form.",
 	"example": {},
+	"keywords": [
+		"smaily",
+		"newsletter",
+		"subscription",
+		"form"
+	],
 	"attributes": {
 		"subdomain": {
 			"type": "string",
