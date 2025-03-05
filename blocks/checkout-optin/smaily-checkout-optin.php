@@ -21,8 +21,8 @@ class Smaily_Checkout_Optin_Blocks_Integration implements IntegrationInterface {
 	 * When called invokes any initialization/setup for the integration.
 	 */
 	public function initialize() {
-		$this->register_newsletter_block_frontend_scripts();
-		$this->register_newsletter_block_editor_scripts();
+		$this->register_frontend_scripts();
+		$this->register_editor_scripts();
 	}
 
 	/**
@@ -59,7 +59,7 @@ class Smaily_Checkout_Optin_Blocks_Integration implements IntegrationInterface {
 		return $data;
 	}
 
-	public function register_newsletter_block_editor_scripts() {
+	public function register_editor_scripts() {
 		$script_path       = '/build/smaily-checkout-optin-block.js';
 		$script_url        = plugins_url( $script_path, __FILE__ );
 		$script_asset_path = __DIR__ . '/build/smaily-checkout-optin-block.asset.php';
@@ -85,7 +85,7 @@ class Smaily_Checkout_Optin_Blocks_Integration implements IntegrationInterface {
 		);
 	}
 
-	public function register_newsletter_block_frontend_scripts() {
+	public function register_frontend_scripts() {
 		$script_path       = '/build/smaily-checkout-optin-block-frontend.js';
 		$script_url        = plugins_url( $script_path, __FILE__ );
 		$script_asset_path = __DIR__ . '/build/newsletter-block-frontend.asset.php';
