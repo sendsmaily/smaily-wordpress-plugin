@@ -120,8 +120,8 @@ class Smaily_Widget extends WP_Widget {
 			array(
 				'title'            => '',
 				'show_name'        => isset( $instance['show_name'] ) ? (bool) $instance['show_name'] : false,
-				'success_url'      => Smaily_Helper::get_current_url(),
-				'failure_url'      => Smaily_Helper::get_current_url(),
+				'success_url'      => '',
+				'failure_url'      => '',
 				'autoresponder_id' => '',
 			)
 		);
@@ -143,11 +143,10 @@ class Smaily_Widget extends WP_Widget {
 			<input class="widefat" id="<?php echo esc_attr( $title_id ); ?>" name="<?php echo esc_attr( $title_name ); ?>" type="text" value="<?php echo esc_attr( $instance['title'] ); ?>" />
 		</p>
 		<p>
-			<input class="checkbox" id="<?php esc_attr( $show_name_id ); ?>" name="<?php esc_attr( $show_name_name ); ?>" type="checkbox" <?php checked( $instance['show_name'] ); ?> />
+			<input class="checkbox" id="<?php echo esc_attr( $show_name_id ); ?>" name="<?php echo esc_attr( $show_name_name ); ?>" type="checkbox" <?php echo checked( $instance['show_name'] ); ?> value="1" />
 			<label for="<?php echo esc_attr( $show_name_id ); ?>"><?php esc_html_e( 'Display name field?', 'smaily' ); ?></label>
 		</p>
 		<p>
-			<?php esc_html_e( 'Note: URLs are optional. If left empty, the current page URL will be used.', 'smaily' ); ?>
 			<label for="<?php echo esc_attr( $success_url_id ); ?>"><?php esc_html_e( 'Success URL', 'smaily' ); ?>:</label>
 			<input id="<?php echo esc_attr( $success_url_id ); ?>" name="<?php echo esc_attr( $success_url_name ); ?>" type="text" value="<?php echo esc_url( $instance['success_url'] ); ?>" />
 		</p>
@@ -155,6 +154,7 @@ class Smaily_Widget extends WP_Widget {
 			<label for="<?php echo esc_attr( $failure_url_id ); ?>"><?php esc_html_e( 'Failure URL', 'smaily' ); ?>:</label>
 			<input id="<?php echo esc_attr( $failure_url_id ); ?>" name="<?php echo esc_attr( $failure_url_name ); ?>" type="text" value="<?php echo esc_url( $instance['failure_url'] ); ?>" />
 		</p>
+		<?php esc_html_e( 'Note: URLs are optional. If left empty, the current page URL will be used.', 'smaily' ); ?>
 		<p>
 			<label for="<?php echo esc_attr( $autoresponder_id ); ?>"><?php esc_html_e( 'Autoresponder ID', 'smaily' ); ?>:</label>
 			<select id="<?php echo esc_attr( $autoresponder_id ); ?>" name="<?php echo esc_attr( $autoresponder_id_name ); ?>">
