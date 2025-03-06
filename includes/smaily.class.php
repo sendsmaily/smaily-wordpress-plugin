@@ -213,6 +213,15 @@ class Smaily {
 				add_action( 'edit_user_profile', array( $smaily_profile_settings, 'smaily_print_user_admin_fields' ), 30 ); // admin: edit other users.
 
 				// Add opt-in checkbox to block checkout.
+				add_filter(
+					'__experimental_woocommerce_blocks_add_data_attributes_to_block',
+					function ( $allowed_blocks ) {
+						$allowed_blocks[] = 'smaily/checkout-optin';
+						return $allowed_blocks;
+					},
+					10,
+					1
+				);
 				add_action(
 					'woocommerce_blocks_loaded',
 					function () {

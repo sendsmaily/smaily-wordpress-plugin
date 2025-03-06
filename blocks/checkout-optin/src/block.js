@@ -22,7 +22,7 @@ const Block = ( { children, checkoutExtensionData } ) => {
 	return (
 		<>
 			<CheckboxControl
-				id="smaily-checkout-subscribe"
+				id="smaily-checkout-optin"
 				checked={ checked }
 				onChange={ setChecked }
 			>
