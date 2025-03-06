@@ -109,6 +109,7 @@ class Smaily {
 		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin.class.php';
+		require_once SMAILY_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-newsletter-signup-blocks-integration.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-api.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-block.class.php';
 		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
@@ -159,7 +160,12 @@ class Smaily {
 	 */
 	public function init_blocks() {
 		wp_enqueue_style( 'wp-components' );
-		register_block_type( SMAILY_PLUGIN_PATH . '/blocks/newsletter-signup/build' );
+		register_block_type(
+			SMAILY_PLUGIN_PATH . '/blocks/newsletter-signup/build',
+			array(
+				'render_callback' => array( 'Smaily_Newsletter_Signup_Blocks_Integration', 'render' ),
+			)
+		);
 	}
 
 	/**
