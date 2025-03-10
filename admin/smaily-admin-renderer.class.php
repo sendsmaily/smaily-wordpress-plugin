@@ -114,7 +114,7 @@ class Renderer {
 	 * @return void
 	 */
 	public function render_abandoned_cart_status_field( $args ) {
-		$autoresponders           = $args['autoresponders'];
+		$autoresponders           = Admin::get_autoresponders( $this->options );
 		$abandoned_cart_status    = get_option( Smaily_Options::ABANDONED_CART_STATUS_OPTION, Smaily_Options::ABANDONED_CART_DEFAULT_STATUS );
 		$enabled                  = $abandoned_cart_status['enabled'];
 		$current_autoresponder_id = $abandoned_cart_status['autoresponder_id'];

@@ -259,10 +259,7 @@ class Settings {
 			__( 'Enable Abandoned Cart', 'smaily' ),
 			array( $this->renderer, 'render_abandoned_cart_status_field' ),
 			$page,
-			$abandoned_cart_section,
-			array(
-				'autoresponders' => Admin::get_autoresponders( $this->options ),
-			)
+			$abandoned_cart_section
 		);
 
 		add_settings_field(
@@ -274,7 +271,7 @@ class Settings {
 			array(
 				'option_name' => Smaily_Options::ABANDONED_CART_CUTOFF_OPTION,
 				'min'         => Smaily_Options::ABANDONED_CART_DEFAULT_CUTOFF,
-				'help'        => __( 'Minimum 10 minutes', 'smaily' ),
+				'help'        => __( 'Minimum 10 minutes.', 'smaily' ),
 			)
 		);
 
