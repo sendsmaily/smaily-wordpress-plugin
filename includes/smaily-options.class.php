@@ -61,10 +61,11 @@ class Smaily_Options {
 
 	/**
 	 * Default cart cutoff time in minutes.
+	 * Best practice, offering largest potential for conversion.
 	 *
 	 * @var array
 	 */
-	const ABANDONED_CART_DEFAULT_CUTOFF = 10;
+	const ABANDONED_CART_DEFAULT_CUTOFF = 30;
 
 	/**
 	 * Default position for checkout subscription checkbox.

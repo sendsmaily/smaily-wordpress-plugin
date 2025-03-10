@@ -136,7 +136,10 @@ class Cron {
 	 * @return void
 	 */
 	public function smaily_abandoned_carts_email() {
-		$status = get_option( Smaily_Options::ABANDONED_CART_STATUS_OPTION, Smaily_Options::ABANDONED_CART_DEFAULT_STATUS );
+		$status = get_option(
+			Smaily_Options::ABANDONED_CART_STATUS_OPTION,
+			Smaily_Options::ABANDONED_CART_DEFAULT_STATUS
+		);
 		if ( ! $status['enabled'] ) {
 			return;
 		}
@@ -145,8 +148,9 @@ class Cron {
 			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
 			Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS
 		);
+
 		foreach ( $this->get_abandoned_carts() as $cart ) {
-			$cart = maybe_unserialize( $cart['cart_content'] );
+			$cart_content = maybe_unserialize( $cart['cart_content'] );
 			if ( empty( $cart ) ) {
 				continue;
 			}
@@ -157,10 +161,14 @@ class Cron {
 			}
 
 			$addresses = $this->prepare_user_data( $user, $sync_fields );
-			$products  = $this->prepare_products_data( $cart, $sync_fields );
+			$products  = $this->prepare_products_data( $cart_content, $sync_fields );
 
 			$request  = new Smaily_Request( $this->options );
-			$response = $request->trigger_automation( (int) $status['autoresponder_id'], array_merge( $addresses, $products ), false );
+			$response = $request->trigger_automation(
+				(int) $status['autoresponder_id'],
+				array( array_merge( $addresses, $products ) ),
+				false
+			);
 
 			if ( empty( $response ) ) {
 				return $this->logger->error( 'Failed to trigger abandoned cart email flow - received an empty response' );
@@ -314,7 +322,8 @@ class Cron {
 	 */
 	private function prepare_user_data( WP_User $user, array $options ) {
 		$addresses = array(
-			// is_abandoned_cart field is a business requirement. If same account is used for marketing and abandoned cart, then it is necessary to distinguish
+			// is_abandoned_cart field is a business requirement.
+			// If same account is used for marketing and abandoned cart, then it is necessary to distinguish
 			// between the two. The contact can receive abandoned cart emails, but not marketing emails.
 			'is_abandoned_cart' => 'true',
 		);

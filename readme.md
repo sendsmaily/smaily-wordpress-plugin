@@ -48,6 +48,8 @@ This is a description of the values that are added to the user's meta data when 
 
 ### Customer synchronization
 
+Customer synchronization is run once per day. The synchronization is triggered by the WordPress cron job.
+
 Automatically added values:
 - `email` - user's email address
 - `store` - store URL
@@ -90,6 +92,14 @@ The following attributes are available:
 - `product_price` - product sale price including tax and with currency
 - `product_image_url` - product image URL. Featured image is used. If not set the first image from the product gallery is used.
 - `over_10_product` - true if there are more than 10 products in the cart
+
+## Abandoned Cart Reminder
+
+The abandoned cart actions are scheduled to run in every 15 minutes. This means that the abandoned carts are marked and notifications are sent in every 15 minutes. User can configure the time when cart is considered abandoned (cart cutoff time) in the plugin settings. The default cutoff time is 30 minutes. This means that the cart is considered abandoned if the user has not completed the purchase in 30 minutes after the last cart update.
+
+As the cron job is scheduled to run in every 15 minutes and the actual time when the abandoned cart reminder is sent can be up to 15 minutes after the cart is considered abandoned. The abandoned cart reminder is sent only once per abandoned cart.
+
+We recommend the default value of 30 minutes for the delay. This is the sweet spot for most of the cases and offers a good balance between reminding the user and not spamming them and offering the largest potential for conversion.
 
 ## Changelog
 
