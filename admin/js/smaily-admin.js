@@ -2,7 +2,7 @@
 (function ($) {
 	$().ready(function () {
 		// Generate RSS product feed URL if options change.
-		$('.smaily-rss-options').change(function () {
+		$('.smaily-rss-options').on('change', function () {
 			var rss_url = new URL( smaily_settings['rss_feed_url'] );
 
 			var rss_category = $('#smaily-rss-category').val()
@@ -26,6 +26,20 @@
 			}
 
 			$('#smaily-rss-feed-url').html(rss_url.href)
-		})
+		});
+
+		// Copy RSS product feed URL to clipboard.
+		$('#smaily-rss-feed-url-copy').on('click', function () {
+			var url = document.getElementById("smaily-rss-feed-url").innerText;
+			console.log(url);
+			navigator.clipboard.writeText(url).then(function() {
+				$('#smaily-rss-feed-url-copy-icon').animate({opacity: 1}, 200);
+				setTimeout(function() {
+					$('#smaily-rss-feed-url-copy-icon').animate({opacity: 0}, 200);
+				}, 1000);
+			}, function(err) {
+				console.error('Async: Could not copy text: ', err);
+			});
+		});
 	})
 })(jQuery)

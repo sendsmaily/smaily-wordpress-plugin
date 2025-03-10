@@ -204,7 +204,7 @@ class Renderer {
 			get_option( Smaily_Options::RSS_ORDER_BY_OPTION, null )
 		);
 		?>
-		<fieldset>
+		<fieldset style="max-width: 315px;">
 			<strong id="smaily-rss-feed-url" name="rss_feed_url" class="smaily-rss-options">
 				<?php echo esc_url( $url ); ?>
 			</strong>
@@ -216,6 +216,20 @@ class Renderer {
 				);
 				?>
 			</small>
+			<div style="display: flex; align-items: center; margin-top: 10px;">
+			<button
+				type="button"
+				class="button button-secondary"
+				id="smaily-rss-feed-url-copy"
+			>
+				<?php esc_html_e( 'Copy', 'smaily' ); ?>
+			</button>
+			<span
+				id="smaily-rss-feed-url-copy-icon"
+				class="dashicons-before dashicons-yes"
+				style="color: green; opacity: 0;"
+			/>
+			</div>
 		</fieldset>
 		<?php
 	}
