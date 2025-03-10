@@ -15,7 +15,7 @@ Comprehensive Smaily integration for WordPress, WooCommerce, and Contact Form 7,
 
 For documentation, feature requests, and support, visit our [Help Center](https://smaily.com/help/user-manuals/).
 
-## External services
+## External Services
 
 This plugin uses [Smaily Public API](https://smaily.com/help/api/) to communicate with your Smaily account. This is needed to establish a connection
 and transfer information between your WordPress site and your Smaily account. The plugin uses the API for following functionality:
@@ -42,13 +42,47 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 1. Upload the plugin files to your site's `/wp-content/plugins/` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress.
 
-## Synchronization values
+
+## Customer Synchronization
+
+The customer synchronization runs once per day and is triggered by a WordPress cron job.
+
+### Two-way Automatic Synchronization
+
+The two way automatic synchronization works as follows:
+1. Users who have been unsubscribed from the newsletter in Smaily are also unsubscribed in WordPress.
+2. Users who have subscribed status are now added to Smaily.
+
+This means that the plugin will automatically synchronize the subscription status and the users data between WordPress and Smaily. Smaily will remain the master source of the data. You can notice that there is no step to import users from Smaily to WordPress. This is because the plugin is designed to push the data from WordPress to Smaily and not the other way around.
+
+Additionally, the users who have been unsubscribed from the newsletter in Smaily are always unsubscribed in WordPress. This is to prevent the user from being added back to Smaily when they have unsubscribed with the unsubscribe link in the newsletter. To re-subscribe the user must use the subscription form or other real-time subscription method.
+
+### Real-Time Synchronization
+
+The real-time synchronization is triggered by the user's actions on the site. These happen instantly and do not require the WordPress cron job to run.
+
+There are quite a few options available:
+- subscriber uses the built-in Smaily newsletter subscription form (widget, shortcode, or block)
+- subscriber checks the subscription checkbox during registration or checkout
+- subscriber updates their account details and checks the subscription checkbox
+- administrator updates the user's subscription status in the user's profile
+- subscriber uses Contact Form 7 form that has been configured with Smaily
+
+You can also use the Smaily landing pages to collect subscribers. The landing pages are not part of the plugin but you can use a button or a link to direct the user to the landing page.
+
+## Abandoned Cart Reminder Emails
+
+The abandoned cart actions are scheduled to run in every 15 minutes. This means that the abandoned carts are marked and notifications are sent in every 15 minutes. User can configure the time when cart is considered abandoned (cart cutoff time) in the plugin settings. The default cutoff time is 30 minutes. This means that the cart is considered abandoned if the user has not completed the purchase in 30 minutes after the last cart update.
+
+As the cron job is scheduled to run in every 15 minutes and the actual time when the abandoned cart reminder is sent can be up to 15 minutes after the cart is considered abandoned. The abandoned cart reminder is sent only once per abandoned cart.
+
+We recommend the default value of 30 minutes for the delay. This is the sweet spot for most of the cases and offers a good balance between reminding the user and not spamming them and offering the largest potential for conversion.
+
+## Synchronization Values
 
 This is a description of the values that are added to the user's meta data when synchronizing users between WordPress and Smaily. Some of these values are automatically added by the plugin, some of them can be configured in the plugin settings.
 
-### Customer synchronization
-
-Customer synchronization is run once per day. The synchronization is triggered by the WordPress cron job.
+### Customer Synchronization
 
 Automatically added values:
 - `email` - user's email address
@@ -67,7 +101,7 @@ Optional values:
 - `user_gender` - user's gender
 - `user_phone` - user's phone number
 
-### Abandoned cart synchronization
+### Abandoned Cart Synchronization
 
 Automatically added values:
 - `email` - user's email address
@@ -93,13 +127,6 @@ The following attributes are available:
 - `product_image_url` - product image URL. Featured image is used. If not set the first image from the product gallery is used.
 - `over_10_product` - true if there are more than 10 products in the cart
 
-## Abandoned Cart Reminder
-
-The abandoned cart actions are scheduled to run in every 15 minutes. This means that the abandoned carts are marked and notifications are sent in every 15 minutes. User can configure the time when cart is considered abandoned (cart cutoff time) in the plugin settings. The default cutoff time is 30 minutes. This means that the cart is considered abandoned if the user has not completed the purchase in 30 minutes after the last cart update.
-
-As the cron job is scheduled to run in every 15 minutes and the actual time when the abandoned cart reminder is sent can be up to 15 minutes after the cart is considered abandoned. The abandoned cart reminder is sent only once per abandoned cart.
-
-We recommend the default value of 30 minutes for the delay. This is the sweet spot for most of the cases and offers a good balance between reminding the user and not spamming them and offering the largest potential for conversion.
 
 ## Changelog
 

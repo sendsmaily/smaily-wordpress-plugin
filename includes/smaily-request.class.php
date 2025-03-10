@@ -95,7 +95,13 @@ class Smaily_Request {
 	 * @return array
 	 */
 	public function list_unsubsribers() {
-		return $this->get( 'contacts', array( 'list' => 2 ) );
+		return $this->get(
+			'contact',
+			array(
+				'list'   => 2,
+				'fields' => '',
+			)
+		);
 	}
 
 	/**
