@@ -34,8 +34,8 @@ class Smaily_Widget extends WP_Widget {
 	 * @param Admin   $admin_model Reference to admin class.
 	 */
 	public function __construct( Smaily_Options $options, Admin $admin_model ) {
-		$widget_ops = array( 'description' => __( 'Smaily newsletter subscription form', 'smaily' ) );
-		parent::__construct( 'smaily_subscription_widget', __( 'Smaily Newsletter Subscription', 'smaily' ), $widget_ops );
+		$widget_ops = array( 'description' => __( 'Smaily Classic Subscription Widget', 'smaily' ) );
+		parent::__construct( 'smaily_subscription_widget', __( 'Smaily Classic Subscription Widget', 'smaily' ), $widget_ops );
 
 		$this->options     = $options;
 		$this->admin_model = $admin_model;

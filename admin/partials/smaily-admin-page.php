@@ -15,6 +15,7 @@ if ( isset( $_GET['tab'] ) ) {
 		$current_tab = $tab;
 	}
 }
+$show_submit_button = isset( $tabs[ $current_tab ]['submit_button_text'] );
 
 settings_errors( 'smaily_messages' );
 ?>
@@ -34,7 +35,7 @@ settings_errors( 'smaily_messages' );
 		<?php
 			settings_fields( $tabs[ $current_tab ]['option_group'] );
 			do_settings_sections( $tabs[ $current_tab ]['page'] );
-			submit_button( $tabs[ $current_tab ]['submit_button_text'] );
+			$show_submit_button && submit_button( $tabs[ $current_tab ]['submit_button_text'] );
 		?>
 	</form>
 </div>

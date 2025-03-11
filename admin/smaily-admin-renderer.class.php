@@ -8,6 +8,7 @@
 
 namespace Smaily_Admin;
 
+use Smaily_Helper;
 use Smaily_Options;
 use Smaily_Request;
 use Smaily_WC\Rss;
@@ -48,13 +49,182 @@ class Renderer {
 				</p>
 			</div>
 		<?php endif; ?>
-		<div>
+		<div style="max-width: 500px;">
 			<p>
 				<?php esc_html_e( 'Start by setting up the connection between Smaily and your website. To do this, you need to create API credentials in Smaily and enter them below.', 'smaily' ); ?>
 			</p>
 			<a href="https://smaily.com/help/api/general/create-api-user/" target="_blank">
 				<?php esc_html_e( 'How to create API credentials?', 'smaily' ); ?>
 			</a>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders tutorial section subscriber collection HTML content.
+	 *
+	 * @return void
+	 */
+	public function render_tutorial_subscriber_collection_section() {
+		?>
+		<div style="max-width: 500px;">
+			<p>
+				<?php esc_html_e( 'You can use the following methods to collect subscribers:', 'smaily' ); ?>
+				<ol>
+					<?php if ( ! wp_is_block_theme() ) : ?>
+					<li>
+						<p>
+							<strong>
+								<?php esc_html_e( 'Use the Smaily subscription form block.', 'smaily' ); ?>
+							</strong>
+						</p>
+						<p>
+							<?php
+								esc_html_e(
+									'Add the Smaily Sign-Up Form block to any page or post. The block is available in the block editor.',
+									'smaily'
+								);
+							?>
+							<br>
+						</p>
+					</li>
+					<?php else : ?>
+					<li>
+						<p>
+							<strong>
+								<?php esc_html_e( 'Use the Smaily subscription form widget.', 'smaily' ); ?>
+							</strong>
+						</p>
+						<p>
+							<?php esc_html_e( 'You can add the widget to your website from the widgets page.', 'smaily' ); ?>
+						</p>
+						<a href="<?php echo esc_url( admin_url( 'widgets.php' ) ); ?>">
+							<?php esc_html_e( 'Set up the Smaily Classic Subscription widget.', 'smaily' ); ?>
+						</a>
+					</li>
+					<?php endif; ?>
+					<li>
+						<p>
+							<strong>
+								<?php esc_html_e( 'Use the Smaily subscription form shortcode.', 'smaily' ); ?>
+							</strong>
+						</p>
+						<p>
+						<?php
+							printf(
+								/* translators: 1: example subdomain between strong tags */
+								esc_html__(
+									'You can add the %1$s shortcode to any page or post.',
+									'smaily'
+								),
+								'<i>[smaily_newsletter_form]</i>'
+							);
+						?>
+						</p>
+						<?php
+							$anchor = esc_html_x( 'read the detailed guide', 'link to shortcode guide', 'smaily' );
+							$domain = esc_url( __( 'https://smaily.com/help/how-to/ecommerce-integrations/smaily-plugin-for-wordpress#toc-heading-4', 'smaily' ) );
+							$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
+							echo sprintf(
+								/* translators: 1: link to setting up block component guide */
+								esc_html__( 'For more configuration options %1$s.', 'smaily' ),
+								wp_kses_post( $link )
+							);
+						?>
+					</li>
+					<li>
+						<p>
+							<strong>
+								<?php esc_html_e( 'Build your own from component.', 'smaily' ); ?>
+							</strong>
+						</p>
+						<p>
+							<?php
+								esc_html_e(
+									'You can add the Smaily subscription form to your website by using the custom HTML form.
+									This is the most advanced way to add the form to your website but also the most flexible.',
+									'smaily'
+								);
+							?>
+						</p>
+						<?php
+							$anchor = esc_html_x( 'here', 'link to example custom HTML form', 'smaily' );
+							$domain = esc_url( __( 'https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/', 'smaily' ) );
+							$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
+							echo sprintf(
+								/* translators: 1: link to custom HTML guide */
+								esc_html__( 'You can view the example form %1$s.', 'smaily' ),
+								wp_kses_post( $link )
+							);
+						?>
+					</li>
+					<li>
+						<p>
+							<strong>
+								<?php esc_html_e( 'Use the Contact Form 7 form builder.', 'smaily' ); ?>
+							</strong>
+						</p>
+						<p>
+							<?php
+							$anchor = esc_html_x( 'Contact Form 7', 'link to Contact Form 7 plugin page', 'smaily' );
+							$domain = esc_url( __( 'https://wordpress.org/plugins/contact-form-7/', 'smaily' ) );
+							$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
+							echo sprintf(
+								/* translators: 1: link to Contact Form 7 plugin page */
+								esc_html__( 'If the custom HTML form is too advanced for you, you can use the %1$s integration.', 'smaily' ),
+								wp_kses_post( $link )
+							);
+							?>
+						</p>
+						<?php if ( Smaily_Helper::is_cf7_active() ) : ?>
+							<p>
+								<a href="<?php echo esc_url( menu_page_url( 'wpcf7', false ) ); ?>">
+									<?php esc_html_e( 'Enable Smaily Opt-In under the form settings.', 'smaily' ); ?>
+								</a>
+							</p>
+						<?php else : ?>
+							<p>
+								<?php
+									esc_html_e(
+										'Please install the Contact Form 7 plugin to use this integration.',
+										'smaily'
+									);
+								?>
+							</p>
+						<?php endif; ?>
+					</li>
+				</ol>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders tutorial section for WooCommerce integration.
+	 *
+	 * @return void
+	 */
+	public function render_tutorial_woocommerce_section() {
+		?>
+		<div style="max-width: 500px;">
+			<p>
+				<?php esc_html_e( 'Smaily integrates also with your WooCommerce store.', 'smaily' ); ?>
+				<?php esc_html_e( 'This plugin allows you to:', 'smaily' ); ?>
+				<ol>
+					<li>
+						<?php esc_html_e( 'Automatically Synchronize contacts using the daily Customer Synchronization.', 'smaily' ); ?>
+					</li>
+					<li>
+						<?php esc_html_e( 'Send Abandoned Cart reminder emails to store customers.', 'smaily' ); ?>
+					</li>
+					<li>
+						<?php esc_html_e( 'Allow collecting subscribers during checkout.', 'smaily' ); ?>
+					</li>
+					<li>
+						<?php esc_html_e( 'Generate RSS-feeds of your products and insert them to email templates.', 'smaily' ); ?>
+					</li>
+				</ol>
+			</p>
 		</div>
 		<?php
 	}
@@ -86,7 +256,13 @@ class Renderer {
 		?>
 		<div>
 			<p>
-				<?php esc_html_e( 'Customer Synchronization allows you to automate synchronizing newsletter subscribers and their information directly to Smaily.', 'smaily' ); ?>
+				<?php
+					esc_html_e(
+						'Customer Synchronization allows you to automate synchronizing
+						newsletter subscribers and their information directly to Smaily.',
+						'smaily'
+					);
+				?>
 			</p>
 		</div>
 		<?php
@@ -101,7 +277,12 @@ class Renderer {
 		?>
 		<div>
 			<p>
-				<?php esc_html_e( 'This is the Smaily WooCommerce Abandoned Cart plugin. It allows you to send abandoned cart emails to your customers.', 'smaily' ); ?>
+				<?php
+				esc_html_e(
+					'Abandoned Cart allows you to send automated emails to customers who have left their shopping cart.',
+					'smaily'
+				);
+				?>
 			</p>
 		</div>
 		<?php
@@ -170,7 +351,12 @@ class Renderer {
 		?>
 		<div>
 			<p>
-				<?php esc_html_e( 'Customers can subscribe by checking "subscribe to newsletter" checkbox on checkout page.', 'smaily' ); ?>
+				<?php
+				esc_html_e(
+					'Customers can subscribe by checking "subscribe to newsletter" checkbox on checkout page.',
+					'smaily'
+				);
+				?>
 			</p>
 		</div>
 		<?php
@@ -185,8 +371,16 @@ class Renderer {
 		?>
 		<div>
 			<p>
-				<?php esc_html_e( 'Smaily RSS feed allows you insert product feeds to email templates.', 'smaily' ); ?>
+				<?php
+				esc_html_e(
+					'Smaily RSS feed allows you insert product feeds to email templates.',
+					'smaily'
+				);
+				?>
 			</p>
+			<a href="https://smaily.com/help/user-manual/templates/adding-rss-feed-to-template/" target="_blank">
+				<?php esc_html_e( 'How to add RSS feed to template?', 'smaily' ); ?>
+			</a>
 		</div>
 		<?php
 	}

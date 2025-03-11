@@ -8,6 +8,7 @@
 
 namespace Smaily_Admin;
 
+use Smaily_Helper;
 use Smaily_Options;
 use Smaily_WC\Rss;
 
@@ -78,6 +79,24 @@ class Settings {
 		);
 	}
 
+	public function register_tutorial_tab_settings( $option_group, $page ) {
+		add_settings_section(
+			'smaily_settings_subscriber_collection_section',
+			__( 'Setting up subscriber collection', 'smaily' ),
+			array( $this->renderer, 'render_tutorial_subscriber_collection_section' ),
+			$page
+		);
+
+		if ( Smaily_Helper::is_woocommerce_active() ) {
+			add_settings_section(
+				'smaily_settings_woocommerce_section',
+				__( 'WooCommerce integration', 'smaily' ),
+				array( $this->renderer, 'render_tutorial_woocommerce_section' ),
+				$page
+			);
+		}
+	}
+
 	/**
 	 * Registers customer synchronization related configuration options.
 	 *
@@ -108,7 +127,7 @@ class Settings {
 
 		add_settings_section(
 			$customer_sync_section,
-			__( 'Customer Synchronization', 'smaily' ),
+			__( 'Daily Automatic Customer Synchronization', 'smaily' ),
 			array( $this->renderer, 'render_customer_sync_section_header' ),
 			$page
 		);
@@ -121,6 +140,7 @@ class Settings {
 			$customer_sync_section,
 			array(
 				'option_name' => Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION,
+				'help'        => __( 'The cron job will run once a day.', 'smaily' ),
 			)
 		);
 
@@ -249,7 +269,7 @@ class Settings {
 
 		add_settings_section(
 			$abandoned_cart_section,
-			__( 'Abandoned Cart', 'smaily' ),
+			__( 'Abandoned Cart Reminder Emails', 'smaily' ),
 			array( $this->renderer, 'render_abandoned_cart_section_header' ),
 			$page
 		);
