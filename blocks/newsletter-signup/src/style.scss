@@ -41,6 +41,7 @@
 		color: var(--smaily-subscribe-button-text-color);
 		justify-content: center;
 		width: var(--smaily-subscribe-button-width);
+		border-radius: var(--smaily-subscribe-button-border-radius);
 	}
 
 	.smaily-newsletter-block-button-submit:hover:not(:disabled) {

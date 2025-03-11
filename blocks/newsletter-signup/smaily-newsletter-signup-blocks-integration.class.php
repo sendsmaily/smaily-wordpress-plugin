@@ -39,10 +39,15 @@ class Smaily_Newsletter_Signup_Blocks_Integration {
 			array(
 				'class' => 'wp-block-smaily-newsletter-block-wrapper',
 				'style' => sprintf(
-					'--smaily-subscribe-button-bg-color: %s; --smaily-subscribe-button-text-color: %s; --smaily-subscribe-button-width: %s;',
+					'--smaily-subscribe-button-bg-color: %s;
+					--smaily-subscribe-button-text-color: %s;
+					--smaily-subscribe-button-width: %s;
+					--smaily-subscribe-button-border-radius: %spx;
+					',
 					esc_attr( $attributes['subscribeButtonBackgroundColor'] ),
 					esc_attr( $attributes['subscribeButtonTextColor'] ),
-					esc_attr( $attributes['subscribeButtonWidth'] )
+					esc_attr( $attributes['subscribeButtonWidth'] ),
+					esc_attr( $attributes['subscribeButtonBorderRadius'] )
 				),
 			)
 		);

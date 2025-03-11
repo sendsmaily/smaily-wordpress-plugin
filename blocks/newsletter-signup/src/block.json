@@ -7,12 +7,7 @@
 	"category": "widgets",
 	"description": "Smaily newsletter subscription form.",
 	"example": {},
-	"keywords": [
-		"smaily",
-		"newsletter",
-		"subscription",
-		"form"
-	],
+	"keywords": ["smaily", "newsletter", "subscription", "form"],
 	"attributes": {
 		"subdomain": {
 			"type": "string",
@@ -41,6 +36,10 @@
 		"subscribeButtonWidth": {
 			"type": "string",
 			"default": "auto"
+		},
+		"subscribeButtonBorderRadius": {
+			"type": "number",
+			"default": 0
 		},
 		"emailInputLabel": {
 			"type": "string",
