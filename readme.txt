@@ -2,7 +2,7 @@
 Contributors: sendsmaily, kaarel, tomabel, marispulk, tanely
 Tags: smaily, newsletter, email, mail, marketing
 Requires PHP: 7.0
-Requires at least: 5.0
+Requires at least: 6.0
 Tested up to: 6.7
 WC tested up to: 9.6.1
 Stable tag: 1.0.0
