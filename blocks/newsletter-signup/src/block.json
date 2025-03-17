@@ -5,7 +5,7 @@
 	"version": "1.0.0",
 	"title": "Smaily Sign-Up Form",
 	"category": "widgets",
-	"description": "Smaily newsletter subscription form.",
+	"description": "Smaily newsletter subscription form",
 	"example": {},
 	"keywords": ["smaily", "newsletter", "subscription", "form"],
 	"attributes": {

@@ -25,11 +25,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	</div>
 <?php else : ?>
 	<p id='smailyforcf7-captcha-error' style='padding:15px; background-color:#ffdf92; margin:0 0 10px; display:<?php echo $has_credentials ? 'none' : 'block'; ?>'>
-		<?php esc_html_e( 'Please authenticate smaily credentials under Smaily Settings.', 'smaily' ); ?>
+		<?php esc_html_e( 'Please authenticate Smaily credentials under Smaily Settings.', 'smaily' ); ?>
 	</p>
 	<div id='smailyforcf7-credentials-valid' style='display:<?php echo $has_credentials ? 'block' : 'none'; ?>'>
 		<p id='smailyforcf7-captcha-error' style='padding:15px; background-color:#ffdf92; margin:0 0 10px; display:<?php echo $captcha_enabled ? 'none' : 'block'; ?>'>
-			<?php esc_html_e( 'Captcha disabled. Please use a captcha if this is a public site.', 'smaily' ); ?>
+			<?php esc_html_e( 'CAPTCHA disabled. Please use a CAPTCHA if this is a public site.', 'smaily' ); ?>
 		</p>
 		<table class='autoresponders-table' style='margin:15px'>
 			<tr class="form-field">

@@ -4,6 +4,8 @@
  * Text Domain:       smaily
  * Description:       Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations.
  * Version:           1.0.0
+ * Text Domain:       smaily
+ * Domain Path:       /languages
  * Author:            Sendsmaily LLC
  * Author URI:        https://smaily.com
  * License:           GPL-3.0+

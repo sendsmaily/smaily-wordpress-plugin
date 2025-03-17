@@ -53,7 +53,7 @@ class Smaily_Checkout_Optin_Blocks_Integration implements IntegrationInterface {
 
 		$data = array(
 			'smailyCheckoutOptinActive' => $enabled,
-			'optInDefaultText'          => __( 'Subscribe me to the newsletter.', 'smaily' ),
+			'optInDefaultText'          => __( 'Subscribe to newsletter', 'smaily' ),
 		);
 
 		return $data;

@@ -13,7 +13,7 @@ $messages         = array(
 	201 => __( 'Form was not submitted using POST method.', 'smaily' ),
 	204 => __( 'Input does not contain a recognizable email address.', 'smaily' ),
 );
-$response_message = isset( $messages[ $code ] ) ? $messages[ $code ] : __( 'Could not add to subscriber list for an unknown reason. Probably something in Smaily.', 'smaily' );
+$response_message = isset( $messages[ $code ] ) ? $messages[ $code ] : __( 'Subscribing failed with unknown reason.', 'smaily' );
 $is_success       = $code === 101;
 $is_error         = $code !== null && ! $is_success;
 

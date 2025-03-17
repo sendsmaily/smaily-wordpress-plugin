@@ -45,7 +45,7 @@ $labels      = array(
 	<small class="form-text text-muted">
 		<?php
 		esc_html_e(
-			'Select fields wish to send to Smaily template along with subscriber email and store url.',
+			'Select extra fields you wish to send to Smaily.',
 			'smaily'
 		);
 		?>

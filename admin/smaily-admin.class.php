@@ -97,8 +97,7 @@ class Admin {
 	 *
 	 */
 	public function settings_init() {
-		$tabs = $this->list_admin_page_tabs();
-		foreach ( $tabs as $tab => $options ) {
+		foreach ( $this->list_admin_page_tabs() as $tab => $options ) {
 			$options['register_settings']( $options['option_group'], $options['page'] );
 		}
 	}

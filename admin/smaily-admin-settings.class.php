@@ -165,7 +165,7 @@ class Settings {
 
 		add_settings_section(
 			$checkout_subscription_section,
-			__( 'Checkout subscription', 'smaily' ),
+			__( 'Checkout Subscription', 'smaily' ),
 			array( $this->renderer, 'render_checkout_subscription_section_header' ),
 			$page
 		);

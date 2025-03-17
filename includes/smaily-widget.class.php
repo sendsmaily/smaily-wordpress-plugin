@@ -144,7 +144,7 @@ class Smaily_Widget extends WP_Widget {
 		</p>
 		<p>
 			<input class="checkbox" id="<?php echo esc_attr( $show_name_id ); ?>" name="<?php echo esc_attr( $show_name_name ); ?>" type="checkbox" <?php echo checked( $instance['show_name'] ); ?> value="1" />
-			<label for="<?php echo esc_attr( $show_name_id ); ?>"><?php esc_html_e( 'Display name field?', 'smaily' ); ?></label>
+			<label for="<?php echo esc_attr( $show_name_id ); ?>"><?php esc_html_e( 'Display name field', 'smaily' ); ?></label>
 		</p>
 		<p>
 			<label for="<?php echo esc_attr( $success_url_id ); ?>"><?php esc_html_e( 'Success URL', 'smaily' ); ?>:</label>

@@ -106,11 +106,8 @@ class Smaily_Public {
 				case 204:
 					$error_message = esc_html__( 'Input does not contain a valid email address.', 'smaily' );
 					break;
-				case 205:
-					$error_message = esc_html__( 'Could not add to subscriber list for an unknown reason.', 'smaily' );
-					break;
 				default:
-					$error_message = esc_html__( 'Something went wrong', 'smaily' );
+					$error_message = esc_html__( 'Subscribing failed with unknown reason.', 'smaily' );
 					break;
 			}
 		}
