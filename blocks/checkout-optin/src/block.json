@@ -29,5 +29,6 @@
 		}
 	},
 	"textdomain": "smaily",
+	"editorScript": "file:./smaily-checkout-optin-block.js",
 	"editorStyle": "file:./style-smaily-checkout-optin-block.css"
 }

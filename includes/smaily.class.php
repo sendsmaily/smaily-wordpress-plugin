@@ -167,9 +167,19 @@ class Smaily {
 				'render_callback' => array( 'Smaily_Newsletter_Signup_Blocks_Integration', 'render' ),
 			)
 		);
+		wp_set_script_translations(
+			'smaily-newsletter-block-editor-script',
+			'smaily',
+			SMAILY_PLUGIN_PATH . 'languages'
+		);
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-			register_block_type_from_metadata( SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/build' );
+			register_block_type( SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/build' );
+			wp_set_script_translations(
+				'smaily-checkout-optin-editor-script',
+				'smaily',
+				SMAILY_PLUGIN_PATH . 'languages'
+			);
 		}
 	}
 
