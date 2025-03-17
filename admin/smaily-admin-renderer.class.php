@@ -71,7 +71,7 @@ class Renderer {
 			<p>
 				<?php esc_html_e( 'You can use the following methods to collect subscribers:', 'smaily' ); ?>
 				<ol>
-					<?php if ( ! wp_is_block_theme() ) : ?>
+					<?php if ( wp_is_block_theme() ) : ?>
 					<li>
 						<p>
 							<strong>
