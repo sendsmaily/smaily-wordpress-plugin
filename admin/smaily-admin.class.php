@@ -69,71 +69,6 @@ class Admin {
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
 		$this->settings    = new Settings( $options );
-		$tabs              = array(
-			'connection' => array(
-				'title'              => __( 'Connection', 'smaily' ),
-				'submit_button_text' => $options->has_credentials() ? __( 'Disconnect', 'smaily' ) : __( 'Connect', 'smaily' ),
-				'url'                => add_query_arg(
-					array(
-						'page' => 'smaily-settings',
-						'tab'  => 'connection',
-					),
-					''
-				),
-				'register_settings'  => array( $this->settings, 'register_connection_tab_settings' ),
-				'option_group'       => 'smaily_settings_connection',
-				'page'               => 'smaily_settings_tab_connection',
-			),
-		);
-
-		if ( Smaily_Helper::is_woocommerce_active() && $this->options->has_credentials() ) {
-			$tabs['customer_sync'] = array(
-				'title'              => __( 'Customer Synchronization', 'smaily' ),
-				'submit_button_text' => __( 'Save', 'smaily' ),
-				'url'                => add_query_arg(
-					array(
-						'page' => 'smaily-settings',
-						'tab'  => 'customer_sync',
-					),
-					''
-				),
-				'register_settings'  => array( $this->settings, 'register_customer_sync_tab_settings' ),
-				'option_group'       => 'smaily_settings_customer_sync',
-				'page'               => 'smaily_settings_tab_customer_sync',
-			);
-
-			$tabs['abandoned_cart'] = array(
-				'title'              => __( 'Abandoned Cart', 'smaily' ),
-				'submit_button_text' => __( 'Save', 'smaily' ),
-				'url'                => add_query_arg(
-					array(
-						'page' => 'smaily-settings',
-						'tab'  => 'abandoned_cart',
-					),
-					''
-				),
-				'register_settings'  => array( $this->settings, 'register_abandoned_cart_tab_settings' ),
-				'option_group'       => 'smaily_settings_abandoned_cart',
-				'page'               => 'smaily_settings_tab_abandoned_cart',
-			);
-
-			$tabs['rss'] = array(
-				'title'              => __( 'RSS', 'smaily' ),
-				'submit_button_text' => __( 'Save', 'smaily' ),
-				'url'                => add_query_arg(
-					array(
-						'page' => 'smaily-settings',
-						'tab'  => 'rss',
-					),
-					''
-				),
-				'register_settings'  => array( $this->settings, 'register_rss_tab_settings' ),
-				'option_group'       => 'smaily_settings_rss',
-				'page'               => 'smaily_settings_tab_rss',
-			);
-		}
-
-		$this->tabs = $tabs;
 	}
 
 	/**
@@ -142,7 +77,7 @@ class Admin {
 	 * @return void
 	 */
 	public function settings_page() {
-		add_menu_page( 'Smaily Settings', 'Smaily', 'manage_options', 'smaily-settings', array( $this, 'render_admin_page' ), SMAILY_PLUGIN_URL . '/gfx/icon.png' );
+		add_menu_page( __( 'Smaily Settings', 'smaily' ), 'Smaily', 'manage_options', 'smaily-settings', array( $this, 'render_admin_page' ), SMAILY_PLUGIN_URL . '/gfx/icon.png' );
 	}
 
 	/**
@@ -162,7 +97,8 @@ class Admin {
 	 *
 	 */
 	public function settings_init() {
-		foreach ( $this->tabs as $tab => $options ) {
+		$tabs = $this->list_admin_page_tabs();
+		foreach ( $tabs as $tab => $options ) {
 			$options['register_settings']( $options['option_group'], $options['page'] );
 		}
 	}
@@ -283,6 +219,74 @@ class Admin {
 	 * @return array
 	 */
 	public function list_admin_page_tabs() {
+		if ( ! isset( $this->tabs ) ) {
+			$tabs = array(
+				'connection' => array(
+					'title'              => __( 'Connection', 'smaily' ),
+					'submit_button_text' => $this->options->has_credentials() ? __( 'Disconnect', 'smaily' ) : __( 'Connect', 'smaily' ),
+					'url'                => add_query_arg(
+						array(
+							'page' => 'smaily-settings',
+							'tab'  => 'connection',
+						),
+						''
+					),
+					'register_settings'  => array( $this->settings, 'register_connection_tab_settings' ),
+					'option_group'       => 'smaily_settings_connection',
+					'page'               => 'smaily_settings_tab_connection',
+				),
+			);
+
+			if ( Smaily_Helper::is_woocommerce_active() && $this->options->has_credentials() ) {
+				$tabs['customer_sync'] = array(
+					'title'              => __( 'Customer Synchronization', 'smaily' ),
+					'submit_button_text' => __( 'Save', 'smaily' ),
+					'url'                => add_query_arg(
+						array(
+							'page' => 'smaily-settings',
+							'tab'  => 'customer_sync',
+						),
+						''
+					),
+					'register_settings'  => array( $this->settings, 'register_customer_sync_tab_settings' ),
+					'option_group'       => 'smaily_settings_customer_sync',
+					'page'               => 'smaily_settings_tab_customer_sync',
+				);
+
+				$tabs['abandoned_cart'] = array(
+					'title'              => __( 'Abandoned Cart', 'smaily' ),
+					'submit_button_text' => __( 'Save', 'smaily' ),
+					'url'                => add_query_arg(
+						array(
+							'page' => 'smaily-settings',
+							'tab'  => 'abandoned_cart',
+						),
+						''
+					),
+					'register_settings'  => array( $this->settings, 'register_abandoned_cart_tab_settings' ),
+					'option_group'       => 'smaily_settings_abandoned_cart',
+					'page'               => 'smaily_settings_tab_abandoned_cart',
+				);
+
+				$tabs['rss'] = array(
+					'title'              => __( 'RSS', 'smaily' ),
+					'submit_button_text' => __( 'Save', 'smaily' ),
+					'url'                => add_query_arg(
+						array(
+							'page' => 'smaily-settings',
+							'tab'  => 'rss',
+						),
+						''
+					),
+					'register_settings'  => array( $this->settings, 'register_rss_tab_settings' ),
+					'option_group'       => 'smaily_settings_rss',
+					'page'               => 'smaily_settings_tab_rss',
+				);
+			}
+
+			$this->tabs = $tabs;
+		}
+
 		return $this->tabs;
 	}
 
