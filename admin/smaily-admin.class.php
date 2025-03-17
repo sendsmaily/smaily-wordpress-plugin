@@ -236,6 +236,22 @@ class Admin {
 				),
 			);
 
+			if ( $this->options->has_credentials() ) {
+				$tabs['tutorial'] = array(
+					'title'             => __( 'Getting started', 'smaily' ),
+					'url'               => add_query_arg(
+						array(
+							'page' => 'smaily-settings',
+							'tab'  => 'tutorial',
+						),
+						''
+					),
+					'register_settings' => array( $this->settings, 'register_tutorial_tab_settings' ),
+					'option_group'      => 'smaily_settings_tutorial',
+					'page'              => 'smaily_settings_tab_tutorial',
+				);
+			}
+
 			if ( Smaily_Helper::is_woocommerce_active() && $this->options->has_credentials() ) {
 				$tabs['customer_sync'] = array(
 					'title'              => __( 'Customer Synchronization', 'smaily' ),
