@@ -135,14 +135,13 @@ class Renderer {
 					<li>
 						<p>
 							<strong>
-								<?php esc_html_e( 'Build your own from component.', 'smaily' ); ?>
+								<?php esc_html_e( 'Build your own from.', 'smaily' ); ?>
 							</strong>
 						</p>
 						<p>
 							<?php
 								esc_html_e(
-									'You can add the Smaily subscription form to your website by using the custom HTML form.
-									This is the most advanced way to add the form to your website but also the most flexible.',
+									"Create a custom HTML form for maximum flexibility and advanced functionality. While this requires more technical knowledge, it gives you complete control over the form's appearance and behavior.",
 									'smaily'
 								);
 							?>
@@ -218,7 +217,7 @@ class Renderer {
 						<?php esc_html_e( 'Send Abandoned Cart reminder emails to store customers.', 'smaily' ); ?>
 					</li>
 					<li>
-						<?php esc_html_e( 'Allow collecting subscribers during checkout.', 'smaily' ); ?>
+						<?php esc_html_e( 'Collect subscribers during checkout.', 'smaily' ); ?>
 					</li>
 					<li>
 						<?php esc_html_e( 'Generate RSS-feeds of your products and insert them to email templates.', 'smaily' ); ?>
@@ -258,8 +257,7 @@ class Renderer {
 			<p>
 				<?php
 					esc_html_e(
-						'Customer Synchronization allows you to automate synchronizing
-						newsletter subscribers and their information directly to Smaily.',
+						'Customer Synchronization allows you to automate the synchronization of newsletter subscribers and their information directly with Smaily.',
 						'smaily'
 					);
 				?>

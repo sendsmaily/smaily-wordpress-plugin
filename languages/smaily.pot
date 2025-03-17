@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-03-17T10:11:48+00:00\n"
+"POT-Creation-Date: 2025-03-17T10:56:56+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily\n"
@@ -152,48 +152,171 @@ msgstr ""
 msgid "Phone"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:43
+#: admin/smaily-admin-renderer.class.php:44
 msgid "There seems to be a problem with your connection to Smaily. Please revalidate your credentials!"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:53
+#: admin/smaily-admin-renderer.class.php:54
 msgid "Start by setting up the connection between Smaily and your website. To do this, you need to create API credentials in Smaily and enter them below."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:56
+#: admin/smaily-admin-renderer.class.php:57
 msgid "How to create API credentials?"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:89
-msgid "Customer Synchronization allows you to automate synchronizing newsletter subscribers and their information directly to Smaily."
+#: admin/smaily-admin-renderer.class.php:72
+msgid "You can use the following methods to collect subscribers:"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:104
-msgid "This is the Smaily WooCommerce Abandoned Cart plugin. It allows you to send abandoned cart emails to your customers."
+#: admin/smaily-admin-renderer.class.php:78
+msgid "Use the Smaily subscription form block."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:131
-#: admin/smaily-admin-renderer.class.php:258
+#: admin/smaily-admin-renderer.class.php:83
+msgid "Add the Smaily Sign-Up Form block to any page or post. The block is available in the block editor."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:95
+msgid "Use the Smaily subscription form widget."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:99
+msgid "You can add the widget to your website from the widgets page."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:102
+msgid "Set up the Smaily Classic Subscription widget."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:109
+msgid "Use the Smaily subscription form shortcode."
+msgstr ""
+
+#. translators: 1: example subdomain between strong tags
+#: admin/smaily-admin-renderer.class.php:116
+msgid "You can add the %1$s shortcode to any page or post."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:125
+msgctxt "link to shortcode guide"
+msgid "read the detailed guide"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:126
+msgid "https://smaily.com/help/how-to/ecommerce-integrations/smaily-plugin-for-wordpress#toc-heading-4"
+msgstr ""
+
+#. translators: 1: link to setting up block component guide
+#: admin/smaily-admin-renderer.class.php:130
+msgid "For more configuration options %1$s."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:138
+msgid "Build your own from."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:143
+msgid "Create a custom HTML form for maximum flexibility and advanced functionality. While this requires more technical knowledge, it gives you complete control over the form's appearance and behavior."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:150
+msgctxt "link to example custom HTML form"
+msgid "here"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:151
+msgid "https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/"
+msgstr ""
+
+#. translators: 1: link to custom HTML guide
+#: admin/smaily-admin-renderer.class.php:155
+msgid "You can view the example form %1$s."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:163
+msgid "Use the Contact Form 7 form builder."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:168
+msgctxt "link to Contact Form 7 plugin page"
+msgid "Contact Form 7"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:169
+msgid "https://wordpress.org/plugins/contact-form-7/"
+msgstr ""
+
+#. translators: 1: link to Contact Form 7 plugin page
+#: admin/smaily-admin-renderer.class.php:173
+msgid "If the custom HTML form is too advanced for you, you can use the %1$s integration."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:181
+msgid "Enable Smaily Opt-In under the form settings."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:187
+msgid "Please install the Contact Form 7 plugin to use this integration."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:210
+msgid "Smaily integrates also with your WooCommerce store."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:211
+msgid "This plugin allows you to:"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:214
+msgid "Automatically Synchronize contacts using the daily Customer Synchronization."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:217
+msgid "Send Abandoned Cart reminder emails to store customers."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:220
+msgid "Collect subscribers during checkout."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:223
+msgid "Generate RSS-feeds of your products and insert them to email templates."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:259
+msgid "Customer Synchronization allows you to automate the synchronization of newsletter subscribers and their information directly with Smaily."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:279
+msgid "Abandoned Cart allows you to send automated emails to customers who have left their shopping cart."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:310
+#: admin/smaily-admin-renderer.class.php:450
 msgid "Enabled"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:147
+#: admin/smaily-admin-renderer.class.php:326
 msgid "No automations created"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:173
+#: admin/smaily-admin-renderer.class.php:353
 msgid "Customers can subscribe by checking \"subscribe to newsletter\" checkbox on checkout page."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:188
+#: admin/smaily-admin-renderer.class.php:373
 msgid "Smaily RSS feed allows you insert product feeds to email templates."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:213
+#: admin/smaily-admin-renderer.class.php:380
+msgid "How to add RSS feed to template?"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:405
 msgid "Copy this URL into your template editor's RSS block, to receive RSS-feed."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:225
+#: admin/smaily-admin-renderer.class.php:417
 msgid "Copy"
 msgstr ""
 
@@ -213,128 +336,138 @@ msgstr ""
 msgid "Please enter password!"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:67
+#: admin/smaily-admin-settings.class.php:68
 #: admin/smaily-admin.class.php:224
 msgid "Connection"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:74
+#: admin/smaily-admin-settings.class.php:75
 msgid "Credentials"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:111
-#: admin/smaily-admin.class.php:241
-msgid "Customer Synchronization"
+#: admin/smaily-admin-settings.class.php:89
+msgid "Setting up subscriber collection"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:118
+#: admin/smaily-admin-settings.class.php:97
+msgid "WooCommerce integration"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:134
+msgid "Daily Automatic Customer Synchronization"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:141
 msgid "Enable Customer Synchronization"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:129
-#: admin/smaily-admin-settings.class.php:280
+#: admin/smaily-admin-settings.class.php:147
+msgid "The cron job will run once a day."
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:153
+#: admin/smaily-admin-settings.class.php:304
 msgid "Additional Fields"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:168
+#: admin/smaily-admin-settings.class.php:192
 msgid "Checkout Subscription"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:175
+#: admin/smaily-admin-settings.class.php:199
 msgid "Enable Checkout Subscription"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:186
+#: admin/smaily-admin-settings.class.php:210
 msgid "Position"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:198
+#: admin/smaily-admin-settings.class.php:222
 msgid "Location"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:252
-#: admin/smaily-admin.class.php:256
-msgid "Abandoned Cart"
+#: admin/smaily-admin-settings.class.php:276
+msgid "Abandoned Cart Reminder Emails"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:259
+#: admin/smaily-admin-settings.class.php:283
 msgid "Enable Abandoned Cart"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:267
+#: admin/smaily-admin-settings.class.php:291
 msgid "Cart cutoff time (minutes)"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:274
+#: admin/smaily-admin-settings.class.php:298
 msgid "Time in minutes after which the cart is considered abandoned. Minimum 10 minutes."
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:352
+#: admin/smaily-admin-settings.class.php:376
 msgid "Smaily RSS feed"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:359
+#: admin/smaily-admin-settings.class.php:383
 msgid "Limit"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:367
+#: admin/smaily-admin-settings.class.php:391
 msgid "Limit how many products you will add to your field. Maximum 250."
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:384
+#: admin/smaily-admin-settings.class.php:408
 msgid "Product Category"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:391
+#: admin/smaily-admin-settings.class.php:415
 msgid "All"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:393
+#: admin/smaily-admin-settings.class.php:417
 msgid "Show products from specific category."
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:401
+#: admin/smaily-admin-settings.class.php:425
 msgid "Sort by"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:408
+#: admin/smaily-admin-settings.class.php:432
 msgid "Modified At"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:409
+#: admin/smaily-admin-settings.class.php:433
 msgid "Created At"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:410
+#: admin/smaily-admin-settings.class.php:434
 msgid "ID"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:411
+#: admin/smaily-admin-settings.class.php:435
 #: public/partials/smaily-public-basic.php:41
 msgid "Name"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:412
+#: admin/smaily-admin-settings.class.php:436
 msgid "Random"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:413
+#: admin/smaily-admin-settings.class.php:437
 msgid "Type"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:422
+#: admin/smaily-admin-settings.class.php:446
 msgid "Order by"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:429
+#: admin/smaily-admin-settings.class.php:453
 msgid "Ascending"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:430
+#: admin/smaily-admin-settings.class.php:454
 msgid "Descending"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:439
+#: admin/smaily-admin-settings.class.php:463
 msgid "Product RSS feed"
 msgstr ""
 
@@ -350,17 +483,29 @@ msgstr ""
 msgid "Connect"
 msgstr ""
 
-#: admin/smaily-admin.class.php:242
+#: admin/smaily-admin.class.php:241
+msgid "Getting started"
+msgstr ""
+
 #: admin/smaily-admin.class.php:257
-#: admin/smaily-admin.class.php:272
+msgid "Customer Synchronization"
+msgstr ""
+
+#: admin/smaily-admin.class.php:258
+#: admin/smaily-admin.class.php:273
+#: admin/smaily-admin.class.php:288
 msgid "Save"
 msgstr ""
 
-#: admin/smaily-admin.class.php:271
+#: admin/smaily-admin.class.php:272
+msgid "Abandoned Cart"
+msgstr ""
+
+#: admin/smaily-admin.class.php:287
 msgid "RSS"
 msgstr ""
 
-#: admin/smaily-admin.class.php:339
+#: admin/smaily-admin.class.php:355
 msgid "Settings"
 msgstr ""
 
@@ -465,11 +610,8 @@ msgid "Shipping form"
 msgstr ""
 
 #: includes/smaily-widget.class.php:37
-msgid "Smaily newsletter subscription form"
-msgstr ""
-
 #: includes/smaily-widget.class.php:38
-msgid "Smaily Newsletter Subscription"
+msgid "Smaily Classic Subscription Widget"
 msgstr ""
 
 #: includes/smaily-widget.class.php:142
