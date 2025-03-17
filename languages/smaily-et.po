@@ -1,0 +1,693 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2025-03-17T10:11:54+00:00\n"
+"PO-Revision-Date: 2025-03-17T10:11:54+00:00\n"
+"Language: et\n"
+"Plural-Forms: nplurals = 2; plural = (n !== 1)\n"
+"X-Generator: Tolgee\n"
+
+#: admin/smaily-admin-settings.class.php:252
+#: admin/smaily-admin.class.php:256
+msgid "Abandoned Cart"
+msgstr "Hüljatud ostukorv"
+
+#: admin/smaily-admin-settings.class.php:129
+#: admin/smaily-admin-settings.class.php:280
+msgid "Additional Fields"
+msgstr "Täiendavad väljad"
+
+#: woocommerce/profile-settings.class.php:144
+msgid "Additional Information"
+msgstr "Lisateave"
+
+#: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
+#: blocks/checkout-optin/src/index.js:29
+msgid "Adds a newsletter subscription checkbox to the checkout."
+msgstr "Lisab kassasse uudiskirja tellimise märkeruudu."
+
+#: includes/smaily-options.class.php:164
+msgid "After"
+msgstr "Pärast"
+
+#: admin/smaily-admin-settings.class.php:391
+msgid "All"
+msgstr "Kõik"
+
+#: admin/smaily-admin-settings.class.php:429
+msgid "Ascending"
+msgstr "Kasvavalt"
+
+#: cf7/partials/smaily-cf7-admin.php:48
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:268
+msgid "Autoresponder"
+msgstr "Automaatvastaja"
+
+#: includes/smaily-widget.class.php:159
+msgid "Autoresponder ID"
+msgstr "Automaatvastaja ID"
+
+#: includes/smaily-options.class.php:163
+msgid "Before"
+msgstr "Enne"
+
+#: includes/smaily-options.class.php:188
+msgid "Billing form"
+msgstr "Arvelduse vorm"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:21
+#: woocommerce/profile-settings.class.php:50
+msgid "Birthday"
+msgstr "Sünnipäev"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:225
+msgid "Button border radius"
+msgstr "Nupu piirjoone raadius"
+
+#: cf7/partials/smaily-cf7-admin.php:32
+msgid "CAPTCHA disabled. Please use a CAPTCHA if this is a public site."
+msgstr "CAPTCHA välja lülitatud. Palun kasutage CAPTCHA, kui tegemist on avaliku saidiga."
+
+#: admin/smaily-admin-settings.class.php:267
+msgid "Cart cutoff time (minutes)"
+msgstr "Ostukorv loetakse aegunuks (minutites)"
+
+#: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
+#: blocks/checkout-optin/src/index.js:34
+msgid "checkout"
+msgstr "kassa"
+
+#: admin/smaily-admin-settings.class.php:168
+msgid "Checkout Subscription"
+msgstr "Uudiskirjaga Liitumine Kassas"
+
+#: cf7/partials/smaily-cf7-admin.php:19
+msgid "Configuring Smaily integration is disabled when using \"Add New Form\". Please save this form or edit an already existing form"
+msgstr "Smaily integratsiooni seadistamine on uue kontaktivormi lisamisel välja lülitatud. Palun salvestage see vorm või redigeerige juba olemasolevat vormi."
+
+#: admin/smaily-admin.class.php:225
+msgid "Connect"
+msgstr "Ühenda"
+
+#: admin/smaily-admin-settings.class.php:67
+#: admin/smaily-admin.class.php:224
+msgid "Connection"
+msgstr "Ühendus"
+
+#: admin/smaily-admin-renderer.class.php:225
+msgid "Copy"
+msgstr "Kopeeri"
+
+#: admin/smaily-admin-renderer.class.php:213
+msgid "Copy this URL into your template editor's RSS block, to receive RSS-feed."
+msgstr "Kopeerige see URL oma kirjapõhja redaktori RSS-blokki, et saada lisada tooteid uudiskirja."
+
+#: admin/smaily-admin-settings.class.php:409
+msgid "Created At"
+msgstr "Loodud"
+
+#: admin/smaily-admin-settings.class.php:74
+msgid "Credentials"
+msgstr "API Ligipääsud"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:15
+msgid "Customer First Name"
+msgstr "Kliendi Eesnimi"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:12
+msgid "Customer Group"
+msgstr "Kliendi Roll"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:13
+msgid "Customer ID"
+msgstr "Kliendi ID"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:16
+msgid "Customer Last Name"
+msgstr "Kliendi Perekonnanimi"
+
+#: admin/smaily-admin-renderer.class.php:173
+msgid "Customers can subscribe by checking \"subscribe to newsletter\" checkbox on checkout page."
+msgstr "Kliendid saavad tellida uudiskirja, kasutades  märkeruutu kassalehel."
+
+#: admin/smaily-admin-settings.class.php:111
+#: admin/smaily-admin.class.php:241
+msgid "Customer Synchronization"
+msgstr "Klientide Sünkroniseerimine"
+
+#: admin/smaily-admin-renderer.class.php:89
+msgid "Customer Synchronization allows you to automate synchronizing newsletter subscribers and their information directly to Smaily."
+msgstr "Klientide sünkroniseerimine võimaldab teil automatiseerida uudiskirja tellijate ja nende andmete sünkroniseerimist otse Smailyga."
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:258
+#: blocks/newsletter-signup/src/edit.js:265
+msgid "Defaults to current page URL."
+msgstr "Vaikimisi praeguse lehekülje URL."
+
+#: admin/smaily-admin-settings.class.php:430
+msgid "Descending"
+msgstr "Kahanevalt"
+
+#: admin/smaily-admin.class.php:225
+msgid "Disconnect"
+msgstr "Ühenda lahti"
+
+#: includes/smaily-widget.class.php:147
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:177
+msgid "Display name field"
+msgstr "Kuva nime väli"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/index.js:35
+msgid "email"
+msgstr "email"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:13
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:22
+#: public/partials/smaily-public-basic.php:37
+msgid "Email"
+msgstr "E-post"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:197
+msgid "Email field label"
+msgstr "E-posti välja silt"
+
+#: admin/smaily-admin-settings.class.php:259
+msgid "Enable Abandoned Cart"
+msgstr "Luba hüljatud ostukorvi meeldetuletused"
+
+#: admin/smaily-admin-settings.class.php:175
+msgid "Enable Checkout Subscription"
+msgstr "Luba kassas uudiskirjaga liitumine"
+
+#: admin/smaily-admin-settings.class.php:118
+msgid "Enable Customer Synchronization"
+msgstr "Luba klientide sünkroniseerimine"
+
+#: admin/smaily-admin-renderer.class.php:131
+#: admin/smaily-admin-renderer.class.php:258
+msgid "Enabled"
+msgstr "Lubatud"
+
+#: cf7/partials/smaily-cf7-admin.php:38
+msgid "Enable Smaily for this form"
+msgstr "Aktiveeri Smaily selle vormi jaoks"
+
+#: woocommerce/profile-settings.class.php:51
+msgid "Enter birthday"
+msgstr "Sisestage sünnipäev"
+
+#: woocommerce/profile-settings.class.php:40
+msgid "Enter phone number"
+msgstr "Sisestage telefoninumber"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:243
+msgid "Error message"
+msgstr "Veateade"
+
+#: includes/smaily-widget.class.php:154
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:261
+msgid "Failure URL"
+msgstr "Tõrke URL"
+
+#: woocommerce/profile-settings.class.php:30
+msgid "Female"
+msgstr "Naine"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:14
+msgid "First name"
+msgstr "Eesnimi"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:15
+msgid "First Registered"
+msgstr "Esmane registreerimise aeg"
+
+#. translators: 1: example subdomain between strong tags
+#: admin/partials/smaily-admin-credentials.php:36
+msgid "For example \"%1$s\" from https://%1$s.sendsmaily.net/"
+msgstr "Näiteks \"%s\" saidilt https://%1$s.sendsmaily.net/"
+
+#: cf7/public.class.php:104
+#: public/partials/smaily-public-basic.php:13
+msgid "Form was not submitted using POST method."
+msgstr "Vormi ei saadetud POST meetodit kasutades."
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:213
+msgid "Full width subscribe button"
+msgstr "Täislaiuses liitumisnupp"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:23
+#: woocommerce/profile-settings.class.php:25
+msgid "Gender"
+msgstr "Sugu"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:112
+msgid "Go to plugin settings"
+msgstr "Minge pistikprogrammi seadetesse"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:250
+msgid "Hidden fields"
+msgstr "Peidetud väljad"
+
+#: admin/smaily-admin-renderer.class.php:56
+msgid "How to create API credentials?"
+msgstr "Kuidas luua API ligipääsu?"
+
+#. Author URI of the plugin
+#: smaily.php
+msgid "https://smaily.com"
+msgstr "https://smaily.com"
+
+#: admin/smaily-admin-settings.class.php:410
+msgid "ID"
+msgstr "ID"
+
+#: woocommerce/cron.class.php:57
+msgid "In every 15 minutes"
+msgstr "Iga 15 minuti järel"
+
+#: public/partials/smaily-public-basic.php:14
+msgid "Input does not contain a recognizable email address."
+msgstr "Vigane e-posti aadress."
+
+#: cf7/public.class.php:107
+msgid "Input does not contain a valid email address."
+msgstr "Vigane e-posti aadress."
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:17
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:17
+msgid "Language"
+msgstr "Keel"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:16
+msgid "Last name"
+msgstr "Perekonnanimi"
+
+#: admin/smaily-admin-settings.class.php:359
+msgid "Limit"
+msgstr "Limiit"
+
+#: admin/smaily-admin-settings.class.php:367
+msgid "Limit how many products you will add to your field. Maximum 250."
+msgstr "Piirake, kui palju tooteid kuvatakse. Maksimaalselt 250."
+
+#: admin/smaily-admin-settings.class.php:198
+msgid "Location"
+msgstr "Asukoht"
+
+#: woocommerce/profile-settings.class.php:29
+msgid "Male"
+msgstr "Mees"
+
+#: admin/smaily-admin-settings.class.php:408
+msgid "Modified At"
+msgstr "Muudetud"
+
+#: admin/smaily-admin-settings.class.php:411
+#: public/partials/smaily-public-basic.php:41
+msgid "Name"
+msgstr "Nimi"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:188
+msgid "Name field label"
+msgstr "Nimevälja silt"
+
+#: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
+#: blocks/checkout-optin/src/index.js:35
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/index.js:35
+msgid "newsletter"
+msgstr "uudiskiri"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:18
+msgid "Nickname"
+msgstr "Hüüdnimi"
+
+#: admin/smaily-admin-renderer.class.php:147
+msgid "No automations created"
+msgstr "Automaatvastajaid pole loodud"
+
+#: cf7/partials/smaily-cf7-admin.php:53
+#: includes/smaily-widget.class.php:161
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:276
+msgid "No autoresponder"
+msgstr "Automaatvastaja puudub"
+
+#: includes/smaily-widget.class.php:157
+msgid "Note: URLs are optional. If left empty, the current page URL will be used."
+msgstr "Märkus.: URL-id on valikulised. Kui see jäetakse tühjaks, kasutatakse vormi lehe URL-i."
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/index.js:31
+msgid "Opt-in subscribers directly to Smaily for seamless email marketing."
+msgstr "Lisa uudiskirjaga liitujad otse Smaily'sse sujuvaks e-posti turunduseks."
+
+#: admin/smaily-admin-settings.class.php:422
+msgid "Order by"
+msgstr "Sorteeri"
+
+#: includes/smaily-options.class.php:189
+msgid "Order notes"
+msgstr "Tellimuse märkmed"
+
+#: admin/partials/smaily-admin-credentials.php:62
+msgid "Password"
+msgstr "Parool"
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:24
+#: woocommerce/profile-settings.class.php:39
+msgid "Phone"
+msgstr "Telefon"
+
+#: cf7/partials/smaily-cf7-admin.php:28
+msgid "Please authenticate Smaily credentials under Smaily Settings."
+msgstr "Palun kinnitage Smaily API kasutaja Smaily seadete alt."
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:120
+msgid "Please connect your Smaily account before adding a form!"
+msgstr "Palun ühendage oma Smaily konto enne vormi lisamist!"
+
+#: admin/smaily-admin-sanitizer.class.php:71
+msgid "Please enter password!"
+msgstr "Palun sisestage parool!"
+
+#: admin/smaily-admin-sanitizer.class.php:65
+msgid "Please enter subdomain!"
+msgstr "Palun sisestage alamdomeen!"
+
+#: admin/smaily-admin-sanitizer.class.php:68
+msgid "Please enter username!"
+msgstr "Palun sisestage kasutajanimi!"
+
+#: admin/smaily-admin-sanitizer.class.php:28
+msgid "Please select autoresponder for abandoned cart automation."
+msgstr "Palun vali hüljatud ostukorvi automaatvastaja."
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:118
+msgid "Plugin setup is not complete!"
+msgstr "Pistikprogrammi seadistamine pole lõpule viidud!"
+
+#: admin/smaily-admin-settings.class.php:186
+msgid "Position"
+msgstr "Positsioon"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:22
+msgid "Product Base Price"
+msgstr "Toote baashind"
+
+#: admin/smaily-admin-settings.class.php:384
+msgid "Product Category"
+msgstr "Toote kategooria"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:19
+msgid "Product Description"
+msgstr "Toote kirjeldus"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:24
+msgid "Product Image"
+msgstr "Toote pilt"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:18
+msgid "Product Name"
+msgstr "Toote nimi"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:23
+msgid "Product Price"
+msgstr "Toote hind"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:21
+msgid "Product Quantity"
+msgstr "Toote kogus"
+
+#: admin/smaily-admin-settings.class.php:439
+msgid "Product RSS feed"
+msgstr "Toote RSS-voog"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:20
+msgid "Product SKU"
+msgstr "Toote SKU"
+
+#: admin/smaily-admin-settings.class.php:412
+msgid "Random"
+msgstr "Juhuslik"
+
+#: includes/smaily-options.class.php:187
+msgid "Registration form"
+msgstr "Registreerimisvorm"
+
+#: admin/smaily-admin.class.php:271
+msgid "RSS"
+msgstr "RSS"
+
+#: admin/smaily-admin.class.php:242
+#: admin/smaily-admin.class.php:257
+#: admin/smaily-admin.class.php:272
+msgid "Save"
+msgstr "Salvesta"
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:47
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:47
+msgid "Select extra fields you wish to send to Smaily."
+msgstr "Vali lisaväljad, mida soovite Smaily-sse saata."
+
+#. Author of the plugin
+#: smaily.php
+msgid "Sendsmaily LLC"
+msgstr "Sendsmaily OÜ"
+
+#: admin/smaily-admin.class.php:339
+msgid "Settings"
+msgstr "Seaded"
+
+#: cf7/service.class.php:88
+msgid "Setup integration"
+msgstr "Integratsiooni seadistamine"
+
+#: includes/smaily-options.class.php:190
+msgid "Shipping form"
+msgstr "Tarne vorm"
+
+#: admin/smaily-admin-settings.class.php:393
+msgid "Show products from specific category."
+msgstr "Näita tooteid konkreetsest kategooriast."
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:19
+msgid "Site Title"
+msgstr "Saidi pealkiri"
+
+#. Plugin Name of the plugin
+#: smaily.php
+#: cf7/service.class.php:34
+msgid "Smaily"
+msgstr "Smaily"
+
+#: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
+#: blocks/checkout-optin/src/index.js:28
+msgid "Smaily Checkout Opt-In"
+msgstr "Smaily Kassalehel Liitumine"
+
+#: public/partials/smaily-public-basic.php:52
+msgid "Smaily credentials not validated. Subscription form will not work!"
+msgstr "Puudub Smaily API ühendus. Liitumisvorm ei tööta!"
+
+#: cf7/service.class.php:72
+msgid "Smaily email marketing and automation plugin for Contact Form 7 allows you to automatically add newsletter subscribers to your Smaily subscriber list, by using forms created in Contact Form 7."
+msgstr "Contact Form 7 Smaily meiliturunduse ja automatiseerimise pistikprogramm võimaldab teil automaatselt koguda uudiskirjaga liitujaid kasutades Contact Form 7 loodud vorme."
+
+#: cf7/admin.class.php:86
+msgid "Smaily for Contact Form 7"
+msgstr "Smaily Contact Form 7-me Jaoks"
+
+#: cf7/service.class.php:77
+msgid "Smaily integration"
+msgstr "Smaily integratsioon"
+
+#: cf7/service.class.php:83
+msgid "Smaily integration is active on this site."
+msgstr "Smaily integratsioon on sellel lehel aktiivne."
+
+#. Description of the plugin
+#: smaily.php
+msgid "Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations."
+msgstr "Smaily pistikmoodul, mis sisaldab WooCommerce'i ja Contact Form 7 integratsioone."
+
+#: includes/smaily-widget.class.php:38
+msgid "Smaily Newsletter Subscription"
+msgstr "Smaily Uudiskirja Tellimus"
+
+#: includes/smaily-widget.class.php:37
+msgid "Smaily newsletter subscription form"
+msgstr "Smaily uudiskirjaga liitumise vorm"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/index.js:30
+msgid "Smaily Opt-In Form"
+msgstr "Smaily Liitumisvorm"
+
+#: admin/smaily-admin-settings.class.php:352
+msgid "Smaily RSS feed"
+msgstr "Smaily RSS-voog"
+
+#: admin/smaily-admin-renderer.class.php:188
+msgid "Smaily RSS feed allows you insert product feeds to email templates."
+msgstr "Smaily RSS-voog võimaldab sisestada tootevooge kirjapõhjadesse."
+
+#: admin/smaily-admin.class.php:80
+msgid "Smaily Settings"
+msgstr "Smaily Sätted"
+
+#: cf7/public.class.php:100
+msgid "Something went wrong"
+msgstr "Midagi läks valesti"
+
+#: admin/smaily-admin-settings.class.php:401
+msgid "Sort by"
+msgstr "Sorteeri"
+
+#: admin/smaily-admin-renderer.class.php:53
+msgid "Start by setting up the connection between Smaily and your website. To do this, you need to create API credentials in Smaily and enter them below."
+msgstr "Alustage Smaily ja teie veebisaidi vahelise ühenduse loomisest. Selleks peate Smaily's looma API kasutaja ja sisestama need allpool."
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:14
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:20
+msgid "Store URL"
+msgstr "Poe URL"
+
+#: admin/partials/smaily-admin-credentials.php:20
+msgid "Subdomain"
+msgstr "Alamdomeen"
+
+#: public/partials/smaily-public-basic.php:46
+msgid "Subscribe"
+msgstr "Liitu"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:205
+msgid "Subscribe button label"
+msgstr "Liitumisnupu silt"
+
+#: blocks/checkout-optin/smaily-checkout-optin.php:56
+#: woocommerce/profile-settings.class.php:61
+msgid "Subscribe to newsletter"
+msgstr "Liitu uudiskirjaga"
+
+#: cf7/public.class.php:110
+#: public/partials/smaily-public-basic.php:16
+msgid "Subscribing failed with unknown reason."
+msgstr "Uudiskirjaga liitumine ebaõnnestus teadmata põhjusel."
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:235
+msgid "Success message"
+msgstr "Õnnestumise teade"
+
+#: includes/smaily-widget.class.php:150
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:254
+msgid "Success URL"
+msgstr "Õnnestumise URL"
+
+#: public/partials/smaily-public-basic.php:12
+msgid "Thank you for subscribing to our newsletter."
+msgstr "Aitäh, et liitusite meie uudiskirjaga."
+
+#: admin/smaily-admin-renderer.class.php:43
+msgid "There seems to be a problem with your connection to Smaily. Please revalidate your credentials!"
+msgstr "Tundub, et ühenduses Smaily-ga ilmnes pobleem. Palun kinnitage oma API  kasutaja uuesti!"
+
+#: admin/smaily-admin-renderer.class.php:104
+msgid "This is the Smaily WooCommerce Abandoned Cart plugin. It allows you to send abandoned cart emails to your customers."
+msgstr "See on Smaily WooCommerce-i Hüljatud Ostukorvi moodul. Moodul võimaldab teil saata oma klientidele hüljatud ostukorvi e-kirju."
+
+#: admin/smaily-admin-settings.class.php:274
+msgid "Time in minutes after which the cart is considered abandoned. Minimum 10 minutes."
+msgstr "Aeg minutites, mille järel loetakse ostukorvi hüljatuks. Minimaalselt 10 minutit."
+
+#: includes/smaily-widget.class.php:142
+msgid "Title"
+msgstr "Pealkiri"
+
+#: admin/smaily-admin-settings.class.php:413
+msgid "Type"
+msgstr "Tüüp"
+
+#: admin/partials/smaily-admin-credentials.php:47
+msgid "Username"
+msgstr "Kasutajanimi"
+
+#: blocks/checkout-optin/smaily-checkout-extend-store-endpoint.php:43
+msgid "User newsletter subscription"
+msgstr "Kasutaja uudiskirja tellimus"
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:175
+msgid "Visible fields"
+msgstr "Nähtavad väljad"
+
+#: blocks/checkout-optin/build/block.json
+#: blocks/checkout-optin/src/block.json
+msgctxt "block title"
+msgid "Smaily Checkout Opt-In"
+msgstr ""
+
+#: blocks/checkout-optin/build/block.json
+#: blocks/checkout-optin/src/block.json
+msgctxt "block description"
+msgid "Adds a newsletter subscription checkbox to the checkout."
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block title"
+msgid "Smaily Sign-Up Form"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block description"
+msgid "Smaily newsletter subscription form"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "smaily"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "newsletter"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "subscription"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "form"
+msgstr ""

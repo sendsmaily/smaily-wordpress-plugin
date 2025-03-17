@@ -33,6 +33,8 @@ RUN apt-get update \
     && apt-get install -y \
     g++ \
     libicu-dev \
+    less \
+    msginit \
     unzip \
     wget \
     zlib1g-dev \

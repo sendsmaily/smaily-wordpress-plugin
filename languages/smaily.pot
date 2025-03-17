@@ -1,27 +1,28 @@
-# Copyright (C) 2024 Sendsmaily LLC
-# This file is distributed under the GPL-2.0+.
+# Copyright (C) 2025 Sendsmaily LLC
+# This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
 "Project-Id-Version: Smaily 1.0.0\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-wordpress-plugin\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2024-06-23T16:31:24+03:00\n"
+"POT-Creation-Date: 2025-03-17T10:11:48+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"X-Generator: WP-CLI 2.10.0\n"
+"X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily\n"
 
 #. Plugin Name of the plugin
 #: smaily.php
+#: cf7/service.class.php:34
 msgid "Smaily"
 msgstr ""
 
 #. Description of the plugin
 #: smaily.php
-msgid "Smaily integration plugin that includes WooCommerce and Contact Form 7 implementations."
+msgid "Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations."
 msgstr ""
 
 #. Author of the plugin
@@ -34,519 +35,660 @@ msgstr ""
 msgid "https://smaily.com"
 msgstr ""
 
-#: admin/smaily-admin.class.php:81
-msgid "Something went wrong connecting to Smaily!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:82
-msgid "Smaily settings successfully saved!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:83
-msgid "Something went wrong with saving data!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:108
-msgid "Settings"
-msgstr ""
-
-#: admin/smaily-admin.class.php:144
-#: cf7/partials/smaily-cf7-admin.php:45
-#: includes/smaily-widget.class.php:207
-msgid "No autoresponder"
-msgstr ""
-
-#: admin/smaily-admin.class.php:188
-msgid "You are not authorized to edit settings!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:198
-msgid "Something went wrong, incorrect request method!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:214
-msgid "Nonce verification failed!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:230
-msgid "Something went wrong, incorrect operation!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:277
-msgid "Please enter subdomain!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:279
-msgid "Please enter username!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:281
-msgid "Please enter password!"
-msgstr ""
-
-#: admin/smaily-admin.class.php:296
-msgid "Wrong credentials"
-msgstr ""
-
-#: admin/smaily-admin.class.php:299
-msgid "Error in subdomain"
-msgstr ""
-
-#: admin/smaily-admin.class.php:305
-msgid "Something went wrong with request to Smaily"
-msgstr ""
-
-#: admin/smaily-admin.class.php:328
-msgid "Newsletter subscription form reset to default."
-msgstr ""
-
-#: admin/smaily-admin.class.php:365
-msgid "Disable advanced form option or fill out the form field!"
-msgstr ""
-
-#: admin/template/smaily-admin.php:44
-msgid "Plugin Settings"
-msgstr ""
-
-#: admin/template/smaily-admin.php:53
-msgid "There seems to be a problem with your connection to Smaily. Please revalidate your credentials!"
-msgstr ""
-
-#: admin/template/smaily-admin.php:67
-msgid "General"
-msgstr ""
-
-#: admin/template/smaily-admin.php:72
-msgid "Newsletter"
-msgstr ""
-
-#: admin/template/smaily-admin.php:78
-msgid "Customer Synchronization"
-msgstr ""
-
-#: admin/template/smaily-admin.php:83
-msgid "Abandoned Cart"
-msgstr ""
-
-#: admin/template/smaily-admin.php:88
-msgid "Checkout Opt-in"
-msgstr ""
-
-#: admin/template/smaily-admin.php:93
-msgid "RSS Feed"
-msgstr ""
-
-#: admin/template/smaily-admin.php:110
-msgid "How to create API credentials?"
-msgstr ""
-
-#: admin/template/smaily-admin.php:116
+#: admin/partials/smaily-admin-credentials.php:20
 msgid "Subdomain"
 msgstr ""
 
 #. translators: 1: example subdomain between strong tags
-#: admin/template/smaily-admin.php:124
+#: admin/partials/smaily-admin-credentials.php:36
 msgid "For example \"%1$s\" from https://%1$s.sendsmaily.net/"
 msgstr ""
 
-#: admin/template/smaily-admin.php:136
-msgid "API username"
+#: admin/partials/smaily-admin-credentials.php:47
+msgid "Username"
 msgstr ""
 
-#: admin/template/smaily-admin.php:144
-msgid "API password"
+#: admin/partials/smaily-admin-credentials.php:62
+msgid "Password"
 msgstr ""
 
-#: admin/template/smaily-admin.php:152
-msgid "Subscribe Widget"
-msgstr ""
-
-#: admin/template/smaily-admin.php:156
-msgid "To add a subscribe widget, use Widgets menu. Validate credentials before using."
-msgstr ""
-
-#: admin/template/smaily-admin.php:174
-msgid "Is it advanced?"
-msgstr ""
-
-#: admin/template/smaily-admin.php:186
-msgid "Advanced form"
-msgstr ""
-
-#: admin/template/smaily-admin.php:204
-msgid "Enable Customer synchronization"
-msgstr ""
-
-#: admin/template/smaily-admin.php:215
-msgid "Syncronize additional fields"
-msgstr ""
-
-#: admin/template/smaily-admin.php:223
-msgid "Customer Group"
-msgstr ""
-
-#: admin/template/smaily-admin.php:224
-msgid "Customer ID"
-msgstr ""
-
-#: admin/template/smaily-admin.php:225
-msgid "Date Of Birth"
-msgstr ""
-
-#: admin/template/smaily-admin.php:226
-msgid "First Registered"
-msgstr ""
-
-#: admin/template/smaily-admin.php:227
-msgid "Firstname"
-msgstr ""
-
-#: admin/template/smaily-admin.php:228
-#: woocommerce/profile-settings.class.php:98
-msgid "Gender"
-msgstr ""
-
-#: admin/template/smaily-admin.php:229
-msgid "Lastname"
-msgstr ""
-
-#: admin/template/smaily-admin.php:230
-msgid "Nickname"
-msgstr ""
-
-#: admin/template/smaily-admin.php:231
-#: woocommerce/profile-settings.class.php:112
-msgid "Phone"
-msgstr ""
-
-#: admin/template/smaily-admin.php:232
-msgid "Site Title"
-msgstr ""
-
-#: admin/template/smaily-admin.php:243
-msgid "Select fields you wish to synchronize along with subscriber email and store URL"
-msgstr ""
-
-#: admin/template/smaily-admin.php:261
-msgid "Enable Abandoned Cart reminder"
-msgstr ""
-
-#: admin/template/smaily-admin.php:272
-msgid "Cart Autoresponder ID"
-msgstr ""
-
-#: admin/template/smaily-admin.php:285
-msgid "No automations created"
-msgstr ""
-
-#: admin/template/smaily-admin.php:294
-msgid "Additional cart fields"
-msgstr ""
-
-#: admin/template/smaily-admin.php:302
-msgid "Customer First Name"
-msgstr ""
-
-#: admin/template/smaily-admin.php:303
-msgid "Customer Last Name"
-msgstr ""
-
-#: admin/template/smaily-admin.php:304
-msgid "Product Name"
-msgstr ""
-
-#: admin/template/smaily-admin.php:305
-msgid "Product Description"
-msgstr ""
-
-#: admin/template/smaily-admin.php:306
-msgid "Product SKU"
-msgstr ""
-
-#: admin/template/smaily-admin.php:307
-msgid "Product Quantity"
-msgstr ""
-
-#: admin/template/smaily-admin.php:308
-msgid "Product Base Price"
-msgstr ""
-
-#: admin/template/smaily-admin.php:309
-msgid "Product Price"
-msgstr ""
-
-#: admin/template/smaily-admin.php:310
-msgid "Product Images"
-msgstr ""
-
-#: admin/template/smaily-admin.php:321
-msgid "Select fields wish to send to Smaily template along with subscriber email and store url."
-msgstr ""
-
-#: admin/template/smaily-admin.php:332
-msgid "Cart cutoff time"
-msgstr ""
-
-#: admin/template/smaily-admin.php:335
-msgid "Consider cart abandoned after:"
-msgstr ""
-
-#: admin/template/smaily-admin.php:337
-msgid "minute(s)"
-msgstr ""
-
-#: admin/template/smaily-admin.php:340
-msgid "Minimum 10 minutes."
-msgstr ""
-
-#: admin/template/smaily-admin.php:354
-msgid "Subscription checkbox"
-msgstr ""
-
-#: admin/template/smaily-admin.php:359
-msgid "Customers can subscribe by checking \"subscribe to newsletter\" checkbox on checkout page."
-msgstr ""
-
-#: admin/template/smaily-admin.php:369
-msgid "Enable"
-msgstr ""
-
-#: admin/template/smaily-admin.php:380
-msgid "Checked by default"
-msgstr ""
-
-#: admin/template/smaily-admin.php:390
-msgid "Location"
-msgstr ""
-
-#: admin/template/smaily-admin.php:396
-msgid "Before"
-msgstr ""
-
-#: admin/template/smaily-admin.php:399
-msgid "After"
-msgstr ""
-
-#: admin/template/smaily-admin.php:405
-msgid "Order notes"
-msgstr ""
-
-#: admin/template/smaily-admin.php:406
-msgid "Billing form"
-msgstr ""
-
-#: admin/template/smaily-admin.php:407
-msgid "Shipping form"
-msgstr ""
-
-#: admin/template/smaily-admin.php:408
-msgid "Registration form"
-msgstr ""
-
-#: admin/template/smaily-admin.php:430
-msgid "Product limit"
-msgstr ""
-
-#: admin/template/smaily-admin.php:437
-msgid "Limit how many products you will add to your field. Maximum 250."
-msgstr ""
-
-#: admin/template/smaily-admin.php:448
-msgid "Product category"
-msgstr ""
-
-#: admin/template/smaily-admin.php:462
-msgid "All products"
-msgstr ""
-
-#: admin/template/smaily-admin.php:467
-msgid "Show products from specific category"
-msgstr ""
-
-#: admin/template/smaily-admin.php:478
-msgid "Order products by"
-msgstr ""
-
-#: admin/template/smaily-admin.php:485
-msgid "Created At"
-msgstr ""
-
-#: admin/template/smaily-admin.php:486
-msgid "ID"
-msgstr ""
-
-#: admin/template/smaily-admin.php:487
-msgid "Modified At"
-msgstr ""
-
-#: admin/template/smaily-admin.php:488
-#: public/partials/smaily-public-basic.php:12
-msgid "Name"
-msgstr ""
-
-#: admin/template/smaily-admin.php:489
-msgid "Random"
-msgstr ""
-
-#: admin/template/smaily-admin.php:490
-msgid "Type"
-msgstr ""
-
-#: admin/template/smaily-admin.php:502
-msgid "Ascending"
-msgstr ""
-
-#: admin/template/smaily-admin.php:505
-msgid "Descending"
-msgstr ""
-
-#: admin/template/smaily-admin.php:513
-msgid "Product RSS feed"
-msgstr ""
-
-#: admin/template/smaily-admin.php:522
-msgid "Copy this URL into your template editor's RSS block, to receive RSS-feed."
-msgstr ""
-
-#: admin/template/smaily-admin.php:535
-msgid "Save Settings"
-msgstr ""
-
-#: cf7/admin.class.php:62
-msgid "Smaily for Contact Form 7"
-msgstr ""
-
-#: cf7/partials/smaily-cf7-admin.php:14
-msgid "Configuring Smaily integration is disabled when using \"Add New Form\". Please save this form or edit an already existing form"
-msgstr ""
-
-#: cf7/partials/smaily-cf7-admin.php:22
-msgid "Please authenticate smaily credentials under Smaily Settings."
-msgstr ""
-
-#: cf7/partials/smaily-cf7-admin.php:26
-msgid "Captcha disabled. Please use a captcha if this is a public site."
-msgstr ""
-
-#: cf7/partials/smaily-cf7-admin.php:32
-msgid "Enable Smaily for this form"
-msgstr ""
-
-#: cf7/partials/smaily-cf7-admin.php:41
-msgid "Autoresponder"
-msgstr ""
-
-#: cf7/public.class.php:107
-#: cf7/public.class.php:120
-msgid "Something went wrong"
-msgstr ""
-
-#: cf7/public.class.php:111
-#: includes/smaily-widget.class.php:100
-#: public/smaily-public.class.php:115
-msgid "Form was not submitted using POST method."
-msgstr ""
-
-#: cf7/public.class.php:114
-msgid "Input does not contain a valid email address."
-msgstr ""
-
-#: cf7/public.class.php:117
-msgid "Could not add to subscriber list for an unknown reason."
-msgstr ""
-
-#: includes/smaily-widget.class.php:39
-msgid "Smaily newsletter subscription form"
-msgstr ""
-
-#: includes/smaily-widget.class.php:40
-msgid "Smaily Newsletter Subscription"
-msgstr ""
-
-#: includes/smaily-widget.class.php:93
-#: public/smaily-public.class.php:108
-msgid "Smaily credentials not validated. Subscription form will not work!"
-msgstr ""
-
-#: includes/smaily-widget.class.php:103
-#: public/smaily-public.class.php:118
-msgid "Input does not contain a recognizable email address."
-msgstr ""
-
-#: includes/smaily-widget.class.php:106
-#: public/smaily-public.class.php:121
-msgid "Could not add to subscriber list for an unknown reason. Probably something in Smaily."
-msgstr ""
-
-#: includes/smaily-widget.class.php:170
-msgid "Title"
-msgstr ""
-
-#: includes/smaily-widget.class.php:180
-msgid "Display name field?"
-msgstr ""
-
-#: includes/smaily-widget.class.php:188
-msgid "Success URL"
-msgstr ""
-
-#: includes/smaily-widget.class.php:196
-msgid "Failure URL"
-msgstr ""
-
-#: includes/smaily-widget.class.php:205
-msgid "Autoresponders"
-msgstr ""
-
-#: public/partials/smaily-public-basic.php:3
-msgid "Thank you for subscribing to our newsletter."
-msgstr ""
-
-#: public/partials/smaily-public-basic.php:10
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:13
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:22
+#: public/partials/smaily-public-basic.php:37
 msgid "Email"
 msgstr ""
 
-#: public/partials/smaily-public-basic.php:14
-msgid "Subscribe"
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:14
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:20
+msgid "Store URL"
 msgstr ""
 
-#: woocommerce/data-prepare.class.php:24
-msgid "Select autoresponder for abandoned cart!"
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:15
+msgid "Customer First Name"
 msgstr ""
 
-#: woocommerce/data-prepare.class.php:34
-msgid "Abandoned cart cutoff time value must be 10 or higher!"
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:16
+msgid "Customer Last Name"
 msgstr ""
 
-#: woocommerce/profile-settings.class.php:41
-#: woocommerce/profile-settings.class.php:138
-msgid "Subscribe to newsletter"
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:17
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:17
+msgid "Language"
 msgstr ""
 
-#: woocommerce/profile-settings.class.php:102
-msgid "Male"
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:18
+msgid "Product Name"
 msgstr ""
 
-#: woocommerce/profile-settings.class.php:103
-msgid "Female"
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:19
+msgid "Product Description"
 msgstr ""
 
-#: woocommerce/profile-settings.class.php:113
-msgid "Enter phone number"
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:20
+msgid "Product SKU"
 msgstr ""
 
-#: woocommerce/profile-settings.class.php:123
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:21
+msgid "Product Quantity"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:22
+msgid "Product Base Price"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:23
+msgid "Product Price"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:24
+msgid "Product Image"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:47
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:47
+msgid "Select extra fields you wish to send to Smaily."
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:12
+msgid "Customer Group"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:13
+msgid "Customer ID"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:14
+msgid "First name"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:15
+msgid "First Registered"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:16
+msgid "Last name"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:18
+msgid "Nickname"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:19
+msgid "Site Title"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:21
+#: woocommerce/profile-settings.class.php:50
 msgid "Birthday"
 msgstr ""
 
-#: woocommerce/profile-settings.class.php:124
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:23
+#: woocommerce/profile-settings.class.php:25
+msgid "Gender"
+msgstr ""
+
+#: admin/partials/smaily-admin-woocommerce-customer-sync.php:24
+#: woocommerce/profile-settings.class.php:39
+msgid "Phone"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:43
+msgid "There seems to be a problem with your connection to Smaily. Please revalidate your credentials!"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:53
+msgid "Start by setting up the connection between Smaily and your website. To do this, you need to create API credentials in Smaily and enter them below."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:56
+msgid "How to create API credentials?"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:89
+msgid "Customer Synchronization allows you to automate synchronizing newsletter subscribers and their information directly to Smaily."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:104
+msgid "This is the Smaily WooCommerce Abandoned Cart plugin. It allows you to send abandoned cart emails to your customers."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:131
+#: admin/smaily-admin-renderer.class.php:258
+msgid "Enabled"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:147
+msgid "No automations created"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:173
+msgid "Customers can subscribe by checking \"subscribe to newsletter\" checkbox on checkout page."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:188
+msgid "Smaily RSS feed allows you insert product feeds to email templates."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:213
+msgid "Copy this URL into your template editor's RSS block, to receive RSS-feed."
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:225
+msgid "Copy"
+msgstr ""
+
+#: admin/smaily-admin-sanitizer.class.php:28
+msgid "Please select autoresponder for abandoned cart automation."
+msgstr ""
+
+#: admin/smaily-admin-sanitizer.class.php:65
+msgid "Please enter subdomain!"
+msgstr ""
+
+#: admin/smaily-admin-sanitizer.class.php:68
+msgid "Please enter username!"
+msgstr ""
+
+#: admin/smaily-admin-sanitizer.class.php:71
+msgid "Please enter password!"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:67
+#: admin/smaily-admin.class.php:224
+msgid "Connection"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:74
+msgid "Credentials"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:111
+#: admin/smaily-admin.class.php:241
+msgid "Customer Synchronization"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:118
+msgid "Enable Customer Synchronization"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:129
+#: admin/smaily-admin-settings.class.php:280
+msgid "Additional Fields"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:168
+msgid "Checkout Subscription"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:175
+msgid "Enable Checkout Subscription"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:186
+msgid "Position"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:198
+msgid "Location"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:252
+#: admin/smaily-admin.class.php:256
+msgid "Abandoned Cart"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:259
+msgid "Enable Abandoned Cart"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:267
+msgid "Cart cutoff time (minutes)"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:274
+msgid "Time in minutes after which the cart is considered abandoned. Minimum 10 minutes."
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:352
+msgid "Smaily RSS feed"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:359
+msgid "Limit"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:367
+msgid "Limit how many products you will add to your field. Maximum 250."
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:384
+msgid "Product Category"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:391
+msgid "All"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:393
+msgid "Show products from specific category."
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:401
+msgid "Sort by"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:408
+msgid "Modified At"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:409
+msgid "Created At"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:410
+msgid "ID"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:411
+#: public/partials/smaily-public-basic.php:41
+msgid "Name"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:412
+msgid "Random"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:413
+msgid "Type"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:422
+msgid "Order by"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:429
+msgid "Ascending"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:430
+msgid "Descending"
+msgstr ""
+
+#: admin/smaily-admin-settings.class.php:439
+msgid "Product RSS feed"
+msgstr ""
+
+#: admin/smaily-admin.class.php:80
+msgid "Smaily Settings"
+msgstr ""
+
+#: admin/smaily-admin.class.php:225
+msgid "Disconnect"
+msgstr ""
+
+#: admin/smaily-admin.class.php:225
+msgid "Connect"
+msgstr ""
+
+#: admin/smaily-admin.class.php:242
+#: admin/smaily-admin.class.php:257
+#: admin/smaily-admin.class.php:272
+msgid "Save"
+msgstr ""
+
+#: admin/smaily-admin.class.php:271
+msgid "RSS"
+msgstr ""
+
+#: admin/smaily-admin.class.php:339
+msgid "Settings"
+msgstr ""
+
+#: blocks/checkout-optin/smaily-checkout-extend-store-endpoint.php:43
+msgid "User newsletter subscription"
+msgstr ""
+
+#: blocks/checkout-optin/smaily-checkout-optin.php:56
+#: woocommerce/profile-settings.class.php:61
+msgid "Subscribe to newsletter"
+msgstr ""
+
+#: cf7/admin.class.php:86
+msgid "Smaily for Contact Form 7"
+msgstr ""
+
+#: cf7/partials/smaily-cf7-admin.php:19
+msgid "Configuring Smaily integration is disabled when using \"Add New Form\". Please save this form or edit an already existing form"
+msgstr ""
+
+#: cf7/partials/smaily-cf7-admin.php:28
+msgid "Please authenticate Smaily credentials under Smaily Settings."
+msgstr ""
+
+#: cf7/partials/smaily-cf7-admin.php:32
+msgid "CAPTCHA disabled. Please use a CAPTCHA if this is a public site."
+msgstr ""
+
+#: cf7/partials/smaily-cf7-admin.php:38
+msgid "Enable Smaily for this form"
+msgstr ""
+
+#: cf7/partials/smaily-cf7-admin.php:48
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:268
+msgid "Autoresponder"
+msgstr ""
+
+#: cf7/partials/smaily-cf7-admin.php:53
+#: includes/smaily-widget.class.php:161
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:276
+msgid "No autoresponder"
+msgstr ""
+
+#: cf7/public.class.php:100
+msgid "Something went wrong"
+msgstr ""
+
+#: cf7/public.class.php:104
+#: public/partials/smaily-public-basic.php:13
+msgid "Form was not submitted using POST method."
+msgstr ""
+
+#: cf7/public.class.php:107
+msgid "Input does not contain a valid email address."
+msgstr ""
+
+#: cf7/public.class.php:110
+#: public/partials/smaily-public-basic.php:16
+msgid "Subscribing failed with unknown reason."
+msgstr ""
+
+#: cf7/service.class.php:72
+msgid "Smaily email marketing and automation plugin for Contact Form 7 allows you to automatically add newsletter subscribers to your Smaily subscriber list, by using forms created in Contact Form 7."
+msgstr ""
+
+#: cf7/service.class.php:77
+msgid "Smaily integration"
+msgstr ""
+
+#: cf7/service.class.php:83
+msgid "Smaily integration is active on this site."
+msgstr ""
+
+#: cf7/service.class.php:88
+msgid "Setup integration"
+msgstr ""
+
+#: includes/smaily-options.class.php:163
+msgid "Before"
+msgstr ""
+
+#: includes/smaily-options.class.php:164
+msgid "After"
+msgstr ""
+
+#: includes/smaily-options.class.php:187
+msgid "Registration form"
+msgstr ""
+
+#: includes/smaily-options.class.php:188
+msgid "Billing form"
+msgstr ""
+
+#: includes/smaily-options.class.php:189
+msgid "Order notes"
+msgstr ""
+
+#: includes/smaily-options.class.php:190
+msgid "Shipping form"
+msgstr ""
+
+#: includes/smaily-widget.class.php:37
+msgid "Smaily newsletter subscription form"
+msgstr ""
+
+#: includes/smaily-widget.class.php:38
+msgid "Smaily Newsletter Subscription"
+msgstr ""
+
+#: includes/smaily-widget.class.php:142
+msgid "Title"
+msgstr ""
+
+#: includes/smaily-widget.class.php:147
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:177
+msgid "Display name field"
+msgstr ""
+
+#: includes/smaily-widget.class.php:150
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:254
+msgid "Success URL"
+msgstr ""
+
+#: includes/smaily-widget.class.php:154
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:261
+msgid "Failure URL"
+msgstr ""
+
+#: includes/smaily-widget.class.php:157
+msgid "Note: URLs are optional. If left empty, the current page URL will be used."
+msgstr ""
+
+#: includes/smaily-widget.class.php:159
+msgid "Autoresponder ID"
+msgstr ""
+
+#: public/partials/smaily-public-basic.php:12
+msgid "Thank you for subscribing to our newsletter."
+msgstr ""
+
+#: public/partials/smaily-public-basic.php:14
+msgid "Input does not contain a recognizable email address."
+msgstr ""
+
+#: public/partials/smaily-public-basic.php:46
+msgid "Subscribe"
+msgstr ""
+
+#: public/partials/smaily-public-basic.php:52
+msgid "Smaily credentials not validated. Subscription form will not work!"
+msgstr ""
+
+#: woocommerce/cron.class.php:57
+msgid "In every 15 minutes"
+msgstr ""
+
+#: woocommerce/profile-settings.class.php:29
+msgid "Male"
+msgstr ""
+
+#: woocommerce/profile-settings.class.php:30
+msgid "Female"
+msgstr ""
+
+#: woocommerce/profile-settings.class.php:40
+msgid "Enter phone number"
+msgstr ""
+
+#: woocommerce/profile-settings.class.php:51
 msgid "Enter birthday"
 msgstr ""
 
-#: woocommerce/profile-settings.class.php:165
-msgid "Subscribe newsletter"
+#: woocommerce/profile-settings.class.php:144
+msgid "Additional Information"
 msgstr ""
 
-#: woocommerce/profile-settings.class.php:216
-msgid "Additional Information"
+#: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
+#: blocks/checkout-optin/src/index.js:28
+msgid "Smaily Checkout Opt-In"
+msgstr ""
+
+#: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
+#: blocks/checkout-optin/src/index.js:29
+msgid "Adds a newsletter subscription checkbox to the checkout."
+msgstr ""
+
+#: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
+#: blocks/checkout-optin/src/index.js:34
+msgid "checkout"
+msgstr ""
+
+#: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
+#: blocks/checkout-optin/src/index.js:35
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/index.js:35
+msgid "newsletter"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:112
+msgid "Go to plugin settings"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:118
+msgid "Plugin setup is not complete!"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:120
+msgid "Please connect your Smaily account before adding a form!"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:175
+msgid "Visible fields"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:188
+msgid "Name field label"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:197
+msgid "Email field label"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:205
+msgid "Subscribe button label"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:213
+msgid "Full width subscribe button"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:225
+msgid "Button border radius"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:235
+msgid "Success message"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:243
+msgid "Error message"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:250
+msgid "Hidden fields"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:258
+#: blocks/newsletter-signup/src/edit.js:265
+msgid "Defaults to current page URL."
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/index.js:30
+msgid "Smaily Opt-In Form"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/index.js:31
+msgid "Opt-in subscribers directly to Smaily for seamless email marketing."
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/index.js:35
+msgid "email"
+msgstr ""
+
+#: blocks/checkout-optin/build/block.json
+#: blocks/checkout-optin/src/block.json
+msgctxt "block title"
+msgid "Smaily Checkout Opt-In"
+msgstr ""
+
+#: blocks/checkout-optin/build/block.json
+#: blocks/checkout-optin/src/block.json
+msgctxt "block description"
+msgid "Adds a newsletter subscription checkbox to the checkout."
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block title"
+msgid "Smaily Sign-Up Form"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block description"
+msgid "Smaily newsletter subscription form"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "smaily"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "newsletter"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "subscription"
+msgstr ""
+
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "form"
 msgstr ""

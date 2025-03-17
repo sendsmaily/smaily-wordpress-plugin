@@ -7,7 +7,8 @@
     "require-dev": {
         "squizlabs/php_codesniffer": "^3.10",
         "wp-coding-standards/wpcs": "^3.1",
-        "phpcompatibility/phpcompatibility-wp": "^2.1"
+        "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "wp-cli/wp-cli-bundle": "^2.11"
     },
     "config": {
         "allow-plugins": {
@@ -18,6 +19,8 @@
         "lint": "phpcs .",
         "format": "phpcbf .",
         "build:newsletter-signup": "npm --prefix blocks/newsletter-signup/ ci blocks/newsletter-signup/ && npm run build --prefix blocks/newsletter-signup/",
-        "build:checkout-optin": "npm --prefix blocks/checkout-optin/ ci blocks/checkout-optin/ && npm run build --prefix blocks/checkout-optin/"
+        "build:checkout-optin": "npm --prefix blocks/checkout-optin/ ci blocks/checkout-optin/ && npm run build --prefix blocks/checkout-optin/",
+        "extract-text-domain": "wp i18n make-pot . languages/smaily.pot && msginit -i languages/smaily.pot -o languages/smaily-en.po -l en --no-translator",
+        "compile-translations": "rm -f languages/smaily-en.po && wp i18n update-po languages/smaily.pot languages/ && wp i18n make-mo languages/ && wp i18n make-json languages/ --no-purge"
     }
 }
