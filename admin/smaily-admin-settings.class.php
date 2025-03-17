@@ -79,6 +79,10 @@ class Settings {
 		);
 	}
 
+	/**
+	 * Registers the tutorial tab sections.
+	 *
+	 */
 	public function register_tutorial_tab_settings( $option_group, $page ) {
 		add_settings_section(
 			'smaily_settings_subscriber_collection_section',
