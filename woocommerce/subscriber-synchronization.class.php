@@ -1,6 +1,6 @@
 <?php
 /**
- * Synchronize WooCommerce subscribers with Smaily contacts.
+ * Synchronize WooCommerce subscribers with Smaily.
  *
  * @package Smaily_WC
  */
@@ -146,8 +146,14 @@ class Subscriber_Synchronization {
 		$this->order_optin_subscriber( $order );
 	}
 
+	/**
+	 * Subscribe subscriber during checkout.
+	 *
+	 * @param WC_Order $order Order
+	 * @return void
+	 */
 	private function order_optin_subscriber( WC_Order $order ) {
-		$sync_options        = get_option( Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION, Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS );
+		$sync_options        = get_option( Smaily_Options::SUBSCRIBER_SYNC_FIELDS_OPTION, Smaily_Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS );
 		$enabled_sync_fields = array_keys( array_filter( $sync_options ) );
 
 		// Order is made by a registered user.

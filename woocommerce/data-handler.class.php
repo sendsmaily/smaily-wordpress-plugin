@@ -45,7 +45,7 @@ class Data_Handler {
 	}
 
 	/**
-	 * Get user data for WooCommerce customer sync.
+	 * Get user data for WooCommerce subscriber sync.
 	 *
 	 * @since 1.0.0
 	 * @param int $user_id User ID.
@@ -61,8 +61,8 @@ class Data_Handler {
 		}
 
 		$options = get_option(
-			Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION,
-			Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS
+			Smaily_Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
+			Smaily_Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS
 		);
 		foreach ( $options as $field => $enabled ) {
 			if ( ! $enabled ) {

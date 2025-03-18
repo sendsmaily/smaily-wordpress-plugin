@@ -23,7 +23,7 @@ and transfer information between your WordPress site and your Smaily account. Th
 - validating Smaily account connection with API key
 - listing available automation workflows
 - triggering automation workflows on form submissions and during sending abandoned cart reminders
-- managing user subscription status during customer synchronization
+- managing user subscription status during subscriber synchronization
 - updating user subscription status when unsubscribing from newsletters
 
 You can manage how much information is shared between your WordPress site and Smaily account by configuring the plugin settings.
@@ -43,9 +43,9 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 2. Activate the plugin through the 'Plugins' screen in WordPress.
 
 
-## Customer Synchronization
+## Subscriber Synchronization
 
-The customer synchronization runs once per day and is triggered by a WordPress cron job.
+The subscriber synchronization runs once per day and is triggered by a WordPress cron job.
 
 ### Two-way Automatic Synchronization
 
@@ -82,7 +82,7 @@ We recommend the default value of 30 minutes for the delay. This is the sweet sp
 
 This is a description of the values that are added to the user's meta data when synchronizing users between WordPress and Smaily. Some of these values are automatically added by the plugin, some of them can be configured in the plugin settings.
 
-### Customer Synchronization
+### Subscriber Synchronization
 
 Automatically added values:
 - `email` - user's email address

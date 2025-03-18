@@ -203,7 +203,7 @@ class Renderer {
 				<?php esc_html_e( 'Smaily integration with your WooCommerce store allows you to:', 'smaily' ); ?>
 				<ol>
 					<li>
-						<?php esc_html_e( 'Automatically Synchronize contacts using the daily Customer Synchronization.', 'smaily' ); ?>
+						<?php esc_html_e( 'Automatically Synchronize subscribers using the daily Subscriber Synchronization.', 'smaily' ); ?>
 					</li>
 					<li>
 						<?php esc_html_e( 'Send Abandoned Cart reminder emails to store customers.', 'smaily' ); ?>
@@ -230,26 +230,26 @@ class Renderer {
 	}
 
 	/**
-	 * Render customer synchronization additional fields HTML content.
+	 * Render subscriber synchronization additional fields HTML content.
 	 *
 	 * @return void
 	 */
 	public function render_sync_additional_fields() {
-		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-woocommerce-customer-sync.php';
+		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-woocommerce-subscriber-sync.php';
 	}
 
 	/**
-	 * Renders customer synchronization tab header HTML content.
+	 * Renders subscriber synchronization tab header HTML content.
 	 *
 	 * @return void
 	 */
-	public function render_customer_sync_section_header() {
+	public function render_subscriber_sync_section_header() {
 		?>
 		<div>
 			<p>
 				<?php
 					esc_html_e(
-						'Customer Synchronization allows you Synchronize newsletter subscribers and their information directly to Smaily',
+						'Subscriber Synchronization allows you Synchronize newsletter subscribers and their information directly to Smaily',
 						'smaily'
 					);
 				?>

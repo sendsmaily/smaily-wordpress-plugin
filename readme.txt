@@ -12,7 +12,7 @@ The Smaily plugin integrates Contact Form 7 and WooCommerce, offering a complete
 
 == Description ==
 
-Smaily plugin now combines the flexibility of Contact Form 7 and WooCommerce with WordPress to provide a comprehensive email marketing and automation solution. Automate your email marketing across different facets of your WordPress site, from simple newsletter sign-ups to complex customer synchronization and abandoned cart reminders.
+Smaily plugin now combines the flexibility of Contact Form 7 and WooCommerce with WordPress to provide a comprehensive email marketing and automation solution. Automate your email marketing across different facets of your WordPress site, from simple newsletter sign-ups to complex subscriber synchronization and abandoned cart reminders.
 
 = Features =
 
@@ -35,7 +35,7 @@ and transfer information between your WordPress site and your Smaily account. Th
 - validating Smaily account connection with API key
 - listing available automation workflows
 - triggering automation workflows on form submissions and during sending abandoned cart reminders
-- managing user subscription status during customer synchronization
+- managing user subscription status during subscriber synchronization
 - updating user subscription status when unsubscribing from newsletters
 
 You can manage how much information is shared between your WordPress site and Smaily account by configuring the plugin settings.

@@ -190,7 +190,7 @@ class Profile_Settings {
 	}
 
 	/**
-	 * Parses the request and returns array of selected customer synchronization additional fields that have been sanitized.
+	 * Parses the request and returns array of selected subscriber synchronization additional fields that have been sanitized.
 	 * Nonce field should be verified prior to calling this function.
 	 *
 	 * @return array
@@ -328,7 +328,7 @@ class Profile_Settings {
 	}
 
 	/**
-	 * Filters out fields that are enabled by customer synchronization settings.
+	 * Filters out fields that are enabled by subscriber synchronization settings.
 	 *
 	 * @param array $fields
 	 * @return array
@@ -337,8 +337,8 @@ class Profile_Settings {
 		$enabled_fields = array();
 
 		$sync_fields                   = get_option(
-			Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION,
-			Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS
+			Smaily_Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
+			Smaily_Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS
 		);
 		$enabled_sync_fields           = array_keys( array_filter( $sync_fields ) );
 		$checkout_subscription_enabled = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION );

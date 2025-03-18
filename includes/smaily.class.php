@@ -343,8 +343,8 @@ class Smaily {
 
 			// Register the custom schedule early
 			add_filter( 'cron_schedules', array( $smaily_cron, 'smaily_cron_schedules' ) );
-			// Action hook for contact syncronization.
-			add_action( 'smaily_cron_sync_contacts', array( $smaily_cron, 'smaily_sync_contacts' ) );
+			// Action hook for subscriber synchronization.
+			add_action( 'smaily_cron_sync_subscribers', array( $smaily_cron, 'smaily_sync_subscribers' ) );
 			// Cron for updating abandoned cart statuses.
 			add_action( 'smaily_cron_abandoned_carts_status', array( $smaily_cron, 'smaily_abandoned_carts_status' ) );
 			// Cron for sending abandoned cart emails.

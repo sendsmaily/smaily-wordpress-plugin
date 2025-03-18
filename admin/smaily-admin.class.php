@@ -253,19 +253,19 @@ class Admin {
 			}
 
 			if ( Smaily_Helper::is_woocommerce_active() && $this->options->has_credentials() ) {
-				$tabs['customer_sync'] = array(
-					'title'              => __( 'Customer Synchronization', 'smaily' ),
+				$tabs['subscriber_sync'] = array(
+					'title'              => __( 'Subscriber Synchronization', 'smaily' ),
 					'submit_button_text' => __( 'Save', 'smaily' ),
 					'url'                => add_query_arg(
 						array(
 							'page' => 'smaily-settings',
-							'tab'  => 'customer_sync',
+							'tab'  => 'subscriber_sync',
 						),
 						''
 					),
-					'register_settings'  => array( $this->settings, 'register_customer_sync_tab_settings' ),
-					'option_group'       => 'smaily_settings_customer_sync',
-					'page'               => 'smaily_settings_tab_customer_sync',
+					'register_settings'  => array( $this->settings, 'register_subscriber_sync_tab_settings' ),
+					'option_group'       => 'smaily_settings_subscriber_sync',
+					'page'               => 'smaily_settings_tab_subscriber_sync',
 				);
 
 				$tabs['abandoned_cart'] = array(

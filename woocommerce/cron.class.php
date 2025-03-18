@@ -66,13 +66,13 @@ class Cron {
 	 *
 	 * @return void
 	 */
-	public function smaily_sync_contacts() {
-		if ( ! get_option( Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION ) ) {
+	public function smaily_sync_subscribers() {
+		if ( ! get_option( Smaily_Options::SUBSCRIBER_SYNC_ENABLED_OPTION ) ) {
 			return;
 		}
 
 		$request  = new Smaily_Request( $this->options );
-		$response = $request->list_unsubsribers();
+		$response = $request->list_unsubscribers();
 		if ( empty( $response ) ) {
 			return $this->logger->error( 'Failed to get unsubscribers - received an empty response' );
 		}

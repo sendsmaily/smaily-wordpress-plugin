@@ -90,13 +90,13 @@ class Sanitizer {
 	}
 
 	/**
-	 * Sanitizes customer sync additional values.
+	 * Sanitizes subscriber sync additional values.
 	 *
 	 * @param array $input
 	 * @return array
 	 */
-	public function sanitize_customer_sync_fields( $input ) {
-		$default_fields = Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS;
+	public function sanitize_subscriber_sync_fields( $input ) {
+		$default_fields = Smaily_Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS;
 
 		$sanitized = array();
 		foreach ( $default_fields as $field => $default_value ) {

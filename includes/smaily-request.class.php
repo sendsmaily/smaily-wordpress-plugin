@@ -90,11 +90,11 @@ class Smaily_Request {
 	}
 
 	/**
-	 * List unsubscribed contacts.
+	 * List unsubscribers.
 	 *
 	 * @return array
 	 */
-	public function list_unsubsribers() {
+	public function list_unsubscribers() {
 		return $this->get(
 			'contact',
 			array(

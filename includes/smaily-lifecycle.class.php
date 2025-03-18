@@ -47,16 +47,16 @@ class Smaily_Lifecycle {
 	 * Schedule custom actions if they are not already scheduled.
 	 *
 	 * This method sets up the following scheduled actions:
-	 * - Syncing customers daily.
+	 * - Syncing subscribers daily.
 	 * - Tracking abandoned cart statuses every 15 minutes.
 	 * - Sending abandoned cart emails every 15 minutes.
 	 * Additionally, it flushes the rewrite rules.
 	 */
 	private function set_scheduled_actions() {
 		// Check if the daily sync action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_cron_sync_contacts' ) ) {
-			// Add Cron job to sync customers.
-			wp_schedule_event( time(), 'daily', 'smaily_cron_sync_contacts' );
+		if ( ! wp_next_scheduled( 'smaily_cron_sync_subscribers' ) ) {
+			// Add Cron job to sync subscribers.
+			wp_schedule_event( time(), 'daily', 'smaily_cron_sync_subscribers' );
 		}
 
 		// Check if the abandoned cart status action is already scheduled.
@@ -121,7 +121,7 @@ class Smaily_Lifecycle {
 		// Flush rewrite rules.
 		flush_rewrite_rules();
 		// Stop Cron.
-		wp_clear_scheduled_hook( 'smaily_cron_sync_contacts' );
+		wp_clear_scheduled_hook( 'smaily_cron_sync_subscribers' );
 		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_email' );
 		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_status' );
 		$this->logger->info( 'Plugin deactivated' );

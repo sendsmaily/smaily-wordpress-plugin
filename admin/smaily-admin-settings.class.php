@@ -102,16 +102,16 @@ class Settings {
 	}
 
 	/**
-	 * Registers customer synchronization related configuration options.
+	 * Registers subscriber synchronization related configuration options.
 	 *
 	 * @return void
 	 */
-	public function register_customer_sync_tab_settings( $option_group, $page ) {
-		$customer_sync_section = 'smaily_settings_customer_sync_section';
+	public function register_subscriber_sync_tab_settings( $option_group, $page ) {
+		$subscriber_sync_section = 'smaily_settings_subscriber_sync_section';
 
 		register_setting(
 			$option_group,
-			Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION,
+			Smaily_Options::SUBSCRIBER_SYNC_ENABLED_OPTION,
 			array(
 				'type'              => 'boolean',
 				'sanitize_callback' => 'rest_sanitize_boolean',
@@ -121,39 +121,39 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION,
+			Smaily_Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
 			array(
 				'type'              => 'array',
-				'sanitize_callback' => array( $this->sanitizer, 'sanitize_customer_sync_fields' ),
-				'default'           => Smaily_Options::CUSTOMER_SYNC_DEFAULT_FIELDS,
+				'sanitize_callback' => array( $this->sanitizer, 'sanitize_subscriber_sync_fields' ),
+				'default'           => Smaily_Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS,
 			)
 		);
 
 		add_settings_section(
-			$customer_sync_section,
-			__( 'Daily Automatic Customer Synchronization', 'smaily' ),
-			array( $this->renderer, 'render_customer_sync_section_header' ),
+			$subscriber_sync_section,
+			__( 'Daily Automatic Subscriber Synchronization', 'smaily' ),
+			array( $this->renderer, 'render_subscriber_sync_section_header' ),
 			$page
 		);
 
 		add_settings_field(
-			Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION,
-			__( 'Enable Customer Synchronization', 'smaily' ),
+			Smaily_Options::SUBSCRIBER_SYNC_ENABLED_OPTION,
+			__( 'Enable Subscriber Synchronization', 'smaily' ),
 			array( $this->renderer, 'render_enabled_field' ),
 			$page,
-			$customer_sync_section,
+			$subscriber_sync_section,
 			array(
-				'option_name' => Smaily_Options::CUSTOMER_SYNC_ENABLED_OPTION,
+				'option_name' => Smaily_Options::SUBSCRIBER_SYNC_ENABLED_OPTION,
 				'help'        => __( 'The cron job will run once a day.', 'smaily' ),
 			)
 		);
 
 		add_settings_field(
-			Smaily_Options::CUSTOMER_SYNC_FIELDS_OPTION,
+			Smaily_Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
 			__( 'Additional Fields', 'smaily' ),
 			array( $this->renderer, 'render_sync_additional_fields' ),
 			$page,
-			$customer_sync_section
+			$subscriber_sync_section
 		);
 
 		$checkout_subscription_section = 'smaily_settings_checkout_subscription_section';

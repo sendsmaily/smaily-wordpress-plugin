@@ -9,11 +9,11 @@
 
 class Smaily_Options {
 	/**
-	 * Default values for customer sync fields.
+	 * Default values for subscriber sync fields.
 	 *
 	 * @var array
 	 */
-	const CUSTOMER_SYNC_DEFAULT_FIELDS = array(
+	const SUBSCRIBER_SYNC_DEFAULT_FIELDS = array(
 		'store_url'        => true,
 		'user_email'       => true,
 		'language'         => true,
@@ -103,8 +103,8 @@ class Smaily_Options {
 	const RSS_DEFAULT_ORDER_BY = 'DESC';
 
 	const API_CREDENTIALS_OPTION                = 'smaily_api_credentials';
-	const CUSTOMER_SYNC_ENABLED_OPTION          = 'smaily_customer_sync_enabled';
-	const CUSTOMER_SYNC_FIELDS_OPTION           = 'smaily_customer_sync_fields';
+	const SUBSCRIBER_SYNC_ENABLED_OPTION        = 'smaily_subscriber_sync_enabled';
+	const SUBSCRIBER_SYNC_FIELDS_OPTION         = 'smaily_subscriber_sync_fields';
 	const ABANDONED_CART_STATUS_OPTION          = 'smaily_abandoned_cart_status';
 	const ABANDONED_CART_CUTOFF_OPTION          = 'smaily_abandoned_cart_cutoff';
 	const ABANDONED_CART_FIELDS_OPTION          = 'smaily_abandoned_cart_fields';
@@ -126,8 +126,8 @@ class Smaily_Options {
 	 */
 	const OPTION_FIELDS = array(
 		self::API_CREDENTIALS_OPTION,
-		self::CUSTOMER_SYNC_ENABLED_OPTION,
-		self::CUSTOMER_SYNC_FIELDS_OPTION,
+		self::SUBSCRIBER_SYNC_ENABLED_OPTION,
+		self::SUBSCRIBER_SYNC_FIELDS_OPTION,
 		self::ABANDONED_CART_STATUS_OPTION,
 		self::ABANDONED_CART_CUTOFF_OPTION,
 		self::ABANDONED_CART_FIELDS_OPTION,
@@ -253,8 +253,8 @@ class Smaily_Options {
 		$cart_status = get_option( self::ABANDONED_CART_STATUS_OPTION, self::ABANDONED_CART_DEFAULT_STATUS );
 
 		return array(
-			'customer_sync_enabled'     => get_option( self::CUSTOMER_SYNC_ENABLED_OPTION ),
-			'synchronize_additional'    => get_option( self::CUSTOMER_SYNC_FIELDS_OPTION, self::CUSTOMER_SYNC_DEFAULT_FIELDS ),
+			'subscriber_sync_enabled'   => get_option( self::SUBSCRIBER_SYNC_ENABLED_OPTION ),
+			'synchronize_additional'    => get_option( self::SUBSCRIBER_SYNC_FIELDS_OPTION, self::SUBSCRIBER_SYNC_DEFAULT_FIELDS ),
 			'enable_cart'               => $cart_status['enabled'],
 			'cart_autoresponder_id'     => $cart_status['autoresponder_id'],
 			'cart_cutoff'               => (int) get_option( self::ABANDONED_CART_CUTOFF_OPTION, self::ABANDONED_CART_DEFAULT_CUTOFF ),
