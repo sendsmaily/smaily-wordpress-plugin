@@ -7,8 +7,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-03-17T10:58:43+00:00\n"
-"PO-Revision-Date: 2025-03-17T10:58:43+00:00\n"
+"POT-Creation-Date: 2025-03-18T10:07:32+00:00\n"
+"PO-Revision-Date: 2025-03-18T10:07:32+00:00\n"
 "Language: et\n"
 "Plural-Forms: nplurals = 2; plural = (n !== 1)\n"
 "X-Generator: Tolgee\n"
@@ -17,7 +17,7 @@ msgstr ""
 msgid "Abandoned Cart"
 msgstr "Hüljatud ostukorv"
 
-#: admin/smaily-admin-renderer.class.php:279
+#: admin/smaily-admin-renderer.class.php:271
 msgid "Abandoned Cart allows you to send automated emails to customers who have left their shopping cart."
 msgstr "Hüljatud ostukorv võimaldab saata automaatseid e-kirju klientidele, kes on oma ostukorvi hüljanud."
 
@@ -51,13 +51,29 @@ msgstr "Pärast"
 msgid "All"
 msgstr "Kõik"
 
+#: admin/smaily-admin.class.php:132
+msgid "API credentials validated successfully!"
+msgstr "API kasutaja on edukalt valideeritud!"
+
+#: admin/smaily-admin.class.php:155
+msgid "API credentials validation failed. Please check your details."
+msgstr "API kasutaja valideerimine nurjus. Palun kontrollige oma andmeid."
+
+#: admin/partials/smaily-admin-credentials.php:62
+msgid "API Password"
+msgstr "API parool"
+
+#: admin/partials/smaily-admin-credentials.php:47
+msgid "API Username"
+msgstr "API kasutajanimi"
+
 #: admin/smaily-admin-settings.class.php:453
 msgid "Ascending"
 msgstr "Kasvavalt"
 
-#: admin/smaily-admin-renderer.class.php:214
-msgid "Automatically Synchronize contacts using the daily Customer Synchronization."
-msgstr "Kontaktide Automaatne Sünkroonimine igapäevase Kliendisünkroonimise abil."
+#: admin/smaily-admin-renderer.class.php:206
+msgid "Automatically Synchronize subscribers using the daily Subscriber Synchronization."
+msgstr "Sünkroniseerige uudiskirjaga liitujaid automaatselt kasutades igapäevast Uudiskirjaga Liitujate Sünkroniseerimist."
 
 #: cf7/partials/smaily-cf7-admin.php:48
 #: blocks/newsletter-signup/build/index.js:1
@@ -77,13 +93,13 @@ msgstr "Enne"
 msgid "Billing form"
 msgstr "Arvelduse vorm"
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:21
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:21
 #: woocommerce/profile-settings.class.php:50
 msgid "Birthday"
 msgstr "Sünnipäev"
 
 #: admin/smaily-admin-renderer.class.php:138
-msgid "Build your own from."
+msgid "Build your own from component."
 msgstr "Ehitage vorm ise."
 
 #: blocks/newsletter-signup/build/index.js:1
@@ -104,11 +120,11 @@ msgstr "Ostukorv loetakse aegunuks (minutites)"
 msgid "checkout"
 msgstr "kassa"
 
-#: admin/smaily-admin-settings.class.php:192
-msgid "Checkout Subscription"
-msgstr "Uudiskirjaga Liitumine Kassas"
+#: admin/smaily-admin.class.php:147
+msgid "Check subdomain. API credentials validation failed."
+msgstr "Kontrollige alamdomeeni. API kasutaja valideerimine nurjus."
 
-#: admin/smaily-admin-renderer.class.php:220
+#: admin/smaily-admin-renderer.class.php:212
 msgid "Collect subscribers during checkout."
 msgstr "Koguda uudiskirjaga liitujaid kassas."
 
@@ -116,20 +132,16 @@ msgstr "Koguda uudiskirjaga liitujaid kassas."
 msgid "Configuring Smaily integration is disabled when using \"Add New Form\". Please save this form or edit an already existing form"
 msgstr "Smaily integratsiooni seadistamine on uue kontaktivormi lisamisel välja lülitatud. Palun salvestage see vorm või redigeerige juba olemasolevat vormi."
 
-#: admin/smaily-admin.class.php:225
-msgid "Connect"
-msgstr "Ühenda"
-
 #: admin/smaily-admin-settings.class.php:68
 #: admin/smaily-admin.class.php:224
 msgid "Connection"
 msgstr "Ühendus"
 
-#: admin/smaily-admin-renderer.class.php:417
+#: admin/smaily-admin-renderer.class.php:409
 msgid "Copy"
 msgstr "Kopeeri"
 
-#: admin/smaily-admin-renderer.class.php:405
+#: admin/smaily-admin-renderer.class.php:397
 msgid "Copy this URL into your template editor's RSS block, to receive RSS-feed."
 msgstr "Kopeerige see URL oma kirjapõhja redaktori RSS-blokki, et saada lisada tooteid uudiskirja."
 
@@ -149,11 +161,11 @@ msgstr "API Ligipääsud"
 msgid "Customer First Name"
 msgstr "Kliendi Eesnimi"
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:12
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:12
 msgid "Customer Group"
 msgstr "Kliendi Roll"
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:13
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:13
 msgid "Customer ID"
 msgstr "Kliendi ID"
 
@@ -161,21 +173,13 @@ msgstr "Kliendi ID"
 msgid "Customer Last Name"
 msgstr "Kliendi Perekonnanimi"
 
-#: admin/smaily-admin-renderer.class.php:353
+#: admin/smaily-admin-renderer.class.php:345
 msgid "Customers can subscribe by checking \"subscribe to newsletter\" checkbox on checkout page."
 msgstr "Kliendid saavad tellida uudiskirja, kasutades  märkeruutu kassalehel."
 
-#: admin/smaily-admin.class.php:257
-msgid "Customer Synchronization"
-msgstr "Klientide Sünkroniseerimine"
-
-#: admin/smaily-admin-renderer.class.php:259
-msgid "Customer Synchronization allows you to automate the synchronization of newsletter subscribers and their information directly with Smaily."
-msgstr "Klientide Sünkroniseerimine võimaldab automatiseerida uudiskirja tellijate ja nende andmete sünkroniseerimist otse Smailyga."
-
 #: admin/smaily-admin-settings.class.php:134
-msgid "Daily Automatic Customer Synchronization"
-msgstr "Igapäevane Automaatne Klientide Sünkroonimine"
+msgid "Daily Automatic Subscriber Synchronization"
+msgstr "Igapäevane Automaatne Uudiskirjaga Liitujate Sünkroniseerimine"
 
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:258
@@ -203,7 +207,7 @@ msgid "email"
 msgstr "email"
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:13
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:22
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:22
 #: public/partials/smaily-public-basic.php:37
 msgid "Email"
 msgstr "E-post"
@@ -221,12 +225,8 @@ msgstr "Luba hüljatud ostukorvi meeldetuletused"
 msgid "Enable Checkout Subscription"
 msgstr "Luba kassas uudiskirjaga liitumine"
 
-#: admin/smaily-admin-settings.class.php:141
-msgid "Enable Customer Synchronization"
-msgstr "Luba klientide sünkroniseerimine"
-
-#: admin/smaily-admin-renderer.class.php:310
-#: admin/smaily-admin-renderer.class.php:450
+#: admin/smaily-admin-renderer.class.php:302
+#: admin/smaily-admin-renderer.class.php:442
 msgid "Enabled"
 msgstr "Lubatud"
 
@@ -234,9 +234,13 @@ msgstr "Lubatud"
 msgid "Enable Smaily for this form"
 msgstr "Aktiveeri Smaily selle vormi jaoks"
 
-#: admin/smaily-admin-renderer.class.php:181
+#: admin/smaily-admin-renderer.class.php:174
 msgid "Enable Smaily Opt-In under the form settings."
 msgstr "Aktiveeriga Smaily Opt-In vormi seadetes."
+
+#: admin/smaily-admin-settings.class.php:141
+msgid "Enable Subscriber Synchronization"
+msgstr "Aktiveeri Uudiskirjaga Liitujate Sünkroniseerimine"
 
 #: woocommerce/profile-settings.class.php:51
 msgid "Enter birthday"
@@ -261,11 +265,11 @@ msgstr "Tõrke URL"
 msgid "Female"
 msgstr "Naine"
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:14
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:14
 msgid "First name"
 msgstr "Eesnimi"
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:15
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:15
 msgid "First Registered"
 msgstr "Esmane registreerimise aeg"
 
@@ -289,14 +293,14 @@ msgstr "Vormi ei saadetud POST meetodit kasutades."
 msgid "Full width subscribe button"
 msgstr "Täislaiuses liitumisnupp"
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:23
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:23
 #: woocommerce/profile-settings.class.php:25
 msgid "Gender"
 msgstr "Sugu"
 
-#: admin/smaily-admin-renderer.class.php:223
-msgid "Generate RSS-feeds of your products and insert them to email templates."
-msgstr "Loo oma toodetest RSS-vooge ja sisestage need kirjapõhjadesse."
+#: admin/smaily-admin-renderer.class.php:215
+msgid "Generate RSS-feeds of your products that enables product import into Smaily drag-and-drop templates."
+msgstr "Genereeri oma toodetest RSS-vooge, mis võimaldavad tooteid importida Smaily drag-and-drop kirjapõhjadesse."
 
 #: admin/smaily-admin.class.php:241
 msgid "Getting started"
@@ -312,7 +316,7 @@ msgstr "Minge pistikprogrammi seadetesse"
 msgid "Hidden fields"
 msgstr "Peidetud väljad"
 
-#: admin/smaily-admin-renderer.class.php:380
+#: admin/smaily-admin-renderer.class.php:372
 msgid "How to add RSS feed to template?"
 msgstr "Kuidas lisada RSS-voogu oma kirjapõhja?"
 
@@ -333,18 +337,9 @@ msgstr "https://smaily.com/help/how-to/ecommerce-integrations/smaily-plugin-for-
 msgid "https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/"
 msgstr "https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/"
 
-#: admin/smaily-admin-renderer.class.php:169
-msgid "https://wordpress.org/plugins/contact-form-7/"
-msgstr "https://wordpress.org/plugins/contact-form-7/"
-
 #: admin/smaily-admin-settings.class.php:434
 msgid "ID"
 msgstr "ID"
-
-#. translators: 1: link to Contact Form 7 plugin page
-#: admin/smaily-admin-renderer.class.php:173
-msgid "If the custom HTML form is too advanced for you, you can use the %1$s integration."
-msgstr "Kui kohandatud HTML-vorm on teie jaoks liiga keeruline, võite kasutada %s-integratsiooni."
 
 #: woocommerce/cron.class.php:57
 msgid "In every 15 minutes"
@@ -359,11 +354,11 @@ msgid "Input does not contain a valid email address."
 msgstr "Vigane e-posti aadress."
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:17
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:17
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:17
 msgid "Language"
 msgstr "Keel"
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:16
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:16
 msgid "Last name"
 msgstr "Perekonnanimi"
 
@@ -378,6 +373,10 @@ msgstr "Piirake, kui palju tooteid kuvatakse. Maksimaalselt 250."
 #: admin/smaily-admin-settings.class.php:222
 msgid "Location"
 msgstr "Asukoht"
+
+#: admin/smaily-admin.class.php:225
+msgid "Make a connection"
+msgstr "Looge ühendus"
 
 #: woocommerce/profile-settings.class.php:29
 msgid "Male"
@@ -404,11 +403,15 @@ msgstr "Nimevälja silt"
 msgid "newsletter"
 msgstr "uudiskiri"
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:18
+#: admin/smaily-admin-settings.class.php:192
+msgid "Newsletter Subscription On Checkout"
+msgstr "Uudiskirja Tellimine Kassas"
+
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:18
 msgid "Nickname"
 msgstr "Hüüdnimi"
 
-#: admin/smaily-admin-renderer.class.php:326
+#: admin/smaily-admin-renderer.class.php:318
 msgid "No automations created"
 msgstr "Automaatvastajaid pole loodud"
 
@@ -436,11 +439,7 @@ msgstr "Sorteeri"
 msgid "Order notes"
 msgstr "Tellimuse märkmed"
 
-#: admin/partials/smaily-admin-credentials.php:62
-msgid "Password"
-msgstr "Parool"
-
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:24
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:24
 #: woocommerce/profile-settings.class.php:39
 msgid "Phone"
 msgstr "Telefon"
@@ -466,7 +465,7 @@ msgstr "Palun sisestage alamdomeen!"
 msgid "Please enter username!"
 msgstr "Palun sisestage kasutajanimi!"
 
-#: admin/smaily-admin-renderer.class.php:187
+#: admin/smaily-admin-renderer.class.php:180
 msgid "Please install the Contact Form 7 plugin to use this integration."
 msgstr "Selle integratsiooni kasutamiseks installige palun Contact Form 7 pistikmoodul."
 
@@ -538,11 +537,11 @@ msgid "Save"
 msgstr "Salvesta"
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:47
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:47
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:47
 msgid "Select extra fields you wish to send to Smaily."
 msgstr "Vali lisaväljad, mida soovite Smaily-sse saata."
 
-#: admin/smaily-admin-renderer.class.php:217
+#: admin/smaily-admin-renderer.class.php:209
 msgid "Send Abandoned Cart reminder emails to store customers."
 msgstr "Saatke klientidele Hüljatud Ostukorvi meeldetuletusmeile."
 
@@ -575,7 +574,7 @@ msgstr "Tarne vorm"
 msgid "Show products from specific category."
 msgstr "Näita tooteid konkreetsest kategooriast."
 
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:19
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:19
 msgid "Site Title"
 msgstr "Saidi pealkiri"
 
@@ -584,6 +583,10 @@ msgstr "Saidi pealkiri"
 #: cf7/service.class.php:34
 msgid "Smaily"
 msgstr "Smaily"
+
+#: admin/partials/smaily-admin-credentials.php:20
+msgid "Smaily account subdomain"
+msgstr "Smaily konto alamdomeen"
 
 #: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
 #: blocks/checkout-optin/src/index.js:28
@@ -607,10 +610,6 @@ msgstr "Contact Form 7 Smaily meiliturunduse ja automatiseerimise pistikprogramm
 msgid "Smaily for Contact Form 7"
 msgstr "Smaily Contact Form 7-me Jaoks"
 
-#: admin/smaily-admin-renderer.class.php:210
-msgid "Smaily integrates also with your WooCommerce store."
-msgstr "Smaily integreerub ka teie WooCommerce poega."
-
 #: cf7/service.class.php:77
 msgid "Smaily integration"
 msgstr "Smaily integratsioon"
@@ -624,6 +623,10 @@ msgstr "Smaily integratsioon on sellel lehel aktiivne."
 msgid "Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations."
 msgstr "Smaily pistikmoodul, mis sisaldab WooCommerce'i ja Contact Form 7 integratsioone."
 
+#: admin/smaily-admin-renderer.class.php:203
+msgid "Smaily integration with your WooCommerce store allows you to:"
+msgstr "Smaily integratsioon sinu WooCommerce'i poega võimaldab:"
+
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:30
 msgid "Smaily Opt-In Form"
@@ -633,7 +636,7 @@ msgstr "Smaily Liitumisvorm"
 msgid "Smaily RSS feed"
 msgstr "Smaily RSS-voog"
 
-#: admin/smaily-admin-renderer.class.php:373
+#: admin/smaily-admin-renderer.class.php:365
 msgid "Smaily RSS feed allows you insert product feeds to email templates."
 msgstr "Smaily RSS-voog võimaldab sisestada tootevooge kirjapõhjadesse."
 
@@ -650,17 +653,13 @@ msgid "Sort by"
 msgstr "Sorteeri"
 
 #: admin/smaily-admin-renderer.class.php:54
-msgid "Start by setting up the connection between Smaily and your website. To do this, you need to create API credentials in Smaily and enter them below."
-msgstr "Alustage Smaily ja teie veebisaidi vahelise ühenduse loomisest. Selleks peate Smaily's looma API kasutaja ja sisestama need allpool."
+msgid "Start by connecting your Smaily account with your website. Go to your Smaily account's settings integrations tab and create a new API user. Then copy the account subdomain, API username and API password below."
+msgstr "Alustage Smaily konto ühendamisest oma veebisaidiga. Mine oma Smaily konto seadete lehele, integratsioonide vahekaardile ja loge uus API kasutaja. Seejärel kopeerige konto alamdomeen, API kasutajanimi ja API parool alumisse vormi."
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:14
-#: admin/partials/smaily-admin-woocommerce-customer-sync.php:20
+#: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:20
 msgid "Store URL"
 msgstr "Poe URL"
-
-#: admin/partials/smaily-admin-credentials.php:20
-msgid "Subdomain"
-msgstr "Alamdomeen"
 
 #: public/partials/smaily-public-basic.php:46
 msgid "Subscribe"
@@ -670,6 +669,14 @@ msgstr "Liitu"
 #: blocks/newsletter-signup/src/edit.js:205
 msgid "Subscribe button label"
 msgstr "Liitumisnupu silt"
+
+#: admin/smaily-admin.class.php:257
+msgid "Subscriber Synchronization"
+msgstr "Uudiskirjaga Liitujate Sünkroniseerimine"
+
+#: admin/smaily-admin-renderer.class.php:251
+msgid "Subscriber Synchronization allows you Synchronize newsletter subscribers and their information directly to Smaily"
+msgstr "Uudiskirjaga Liitujate Sünkroniseerimine võimaldab  teill sünkroniseerida uudiskirja tellijaid ja nende andmeid otse Smaily'ga"
 
 #: blocks/checkout-optin/smaily-checkout-optin.php:56
 #: woocommerce/profile-settings.class.php:61
@@ -704,10 +711,6 @@ msgstr "Croni töö käivitub kord päevas."
 msgid "There seems to be a problem with your connection to Smaily. Please revalidate your credentials!"
 msgstr "Tundub, et ühenduses Smaily-ga ilmnes pobleem. Palun kinnitage oma API  kasutaja uuesti!"
 
-#: admin/smaily-admin-renderer.class.php:211
-msgid "This plugin allows you to:"
-msgstr "See plugin võimaldab teil:"
-
 #: admin/smaily-admin-settings.class.php:298
 msgid "Time in minutes after which the cart is considered abandoned. Minimum 10 minutes."
 msgstr "Aeg minutites, mille järel loetakse ostukorvi hüljatuks. Minimaalselt 10 minutit."
@@ -720,17 +723,13 @@ msgstr "Pealkiri"
 msgid "Type"
 msgstr "Tüüp"
 
-#: admin/partials/smaily-admin-credentials.php:47
-msgid "Username"
-msgstr "Kasutajanimi"
-
 #: blocks/checkout-optin/smaily-checkout-extend-store-endpoint.php:43
 msgid "User newsletter subscription"
 msgstr "Kasutaja uudiskirja tellimus"
 
 #: admin/smaily-admin-renderer.class.php:163
-msgid "Use the Contact Form 7 form builder."
-msgstr "Kasutada Contact Form 7 vormi koostajat."
+msgid "Use the Contact Form 7 form builder and Smaily connector."
+msgstr "Kasutada Contact Form 7 vormi koostajat ja Smaily ühendust."
 
 #: admin/smaily-admin-renderer.class.php:78
 msgid "Use the Smaily subscription form block."
@@ -762,6 +761,10 @@ msgstr "Saate lisada lühikoodi %s mis tahes lehele või postitusele."
 msgid "You can add the widget to your website from the widgets page."
 msgstr "Vidina saate oma veebisaidile lisada vidinate lehelt."
 
+#: admin/smaily-admin-renderer.class.php:168
+msgid "You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account."
+msgstr "Võite kasutada ka Contact Form 7 vormi koostajat, et luua kohandatud vorme ja ühendada need oma Smaily kontoga."
+
 #: admin/smaily-admin-renderer.class.php:72
 msgid "You can use the following methods to collect subscribers:"
 msgstr "Uudiskirjaga liitujate kogumiseks saate kasutada järgmisi meetodeid:"
@@ -779,11 +782,6 @@ msgstr ""
 #: admin/smaily-admin-renderer.class.php:150
 msgctxt "link to example custom HTML form"
 msgid "here"
-msgstr ""
-
-#: admin/smaily-admin-renderer.class.php:168
-msgctxt "link to Contact Form 7 plugin page"
-msgid "Contact Form 7"
 msgstr ""
 
 #: blocks/checkout-optin/build/block.json
