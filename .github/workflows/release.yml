@@ -9,11 +9,49 @@ jobs:
     runs-on: ubuntu-latest
     env:
       WP_PLUGIN_NAME: smaily
+      WP_CLI_ALLOW_ROOT: true
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         path: ${{ env.WP_PLUGIN_NAME }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Build checkout-optin block
+      run: npm install --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/checkout-optin/ && npm run build --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/checkout-optin/
+
+    - name: Build newsletter-signup block
+      run: npm install --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/newsletter-signup/ && npm run build --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/newsletter-signup/
+
+    - name: Add composer mount directory to GIT safe directory
+      run: git config --global --add safe.directory /app/${{ env.WP_PLUGIN_NAME }}
+
+    - name: Install composer dependencies
+      uses: php-actions/composer@v6
+      with:
+        working_dir: ${{ env.WP_PLUGIN_NAME }}
+
+    - name: Add context to translation files
+      uses: php-actions/composer@v6
+      with:
+        container_workdir: /app/${{ env.WP_PLUGIN_NAME }}
+        command: exec wp i18n update-po languages/smaily.pot languages/
+
+    - name: Generate Translation MO files
+      uses: php-actions/composer@v6
+      with:
+        container_workdir: /app/${{ env.WP_PLUGIN_NAME }}
+        command: exec wp i18n make-mo languages/
+
+    - name: Generate translation JSON files
+      uses: php-actions/composer@v6
+      with:
+        container_workdir: /app/${{ env.WP_PLUGIN_NAME }}
+        command: exec wp i18n make-json languages/
 
     - name: Compress ZIP
       uses: thedoctor0/zip-release@0.7.5
@@ -24,15 +62,28 @@ jobs:
           /${{ env.WP_PLUGIN_NAME }}/.git*
           /${{ env.WP_PLUGIN_NAME }}/.vscode*
           /${{ env.WP_PLUGIN_NAME }}/assets*
+          /${{ env.WP_PLUGIN_NAME }}/blocks/readme.md
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/node_modules*
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/src*
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/.gitignore
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/*.json
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/*.js
+          /${{ env.WP_PLUGIN_NAME }}/vendor*
+          /${{ env.WP_PLUGIN_NAME }}/languages/*.pot
+          /${{ env.WP_PLUGIN_NAME }}/languages/*.po
+          /${{ env.WP_PLUGIN_NAME }}/languages/.gitignore
+          /${{ env.WP_PLUGIN_NAME }}/.env
+          /${{ env.WP_PLUGIN_NAME }}/.env.example
+          /${{ env.WP_PLUGIN_NAME }}/.gitignore
           /${{ env.WP_PLUGIN_NAME }}/compose.yaml
           /${{ env.WP_PLUGIN_NAME }}/composer.json
           /${{ env.WP_PLUGIN_NAME }}/composer.lock
           /${{ env.WP_PLUGIN_NAME }}/contributing.md
           /${{ env.WP_PLUGIN_NAME }}/Dockerfile
-          /${{ env.WP_PLUGIN_NAME }}/languages/*
           /${{ env.WP_PLUGIN_NAME }}/phpcs.xml
           /${{ env.WP_PLUGIN_NAME }}/readme.md
           /${{ env.WP_PLUGIN_NAME }}/release.sh
+          /${{ env.WP_PLUGIN_NAME }}/user.sh
 
     - name: Get release URL
       id: get_release_url
