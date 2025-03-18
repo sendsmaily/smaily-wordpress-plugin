@@ -17,7 +17,7 @@ $connected = $subdomain && $username;
 	<input type="hidden" name="smaily_api_credentials[enabled]" value="<?php echo esc_attr( $connected ); ?>" />
 	<p class="form-field">
 		<label for="smaily_subdomain">
-			<?php esc_html_e( 'Subdomain', 'smaily' ); ?>
+			<?php esc_html_e( 'Smaily account subdomain', 'smaily' ); ?>
 			<input
 				<?php if ( ! empty( $subdomain ) ) : ?>
 					disabled
@@ -44,7 +44,7 @@ $connected = $subdomain && $username;
 	</p>
 	<p class="form-field">
 		<label for="smaily_username">
-			<?php esc_html_e( 'Username', 'smaily' ); ?>
+			<?php esc_html_e( 'API Username', 'smaily' ); ?>
 			<input
 				<?php if ( ! empty( $username ) ) : ?>
 					disabled
@@ -59,7 +59,7 @@ $connected = $subdomain && $username;
 	<?php if ( ! $connected ) : ?>
 	<p class="form-field">
 		<label for="smaily_password">
-			<?php esc_html_e( 'Password', 'smaily' ); ?>
+			<?php esc_html_e( 'API Password', 'smaily' ); ?>
 			<input
 				<?php if ( ! empty( $password ) ) : ?>
 					disabled

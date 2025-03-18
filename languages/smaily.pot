@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-03-17T10:56:56+00:00\n"
+"POT-Creation-Date: 2025-03-18T09:24:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily\n"
@@ -36,7 +36,7 @@ msgid "https://smaily.com"
 msgstr ""
 
 #: admin/partials/smaily-admin-credentials.php:20
-msgid "Subdomain"
+msgid "Smaily account subdomain"
 msgstr ""
 
 #. translators: 1: example subdomain between strong tags
@@ -45,11 +45,11 @@ msgid "For example \"%1$s\" from https://%1$s.sendsmaily.net/"
 msgstr ""
 
 #: admin/partials/smaily-admin-credentials.php:47
-msgid "Username"
+msgid "API Username"
 msgstr ""
 
 #: admin/partials/smaily-admin-credentials.php:62
-msgid "Password"
+msgid "API Password"
 msgstr ""
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:13
@@ -157,7 +157,7 @@ msgid "There seems to be a problem with your connection to Smaily. Please revali
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:54
-msgid "Start by setting up the connection between Smaily and your website. To do this, you need to create API credentials in Smaily and enter them below."
+msgid "Start by connecting your Smaily account with your website. Go to your Smaily account's settings integrations tab and create a new API user. Then copy the account subdomain, API username and API password below."
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:57
@@ -212,7 +212,7 @@ msgid "For more configuration options %1$s."
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:138
-msgid "Build your own from."
+msgid "Build your own from component."
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:143
@@ -234,89 +234,75 @@ msgid "You can view the example form %1$s."
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:163
-msgid "Use the Contact Form 7 form builder."
+msgid "Use the Contact Form 7 form builder and Smaily connector."
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:168
-msgctxt "link to Contact Form 7 plugin page"
-msgid "Contact Form 7"
+msgid "You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:169
-msgid "https://wordpress.org/plugins/contact-form-7/"
-msgstr ""
-
-#. translators: 1: link to Contact Form 7 plugin page
-#: admin/smaily-admin-renderer.class.php:173
-msgid "If the custom HTML form is too advanced for you, you can use the %1$s integration."
-msgstr ""
-
-#: admin/smaily-admin-renderer.class.php:181
+#: admin/smaily-admin-renderer.class.php:174
 msgid "Enable Smaily Opt-In under the form settings."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:187
+#: admin/smaily-admin-renderer.class.php:180
 msgid "Please install the Contact Form 7 plugin to use this integration."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:210
-msgid "Smaily integrates also with your WooCommerce store."
+#: admin/smaily-admin-renderer.class.php:203
+msgid "Smaily integration with your WooCommerce store allows you to:"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:211
-msgid "This plugin allows you to:"
-msgstr ""
-
-#: admin/smaily-admin-renderer.class.php:214
+#: admin/smaily-admin-renderer.class.php:206
 msgid "Automatically Synchronize contacts using the daily Customer Synchronization."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:217
+#: admin/smaily-admin-renderer.class.php:209
 msgid "Send Abandoned Cart reminder emails to store customers."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:220
+#: admin/smaily-admin-renderer.class.php:212
 msgid "Collect subscribers during checkout."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:223
-msgid "Generate RSS-feeds of your products and insert them to email templates."
+#: admin/smaily-admin-renderer.class.php:215
+msgid "Generate RSS-feeds of your products that enables product import into Smaily drag-and-drop templates."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:259
-msgid "Customer Synchronization allows you to automate the synchronization of newsletter subscribers and their information directly with Smaily."
+#: admin/smaily-admin-renderer.class.php:251
+msgid "Customer Synchronization allows you Synchronize newsletter subscribers and their information directly to Smaily"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:279
+#: admin/smaily-admin-renderer.class.php:271
 msgid "Abandoned Cart allows you to send automated emails to customers who have left their shopping cart."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:310
-#: admin/smaily-admin-renderer.class.php:450
+#: admin/smaily-admin-renderer.class.php:302
+#: admin/smaily-admin-renderer.class.php:442
 msgid "Enabled"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:326
+#: admin/smaily-admin-renderer.class.php:318
 msgid "No automations created"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:353
+#: admin/smaily-admin-renderer.class.php:345
 msgid "Customers can subscribe by checking \"subscribe to newsletter\" checkbox on checkout page."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:373
+#: admin/smaily-admin-renderer.class.php:365
 msgid "Smaily RSS feed allows you insert product feeds to email templates."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:380
+#: admin/smaily-admin-renderer.class.php:372
 msgid "How to add RSS feed to template?"
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:405
+#: admin/smaily-admin-renderer.class.php:397
 msgid "Copy this URL into your template editor's RSS block, to receive RSS-feed."
 msgstr ""
 
-#: admin/smaily-admin-renderer.class.php:417
+#: admin/smaily-admin-renderer.class.php:409
 msgid "Copy"
 msgstr ""
 
@@ -371,7 +357,7 @@ msgid "Additional Fields"
 msgstr ""
 
 #: admin/smaily-admin-settings.class.php:192
-msgid "Checkout Subscription"
+msgid "Newsletter Subscription On Checkout"
 msgstr ""
 
 #: admin/smaily-admin-settings.class.php:199
@@ -475,12 +461,24 @@ msgstr ""
 msgid "Smaily Settings"
 msgstr ""
 
+#: admin/smaily-admin.class.php:132
+msgid "API credentials validated successfully!"
+msgstr ""
+
+#: admin/smaily-admin.class.php:147
+msgid "Check subdomain. API credentials validation failed."
+msgstr ""
+
+#: admin/smaily-admin.class.php:155
+msgid "API credentials validation failed. Please check your details."
+msgstr ""
+
 #: admin/smaily-admin.class.php:225
 msgid "Disconnect"
 msgstr ""
 
 #: admin/smaily-admin.class.php:225
-msgid "Connect"
+msgid "Make a connection"
 msgstr ""
 
 #: admin/smaily-admin.class.php:241

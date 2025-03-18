@@ -129,7 +129,7 @@ class Admin {
 			add_settings_error(
 				'smaily_messages',
 				'credentials_validated',
-				'API credentials validated successfully!',
+				__( 'API credentials validated successfully!', 'smaily' ),
 				'success'
 			);
 
@@ -144,7 +144,7 @@ class Admin {
 					add_settings_error(
 						'smaily_messages',
 						'invalid_api_credentials',
-						'Check subdomain. API credentials validation failed.',
+						__( 'Check subdomain. API credentials validation failed.', 'smaily' ),
 						'error'
 					);
 					break;
@@ -152,7 +152,7 @@ class Admin {
 					add_settings_error(
 						'smaily_messages',
 						'invalid_api_credentials',
-						'API credentials validation failed. Please check your details.',
+						__( 'API credentials validation failed. Please check your details.', 'smaily' ),
 						'error'
 					);
 					break;
@@ -222,7 +222,7 @@ class Admin {
 			$tabs = array(
 				'connection' => array(
 					'title'              => __( 'Connection', 'smaily' ),
-					'submit_button_text' => $this->options->has_credentials() ? __( 'Disconnect', 'smaily' ) : __( 'Connect', 'smaily' ),
+					'submit_button_text' => $this->options->has_credentials() ? __( 'Disconnect', 'smaily' ) : __( 'Make a connection', 'smaily' ),
 					'url'                => add_query_arg(
 						array(
 							'page' => 'smaily-settings',

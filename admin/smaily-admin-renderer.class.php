@@ -51,7 +51,7 @@ class Renderer {
 		<?php endif; ?>
 		<div style="max-width: 500px;">
 			<p>
-				<?php esc_html_e( 'Start by setting up the connection between Smaily and your website. To do this, you need to create API credentials in Smaily and enter them below.', 'smaily' ); ?>
+				<?php esc_html_e( "Start by connecting your Smaily account with your website. Go to your Smaily account's settings integrations tab and create a new API user. Then copy the account subdomain, API username and API password below.", 'smaily' ); ?>
 			</p>
 			<a href="https://smaily.com/help/api/general/create-api-user/" target="_blank">
 				<?php esc_html_e( 'How to create API credentials?', 'smaily' ); ?>
@@ -135,7 +135,7 @@ class Renderer {
 					<li>
 						<p>
 							<strong>
-								<?php esc_html_e( 'Build your own from.', 'smaily' ); ?>
+								<?php esc_html_e( 'Build your own from component.', 'smaily' ); ?>
 							</strong>
 						</p>
 						<p>
@@ -160,19 +160,12 @@ class Renderer {
 					<li>
 						<p>
 							<strong>
-								<?php esc_html_e( 'Use the Contact Form 7 form builder.', 'smaily' ); ?>
+								<?php esc_html_e( 'Use the Contact Form 7 form builder and Smaily connector.', 'smaily' ); ?>
 							</strong>
 						</p>
 						<p>
 							<?php
-							$anchor = esc_html_x( 'Contact Form 7', 'link to Contact Form 7 plugin page', 'smaily' );
-							$domain = esc_url( __( 'https://wordpress.org/plugins/contact-form-7/', 'smaily' ) );
-							$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
-							echo sprintf(
-								/* translators: 1: link to Contact Form 7 plugin page */
-								esc_html__( 'If the custom HTML form is too advanced for you, you can use the %1$s integration.', 'smaily' ),
-								wp_kses_post( $link )
-							);
+								esc_html_e( 'You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account.', 'smaily' );
 							?>
 						</p>
 						<?php if ( Smaily_Helper::is_cf7_active() ) : ?>
@@ -207,8 +200,7 @@ class Renderer {
 		?>
 		<div style="max-width: 500px;">
 			<p>
-				<?php esc_html_e( 'Smaily integrates also with your WooCommerce store.', 'smaily' ); ?>
-				<?php esc_html_e( 'This plugin allows you to:', 'smaily' ); ?>
+				<?php esc_html_e( 'Smaily integration with your WooCommerce store allows you to:', 'smaily' ); ?>
 				<ol>
 					<li>
 						<?php esc_html_e( 'Automatically Synchronize contacts using the daily Customer Synchronization.', 'smaily' ); ?>
@@ -220,7 +212,7 @@ class Renderer {
 						<?php esc_html_e( 'Collect subscribers during checkout.', 'smaily' ); ?>
 					</li>
 					<li>
-						<?php esc_html_e( 'Generate RSS-feeds of your products and insert them to email templates.', 'smaily' ); ?>
+						<?php esc_html_e( 'Generate RSS-feeds of your products that enables product import into Smaily drag-and-drop templates.', 'smaily' ); ?>
 					</li>
 				</ol>
 			</p>
@@ -257,7 +249,7 @@ class Renderer {
 			<p>
 				<?php
 					esc_html_e(
-						'Customer Synchronization allows you to automate the synchronization of newsletter subscribers and their information directly with Smaily.',
+						'Customer Synchronization allows you Synchronize newsletter subscribers and their information directly to Smaily',
 						'smaily'
 					);
 				?>
