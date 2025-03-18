@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-03-18T10:00:56+00:00\n"
+"POT-Creation-Date: 2025-03-18T10:15:37+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily\n"
@@ -198,7 +198,6 @@ msgid "You can add the %1$s shortcode to any page or post."
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:125
-msgctxt "link to shortcode guide"
 msgid "read the detailed guide"
 msgstr ""
 
@@ -220,7 +219,6 @@ msgid "Create a custom HTML form for maximum flexibility and advanced functional
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:150
-msgctxt "link to example custom HTML form"
 msgid "here"
 msgstr ""
 

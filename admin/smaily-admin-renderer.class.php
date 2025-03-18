@@ -122,7 +122,7 @@ class Renderer {
 						?>
 						</p>
 						<?php
-							$anchor = esc_html_x( 'read the detailed guide', 'link to shortcode guide', 'smaily' );
+							$anchor = esc_html__( 'read the detailed guide', 'smaily' );
 							$domain = esc_url( __( 'https://smaily.com/help/how-to/ecommerce-integrations/smaily-plugin-for-wordpress#toc-heading-4', 'smaily' ) );
 							$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
 							echo sprintf(
@@ -147,7 +147,7 @@ class Renderer {
 							?>
 						</p>
 						<?php
-							$anchor = esc_html_x( 'here', 'link to example custom HTML form', 'smaily' );
+							$anchor = esc_html__( 'here', 'smaily' );
 							$domain = esc_url( __( 'https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/', 'smaily' ) );
 							$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
 							echo sprintf(

@@ -7,8 +7,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-03-18T10:07:32+00:00\n"
-"PO-Revision-Date: 2025-03-18T10:07:32+00:00\n"
+"POT-Creation-Date: 2025-03-18T10:16:35+00:00\n"
+"PO-Revision-Date: 2025-03-18T10:16:35+00:00\n"
 "Language: et\n"
 "Plural-Forms: nplurals = 2; plural = (n !== 1)\n"
 "X-Generator: Tolgee\n"
@@ -311,6 +311,10 @@ msgstr "Alustamine"
 msgid "Go to plugin settings"
 msgstr "Minge pistikprogrammi seadetesse"
 
+#: admin/smaily-admin-renderer.class.php:150
+msgid "here"
+msgstr "siin"
+
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:250
 msgid "Hidden fields"
@@ -522,6 +526,10 @@ msgstr "Toote SKU"
 msgid "Random"
 msgstr "Juhuslik"
 
+#: admin/smaily-admin-renderer.class.php:125
+msgid "read the detailed guide"
+msgstr "lugege üksikasjalikku juhendit"
+
 #: includes/smaily-options.class.php:187
 msgid "Registration form"
 msgstr "Registreerimisvorm"
@@ -654,7 +662,7 @@ msgstr "Sorteeri"
 
 #: admin/smaily-admin-renderer.class.php:54
 msgid "Start by connecting your Smaily account with your website. Go to your Smaily account's settings integrations tab and create a new API user. Then copy the account subdomain, API username and API password below."
-msgstr "Alustage Smaily konto ühendamisest oma veebisaidiga. Mine oma Smaily konto seadete lehele, integratsioonide vahekaardile ja loge uus API kasutaja. Seejärel kopeerige konto alamdomeen, API kasutajanimi ja API parool alumisse vormi."
+msgstr "Alustage Smaily konto ühendamisest oma veebisaidiga. Minge oma Smaily konto seadete lehele, integratsioonide vahekaardile ja loge uus API kasutaja. Seejärel kopeerige konto alamdomeen, API kasutajanimi ja API parool alumisse vormi."
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:14
 #: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:20
@@ -773,16 +781,6 @@ msgstr "Uudiskirjaga liitujate kogumiseks saate kasutada järgmisi meetodeid:"
 #: admin/smaily-admin-renderer.class.php:155
 msgid "You can view the example form %1$s."
 msgstr "Saate vaadata näidisvormi %s."
-
-#: admin/smaily-admin-renderer.class.php:125
-msgctxt "link to shortcode guide"
-msgid "read the detailed guide"
-msgstr ""
-
-#: admin/smaily-admin-renderer.class.php:150
-msgctxt "link to example custom HTML form"
-msgid "here"
-msgstr ""
 
 #: blocks/checkout-optin/build/block.json
 #: blocks/checkout-optin/src/block.json
