@@ -89,7 +89,7 @@ class Admin {
 			return wp_die( 'Insufficient permissions' );
 		}
 
-		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-page.php';
+		include_once SMAILY_WP_CONNECT_PLUGIN_PATH . '/admin/partials/smaily-admin-page.php';
 	}
 
 	/**
@@ -310,8 +310,8 @@ class Admin {
 	 *
 	 */
 	public function enqueue_styles() {
-		wp_register_style( $this->plugin_name, SMAILY_PLUGIN_URL . '/admin/css/smaily-admin.css', array(), $this->version, 'all' );
-		wp_register_style( $this->plugin_name . '-widget', SMAILY_PLUGIN_URL . '/admin/css/smaily-widget-admin.css', array(), $this->version, 'all' );
+		wp_register_style( $this->plugin_name, SMAILY_WP_CONNECT_PLUGIN_URL . '/admin/css/smaily-admin.css', array(), $this->version, 'all' );
+		wp_register_style( $this->plugin_name . '-widget', SMAILY_WP_CONNECT_PLUGIN_URL . '/admin/css/smaily-widget-admin.css', array(), $this->version, 'all' );
 
 		wp_enqueue_style( $this->plugin_name );
 		wp_enqueue_style( $this->plugin_name . '-widget' );
@@ -322,9 +322,9 @@ class Admin {
 	 *
 	 */
 	public function enqueue_scripts() {
-		wp_register_script( $this->plugin_name . '-jscolor', SMAILY_PLUGIN_URL . '/admin/js/jscolor.min.js', array(), $this->version, true );
-		wp_register_script( $this->plugin_name, SMAILY_PLUGIN_URL . '/admin/js/smaily-admin.js', array( 'jquery', 'jquery-ui-tabs' ), $this->version, true );
-		wp_register_script( $this->plugin_name . '-widget', SMAILY_PLUGIN_URL . '/admin/js/admin-widget.js', array( 'jquery', $this->plugin_name . '-jscolor' ), $this->version, true );
+		wp_register_script( $this->plugin_name . '-jscolor', SMAILY_WP_CONNECT_PLUGIN_URL . '/admin/js/jscolor.min.js', array(), $this->version, true );
+		wp_register_script( $this->plugin_name, SMAILY_WP_CONNECT_PLUGIN_URL . '/admin/js/smaily-admin.js', array( 'jquery', 'jquery-ui-tabs' ), $this->version, true );
+		wp_register_script( $this->plugin_name . '-widget', SMAILY_WP_CONNECT_PLUGIN_URL . '/admin/js/admin-widget.js', array( 'jquery', $this->plugin_name . '-jscolor' ), $this->version, true );
 
 		wp_enqueue_script( $this->plugin_name . '-jscolor' );
 		wp_enqueue_script( $this->plugin_name );

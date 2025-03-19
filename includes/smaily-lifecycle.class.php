@@ -166,7 +166,7 @@ class Smaily_Lifecycle {
 	 * @param array           $options         Array of bulk item update data.
 	 */
 	public function check_for_update( $upgrader_object, $options ) {
-		$smaily_basename = plugin_basename( SMAILY_PLUGIN_FILE );
+		$smaily_basename = plugin_basename( SMAILY_WP_CONNECT_PLUGIN_FILE );
 
 		$plugin_was_updated = $options['action'] === 'update' && $options['type'] === 'plugin';
 		if ( ! isset( $options['plugins'] ) || ! $plugin_was_updated ) {
@@ -191,7 +191,7 @@ class Smaily_Lifecycle {
 	 * @access private
 	 */
 	private function run_migrations() {
-		$plugin_version = SMAILY_PLUGIN_VERSION;
+		$plugin_version = SMAILY_WP_CONNECT_PLUGIN_VERSION;
 		$db_version     = get_option( Smaily_Options::DATABASE_VERSION_OPTION, '0.0.0' );
 
 		if ( $plugin_version === $db_version ) {
@@ -206,7 +206,7 @@ class Smaily_Lifecycle {
 				continue;
 			}
 
-			$migration_file = SMAILY_PLUGIN_PATH . 'migrations/' . $migration_file;
+			$migration_file = SMAILY_WP_CONNECT_PLUGIN_PATH . 'migrations/' . $migration_file;
 			if ( ! file_exists( $migration_file ) ) {
 				continue;
 			}

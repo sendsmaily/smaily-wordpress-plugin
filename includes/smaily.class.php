@@ -14,7 +14,7 @@
 
 use Smaily_Admin\Admin;
 
-class Smaily {
+class Smaily_WP_Connect {
 	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
@@ -61,7 +61,7 @@ class Smaily {
 	 *
 	 */
 	public function __construct() {
-		$this->version     = SMAILY_PLUGIN_VERSION;
+		$this->version     = SMAILY_WP_CONNECT_PLUGIN_VERSION;
 		$this->plugin_name = 'smaily';
 		$this->load_dependencies();
 		$this->set_locale();
@@ -105,37 +105,37 @@ class Smaily {
 	 * @access private
 	 */
 	private function load_dependencies() {
-		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-renderer.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'admin/smaily-admin.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-newsletter-signup-blocks-integration.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-api.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-block.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-helper.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-i18n.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-logger.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-options.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-request.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'includes/smaily-widget.class.php';
-		require_once SMAILY_PLUGIN_PATH . 'public/smaily-public.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-renderer.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-newsletter-signup-blocks-integration.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-api.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-block.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-helper.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-i18n.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-logger.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-options.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-request.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-widget.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'public/smaily-public.class.php';
 
 		$this->options = new Smaily_Options();
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cart.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/cron.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/data-handler.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/profile-settings.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/rss.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'woocommerce/subscriber-synchronization.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/cart.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/cron.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/data-handler.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/profile-settings.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/rss.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/subscriber-synchronization.class.php';
 		}
 
 		if ( Smaily_Helper::is_cf7_active() ) {
-			require_once SMAILY_PLUGIN_PATH . 'cf7/admin.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'cf7/public.class.php';
-			require_once SMAILY_PLUGIN_PATH . 'cf7/service.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'cf7/admin.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'cf7/public.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'cf7/service.class.php';
 		}
 	}
 
@@ -162,7 +162,7 @@ class Smaily {
 		wp_enqueue_style( 'wp-components' );
 
 		register_block_type(
-			SMAILY_PLUGIN_PATH . '/blocks/newsletter-signup/build',
+			SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/newsletter-signup/build',
 			array(
 				'render_callback' => array( 'Smaily_Newsletter_Signup_Blocks_Integration', 'render' ),
 			)
@@ -170,15 +170,15 @@ class Smaily {
 		wp_set_script_translations(
 			'smaily-newsletter-block-editor-script',
 			'smaily',
-			SMAILY_PLUGIN_PATH . 'languages'
+			SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
 		);
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
-			register_block_type( SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/build' );
+			register_block_type( SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/build' );
 			wp_set_script_translations(
 				'smaily-checkout-optin-editor-script',
 				'smaily',
-				SMAILY_PLUGIN_PATH . 'languages'
+				SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
 			);
 		}
 	}
@@ -201,7 +201,7 @@ class Smaily {
 		add_action( 'admin_enqueue_scripts', array( $plugin_admin, 'enqueue_scripts' ) );
 		add_action( 'wp_ajax_smaily_admin_save', array( $plugin_admin, 'smaily_admin_save' ) );
 		add_action( 'widgets_init', array( $plugin_admin, 'smaily_subscription_widget_init' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( SMAILY_PLUGIN_FILE ), array( $plugin_admin, 'settings_link' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( SMAILY_WP_CONNECT_PLUGIN_FILE ), array( $plugin_admin, 'settings_link' ) );
 		add_action( 'rest_api_init', array( $plugin_api, 'register_endpoints' ) );
 
 		if ( Smaily_Helper::is_woocommerce_active() ) {
@@ -235,8 +235,8 @@ class Smaily {
 				add_action(
 					'woocommerce_blocks_loaded',
 					function () {
-						require_once SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-optin.php';
-						require_once SMAILY_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-extend-store-endpoint.php';
+						require_once SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-optin.php';
+						require_once SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-extend-store-endpoint.php';
 
 						Smaily_Checkout_Optin_Extend_Store_Endpoint::init();
 
@@ -319,9 +319,9 @@ class Smaily {
 	 */
 	private function define_lifecycle_hooks() {
 		$plugin_lifecycle = new Smaily_Lifecycle();
-		register_activation_hook( SMAILY_PLUGIN_FILE, array( $plugin_lifecycle, 'activate' ) );
-		register_deactivation_hook( SMAILY_PLUGIN_FILE, array( $plugin_lifecycle, 'deactivate' ) );
-		register_uninstall_hook( SMAILY_PLUGIN_FILE, array( '\Smaily_Lifecycle', 'uninstall' ) );
+		register_activation_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( $plugin_lifecycle, 'activate' ) );
+		register_deactivation_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( $plugin_lifecycle, 'deactivate' ) );
+		register_uninstall_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( '\Smaily_Lifecycle', 'uninstall' ) );
 		add_action( 'plugins_loaded', array( $plugin_lifecycle, 'update' ) );
 		add_action( 'upgrader_process_complete', array( $plugin_lifecycle, 'check_for_update' ), 10, 2 );
 		add_action( 'activated_plugin', array( $plugin_lifecycle, 'check_for_dependency' ), 10, 2 );

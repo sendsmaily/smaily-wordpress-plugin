@@ -142,7 +142,7 @@ class Smaily_Request {
 	 */
 	private function request( string $endpoint, array $data, $method = 'GET' ) {
 		$response  = array();
-		$useragent = 'smaily/' . SMAILY_PLUGIN_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . '; +' . get_bloginfo( 'url' ) . ')';
+		$useragent = 'smaily/' . SMAILY_WP_CONNECT_PLUGIN_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . '; +' . get_bloginfo( 'url' ) . ')';
 		$args      = array(
 			'headers'    => array(
 				'Authorization' => 'Basic ' . base64_encode( $this->_username . ':' . $this->_password ),

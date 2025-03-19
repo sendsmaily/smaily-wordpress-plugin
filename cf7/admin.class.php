@@ -112,7 +112,7 @@ class Admin {
 		$form_tags       = \WPCF7_FormTagsManager::get_instance()->get_scanned_tags();
 		$captcha_enabled = $this->is_captcha_enabled( $form_tags );
 
-		require_once SMAILY_PLUGIN_PATH . 'cf7/partials/smaily-cf7-admin.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'cf7/partials/smaily-cf7-admin.php';
 	}
 
 	/**

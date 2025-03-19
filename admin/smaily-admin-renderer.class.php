@@ -226,7 +226,7 @@ class Renderer {
 	 * @return void
 	 */
 	public function render_credentials_fields() {
-		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-credentials.php';
+		include_once SMAILY_WP_CONNECT_PLUGIN_PATH . '/admin/partials/smaily-admin-credentials.php';
 	}
 
 	/**
@@ -235,7 +235,7 @@ class Renderer {
 	 * @return void
 	 */
 	public function render_sync_additional_fields() {
-		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-woocommerce-subscriber-sync.php';
+		include_once SMAILY_WP_CONNECT_PLUGIN_PATH . '/admin/partials/smaily-admin-woocommerce-subscriber-sync.php';
 	}
 
 	/**
@@ -329,7 +329,7 @@ class Renderer {
 	 * @return void
 	 */
 	public function render_abandoned_additional_fields() {
-		include_once SMAILY_PLUGIN_PATH . '/admin/partials/smaily-admin-woocommerce-abandoned-cart.php';
+		include_once SMAILY_WP_CONNECT_PLUGIN_PATH . '/admin/partials/smaily-admin-woocommerce-abandoned-cart.php';
 	}
 
 	/**

@@ -89,9 +89,9 @@ class Rss {
 
 		// Render products RSS feed, if requested.
 		if ( $render_rss_feed === true ) {
-			return SMAILY_PLUGIN_PATH . 'public/template/smaily-rss-feed.php';
+			return SMAILY_WP_CONNECT_PLUGIN_PATH . 'public/template/smaily-rss-feed.php';
 		} elseif ( $pagename === 'smaily-rss-feed' ) {
-			return SMAILY_PLUGIN_PATH . 'public/template/smaily-rss-feed.php';
+			return SMAILY_WP_CONNECT_PLUGIN_PATH . 'public/template/smaily-rss-feed.php';
 		}
 
 		// Load normal template as a fallback.
