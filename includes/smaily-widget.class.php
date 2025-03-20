@@ -121,7 +121,6 @@ class Widget extends WP_Widget {
 		$autoresponder_id      = $this->get_field_id( 'autoresponder_id' );
 		$autoresponder_id_name = $this->get_field_name( 'autoresponder_id' );
 
-		ob_start();
 		?>
 		<p>
 			<label for="<?php echo esc_attr( $title_name ); ?>"><?php esc_html_e( 'Title', 'smaily' ); ?>:</label>
@@ -150,6 +149,5 @@ class Widget extends WP_Widget {
 			</select>
 		</p>
 		<?php
-		return ob_get_clean();
 	}
 }
