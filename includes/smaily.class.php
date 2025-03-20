@@ -169,32 +169,32 @@ class Smaily_WP_Connect {
 	 *
 	 * Include the following files that make up the plugin:
 	 *
-	 * - Smaily_Helper.    Defines helper methods for various purposes.
-	 * - Smaily_Logger.    Defines the logging functionality.
-	 * - Smaily_Admin.     Defines all hooks for the admin area.
-	 * - Smaily_Block.     Define the Gutenberg newsletter subscription block functionality.
-	 * - Smaily_Options.   Defines the database related queries of Options API.
-	 * - Smaily_Widget.    Defines the widget functionality.
-	 * - Smaily_Public.    Defines all hooks for the public side of the site.
+	 * - Helper.    Defines helper methods for various purposes.
+	 * - Logger.    Defines the logging functionality.
+	 * - Admin.     Defines all hooks for the admin area.
+	 * - Block.     Define the Gutenberg newsletter subscription block functionality.
+	 * - Options.   Defines the database related queries of Options API.
+	 * - Widget.    Defines the widget functionality.
+	 * - Public_Base.    Defines all hooks for the public side of the site.
 	 *
 	 * Woocommerce related dependencies
 	 *
-	 * - Smaily_WC\Data_Handler.                Handles woocommerce related data retrieval
-	 * - Smaily_WC\Data_Prepare.                Class for preparing Woocommerce related data
-	 * - Smaily_WC\Cron.                        Handles data synchronization between Smaily and WooCommerce.
-	 * - Smaily_WC\Cart                         Manages status of user cart in smaily_abandoned_carts table.
-	 * - Smaily_WC\Subscriber_Synchronization   Defines functionality for user subscriptions
-	 * - Smaily_WC\Profile_Settings.            Adds and controls WordPress/Woocommerce fields.
-	 * - Smaily_WC\Smaily_Rss.                  Handles RSS generation for Smaily newsletter.
+	 * - Integrations\WooCommerce\Data_Handler.                Handles woocommerce related data retrieval
+	 * - Integrations\WooCommerce\Data_Prepare.                Class for preparing Woocommerce related data
+	 * - Integrations\WooCommerce\Cron.                        Handles data synchronization between Smaily and WooCommerce.
+	 * - Integrations\WooCommerce\Cart                         Manages status of user cart in smaily_abandoned_carts table.
+	 * - Integrations\WooCommerce\Subscriber_Synchronization   Defines functionality for user subscriptions
+	 * - Integrations\WooCommerce\Profile_Settings.            Adds and controls WordPress/Woocommerce fields.
+	 * - Integrations\WooCommerce\Smaily_Rss.                  Handles RSS generation for Smaily newsletter.
 	 *
 	 * Create an instance of the loader which will be used to register the hooks
 	 * with WordPress.
 	 *
 	 * Contact Form 7 related dependencies
 	 *
-	 * - Smaily_CF7\Admin                       Defines all hooks for the admin area of contact form 7
-	 * - Smaily_CF7\Smaily_Public               Defines the public facing functionality
-	 * - Smaily_CF7\Smaily_CF7_Service          Defines the logic to display a block under Contact Form 7 integration section.
+	 * - Integrations\CF7\Admin            Defines all hooks for the admin area of contact form 7
+	 * - Integrations\CF7\Public_Base      Defines the public facing functionality
+	 * - Integrations\CF7\Service          Defines the logic to display a block under Contact Form 7 integration section.
 	 *
 	 * @access private
 	 */
