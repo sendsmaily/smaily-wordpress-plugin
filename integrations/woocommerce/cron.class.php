@@ -241,7 +241,7 @@ class Cron {
 	public function update_mail_sent_status( $customer_id ) {
 		global $wpdb;
 
-		$table = $wpdb->prefix . 'smaily_abandoned_carts';
+		$table = $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME;
 		$wpdb->update(
 			$table,
 			array(
@@ -262,11 +262,11 @@ class Cron {
 	public function get_abandoned_carts() {
 		global $wpdb;
 		return $wpdb->get_results(
-			"
-			SELECT * FROM {$wpdb->prefix}smaily_abandoned_carts
-			WHERE cart_status='abandoned'
-			AND mail_sent IS NULL
-			",
+			$wpdb->prepare(
+				'SELECT * FROM `%1$s` WHERE cart_status=%s AND mail_sent IS NULL',
+				$wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME,
+				'abandoned'
+			),
 			'ARRAY_A'
 		);
 	}
@@ -283,7 +283,7 @@ class Cron {
 		// Check if abandoned cart is enabled.
 		if ( isset( $results['woocommerce']['enable_cart'] ) && (int) $results['woocommerce']['enable_cart'] === 1 ) {
 			// Abandoned carts table name.
-			$table = $wpdb->prefix . 'smaily_abandoned_carts';
+			$table = $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME;
 			// Cart cutoff in seconds.
 			$cutoff = (int) $results['woocommerce']['cart_cutoff'] * MINUTE_IN_SECONDS;
 			// Current UTC timestamp - cutoff.
@@ -293,12 +293,9 @@ class Cron {
 			// Select all carts before cutoff time.
 			$carts = $wpdb->get_results(
 				$wpdb->prepare(
-					"
-					SELECT * FROM {$wpdb->prefix}smaily_abandoned_carts
-					WHERE cart_status='open'
-					AND mail_sent IS NULL
-					AND cart_updated < %s
-					",
+					'SELECT * FROM `%1$s` WHERE cart_status=%s AND mail_sent IS NULL AND cart_updated < %s',
+					$table,
+					'open',
 					$time
 				),
 				'ARRAY_A'

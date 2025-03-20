@@ -6,6 +6,11 @@ use Smaily_WP_Connect\Includes\Helper;
 
 class Cart {
 	/**
+	 * Abandoned cart table name.
+	 */
+	const ABANDONED_CART_TABLE_NAME = 'smaily_wp_connect_abandoned_carts';
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {}
@@ -27,7 +32,7 @@ class Cart {
 		if ( is_user_logged_in() ) {
 			global $wpdb;
 			$user_id    = get_current_user_id();
-			$table_name = $wpdb->prefix . 'smaily_abandoned_carts';
+			$table_name = $wpdb->prefix . self::ABANDONED_CART_TABLE_NAME;
 			$wpdb->delete(
 				$table_name,
 				array(
@@ -67,7 +72,7 @@ class Cart {
 		// Time.
 		$current_time      = gmdate( 'Y-m-d\TH:i:s\Z' );
 		$cart_status       = 'open';
-		$table             = $wpdb->prefix . 'smaily_abandoned_carts';
+		$table             = $wpdb->prefix . self::ABANDONED_CART_TABLE_NAME;
 		$has_previous_cart = $this->has_previous_cart( $user_id );
 		// If customer doesn't have active cart, create one.
 		if ( ! $has_previous_cart ) {
@@ -114,10 +119,12 @@ class Cart {
 	 */
 	private function has_previous_cart( $customer_id ) {
 		global $wpdb;
+
 		// Get row with user id.
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$wpdb->prefix}smaily_abandoned_carts WHERE customer_id=%d",
+				'SELECT * FROM `%1$s` WHERE customer_id=%d',
+				$wpdb->prefix . self::ABANDONED_CART_TABLE_NAME,
 				$customer_id
 			),
 			'ARRAY_A'

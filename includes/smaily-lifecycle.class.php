@@ -2,6 +2,8 @@
 
 namespace Smaily_WP_Connect\Includes;
 
+use Smaily_WP_Connect\Integrations\WooCommerce\Cart;
+
 class Lifecycle {
 	/**
 	 * Service name.
@@ -101,8 +103,8 @@ class Lifecycle {
 		$charset_collate = $wpdb->get_charset_collate();
 
 		// Create smaily_abandoned_cart table if it does not exist.
-		$abandoned_table_name = $wpdb->prefix . 'smaily_abandoned_carts';
-		$query                = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $abandoned_table_name ) );
+		$abandoned_table_name = $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME;
+		$query                = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE `%1$s`', $abandoned_table_name ) );
 
 		// Check if the table already exists.
 		if ( $query !== $abandoned_table_name ) {
@@ -143,7 +145,12 @@ class Lifecycle {
 		global $wpdb;
 
 		// Delete Smaily plugin abandoned cart table.
-		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}smaily_abandoned_carts" );
+		$wpdb->query(
+			$wpdb->prepare(
+				'DROP TABLE IF EXISTS %s',
+				$wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME
+			)
+		);
 
 		Options::delete_all_options();
 
