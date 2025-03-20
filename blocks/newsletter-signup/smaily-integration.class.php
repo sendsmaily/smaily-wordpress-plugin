@@ -1,8 +1,10 @@
 <?php
 
-defined( 'ABSPATH' ) || exit;
+namespace Smaily_WP_Connect\Blocks\Newsletter_Signup;
 
-class Smaily_Newsletter_Signup_Blocks_Integration {
+use Smaily_WP_Connect\Includes\Helper;
+
+class Integration {
 	/**
 	 * Renders the newsletter signup block.
 	 *
@@ -14,8 +16,8 @@ class Smaily_Newsletter_Signup_Blocks_Integration {
 		$is_success = $code === '101';
 		$is_error   = $code && ! $is_success;
 
-		$language_code = \Smaily_Helper::get_current_language_code();
-		$current_url   = \Smaily_Helper::get_current_url();
+		$language_code = Helper::get_current_language_code();
+		$current_url   = Helper::get_current_url();
 
 		// Ensure default values for attributes
 		$defaults   = array(

@@ -1,12 +1,10 @@
 <?php
-/**
- * Defines the request making functionality of the plugin.
- *
- * @package    Smaily
- * @subpackage Smaily/includes
- */
 
-class Smaily_Request {
+namespace Smaily_WP_Connect\Includes;
+
+use Smaily_WP_Connect\Includes\Options;
+
+class Smaily_Client {
 	/**
 	 * Smaily API Subdomain.
 	 *
@@ -37,12 +35,12 @@ class Smaily_Request {
 	/**
 	 * Constructor.
 	 *
-	 * @param string|Smaily_Options $subdomain Smaily API Subdomain or saved credentials.
+	 * @param string|Options $subdomain Smaily API Subdomain or saved credentials.
 	 * @param string                $username  Smaily API Username.
 	 * @param string                $password  Smaily API Password.
 	 */
 	public function __construct( $subdomain = '', $username = '', $password = '' ) {
-		if ( $subdomain instanceof Smaily_Options ) {
+		if ( $subdomain instanceof Options ) {
 			$credentials      = $subdomain->get_api_credentials();
 			$this->_subdomain = $credentials['subdomain'];
 			$this->_username  = $credentials['username'];

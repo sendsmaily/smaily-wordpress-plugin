@@ -2,7 +2,7 @@
 /**
  * The credentials form for the Smaily API.
  *
- * @var Smaily_Admin\Renderer $this
+ * @var Smaily_WP_Connect\Admin\Renderer $this
  */
 
 defined( 'ABSPATH' ) || exit;

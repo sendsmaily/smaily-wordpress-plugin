@@ -1,12 +1,14 @@
 <?php
 /**
  * Defines the encryption and decryption functionality.
- *
- * @package    Smaily
- * @subpackage Smaily/includes
  */
 
-class Smaily_Cypher {
+namespace Smaily_WP_Connect\Includes;
+
+class Cypher {
+	/**
+	 * The cypher used for encryption and decryption.
+	 */
 	const CYPHER = 'AES-256-CBC';
 
 	/**

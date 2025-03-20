@@ -23,6 +23,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'SMAILY_WP_CONNECT_PLUGIN_VERSION', '1.0.0' );
 
 /**
+ * The name of the plugin.
+ */
+define( 'SMAILY_WP_CONNECT_PLUGIN_NAME', 'smaily-wp-connect' );
+
+/**
  * Absolute URL to the Smaily plugin directory.
  */
 define( 'SMAILY_WP_CONNECT_PLUGIN_URL', plugins_url( '', __FILE__ ) );
@@ -43,7 +48,6 @@ require_once ABSPATH . 'wp-admin/includes/plugin.php';
 /**
  * The plugin lifecycle.
  */
-
 require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-lifecycle.class.php';
 
 /**
@@ -56,5 +60,5 @@ require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily.class.php';
  *
  */
 if ( class_exists( 'Smaily_WP_Connect' ) ) {
-	new Smaily_WP_Connect();
+	new Smaily_WP_Connect( SMAILY_WP_CONNECT_PLUGIN_NAME, SMAILY_WP_CONNECT_PLUGIN_VERSION );
 }

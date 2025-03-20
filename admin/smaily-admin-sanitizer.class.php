@@ -1,14 +1,8 @@
 <?php
-/**
- * Sanitizes user input.
- *
- * @package    Smaily
- * @subpackage Smaily/admin
- */
 
-namespace Smaily_Admin;
+namespace Smaily_WP_Connect\Admin;
 
-use Smaily_Options;
+use Smaily_WP_Connect\Includes\Options;
 
 class Sanitizer {
 	/**
@@ -29,7 +23,7 @@ class Sanitizer {
 				'error'
 			);
 
-			return get_option( Smaily_Options::ABANDONED_CART_STATUS_OPTION );
+			return get_option( Options::ABANDONED_CART_STATUS_OPTION );
 		}
 
 		return array(
@@ -79,7 +73,7 @@ class Sanitizer {
 				'error'
 			);
 
-			return get_option( Smaily_Options::API_CREDENTIALS_OPTION );
+			return get_option( Options::API_CREDENTIALS_OPTION );
 		}
 
 		return array(
@@ -96,7 +90,7 @@ class Sanitizer {
 	 * @return array
 	 */
 	public function sanitize_subscriber_sync_fields( $input ) {
-		$default_fields = Smaily_Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS;
+		$default_fields = Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS;
 
 		$sanitized = array();
 		foreach ( $default_fields as $field => $default_value ) {
@@ -118,7 +112,7 @@ class Sanitizer {
 	 * @return array
 	 */
 	public function sanitize_abandoned_cart_fields( $input ) {
-		$default_fields = Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS;
+		$default_fields = Options::ABANDONED_CART_DEFAULT_FIELDS;
 
 		$sanitized = array();
 		foreach ( $default_fields as $field => $default_value ) {

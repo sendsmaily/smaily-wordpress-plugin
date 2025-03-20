@@ -1,14 +1,8 @@
 <?php
-/**
- * Adds and controls WooCommerce Register and Account Details fields.
- * Adds and controls WordPress User Profile and Admin Profile fields.
- *
- * @package Smaily_WC
- */
 
-namespace Smaily_WC;
+namespace Smaily_WP_Connect\Integrations\WooCommerce;
 
-use Smaily_Options;
+use Smaily_WP_Connect\Includes\Options;
 
 class Profile_Settings {
 	/**
@@ -69,6 +63,31 @@ class Profile_Settings {
 
 		$enabled_fields = $this->filter_enabled_fields( $fields );
 		$this->fields   = apply_filters( 'smaily_account_fields', $enabled_fields );
+	}
+
+	/**
+	 * Register hooks for the WooCommerce profile settings integration.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'personal_options_update', array( $this, 'smaily_save_account_fields' ), 10 ); // edit own account admin.
+		add_action( 'edit_user_profile_update', array( $this, 'smaily_save_account_fields' ), 10 ); // edit other account admin.
+
+		// Add fields to admin area.
+		add_action( 'show_user_profile', array( $this, 'smaily_print_user_admin_fields' ), 30 ); // admin: edit profile.
+		add_action( 'edit_user_profile', array( $this, 'smaily_print_user_admin_fields' ), 30 ); // admin: edit other users.
+
+		// Add fields to registration form and account area.
+		add_action( 'woocommerce_register_form', array( $this, 'smaily_print_user_frontend_fields' ), 10 );
+		add_action( 'woocommerce_edit_account_form', array( $this, 'smaily_print_user_frontend_fields' ), 10 );
+
+		// Show fields in checkout area.
+		add_filter( 'woocommerce_checkout_fields', array( $this, 'smaily_checkout_fields' ), 10, 1 );
+
+		// Save registration fields.
+		add_action( 'woocommerce_created_customer', array( $this, 'smaily_save_wc_account_fields' ), 10 ); // register/checkout.
+		add_action( 'woocommerce_save_account_details', array( $this, 'smaily_save_wc_account_fields' ), 10 ); // edit WC account.
 	}
 
 	/**
@@ -337,11 +356,11 @@ class Profile_Settings {
 		$enabled_fields = array();
 
 		$sync_fields                   = get_option(
-			Smaily_Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
-			Smaily_Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS
+			Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
+			Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS
 		);
 		$enabled_sync_fields           = array_keys( array_filter( $sync_fields ) );
-		$checkout_subscription_enabled = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION );
+		$checkout_subscription_enabled = get_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION );
 
 		$account_fields         = array(
 			'user_gender',
@@ -377,8 +396,8 @@ class Profile_Settings {
 			return;
 		}
 
-		$location = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION, Smaily_Options::CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION );
-		$position = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION, Smaily_Options::CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION );
+		$location = get_option( Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION, Options::CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION );
+		$position = get_option( Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION, Options::CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION );
 
 		if ( $position === 'before' ) {
 			$checkout_fields[ $location ] = array( 'user_newsletter' => $this->fields['user_newsletter'] ) + $checkout_fields[ $location ];

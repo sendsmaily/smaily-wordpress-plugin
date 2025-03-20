@@ -1,33 +1,44 @@
 <?php
-/**
- * The admin-specific functionality of the plugin.
- *
- * @package    Smaily
- * @subpackage Smaily/admin
- */
 
-namespace Smaily_CF7;
+namespace Smaily_WP_Connect\Integrations\CF7;
 
-defined( 'ABSPATH' ) || exit;
-
-use Smaily_Admin\Admin as Smaily_Admin;
-use Smaily_Options;
+use Smaily_WP_Connect\Includes\Helper;
+use Smaily_WP_Connect\Includes\Options;
 use WPCF7_ContactForm;
 use WPCF7_Integration;
 
 class Admin {
 	/**
-	 * @var \Smaily_Options Instance of Smaily_Options.
+	 * Plugin name.
+	 *
+	 * @var string
+	 */
+	private $plugin_name;
+
+	/**
+	 * @var Options Instance of Smaily_Options.
 	 */
 	private $options;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param \Smaily_Options $options Instance of Smaily_Options.
+	 * @param Options $options Instance of Smaily_Options.
 	 */
-	public function __construct( \Smaily_Options $options ) {
-		$this->options = $options;
+	public function __construct( Options $options, $plugin_name ) {
+		$this->options     = $options;
+		$this->plugin_name = $plugin_name;
+	}
+
+	/**
+	 * Register hooks for the Smaily for Contact Form 7 integration.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'wpcf7_editor_panels', array( $this, 'add_tab' ), -1 );
+		add_action( 'wpcf7_after_save', array( $this, 'save' ) );
+		add_action( 'wpcf7_init', array( $this, 'register_service' ) );
 	}
 
 	/**
@@ -37,8 +48,8 @@ class Admin {
 		$integration = WPCF7_Integration::get_instance();
 
 		$integration->add_service(
-			'smaily',
-			Smaily_CF7_Service::get_instance()
+			$this->plugin_name,
+			Service::get_instance( $this->options, $this->plugin_name )
 		);
 	}
 
@@ -66,7 +77,7 @@ class Admin {
 		$autoresponder = isset( $_POST['smailyforcf7-autoresponder'] ) ? (int) $_POST['smailyforcf7-autoresponder'] : 0;
 
 		update_option(
-			Smaily_Options::CONTACT_FORM_7_STATUS_OPTION,
+			Options::CONTACT_FORM_7_STATUS_OPTION,
 			array(
 				'is_enabled'       => $status,
 				'autoresponder_id' => $autoresponder,
@@ -104,10 +115,8 @@ class Admin {
 		$is_enabled            = (bool) esc_html( $smaily_cf7_settings['is_enabled'] );
 		$default_autoresponder = (int) esc_html( $smaily_cf7_settings['autoresponder_id'] );
 
-		$has_credentials = $this->options->has_credentials();
-
-		// Fetch autoresponder data here for view.
-		$autoresponder_list = Smaily_Admin::get_autoresponders( $this->options );
+		$has_credentials    = $this->options->has_credentials();
+		$autoresponder_list = Helper::get_autoresponders_list( $this->options );
 
 		$form_tags       = \WPCF7_FormTagsManager::get_instance()->get_scanned_tags();
 		$captcha_enabled = $this->is_captcha_enabled( $form_tags );

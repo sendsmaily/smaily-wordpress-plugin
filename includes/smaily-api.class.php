@@ -1,46 +1,52 @@
 <?php
-/**
- * Defines the API functionality of the plugin.
- *
- * @package    Smaily
- * @subpackage Smaily/includes
- */
 
-use Smaily_Admin\Admin;
+namespace Smaily_WP_Connect\Includes;
 
-class Smaily_API {
+use Smaily_WP_Connect\Admin;
+use Smaily_WP_Connect\Includes\Options;
+
+class API {
 	/**
 	 * API namespace.
 	 */
 	const NAMESPACE = 'smaily';
 
 	/**
-	 * Admin model.
-	 *
-	 *
-	 * @access private
-	 * @var    Admin
-	 */
-	private $admin_model;
-
-	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
 	 *
 	 * @access private
-	 * @var    Smaily_Options $options Handler for Options API.
+	 * @var    Options $options Handler for Options API.
 	 */
 	private $options;
 
 	/**
+	 * The ID of this plugin.
+	 *
+	 *
+	 * @access private
+	 * @var    string  $plugin_name The ID of this plugin.
+	 */
+	private $plugin_name;
+
+	/**
 	 * Sets up a new instance of the API.
 	 *
-	 * @param Smaily_Options $options     Reference to options handler class.
+	 * @param Options $options     Reference to options handler class.
 	 * @param Admin   $admin_model Reference to admin class.
 	 */
-	public function __construct( Smaily_Options $options, Admin $admin_model ) {
+	public function __construct( Options $options, string $plugin_name ) {
 		$this->options     = $options;
-		$this->admin_model = $admin_model;
+		$this->plugin_name = $plugin_name;
+	}
+
+	/**
+	 * Registers hooks for the API.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'rest_api_init', array( $this, 'register_endpoints' ) );
 	}
 
 	/**
@@ -70,7 +76,7 @@ class Smaily_API {
 			$configuration,
 			array(
 				'subdomain'    => $credentials['subdomain'],
-				'settings_url' => admin_url( 'admin.php?page=smaily-settings' ),
+				'settings_url' => menu_page_url( $this->plugin_name, false ),
 			)
 		);
 	}
@@ -81,7 +87,7 @@ class Smaily_API {
 	 * @return array{label: string, value: string}
 	 */
 	public function list_autoresponders() {
-		$autoresponders = Admin::get_autoresponders( $this->options );
+		$autoresponders = Helper::get_autoresponders_list( $this->options );
 
 		$response = array();
 		foreach ( $autoresponders as $id => $title ) {

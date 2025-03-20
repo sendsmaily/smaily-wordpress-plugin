@@ -1,19 +1,14 @@
 <?php
-/**
- * The admin-specific functionality of the plugin.
- *
- * @package    Smaily
- * @subpackage Smaily/admin
- */
 
-namespace Smaily_Admin;
+namespace Smaily_WP_Connect;
 
-use Smaily_Cypher;
-use Smaily_Helper;
-use Smaily_Options;
-use Smaily_Request;
-use Smaily_WC\Rss;
-use Smaily_Widget;
+use Smaily_WP_Connect\Admin\Settings;
+use Smaily_WP_Connect\Includes\Cypher;
+use Smaily_WP_Connect\Includes\Helper;
+use Smaily_WP_Connect\Includes\Options;
+use Smaily_WP_Connect\Includes\Smaily_Client;
+use Smaily_WP_Connect\Includes\Widget;
+use Smaily_WP_Connect\Integrations\WooCommerce\Rss;
 
 class Admin {
 	/**
@@ -39,7 +34,7 @@ class Admin {
 	 *
 	 *
 	 * @access private
-	 * @var    Smaily_Options Handler for WordPress Options API.
+	 * @var    Options Handler for WordPress Options API.
 	 */
 	private $options;
 
@@ -60,15 +55,31 @@ class Admin {
 	/**
 	 * Initialize the class and set its properties.
 	 *
-	 * @param Smaily_Options $options     Reference to option handler class.
+	 * @param Options $options     Reference to option handler class.
 	 * @param string         $plugin_name The name of this plugin.
 	 * @param string         $version     The version of this plugin.
 	 */
-	public function __construct( Smaily_Options $options, $plugin_name, $version ) {
+	public function __construct( Options $options, $plugin_name, $version ) {
 		$this->options     = $options;
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
 		$this->settings    = new Settings( $options );
+	}
+
+	/**
+	 * Register all of the hooks related to the admin area functionality.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+		add_action( 'admin_init', array( $this, 'settings_init' ) );
+		add_action( 'admin_menu', array( $this, 'settings_page' ) );
+		add_action( 'pre_update_option_smaily_api_credentials', array( $this, 'validate_api_credentials_after_save' ), 10, 3 );
+		add_action( 'widgets_init', array( $this, 'smaily_subscription_widget_init' ) );
+		add_action( 'wp_ajax_smaily_admin_save', array( $this, 'smaily_admin_save' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( SMAILY_WP_CONNECT_PLUGIN_FILE ), array( $this, 'settings_link' ) );
 	}
 
 	/**
@@ -77,7 +88,7 @@ class Admin {
 	 * @return void
 	 */
 	public function settings_page() {
-		add_menu_page( __( 'Smaily Settings', 'smaily' ), 'Smaily', 'manage_options', 'smaily-settings', array( $this, 'render_admin_page' ), SMAILY_PLUGIN_URL . '/gfx/icon.png' );
+		add_menu_page( __( 'Smaily Settings', 'smaily' ), 'Smaily', 'manage_options', $this->plugin_name, array( $this, 'render_admin_page' ), SMAILY_WP_CONNECT_PLUGIN_URL . '/gfx/icon.png' );
 	}
 
 	/**
@@ -136,7 +147,7 @@ class Admin {
 			return array(
 				'subdomain' => $new_value['subdomain'],
 				'username'  => $new_value['username'],
-				'password'  => Smaily_Cypher::encrypt( $new_value['password'] ),
+				'password'  => Cypher::encrypt( $new_value['password'] ),
 			);
 		} else {
 			switch ( $credentials_valid[1] ) {
@@ -173,7 +184,7 @@ class Admin {
 	 * @return array{bool,int}  Success of operation and error code.
 	 */
 	public function validate_api_credentials( $subdomain, $username, $password ) {
-		$request  = new Smaily_Request( $subdomain, $username, $password );
+		$request  = new Smaily_Client( $subdomain, $username, $password );
 		$response = $request->list_autoresponders();
 
 		$code = isset( $response['code'] ) ? $response['code'] : 0;
@@ -182,34 +193,6 @@ class Admin {
 		}
 
 		return array( true, $code );
-	}
-
-	/**
-	 * Make a request to Smaily asking for autoresponders.
-	 * Request is authenticated via saved credentials.
-	 *
-	 * @param Smaily_Options $options
-	 * @return array List of autoresponders in format [id => title].
-	 */
-	public static function get_autoresponders( Smaily_Options $options ) {
-		if ( ! $options->has_credentials() ) {
-			return array();
-		}
-
-		$request = new Smaily_Request( $options );
-		$result  = $request->list_autoresponders();
-
-		if ( empty( $result['body'] ) ) {
-			return array();
-		}
-
-		$autoresponder_list = array();
-		foreach ( $result['body'] as $autoresponder ) {
-			$id                        = $autoresponder['id'];
-			$title                     = $autoresponder['title'];
-			$autoresponder_list[ $id ] = $title;
-		}
-		return $autoresponder_list;
 	}
 
 	/**
@@ -225,7 +208,7 @@ class Admin {
 					'submit_button_text' => $this->options->has_credentials() ? __( 'Disconnect', 'smaily' ) : __( 'Make a connection', 'smaily' ),
 					'url'                => add_query_arg(
 						array(
-							'page' => 'smaily-settings',
+							'page' => $this->plugin_name,
 							'tab'  => 'connection',
 						),
 						''
@@ -241,7 +224,7 @@ class Admin {
 					'title'             => __( 'Getting started', 'smaily' ),
 					'url'               => add_query_arg(
 						array(
-							'page' => 'smaily-settings',
+							'page' => $this->plugin_name,
 							'tab'  => 'tutorial',
 						),
 						''
@@ -252,13 +235,13 @@ class Admin {
 				);
 			}
 
-			if ( Smaily_Helper::is_woocommerce_active() && $this->options->has_credentials() ) {
+			if ( Helper::is_woocommerce_active() && $this->options->has_credentials() ) {
 				$tabs['subscriber_sync'] = array(
 					'title'              => __( 'Subscriber Synchronization', 'smaily' ),
 					'submit_button_text' => __( 'Save', 'smaily' ),
 					'url'                => add_query_arg(
 						array(
-							'page' => 'smaily-settings',
+							'page' => $this->plugin_name,
 							'tab'  => 'subscriber_sync',
 						),
 						''
@@ -273,7 +256,7 @@ class Admin {
 					'submit_button_text' => __( 'Save', 'smaily' ),
 					'url'                => add_query_arg(
 						array(
-							'page' => 'smaily-settings',
+							'page' => $this->plugin_name,
 							'tab'  => 'abandoned_cart',
 						),
 						''
@@ -288,7 +271,7 @@ class Admin {
 					'submit_button_text' => __( 'Save', 'smaily' ),
 					'url'                => add_query_arg(
 						array(
-							'page' => 'smaily-settings',
+							'page' => $this->plugin_name,
 							'tab'  => 'rss',
 						),
 						''
@@ -330,7 +313,7 @@ class Admin {
 		wp_enqueue_script( $this->plugin_name );
 		wp_enqueue_script( $this->plugin_name . '-widget' );
 
-		if ( Smaily_Helper::is_woocommerce_active() ) {
+		if ( Helper::is_woocommerce_active() ) {
 			// Make RSS URL accessible in admin .js.
 			wp_add_inline_script(
 				$this->plugin_name,
@@ -352,7 +335,7 @@ class Admin {
 	 */
 	public function settings_link( $links ) {
 		// receive all current links and add custom link to the list.
-		$settings_link = '<a href="admin.php?page=smaily-settings">' . esc_html__( 'Settings', 'smaily' ) . '</a>';
+		$settings_link = '<a href="admin.php?page=' . esc_attr( $this->plugin_name ) . '">' . esc_html__( 'Settings', 'smaily' ) . '</a>';
 		// Settings before disable.
 		array_unshift( $links, $settings_link );
 		return $links;
@@ -363,7 +346,7 @@ class Admin {
 	 *
 	 */
 	public function smaily_subscription_widget_init() {
-		$widget = new Smaily_Widget( $this->options, $this );
+		$widget = new Widget( $this->options, $this );
 		register_widget( $widget );
 	}
 }

@@ -1,44 +1,30 @@
 <?php
-/**
- * Defines the widget functionality of the plugin.
- *
- * @package    Smaily
- * @subpackage Smaily/includes
- */
 
-use Smaily_Admin\Admin;
+namespace Smaily_WP_Connect\Includes;
 
-class Smaily_Widget extends WP_Widget {
-	/**
-	 * Admin model.
-	 *
-	 *
-	 * @access private
-	 * @var    Admin
-	 */
-	private $admin_model;
+use Smaily_WP_Connect\Public_Base;
+use WP_Widget;
 
+class Widget extends WP_Widget {
 	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
 	 *
 	 * @access private
-	 * @var    Smaily_Options $options Handler for Options API.
+	 * @var    Options $options Handler for Options API.
 	 */
 	private $options;
 
 	/**
 	 * Sets up a new instance of the widget.
 	 *
-	 * @param Smaily_Options $options     Reference to options handler class.
-	 * @param Admin   $admin_model Reference to admin class.
+	 * @param Options $options     Reference to options handler class.
 	 */
-	public function __construct( Smaily_Options $options, Admin $admin_model ) {
+	public function __construct( Options $options ) {
 		$widget_ops = array( 'description' => __( 'Smaily Classic Subscription Widget', 'smaily' ) );
 		parent::__construct( 'smaily_subscription_widget', __( 'Smaily Classic Subscription Widget', 'smaily' ), $widget_ops );
 
-		$this->options     = $options;
-		$this->admin_model = $admin_model;
+		$this->options = $options;
 	}
 
 	/**
@@ -64,14 +50,14 @@ class Smaily_Widget extends WP_Widget {
 		}
 
 		$autoresponder_id = isset( $instance['autoresponder_id'] ) ? $instance['autoresponder_id'] : '';
-		$failure_url      = empty( $instance['failure_url'] ) ? Smaily_Helper::get_current_url() : $instance['failure_url'];
-		$language_code    = Smaily_Helper::get_current_language_code();
+		$failure_url      = empty( $instance['failure_url'] ) ? Helper::get_current_url() : $instance['failure_url'];
+		$language_code    = Helper::get_current_language_code();
 		$has_credentials  = $this->options->has_credentials();
 		$show_name        = isset( $instance['show_name'] ) ? $instance['show_name'] : false;
 		$subdomain        = $this->options->get_subdomain();
-		$success_url      = empty( $instance['success_url'] ) ? Smaily_Helper::get_current_url() : $instance['success_url'];
+		$success_url      = empty( $instance['success_url'] ) ? Helper::get_current_url() : $instance['success_url'];
 
-		Smaily_Public::render_template(
+		Public_Base::render_template(
 			$template,
 			compact(
 				'autoresponder_id',
@@ -110,9 +96,6 @@ class Smaily_Widget extends WP_Widget {
 
 	/**
 	 * Widget form on widgets page in admin panel.
-	 *
-	 *
-	 * @param  array $instance Widget fields array.
 	 */
 	public function form( $instance ) {
 		$instance = wp_parse_args(
@@ -126,7 +109,7 @@ class Smaily_Widget extends WP_Widget {
 			)
 		);
 
-		$autoresponders        = Admin::get_autoresponders( $this->options );
+		$autoresponders        = Helper::get_autoresponders_list( $this->options );
 		$title_id              = $this->get_field_id( 'title' );
 		$title_name            = $this->get_field_name( 'title' );
 		$show_name_id          = $this->get_field_id( 'show_name' );
@@ -137,6 +120,8 @@ class Smaily_Widget extends WP_Widget {
 		$failure_url_name      = $this->get_field_name( 'failure_url' );
 		$autoresponder_id      = $this->get_field_id( 'autoresponder_id' );
 		$autoresponder_id_name = $this->get_field_name( 'autoresponder_id' );
+
+		ob_start();
 		?>
 		<p>
 			<label for="<?php echo esc_attr( $title_name ); ?>"><?php esc_html_e( 'Title', 'smaily' ); ?>:</label>
@@ -165,5 +150,6 @@ class Smaily_Widget extends WP_Widget {
 			</select>
 		</p>
 		<?php
+		return ob_get_clean();
 	}
 }

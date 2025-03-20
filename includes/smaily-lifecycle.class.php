@@ -1,15 +1,8 @@
 <?php
-/**
- * Define all the logic related to plugin lifecycle
- *
- *
- * Using custom database table that requires direct queries.
- * @phpcs:disable WordPress.DB.DirectDatabaseQuery
- * @package    Smaily
- * @subpackage Smaily/includes
- */
 
-class Smaily_Lifecycle {
+namespace Smaily_WP_Connect\Includes;
+
+class Lifecycle {
 	/**
 	 * Service name.
 	 * @var string
@@ -18,12 +11,27 @@ class Smaily_Lifecycle {
 
 	/**
 	 * Logger.
-	 * @var Smaily_Logger
+	 * @var Logger
 	 */
 	private $logger;
 
 	public function __construct() {
-		$this->logger = new Smaily_Logger( self::SERVICE );
+		$this->logger = new Logger( self::SERVICE );
+	}
+
+	/**
+	 * Register hooks for the plugin lifecycle.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		register_activation_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( $this, 'activate' ) );
+		register_deactivation_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( $this, 'deactivate' ) );
+		register_uninstall_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( '\Smaily_Lifecycle', 'uninstall' ) );
+		add_action( 'plugins_loaded', array( $this, 'set_locale' ) );
+		add_action( 'plugins_loaded', array( $this, 'update' ) );
+		add_action( 'upgrader_process_complete', array( $this, 'check_for_update' ), 10, 2 );
+		add_action( 'activated_plugin', array( $this, 'check_for_dependency' ), 10, 2 );
 	}
 
 	/**
@@ -137,7 +145,7 @@ class Smaily_Lifecycle {
 		// Delete Smaily plugin abandoned cart table.
 		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}smaily_abandoned_carts" );
 
-		Smaily_Options::delete_all_options();
+		Options::delete_all_options();
 
 		delete_transient( 'smaily_plugin_updated' );
 	}
@@ -160,9 +168,9 @@ class Smaily_Lifecycle {
 	 * Callback for upgrader_process_complete hook.
 	 *
 	 * Check if our plugin was updated, make a transient option if so.
-	 * This alows us to trigger a DB upgrade script if necessary.
+	 * This allows us to trigger a DB upgrade script if necessary.
 	 *
-	 * @param Plugin_Upgrader $upgrader_object Instance of WP_Upgrader.
+	 * @param \Plugin_Upgrader $upgrader_object Instance of WP_Upgrader.
 	 * @param array           $options         Array of bulk item update data.
 	 */
 	public function check_for_update( $upgrader_object, $options ) {
@@ -192,7 +200,7 @@ class Smaily_Lifecycle {
 	 */
 	private function run_migrations() {
 		$plugin_version = SMAILY_WP_CONNECT_PLUGIN_VERSION;
-		$db_version     = get_option( Smaily_Options::DATABASE_VERSION_OPTION, '0.0.0' );
+		$db_version     = get_option( Options::DATABASE_VERSION_OPTION, '0.0.0' );
 
 		if ( $plugin_version === $db_version ) {
 			return;
@@ -219,6 +227,21 @@ class Smaily_Lifecycle {
 		}
 
 		// Migrations finished.
-		update_option( Smaily_Options::DATABASE_VERSION_OPTION, $plugin_version );
+		update_option( Options::DATABASE_VERSION_OPTION, $plugin_version );
+	}
+
+	/**
+	 * Define the locale for this plugin for internationalization.
+	 *
+	 * Uses the Smaily_I18n class in order to set the domain and to register the hook
+	 * with WordPress.
+	 *
+	 */
+	public function set_locale() {
+		load_plugin_textdomain(
+			'smaily',
+			false,
+			plugin_basename( SMAILY_WP_CONNECT_PLUGIN_PATH ) . '/languages/'
+		);
 	}
 }

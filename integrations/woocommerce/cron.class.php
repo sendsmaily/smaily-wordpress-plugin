@@ -1,19 +1,11 @@
 <?php
-/**
- * Cron class for Smaily WooCommerce integration.
- *
- * Using custom database table that requires direct queries.
- * @phpcs:disable WordPress.DB.DirectDatabaseQuery
- *
- * @package Smaily_WC
- */
 
-namespace Smaily_WC;
+namespace Smaily_WP_Connect\Integrations\WooCommerce;
 
-use Smaily_Helper;
-use Smaily_Logger;
-use Smaily_Options;
-use Smaily_Request;
+use Smaily_WP_Connect\Includes\Helper;
+use Smaily_WP_Connect\Includes\Logger;
+use Smaily_WP_Connect\Includes\Options;
+use Smaily_WP_Connect\Includes\Smaily_Client;
 use WC_Product;
 use WP_User;
 
@@ -25,24 +17,40 @@ class Cron {
 	const SERVICE = 'woocommerce_cron';
 
 	/**
-	 * @var \Smaily_Options Instance of Smaily_Options.
+	 * @varInstance of Options.
 	 */
 	private $options;
 
 	/**
 	 * Logger
-	 * @var Smaily_Logger
+	 * @var Logger
 	 */
 	private $logger;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param \Smaily_Options $options Instance of Smaily_Options.
+	 * @param Options $options Instance of Options.
 	 */
-	public function __construct( \Smaily_Options $options ) {
+	public function __construct( Options $options ) {
 		$this->options = $options;
-		$this->logger  = new Smaily_Logger( self::SERVICE );
+		$this->logger  = new Logger( self::SERVICE );
+	}
+
+	/**
+	 * Register hooks for the cron.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		// Register the custom schedule early
+		add_filter( 'cron_schedules', array( $this, 'smaily_cron_schedules' ) );
+		// Action hook for subscriber synchronization.
+		add_action( 'smaily_cron_sync_subscribers', array( $this, 'smaily_sync_subscribers' ) );
+		// Cron for updating abandoned cart statuses.
+		add_action( 'smaily_cron_abandoned_carts_status', array( $this, 'smaily_abandoned_carts_status' ) );
+		// Cron for sending abandoned cart emails.
+		add_action( 'smaily_cron_abandoned_carts_email', array( $this, 'smaily_abandoned_carts_email' ) );
 	}
 
 	/**
@@ -67,11 +75,11 @@ class Cron {
 	 * @return void
 	 */
 	public function smaily_sync_subscribers() {
-		if ( ! get_option( Smaily_Options::SUBSCRIBER_SYNC_ENABLED_OPTION ) ) {
+		if ( ! get_option( Options::SUBSCRIBER_SYNC_ENABLED_OPTION ) ) {
 			return;
 		}
 
-		$request  = new Smaily_Request( $this->options );
+		$request  = new Smaily_Client( $this->options );
 		$response = $request->list_unsubscribers();
 		if ( empty( $response ) ) {
 			return $this->logger->error( 'Failed to get unsubscribers - received an empty response' );
@@ -137,16 +145,16 @@ class Cron {
 	 */
 	public function smaily_abandoned_carts_email() {
 		$status = get_option(
-			Smaily_Options::ABANDONED_CART_STATUS_OPTION,
-			Smaily_Options::ABANDONED_CART_DEFAULT_STATUS
+			Options::ABANDONED_CART_STATUS_OPTION,
+			Options::ABANDONED_CART_DEFAULT_STATUS
 		);
 		if ( ! $status['enabled'] ) {
 			return;
 		}
 
 		$sync_fields = get_option(
-			Smaily_Options::ABANDONED_CART_FIELDS_OPTION,
-			Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS
+			Options::ABANDONED_CART_FIELDS_OPTION,
+			Options::ABANDONED_CART_DEFAULT_FIELDS
 		);
 
 		foreach ( $this->get_abandoned_carts() as $cart ) {
@@ -163,7 +171,7 @@ class Cron {
 			$addresses = $this->prepare_user_data( $user, $sync_fields );
 			$products  = $this->prepare_products_data( $cart_content, $sync_fields );
 
-			$request  = new Smaily_Request( $this->options );
+			$request  = new Smaily_Client( $this->options );
 			$response = $request->trigger_automation(
 				(int) $status['autoresponder_id'],
 				array( array_merge( $addresses, $products ) ),
@@ -341,7 +349,7 @@ class Cron {
 					$addresses['email'] = $user->user_email;
 					break;
 				case 'language':
-					$addresses['language'] = Smaily_Helper::get_user_language_code( $user->ID );
+					$addresses['language'] = Helper::get_user_language_code( $user->ID );
 					break;
 				case 'first_name':
 					$addresses['first_name'] = $user->first_name;

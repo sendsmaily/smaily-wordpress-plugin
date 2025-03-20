@@ -1,39 +1,21 @@
 <?php
-/**
- * The core plugin class.
- *
- * This is used to define internationalization, admin-specific hooks, and
- * public-facing site hooks.
- *
- * Also maintains the unique identifier of this plugin as well as the current
- * version of the plugin.
- *
- * @package    Smaily
- * @subpackage Smaily/includes
- */
 
-use Smaily_Admin\Admin;
+use Smaily_WP_Connect\Admin;
+use Smaily_WP_Connect\Includes\API;
+use Smaily_WP_Connect\Includes\Blocks;
+use Smaily_WP_Connect\Includes\Helper;
+use Smaily_WP_Connect\Includes\Lifecycle;
+use Smaily_WP_Connect\Includes\Options;
+use Smaily_WP_Connect\Integrations\CF7\Admin as Smaily_CF7_Admin;
+use Smaily_WP_Connect\Integrations\CF7\Public_Base as Smaily_CF7_Public;
+use Smaily_WP_Connect\Integrations\WooCommerce\Cart;
+use Smaily_WP_Connect\Integrations\WooCommerce\Cron;
+use Smaily_WP_Connect\Integrations\WooCommerce\Profile_Settings;
+use Smaily_WP_Connect\Integrations\WooCommerce\Rss;
+use Smaily_WP_Connect\Integrations\WooCommerce\Subscriber_Synchronization;
+use Smaily_WP_Connect\Public_Base;
 
 class Smaily_WP_Connect {
-	/**
-	 * Handler for storing/retrieving data via Options API.
-	 *
-	 *
-	 * @access protected
-	 * @var    Smaily_Options Handler for WordPress Options API.
-	 */
-	private $options;
-
-	/**
-	 * The loader that's responsible for maintaining and registering all hooks that power
-	 * the plugin.
-	 *
-	 *
-	 * @access protected
-	 * @var    Smaily_Loader  $loader Maintains and registers all hooks for the plugin.
-	 */
-	protected $loader;
-
 	/**
 	 * The unique identifier of this plugin.
 	 *
@@ -53,20 +35,133 @@ class Smaily_WP_Connect {
 	protected $version;
 
 	/**
-	 * Define the core functionality of the plugin.
+	 * Admin class instance.
 	 *
-	 * Set the plugin name and the plugin version that can be used throughout the plugin.
-	 * Load the dependencies, define the locale, and set the hooks for the admin area and
-	 * the public-facing side of the site.
 	 *
+	 * @access private
+	 * @var    Admin $admin Admin class instance.
 	 */
-	public function __construct() {
-		$this->version     = SMAILY_WP_CONNECT_PLUGIN_VERSION;
-		$this->plugin_name = 'smaily';
+	protected $admin;
+
+	/**
+	 * Blocks class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Blocks $blocks Blocks class instance.
+	 */
+	protected $blocks;
+
+	/**
+	 * API class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    API $api API class instance.
+	 */
+	protected $api;
+
+	/**
+	 * Lifecycle class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Lifecycle $lifecycle Lifecycle class instance.
+	 */
+	protected $lifecycle;
+
+	/**
+	 * Public_Base class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Public_Base $public_base Public_Base class instance.
+	 */
+	protected $public_base;
+
+	/**
+	 * WooCommerce Cart class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Cart $wc_cart WooCommerce Cart class instance.
+	 */
+	protected $wc_cart;
+
+	/**
+	 * WooCommerce Cron class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Cron $wc_cron WooCommerce Cron class instance.
+	 */
+	protected $wc_cron;
+
+	/**
+	 * WooCommerce Profile_Settings class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Profile_Settings $wc_profile_settings WooCommerce Profile_Settings class instance.
+	 */
+	protected $wc_profile_settings;
+
+
+	/**
+	 * WooCommerce Rss class instance.
+	 * @access private
+	 * @var    Rss $wc_rss WooCommerce Rss class instance.
+	 */
+	protected $wc_rss;
+
+	/**
+	 * WooCommerce Subscriber_Synchronization class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Subscriber_Synchronization $wc_subscriber_synchronization WooCommerce Subscriber_Synchronization class instance.
+	 */
+	protected $wc_subscriber_synchronization;
+
+	/**
+	 * Contact Form 7 Admin class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Smaily_CF7_Admin $cf7_admin Contact Form 7 Admin class instance.
+	 */
+	protected $cf7_admin;
+
+	/**
+	 * Contact Form 7 Public_Base class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Smaily_CF7_Public $cf7_public Contact Form 7 Public_Base class instance.
+	 */
+	protected $cf7_public;
+
+	/**
+	 * Handler for storing/retrieving data via Options API.
+	 *
+	 *
+	 * @access protected
+	 * @var    Options Handler for WordPress Options API.
+	 */
+	private $options;
+
+
+	/**
+	 * Constructor.
+	 *
+	 * @param string $name    The name of the plugin.
+	 * @param string $version The version of the plugin.
+	 */
+	public function __construct( $name, $version ) {
+		$this->plugin_name = $name;
+		$this->version     = $version;
 		$this->load_dependencies();
-		$this->set_locale();
-		$this->define_hooks();
-		add_action( 'init', array( $this, 'init_blocks' ) );
+		$this->init_classes();
 	}
 
 	/**
@@ -78,7 +173,6 @@ class Smaily_WP_Connect {
 	 * - Smaily_Logger.    Defines the logging functionality.
 	 * - Smaily_Admin.     Defines all hooks for the admin area.
 	 * - Smaily_Block.     Define the Gutenberg newsletter subscription block functionality.
-	 * - Smaily_i18n.      Defines internationalization functionality.
 	 * - Smaily_Options.   Defines the database related queries of Options API.
 	 * - Smaily_Widget.    Defines the widget functionality.
 	 * - Smaily_Public.    Defines all hooks for the public side of the site.
@@ -109,285 +203,83 @@ class Smaily_WP_Connect {
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-newsletter-signup-blocks-integration.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-integration.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-api.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-block.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-blocks.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-helper.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-i18n.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-logger.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-options.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-request.class.php';
+		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-client.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-widget.class.php';
 		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'public/smaily-public.class.php';
 
-		$this->options = new Smaily_Options();
+		$this->options = new Options();
 
-		if ( Smaily_Helper::is_woocommerce_active() ) {
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/cart.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/cron.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/data-handler.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/profile-settings.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/rss.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'woocommerce/subscriber-synchronization.class.php';
+		if ( Helper::is_woocommerce_active() ) {
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cart.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cron.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/data-handler.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/profile-settings.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/rss.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/subscriber-synchronization.class.php';
 		}
 
-		if ( Smaily_Helper::is_cf7_active() ) {
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'cf7/admin.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'cf7/public.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'cf7/service.class.php';
-		}
-	}
-
-	/**
-	 * Define the locale for this plugin for internationalization.
-	 *
-	 * Uses the Smaily_I18n class in order to set the domain and to register the hook
-	 * with WordPress.
-	 *
-	 *
-	 * @access private
-	 */
-	private function set_locale() {
-		$plugin_i18n = new Smaily_I18n();
-		add_action( 'plugins_loaded', array( $plugin_i18n, 'load_plugin_textdomain' ) );
-	}
-
-	/**
-	 * Initialize Gutenberg blocks.
-	 *
-	 * @access private
-	 */
-	public function init_blocks() {
-		wp_enqueue_style( 'wp-components' );
-
-		register_block_type(
-			SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/newsletter-signup/build',
-			array(
-				'render_callback' => array( 'Smaily_Newsletter_Signup_Blocks_Integration', 'render' ),
-			)
-		);
-		wp_set_script_translations(
-			'smaily-newsletter-block-editor-script',
-			'smaily',
-			SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
-		);
-
-		if ( Smaily_Helper::is_woocommerce_active() ) {
-			register_block_type( SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/build' );
-			wp_set_script_translations(
-				'smaily-checkout-optin-editor-script',
-				'smaily',
-				SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
-			);
+		if ( Helper::is_cf7_active() ) {
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/cf7/admin.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/cf7/public.class.php';
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/cf7/service.class.php';
 		}
 	}
 
 	/**
-	 * Register all of the hooks related to the admin area functionality
-	 * of the plugin.
-	 *
+	 * Load the classes for the plugin and initialize them.
 	 *
 	 * @access private
 	 */
-	private function define_admin_hooks() {
-		$plugin_name  = $this->get_plugin_name();
-		$plugin_admin = new Admin( $this->options, $plugin_name, $this->get_version() );
-		$plugin_api   = new Smaily_API( $this->options, $plugin_admin );
-		add_action( 'admin_init', array( $plugin_admin, 'settings_init' ) );
-		add_action( 'admin_menu', array( $plugin_admin, 'settings_page' ) );
-		add_action( 'pre_update_option_smaily_api_credentials', array( $plugin_admin, 'validate_api_credentials_after_save' ), 10, 3 );
-		add_action( 'admin_enqueue_scripts', array( $plugin_admin, 'enqueue_styles' ) );
-		add_action( 'admin_enqueue_scripts', array( $plugin_admin, 'enqueue_scripts' ) );
-		add_action( 'wp_ajax_smaily_admin_save', array( $plugin_admin, 'smaily_admin_save' ) );
-		add_action( 'widgets_init', array( $plugin_admin, 'smaily_subscription_widget_init' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( SMAILY_WP_CONNECT_PLUGIN_FILE ), array( $plugin_admin, 'settings_link' ) );
-		add_action( 'rest_api_init', array( $plugin_api, 'register_endpoints' ) );
+	private function init_classes() {
+		$this->admin = new Admin( $this->options, $this->plugin_name, $this->version );
+		$this->admin->register_hooks();
 
-		if ( Smaily_Helper::is_woocommerce_active() ) {
+		$this->api = new API( $this->options, $this->plugin_name );
+		$this->api->register_hooks();
 
-			$smaily_sub_sync = new \Smaily_WC\Subscriber_Synchronization( $this->options );
+		$this->blocks = new Blocks( $this->options, $this->plugin_name, $this->version );
+		$this->blocks->register_hooks();
 
-			add_action( 'personal_options_update', array( $smaily_sub_sync, 'smaily_newsletter_subscribe_update' ), 11 ); // edit own account admin.
-			add_action( 'edit_user_profile_update', array( $smaily_sub_sync, 'smaily_newsletter_subscribe_update' ), 11 ); // edit other account admin.
+		$this->lifecycle = new Lifecycle();
+		$this->lifecycle->register_hooks();
 
-			// No subdomain before successful credential validation.
+		$this->public_base = new Public_Base( $this->options, $this->plugin_name, $this->version );
+		$this->public_base->register_hooks();
+
+		if ( Helper::is_woocommerce_active() ) {
+			$this->wc_cart = new Cart();
+			$this->wc_cart->register_hooks();
+
+			$this->wc_cron = new Cron( $this->options );
+			$this->wc_cron->register_hooks();
+
+			$this->wc_rss = new Rss();
+			$this->wc_rss->register_hooks();
+
+			$this->wc_subscriber_synchronization = new Subscriber_Synchronization( $this->options );
+			$this->wc_subscriber_synchronization->register_hooks();
+
 			if ( $this->options->has_credentials() ) {
-				$smaily_profile_settings = new Smaily_WC\Profile_Settings();
-
-				add_action( 'personal_options_update', array( $smaily_profile_settings, 'smaily_save_account_fields' ), 10 ); // edit own account admin.
-				add_action( 'edit_user_profile_update', array( $smaily_profile_settings, 'smaily_save_account_fields' ), 10 ); // edit other account admin.
-
-				// Add fields to admin area.
-				add_action( 'show_user_profile', array( $smaily_profile_settings, 'smaily_print_user_admin_fields' ), 30 ); // admin: edit profile.
-				add_action( 'edit_user_profile', array( $smaily_profile_settings, 'smaily_print_user_admin_fields' ), 30 ); // admin: edit other users.
-
-				// Add opt-in checkbox to block checkout.
-				add_filter(
-					'__experimental_woocommerce_blocks_add_data_attributes_to_block',
-					function ( $allowed_blocks ) {
-						$allowed_blocks[] = 'smaily/checkout-optin';
-						return $allowed_blocks;
-					},
-					10,
-					1
-				);
-				add_action(
-					'woocommerce_blocks_loaded',
-					function () {
-						require_once SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-optin.php';
-						require_once SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/smaily-checkout-extend-store-endpoint.php';
-
-						Smaily_Checkout_Optin_Extend_Store_Endpoint::init();
-
-						add_action(
-							'woocommerce_blocks_checkout_block_registration',
-							function ( $integration_registry ) {
-								$integration_registry->register( new Smaily_Checkout_Optin_Blocks_Integration() );
-							}
-						);
-					}
-				);
+				$this->wc_profile_settings = new Profile_Settings();
+				$this->wc_profile_settings->register_hooks();
 			}
 		}
 
-		if ( Smaily_Helper::is_cf7_active() ) {
-			$smaily_cf7_admin = new Smaily_CF7\Admin( $this->options );
-			add_action( 'wpcf7_editor_panels', array( $smaily_cf7_admin, 'add_tab' ), -1 );
-			add_action( 'wpcf7_after_save', array( $smaily_cf7_admin, 'save' ) );
-			add_action( 'wpcf7_init', array( $smaily_cf7_admin, 'register_service' ) );
-		}
-	}
-
-	/**
-	 * Register all of the hooks related to the public-facing functionality
-	 * of the plugin.
-	 *
-	 *
-	 * @access private
-	 */
-	private function define_public_hooks() {
-		$plugin_public = new Smaily_Public( $this->options, $this->get_plugin_name(), $this->get_version() );
-		add_action( 'init', array( $plugin_public, 'add_shortcodes' ) );
-
-		if ( Smaily_Helper::is_woocommerce_active() ) {
-			$smaily_cart = new \Smaily_WC\Cart();
-			// Update cart status.
-			add_action( 'woocommerce_cart_updated', array( $smaily_cart, 'smaily_update_cart_details' ) );
-			// Delete cart when customer orders.
-			add_action( 'woocommerce_checkout_order_processed', array( $smaily_cart, 'smaily_checkout_delete_cart' ) );
-
-			$smaily_sub_sync = new \Smaily_WC\Subscriber_Synchronization( $this->options );
-
-			add_action( 'woocommerce_created_customer', array( $smaily_sub_sync, 'smaily_wc_created_customer_update' ), 11 ); // register/checkout.
-			add_action( 'woocommerce_save_account_details', array( $smaily_sub_sync, 'smaily_wc_newsletter_subscribe_update' ), 11 ); // edit WC account.
-			add_action( 'woocommerce_checkout_order_processed', array( $smaily_sub_sync, 'smaily_checkout_subscribe_customer' ), 11, 3 ); // Checkout newsletter checkbox.
-			add_action( 'woocommerce_store_api_checkout_update_order_from_request', array( $smaily_sub_sync, 'smaily_checkout_subscribe_block_customer' ), 10, 2 ); // WC block checkout newsletter checkbox.
-
-			// No subdomain before successful credential validation.
-			if ( $this->options->has_credentials() ) {
-				$smaily_profile_settings = new Smaily_WC\Profile_Settings();
-
-				// Add fields to registration form and account area.
-				add_action( 'woocommerce_register_form', array( $smaily_profile_settings, 'smaily_print_user_frontend_fields' ), 10 );
-				add_action( 'woocommerce_edit_account_form', array( $smaily_profile_settings, 'smaily_print_user_frontend_fields' ), 10 );
-
-				// Show fields in checkout area.
-				add_filter( 'woocommerce_checkout_fields', array( $smaily_profile_settings, 'smaily_checkout_fields' ), 10, 1 );
-
-				// Save registration fields.
-				add_action( 'woocommerce_created_customer', array( $smaily_profile_settings, 'smaily_save_wc_account_fields' ), 10 ); // register/checkout.
-				add_action( 'woocommerce_save_account_details', array( $smaily_profile_settings, 'smaily_save_wc_account_fields' ), 10 ); // edit WC account.
-
-			}
+		if ( Helper::is_cf7_active() ) {
+			$this->cf7_admin = new Smaily_CF7_Admin( $this->options, $this->plugin_name );
+			$this->cf7_admin->register_hooks();
 		}
 
-		if ( Smaily_Helper::is_cf7_active() ) {
-			$smaily_cf7_public = new Smaily_CF7\Smaily_Public( $this->options );
-			add_action( 'wpcf7_submit', array( $smaily_cf7_public, 'submit' ), 10, 2 );
+		if ( Helper::is_cf7_active() ) {
+			$this->cf7_public = new Smaily_CF7_Public( $this->options );
+			$this->cf7_public->register_hooks();
 		}
-	}
-
-	/**
-	 * Register all hooks related to the lifecycle of the plugin.
-	 *
-	 * Uses the Smaily_Lifecycle class in order to
-	 * activate or upgrade the plugin within WordPress.
-	 *
-	 *
-	 * @access private
-	 */
-	private function define_lifecycle_hooks() {
-		$plugin_lifecycle = new Smaily_Lifecycle();
-		register_activation_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( $plugin_lifecycle, 'activate' ) );
-		register_deactivation_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( $plugin_lifecycle, 'deactivate' ) );
-		register_uninstall_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( '\Smaily_Lifecycle', 'uninstall' ) );
-		add_action( 'plugins_loaded', array( $plugin_lifecycle, 'update' ) );
-		add_action( 'upgrader_process_complete', array( $plugin_lifecycle, 'check_for_update' ), 10, 2 );
-		add_action( 'activated_plugin', array( $plugin_lifecycle, 'check_for_dependency' ), 10, 2 );
-	}
-
-	/**
-	 * Register all of the hooks
-	 *
-	 * @access private
-	 */
-	private function define_hooks() {
-		$this->define_lifecycle_hooks();
-		$this->define_admin_hooks();
-		$this->define_public_hooks();
-
-		if ( Smaily_Helper::is_woocommerce_active() ) {
-			// Cron specific hooks
-			$smaily_cron = new Smaily_WC\Cron( $this->options );
-
-			// Register the custom schedule early
-			add_filter( 'cron_schedules', array( $smaily_cron, 'smaily_cron_schedules' ) );
-			// Action hook for subscriber synchronization.
-			add_action( 'smaily_cron_sync_subscribers', array( $smaily_cron, 'smaily_sync_subscribers' ) );
-			// Cron for updating abandoned cart statuses.
-			add_action( 'smaily_cron_abandoned_carts_status', array( $smaily_cron, 'smaily_abandoned_carts_status' ) );
-			// Cron for sending abandoned cart emails.
-			add_action( 'smaily_cron_abandoned_carts_email', array( $smaily_cron, 'smaily_abandoned_carts_email' ) );
-
-			// Rss hooks
-			$smaily_rss = new Smaily_WC\Rss();
-			add_action( 'init', array( $smaily_rss, 'smaily_rewrite_rules' ) );
-			add_filter( 'query_vars', array( $smaily_rss, 'smaily_register_query_var' ) );
-			add_filter( 'template_include', array( $smaily_rss, 'smaily_rss_feed_template_include' ), 100 );
-
-			add_action( 'init', array( $smaily_rss, 'maybe_flush_rewrite_rules' ) );
-		}
-	}
-
-	/**
-	 * The name of the plugin used to uniquely identify it within the context of
-	 * WordPress and to define internationalization functionality.
-	 *
-	 *
-	 * @return string The name of the plugin.
-	 */
-	public function get_plugin_name() {
-		return $this->plugin_name;
-	}
-
-	/**
-	 * The reference to the class that orchestrates the hooks with the plugin.
-	 *
-	 *
-	 * @return Smaily_Loader Orchestrates the hooks of the plugin.
-	 */
-	public function get_loader() {
-		return $this->loader;
-	}
-
-	/**
-	 * Retrieve the version number of the plugin.
-	 *
-	 *
-	 * @return string The version number of the plugin.
-	 */
-	public function get_version() {
-		return $this->version;
 	}
 }

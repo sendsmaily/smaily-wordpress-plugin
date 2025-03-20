@@ -1,32 +1,26 @@
 <?php
-/**
- * Renders the settings page HTML for the Smaily plugin.
- *
- * @package    Smaily
- * @subpackage Smaily/admin
- */
 
-namespace Smaily_Admin;
+namespace Smaily_WP_Connect\Admin;
 
-use Smaily_Helper;
-use Smaily_Options;
-use Smaily_Request;
-use Smaily_WC\Rss;
+use Smaily_WP_Connect\Includes\Helper;
+use Smaily_WP_Connect\Includes\Options;
+use Smaily_WP_Connect\Includes\Smaily_Client;
+use Smaily_WP_Connect\Integrations\WooCommerce\Rss;
 
 class Renderer {
 	/**
 	 * Smaily options.
 	 *
-	 * @var Smaily_Options
+	 * @var Options
 	 */
 	private $options;
 
 	/**
 	 * Class constructor.
 	 *
-	 * @param Smaily_Options $options
+	 * @param Options $options
 	 */
-	public function __construct( Smaily_Options $options ) {
+	public function __construct( Options $options ) {
 		$this->options = $options;
 	}
 
@@ -168,7 +162,7 @@ class Renderer {
 								esc_html_e( 'You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account.', 'smaily' );
 							?>
 						</p>
-						<?php if ( Smaily_Helper::is_cf7_active() ) : ?>
+						<?php if ( Helper::is_cf7_active() ) : ?>
 							<p>
 								<a href="<?php echo esc_url( menu_page_url( 'wpcf7', false ) ); ?>">
 									<?php esc_html_e( 'Enable Smaily Opt-In under the form settings.', 'smaily' ); ?>
@@ -285,8 +279,8 @@ class Renderer {
 	 * @return void
 	 */
 	public function render_abandoned_cart_status_field( $args ) {
-		$autoresponders           = Admin::get_autoresponders( $this->options );
-		$abandoned_cart_status    = get_option( Smaily_Options::ABANDONED_CART_STATUS_OPTION, Smaily_Options::ABANDONED_CART_DEFAULT_STATUS );
+		$autoresponders           = Helper::get_autoresponders_list( $this->options );
+		$abandoned_cart_status    = get_option( Options::ABANDONED_CART_STATUS_OPTION, Options::ABANDONED_CART_DEFAULT_STATUS );
 		$enabled                  = $abandoned_cart_status['enabled'];
 		$current_autoresponder_id = $abandoned_cart_status['autoresponder_id'];
 		?>
@@ -382,10 +376,10 @@ class Renderer {
 	 */
 	public function render_rss_url() {
 		$url = Rss::make_rss_feed_url(
-			get_option( Smaily_Options::RSS_CATEGORY_OPTION, null ),
-			get_option( Smaily_Options::RSS_LIMIT_OPTION, null ),
-			get_option( Smaily_Options::RSS_SORT_BY_OPTION, null ),
-			get_option( Smaily_Options::RSS_ORDER_BY_OPTION, null )
+			get_option( Options::RSS_CATEGORY_OPTION, null ),
+			get_option( Options::RSS_LIMIT_OPTION, null ),
+			get_option( Options::RSS_SORT_BY_OPTION, null ),
+			get_option( Options::RSS_ORDER_BY_OPTION, null )
 		);
 		?>
 		<fieldset style="max-width: 315px;">
@@ -529,7 +523,7 @@ class Renderer {
 			return true;
 		}
 
-		$request  = new Smaily_Request( $this->options );
+		$request  = new Smaily_Client( $this->options );
 		$response = $request->list_autoresponders();
 
 		if ( $response['code'] === 200 ) {

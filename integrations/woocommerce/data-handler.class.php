@@ -1,14 +1,9 @@
 <?php
-/**
- * Handles WooCommerce related data retrieval
- *
- * @package Smaily_WC
- */
 
-namespace Smaily_WC;
+namespace Smaily_WP_Connect\Integrations\WooCommerce;
 
-use Smaily_Helper;
-use Smaily_Options;
+use Smaily_WP_Connect\Includes\Options;
+use Smaily_WP_Connect\Includes\Helper;
 
 class Data_Handler {
 	/**
@@ -61,8 +56,8 @@ class Data_Handler {
 		}
 
 		$options = get_option(
-			Smaily_Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
-			Smaily_Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS
+			Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
+			Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS
 		);
 		foreach ( $options as $field => $enabled ) {
 			if ( ! $enabled ) {
@@ -71,7 +66,7 @@ class Data_Handler {
 
 			switch ( $field ) {
 				case 'language':
-					$user_sync_data['language'] = Smaily_Helper::get_user_language_code( $user_id );
+					$user_sync_data['language'] = Helper::get_user_language_code( $user_id );
 					break;
 				case 'user_email':
 					$user_sync_data['email'] = $user->user_email;

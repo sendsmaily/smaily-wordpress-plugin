@@ -1,15 +1,15 @@
 <?php
-/**
- * The public-facing functionality of the plugin.
- *
- * @package    Smaily_CF7
- */
 
-namespace Smaily_CF7;
+namespace Smaily_WP_Connect\Integrations\CF7;
 
-use Smaily_Request;
+use Smaily_WP_Connect\Includes\Helper;
+use Smaily_WP_Connect\Includes\Options;
+use Smaily_WP_Connect\Includes\Smaily_Client;
+use Transliterator;
+use WPCF7_ContactForm;
+use WPCF7_Submission;
 
-class Smaily_Public {
+class Public_Base {
 	/**
 	 * The transliterator instance.
 	 *
@@ -20,21 +20,30 @@ class Smaily_Public {
 	private $transliterator;
 
 	/**
-	 * @var \Smaily_Options Instance of Smaily_Options.
+	 * @var Options Instance of Options.
 	 */
 	private $options;
 
 	/**
 	 * Constructor.
 	 *
-	 * @param \Smaily_Options $options Instance of Smaily_Options.
+	 * @param Options $options Instance of Options.
 	 */
-	public function __construct( \Smaily_Options $options ) {
+	public function __construct( Options $options ) {
 		$this->options = $options;
 		if ( ! class_exists( 'Transliterator' ) ) {
 			wp_die( ( 'Smaily for CF7 requires Transliterator extension. Please install php-intl package and try again.' ) );
 		}
-		$this->transliterator = \Transliterator::create( 'Any-Latin; Latin-ASCII' );
+		$this->transliterator = Transliterator::create( 'Any-Latin; Latin-ASCII' );
+	}
+
+	/**
+	 * Register hooks for the Smaily for Contact Form 7 integration.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'wpcf7_submit', array( $this, 'submit' ), 10, 2 );
 	}
 
 	/**
@@ -46,7 +55,7 @@ class Smaily_Public {
 	 */
 	public function submit( $instance, $result ) {
 		// Check if Contact Form 7 validation has passed.
-		$submission_instance = \WPCF7_Submission::get_instance();
+		$submission_instance = WPCF7_Submission::get_instance();
 		if ( $submission_instance->get_status() !== 'mail_sent' ) {
 			return;
 		}
@@ -91,9 +100,9 @@ class Smaily_Public {
 			}
 		}
 
-		$payload = \Smaily_Helper::sanitize_array( $payload );
+		$payload = Helper::sanitize_array( $payload );
 
-		$request  = new Smaily_Request( $this->options );
+		$request  = new Smaily_Client( $this->options );
 		$response = $request->trigger_automation( (int) $cf7_settings['autoresponder_id'], array( $payload ) );
 
 		if ( empty( $response['body'] ) ) {

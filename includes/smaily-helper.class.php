@@ -3,7 +3,37 @@
  * Smaily helper class with static methods
  */
 
-class Smaily_Helper {
+namespace Smaily_WP_Connect\Includes;
+
+class Helper {
+	/**
+	 * Make a request to Smaily asking for autoresponders.
+	 * Request is authenticated via saved credentials.
+	 *
+	 * @param Options $options
+	 * @return array List of autoresponders in format [id => title].
+	 */
+	public static function get_autoresponders_list( Options $options ) {
+		if ( ! $options->has_credentials() ) {
+			return array();
+		}
+
+		$request = new Smaily_Client( $options );
+		$result  = $request->list_autoresponders();
+
+		if ( empty( $result['body'] ) ) {
+			return array();
+		}
+
+		$autoresponder_list = array();
+		foreach ( $result['body'] as $autoresponder ) {
+			$id                        = $autoresponder['id'];
+			$title                     = $autoresponder['title'];
+			$autoresponder_list[ $id ] = $title;
+		}
+		return $autoresponder_list;
+	}
+
 	/**
 	 * Check if WooCommerce is active.
 	 *

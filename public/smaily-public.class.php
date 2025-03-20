@@ -1,12 +1,12 @@
 <?php
-/**
- * The public-facing functionality of the plugin.
- *
- * @package    Smaily
- * @subpackage Smaily/public
- */
 
-class Smaily_Public {
+namespace Smaily_WP_Connect;
+
+use Exception;
+use Smaily_WP_Connect\Includes\Helper;
+use Smaily_WP_Connect\Includes\Options;
+
+class Public_Base {
 	/**
 	 * The ID of this plugin.
 	 *
@@ -30,21 +30,30 @@ class Smaily_Public {
 	 *
 	 *
 	 * @access private
-	 * @var    Smaily_Options $options Handler for Options API.
+	 * @var    Options $options Handler for Options API.
 	 */
 	private $options;
 
 	/**
 	 * Initialize the class and set its properties.
 	 *
-	 * @param Smaily_Options $options     Reference to options handler class.
+	 * @param Options $options     Reference to options handler class.
 	 * @param string                $plugin_name The name of the plugin.
 	 * @param string                $version     The version of this plugin.
 	 */
-	public function __construct( Smaily_Options $options, $plugin_name, $version ) {
+	public function __construct( Options $options, $plugin_name, $version ) {
 		$this->options     = $options;
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
+	}
+
+	/**
+	 * Register hooks for the public-facing functionality of the plugin.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'init', array( $this, 'add_shortcodes' ) );
 	}
 
 	/**
@@ -70,8 +79,8 @@ class Smaily_Public {
 
 		$shortcode_attrs = shortcode_atts(
 			array(
-				'success_url'      => Smaily_Helper::get_current_url(),
-				'failure_url'      => Smaily_Helper::get_current_url(),
+				'success_url'      => Helper::get_current_url(),
+				'failure_url'      => Helper::get_current_url(),
 				'show_name'        => false,
 				'autoresponder_id' => '',
 			),
@@ -81,7 +90,7 @@ class Smaily_Public {
 		$autoresponder_id = $shortcode_attrs['autoresponder_id'];
 		$failure_url      = $shortcode_attrs['failure_url'];
 		$has_credentials  = $this->options->has_credentials();
-		$language_code    = Smaily_Helper::get_current_language_code();
+		$language_code    = Helper::get_current_language_code();
 		$show_name        = $shortcode_attrs['show_name'];
 		$subdomain        = $this->options->get_subdomain();
 		$success_url      = $shortcode_attrs['success_url'];

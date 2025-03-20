@@ -1,13 +1,8 @@
 <?php
-/**
- * This class is used to work with the plugin's options
- * that take user input e.g API credentials, form settings.
- *
- * @package    Smaily
- * @subpackage Smaily/includes
- */
 
-class Smaily_Options {
+namespace Smaily_WP_Connect\Includes;
+
+class Options {
 	/**
 	 * Default values for subscriber sync fields.
 	 *
@@ -197,8 +192,8 @@ class Smaily_Options {
 	 * @return array{subdomain: string, username: string, password: string} Smaily API credentials
 	 */
 	public function get_api_credentials() {
-		$credentials = get_option( Smaily_Options::API_CREDENTIALS_OPTION, array() );
-		$password    = isset( $credentials['password'] ) ? Smaily_Cypher::decrypt( $credentials['password'] ) : '';
+		$credentials = get_option( Options::API_CREDENTIALS_OPTION, array() );
+		$password    = isset( $credentials['password'] ) ? Cypher::decrypt( $credentials['password'] ) : '';
 		unset( $credentials['password'] );
 
 		return array_merge(
@@ -231,11 +226,11 @@ class Smaily_Options {
 	public function get_settings() {
 		$settings = array();
 
-		if ( Smaily_Helper::is_woocommerce_active() ) {
+		if ( Helper::is_woocommerce_active() ) {
 			$settings['woocommerce'] = $this->get_woocommerce_settings_from_db();
 		}
 
-		if ( Smaily_Helper::is_cf7_active() ) {
+		if ( Helper::is_cf7_active() ) {
 			$settings['cf7'] = $this->get_cf7_settings_from_db();
 		}
 

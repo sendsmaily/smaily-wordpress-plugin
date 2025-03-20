@@ -1,9 +1,4 @@
 <?php
-/**
- * Smaily WooCommerce RSS Feed Template
- *
- * @package Smaily
- */
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {

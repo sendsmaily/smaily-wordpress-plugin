@@ -1,19 +1,24 @@
 <?php
-/**
- * Manages status of user cart in smaily_abandoned_carts table.
- *
- * Using custom database table that requires direct queries.
- * @phpcs:disable WordPress.DB.DirectDatabaseQuery
- *
- * @package Smaily_WC
- */
 
-namespace Smaily_WC;
+namespace Smaily_WP_Connect\Integrations\WooCommerce;
 
-use Smaily_Helper;
+use Smaily_WP_Connect\Includes\Helper;
 
 class Cart {
+	/**
+	 * Constructor.
+	 */
+	public function __construct() {}
 
+	/**
+	 * Register hooks for the WooCommerce cart integration.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'woocommerce_cart_updated', array( $this, 'smaily_update_cart_details' ) );
+		add_action( 'woocommerce_checkout_order_processed', array( $this, 'smaily_checkout_delete_cart' ) );
+	}
 
 	/**
 	 * Clears cart from smaily_abandoned_carts table for that user, when customer makes order.
@@ -40,7 +45,7 @@ class Cart {
 	public function smaily_update_cart_details() {
 
 		// Don't run if on admin screen, if user is not logged in or if the request was made by independently by the browser, preventing multiple or false requests when not needed
-		if ( Smaily_Helper::is_admin_screen() || ! is_user_logged_in() || Smaily_Helper::is_browser_request() ) {
+		if ( Helper::is_admin_screen() || ! is_user_logged_in() || Helper::is_browser_request() ) {
 			return;
 		}
 

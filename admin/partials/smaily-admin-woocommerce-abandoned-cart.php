@@ -2,13 +2,15 @@
 /**
  * WooCommerce abandoned cart fields settings.
  *
- * @var Smaily_Admin\Renderer $this
+ * @var Smaily_WP_Connect\Admin\Renderer $this
  */
+
+use Smaily_WP_Connect\Includes\Options;
 
 defined( 'ABSPATH' ) || exit;
 
 $mandatory   = array( 'user_email', 'store_url', 'language' );
-$sync_fields = get_option( Smaily_Options::ABANDONED_CART_FIELDS_OPTION, Smaily_Options::ABANDONED_CART_DEFAULT_FIELDS );
+$sync_fields = get_option( Options::ABANDONED_CART_FIELDS_OPTION, Options::ABANDONED_CART_DEFAULT_FIELDS );
 $labels      = array(
 	'user_email'          => __( 'Email', 'smaily' ),
 	'store_url'           => __( 'Store URL', 'smaily' ),
@@ -27,14 +29,14 @@ $labels      = array(
 ?>
 <fieldset >
 	<?php foreach ( $sync_fields as $field => $enabled ) : ?>
-		<label for="<?php echo sprintf( '%s[%s]', esc_attr( Smaily_Options::ABANDONED_CART_FIELDS_OPTION ), esc_attr( $field ) ); ?>">
+		<label for="<?php echo sprintf( '%s[%s]', esc_attr( Options::ABANDONED_CART_FIELDS_OPTION ), esc_attr( $field ) ); ?>">
 			<input
 				<?php if ( in_array( $field, $mandatory, true ) ) : ?>
 					disabled
 				<?php endif; ?>
 				type="checkbox"
 				id="smaily_abandoned_<?php echo esc_attr( $field ); ?>"
-				name="<?php echo sprintf( '%s[%s]', esc_attr( Smaily_Options::ABANDONED_CART_FIELDS_OPTION ), esc_attr( $field ) ); ?>"
+				name="<?php echo sprintf( '%s[%s]', esc_attr( Options::ABANDONED_CART_FIELDS_OPTION ), esc_attr( $field ) ); ?>"
 				value="1"
 				<?php checked( $enabled || in_array( $field, $mandatory, true ) ); ?>
 			/>

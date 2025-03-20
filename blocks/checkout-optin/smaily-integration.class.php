@@ -1,5 +1,8 @@
 <?php
 
+namespace Smaily_WP_Connect\Blocks\Checkout_Optin;
+
+use Smaily_WP_Connect\Includes\Options;
 use Automattic\WooCommerce\Blocks\Integrations\IntegrationInterface;
 
 define( 'SMAILY_CHECKOUT_OPTIN_VERSION', '1.0.0' );
@@ -7,7 +10,7 @@ define( 'SMAILY_CHECKOUT_OPTIN_VERSION', '1.0.0' );
 /**
  * Class for integrating with WooCommerce Blocks
  */
-class Smaily_Checkout_Optin_Blocks_Integration implements IntegrationInterface {
+class Integration implements IntegrationInterface {
 	/**
 	 * The name of the integration.
 	 *
@@ -49,7 +52,7 @@ class Smaily_Checkout_Optin_Blocks_Integration implements IntegrationInterface {
 	 * @return array
 	 */
 	public function get_script_data() {
-		$enabled = get_option( Smaily_Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION );
+		$enabled = get_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION );
 
 		$data = array(
 			'smailyCheckoutOptinActive' => $enabled,

@@ -1,10 +1,4 @@
 <?php
-/**
- * Content of Smaily for Contact Form 7 tab.
- *
- * @package Smaily for Contact Form 7
- * @author  Smaily
- */
 
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {

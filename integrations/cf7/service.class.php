@@ -1,37 +1,42 @@
 <?php
-/**
- * The service class for Contact Form 7 integration.
- *
- * @package    Smaily
- * @subpackage Smaily_CF7
- */
 
-namespace Smaily_CF7;
+namespace Smaily_WP_Connect\Integrations\CF7;
 
-defined( 'ABSPATH' ) || exit;
 class_exists( 'WPCF7_Service' ) || exit;
 
 use WPCF7_Service;
-use Smaily_Options;
+use Smaily_WP_Connect\Includes\Options;
 
-class Smaily_CF7_Service extends WPCF7_Service {
+class Service extends WPCF7_Service {
+	/**
+	 * The plugin name.
+	 *
+	 * @var string
+	 */
+	private $plugin_name;
+
 	private static $instance;
+
+	/**
+	 * @var Options Instance of plugin options.
+	 */
 	private $options;
 
-	public static function get_instance() {
+	public static function get_instance( $options = null, $plugin_name = null ) {
 		if ( empty( self::$instance ) ) {
-			self::$instance = new self();
+			self::$instance = new self( $options, $plugin_name );
 		}
 
 		return self::$instance;
 	}
 
-	private function __construct() {
-		$this->options = new Smaily_Options();
+	private function __construct( $options = null, $plugin_name = null ) {
+		$this->options     = $options;
+		$this->plugin_name = $plugin_name;
 	}
 
 	public function get_title() {
-		return __( 'Smaily', 'smaily' );
+		return __( 'Smaily WP Connect', 'smaily' );
 	}
 
 	public function is_active() {
@@ -52,8 +57,8 @@ class Smaily_CF7_Service extends WPCF7_Service {
 	protected function menu_page_url( $args = '' ) {
 		$args = wp_parse_args( $args, array() );
 
-		$url = menu_page_url( 'smaily-settings', false );
-		$url = add_query_arg( array( 'service' => 'smaily' ), $url );
+		$url = menu_page_url( $this->plugin_name, false );
+		$url = add_query_arg( array( 'service' => 'smaily-wp-connect' ), $url );
 
 		if ( ! empty( $args ) ) {
 			$url = add_query_arg( $args, $url );
@@ -84,7 +89,7 @@ class Smaily_CF7_Service extends WPCF7_Service {
 			</p>
 		<?php endif ?>
 		<p>
-			<a class="button" href="<?php echo esc_url( menu_page_url( 'smaily-settings', false ) ); ?>">
+			<a class="button" href="<?php echo esc_url( menu_page_url( $this->plugin_name, false ) ); ?>">
 				<?php esc_html_e( 'Setup integration', 'smaily' ); ?>
 			</a>
 		</p>

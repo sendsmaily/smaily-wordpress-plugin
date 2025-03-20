@@ -1,16 +1,27 @@
 <?php
-/**
- * Handles RSS generation for Smaily newsletter
- *
- * @package Smaily_WC
- */
 
-namespace Smaily_WC;
+namespace Smaily_WP_Connect\Integrations\WooCommerce;
 
-use Smaily_WC\Data_Handler;
 use WC_Product;
 
 class Rss {
+	/**
+	 * Constructor.
+	 */
+	public function __construct() {}
+
+	/**
+	 * Register hooks for the WooCommerce RSS feed integration.
+	 *
+	 * @return void
+	 */
+	public function register_hooks() {
+		add_action( 'init', array( $this, 'smaily_rewrite_rules' ) );
+		add_filter( 'query_vars', array( $this, 'smaily_register_query_var' ) );
+		add_filter( 'template_include', array( $this, 'smaily_rss_feed_template_include' ), 100 );
+		add_action( 'init', array( $this, 'maybe_flush_rewrite_rules' ) );
+	}
+
 	/**
 	 * Get Product RSS Feed URL.
 	 *
