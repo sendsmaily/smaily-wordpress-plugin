@@ -46,11 +46,11 @@ class Cron {
 		// Register the custom schedule early
 		add_filter( 'cron_schedules', array( $this, 'smaily_cron_schedules' ) );
 		// Action hook for subscriber synchronization.
-		add_action( 'smaily_cron_sync_subscribers', array( $this, 'smaily_sync_subscribers' ) );
+		add_action( 'smaily_wp_connect_cron_sync_subscribers', array( $this, 'smaily_sync_subscribers' ) );
 		// Cron for updating abandoned cart statuses.
-		add_action( 'smaily_cron_abandoned_carts_status', array( $this, 'smaily_abandoned_carts_status' ) );
+		add_action( 'smaily_wp_connect_cron_abandoned_carts_status', array( $this, 'smaily_abandoned_carts_status' ) );
 		// Cron for sending abandoned cart emails.
-		add_action( 'smaily_cron_abandoned_carts_email', array( $this, 'smaily_abandoned_carts_email' ) );
+		add_action( 'smaily_wp_connect_cron_abandoned_carts_email', array( $this, 'smaily_abandoned_carts_email' ) );
 	}
 
 	/**
@@ -60,7 +60,7 @@ class Cron {
 	 * @return array $schedules Updated array.
 	 */
 	public function smaily_cron_schedules( $schedules ) {
-		$schedules['smaily_15_minutes'] = array(
+		$schedules['smaily_wp_connect_15_minutes'] = array(
 			'interval' => 900,
 			'display'  => esc_html__( 'In every 15 minutes', 'smaily' ),
 		);

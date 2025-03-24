@@ -64,21 +64,21 @@ class Lifecycle {
 	 */
 	private function set_scheduled_actions() {
 		// Check if the daily sync action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_cron_sync_subscribers' ) ) {
+		if ( ! wp_next_scheduled( 'smaily_wp_connect_cron_sync_subscribers' ) ) {
 			// Add Cron job to sync subscribers.
-			wp_schedule_event( time(), 'daily', 'smaily_cron_sync_subscribers' );
+			wp_schedule_event( time(), 'daily', 'smaily_wp_connect_cron_sync_subscribers' );
 		}
 
 		// Check if the abandoned cart status action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_cron_abandoned_carts_status' ) ) {
+		if ( ! wp_next_scheduled( 'smaily_wp_connect_cron_abandoned_carts_status' ) ) {
 			// Schedule event to track abandoned statuses.
-			wp_schedule_event( time(), 'smaily_15_minutes', 'smaily_cron_abandoned_carts_status' );
+			wp_schedule_event( time(), 'smaily_wp_connect_15_minutes', 'smaily_wp_connect_cron_abandoned_carts_status' );
 		}
 
 		// Check if the abandoned cart email action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_cron_abandoned_carts_email' ) ) {
+		if ( ! wp_next_scheduled( 'smaily_wp_connect_cron_abandoned_carts_email' ) ) {
 			// Schedule event to send emails.
-			wp_schedule_event( time(), 'smaily_15_minutes', 'smaily_cron_abandoned_carts_email' );
+			wp_schedule_event( time(), 'smaily_wp_connect_15_minutes', 'smaily_wp_connect_cron_abandoned_carts_email' );
 		}
 	}
 
@@ -131,9 +131,9 @@ class Lifecycle {
 		// Flush rewrite rules.
 		flush_rewrite_rules();
 		// Stop Cron.
-		wp_clear_scheduled_hook( 'smaily_cron_sync_subscribers' );
-		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_email' );
-		wp_clear_scheduled_hook( 'smaily_cron_abandoned_carts_status' );
+		wp_clear_scheduled_hook( 'smaily_wp_connect_cron_sync_subscribers' );
+		wp_clear_scheduled_hook( 'smaily_wp_connect_cron_abandoned_carts_email' );
+		wp_clear_scheduled_hook( 'smaily_wp_connect_cron_abandoned_carts_status' );
 		$this->logger->info( 'Plugin deactivated' );
 	}
 
