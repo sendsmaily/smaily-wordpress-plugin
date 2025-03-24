@@ -104,7 +104,7 @@ class Lifecycle {
 
 		// Create smaily_abandoned_cart table if it does not exist.
 		$abandoned_table_name = $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME;
-		$query                = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE `%1$s`', $abandoned_table_name ) );
+		$query                = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $abandoned_table_name ) );
 
 		// Check if the table already exists.
 		if ( $query !== $abandoned_table_name ) {
