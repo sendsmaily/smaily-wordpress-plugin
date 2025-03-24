@@ -17,11 +17,12 @@ $connected = $subdomain && $username;
 	<input type="hidden" name="smaily_api_credentials[enabled]" value="<?php echo esc_attr( $connected ); ?>" />
 	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_subdomain">
-			<?php esc_html_e( 'Smaily account subdomain', 'smaily' ); ?>
+			<?php esc_html_e( 'Smaily account subdomain', 'smaily' ); ?>*
 			<input
 				<?php if ( ! empty( $subdomain ) ) : ?>
 					disabled
 				<?php endif; ?>
+				required
 				class="regular-text code"
 				id="smaily_subdomain"
 				name="smaily_api_credentials[subdomain]"
@@ -44,11 +45,12 @@ $connected = $subdomain && $username;
 	</p>
 	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_username">
-			<?php esc_html_e( 'API Username', 'smaily' ); ?>
+			<?php esc_html_e( 'API Username', 'smaily' ); ?>*
 			<input
 				<?php if ( ! empty( $username ) ) : ?>
 					disabled
 				<?php endif; ?>
+				required
 				class="regular-text code"
 				name="smaily_api_credentials[username]"
 				type="text" id="smaily_username"
@@ -59,11 +61,12 @@ $connected = $subdomain && $username;
 	<?php if ( ! $connected ) : ?>
 	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_password">
-			<?php esc_html_e( 'API Password', 'smaily' ); ?>
+			<?php esc_html_e( 'API Password', 'smaily' ); ?>*
 			<input
 				<?php if ( ! empty( $password ) ) : ?>
 					disabled
 				<?php endif; ?>
+				required
 				class="regular-text code"
 				id="smaily_password"
 				name="smaily_api_credentials[password]"
