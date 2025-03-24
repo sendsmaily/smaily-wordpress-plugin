@@ -88,7 +88,14 @@ class Admin {
 	 * @return void
 	 */
 	public function settings_page() {
-		add_menu_page( __( 'Smaily Settings', 'smaily' ), 'Smaily', 'manage_options', $this->plugin_name, array( $this, 'render_admin_page' ), SMAILY_WP_CONNECT_PLUGIN_URL . '/gfx/icon.png' );
+		add_menu_page(
+			__( 'Smaily Settings', 'smaily' ),
+			'Smaily',
+			'manage_options',
+			$this->plugin_name,
+			array( $this, 'render_admin_page' ),
+			'data:image/svg+xml;base64,' . base64_encode( file_get_contents( SMAILY_WP_CONNECT_PLUGIN_PATH . '/gfx/icon.svg' ) )
+		);
 	}
 
 	/**
@@ -296,6 +303,7 @@ class Admin {
 		wp_register_style( $this->plugin_name, SMAILY_WP_CONNECT_PLUGIN_URL . '/admin/css/smaily-admin.css', array(), $this->version, 'all' );
 		wp_register_style( $this->plugin_name . '-widget', SMAILY_WP_CONNECT_PLUGIN_URL . '/admin/css/smaily-widget-admin.css', array(), $this->version, 'all' );
 
+		wp_enqueue_style( 'smaily-wp-connect-fonts', SMAILY_WP_CONNECT_PLUGIN_URL . '/admin/css/fonts.css', array(), null );
 		wp_enqueue_style( $this->plugin_name );
 		wp_enqueue_style( $this->plugin_name . '-widget' );
 	}

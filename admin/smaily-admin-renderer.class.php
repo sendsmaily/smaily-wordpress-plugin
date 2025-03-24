@@ -43,14 +43,14 @@ class Renderer {
 				</p>
 			</div>
 		<?php endif; ?>
-		<div style="max-width: 500px;">
+		<section class="smaily-wp-connect-connection-section-header">
 			<p>
 				<?php esc_html_e( "Start by connecting your Smaily account with your website. Go to your Smaily account's settings integrations tab and create a new API user. Then copy the account subdomain, API username and API password below.", 'smaily' ); ?>
 			</p>
 			<a href="https://smaily.com/help/api/general/create-api-user/" target="_blank">
 				<?php esc_html_e( 'How to create API credentials?', 'smaily' ); ?>
 			</a>
-		</div>
+		</section>
 		<?php
 	}
 
@@ -61,17 +61,15 @@ class Renderer {
 	 */
 	public function render_tutorial_subscriber_collection_section() {
 		?>
-		<div style="max-width: 500px;">
+		<section>
 			<p>
 				<?php esc_html_e( 'You can use the following methods to collect subscribers:', 'smaily' ); ?>
-				<ol>
+				<ol class="smaily-wp-connect-subscriber-collection-list">
 					<?php if ( wp_is_block_theme() ) : ?>
 					<li>
-						<p>
-							<strong>
-								<?php esc_html_e( 'Use the Smaily subscription form block.', 'smaily' ); ?>
-							</strong>
-						</p>
+						<h3>
+							<?php esc_html_e( 'Use the Smaily subscription form block.', 'smaily' ); ?>
+						</h3>
 						<p>
 							<?php
 								esc_html_e(
@@ -84,11 +82,9 @@ class Renderer {
 					</li>
 					<?php else : ?>
 					<li>
-						<p>
-							<strong>
-								<?php esc_html_e( 'Use the Smaily subscription form widget.', 'smaily' ); ?>
-							</strong>
-						</p>
+						<h3>
+							<?php esc_html_e( 'Use the Smaily subscription form widget.', 'smaily' ); ?>
+						</h3>
 						<p>
 							<?php esc_html_e( 'You can add the widget to your website from the widgets page.', 'smaily' ); ?>
 						</p>
@@ -98,11 +94,9 @@ class Renderer {
 					</li>
 					<?php endif; ?>
 					<li>
-						<p>
-							<strong>
-								<?php esc_html_e( 'Use the Smaily subscription form shortcode.', 'smaily' ); ?>
-							</strong>
-						</p>
+						<h3>
+							<?php esc_html_e( 'Use the Smaily subscription form shortcode.', 'smaily' ); ?>
+						</h3>
 						<p>
 						<?php
 							printf(
@@ -111,7 +105,7 @@ class Renderer {
 									'You can add the %1$s shortcode to any page or post.',
 									'smaily'
 								),
-								'<i>[smaily_newsletter_form]</i>'
+								'<span class="regular-text code">[smaily_newsletter_form]</span>'
 							);
 						?>
 						</p>
@@ -127,11 +121,9 @@ class Renderer {
 						?>
 					</li>
 					<li>
-						<p>
-							<strong>
-								<?php esc_html_e( 'Build your own from component.', 'smaily' ); ?>
-							</strong>
-						</p>
+						<h3>
+							<?php esc_html_e( 'Build your own from component.', 'smaily' ); ?>
+						</h3>
 						<p>
 							<?php
 								esc_html_e(
@@ -152,11 +144,9 @@ class Renderer {
 						?>
 					</li>
 					<li>
-						<p>
-							<strong>
-								<?php esc_html_e( 'Use the Contact Form 7 form builder and Smaily connector.', 'smaily' ); ?>
-							</strong>
-						</p>
+						<h3>
+							<?php esc_html_e( 'Use the Contact Form 7 form builder and Smaily connector.', 'smaily' ); ?>
+						</h3>
 						<p>
 							<?php
 								esc_html_e( 'You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account.', 'smaily' );
@@ -181,7 +171,7 @@ class Renderer {
 					</li>
 				</ol>
 			</p>
-		</div>
+		</section>
 		<?php
 	}
 
@@ -192,7 +182,7 @@ class Renderer {
 	 */
 	public function render_tutorial_woocommerce_section() {
 		?>
-		<div style="max-width: 500px;">
+		<section>
 			<p>
 				<?php esc_html_e( 'Smaily integration with your WooCommerce store allows you to:', 'smaily' ); ?>
 				<ol>
@@ -210,7 +200,7 @@ class Renderer {
 					</li>
 				</ol>
 			</p>
-		</div>
+		</section>
 		<?php
 	}
 
@@ -239,7 +229,7 @@ class Renderer {
 	 */
 	public function render_subscriber_sync_section_header() {
 		?>
-		<div>
+		<section>
 			<p>
 				<?php
 					esc_html_e(
@@ -248,7 +238,7 @@ class Renderer {
 					);
 				?>
 			</p>
-		</div>
+		</section>
 		<?php
 	}
 
@@ -259,7 +249,7 @@ class Renderer {
 	 */
 	public function render_abandoned_cart_section_header() {
 		?>
-		<div>
+		<section>
 			<p>
 				<?php
 				esc_html_e(
@@ -268,7 +258,7 @@ class Renderer {
 				);
 				?>
 			</p>
-		</div>
+		</section>
 		<?php
 	}
 
@@ -333,7 +323,7 @@ class Renderer {
 	 */
 	public function render_checkout_subscription_section_header() {
 		?>
-		<div>
+		<section>
 			<p>
 				<?php
 				esc_html_e(
@@ -342,7 +332,7 @@ class Renderer {
 				);
 				?>
 			</p>
-		</div>
+		</section>
 		<?php
 	}
 
@@ -353,7 +343,7 @@ class Renderer {
 	 */
 	public function render_rss_section_header() {
 		?>
-		<div>
+		<section>
 			<p>
 				<?php
 				esc_html_e(
@@ -365,7 +355,7 @@ class Renderer {
 			<a href="https://smaily.com/help/user-manual/templates/adding-rss-feed-to-template/" target="_blank">
 				<?php esc_html_e( 'How to add RSS feed to template?', 'smaily' ); ?>
 			</a>
-		</div>
+		</section>
 		<?php
 	}
 

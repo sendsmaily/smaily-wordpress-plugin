@@ -15,7 +15,7 @@ $connected = $subdomain && $username;
 
 <fieldset>
 	<input type="hidden" name="smaily_api_credentials[enabled]" value="<?php echo esc_attr( $connected ); ?>" />
-	<p class="form-field">
+	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_subdomain">
 			<?php esc_html_e( 'Smaily account subdomain', 'smaily' ); ?>
 			<input
@@ -42,7 +42,7 @@ $connected = $subdomain && $username;
 			?>
 		</small>
 	</p>
-	<p class="form-field">
+	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_username">
 			<?php esc_html_e( 'API Username', 'smaily' ); ?>
 			<input
@@ -57,7 +57,7 @@ $connected = $subdomain && $username;
 		</label>
 	</p>
 	<?php if ( ! $connected ) : ?>
-	<p class="form-field">
+	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_password">
 			<?php esc_html_e( 'API Password', 'smaily' ); ?>
 			<input

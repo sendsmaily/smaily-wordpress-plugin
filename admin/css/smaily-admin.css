@@ -1,207 +1,199 @@
-/* SPINNER */
-.loader {
-    display: inline-block;
-    box-sizing: border-box;
-    width: 20px;
-    height: 20px;
-    margin-left: 10px;
-    border: 4px solid #f3f3f3;
-    border-radius: 50%;
-    border-top: 4px solid #e52766;
-    -webkit-animation: spin 1s linear infinite;
-    animation: spin 1s linear infinite;
+.smaily-wp-connect-admin-settings {
+  font-family: Manrope;
+  font-size: 13px;
+  color: #1d2327;
+  letter-spacing: 2%;
+}
+
+.smaily-wp-connect-admin-settings input[type="text"],
+.smaily-wp-connect-admin-settings input[type="password"],
+.smaily-wp-connect-admin-settings input[type="number"],
+.smaily-wp-connect-admin-settings select {
+  width: 300px;
+
+  &:focus {
+    box-shadow: none;
+    border-color: #e91e63;
   }
-  
-  @-webkit-keyframes spin {
-    0% {
-      -webkit-transform: rotate(0deg);
-    }
-    100% {
-      -webkit-transform: rotate(360deg);
-    }
+}
+
+.smaily-wp-connect-admin-settings select {
+  &:hover {
+    color: #c21a4f;
   }
-  
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
+
+  &:focus {
+    color: #c21a4f;
   }
-  
-  /* Add animation to "page content" */
-  .animate-bottom {
-    position: relative;
-    -webkit-animation-name: animatebottom;
-    -webkit-animation-duration: 1s;
-    animation-name: animatebottom;
-    animation-duration: 1s;
+}
+
+.smaily-wp-connect-admin-tab-content option {
+  color: #1d2327;
+  appearance: none;
+}
+
+.smaily-wp-connect-admin-settings input[type="checkbox"] {
+  box-shadow: none;
+
+  &:focus {
+    box-shadow: none;
+    border-color: #e91e63;
   }
-  
-  @-webkit-keyframes animatebottom {
-    from {
-      bottom: -100px;
-      opacity: 0;
-    }
-    to {
-      bottom: 0px;
-      opacity: 1;
-    }
-  }
-  
-  @keyframes animatebottom {
-    from {
-      bottom: -100px;
-      opacity: 0;
-    }
-    to {
-      bottom: 0;
-      opacity: 1;
+
+  &:checked {
+    &::before {
+      content: "✔";
+      display: block;
+
+      text-align: center;
+      line-height: 20px;
+      color: #e91e63;
+      border-radius: 50%;
     }
   }
-  
-  /* Validate button */
-  #validate-credentials-btn {
-    margin-bottom: 20px;
+}
+
+.smaily-wp-connect-admin-settings a {
+  font-weight: 500;
+  color: #e91e63;
+
+  &:focus {
+    box-shadow: none;
   }
-  
-  /*  Smaily title */
-  #capital-s {
-    color: #e91e63;
-    font-weight: 500;
-    font-size: 150%;
+
+  &:hover {
+    color: #c21a4f;
   }
-  
-  #smaily-title {
-    font-family: "Source Sans Pro", sans-serif;
-    letter-spacing: 1px;
+}
+
+.smaily-wp-connect-admin-settings small {
+  display: block;
+}
+
+.smaily-wp-connect-admin-settings .button {
+  border-radius: 5px;
+  padding: 6px 12px;
+  text-transform: capitalize;
+  font-weight: 600;
+
+  &:hover {
+    background-color: #c21a4f;
+    border-color: #c21a4f;
   }
-  
-  /*  Explanation text */
-  small {
-    display: block;
+
+  &:active {
+    background-color: #c21a4f;
+    border-color: #c21a4f;
   }
-  
-  #smaily-settings input {
-    max-width: 50%;
+
+  &:focus {
+    background-color: #c21a4f;
+    box-shadow: 0 0 0 1px #fff, 0 0 0 3px #c21a4f;
   }
-  
-  #smaily-settings select {
-    min-width: 50%;
-  }
-  
-  .nav-tab-wrapper {
-    display: block;
-  }
-  
-  /* Enable checkboxes */
-  .smaily-toggle {
-    visibility: hidden;
-    opacity: 0;
-    position: absolute;
-    top: -99999px;
-  }
-  
-  .smaily-toggle + label {
-    font-family: arial;
-    vertical-align: middle;
-    width: 80px;
-    height: 30px;
-    display: inline-block;
-    position: relative;
-    border-radius: 15px;
-    overflow: hidden;
-    outline: none;
-    border: none;
-    cursor: pointer;
-    background-color: #bdc3c7;
-    -webkit-transition: 0.25s ease-in-out;
-    -moz-transition: 0.25s ease-out;
-    -o-transition: 0.25s ease-out;
-    transition: 0.25s ease-out;
-  }
-  
-  .smaily-toggle + label:before {
-    content: "ON OFF";
-    width: 22px;
-    height: 22px;
-    left: 4px;
-    top: 4px;
-    border-radius: 11px;
-    z-index: 2;
-    position: absolute;
-    background: #7f8c9a;
-    font-size: 14.99px;
-    font-weight: 700;
-    text-transform: uppercase;
-    text-indent: -32px;
-    word-spacing: 40px;
-    color: #fff;
-    white-space: nowrap;
-    -webkit-transition: 0.25s ease-out;
-    -moz-transition: 0.25s ease-out;
-    -o-transition: 0.25s ease-out;
-    transition: 0.25s ease-out;
-  }
-  
-  .smaily-toggle:checked + label {
-    background-color: #e91e63;
-  }
-  
-  input.smaily-toggle:focus + label {
-    outline: 0;
-  }
-  
-  .smaily-toggle:checked + label:before {
+}
+
+.smaily-wp-connect-admin-settings .button-primary {
+  background-color: #e91e63;
+  border-color: #e91e63;
+}
+
+.smaily-wp-connect-admin-settings .button-secondary {
+  color: #e91e63;
+  border-color: #e91e63;
+
+  &:hover {
     background-color: white;
-    color: white;
-    left: 54px;
+    color: #c21a4f;
+    border-color: #c21a4f;
   }
-  
-  /* Checkout tab display radio buttons */
-  #smaily_checkout_display_visibility label {
-    display: block;
-    padding-bottom: 10px;
+
+  &:active {
+    background-color: white;
+    color: #c21a4f;
+    border-color: #c21a4f;
   }
-  
-  /* Checkout tab location select boxes */
-  #smaily_checkout_display_location select {
-    min-width: fit-content;
+
+  &:focus {
+    color: #c21a4f;
+    background-color: white;
+    box-shadow: 0 0 0 1px #fff, 0 0 0 3px #c21a4f;
   }
-  
-  /* RSS order select boxes */
-  #smaily_rss_order_options select {
-    min-width: fit-content;
+}
+
+.smaily-wp-connect-admin-tab {
+  display: inline-block;
+  padding: 0 20px;
+  line-height: 66px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.smaily-wp-connect-admin-tab-active {
+  border-bottom: 1px solid #e91e63;
+}
+
+.smaily-wp-connect-admin-tab-content {
+  margin-top: 20px;
+  padding: 20px 30px;
+  padding-bottom: 60px;
+  background-color: white;
+}
+
+.smaily-wp-connect-admin-tab-content h2 {
+  font-size: 1.8em;
+}
+
+/* every new section except the first one */
+.smaily-wp-connect-admin-tab-content h2:not(:first-of-type) {
+  margin-top: 40px;
+}
+
+.smaily-wp-connect-admin-tab-content h3 {
+  font-size: 1.2em;
+}
+
+.smaily-wp-connect-admin-tab-content section {
+  max-width: 560px;
+}
+
+.smaily-wp-connect-admin-tab-content ol li {
+  margin-bottom: 10px;
+}
+
+.smaily-wp-connect-subscriber-collection-list ::marker {
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+.smaily-wp-connect-admin-form-field {
+  padding-bottom: 10px;
+  max-width: 310px;
+}
+
+.smaily-wp-connect-admin-tab-nav {
+  display: flex;
+  align-items: center;
+  background-color: white;
+  height: 66px;
+  padding-left: 30px;
+}
+
+.smaily-wp-connect-admin-tab-nav a {
+  color: #1d2327;
+  font-weight: 700;
+
+  &:hover {
+    color: #1d2327;
+    border-bottom: 1px solid #e91e63;
   }
-  
-  /* Messages animations */
-  @keyframes smaily-notice-error-animation {
-    from {background-color: #ecacac;}
-    to {background-color: white;}
+}
+
+.smaily-wp-connect-admin-tab-logo {
+  padding-right: 20px;
+
+  svg {
+    margin-top: 3px;
   }
-  
-  @-webkit-keyframes smaily-notice-error-animation {
-    from {background-color: #ecacac;}
-    to {background-color: white;}
-  }
-  
-  .error.smaily-notice {
-    animation: smaily-notice-error-animation 0.5s;
-    -webkit-animation: smaily-notice-error-animation 0.5s;
-  }
-  
-  @keyframes smaily-notice-success-animation {
-    from {background-color: #b6e2ba;}
-    to {background-color: white;}
-  }
-  
-  @-webkit-keyframes smaily-notice-success-animation {
-    from {background-color: #b6e2ba;}
-    to {background-color: white;}
-  }
-  
-  .notice-success.smaily-notice {
-    animation: smaily-notice-success-animation 0.5s;
-    -webkit-animation: smaily-notice-success-animation 0.5s;
-  }
+}

@@ -88,7 +88,7 @@ class Settings {
 		if ( Helper::is_woocommerce_active() ) {
 			add_settings_section(
 				'smaily_settings_woocommerce_section',
-				__( 'WooCommerce integration', 'smaily' ),
+				__( 'WooCommerce Integration', 'smaily' ),
 				array( $this->renderer, 'render_tutorial_woocommerce_section' ),
 				$page
 			);
