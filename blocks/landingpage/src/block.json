@@ -1,0 +1,39 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 2,
+	"name": "smaily/landingpage-block",
+	"version": "1.0.0",
+	"title": "Smaily Landingpage",
+	"category": "widgets",
+	"description": "Smaily landingpage ",
+	"example": {},
+	"keywords": ["smaily", "landingpage", "newsletter", "subscription"],
+	"attributes": {
+		"subdomain": {
+			"type": "string",
+			"default": ""
+		},
+		"url": {
+			"type": "string",
+			"default": ""
+		},
+		"landingpagePK": {
+			"type": "string",
+			"default": ""
+		},
+		"height": {
+			"type": "number",
+			"default": 400
+		},
+		"width": {
+			"type": "number",
+			"default": 500
+		}
+	},
+	"supports": {
+		"html": false
+	},
+	"textdomain": "smaily",
+	"editorScript": "file:./index.js",
+	"style": "file:./index.css"
+}

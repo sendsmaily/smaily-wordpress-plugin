@@ -1,0 +1,48 @@
+.smaily-wp-connect-landingpage-block-edit-wrapper {
+	padding: 20px;
+	border: 3px solid #bdbdbd;
+	border-radius: 5px;
+
+	> iframe {
+		border: none;
+		width: 100%;
+		height: 100%;
+	}
+
+	.smaily-wp-connect-landingpage-block-edit-setup {
+		font-family: Manrope;
+		color: #1d2327;
+		padding: 20px;
+		display: flex;
+		flex-direction: column;
+		background-color: white;
+		border-radius: 5px;
+
+		h3 {
+			font-size: 1.2em;
+			margin-bottom: 10px;
+		}
+
+		a {
+			font-weight: 500;
+			color: #e91e63 !important;
+
+			&:focus {
+				box-shadow: none;
+				outline: none;
+			}
+
+			&:hover {
+				color: #c21a4f;
+			}
+		}
+	}
+}
+
+.smaily-wp-connect-landingpage-block-front-wrapper {
+	> iframe {
+		border: none !important;
+		width: 100% !important;
+		height: 100% !important;
+	}
+}

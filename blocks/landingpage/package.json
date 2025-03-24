@@ -1,0 +1,21 @@
+{
+	"name": "smaily-landingpage-block",
+	"version": "1.0.0",
+	"description": "Smaily landingpage block",
+	"author": "Smaily",
+	"license": "GPL-2.0-or-later",
+	"main": "build/index.js",
+	"scripts": {
+		"build": "wp-scripts build --webpack-copy-php",
+		"format": "wp-scripts format",
+		"lint:css": "wp-scripts lint-style",
+		"lint:js": "wp-scripts lint-js",
+		"packages-update": "wp-scripts packages-update",
+		"start": "wp-scripts start --webpack-copy-php"
+	},
+	"devDependencies": {
+		"@wordpress/prettier-config": "^4.18.0",
+		"@wordpress/scripts": "^27"
+	},
+	"prettier": "@wordpress/prettier-config"
+}

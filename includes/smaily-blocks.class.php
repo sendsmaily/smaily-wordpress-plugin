@@ -53,6 +53,7 @@ class Blocks {
 	 */
 	public function register_hooks() {
 		add_action( 'init', array( $this, 'register_newsletter_signup_block' ) );
+		add_action( 'init', array( $this, 'register_landingpage_block' ) );
 
 		if ( Helper::is_woocommerce_active() ) {
 			add_action( 'init', array( $this, 'register_checkout_optin_block' ) );
@@ -124,6 +125,20 @@ class Blocks {
 			function ( $integration_registry ) {
 				$integration_registry->register( new Integration() );
 			}
+		);
+	}
+
+	/**
+	 * Register landingpage block.
+	 *
+	 * @return void
+	 */
+	public function register_landingpage_block() {
+		register_block_type( SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/landingpage/build' );
+		wp_set_script_translations(
+			'smaily-landingpage-editor-script',
+			'smaily',
+			SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
 		);
 	}
 }
