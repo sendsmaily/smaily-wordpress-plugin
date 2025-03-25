@@ -31,56 +31,22 @@ export const Edit = ({ attributes, setAttributes }) => {
 		})();
 	}, [setAttributes]);
 
-	const parsePKFromURL = (url) => {
-		if (url === '') {
-			return false;
-		}
-
-		if (!isURL(url)) {
-			return false;
-		}
-
-
-		const urlObj = new URL(url);
-		if (urlObj.protocol !== 'https:') {
-			return false;
-		}
-
-		if (urlObj.hostname.includes('sendsmaily.net') === false) {
-			return false;
-		}
-
-		if (urlObj.pathname.includes('/landing-pages/') === false) {
-			return false;
-		}
-
-		// Smaily landing page URL pattern.
-		// https://<subdomain>.sendsmaily.net/landing-pages/<pk>/html/
-		const pk = urlObj.pathname
-			.split('/landing-pages/')
-			.pop()
-			.split('/')
-			.shift();
-
-		if (!pk) {
-			return false;
-		}
-
-		return pk;
-	};
-
-	const handleChangeURL = (value) => {
-		if (value === '' ) {
-			setAttributes({ landingpagePK: '' });
-			setAttributes({ url: '' });
+	const handleChangeURL = async (value) => {
+		if (value === '') {
+			setAttributes({
+				landingpagePK: '',
+				url: '',
+				height: 450,
+				width: 500,
+			});
 			setError('');
 			return;
 		}
 
-		const pk = parsePKFromURL(value);
-		if (pk === false) {
+		const { valid, pk, message } = parsePKFromURL(value);
+		if (!valid) {
 			setAttributes({ landingpagePK: '' });
-			setError(__('Invalid URL.', 'smaily'));
+			setError(message);
 		} else {
 			setError('');
 			setAttributes({
@@ -106,16 +72,17 @@ export const Edit = ({ attributes, setAttributes }) => {
 	return (
 		<>
 			<div {...blockProps}>
-				{attributes.url === '' && <SetupSection />}
-				{attributes.landingpagePK !== '' && (
+				{error === '' && !isURL(attributes.url) && <SetupSection />}
+				{error !== '' && <ErrorSection message={error} />}
+				{attributes.url !== '' && attributes.landingpagePK !== '' && (
 					<iframe
-						src={generateLandingPageURL(attributes.subdomain, attributes.landingpagePK)}
+						loading="lazy"
+						title={__('Smaily Landing Page', 'smaily')}
+						src={generateLandingPageURL(
+							attributes.subdomain,
+							attributes.landingpagePK
+						)}
 					/>
-				)}
-				{error !== '' && (
-					<Notice status="error" isDismissible={false}>
-						{error}
-					</Notice>
 				)}
 			</div>
 			<InspectorControls>
@@ -131,11 +98,12 @@ export const Edit = ({ attributes, setAttributes }) => {
 						placeholder={__('Landing page URL', 'smaily')}
 					/>
 					{error !== '' && (
-						<Notice status="error" isDismissible={false}>
-							{error}
-						</Notice>
+						<p className="smaily-wp-connect-landingpage-block-error">
+							<em>{__('Invalid landing page URL!', 'smaily')}</em>
+						</p>
 					)}
 					<NumberControl
+						className="components-base-control"
 						label={__('Height', 'smaily')}
 						value={attributes.height}
 						onChange={(value) => {
@@ -146,6 +114,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						min={0}
 					/>
 					<NumberControl
+						className="components-base-control"
 						label={__('Width', 'smaily')}
 						value={attributes.width}
 						onChange={(value) => {
@@ -170,6 +139,10 @@ export const Save = ({ attributes }) => {
 		},
 	});
 
+	if (attributes.landingpagePK === '') {
+		return <SetupSection />;
+	}
+
 	return (
 		<div {...blockProps}>
 			<iframe src={attributes.url} />
@@ -191,8 +164,7 @@ const SetupSection = () => {
 				{__(
 					'If you need any help setting up the landing page, follow our awesome guide:',
 					'smaily'
-				)}
-				{' '}
+				)}{' '}
 				<a
 					href="https://smaily.com/help/user-manual/landing-pages/creating-landing-pages/"
 					target="_blank"
@@ -206,6 +178,71 @@ const SetupSection = () => {
 	);
 };
 
+const ErrorSection = (props) => {
+	return (
+		<div className="smaily-wp-connect-landingpage-block-edit-error">
+			<h3>{__('Invalid Landing Page URL!', 'smaily')}</h3>
+			<p className="smaily-wp-connect-landingpage-block-error">
+				{props.message}
+			</p>
+		</div>
+	);
+};
+
 const generateLandingPageURL = (subdomain, pk) => {
 	return `https://${subdomain}.sendsmaily.net/landing-pages/${pk}/html/`;
+};
+
+const parsePKFromURL = (url) => {
+	if (typeof url !== 'string' || !url.trim()) {
+		return { valid: false, message: __('URL is empty.', 'smaily') };
+	}
+
+	try {
+		const urlObj = new URL(url);
+		if (urlObj.protocol !== 'https:') {
+			return {
+				valid: false,
+				message: __('URL must use HTTPS protocol.', 'smaily'),
+			};
+		}
+
+		if (!urlObj.hostname.endsWith('sendsmaily.net')) {
+			return {
+				valid: false,
+				message: __(
+					'URL must originate from sendsmaily.net domain.',
+					'smaily'
+				),
+			};
+		}
+
+		if (urlObj.pathname.includes('/landing-pages/') === false) {
+			return {
+				valid: false,
+				message: __('URL must contain a landing page path.', 'smaily'),
+			};
+		}
+
+		// Smaily landing page URL pattern.
+		// https://<subdomain>.sendsmaily.net/landing-pages/<pk>/html/
+		const pk = urlObj.pathname.split('/landing-pages/')[1]?.split('/')[0];
+
+		if (!pk || !/^[a-zA-Z0-9_-]+$/.test(pk)) {
+			return {
+				valid: false,
+				message: __(
+					'Could not extract landing page ID from URL.',
+					'smaily'
+				),
+			};
+		}
+
+		return { valid: true, pk };
+	} catch (error) {
+		return {
+			valid: false,
+			message: __('Please enter a valid URL!', 'smaily'),
+		};
+	}
 };
