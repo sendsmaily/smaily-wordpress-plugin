@@ -28,7 +28,7 @@
 			"default": ""
 		}
 	},
-	"textdomain": "smaily",
+	"textdomain": "smaily-wp-connect",
 	"editorScript": "file:./smaily-checkout-optin-block.js",
 	"editorStyle": "file:./style-smaily-checkout-optin-block.css"
 }

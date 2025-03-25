@@ -89,7 +89,7 @@ class Admin {
 	 */
 	public function settings_page() {
 		add_menu_page(
-			__( 'Smaily Settings', 'smaily' ),
+			__( 'Smaily Settings', 'smaily-wp-connect' ),
 			'Smaily',
 			'manage_options',
 			$this->plugin_name,
@@ -147,7 +147,7 @@ class Admin {
 			add_settings_error(
 				'smaily_messages',
 				'credentials_validated',
-				__( 'API credentials validated successfully!', 'smaily' ),
+				__( 'API credentials validated successfully!', 'smaily-wp-connect' ),
 				'success'
 			);
 
@@ -162,7 +162,7 @@ class Admin {
 					add_settings_error(
 						'smaily_messages',
 						'invalid_api_credentials',
-						__( 'Check subdomain. API credentials validation failed.', 'smaily' ),
+						__( 'Check subdomain. API credentials validation failed.', 'smaily-wp-connect' ),
 						'error'
 					);
 					break;
@@ -170,7 +170,7 @@ class Admin {
 					add_settings_error(
 						'smaily_messages',
 						'invalid_api_credentials',
-						__( 'API credentials validation failed. Please check your details.', 'smaily' ),
+						__( 'API credentials validation failed. Please check your details.', 'smaily-wp-connect' ),
 						'error'
 					);
 					break;
@@ -211,8 +211,8 @@ class Admin {
 		if ( ! isset( $this->tabs ) ) {
 			$tabs = array(
 				'connection' => array(
-					'title'              => __( 'Connection', 'smaily' ),
-					'submit_button_text' => $this->options->has_credentials() ? __( 'Disconnect', 'smaily' ) : __( 'Make a connection', 'smaily' ),
+					'title'              => __( 'Connection', 'smaily-wp-connect' ),
+					'submit_button_text' => $this->options->has_credentials() ? __( 'Disconnect', 'smaily-wp-connect' ) : __( 'Make a connection', 'smaily-wp-connect' ),
 					'url'                => add_query_arg(
 						array(
 							'page' => $this->plugin_name,
@@ -228,7 +228,7 @@ class Admin {
 
 			if ( $this->options->has_credentials() ) {
 				$tabs['tutorial'] = array(
-					'title'             => __( 'Getting started', 'smaily' ),
+					'title'             => __( 'Getting started', 'smaily-wp-connect' ),
 					'url'               => add_query_arg(
 						array(
 							'page' => $this->plugin_name,
@@ -244,8 +244,8 @@ class Admin {
 
 			if ( Helper::is_woocommerce_active() && $this->options->has_credentials() ) {
 				$tabs['subscriber_sync'] = array(
-					'title'              => __( 'Subscriber Synchronization', 'smaily' ),
-					'submit_button_text' => __( 'Save', 'smaily' ),
+					'title'              => __( 'Subscriber Synchronization', 'smaily-wp-connect' ),
+					'submit_button_text' => __( 'Save', 'smaily-wp-connect' ),
 					'url'                => add_query_arg(
 						array(
 							'page' => $this->plugin_name,
@@ -259,8 +259,8 @@ class Admin {
 				);
 
 				$tabs['abandoned_cart'] = array(
-					'title'              => __( 'Abandoned Cart', 'smaily' ),
-					'submit_button_text' => __( 'Save', 'smaily' ),
+					'title'              => __( 'Abandoned Cart', 'smaily-wp-connect' ),
+					'submit_button_text' => __( 'Save', 'smaily-wp-connect' ),
 					'url'                => add_query_arg(
 						array(
 							'page' => $this->plugin_name,
@@ -274,8 +274,8 @@ class Admin {
 				);
 
 				$tabs['rss'] = array(
-					'title'              => __( 'RSS', 'smaily' ),
-					'submit_button_text' => __( 'Save', 'smaily' ),
+					'title'              => __( 'RSS', 'smaily-wp-connect' ),
+					'submit_button_text' => __( 'Save', 'smaily-wp-connect' ),
 					'url'                => add_query_arg(
 						array(
 							'page' => $this->plugin_name,
@@ -343,7 +343,7 @@ class Admin {
 	 */
 	public function settings_link( $links ) {
 		// receive all current links and add custom link to the list.
-		$settings_link = '<a href="admin.php?page=' . esc_attr( $this->plugin_name ) . '">' . esc_html__( 'Settings', 'smaily' ) . '</a>';
+		$settings_link = '<a href="admin.php?page=' . esc_attr( $this->plugin_name ) . '">' . esc_html__( 'Settings', 'smaily-wp-connect' ) . '</a>';
 		// Settings before disable.
 		array_unshift( $links, $settings_link );
 		return $links;

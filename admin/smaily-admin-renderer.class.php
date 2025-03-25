@@ -37,7 +37,7 @@ class Renderer {
 					<?php
 					esc_html_e(
 						'There seems to be a problem with your connection to Smaily. Please revalidate your credentials!',
-						'smaily'
+						'smaily-wp-connect'
 					);
 					?>
 				</p>
@@ -45,10 +45,10 @@ class Renderer {
 		<?php endif; ?>
 		<section class="smaily-wp-connect-connection-section-header">
 			<p>
-				<?php esc_html_e( "Start by connecting your Smaily account with your website. Go to your Smaily account's settings integrations tab and create a new API user. Then copy the account subdomain, API username and API password below.", 'smaily' ); ?>
+				<?php esc_html_e( "Start by connecting your Smaily account with your website. Go to your Smaily account's settings integrations tab and create a new API user. Then copy the account subdomain, API username and API password below.", 'smaily-wp-connect' ); ?>
 			</p>
 			<a href="https://smaily.com/help/api/general/create-api-user/" target="_blank">
-				<?php esc_html_e( 'How to create API credentials?', 'smaily' ); ?>
+				<?php esc_html_e( 'How to create API credentials?', 'smaily-wp-connect' ); ?>
 			</a>
 		</section>
 		<?php
@@ -63,18 +63,18 @@ class Renderer {
 		?>
 		<section>
 			<p>
-				<?php esc_html_e( 'You can use the following methods to collect subscribers:', 'smaily' ); ?>
+				<?php esc_html_e( 'You can use the following methods to collect subscribers:', 'smaily-wp-connect' ); ?>
 				<ol class="smaily-wp-connect-subscriber-collection-list">
 					<?php if ( wp_is_block_theme() ) : ?>
 					<li>
 						<h3>
-							<?php esc_html_e( 'Use the Smaily subscription form block.', 'smaily' ); ?>
+							<?php esc_html_e( 'Use the Smaily subscription form block.', 'smaily-wp-connect' ); ?>
 						</h3>
 						<p>
 							<?php
 								esc_html_e(
 									'Add the Smaily Sign-Up Form block to any page or post. The block is available in the block editor.',
-									'smaily'
+									'smaily-wp-connect'
 								);
 							?>
 							<br>
@@ -83,19 +83,19 @@ class Renderer {
 					<?php else : ?>
 					<li>
 						<h3>
-							<?php esc_html_e( 'Use the Smaily subscription form widget.', 'smaily' ); ?>
+							<?php esc_html_e( 'Use the Smaily subscription form widget.', 'smaily-wp-connect' ); ?>
 						</h3>
 						<p>
-							<?php esc_html_e( 'You can add the widget to your website from the widgets page.', 'smaily' ); ?>
+							<?php esc_html_e( 'You can add the widget to your website from the widgets page.', 'smaily-wp-connect' ); ?>
 						</p>
 						<a href="<?php echo esc_url( admin_url( 'widgets.php' ) ); ?>">
-							<?php esc_html_e( 'Set up the Smaily Classic Subscription widget.', 'smaily' ); ?>
+							<?php esc_html_e( 'Set up the Smaily Classic Subscription widget.', 'smaily-wp-connect' ); ?>
 						</a>
 					</li>
 					<?php endif; ?>
 					<li>
 						<h3>
-							<?php esc_html_e( 'Use the Smaily subscription form shortcode.', 'smaily' ); ?>
+							<?php esc_html_e( 'Use the Smaily subscription form shortcode.', 'smaily-wp-connect' ); ?>
 						</h3>
 						<p>
 						<?php
@@ -103,59 +103,59 @@ class Renderer {
 								/* translators: 1: example subdomain between strong tags */
 								esc_html__(
 									'You can add the %1$s shortcode to any page or post.',
-									'smaily'
+									'smaily-wp-connect'
 								),
 								'<span class="regular-text code">[smaily_newsletter_form]</span>'
 							);
 						?>
 						</p>
 						<?php
-							$anchor = esc_html__( 'read the detailed guide', 'smaily' );
-							$domain = esc_url( __( 'https://smaily.com/help/how-to/ecommerce-integrations/smaily-plugin-for-wordpress#toc-heading-4', 'smaily' ) );
+							$anchor = esc_html__( 'read the detailed guide', 'smaily-wp-connect' );
+							$domain = esc_url( __( 'https://smaily.com/help/how-to/ecommerce-integrations/smaily-plugin-for-wordpress#toc-heading-4', 'smaily-wp-connect' ) );
 							$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
 							echo sprintf(
 								/* translators: 1: link to setting up block component guide */
-								esc_html__( 'For more configuration options %1$s.', 'smaily' ),
+								esc_html__( 'For more configuration options %1$s.', 'smaily-wp-connect' ),
 								wp_kses_post( $link )
 							);
 						?>
 					</li>
 					<li>
 						<h3>
-							<?php esc_html_e( 'Build your own from component.', 'smaily' ); ?>
+							<?php esc_html_e( 'Build your own from component.', 'smaily-wp-connect' ); ?>
 						</h3>
 						<p>
 							<?php
 								esc_html_e(
 									"Create a custom HTML form for maximum flexibility and advanced functionality. While this requires more technical knowledge, it gives you complete control over the form's appearance and behavior.",
-									'smaily'
+									'smaily-wp-connect'
 								);
 							?>
 						</p>
 						<?php
-							$anchor = esc_html__( 'here', 'smaily' );
-							$domain = esc_url( __( 'https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/', 'smaily' ) );
+							$anchor = esc_html__( 'here', 'smaily-wp-connect' );
+							$domain = esc_url( __( 'https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/', 'smaily-wp-connect' ) );
 							$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
 							echo sprintf(
 								/* translators: 1: link to custom HTML guide */
-								esc_html__( 'You can view the example form %1$s.', 'smaily' ),
+								esc_html__( 'You can view the example form %1$s.', 'smaily-wp-connect' ),
 								wp_kses_post( $link )
 							);
 						?>
 					</li>
 					<li>
 						<h3>
-							<?php esc_html_e( 'Use the Contact Form 7 form builder and Smaily connector.', 'smaily' ); ?>
+							<?php esc_html_e( 'Use the Contact Form 7 form builder and Smaily connector.', 'smaily-wp-connect' ); ?>
 						</h3>
 						<p>
 							<?php
-								esc_html_e( 'You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account.', 'smaily' );
+								esc_html_e( 'You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account.', 'smaily-wp-connect' );
 							?>
 						</p>
 						<?php if ( Helper::is_cf7_active() ) : ?>
 							<p>
 								<a href="<?php echo esc_url( menu_page_url( 'wpcf7', false ) ); ?>">
-									<?php esc_html_e( 'Enable Smaily Opt-In under the form settings.', 'smaily' ); ?>
+									<?php esc_html_e( 'Enable Smaily Opt-In under the form settings.', 'smaily-wp-connect' ); ?>
 								</a>
 							</p>
 						<?php else : ?>
@@ -163,7 +163,7 @@ class Renderer {
 								<?php
 									esc_html_e(
 										'Please install the Contact Form 7 plugin to use this integration.',
-										'smaily'
+										'smaily-wp-connect'
 									);
 								?>
 							</p>
@@ -184,19 +184,19 @@ class Renderer {
 		?>
 		<section>
 			<p>
-				<?php esc_html_e( 'Smaily integration with your WooCommerce store allows you to:', 'smaily' ); ?>
+				<?php esc_html_e( 'Smaily integration with your WooCommerce store allows you to:', 'smaily-wp-connect' ); ?>
 				<ol>
 					<li>
-						<?php esc_html_e( 'Automatically Synchronize subscribers using the daily Subscriber Synchronization.', 'smaily' ); ?>
+						<?php esc_html_e( 'Automatically Synchronize subscribers using the daily Subscriber Synchronization.', 'smaily-wp-connect' ); ?>
 					</li>
 					<li>
-						<?php esc_html_e( 'Send Abandoned Cart reminder emails to store customers.', 'smaily' ); ?>
+						<?php esc_html_e( 'Send Abandoned Cart reminder emails to store customers.', 'smaily-wp-connect' ); ?>
 					</li>
 					<li>
-						<?php esc_html_e( 'Collect subscribers during checkout.', 'smaily' ); ?>
+						<?php esc_html_e( 'Collect subscribers during checkout.', 'smaily-wp-connect' ); ?>
 					</li>
 					<li>
-						<?php esc_html_e( 'Generate RSS-feeds of your products that enables product import into Smaily drag-and-drop templates.', 'smaily' ); ?>
+						<?php esc_html_e( 'Generate RSS-feeds of your products that enables product import into Smaily drag-and-drop templates.', 'smaily-wp-connect' ); ?>
 					</li>
 				</ol>
 			</p>
@@ -234,7 +234,7 @@ class Renderer {
 				<?php
 					esc_html_e(
 						'Subscriber Synchronization allows you Synchronize newsletter subscribers and their information directly to Smaily',
-						'smaily'
+						'smaily-wp-connect'
 					);
 				?>
 			</p>
@@ -254,7 +254,7 @@ class Renderer {
 				<?php
 				esc_html_e(
 					'Abandoned Cart allows you to send automated emails to customers who have left their shopping cart.',
-					'smaily'
+					'smaily-wp-connect'
 				);
 				?>
 			</p>
@@ -283,7 +283,7 @@ class Renderer {
 					value="1"
 					<?php checked( $enabled, true ); ?>
 				/>
-				<?php esc_html_e( 'Enabled', 'smaily' ); ?>
+				<?php esc_html_e( 'Enabled', 'smaily-wp-connect' ); ?>
 			</label>
 		</fieldset>
 		<fieldset>
@@ -299,7 +299,7 @@ class Renderer {
 					<?php endforeach; ?>
 				<?php else : ?>
 					<option value="">
-						<?php esc_html_e( 'No automations created', 'smaily' ); ?>
+						<?php esc_html_e( 'No automations created', 'smaily-wp-connect' ); ?>
 					</option>
 				<?php endif; ?>
 			</select>
@@ -328,7 +328,7 @@ class Renderer {
 				<?php
 				esc_html_e(
 					'Customers can subscribe by checking "subscribe to newsletter" checkbox on checkout page.',
-					'smaily'
+					'smaily-wp-connect'
 				);
 				?>
 			</p>
@@ -348,12 +348,12 @@ class Renderer {
 				<?php
 				esc_html_e(
 					'Smaily RSS feed allows you insert product feeds to email templates.',
-					'smaily'
+					'smaily-wp-connect'
 				);
 				?>
 			</p>
 			<a href="https://smaily.com/help/user-manual/templates/adding-rss-feed-to-template/" target="_blank">
-				<?php esc_html_e( 'How to add RSS feed to template?', 'smaily' ); ?>
+				<?php esc_html_e( 'How to add RSS feed to template?', 'smaily-wp-connect' ); ?>
 			</a>
 		</section>
 		<?php
@@ -380,7 +380,7 @@ class Renderer {
 				<?php
 				esc_html_e(
 					"Copy this URL into your template editor's RSS block, to receive RSS-feed.",
-					'smaily'
+					'smaily-wp-connect'
 				);
 				?>
 			</small>
@@ -390,7 +390,7 @@ class Renderer {
 				class="button button-secondary"
 				id="smaily-rss-feed-url-copy"
 			>
-				<?php esc_html_e( 'Copy', 'smaily' ); ?>
+				<?php esc_html_e( 'Copy', 'smaily-wp-connect' ); ?>
 			</button>
 			<span
 				id="smaily-rss-feed-url-copy-icon"
@@ -423,7 +423,7 @@ class Renderer {
 					value="1"
 					<?php checked( $value, true ); ?>
 				/>
-				<?php esc_html_e( 'Enabled', 'smaily' ); ?>
+				<?php esc_html_e( 'Enabled', 'smaily-wp-connect' ); ?>
 			</label>
 			<?php if ( ! empty( $help ) ) : ?>
 				<small class="form-text text-muted">

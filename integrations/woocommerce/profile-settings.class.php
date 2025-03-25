@@ -16,12 +16,12 @@ class Profile_Settings {
 		$fields = array(
 			'user_gender'     => array(
 				'type'                 => 'radio',
-				'label'                => __( 'Gender', 'smaily' ),
+				'label'                => __( 'Gender', 'smaily-wp-connect' ),
 				'required'             => false,
 				'class'                => array( 'tog' ),
 				'options'              => array(
-					1 => __( 'Male', 'smaily' ),
-					2 => __( 'Female', 'smaily' ),
+					1 => __( 'Male', 'smaily-wp-connect' ),
+					2 => __( 'Female', 'smaily-wp-connect' ),
 				),
 				'hide_in_account'      => false,
 				'hide_in_admin'        => false,
@@ -30,8 +30,8 @@ class Profile_Settings {
 			),
 			'user_phone'      => array(
 				'type'                 => 'tel',
-				'label'                => __( 'Phone', 'smaily' ),
-				'placeholder'          => __( 'Enter phone number', 'smaily' ),
+				'label'                => __( 'Phone', 'smaily-wp-connect' ),
+				'placeholder'          => __( 'Enter phone number', 'smaily-wp-connect' ),
 				'required'             => false,
 				'class'                => array( 'regular-text' ),
 				'hide_in_account'      => false,
@@ -41,8 +41,8 @@ class Profile_Settings {
 			),
 			'user_dob'        => array(
 				'type'                 => 'date',
-				'label'                => __( 'Birthday', 'smaily' ),
-				'placeholder'          => __( 'Enter birthday', 'smaily' ),
+				'label'                => __( 'Birthday', 'smaily-wp-connect' ),
+				'placeholder'          => __( 'Enter birthday', 'smaily-wp-connect' ),
 				'required'             => false,
 				'class'                => array( 'regular-text' ),
 				'hide_in_account'      => false,
@@ -52,7 +52,7 @@ class Profile_Settings {
 			),
 			'user_newsletter' => array(
 				'type'                 => 'checkbox',
-				'label'                => __( 'Subscribe to newsletter', 'smaily' ),
+				'label'                => __( 'Subscribe to newsletter', 'smaily-wp-connect' ),
 				'required'             => false,
 				'hide_in_account'      => false,
 				'hide_in_admin'        => false,
@@ -160,7 +160,7 @@ class Profile_Settings {
 	public function smaily_print_user_admin_fields() {
 		$fields = $this->fields;
 		?>
-		<h2><?php esc_html_e( 'Additional Information', 'smaily' ); ?></h2>
+		<h2><?php esc_html_e( 'Additional Information', 'smaily-wp-connect' ); ?></h2>
 		<table class="form-table" id="smaily-additional-information">
 
 			<?php foreach ( $fields as $key => $field_args ) { ?>

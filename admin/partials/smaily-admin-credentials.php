@@ -17,7 +17,7 @@ $connected = $subdomain && $username;
 	<input type="hidden" name="smaily_api_credentials[enabled]" value="<?php echo esc_attr( $connected ); ?>" />
 	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_subdomain">
-			<?php esc_html_e( 'Smaily account subdomain', 'smaily' ); ?>*
+			<?php esc_html_e( 'Smaily account subdomain', 'smaily-wp-connect' ); ?>*
 			<input
 				<?php if ( ! empty( $subdomain ) ) : ?>
 					disabled
@@ -36,7 +36,7 @@ $connected = $subdomain && $username;
 				/* translators: 1: example subdomain between strong tags */
 				esc_html__(
 					'For example "%1$s" from https://%1$s.sendsmaily.net/',
-					'smaily'
+					'smaily-wp-connect'
 				),
 				'<strong>demo</strong>'
 			);
@@ -45,7 +45,7 @@ $connected = $subdomain && $username;
 	</p>
 	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_username">
-			<?php esc_html_e( 'API Username', 'smaily' ); ?>*
+			<?php esc_html_e( 'API Username', 'smaily-wp-connect' ); ?>*
 			<input
 				<?php if ( ! empty( $username ) ) : ?>
 					disabled
@@ -61,7 +61,7 @@ $connected = $subdomain && $username;
 	<?php if ( ! $connected ) : ?>
 	<p class="smaily-wp-connect-admin-form-field">
 		<label for="smaily_password">
-			<?php esc_html_e( 'API Password', 'smaily' ); ?>*
+			<?php esc_html_e( 'API Password', 'smaily-wp-connect' ); ?>*
 			<input
 				<?php if ( ! empty( $password ) ) : ?>
 					disabled

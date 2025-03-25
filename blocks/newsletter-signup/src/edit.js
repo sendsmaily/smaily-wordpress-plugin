@@ -109,17 +109,17 @@ export default function Edit({ attributes, setAttributes }) {
 				isDismissible={false}
 				actions={[
 					{
-						label: __('Go to plugin settings', 'smaily'),
+						label: __('Go to plugin settings', 'smaily-wp-connect'),
 						onClick: handleRedirect,
 						variant: 'primary',
 					},
 				]}
 			>
-				<h3>{__('Plugin setup is not complete!', 'smaily')}</h3>
+				<h3>{__('Plugin setup is not complete!', 'smaily-wp-connect')}</h3>
 				<p>
 					{__(
 						'Please connect your Smaily account before adding a form!',
-						'smaily'
+						'smaily-wp-connect'
 					)}
 				</p>
 			</Notice>
@@ -172,9 +172,9 @@ export default function Edit({ attributes, setAttributes }) {
 				</CardBody>
 			</Card>
 			<InspectorControls>
-				<PanelBody title={__('Visible fields', 'smaily')}>
+				<PanelBody title={__('Visible fields', 'smaily-wp-connect')}>
 					<ToggleControl
-						label={__('Display name field', 'smaily')}
+						label={__('Display name field', 'smaily-wp-connect')}
 						checked={showNameField}
 						onChange={() =>
 							setAttributes({
@@ -185,7 +185,7 @@ export default function Edit({ attributes, setAttributes }) {
 					/>
 					{showNameField && (
 						<TextControl
-							label={__('Name field label', 'smaily')}
+							label={__('Name field label', 'smaily-wp-connect')}
 							value={nameInputLabel}
 							name="nameInputLabel"
 							onChange={(val) =>
@@ -194,7 +194,7 @@ export default function Edit({ attributes, setAttributes }) {
 						/>
 					)}
 					<TextControl
-						label={__('Email field label', 'smaily')}
+						label={__('Email field label', 'smaily-wp-connect')}
 						value={emailInputLabel}
 						name="emailInputLabel"
 						onChange={(val) =>
@@ -202,7 +202,7 @@ export default function Edit({ attributes, setAttributes }) {
 						}
 					/>
 					<TextControl
-						label={__('Subscribe button label', 'smaily')}
+						label={__('Subscribe button label', 'smaily-wp-connect')}
 						value={subscribeButtonLabel}
 						name="subscribeButtonLabel"
 						onChange={(val) =>
@@ -210,7 +210,7 @@ export default function Edit({ attributes, setAttributes }) {
 						}
 					/>
 					<ToggleControl
-						label={__('Full width subscribe button', 'smaily')}
+						label={__('Full width subscribe button', 'smaily-wp-connect')}
 						checked={subscribeButtonWidth === '100%'}
 						onChange={(checked) =>
 							setAttributes({
@@ -222,7 +222,7 @@ export default function Edit({ attributes, setAttributes }) {
 						name="show_name"
 					/>
 					<RangeControl
-						label={__('Button border radius', 'smaily')}
+						label={__('Button border radius', 'smaily-wp-connect')}
 						value={attributes.subscribeButtonBorderRadius}
 						onChange={(value) => {
 							setAttributes({
@@ -232,7 +232,7 @@ export default function Edit({ attributes, setAttributes }) {
 						min={0}
 					/>
 					<TextControl
-						label={__('Success message', 'smaily')}
+						label={__('Success message', 'smaily-wp-connect')}
 						value={successMessage}
 						name="successMessage"
 						onChange={(val) =>
@@ -240,32 +240,32 @@ export default function Edit({ attributes, setAttributes }) {
 						}
 					/>
 					<TextControl
-						label={__('Error message', 'smaily')}
+						label={__('Error message', 'smaily-wp-connect')}
 						value={errorMessage}
 						name="errorMessage"
 						onChange={(val) => setAttributes({ errorMessage: val })}
 					/>
 				</PanelBody>
 				<PanelBody
-					title={__('Hidden fields', 'smaily')}
+					title={__('Hidden fields', 'smaily-wp-connect')}
 					initialOpen={false}
 				>
 					<TextControl
-						label={__('Success URL', 'smaily')}
+						label={__('Success URL', 'smaily-wp-connect')}
 						value={successURL}
 						name="successURL"
 						onChange={(val) => setAttributes({ successURL: val })}
-						help={__('Defaults to current page URL.', 'smaily')}
+						help={__('Defaults to current page URL.', 'smaily-wp-connect')}
 					/>
 					<TextControl
-						label={__('Failure URL', 'smaily')}
+						label={__('Failure URL', 'smaily-wp-connect')}
 						value={errorURL}
 						name="failure_url"
 						onChange={(val) => setAttributes({ errorURL: val })}
-						help={__('Defaults to current page URL.', 'smaily')}
+						help={__('Defaults to current page URL.', 'smaily-wp-connect')}
 					/>
 					<SelectControl
-						label={__('Autoresponder', 'smaily')}
+						label={__('Autoresponder', 'smaily-wp-connect')}
 						name="autoresponderId"
 						value={autoresponderId}
 						onChange={(val) =>
@@ -273,7 +273,7 @@ export default function Edit({ attributes, setAttributes }) {
 						}
 						options={[
 							{
-								label: __('No autoresponder', 'smaily'),
+								label: __('No autoresponder', 'smaily-wp-connect'),
 								value: '',
 							},
 							...autoresponders,

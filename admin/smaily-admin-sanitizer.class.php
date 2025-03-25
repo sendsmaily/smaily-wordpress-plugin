@@ -19,7 +19,7 @@ class Sanitizer {
 			add_settings_error(
 				'smaily_messages',
 				'no_autoresponder_for_abandoned_cart',
-				__( 'Please select autoresponder for abandoned cart automation.', 'smaily' ),
+				__( 'Please select autoresponder for abandoned cart automation.', 'smaily-wp-connect' ),
 				'error'
 			);
 
@@ -56,13 +56,13 @@ class Sanitizer {
 
 		$validation_errors = array();
 		if ( empty( trim( $input['subdomain'] ) ) ) {
-			$validation_errors[] = __( 'Please enter subdomain!', 'smaily' );
+			$validation_errors[] = __( 'Please enter subdomain!', 'smaily-wp-connect' );
 		}
 		if ( empty( trim( $input['username'] ) ) ) {
-			$validation_errors[] = __( 'Please enter username!', 'smaily' );
+			$validation_errors[] = __( 'Please enter username!', 'smaily-wp-connect' );
 		}
 		if ( empty( trim( $input['password'] ) ) ) {
-			$validation_errors[] = __( 'Please enter password!', 'smaily' );
+			$validation_errors[] = __( 'Please enter password!', 'smaily-wp-connect' );
 		}
 		if ( ! empty( $validation_errors ) ) {
 			$validation_errors = implode( '<br>', $validation_errors );

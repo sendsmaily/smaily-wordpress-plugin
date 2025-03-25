@@ -27,10 +27,10 @@ const smailyIcon = (
 registerBlockType(metadata.name, {
 	edit: Edit,
 	icon: smailyIcon,
-	title: __('Smaily Opt-In Form', 'smaily'),
+	title: __('Smaily Opt-In Form', 'smaily-wp-connect'),
 	description: __(
 		'Opt-in subscribers directly to Smaily for seamless email marketing.',
-		'smaily'
+		'smaily-wp-connect'
 	),
-	keywords: [__('email', 'smaily'), __('newsletter', 'smaily'), 'smaily'],
+	keywords: [__('email', 'smaily-wp-connect'), __('newsletter', 'smaily-wp-connect'), 'smaily'],
 });

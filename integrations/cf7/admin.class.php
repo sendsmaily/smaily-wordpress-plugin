@@ -94,7 +94,7 @@ class Admin {
 	public function add_tab( $panels ) {
 		$panel = array(
 			'smailyforcf7' => array(
-				'title'    => __( 'Smaily for Contact Form 7', 'smaily' ),
+				'title'    => __( 'Smaily for Contact Form 7', 'smaily-wp-connect' ),
 				'callback' => array( $this, 'panel_content' ),
 			),
 		);

@@ -59,14 +59,14 @@ class Settings {
 
 		add_settings_section(
 			$section,
-			__( 'Connection', 'smaily' ),
+			__( 'Connection', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_connection_section_header' ),
 			$page
 		);
 
 		add_settings_field(
 			Options::API_CREDENTIALS_OPTION,
-			__( 'Credentials', 'smaily' ),
+			__( 'Credentials', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_credentials_fields' ),
 			$page,
 			$section
@@ -80,7 +80,7 @@ class Settings {
 	public function register_tutorial_tab_settings( $option_group, $page ) {
 		add_settings_section(
 			'smaily_settings_subscriber_collection_section',
-			__( 'Setting up subscriber collection', 'smaily' ),
+			__( 'Setting up subscriber collection', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_tutorial_subscriber_collection_section' ),
 			$page
 		);
@@ -88,7 +88,7 @@ class Settings {
 		if ( Helper::is_woocommerce_active() ) {
 			add_settings_section(
 				'smaily_settings_woocommerce_section',
-				__( 'WooCommerce Integration', 'smaily' ),
+				__( 'WooCommerce Integration', 'smaily-wp-connect' ),
 				array( $this->renderer, 'render_tutorial_woocommerce_section' ),
 				$page
 			);
@@ -125,26 +125,26 @@ class Settings {
 
 		add_settings_section(
 			$subscriber_sync_section,
-			__( 'Daily Automatic Subscriber Synchronization', 'smaily' ),
+			__( 'Daily Automatic Subscriber Synchronization', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_subscriber_sync_section_header' ),
 			$page
 		);
 
 		add_settings_field(
 			Options::SUBSCRIBER_SYNC_ENABLED_OPTION,
-			__( 'Enable Subscriber Synchronization', 'smaily' ),
+			__( 'Enable Subscriber Synchronization', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_enabled_field' ),
 			$page,
 			$subscriber_sync_section,
 			array(
 				'option_name' => Options::SUBSCRIBER_SYNC_ENABLED_OPTION,
-				'help'        => __( 'The cron job will run once a day.', 'smaily' ),
+				'help'        => __( 'The cron job will run once a day.', 'smaily-wp-connect' ),
 			)
 		);
 
 		add_settings_field(
 			Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
-			__( 'Additional Fields', 'smaily' ),
+			__( 'Additional Fields', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_sync_additional_fields' ),
 			$page,
 			$subscriber_sync_section
@@ -183,14 +183,14 @@ class Settings {
 
 		add_settings_section(
 			$checkout_subscription_section,
-			__( 'Newsletter Subscription On Checkout', 'smaily' ),
+			__( 'Newsletter Subscription On Checkout', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_checkout_subscription_section_header' ),
 			$page
 		);
 
 		add_settings_field(
 			Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION,
-			__( 'Enable Checkout Subscription', 'smaily' ),
+			__( 'Enable Checkout Subscription', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_enabled_field' ),
 			$page,
 			$checkout_subscription_section,
@@ -201,7 +201,7 @@ class Settings {
 
 		add_settings_field(
 			Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION,
-			__( 'Position', 'smaily' ),
+			__( 'Position', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$checkout_subscription_section,
@@ -213,7 +213,7 @@ class Settings {
 
 		add_settings_field(
 			Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION,
-			__( 'Location', 'smaily' ),
+			__( 'Location', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$checkout_subscription_section,
@@ -267,14 +267,14 @@ class Settings {
 
 		add_settings_section(
 			$abandoned_cart_section,
-			__( 'Abandoned Cart Reminder Emails', 'smaily' ),
+			__( 'Abandoned Cart Reminder Emails', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_abandoned_cart_section_header' ),
 			$page
 		);
 
 		add_settings_field(
 			Options::ABANDONED_CART_STATUS_OPTION,
-			__( 'Enable Abandoned Cart', 'smaily' ),
+			__( 'Enable Abandoned Cart', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_abandoned_cart_status_field' ),
 			$page,
 			$abandoned_cart_section
@@ -282,20 +282,20 @@ class Settings {
 
 		add_settings_field(
 			Options::ABANDONED_CART_CUTOFF_OPTION,
-			__( 'Cart cutoff time (minutes)', 'smaily' ),
+			__( 'Cart cutoff time (minutes)', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_number_field' ),
 			$page,
 			$abandoned_cart_section,
 			array(
 				'option_name' => Options::ABANDONED_CART_CUTOFF_OPTION,
 				'min'         => Options::ABANDONED_CART_DEFAULT_CUTOFF,
-				'help'        => __( 'Time in minutes after which the cart is considered abandoned. Minimum 10 minutes.', 'smaily' ),
+				'help'        => __( 'Time in minutes after which the cart is considered abandoned. Minimum 10 minutes.', 'smaily-wp-connect' ),
 			)
 		);
 
 		add_settings_field(
 			Options::ABANDONED_CART_FIELDS_OPTION,
-			__( 'Additional Fields', 'smaily' ),
+			__( 'Additional Fields', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_abandoned_additional_fields' ),
 			$page,
 			$abandoned_cart_section
@@ -367,14 +367,14 @@ class Settings {
 
 		add_settings_section(
 			$rss_section,
-			__( 'Smaily RSS feed', 'smaily' ),
+			__( 'Smaily RSS feed', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_rss_section_header' ),
 			$page
 		);
 
 		add_settings_field(
 			Options::RSS_LIMIT_OPTION,
-			__( 'Limit', 'smaily' ),
+			__( 'Limit', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_number_field' ),
 			$page,
 			$rss_section,
@@ -382,7 +382,7 @@ class Settings {
 				'option_name' => Options::RSS_LIMIT_OPTION,
 				'min'         => 1,
 				'max'         => 250,
-				'help'        => __( 'Limit how many products you will add to your field. Maximum 250.', 'smaily' ),
+				'help'        => __( 'Limit how many products you will add to your field. Maximum 250.', 'smaily-wp-connect' ),
 				'class'       => 'smaily-rss-options',
 				'id'          => 'smaily-rss-limit',
 			)
@@ -399,16 +399,16 @@ class Settings {
 
 		add_settings_field(
 			Options::RSS_CATEGORY_OPTION,
-			__( 'Product Category', 'smaily' ),
+			__( 'Product Category', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$rss_section,
 			array(
 				'option_name' => Options::RSS_CATEGORY_OPTION,
 				'options'     => array(
-					'' => __( 'All', 'smaily' ),
+					'' => __( 'All', 'smaily-wp-connect' ),
 				) + wp_list_pluck( $product_categories, 'name', 'slug' ),
-				'help'        => __( 'Show products from specific category.', 'smaily' ),
+				'help'        => __( 'Show products from specific category.', 'smaily-wp-connect' ),
 				'class'       => 'smaily-rss-options',
 				'id'          => 'smaily-rss-category',
 			)
@@ -416,19 +416,19 @@ class Settings {
 
 		add_settings_field(
 			Options::RSS_SORT_BY_OPTION,
-			__( 'Sort by', 'smaily' ),
+			__( 'Sort by', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$rss_section,
 			array(
 				'option_name' => Options::RSS_SORT_BY_OPTION,
 				'options'     => array(
-					'modified' => __( 'Modified At', 'smaily' ),
-					'date'     => __( 'Created At', 'smaily' ),
-					'id'       => __( 'ID', 'smaily' ),
-					'name'     => __( 'Name', 'smaily' ),
-					'rand'     => __( 'Random', 'smaily' ),
-					'type'     => __( 'Type', 'smaily' ),
+					'modified' => __( 'Modified At', 'smaily-wp-connect' ),
+					'date'     => __( 'Created At', 'smaily-wp-connect' ),
+					'id'       => __( 'ID', 'smaily-wp-connect' ),
+					'name'     => __( 'Name', 'smaily-wp-connect' ),
+					'rand'     => __( 'Random', 'smaily-wp-connect' ),
+					'type'     => __( 'Type', 'smaily-wp-connect' ),
 				),
 				'class'       => 'smaily-rss-options',
 				'id'          => 'smaily-rss-sort-field',
@@ -437,15 +437,15 @@ class Settings {
 
 		add_settings_field(
 			Options::RSS_ORDER_BY_OPTION,
-			__( 'Order by', 'smaily' ),
+			__( 'Order by', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_select_field' ),
 			$page,
 			$rss_section,
 			array(
 				'option_name' => Options::RSS_ORDER_BY_OPTION,
 				'options'     => array(
-					'ASC'  => __( 'Ascending', 'smaily' ),
-					'DESC' => __( 'Descending', 'smaily' ),
+					'ASC'  => __( 'Ascending', 'smaily-wp-connect' ),
+					'DESC' => __( 'Descending', 'smaily-wp-connect' ),
 				),
 				'class'       => 'smaily-rss-options',
 				'id'          => 'smaily-rss-sort-order',
@@ -454,7 +454,7 @@ class Settings {
 
 		add_settings_field(
 			Options::RSS_URL_OPTION,
-			__( 'Product RSS feed', 'smaily' ),
+			__( 'Product RSS feed', 'smaily-wp-connect' ),
 			array( $this->renderer, 'render_rss_url' ),
 			$page,
 			$rss_section

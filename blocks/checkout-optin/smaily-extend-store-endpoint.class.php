@@ -53,7 +53,7 @@ class Extend_Store_Endpoint {
 	public static function extend_checkout_schema() {
 		return array(
 			'user_newsletter' => array(
-				'description' => __( 'User newsletter subscription', 'smaily' ),
+				'description' => __( 'User newsletter subscription', 'smaily-wp-connect' ),
 				'type'        => 'boolean',
 				'context'     => array( 'view', 'edit' ),
 				'readonly'    => false,

@@ -9,10 +9,10 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-03-24T08:24:36+00:00\n"
+"POT-Creation-Date: 2025-03-25T10:33:27+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
-"X-Domain: smaily\n"
+"X-Domain: smaily-wp-connect\n"
 
 #. Plugin Name of the plugin
 #: smaily-wp-connect.php
@@ -553,23 +553,20 @@ msgid "Title"
 msgstr ""
 
 #: includes/smaily-widget.class.php:131
-#: blocks/newsletter-signup/build/index.js:164
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:177
-#: blocks/newsletter-signup/build/index.js:177
 msgid "Display name field"
 msgstr ""
 
 #: includes/smaily-widget.class.php:134
-#: blocks/newsletter-signup/build/index.js:225
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:254
-#: blocks/newsletter-signup/build/index.js:254
 msgid "Success URL"
 msgstr ""
 
 #: includes/smaily-widget.class.php:138
-#: blocks/newsletter-signup/build/index.js:233
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:261
-#: blocks/newsletter-signup/build/index.js:261
 msgid "Failure URL"
 msgstr ""
 
@@ -583,9 +580,8 @@ msgstr ""
 
 #: includes/smaily-widget.class.php:145
 #: integrations/cf7/partials/smaily-cf7-admin.php:47
-#: blocks/newsletter-signup/build/index.js:248
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:276
-#: blocks/newsletter-signup/build/index.js:276
 msgid "No autoresponder"
 msgstr ""
 
@@ -610,9 +606,8 @@ msgid "Enable Smaily for this form"
 msgstr ""
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:42
-#: blocks/newsletter-signup/build/index.js:241
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:268
-#: blocks/newsletter-signup/build/index.js:268
 msgid "Autoresponder"
 msgstr ""
 
@@ -707,108 +702,89 @@ msgstr ""
 
 #: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
 #: blocks/checkout-optin/src/index.js:35
-#: blocks/newsletter-signup/build/index.js:308
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:35
-#: blocks/newsletter-signup/build/index.js:338
 msgid "newsletter"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:125
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:112
-#: blocks/newsletter-signup/build/index.js:112
 msgid "Go to plugin settings"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:129
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:118
-#: blocks/newsletter-signup/build/index.js:118
 msgid "Plugin setup is not complete!"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:129
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:120
-#: blocks/newsletter-signup/build/index.js:120
 msgid "Please connect your Smaily account before adding a form!"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:162
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:175
-#: blocks/newsletter-signup/build/index.js:175
 msgid "Visible fields"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:171
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:188
-#: blocks/newsletter-signup/build/index.js:188
 msgid "Name field label"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:178
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:197
-#: blocks/newsletter-signup/build/index.js:197
 msgid "Email field label"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:185
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:205
-#: blocks/newsletter-signup/build/index.js:205
 msgid "Subscribe button label"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:192
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:213
-#: blocks/newsletter-signup/build/index.js:213
 msgid "Full width subscribe button"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:199
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:225
-#: blocks/newsletter-signup/build/index.js:225
 msgid "Button border radius"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:208
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:235
-#: blocks/newsletter-signup/build/index.js:235
 msgid "Success message"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:215
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:243
-#: blocks/newsletter-signup/build/index.js:243
 msgid "Error message"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:222
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:250
-#: blocks/newsletter-signup/build/index.js:250
 msgid "Hidden fields"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:231
-#: blocks/newsletter-signup/build/index.js:239
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:258
 #: blocks/newsletter-signup/src/edit.js:265
-#: blocks/newsletter-signup/build/index.js:258
-#: blocks/newsletter-signup/build/index.js:265
 msgid "Defaults to current page URL."
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:306
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:30
-#: blocks/newsletter-signup/build/index.js:333
 msgid "Smaily Opt-In Form"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:307
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:31
-#: blocks/newsletter-signup/build/index.js:334
 msgid "Opt-in subscribers directly to Smaily for seamless email marketing."
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:308
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:35
-#: blocks/newsletter-signup/build/index.js:338
 msgid "email"
 msgstr ""
 

@@ -21,8 +21,8 @@ class Widget extends WP_Widget {
 	 * @param Options $options     Reference to options handler class.
 	 */
 	public function __construct( Options $options ) {
-		$widget_ops = array( 'description' => __( 'Smaily Classic Subscription Widget', 'smaily' ) );
-		parent::__construct( 'smaily_subscription_widget', __( 'Smaily Classic Subscription Widget', 'smaily' ), $widget_ops );
+		$widget_ops = array( 'description' => __( 'Smaily Classic Subscription Widget', 'smaily-wp-connect' ) );
+		parent::__construct( 'smaily_subscription_widget', __( 'Smaily Classic Subscription Widget', 'smaily-wp-connect' ), $widget_ops );
 
 		$this->options = $options;
 	}
@@ -123,26 +123,26 @@ class Widget extends WP_Widget {
 
 		?>
 		<p>
-			<label for="<?php echo esc_attr( $title_name ); ?>"><?php esc_html_e( 'Title', 'smaily' ); ?>:</label>
+			<label for="<?php echo esc_attr( $title_name ); ?>"><?php esc_html_e( 'Title', 'smaily-wp-connect' ); ?>:</label>
 			<input class="widefat" id="<?php echo esc_attr( $title_id ); ?>" name="<?php echo esc_attr( $title_name ); ?>" type="text" value="<?php echo esc_attr( $instance['title'] ); ?>" />
 		</p>
 		<p>
 			<input class="checkbox" id="<?php echo esc_attr( $show_name_id ); ?>" name="<?php echo esc_attr( $show_name_name ); ?>" type="checkbox" <?php echo checked( $instance['show_name'] ); ?> value="1" />
-			<label for="<?php echo esc_attr( $show_name_id ); ?>"><?php esc_html_e( 'Display name field', 'smaily' ); ?></label>
+			<label for="<?php echo esc_attr( $show_name_id ); ?>"><?php esc_html_e( 'Display name field', 'smaily-wp-connect' ); ?></label>
 		</p>
 		<p>
-			<label for="<?php echo esc_attr( $success_url_id ); ?>"><?php esc_html_e( 'Success URL', 'smaily' ); ?>:</label>
+			<label for="<?php echo esc_attr( $success_url_id ); ?>"><?php esc_html_e( 'Success URL', 'smaily-wp-connect' ); ?>:</label>
 			<input id="<?php echo esc_attr( $success_url_id ); ?>" name="<?php echo esc_attr( $success_url_name ); ?>" type="text" value="<?php echo esc_url( $instance['success_url'] ); ?>" />
 		</p>
 		<p>
-			<label for="<?php echo esc_attr( $failure_url_id ); ?>"><?php esc_html_e( 'Failure URL', 'smaily' ); ?>:</label>
+			<label for="<?php echo esc_attr( $failure_url_id ); ?>"><?php esc_html_e( 'Failure URL', 'smaily-wp-connect' ); ?>:</label>
 			<input id="<?php echo esc_attr( $failure_url_id ); ?>" name="<?php echo esc_attr( $failure_url_name ); ?>" type="text" value="<?php echo esc_url( $instance['failure_url'] ); ?>" />
 		</p>
-		<?php esc_html_e( 'Note: URLs are optional. If left empty, the current page URL will be used.', 'smaily' ); ?>
+		<?php esc_html_e( 'Note: URLs are optional. If left empty, the current page URL will be used.', 'smaily-wp-connect' ); ?>
 		<p>
-			<label for="<?php echo esc_attr( $autoresponder_id ); ?>"><?php esc_html_e( 'Autoresponder ID', 'smaily' ); ?>:</label>
+			<label for="<?php echo esc_attr( $autoresponder_id ); ?>"><?php esc_html_e( 'Autoresponder ID', 'smaily-wp-connect' ); ?>:</label>
 			<select id="<?php echo esc_attr( $autoresponder_id ); ?>" name="<?php echo esc_attr( $autoresponder_id_name ); ?>">
-				<option value=""><?php esc_html_e( 'No autoresponder', 'smaily' ); ?></option>
+				<option value=""><?php esc_html_e( 'No autoresponder', 'smaily-wp-connect' ); ?></option>
 				<?php foreach ( $autoresponders as $id => $title ) : ?>
 					<option value="<?php echo esc_attr( $id ); ?>" <?php selected( $instance['autoresponder_id'], $id ); ?>><?php echo esc_attr( $title ); ?></option>
 				<?php endforeach; ?>

@@ -77,7 +77,7 @@ class Blocks {
 		);
 		wp_set_script_translations(
 			'smaily-newsletter-block-editor-script',
-			'smaily',
+			'smaily-wp-connect',
 			SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
 		);
 	}
@@ -91,7 +91,7 @@ class Blocks {
 		register_block_type( SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/build' );
 		wp_set_script_translations(
 			'smaily-checkout-optin-editor-script',
-			'smaily',
+			'smaily-wp-connect',
 			SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
 		);
 	}

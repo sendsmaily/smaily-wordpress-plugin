@@ -76,9 +76,8 @@ msgid "Automatically Synchronize subscribers using the daily Subscriber Synchron
 msgstr "Sünkroniseerige uudiskirjaga liitujaid automaatselt kasutades igapäevast Uudiskirjaga Liitujate Sünkroniseerimist."
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:42
-#: blocks/newsletter-signup/build/index.js:241
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:268
-#: blocks/newsletter-signup/build/index.js:268
 msgid "Autoresponder"
 msgstr "Automaatvastaja"
 
@@ -103,9 +102,8 @@ msgstr "Sünnipäev"
 msgid "Build your own from component."
 msgstr "Ehitage vorm ise."
 
-#: blocks/newsletter-signup/build/index.js:199
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:225
-#: blocks/newsletter-signup/build/index.js:225
 msgid "Button border radius"
 msgstr "Nupu piirjoone raadius"
 
@@ -183,12 +181,9 @@ msgstr "Kliendid saavad tellida uudiskirja, kasutades  märkeruutu kassalehel."
 msgid "Daily Automatic Subscriber Synchronization"
 msgstr "Igapäevane Automaatne Uudiskirjaga Liitujate Sünkroniseerimine"
 
-#: blocks/newsletter-signup/build/index.js:231
-#: blocks/newsletter-signup/build/index.js:239
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:258
 #: blocks/newsletter-signup/src/edit.js:265
-#: blocks/newsletter-signup/build/index.js:258
-#: blocks/newsletter-signup/build/index.js:265
 msgid "Defaults to current page URL."
 msgstr "Vaikimisi praeguse lehekülje URL."
 
@@ -201,15 +196,13 @@ msgid "Disconnect"
 msgstr "Ühenda lahti"
 
 #: includes/smaily-widget.class.php:131
-#: blocks/newsletter-signup/build/index.js:164
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:177
-#: blocks/newsletter-signup/build/index.js:177
 msgid "Display name field"
 msgstr "Kuva nime väli"
 
-#: blocks/newsletter-signup/build/index.js:308
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:35
-#: blocks/newsletter-signup/build/index.js:338
 msgid "email"
 msgstr "email"
 
@@ -219,9 +212,8 @@ msgstr "email"
 msgid "Email"
 msgstr "E-post"
 
-#: blocks/newsletter-signup/build/index.js:178
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:197
-#: blocks/newsletter-signup/build/index.js:197
 msgid "Email field label"
 msgstr "E-posti välja silt"
 
@@ -258,16 +250,14 @@ msgstr "Sisestage sünnipäev"
 msgid "Enter phone number"
 msgstr "Sisestage telefoninumber"
 
-#: blocks/newsletter-signup/build/index.js:215
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:243
-#: blocks/newsletter-signup/build/index.js:243
 msgid "Error message"
 msgstr "Veateade"
 
 #: includes/smaily-widget.class.php:138
-#: blocks/newsletter-signup/build/index.js:233
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:261
-#: blocks/newsletter-signup/build/index.js:261
 msgid "Failure URL"
 msgstr "Tõrke URL"
 
@@ -298,9 +288,8 @@ msgstr "Rohkemate seadistusvõimaluste jaoks %s."
 msgid "Form was not submitted using POST method."
 msgstr "Vormi ei saadetud POST meetodit kasutades."
 
-#: blocks/newsletter-signup/build/index.js:192
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:213
-#: blocks/newsletter-signup/build/index.js:213
 msgid "Full width subscribe button"
 msgstr "Täislaiuses liitumisnupp"
 
@@ -317,9 +306,8 @@ msgstr "Genereeri oma toodetest RSS-vooge, mis võimaldavad tooteid importida Sm
 msgid "Getting started"
 msgstr "Alustamine"
 
-#: blocks/newsletter-signup/build/index.js:125
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:112
-#: blocks/newsletter-signup/build/index.js:112
 msgid "Go to plugin settings"
 msgstr "Minge pistikprogrammi seadetesse"
 
@@ -327,9 +315,8 @@ msgstr "Minge pistikprogrammi seadetesse"
 msgid "here"
 msgstr "siin"
 
-#: blocks/newsletter-signup/build/index.js:222
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:250
-#: blocks/newsletter-signup/build/index.js:250
 msgid "Hidden fields"
 msgstr "Peidetud väljad"
 
@@ -408,17 +395,15 @@ msgstr "Muudetud"
 msgid "Name"
 msgstr "Nimi"
 
-#: blocks/newsletter-signup/build/index.js:171
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:188
-#: blocks/newsletter-signup/build/index.js:188
 msgid "Name field label"
 msgstr "Nimevälja silt"
 
 #: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
 #: blocks/checkout-optin/src/index.js:35
-#: blocks/newsletter-signup/build/index.js:308
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:35
-#: blocks/newsletter-signup/build/index.js:338
 msgid "newsletter"
 msgstr "uudiskiri"
 
@@ -436,9 +421,8 @@ msgstr "Automaatvastajaid pole loodud"
 
 #: includes/smaily-widget.class.php:145
 #: integrations/cf7/partials/smaily-cf7-admin.php:47
-#: blocks/newsletter-signup/build/index.js:248
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:276
-#: blocks/newsletter-signup/build/index.js:276
 msgid "No autoresponder"
 msgstr "Automaatvastaja puudub"
 
@@ -446,9 +430,8 @@ msgstr "Automaatvastaja puudub"
 msgid "Note: URLs are optional. If left empty, the current page URL will be used."
 msgstr "Märkus.: URL-id on valikulised. Kui see jäetakse tühjaks, kasutatakse vormi lehe URL-i."
 
-#: blocks/newsletter-signup/build/index.js:307
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:31
-#: blocks/newsletter-signup/build/index.js:334
 msgid "Opt-in subscribers directly to Smaily for seamless email marketing."
 msgstr "Lisa uudiskirjaga liitujad otse Smaily'sse sujuvaks e-posti turunduseks."
 
@@ -469,9 +452,8 @@ msgstr "Telefon"
 msgid "Please authenticate Smaily credentials under Smaily Settings."
 msgstr "Palun kinnitage Smaily API kasutaja Smaily seadete alt."
 
-#: blocks/newsletter-signup/build/index.js:129
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:120
-#: blocks/newsletter-signup/build/index.js:120
 msgid "Please connect your Smaily account before adding a form!"
 msgstr "Palun ühendage oma Smaily konto enne vormi lisamist!"
 
@@ -495,9 +477,8 @@ msgstr "Selle integratsiooni kasutamiseks installige palun Contact Form 7 pistik
 msgid "Please select autoresponder for abandoned cart automation."
 msgstr "Palun vali hüljatud ostukorvi automaatvastaja."
 
-#: blocks/newsletter-signup/build/index.js:129
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:118
-#: blocks/newsletter-signup/build/index.js:118
 msgid "Plugin setup is not complete!"
 msgstr "Pistikprogrammi seadistamine pole lõpule viidud!"
 
@@ -648,9 +629,8 @@ msgstr "Smaily pistikmoodul, mis sisaldab WooCommerce'i ja Contact Form 7 integr
 msgid "Smaily integration with your WooCommerce store allows you to:"
 msgstr "Smaily integratsioon sinu WooCommerce'i poega võimaldab:"
 
-#: blocks/newsletter-signup/build/index.js:306
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:30
-#: blocks/newsletter-signup/build/index.js:333
 msgid "Smaily Opt-In Form"
 msgstr "Smaily Liitumisvorm"
 
@@ -687,9 +667,8 @@ msgstr "Poe URL"
 msgid "Subscribe"
 msgstr "Liitu"
 
-#: blocks/newsletter-signup/build/index.js:185
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:205
-#: blocks/newsletter-signup/build/index.js:205
 msgid "Subscribe button label"
 msgstr "Liitumisnupu silt"
 
@@ -711,16 +690,14 @@ msgstr "Liitu uudiskirjaga"
 msgid "Subscribing failed with unknown reason."
 msgstr "Uudiskirjaga liitumine ebaõnnestus teadmata põhjusel."
 
-#: blocks/newsletter-signup/build/index.js:208
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:235
-#: blocks/newsletter-signup/build/index.js:235
 msgid "Success message"
 msgstr "Õnnestumise teade"
 
 #: includes/smaily-widget.class.php:134
-#: blocks/newsletter-signup/build/index.js:225
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:254
-#: blocks/newsletter-signup/build/index.js:254
 msgid "Success URL"
 msgstr "Õnnestumise URL"
 
@@ -768,9 +745,8 @@ msgstr "Kasutada Smaily uudiskirjaga liitumise lühikoodi."
 msgid "Use the Smaily subscription form widget."
 msgstr "Kasutada Smaily uudiskirjaga liitumise vidinat."
 
-#: blocks/newsletter-signup/build/index.js:162
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:175
-#: blocks/newsletter-signup/build/index.js:175
 msgid "Visible fields"
 msgstr "Nähtavad väljad"
 

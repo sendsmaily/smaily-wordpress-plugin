@@ -56,7 +56,7 @@ class Integration implements IntegrationInterface {
 
 		$data = array(
 			'smailyCheckoutOptinActive' => $enabled,
-			'optInDefaultText'          => __( 'Subscribe to newsletter', 'smaily' ),
+			'optInDefaultText'          => __( 'Subscribe to newsletter', 'smaily-wp-connect' ),
 		);
 
 		return $data;
@@ -83,7 +83,7 @@ class Integration implements IntegrationInterface {
 
 		wp_set_script_translations(
 			'smaily-checkout-optin-block-editor', // script handle
-			'smaily', // text domain
+			'smaily-wp-connect', // text domain
 			__DIR__ . '/languages'
 		);
 	}
@@ -108,7 +108,7 @@ class Integration implements IntegrationInterface {
 		);
 		wp_set_script_translations(
 			'smaily-checkout-optin-block-frontend', // script handle
-			'smaily', // text domain
+			'smaily-wp-connect', // text domain
 			__DIR__ . '/languages'
 		);
 	}

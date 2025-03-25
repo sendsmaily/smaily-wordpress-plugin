@@ -12,24 +12,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<?php
 			esc_html_e(
 				'Configuring Smaily integration is disabled when using "Add New Form". Please save this form or edit an already existing form',
-				'smaily'
+				'smaily-wp-connect'
 			);
 			?>
 		</p>
 	</div>
 <?php else : ?>
 	<p id='smailyforcf7-captcha-error' style='padding:15px; background-color:#ffdf92; margin:0 0 10px; display:<?php echo $has_credentials ? 'none' : 'block'; ?>'>
-		<?php esc_html_e( 'Please authenticate Smaily credentials under Smaily Settings.', 'smaily' ); ?>
+		<?php esc_html_e( 'Please authenticate Smaily credentials under Smaily Settings.', 'smaily-wp-connect' ); ?>
 	</p>
 	<div id='smailyforcf7-credentials-valid' style='display:<?php echo $has_credentials ? 'block' : 'none'; ?>'>
 		<p id='smailyforcf7-captcha-error' style='padding:15px; background-color:#ffdf92; margin:0 0 10px; display:<?php echo $captcha_enabled ? 'none' : 'block'; ?>'>
-			<?php esc_html_e( 'CAPTCHA disabled. Please use a CAPTCHA if this is a public site.', 'smaily' ); ?>
+			<?php esc_html_e( 'CAPTCHA disabled. Please use a CAPTCHA if this is a public site.', 'smaily-wp-connect' ); ?>
 		</p>
 		<table class='autoresponders-table' style='margin:15px'>
 			<tr class="form-field">
 				<th scope="row" style="text-align:left;padding:10px;">
 					<label for="smaily_status">
-						<?php esc_html_e( 'Enable Smaily for this form', 'smaily' ); ?>
+						<?php esc_html_e( 'Enable Smaily for this form', 'smaily-wp-connect' ); ?>
 					</label>
 				</th>
 				<td>
@@ -39,12 +39,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</tr>
 			<tr id='smailyforcf7-autoresponders' class='form-field'>
 				<th style="text-align:left;padding:10px;">
-					<?php esc_html_e( 'Autoresponder', 'smaily' ); ?>
+					<?php esc_html_e( 'Autoresponder', 'smaily-wp-connect' ); ?>
 				</th>
 				<td>
 					<select id='smailyforcf7-autoresponder-select' name='smailyforcf7-autoresponder'>
 						<option value='' <?php echo $default_autoresponder === 0 ? 'selected="selected"' : ''; ?>>
-							<?php esc_html_e( 'No autoresponder', 'smaily' ); ?>
+							<?php esc_html_e( 'No autoresponder', 'smaily-wp-connect' ); ?>
 						</option>
 						<?php foreach ( $autoresponder_list as $autoresponder_id => $autoresponder_title ) : ?>
 							<option value='<?php echo esc_html( $autoresponder_id ); ?>'

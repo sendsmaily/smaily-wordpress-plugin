@@ -62,7 +62,7 @@ class Cron {
 	public function smaily_cron_schedules( $schedules ) {
 		$schedules['smaily_wp_connect_15_minutes'] = array(
 			'interval' => 900,
-			'display'  => esc_html__( 'In every 15 minutes', 'smaily' ),
+			'display'  => esc_html__( 'In every 15 minutes', 'smaily-wp-connect' ),
 		);
 
 		return $schedules;

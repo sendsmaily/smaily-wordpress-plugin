@@ -155,8 +155,8 @@ class Options {
 	 */
 	public static function get_checkout_subscription_position_options() {
 		return array(
-			'before' => __( 'Before', 'smaily' ),
-			'after'  => __( 'After', 'smaily' ),
+			'before' => __( 'Before', 'smaily-wp-connect' ),
+			'after'  => __( 'After', 'smaily-wp-connect' ),
 		);
 	}
 
@@ -179,10 +179,10 @@ class Options {
 	 */
 	public static function get_checkout_subscription_location_options() {
 		return array(
-			'account'  => __( 'Registration form', 'smaily' ),
-			'billing'  => __( 'Billing form', 'smaily' ),
-			'order'    => __( 'Order notes', 'smaily' ),
-			'shipping' => __( 'Shipping form', 'smaily' ),
+			'account'  => __( 'Registration form', 'smaily-wp-connect' ),
+			'billing'  => __( 'Billing form', 'smaily-wp-connect' ),
+			'order'    => __( 'Order notes', 'smaily-wp-connect' ),
+			'shipping' => __( 'Shipping form', 'smaily-wp-connect' ),
 		);
 	}
 

@@ -106,17 +106,17 @@ class Public_Base {
 		$response = $request->trigger_automation( (int) $cf7_settings['autoresponder_id'], array( $payload ) );
 
 		if ( empty( $response['body'] ) ) {
-			$error_message = esc_html__( 'Something went wrong', 'smaily' );
+			$error_message = esc_html__( 'Something went wrong', 'smaily-wp-connect' );
 		} elseif ( 101 !== (int) $response['body']['code'] ) {
 			switch ( $response['body']['code'] ) {
 				case 201:
-					$error_message = esc_html__( 'Form was not submitted using POST method.', 'smaily' );
+					$error_message = esc_html__( 'Form was not submitted using POST method.', 'smaily-wp-connect' );
 					break;
 				case 204:
-					$error_message = esc_html__( 'Input does not contain a valid email address.', 'smaily' );
+					$error_message = esc_html__( 'Input does not contain a valid email address.', 'smaily-wp-connect' );
 					break;
 				default:
-					$error_message = esc_html__( 'Subscribing failed with unknown reason.', 'smaily' );
+					$error_message = esc_html__( 'Subscribing failed with unknown reason.', 'smaily-wp-connect' );
 					break;
 			}
 		}

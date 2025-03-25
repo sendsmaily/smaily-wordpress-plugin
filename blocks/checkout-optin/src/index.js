@@ -25,14 +25,14 @@ const smailyIcon = (
 
 registerBlockType( metadata.name, {
 	icon: smailyIcon,
-	title: __( 'Smaily Checkout Opt-In', 'smaily' ),
+	title: __( 'Smaily Checkout Opt-In', 'smaily-wp-connect' ),
 	description: __(
 		'Adds a newsletter subscription checkbox to the checkout.',
-		'smaily'
+		'smaily-wp-connect'
 	),
 	keywords: [
-		__( 'checkout', 'smaily' ),
-		__( 'newsletter', 'smaily' ),
+		__( 'checkout', 'smaily-wp-connect' ),
+		__( 'newsletter', 'smaily-wp-connect' ),
 		'smaily',
 	],
 	edit: Edit,
