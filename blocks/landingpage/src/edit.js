@@ -4,12 +4,7 @@ import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
 import { useState, useEffect } from '@wordpress/element';
 import { isURL } from '@wordpress/url';
 
-import {
-	PanelBody,
-	__experimentalNumberControl as NumberControl,
-	TextControl,
-	Notice,
-} from '@wordpress/components';
+import { PanelBody, TextControl, Notice } from '@wordpress/components';
 
 export const Edit = ({ attributes, setAttributes }) => {
 	const [error, setError] = useState('');
@@ -102,9 +97,10 @@ export const Edit = ({ attributes, setAttributes }) => {
 							<em>{__('Invalid landing page URL!', 'smaily')}</em>
 						</p>
 					)}
-					<NumberControl
+					<TextControl
 						className="components-base-control"
 						label={__('Height', 'smaily')}
+						type="number"
 						value={attributes.height}
 						onChange={(value) => {
 							setAttributes({
@@ -113,9 +109,10 @@ export const Edit = ({ attributes, setAttributes }) => {
 						}}
 						min={0}
 					/>
-					<NumberControl
+					<TextControl
 						className="components-base-control"
 						label={__('Width', 'smaily')}
+						type="number"
 						value={attributes.width}
 						onChange={(value) => {
 							setAttributes({
@@ -145,7 +142,10 @@ export const Save = ({ attributes }) => {
 
 	return (
 		<div {...blockProps}>
-			<iframe src={attributes.url} />
+			<iframe
+				src={attributes.url}
+				title={__('Smaily Landing Page', 'smaily')}
+			/>
 		</div>
 	);
 };
