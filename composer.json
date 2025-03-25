@@ -21,6 +21,8 @@
         "build:newsletter-signup": "npm --prefix blocks/newsletter-signup/ ci blocks/newsletter-signup/ && npm run build --prefix blocks/newsletter-signup/",
         "build:checkout-optin": "npm --prefix blocks/checkout-optin/ ci blocks/checkout-optin/ && npm run build --prefix blocks/checkout-optin/",
         "extract-text-domain": "wp i18n make-pot . languages/smaily.pot && msginit -i languages/smaily.pot -o languages/smaily-en.po -l en --no-translator",
-        "compile-translations": "rm -f languages/smaily-en.po && wp i18n update-po languages/smaily.pot languages/ && wp i18n make-mo languages/ && wp i18n make-json languages/ --no-purge"
+        "compile-translations": "rm -f languages/smaily-en.po && wp i18n update-po languages/smaily.pot languages/ && wp i18n make-mo languages/ && wp i18n make-json languages/ --no-purge",
+
+        "package": "cat .zipignore | xargs zip -r smaily-wordpress-plugin.zip . -x"
     }
 }
