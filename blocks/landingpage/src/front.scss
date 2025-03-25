@@ -3,7 +3,7 @@
 	border: 3px solid #bdbdbd;
 	border-radius: 5px;
 	overflow: scroll;
-	font-family: Manrope;
+	font-family: Manrope, sans-serif;
 	color: #1d2327;
 
 	h3 {
@@ -35,7 +35,7 @@
 		padding: 20px;
 		display: flex;
 		flex-direction: column;
-		background-color: white;
+		background-color: #fff;
 		border-radius: 5px;
 	}
 }
@@ -45,6 +45,7 @@
 }
 
 .smaily-wp-connect-landingpage-block-front-wrapper {
+
 	> iframe {
 		border: none !important;
 		width: 100% !important;

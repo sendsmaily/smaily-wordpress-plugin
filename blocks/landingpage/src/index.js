@@ -2,7 +2,7 @@ import { registerBlockType } from '@wordpress/blocks';
 import { __ } from '@wordpress/i18n';
 
 import './front.scss';
-import{ Save, Edit } from './edit';
+import { Save, Edit } from './edit';
 import metadata from './block.json';
 
 const smailyIcon = (
@@ -34,5 +34,10 @@ registerBlockType(metadata.name, {
 		'Use Smaily Landing page for collecting subscribers.',
 		'smaily'
 	),
-	keywords: [__('email', 'smaily'), __('newsletter', 'smaily'), 'smaily', __('landing page', 'smaily')],
+	keywords: [
+		__('email', 'smaily'),
+		__('newsletter', 'smaily'),
+		'smaily',
+		__('landing page', 'smaily'),
+	],
 });
