@@ -104,7 +104,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						value={attributes.height}
 						onChange={(value) => {
 							setAttributes({
-								height: value,
+								height: Number(value),
 							});
 						}}
 						min={0}
@@ -116,7 +116,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						value={attributes.width}
 						onChange={(value) => {
 							setAttributes({
-								width: value,
+								width: Number(value),
 							});
 						}}
 						min={0}
