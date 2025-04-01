@@ -61,6 +61,19 @@ class Helper {
 	}
 
 	/**
+	 * Check if Elementor is active.
+	 *
+	 * @return bool True if Elementor is active, false otherwise.
+	 */
+	public static function is_elementor_active() {
+		if ( function_exists( 'is_plugin_active' ) ) {
+			return is_plugin_active( 'elementor/elementor.php' );
+		} else {
+			return class_exists( 'Elementor\Plugin' );
+		}
+	}
+
+	/**
 	 * Check if the user is on an admin view. Since is_admin itself is not as reliable, incorporate additional checks.
 	 *
 	 * @return bool True if the view is for admins.

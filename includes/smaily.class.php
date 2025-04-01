@@ -8,6 +8,7 @@ use Smaily_Connect\Includes\Lifecycle;
 use Smaily_Connect\Includes\Options;
 use Smaily_Connect\Integrations\CF7\Admin as Smaily_CF7_Admin;
 use Smaily_Connect\Integrations\CF7\Public_Base as Smaily_CF7_Public;
+use Smaily_Connect\Integrations\Elementor\Admin as Elementor_Admin;
 use Smaily_Connect\Integrations\WooCommerce\Cart;
 use Smaily_Connect\Integrations\WooCommerce\Cron;
 use Smaily_Connect\Integrations\WooCommerce\Profile_Settings;
@@ -142,6 +143,15 @@ class Smaily_Connect {
 	protected $cf7_public;
 
 	/**
+	 * Elementor Admin class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Elementor_Admin $elementor Contact Form 7 Public_Base class instance.
+	 */
+	protected $elementor;
+
+	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
 	 *
@@ -230,6 +240,10 @@ class Smaily_Connect {
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/cf7/public.class.php';
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/cf7/service.class.php';
 		}
+
+		if ( Helper::is_elementor_active() ) {
+			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/elementor/admin.class.php';
+		}
 	}
 
 	/**
@@ -280,6 +294,11 @@ class Smaily_Connect {
 		if ( Helper::is_cf7_active() ) {
 			$this->cf7_public = new Smaily_CF7_Public( $this->options );
 			$this->cf7_public->register_hooks();
+		}
+
+		if ( Helper::is_elementor_active() ) {
+			$this->elementor = new Elementor_Admin( $this->plugin_name );
+			$this->elementor->register_hooks();
 		}
 	}
 }
