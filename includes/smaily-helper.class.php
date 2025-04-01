@@ -334,4 +334,29 @@ class Helper {
 
 		return $protocol . $host . $uri;
 	}
+
+	/**
+	 * Determines if the current request is a redirect from Smaily sign up form.
+	 * Also determines if the request is a success or error based on the response code
+	 * from Smaily.
+	 *
+	 * The response is a redirect from Smaily sign up form.
+	 * Form documentation: https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/
+	 * Response codes: https://smaily.com/help/api/general/response-codes/
+	 *
+	 * @return string|bool 'success' or 'error' if the URL contains a code, false otherwise.
+	 */
+	public static function get_optin_form_response_type() {
+		$code       = isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : null;
+		$is_success = $code === '101';
+		$is_error   = $code && ! $is_success;
+
+		if ( $is_success ) {
+			return 'success';
+		} elseif ( $is_error ) {
+			return 'error';
+		}
+
+		return false;
+	}
 }

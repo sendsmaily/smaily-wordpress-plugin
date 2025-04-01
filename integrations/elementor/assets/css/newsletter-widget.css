@@ -1,0 +1,32 @@
+.smaily-wp-connect-elementor-newsletter-form {
+    display: flex;
+    gap: 10px;
+
+    input[type="email"] input[type="text"] {
+        height: 40px;
+    }
+}
+
+.smaily-wp-connect-elementor-newsletter-form-notice-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 16px;
+}
+
+.smaily-wp-connect-elementor-newsletter-form-input-container {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+.smaily-wp-connect-elementor-newsletter-form-visible-fields {
+    display: flex;
+    gap: 10px;
+    flex-grow: 1;
+}
+
+.smaily-wp-connect-elementor-newsletter-form-submit-button {
+    min-width: 140px;
+    height: 48px;
+}
