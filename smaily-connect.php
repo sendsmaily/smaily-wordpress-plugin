@@ -9,7 +9,7 @@
  * Plugin Name:       Smaily Connect
  * Plugin URI:        https://github.com/sendsmaily/smaily-wordpress-plugin
  * Text Domain:       smaily-connect
- * Version:           1.0.0
+ * Version:           1.1.0
 */
 
 // Exit if accessed directly.
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Current plugin version.
  */
-define( 'SMAILY_CONNECT_PLUGIN_VERSION', '1.0.0' );
+define( 'SMAILY_CONNECT_PLUGIN_VERSION', '1.1.0' );
 
 /**
  * The name of the plugin.

@@ -139,5 +139,9 @@ The following attributes are available:
 
 ## Changelog
 
+### 1.1.0
+
+- Added a Elementor widget for the Smaily subscription form.
+
 ### 1.0.0
 - Combined Smaily for Contact Form 7, Smaily for WP, and Smaily for WooCommerce into a single plugin for a streamlined experience.
