@@ -7,17 +7,25 @@
     }
 }
 
-.smaily-wp-connect-elementor-newsletter-form-notice-container {
+.smaily-wp-connect-elementor-newsletter-form-notice__container {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding-bottom: 16px;
+    padding: 16px 0;
+}
+
+.smaily-wp-connect-elementor-newsletter-form-notice__content {
+    padding: 0 0 0 16px;
 }
 
 .smaily-wp-connect-elementor-newsletter-form-input-container {
     display: flex;
     flex-grow: 1;
     flex-direction: column;
+
+    input {
+        padding-left: 12px;
+    }
 }
 
 .smaily-wp-connect-elementor-newsletter-form-visible-fields {
@@ -29,4 +37,5 @@
 .smaily-wp-connect-elementor-newsletter-form-submit-button {
     min-width: 140px;
     height: 48px;
+    cursor: pointer;
 }
