@@ -497,6 +497,9 @@ class Newsletter_Widget extends Widget_Base {
 	 * @return void
 	 */
 	private function register_style_tab_controls() {
+		/**
+		 * Container styles.
+		 */
 		$this->start_controls_section(
 			'section_styles',
 			array(
@@ -617,6 +620,10 @@ class Newsletter_Widget extends Widget_Base {
 
 		$this->end_controls_section();
 
+		/**
+		 * Labels styles.
+		 */
+
 		$this->start_controls_section(
 			'section_labels',
 			array(
@@ -671,6 +678,10 @@ class Newsletter_Widget extends Widget_Base {
 		);
 
 		$this->end_controls_section();
+
+		/**
+		 * Input fields styles.
+		 */
 
 		$this->start_controls_section(
 			'section_fields',
@@ -841,37 +852,26 @@ class Newsletter_Widget extends Widget_Base {
 
 		$this->end_controls_section();
 
+		/**
+		 * Button styles.
+		 */
+
 		$this->start_controls_section(
-			'section_button',
+			'button_style',
 			array(
 				'label' => __( 'Button', 'smaily-wp-connect' ),
 				'tab'   => Controls_Manager::TAB_STYLE,
 			)
 		);
 
-		$this->add_control(
-			'button_background_color',
-			array(
-				'label'     => __( 'Background Color', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::COLOR,
-				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'background-color: {{VALUE}};',
-				),
-				'global'    => array(
-					'default' => Global_Colors::COLOR_PRIMARY,
-				),
-			)
+		$this->start_controls_tabs(
+			'button_style_tabs'
 		);
 
-		$this->add_control(
-			'button_text_color',
+		$this->start_controls_tab(
+			'button_style_tab_normal',
 			array(
-				'label'     => __( 'Text Color', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::COLOR,
-				'default'   => '#ffffff',
-				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'color: {{VALUE}};',
-				),
+				'label' => __( 'Normal', 'smaily-wp-connect' ),
 			)
 		);
 
@@ -922,9 +922,28 @@ class Newsletter_Widget extends Widget_Base {
 		);
 
 		$this->add_control(
-			'button_border_style_pre_divider',
+			'button_background_color',
 			array(
-				'type' => Controls_Manager::DIVIDER,
+				'label'     => __( 'Background Color', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'background-color: {{VALUE}};',
+				),
+				'global'    => array(
+					'default' => Global_Colors::COLOR_PRIMARY,
+				),
+			)
+		);
+
+		$this->add_control(
+			'button_text_color',
+			array(
+				'label'     => __( 'Text Color', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '#ffffff',
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'color: {{VALUE}};',
+				),
 			)
 		);
 
@@ -999,17 +1018,19 @@ class Newsletter_Widget extends Widget_Base {
 			)
 		);
 
-		$this->add_control(
-			'button_hover_style_pre_divider',
+		$this->end_controls_tab();
+
+		$this->start_controls_tab(
+			'button_style_tab_hover',
 			array(
-				'type' => Controls_Manager::DIVIDER,
+				'label' => __( 'Hover', 'smaily-wp-connect' ),
 			)
 		);
 
 		$this->add_control(
 			'button_hover_background_color',
 			array(
-				'label'     => __( 'Hover Background Color', 'smaily-wp-connect' ),
+				'label'     => __( 'Background Color', 'smaily-wp-connect' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array(
 					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button:hover' => 'background-color: {{VALUE}};',
@@ -1018,9 +1039,9 @@ class Newsletter_Widget extends Widget_Base {
 		);
 
 		$this->add_control(
-			'button_hover_color',
+			'button_hover_text_color',
 			array(
-				'label'     => __( 'Hover Text Color', 'smaily-wp-connect' ),
+				'label'     => __( 'Text Color', 'smaily-wp-connect' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array(
 					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button:hover' => 'color: {{VALUE}};',
@@ -1029,17 +1050,85 @@ class Newsletter_Widget extends Widget_Base {
 		);
 
 		$this->add_control(
-			'button_hover_border_color',
+			'button_hover_border_style',
 			array(
-				'label'     => __( 'Hover Border Color', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::COLOR,
+				'label'     => __( 'Border Style', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::SELECT,
+				'default'   => 'none',
+				'options'   => array(
+					'none'   => __( 'None', 'smaily-wp-connect' ),
+					'solid'  => __( 'Solid', 'smaily-wp-connect' ),
+					'dashed' => __( 'Dashed', 'smaily-wp-connect' ),
+					'dotted' => __( 'Dotted', 'smaily-wp-connect' ),
+					'double' => __( 'Double', 'smaily-wp-connect' ),
+					'groove' => __( 'Groove', 'smaily-wp-connect' ),
+				),
 				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button:hover' => 'border-color: {{VALUE}};',
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button:hover' => 'border-style: {{VALUE}};',
 				),
 			)
 		);
 
+		$this->add_control(
+			'button_hover_border_color',
+			array(
+				'label'     => __( 'Border Color', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button:hover' => 'border-color: {{VALUE}};',
+				),
+				'condition' => array(
+					'button_hover_border_style!' => 'none',
+				),
+			)
+		);
+
+		$this->add_control(
+			'button_hover_border_width',
+			array(
+				'label'      => __( 'Border Width', 'smaily-wp-connect' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button:hover' => 'border-width: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+				'condition'  => array(
+					'button_hover_border_style!' => 'none',
+				),
+			)
+		);
+
+		$this->add_control(
+			'button_hover_border_radius',
+			array(
+				'label'      => __( 'Border Radius', 'smaily-wp-connect' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'default'    => array(
+					'top'    => 2,
+					'right'  => 2,
+					'bottom' => 2,
+					'left'   => 2,
+					'unit'   => 'px',
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button:hover' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+				'condition'  => array(
+					'button_hover_border_style!' => 'none',
+				),
+			)
+		);
+
+		$this->end_controls_tab();
+
+		$this->end_controls_tabs();
+
 		$this->end_controls_section();
+
+		/**
+		 * Success/Error messages styles.
+		 */
 
 		$this->start_controls_section(
 			'section_success_error_messages',
