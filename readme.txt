@@ -60,7 +60,7 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 = 1.1.0 =
 
-Added a new widget for Elementor that simplifies adding Smaily Subscription form when using the Elementor site builder.
+Introduced a new Elementor widget that makes it easy to add a Smaily subscription form when building pages with Elementor.
 
 = 1.0.0 =
 * Combined Smaily for Contact Form 7, Smaily for WP, and Smaily for WooCommerce into a single plugin for a streamlined experience.
