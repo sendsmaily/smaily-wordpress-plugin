@@ -691,6 +691,17 @@ class Newsletter_Widget extends Widget_Base {
 			)
 		);
 
+		$this->start_controls_tabs(
+			'fields_style_tabs'
+		);
+
+		$this->start_controls_tab(
+			'fields_style_tab_normal',
+			array(
+				'label' => __( 'Normal', 'smaily-wp-connect' ),
+			)
+		);
+
 		$this->add_control(
 			'fields_background_color',
 			array(
@@ -699,6 +710,14 @@ class Newsletter_Widget extends Widget_Base {
 				'selectors' => array(
 					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input' => 'background-color: {{VALUE}};',
 				),
+			)
+		);
+
+		$this->add_group_control(
+			Group_Control_Typography::get_type(),
+			array(
+				'name'     => 'fields_typography',
+				'selector' => '{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input',
 			)
 		);
 
@@ -722,21 +741,6 @@ class Newsletter_Widget extends Widget_Base {
 				'selectors'  => array(
 					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input' => 'height: {{SIZE}}{{UNIT}};',
 				),
-			)
-		);
-
-		$this->add_group_control(
-			Group_Control_Typography::get_type(),
-			array(
-				'name'     => 'fields_typography',
-				'selector' => '{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input',
-			)
-		);
-
-		$this->add_control(
-			'fields_border_style_pre_divider',
-			array(
-				'type' => Controls_Manager::DIVIDER,
 			)
 		);
 
@@ -821,34 +825,107 @@ class Newsletter_Widget extends Widget_Base {
 			)
 		);
 
-		$this->add_control(
-			'fields_border_hover_pre_divider',
+		$this->end_controls_tab();
+
+		$this->start_controls_tab(
+			'fields_style_tab_hover',
 			array(
-				'type' => Controls_Manager::DIVIDER,
+				'label' => __( 'Hover', 'smaily-wp-connect' ),
 			)
 		);
 
 		$this->add_control(
-			'fields_border_hover_color',
+			'fields_background_color_hover',
 			array(
-				'label'     => __( 'Border Hover Color', 'smaily-wp-connect' ),
+				'label'     => __( 'Background Color', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input:hover' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'fields_border_style_hover',
+			array(
+				'label'     => __( 'Border Style', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::SELECT,
+				'default'   => 'solid',
+				'options'   => array(
+					'none'   => __( 'None', 'smaily-wp-connect' ),
+					'solid'  => __( 'Solid', 'smaily-wp-connect' ),
+					'dashed' => __( 'Dashed', 'smaily-wp-connect' ),
+					'dotted' => __( 'Dotted', 'smaily-wp-connect' ),
+					'double' => __( 'Double', 'smaily-wp-connect' ),
+					'groove' => __( 'Groove', 'smaily-wp-connect' ),
+				),
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input:hover' => 'border-style: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'fields_border_color_hover',
+			array(
+				'label'     => __( 'Border Color', 'smaily-wp-connect' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array(
 					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input:hover' => 'border-color: {{VALUE}};',
 				),
+				'condition' => array(
+					'fields_border_style_hover!' => 'none',
+				),
 			)
 		);
 
 		$this->add_control(
-			'fields_border_focus_color',
+			'fields_border_width_hover',
 			array(
-				'label'     => __( 'Border Focus Color', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::COLOR,
-				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input:focus' => 'border-color: {{VALUE}};',
+				'label'      => __( 'Border Width', 'smaily-wp-connect' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'default'    => array(
+					'top'    => 1,
+					'right'  => 1,
+					'bottom' => 1,
+					'left'   => 1,
+					'unit'   => 'px',
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input:hover' => 'border-width: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+				'condition'  => array(
+					'fields_border_style_hover!' => 'none',
 				),
 			)
 		);
+
+		$this->add_control(
+			'fields_border_radius_hover',
+			array(
+				'label'      => __( 'Border Radius', 'smaily-wp-connect' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'default'    => array(
+					'top'    => 2,
+					'right'  => 2,
+					'bottom' => 2,
+					'left'   => 2,
+					'unit'   => 'px',
+				),
+				'selectors'  => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-input-container input:hover' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+				'condition'  => array(
+					'fields_border_style_hover!' => 'none',
+				),
+			)
+		);
+
+		$this->end_controls_tab();
+
+		$this->end_controls_tabs();
 
 		$this->end_controls_section();
 
@@ -872,6 +949,32 @@ class Newsletter_Widget extends Widget_Base {
 			'button_style_tab_normal',
 			array(
 				'label' => __( 'Normal', 'smaily-wp-connect' ),
+			)
+		);
+
+		$this->add_control(
+			'button_background_color',
+			array(
+				'label'     => __( 'Background Color', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'background-color: {{VALUE}};',
+				),
+				'global'    => array(
+					'default' => Global_Colors::COLOR_PRIMARY,
+				),
+			)
+		);
+
+		$this->add_control(
+			'button_text_color',
+			array(
+				'label'     => __( 'Text Color', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::COLOR,
+				'default'   => '#ffffff',
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'color: {{VALUE}};',
+				),
 			)
 		);
 
@@ -917,32 +1020,6 @@ class Newsletter_Widget extends Widget_Base {
 				),
 				'selectors'  => array(
 					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'margin-top: {{SIZE}}{{UNIT}};',
-				),
-			)
-		);
-
-		$this->add_control(
-			'button_background_color',
-			array(
-				'label'     => __( 'Background Color', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::COLOR,
-				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'background-color: {{VALUE}};',
-				),
-				'global'    => array(
-					'default' => Global_Colors::COLOR_PRIMARY,
-				),
-			)
-		);
-
-		$this->add_control(
-			'button_text_color',
-			array(
-				'label'     => __( 'Text Color', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::COLOR,
-				'default'   => '#ffffff',
-				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-submit-button' => 'color: {{VALUE}};',
 				),
 			)
 		);
@@ -1127,13 +1204,13 @@ class Newsletter_Widget extends Widget_Base {
 		$this->end_controls_section();
 
 		/**
-		 * Success/Error messages styles.
+		 * Notice styles.
 		 */
 
 		$this->start_controls_section(
 			'section_success_error_messages',
 			array(
-				'label' => __( 'Success/Error Messages', 'smaily-wp-connect' ),
+				'label' => __( 'Feedback Messages', 'smaily-wp-connect' ),
 				'tab'   => Controls_Manager::TAB_STYLE,
 			)
 		);
@@ -1160,107 +1237,24 @@ class Newsletter_Widget extends Widget_Base {
 			)
 		);
 
-		$this->add_control(
-			'messages_error_divider',
-			array(
-				'type' => Controls_Manager::DIVIDER,
-			)
-		);
+		$this->end_controls_section();
 
-		$this->add_control(
-			'messages_error_background_color',
-			array(
-				'label'     => __( 'Error Background Color', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::COLOR,
-				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'background-color: {{VALUE}};',
-				),
-			)
-		);
+		/**
+		 * Success messages.
+		 */
 
-		$this->add_control(
-			'error_border_style',
+		$this->start_controls_section(
+			'section_success_messages',
 			array(
-				'label'     => __( 'Error Border Style', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::SELECT,
-				'default'   => 'solid',
-				'options'   => array(
-					'none'   => __( 'None', 'smaily-wp-connect' ),
-					'solid'  => __( 'Solid', 'smaily-wp-connect' ),
-					'dashed' => __( 'Dashed', 'smaily-wp-connect' ),
-					'dotted' => __( 'Dotted', 'smaily-wp-connect' ),
-					'double' => __( 'Double', 'smaily-wp-connect' ),
-					'groove' => __( 'Groove', 'smaily-wp-connect' ),
-				),
-				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'border-style: {{VALUE}};',
-				),
-			)
-		);
-
-		$this->add_control(
-			'messages_error_border_color',
-			array(
-				'label'     => __( 'Error Border Color', 'smaily-wp-connect' ),
-				'type'      => Controls_Manager::COLOR,
-				'selectors' => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'border-color: {{VALUE}};',
-				),
-				'condition' => array(
-					'error_border_style!' => 'none',
-				),
-				'default'   => '#b51b1b',
-			)
-		);
-
-		$this->add_control(
-			'messages_error_border_width',
-			array(
-				'label'      => __( 'Error Border Width', 'smaily-wp-connect' ),
-				'type'       => Controls_Manager::DIMENSIONS,
-				'size_units' => array( 'px', 'em', '%' ),
-				'selectors'  => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'border-width: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-				),
-				'condition'  => array(
-					'error_border_style!' => 'none',
-				),
-				'default'    => array(
-					'top'    => 0,
-					'right'  => 0,
-					'bottom' => 0,
-					'left'   => 4,
-					'unit'   => 'px',
-				),
-			)
-		);
-
-		$this->add_control(
-			'messages_error_border_radius',
-			array(
-				'label'      => __( 'Error Border Radius', 'smaily-wp-connect' ),
-				'type'       => Controls_Manager::DIMENSIONS,
-				'size_units' => array( 'px', 'em', '%' ),
-				'selectors'  => array(
-					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
-				),
-				'condition'  => array(
-					'error_border_style!' => 'none',
-				),
-			)
-		);
-
-		$this->add_control(
-			'messages_success_divider',
-			array(
-				'type' => Controls_Manager::DIVIDER,
+				'label' => __( 'Success Messages', 'smaily-wp-connect' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
 			)
 		);
 
 		$this->add_control(
 			'messages_success_background_color',
 			array(
-				'label'     => __( 'Success Background Color', 'smaily-wp-connect' ),
+				'label'     => __( 'Background Color', 'smaily-wp-connect' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array(
 					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.success' => 'background-color: {{VALUE}};',
@@ -1271,7 +1265,7 @@ class Newsletter_Widget extends Widget_Base {
 		$this->add_control(
 			'success_border_style',
 			array(
-				'label'     => __( 'Success Border Style', 'smaily-wp-connect' ),
+				'label'     => __( 'Border Style', 'smaily-wp-connect' ),
 				'type'      => Controls_Manager::SELECT,
 				'default'   => 'solid',
 				'options'   => array(
@@ -1291,7 +1285,7 @@ class Newsletter_Widget extends Widget_Base {
 		$this->add_control(
 			'messages_success_border_color',
 			array(
-				'label'     => __( 'Success Border Color', 'smaily-wp-connect' ),
+				'label'     => __( 'Border Color', 'smaily-wp-connect' ),
 				'type'      => Controls_Manager::COLOR,
 				'selectors' => array(
 					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.success' => 'border-color: {{VALUE}};',
@@ -1306,7 +1300,7 @@ class Newsletter_Widget extends Widget_Base {
 		$this->add_control(
 			'messages_success_border_width',
 			array(
-				'label'      => __( 'Success Border Width', 'smaily-wp-connect' ),
+				'label'      => __( 'Border Width', 'smaily-wp-connect' ),
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => array( 'px', 'em', '%' ),
 				'selectors'  => array(
@@ -1328,7 +1322,7 @@ class Newsletter_Widget extends Widget_Base {
 		$this->add_control(
 			'messages_success_border_radius',
 			array(
-				'label'      => __( 'Success Border Radius', 'smaily-wp-connect' ),
+				'label'      => __( 'Border Radius', 'smaily-wp-connect' ),
 				'type'       => Controls_Manager::DIMENSIONS,
 				'size_units' => array( 'px', 'em', '%' ),
 				'selectors'  => array(
@@ -1336,6 +1330,103 @@ class Newsletter_Widget extends Widget_Base {
 				),
 				'condition'  => array(
 					'success_border_style!' => 'none',
+				),
+			)
+		);
+
+		$this->end_controls_section();
+
+		/**
+		 * Error messages.
+		 */
+
+		$this->start_controls_section(
+			'section_error_messages',
+			array(
+				'label' => __( 'Error Messages', 'smaily-wp-connect' ),
+				'tab'   => Controls_Manager::TAB_STYLE,
+			)
+		);
+
+		$this->add_control(
+			'messages_error_background_color',
+			array(
+				'label'     => __( 'Background Color', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'background-color: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'error_border_style',
+			array(
+				'label'     => __( 'Border Style', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::SELECT,
+				'default'   => 'solid',
+				'options'   => array(
+					'none'   => __( 'None', 'smaily-wp-connect' ),
+					'solid'  => __( 'Solid', 'smaily-wp-connect' ),
+					'dashed' => __( 'Dashed', 'smaily-wp-connect' ),
+					'dotted' => __( 'Dotted', 'smaily-wp-connect' ),
+					'double' => __( 'Double', 'smaily-wp-connect' ),
+					'groove' => __( 'Groove', 'smaily-wp-connect' ),
+				),
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'border-style: {{VALUE}};',
+				),
+			)
+		);
+
+		$this->add_control(
+			'messages_error_border_color',
+			array(
+				'label'     => __( 'Border Color', 'smaily-wp-connect' ),
+				'type'      => Controls_Manager::COLOR,
+				'selectors' => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'border-color: {{VALUE}};',
+				),
+				'condition' => array(
+					'error_border_style!' => 'none',
+				),
+				'default'   => '#b51b1b',
+			)
+		);
+
+		$this->add_control(
+			'messages_error_border_width',
+			array(
+				'label'      => __( 'Border Width', 'smaily-wp-connect' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'border-width: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+				'condition'  => array(
+					'error_border_style!' => 'none',
+				),
+				'default'    => array(
+					'top'    => 0,
+					'right'  => 0,
+					'bottom' => 0,
+					'left'   => 4,
+					'unit'   => 'px',
+				),
+			)
+		);
+
+		$this->add_control(
+			'messages_error_border_radius',
+			array(
+				'label'      => __( 'Border Radius', 'smaily-wp-connect' ),
+				'type'       => Controls_Manager::DIMENSIONS,
+				'size_units' => array( 'px', 'em', '%' ),
+				'selectors'  => array(
+					'{{WRAPPER}} .smaily-wp-connect-elementor-newsletter-form-notice__content.error' => 'border-radius: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				),
+				'condition'  => array(
+					'error_border_style!' => 'none',
 				),
 			)
 		);
