@@ -93,9 +93,8 @@ class Newsletter_Widget extends Widget_Base {
 	 * @return void
 	 */
 	protected function render() {
-		$options             = $this->get_options();
-		$current_url         = Helper::get_current_url();
-		$optin_form_response = Helper::get_optin_form_response_type();
+		$options     = $this->get_options();
+		$current_url = Helper::get_current_url();
 
 		if ( ! $options->has_credentials() ) {
 			?>
@@ -125,11 +124,17 @@ class Newsletter_Widget extends Widget_Base {
 			'success_url'       => $settings_for_display['success_url']['url'] ?? Helper::get_current_url(),
 		);
 
+		$optin_form_response  = Helper::get_optin_form_response_type();
+		$is_preview_mode      = \Elementor\Plugin::$instance->editor->is_edit_mode();
+		$show_notice          = $is_preview_mode || $optin_form_response !== false;
+		$show_success_message = $is_preview_mode || ( $optin_form_response === 'success' && $parameters['success_message'] );
+		$show_error_message   = $is_preview_mode || ( $optin_form_response === 'error' && $parameters['error_message'] );
+
 		?>
 		<div class="smaily-wp-connect-elementor-newsletter-form-wrapper">
-			<?php if ( $optin_form_response !== false ) : ?>
+			<?php if ( $show_notice ) : ?>
 				<div class="smaily-wp-connect-elementor-newsletter-form-notice__container">
-					<?php if ( $parameters['success_message'] && $optin_form_response === 'success' ) : ?>
+					<?php if ( $show_success_message ) : ?>
 						<div
 							class="smaily-wp-connect-elementor-newsletter-form-notice__content success"
 							id="smaily-wp-connect-elementor-newsletter-form-success-message"
@@ -137,7 +142,7 @@ class Newsletter_Widget extends Widget_Base {
 							<?php echo wp_kses_post( $parameters['success_message'] ); ?>
 						</div>
 					<?php endif; ?>
-					<?php if ( $parameters['error_message'] && $optin_form_response === 'error' ) : ?>
+					<?php if ( $show_error_message ) : ?>
 						<div
 							class="smaily-wp-connect-elementor-newsletter-form-notice__content error"
 							id="smaily-wp-connect-elementor-newsletter-form-error-message"
