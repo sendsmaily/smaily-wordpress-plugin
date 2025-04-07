@@ -41,7 +41,7 @@ class Newsletter_Widget extends Widget_Base {
 	 * @return string The title of the widget.
 	 */
 	public function get_title() {
-		return __( 'Smaily Newsletter', 'smaily-wp-connect' );
+		return __( 'Smaily Opt-In Form', 'smaily-wp-connect' );
 	}
 
 	/**
