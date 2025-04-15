@@ -3,26 +3,45 @@ import apiFetch from '@wordpress/api-fetch';
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
 import { useState, useEffect } from '@wordpress/element';
 import { isURL } from '@wordpress/url';
-
+import { validateLandingPageURL, generateLandingPageURL } from './urlParser';
 import { PanelBody, TextControl, Notice } from '@wordpress/components';
 
 export const Edit = ({ attributes, setAttributes }) => {
 	const [error, setError] = useState('');
+	const [landingPageExists, setLandingPageExists] = useState(false);
 
 	const blockProps = useBlockProps({
 		className: 'smaily-wp-connect-landingpage-block-edit-wrapper',
 		style: {
 			height: attributes.height,
 			width: attributes.width,
+			overflow: 'hidden',
 		},
 	});
+
+	useEffect(() => {
+		window.addEventListener('message', (ev) => {
+			if (ev.data.source !== 'smaily') {
+				return;
+			}
+
+			if (ev.data.status === 'landing-page-loaded') {
+				setLandingPageExists(true);
+			}
+
+			if (ev.data.status === 'not-found') {
+				setLandingPageExists(false);
+				setError(__('Landing page not found!', 'smaily'));
+			}
+		});
+	}, []);
 
 	useEffect(() => {
 		(async () => {
 			const config = await apiFetch({
 				path: '/smaily/v1/configuration',
 			});
-			setAttributes({ subdomain: config.subdomain });
+			setAttributes({ subdomain: config.subdomain }); // sandbox
 		})();
 	}, [setAttributes]);
 
@@ -38,7 +57,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 			return;
 		}
 
-		const { valid, pk, message } = parsePKFromURL(value);
+		const { valid, pk, message } = validateLandingPageURL(value);
 		if (!valid) {
 			setAttributes({ landingpagePK: '' });
 			setError(message);
@@ -64,19 +83,29 @@ export const Edit = ({ attributes, setAttributes }) => {
 		);
 	}
 
+	const userHasEnteredValidURL =
+		attributes.url !== '' && attributes.landingpagePK !== '';
+
 	return (
 		<>
 			<div {...blockProps}>
 				{error === '' && !isURL(attributes.url) && <SetupSection />}
 				{error !== '' && <ErrorSection message={error} />}
-				{attributes.url !== '' && attributes.landingpagePK !== '' && (
+				{userHasEnteredValidURL && (
 					<iframe
 						loading="lazy"
+						referrerPolicy="no-referrer"
+						sandbox="allow-forms allow-scripts"
 						title={__('Smaily Landing Page', 'smaily')}
 						src={generateLandingPageURL(
 							attributes.subdomain,
 							attributes.landingpagePK
 						)}
+						style={{
+							visibility: landingPageExists
+								? 'visible'
+								: 'hidden',
+						}}
 					/>
 				)}
 			</div>
@@ -143,8 +172,15 @@ export const Save = ({ attributes }) => {
 	return (
 		<div {...blockProps}>
 			<iframe
+				className="smaily-wp-connect-landingpage-block-front"
 				src={attributes.url}
+				sandbox="allow-forms allow-scripts"
 				title={__('Smaily Landing Page', 'smaily')}
+				style={{
+					visibility: 'hidden',
+				}}
+				loading="lazy"
+				referrerPolicy="no-referrer"
 			/>
 		</div>
 	);
@@ -187,62 +223,4 @@ const ErrorSection = (props) => {
 			</p>
 		</div>
 	);
-};
-
-const generateLandingPageURL = (subdomain, pk) => {
-	return `https://${subdomain}.sendsmaily.net/landing-pages/${pk}/html/`;
-};
-
-const parsePKFromURL = (url) => {
-	if (typeof url !== 'string' || !url.trim()) {
-		return { valid: false, message: __('URL is empty.', 'smaily') };
-	}
-
-	try {
-		const urlObj = new URL(url);
-		if (urlObj.protocol !== 'https:') {
-			return {
-				valid: false,
-				message: __('URL must use HTTPS protocol.', 'smaily'),
-			};
-		}
-
-		if (!urlObj.hostname.endsWith('sendsmaily.net')) {
-			return {
-				valid: false,
-				message: __(
-					'URL must originate from sendsmaily.net domain.',
-					'smaily'
-				),
-			};
-		}
-
-		if (urlObj.pathname.includes('/landing-pages/') === false) {
-			return {
-				valid: false,
-				message: __('URL must contain a landing page path.', 'smaily'),
-			};
-		}
-
-		// Smaily landing page URL pattern.
-		// https://<subdomain>.sendsmaily.net/landing-pages/<pk>/html/
-		const pk = urlObj.pathname.split('/landing-pages/')[1]?.split('/')[0];
-
-		if (!pk || !/^[a-zA-Z0-9_-]+$/.test(pk)) {
-			return {
-				valid: false,
-				message: __(
-					'Could not extract landing page ID from URL.',
-					'smaily'
-				),
-			};
-		}
-
-		return { valid: true, pk };
-	} catch (error) {
-		return {
-			valid: false,
-			message: __('Please enter a valid URL!', 'smaily'),
-		};
-	}
 };
