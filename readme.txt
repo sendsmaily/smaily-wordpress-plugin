@@ -5,7 +5,7 @@ Requires PHP: 7.0
 Requires at least: 6.0
 Tested up to: 6.8
 WC tested up to: 9.6.1
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv3 or later
 
 The Smaily Connect plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution.
@@ -60,9 +60,14 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 == Changelog ==
 
+= 1.2.0 =
+
+Added a new block component for embedding Smaily Landing Pages.
+
 = 1.1.0 =
 
 Introduced a new Elementor widget that makes it easy to add a Smaily subscription form when building pages with Elementor.
+
 
 = 1.0.0 =
 * Combined Smaily for Contact Form 7, Smaily for WP, and Smaily for WooCommerce into a single plugin for a streamlined experience.

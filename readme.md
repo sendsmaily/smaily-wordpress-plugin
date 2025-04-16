@@ -141,6 +141,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.2.0
+
+- Added a new block component for embedding Smaily Landing Pages.
+
 ### 1.1.0
 
 - Added a Elementor widget for the Smaily subscription form.
