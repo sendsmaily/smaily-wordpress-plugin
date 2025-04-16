@@ -92,7 +92,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						label={__('URL', 'smaily')}
 						onChange={handleChangeURL}
 						help={__(
-							'Enter the URL of the Smaily landing page.',
+							'Enter the URL of the landing page you want to display.',
 							'smaily'
 						)}
 						placeholder={__('Landing page URL', 'smaily')}
