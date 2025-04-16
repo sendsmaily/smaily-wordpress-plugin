@@ -1,10 +1,5 @@
 import { __ } from '@wordpress/i18n';
 
-const domainMap = {
-	sandbox: 'devops.sendsmaily.sandbox',
-	default: (subdomain) => `${subdomain}.sendsmaily.net`,
-};
-
 /**
  * Generates the landing page URL based on the subdomain and PK.
  *
@@ -13,12 +8,11 @@ const domainMap = {
  * @return {string}           Landing page URL.
  */
 export const generateLandingPageURL = (subdomain, pk) => {
-	const domain = domainMap[subdomain] ?? domainMap.default(subdomain);
 	if (!pk) {
 		return '';
 	}
 
-	return `https://${domain}/landing-pages/${pk}/html/`;
+	return `https://${subdomain}.sendsmaily.net/landing-pages/${pk}/html/`;
 };
 
 /**
@@ -41,22 +35,16 @@ export const generateLandingPageURL = (subdomain, pk) => {
  * Validates the landing page URL and extracts the PK.
  *
  * @param  {string} url                           URL to validate
+ * @param  {string} subdomain                     Subdomain of the Smaily account.
  * @return {LandingPageURL|InvalidLandingPageURL} Object containing the validation result and the PK.
  */
-export const validateLandingPageURL = (url) => {
+export const validateLandingPageURL = (url, subdomain) => {
 	if (typeof url !== 'string' || !url.trim()) {
 		return { valid: false, message: __('URL is empty.', 'smaily') };
 	}
 
 	try {
 		const urlObj = new URL(url);
-
-		if (urlObj.hostname === 'devops.sendsmaily.sandbox') {
-			return {
-				valid: true,
-				pk: findPKFromURL(urlObj.pathname),
-			};
-		}
 
 		if (urlObj.protocol !== 'https:') {
 			return {
@@ -70,6 +58,16 @@ export const validateLandingPageURL = (url) => {
 				valid: false,
 				message: __(
 					'URL must originate from sendsmaily.net domain.',
+					'smaily'
+				),
+			};
+		}
+
+		if (urlObj.hostname !== `${subdomain}.sendsmaily.net`) {
+			return {
+				valid: false,
+				message: __(
+					"Landing page doesn't originate from your account.",
 					'smaily'
 				),
 			};
@@ -97,7 +95,7 @@ export const validateLandingPageURL = (url) => {
 	} catch (error) {
 		return {
 			valid: false,
-			message: __('Please enter a valid URL!', 'smaily'),
+			message: __('Please enter a valid URL.', 'smaily'),
 		};
 	}
 };

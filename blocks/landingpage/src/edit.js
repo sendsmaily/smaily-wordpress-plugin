@@ -8,7 +8,6 @@ import { PanelBody, TextControl, Notice } from '@wordpress/components';
 
 export const Edit = ({ attributes, setAttributes }) => {
 	const [error, setError] = useState('');
-	const [landingPageExists, setLandingPageExists] = useState(false);
 
 	const blockProps = useBlockProps({
 		className: 'smaily-wp-connect-landingpage-block-edit-wrapper',
@@ -20,32 +19,15 @@ export const Edit = ({ attributes, setAttributes }) => {
 	});
 
 	useEffect(() => {
-		window.addEventListener('message', (ev) => {
-			if (ev.data.source !== 'smaily') {
-				return;
-			}
-
-			if (ev.data.status === 'landing-page-loaded') {
-				setLandingPageExists(true);
-			}
-
-			if (ev.data.status === 'not-found') {
-				setLandingPageExists(false);
-				setError(__('Landing page not found!', 'smaily'));
-			}
-		});
-	}, []);
-
-	useEffect(() => {
 		(async () => {
 			const config = await apiFetch({
 				path: '/smaily/v1/configuration',
 			});
-			setAttributes({ subdomain: config.subdomain }); // sandbox
+			setAttributes({ subdomain: config.subdomain });
 		})();
 	}, [setAttributes]);
 
-	const handleChangeURL = async (value) => {
+	const handleChangeURL = (value) => {
 		if (value === '') {
 			setAttributes({
 				landingpagePK: '',
@@ -57,7 +39,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 			return;
 		}
 
-		const { valid, pk, message } = validateLandingPageURL(value);
+		const { valid, pk, message } = validateLandingPageURL(value, attributes.subdomain);
 		if (!valid) {
 			setAttributes({ landingpagePK: '' });
 			setError(message);
@@ -91,21 +73,15 @@ export const Edit = ({ attributes, setAttributes }) => {
 			<div {...blockProps}>
 				{error === '' && !isURL(attributes.url) && <SetupSection />}
 				{error !== '' && <ErrorSection message={error} />}
-				{userHasEnteredValidURL && (
+				{userHasEnteredValidURL && !error && (
 					<iframe
 						loading="lazy"
 						referrerPolicy="no-referrer"
-						sandbox="allow-forms allow-scripts"
 						title={__('Smaily Landing Page', 'smaily')}
 						src={generateLandingPageURL(
 							attributes.subdomain,
 							attributes.landingpagePK
 						)}
-						style={{
-							visibility: landingPageExists
-								? 'visible'
-								: 'hidden',
-						}}
 					/>
 				)}
 			</div>
@@ -174,11 +150,7 @@ export const Save = ({ attributes }) => {
 			<iframe
 				className="smaily-wp-connect-landingpage-block-front"
 				src={attributes.url}
-				sandbox="allow-forms allow-scripts"
 				title={__('Smaily Landing Page', 'smaily')}
-				style={{
-					visibility: 'hidden',
-				}}
 				loading="lazy"
 				referrerPolicy="no-referrer"
 			/>
