@@ -109,8 +109,8 @@ class Profile_Settings {
 	public function smaily_print_user_admin_fields() {
 		$fields = $this->get_fields();
 		?>
-		<h2><?php esc_html_e( 'Additional Information', 'smaily-wp-connect' ); ?></h2>
-		<table class="form-table" id="smaily-wp-connect-additional-information">
+		<h2><?php esc_html_e( 'Additional Information', 'smaily-connect' ); ?></h2>
+		<table class="form-table" id="smaily-connect-additional-information">
 			<?php foreach ( $fields as $key => $field_args ) { ?>
 				<?php
 				if ( ! empty( $field_args['hide_in_admin'] ) ) {
@@ -367,12 +367,12 @@ class Profile_Settings {
 			$fields = array(
 				'user_gender'     => array(
 					'type'                 => 'radio',
-					'label'                => __( 'Gender', 'smaily-wp-connect' ),
+					'label'                => __( 'Gender', 'smaily-connect' ),
 					'required'             => false,
 					'class'                => array( 'tog' ),
 					'options'              => array(
-						1 => __( 'Male', 'smaily-wp-connect' ),
-						2 => __( 'Female', 'smaily-wp-connect' ),
+						1 => __( 'Male', 'smaily-connect' ),
+						2 => __( 'Female', 'smaily-connect' ),
 					),
 					'hide_in_account'      => false,
 					'hide_in_admin'        => false,
@@ -381,8 +381,8 @@ class Profile_Settings {
 				),
 				'user_phone'      => array(
 					'type'                 => 'tel',
-					'label'                => __( 'Phone', 'smaily-wp-connect' ),
-					'placeholder'          => __( 'Enter phone number', 'smaily-wp-connect' ),
+					'label'                => __( 'Phone', 'smaily-connect' ),
+					'placeholder'          => __( 'Enter phone number', 'smaily-connect' ),
 					'required'             => false,
 					'class'                => array( 'regular-text' ),
 					'hide_in_account'      => false,
@@ -392,8 +392,8 @@ class Profile_Settings {
 				),
 				'user_dob'        => array(
 					'type'                 => 'date',
-					'label'                => __( 'Birthday', 'smaily-wp-connect' ),
-					'placeholder'          => __( 'Enter birthday', 'smaily-wp-connect' ),
+					'label'                => __( 'Birthday', 'smaily-connect' ),
+					'placeholder'          => __( 'Enter birthday', 'smaily-connect' ),
 					'required'             => false,
 					'class'                => array( 'regular-text' ),
 					'hide_in_account'      => false,
@@ -403,7 +403,7 @@ class Profile_Settings {
 				),
 				'user_newsletter' => array(
 					'type'                 => 'checkbox',
-					'label'                => __( 'Subscribe to newsletter', 'smaily-wp-connect' ),
+					'label'                => __( 'Subscribe to newsletter', 'smaily-connect' ),
 					'required'             => false,
 					'hide_in_account'      => false,
 					'hide_in_admin'        => false,

@@ -329,7 +329,7 @@ msgid "How to create API credentials?"
 msgstr "Kuidas luua API ligipääsu?"
 
 #. Author URI of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 msgid "https://smaily.com"
 msgstr "https://smaily.com"
 
@@ -554,7 +554,7 @@ msgid "Send Abandoned Cart reminder emails to store customers."
 msgstr "Saatke klientidele Hüljatud Ostukorvi meeldetuletusmeile."
 
 #. Author of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 msgid "Sendsmaily LLC"
 msgstr "Sendsmaily OÜ"
 
@@ -621,7 +621,7 @@ msgid "Smaily integration is active on this site."
 msgstr "Smaily integratsioon on sellel lehel aktiivne."
 
 #. Description of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 msgid "Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations."
 msgstr "Smaily pistikmoodul, mis sisaldab WooCommerce'i ja Contact Form 7 integratsioone."
 
@@ -825,12 +825,12 @@ msgid "form"
 msgstr ""
 
 #. Plugin Name of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 #: integrations/cf7/service.class.php:39
 msgid "Smaily WP Connect"
 msgstr ""
 
 #. Plugin URI of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 msgid "https://github.com/sendsmaily/smaily-wordpress-plugin"
 msgstr ""

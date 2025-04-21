@@ -1,14 +1,14 @@
-.smaily-wp-connect-admin-settings {
+.smaily-connect-admin-settings {
   font-family: Manrope;
   font-size: 13px;
   color: #1d2327;
   letter-spacing: 2%;
 }
 
-.smaily-wp-connect-admin-settings input[type="text"],
-.smaily-wp-connect-admin-settings input[type="password"],
-.smaily-wp-connect-admin-settings input[type="number"],
-.smaily-wp-connect-admin-settings select {
+.smaily-connect-admin-settings input[type="text"],
+.smaily-connect-admin-settings input[type="password"],
+.smaily-connect-admin-settings input[type="number"],
+.smaily-connect-admin-settings select {
   width: 300px;
 
   &:focus {
@@ -17,7 +17,7 @@
   }
 }
 
-.smaily-wp-connect-admin-settings select {
+.smaily-connect-admin-settings select {
   &:hover {
     color: #c21a4f;
   }
@@ -27,12 +27,12 @@
   }
 }
 
-.smaily-wp-connect-admin-tab-content option {
+.smaily-connect-admin-tab-content option {
   color: #1d2327;
   appearance: none;
 }
 
-.smaily-wp-connect-admin-settings input[type="checkbox"] {
+.smaily-connect-admin-settings input[type="checkbox"] {
   box-shadow: none;
 
   &:focus {
@@ -53,7 +53,7 @@
   }
 }
 
-.smaily-wp-connect-admin-settings a {
+.smaily-connect-admin-settings a {
   font-weight: 500;
   color: #e91e63;
 
@@ -66,11 +66,11 @@
   }
 }
 
-.smaily-wp-connect-admin-settings small {
+.smaily-connect-admin-settings small {
   display: block;
 }
 
-.smaily-wp-connect-admin-settings .button {
+.smaily-connect-admin-settings .button {
   border-radius: 5px;
   padding: 6px 12px;
   text-transform: capitalize;
@@ -92,12 +92,12 @@
   }
 }
 
-.smaily-wp-connect-admin-settings .button-primary {
+.smaily-connect-admin-settings .button-primary {
   background-color: #e91e63;
   border-color: #e91e63;
 }
 
-.smaily-wp-connect-admin-settings .button-secondary {
+.smaily-connect-admin-settings .button-secondary {
   color: #e91e63;
   border-color: #e91e63;
 
@@ -120,7 +120,7 @@
   }
 }
 
-.smaily-wp-connect-admin-tab {
+.smaily-connect-admin-tab {
   display: inline-block;
   padding: 0 20px;
   line-height: 66px;
@@ -130,49 +130,49 @@
   text-decoration: none;
 }
 
-.smaily-wp-connect-admin-tab-active {
+.smaily-connect-admin-tab-active {
   border-bottom: 1px solid #e91e63;
 }
 
-.smaily-wp-connect-admin-tab-content {
+.smaily-connect-admin-tab-content {
   margin-top: 20px;
   padding: 20px 30px;
   padding-bottom: 60px;
   background-color: white;
 }
 
-.smaily-wp-connect-admin-tab-content h2 {
+.smaily-connect-admin-tab-content h2 {
   font-size: 1.8em;
 }
 
 /* every new section except the first one */
-.smaily-wp-connect-admin-tab-content h2:not(:first-of-type) {
+.smaily-connect-admin-tab-content h2:not(:first-of-type) {
   margin-top: 40px;
 }
 
-.smaily-wp-connect-admin-tab-content h3 {
+.smaily-connect-admin-tab-content h3 {
   font-size: 1.2em;
 }
 
-.smaily-wp-connect-admin-tab-content section {
+.smaily-connect-admin-tab-content section {
   max-width: 560px;
 }
 
-.smaily-wp-connect-admin-tab-content ol li {
+.smaily-connect-admin-tab-content ol li {
   margin-bottom: 10px;
 }
 
-.smaily-wp-connect-subscriber-collection-list ::marker {
+.smaily-connect-subscriber-collection-list ::marker {
   font-size: 1.2em;
   font-weight: 600;
 }
 
-.smaily-wp-connect-admin-form-field {
+.smaily-connect-admin-form-field {
   padding-bottom: 10px;
   max-width: 310px;
 }
 
-.smaily-wp-connect-admin-tab-nav {
+.smaily-connect-admin-tab-nav {
   display: flex;
   align-items: center;
   background-color: white;
@@ -180,7 +180,7 @@
   padding-left: 30px;
 }
 
-.smaily-wp-connect-admin-tab-nav a {
+.smaily-connect-admin-tab-nav a {
   color: #1d2327;
   font-weight: 700;
 
@@ -190,7 +190,7 @@
   }
 }
 
-.smaily-wp-connect-admin-tab-logo {
+.smaily-connect-admin-tab-logo {
   padding-right: 20px;
 
   svg {
@@ -198,7 +198,7 @@
   }
 }
 
-#smaily-wp-connect-additional-information {
+#smaily-connect-additional-information {
   #user_gender_field {
     > span {
       display: flex;

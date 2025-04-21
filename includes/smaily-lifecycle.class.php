@@ -246,7 +246,7 @@ class Lifecycle {
 	 */
 	public function set_locale() {
 		load_plugin_textdomain(
-			'smaily-wp-connect',
+			'smaily-connect',
 			false,
 			plugin_basename( SMAILY_WP_CONNECT_PLUGIN_PATH ) . '/languages/'
 		);

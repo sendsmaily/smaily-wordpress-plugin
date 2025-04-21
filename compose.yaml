@@ -25,7 +25,7 @@ services:
         # define( 'ALTERNATE_WP_CRON' , true );
     volumes:
     - wordpress:/var/www/html
-    - ./:/var/www/html/wp-content/plugins/smaily-wp-connect
+    - ./:/var/www/html/wp-content/plugins/smaily-connect
 
   db:
     image: mysql:5.7

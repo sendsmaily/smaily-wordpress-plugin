@@ -4,11 +4,11 @@ defined( 'ABSPATH' ) || exit;
 
 $code             = isset( $_GET['code'] ) ? intval( $_GET['code'] ) : null;
 $messages         = array(
-	101 => __( 'Thank you for subscribing to our newsletter.', 'smaily-wp-connect' ),
-	201 => __( 'Form was not submitted using POST method.', 'smaily-wp-connect' ),
-	204 => __( 'Input does not contain a recognizable email address.', 'smaily-wp-connect' ),
+	101 => __( 'Thank you for subscribing to our newsletter.', 'smaily-connect' ),
+	201 => __( 'Form was not submitted using POST method.', 'smaily-connect' ),
+	204 => __( 'Input does not contain a recognizable email address.', 'smaily-connect' ),
 );
-$response_message = isset( $messages[ $code ] ) ? $messages[ $code ] : __( 'Subscribing failed with unknown reason.', 'smaily-wp-connect' );
+$response_message = isset( $messages[ $code ] ) ? $messages[ $code ] : __( 'Subscribing failed with unknown reason.', 'smaily-connect' );
 $is_success       = $code === 101;
 $is_error         = $code !== null && ! $is_success;
 
@@ -29,21 +29,21 @@ $is_error         = $code !== null && ! $is_success;
 	<input type="hidden" name="success_url" value="<?php echo esc_url( $parameters['success_url'] ); ?>" />
 	<input type="hidden" name="failure_url" value="<?php echo esc_url( $parameters['failure_url'] ); ?>" />
 	<p>
-		<input type="text" name="email" value="" placeholder="<?php echo esc_html__( 'Email', 'smaily-wp-connect' ); ?>" required />
+		<input type="text" name="email" value="" placeholder="<?php echo esc_html__( 'Email', 'smaily-connect' ); ?>" required />
 	</p>
 	<?php if ( $parameters['show_name'] ) : ?>
 		<p>
-			<input type="text" name="name" value="" placeholder="<?php echo esc_html__( 'Name', 'smaily-wp-connect' ); ?>" />
+			<input type="text" name="name" value="" placeholder="<?php echo esc_html__( 'Name', 'smaily-connect' ); ?>" />
 		</p>
 	<?php endif; ?>
 	<p>
 		<button type="submit">
-			<?php echo esc_html__( 'Subscribe', 'smaily-wp-connect' ); ?>
+			<?php echo esc_html__( 'Subscribe', 'smaily-connect' ); ?>
 		</button>
 	</p>
 </form>
 <?php else : ?>
 <p class="error">
-	<?php echo esc_html__( 'Smaily credentials not validated. Subscription form will not work!', 'smaily-wp-connect' ); ?>
+	<?php echo esc_html__( 'Smaily credentials not validated. Subscription form will not work!', 'smaily-connect' ); ?>
 </p>
 <?php endif; ?>

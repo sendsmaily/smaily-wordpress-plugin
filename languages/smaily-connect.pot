@@ -3,7 +3,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Smaily WP Connect 1.0.0\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-wp-connect\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-connect\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
@@ -12,31 +12,31 @@ msgstr ""
 "POT-Creation-Date: 2025-03-26T10:30:26+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
-"X-Domain: smaily-wp-connect\n"
+"X-Domain: smaily-connect\n"
 
 #. Plugin Name of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 #: integrations/cf7/service.class.php:39
 msgid "Smaily WP Connect"
 msgstr ""
 
 #. Plugin URI of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 msgid "https://github.com/sendsmaily/smaily-wordpress-plugin"
 msgstr ""
 
 #. Description of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 msgid "Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations."
 msgstr ""
 
 #. Author of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 msgid "Sendsmaily LLC"
 msgstr ""
 
 #. Author URI of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 msgid "https://smaily.com"
 msgstr ""
 

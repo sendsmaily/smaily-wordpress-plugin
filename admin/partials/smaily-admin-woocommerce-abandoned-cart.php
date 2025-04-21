@@ -12,18 +12,18 @@ defined( 'ABSPATH' ) || exit;
 $mandatory   = array( 'user_email', 'store_url', 'language' );
 $sync_fields = get_option( Options::ABANDONED_CART_FIELDS_OPTION, Options::ABANDONED_CART_DEFAULT_FIELDS );
 $labels      = array(
-	'user_email'          => __( 'Email', 'smaily-wp-connect' ),
-	'store_url'           => __( 'Store URL', 'smaily-wp-connect' ),
-	'first_name'          => __( 'Customer First Name', 'smaily-wp-connect' ),
-	'last_name'           => __( 'Customer Last Name', 'smaily-wp-connect' ),
-	'language'            => __( 'Language', 'smaily-wp-connect' ),
-	'product_name'        => __( 'Product Name', 'smaily-wp-connect' ),
-	'product_description' => __( 'Product Description', 'smaily-wp-connect' ),
-	'product_sku'         => __( 'Product SKU', 'smaily-wp-connect' ),
-	'product_quantity'    => __( 'Product Quantity', 'smaily-wp-connect' ),
-	'product_base_price'  => __( 'Product Base Price', 'smaily-wp-connect' ),
-	'product_price'       => __( 'Product Price', 'smaily-wp-connect' ),
-	'product_image_url'   => __( 'Product Image', 'smaily-wp-connect' ),
+	'user_email'          => __( 'Email', 'smaily-connect' ),
+	'store_url'           => __( 'Store URL', 'smaily-connect' ),
+	'first_name'          => __( 'Customer First Name', 'smaily-connect' ),
+	'last_name'           => __( 'Customer Last Name', 'smaily-connect' ),
+	'language'            => __( 'Language', 'smaily-connect' ),
+	'product_name'        => __( 'Product Name', 'smaily-connect' ),
+	'product_description' => __( 'Product Description', 'smaily-connect' ),
+	'product_sku'         => __( 'Product SKU', 'smaily-connect' ),
+	'product_quantity'    => __( 'Product Quantity', 'smaily-connect' ),
+	'product_base_price'  => __( 'Product Base Price', 'smaily-connect' ),
+	'product_price'       => __( 'Product Price', 'smaily-connect' ),
+	'product_image_url'   => __( 'Product Image', 'smaily-connect' ),
 );
 
 ?>
@@ -48,7 +48,7 @@ $labels      = array(
 		<?php
 		esc_html_e(
 			'Select extra fields you wish to send to Smaily.',
-			'smaily-wp-connect'
+			'smaily-connect'
 		);
 		?>
 	</small>

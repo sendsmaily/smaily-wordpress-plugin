@@ -19,10 +19,10 @@ $show_submit_button = isset( $tabs[ $current_tab ]['submit_button_text'] );
 settings_errors( 'smaily_wp_connect_messages' );
 
 ?>
-<div class="wrap smaily-wp-connect-admin-settings">
+<div class="wrap smaily-connect-admin-settings">
 	<form action="options.php" method="post">
-		<nav class="smaily-wp-connect-admin-tab-nav">
-			<div class="smaily-wp-connect-admin-tab-logo">
+		<nav class="smaily-connect-admin-tab-nav">
+			<div class="smaily-connect-admin-tab-logo">
 				<svg width="31" height="31" viewBox="0 0 31 31" fill="none" xmlns="http://www.w3.org/2000/svg">
 					<g clip-path="url(#clip0_704_436)">
 						<path d="M5.17383 30.9999L22.7476 30.9893L27.6756 27.451V4.13684H5.17383V30.9999Z" fill="white"/>
@@ -37,14 +37,14 @@ settings_errors( 'smaily_wp_connect_messages' );
 			</div>
 			<?php foreach ( $tabs as $tab => $options ) : ?>
 				<a
-					class="smaily-wp-connect-admin-tab <?php echo $tab === $current_tab ? 'smaily-wp-connect-admin-tab-active' : ''; ?>"
+					class="smaily-connect-admin-tab <?php echo $tab === $current_tab ? 'smaily-connect-admin-tab-active' : ''; ?>"
 					href="<?php echo esc_url( $options['url'] ); ?>"
 				>
 				<?php echo esc_html( $options['title'] ); ?>
 				</a>
 			<?php endforeach ?>
 		</nav>
-		<div class="smaily-wp-connect-admin-tab-content">
+		<div class="smaily-connect-admin-tab-content">
 			<?php
 				settings_fields( $tabs[ $current_tab ]['option_group'] );
 				do_settings_sections( $tabs[ $current_tab ]['page'] );

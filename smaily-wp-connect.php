@@ -8,7 +8,7 @@
  * License:           GPL-3.0+
  * Plugin Name:       Smaily WP Connect
  * Plugin URI:        https://github.com/sendsmaily/smaily-wordpress-plugin
- * Text Domain:       smaily-wp-connect
+ * Text Domain:       smaily-connect
  * Version:           1.0.0
 */
 
@@ -25,7 +25,7 @@ define( 'SMAILY_WP_CONNECT_PLUGIN_VERSION', '1.0.0' );
 /**
  * The name of the plugin.
  */
-define( 'SMAILY_WP_CONNECT_PLUGIN_NAME', 'smaily-wp-connect' );
+define( 'SMAILY_WP_CONNECT_PLUGIN_NAME', 'smaily-connect' );
 
 /**
  * Absolute URL to the Smaily plugin directory.

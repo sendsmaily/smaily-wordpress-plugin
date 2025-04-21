@@ -91,7 +91,7 @@
 		},
 		"html": false
 	},
-	"textdomain": "smaily-wp-connect",
+	"textdomain": "smaily-connect",
 	"editorScript": "file:./index.js",
 	"style": "file:./style-index.css"
 }
