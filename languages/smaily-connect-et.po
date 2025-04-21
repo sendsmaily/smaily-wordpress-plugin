@@ -77,7 +77,7 @@ msgstr "Sünkroniseerige uudiskirjaga liitujaid automaatselt kasutades igapäeva
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:42
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:268
+#: blocks/newsletter-signup/src/edit.js:265
 msgid "Autoresponder"
 msgstr "Automaatvastaja"
 
@@ -103,7 +103,7 @@ msgid "Build your own from component."
 msgstr "Ehitage vorm ise."
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:225
+#: blocks/newsletter-signup/src/edit.js:222
 msgid "Button border radius"
 msgstr "Nupu piirjoone raadius"
 
@@ -182,8 +182,8 @@ msgid "Daily Automatic Subscriber Synchronization"
 msgstr "Igapäevane Automaatne Uudiskirjaga Liitujate Sünkroniseerimine"
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:258
-#: blocks/newsletter-signup/src/edit.js:265
+#: blocks/newsletter-signup/src/edit.js:255
+#: blocks/newsletter-signup/src/edit.js:262
 msgid "Defaults to current page URL."
 msgstr "Vaikimisi praeguse lehekülje URL."
 
@@ -197,7 +197,7 @@ msgstr "Ühenda lahti"
 
 #: includes/smaily-widget.class.php:131
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:177
+#: blocks/newsletter-signup/src/edit.js:174
 msgid "Display name field"
 msgstr "Kuva nime väli"
 
@@ -213,7 +213,7 @@ msgid "Email"
 msgstr "E-post"
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:197
+#: blocks/newsletter-signup/src/edit.js:194
 msgid "Email field label"
 msgstr "E-posti välja silt"
 
@@ -251,13 +251,13 @@ msgid "Enter phone number"
 msgstr "Sisestage telefoninumber"
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:243
+#: blocks/newsletter-signup/src/edit.js:240
 msgid "Error message"
 msgstr "Veateade"
 
 #: includes/smaily-widget.class.php:138
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:261
+#: blocks/newsletter-signup/src/edit.js:258
 msgid "Failure URL"
 msgstr "Tõrke URL"
 
@@ -289,7 +289,7 @@ msgid "Form was not submitted using POST method."
 msgstr "Vormi ei saadetud POST meetodit kasutades."
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:213
+#: blocks/newsletter-signup/src/edit.js:210
 msgid "Full width subscribe button"
 msgstr "Täislaiuses liitumisnupp"
 
@@ -307,7 +307,7 @@ msgid "Getting started"
 msgstr "Alustamine"
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:112
+#: blocks/newsletter-signup/src/edit.js:109
 msgid "Go to plugin settings"
 msgstr "Minge pistikprogrammi seadetesse"
 
@@ -316,7 +316,7 @@ msgid "here"
 msgstr "siin"
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:250
+#: blocks/newsletter-signup/src/edit.js:247
 msgid "Hidden fields"
 msgstr "Peidetud väljad"
 
@@ -332,10 +332,6 @@ msgstr "Kuidas luua API ligipääsu?"
 #: smaily-connect.php
 msgid "https://smaily.com"
 msgstr "https://smaily.com"
-
-#: admin/smaily-admin-renderer.class.php:114
-msgid "https://smaily.com/help/how-to/ecommerce-integrations/smaily-plugin-for-wordpress#toc-heading-4"
-msgstr "https://smaily.com/help/how-to/ecommerce-integrations/smaily-plugin-for-wordpress#toc-heading-4"
 
 #: admin/smaily-admin-renderer.class.php:137
 msgid "https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/"
@@ -396,7 +392,7 @@ msgid "Name"
 msgstr "Nimi"
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:188
+#: blocks/newsletter-signup/src/edit.js:185
 msgid "Name field label"
 msgstr "Nimevälja silt"
 
@@ -422,7 +418,7 @@ msgstr "Automaatvastajaid pole loodud"
 #: includes/smaily-widget.class.php:145
 #: integrations/cf7/partials/smaily-cf7-admin.php:47
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:276
+#: blocks/newsletter-signup/src/edit.js:273
 msgid "No autoresponder"
 msgstr "Automaatvastaja puudub"
 
@@ -453,7 +449,7 @@ msgid "Please authenticate Smaily credentials under Smaily Settings."
 msgstr "Palun kinnitage Smaily API kasutaja Smaily seadete alt."
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:120
+#: blocks/newsletter-signup/src/edit.js:117
 msgid "Please connect your Smaily account before adding a form!"
 msgstr "Palun ühendage oma Smaily konto enne vormi lisamist!"
 
@@ -478,7 +474,7 @@ msgid "Please select autoresponder for abandoned cart automation."
 msgstr "Palun vali hüljatud ostukorvi automaatvastaja."
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:118
+#: blocks/newsletter-signup/src/edit.js:115
 msgid "Plugin setup is not complete!"
 msgstr "Pistikprogrammi seadistamine pole lõpule viidud!"
 
@@ -668,7 +664,7 @@ msgid "Subscribe"
 msgstr "Liitu"
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:205
+#: blocks/newsletter-signup/src/edit.js:202
 msgid "Subscribe button label"
 msgstr "Liitumisnupu silt"
 
@@ -691,13 +687,13 @@ msgid "Subscribing failed with unknown reason."
 msgstr "Uudiskirjaga liitumine ebaõnnestus teadmata põhjusel."
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:235
+#: blocks/newsletter-signup/src/edit.js:232
 msgid "Success message"
 msgstr "Õnnestumise teade"
 
 #: includes/smaily-widget.class.php:134
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:254
+#: blocks/newsletter-signup/src/edit.js:251
 msgid "Success URL"
 msgstr "Õnnestumise URL"
 
@@ -746,7 +742,7 @@ msgid "Use the Smaily subscription form widget."
 msgstr "Kasutada Smaily uudiskirjaga liitumise vidinat."
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:175
+#: blocks/newsletter-signup/src/edit.js:172
 msgid "Visible fields"
 msgstr "Nähtavad väljad"
 
@@ -833,4 +829,8 @@ msgstr ""
 #. Plugin URI of the plugin
 #: smaily-connect.php
 msgid "https://github.com/sendsmaily/smaily-wordpress-plugin"
+msgstr ""
+
+#: admin/smaily-admin-renderer.class.php:114
+msgid "https://smaily.com/help/how-to/ecommerce-integrations/smaily-connect"
 msgstr ""
