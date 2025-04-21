@@ -38,7 +38,7 @@ class Widget extends WP_Widget {
 		// Allow overriding the template.
 		$template = locate_template( 'smaily/smaily-public-basic.php' );
 		if ( ! $template ) {
-			$template = SMAILY_WP_CONNECT_PLUGIN_PATH . 'public/partials/smaily-public-basic.php';
+			$template = SMAILY_CONNECT_PLUGIN_PATH . 'public/partials/smaily-public-basic.php';
 		}
 
 		$title = apply_filters( 'widget_title', empty( $instance['title'] ) ? '' : $instance['title'], $instance, $this->id_base );

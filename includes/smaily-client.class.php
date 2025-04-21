@@ -140,7 +140,7 @@ class Smaily_Client {
 	 */
 	private function request( string $endpoint, array $data, $method = 'GET' ) {
 		$response  = array();
-		$useragent = 'smaily-connect/' . SMAILY_WP_CONNECT_PLUGIN_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . '; +' . get_bloginfo( 'url' ) . ')';
+		$useragent = 'smaily-connect/' . SMAILY_CONNECT_PLUGIN_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . '; +' . get_bloginfo( 'url' ) . ')';
 		$args      = array(
 			'headers'    => array(
 				'Authorization' => 'Basic ' . base64_encode( $this->_username . ':' . $this->_password ),

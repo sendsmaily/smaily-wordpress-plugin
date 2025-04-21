@@ -74,7 +74,7 @@ class Public_Base {
 		// Allow overriding the template.
 		$template_path = locate_template( 'smaily/smaily-public-basic.php' );
 		if ( ! $template_path ) {
-			$template_path = SMAILY_WP_CONNECT_PLUGIN_PATH . 'public/partials/smaily-public-basic.php';
+			$template_path = SMAILY_CONNECT_PLUGIN_PATH . 'public/partials/smaily-public-basic.php';
 		}
 
 		$shortcode_attrs = shortcode_atts(

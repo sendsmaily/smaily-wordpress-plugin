@@ -70,7 +70,7 @@ class Blocks {
 		wp_enqueue_style( 'wp-components' );
 
 		register_block_type(
-			SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/newsletter-signup/build',
+			SMAILY_CONNECT_PLUGIN_PATH . '/blocks/newsletter-signup/build',
 			array(
 				'render_callback' => array( 'Smaily_WP_Connect\Blocks\Newsletter_Signup\Integration', 'render' ),
 			)
@@ -78,7 +78,7 @@ class Blocks {
 		wp_set_script_translations(
 			'smaily-newsletter-block-editor-script',
 			'smaily-connect',
-			SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
+			SMAILY_CONNECT_PLUGIN_PATH . 'languages'
 		);
 	}
 
@@ -88,11 +88,11 @@ class Blocks {
 	 * @return void
 	 */
 	public function register_checkout_optin_block() {
-		register_block_type( SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/build' );
+		register_block_type( SMAILY_CONNECT_PLUGIN_PATH . '/blocks/checkout-optin/build' );
 		wp_set_script_translations(
 			'smaily-checkout-optin-editor-script',
 			'smaily-connect',
-			SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
+			SMAILY_CONNECT_PLUGIN_PATH . 'languages'
 		);
 	}
 
@@ -114,8 +114,8 @@ class Blocks {
 	 */
 	public function register_checkout_block_for_woocommerce() {
 		// Load after WooCommerce blocks are loaded.
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'blocks/checkout-optin/smaily-extend-store-endpoint.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'blocks/checkout-optin/smaily-integration.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'blocks/checkout-optin/smaily-extend-store-endpoint.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'blocks/checkout-optin/smaily-integration.class.php';
 
 		Extend_Store_Endpoint::init();
 

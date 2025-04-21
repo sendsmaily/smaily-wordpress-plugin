@@ -199,36 +199,36 @@ class Smaily_WP_Connect {
 	 * @access private
 	 */
 	private function load_dependencies() {
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-renderer.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'admin/smaily-admin.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-integration.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-api.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-blocks.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-helper.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-logger.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-options.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-client.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'includes/smaily-widget.class.php';
-		require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'public/smaily-public.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-renderer.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-integration.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-api.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-blocks.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-helper.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-logger.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-options.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-client.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-widget.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'public/smaily-public.class.php';
 
 		$this->options = new Options();
 
 		if ( Helper::is_woocommerce_active() ) {
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cart.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cron.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/data-handler.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/profile-settings.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/rss.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/subscriber-synchronization.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cart.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cron.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/data-handler.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/profile-settings.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/rss.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/subscriber-synchronization.class.php';
 		}
 
 		if ( Helper::is_cf7_active() ) {
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/cf7/admin.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/cf7/public.class.php';
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/cf7/service.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/cf7/admin.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/cf7/public.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/cf7/service.class.php';
 		}
 	}
 

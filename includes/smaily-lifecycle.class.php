@@ -27,9 +27,9 @@ class Lifecycle {
 	 * @return void
 	 */
 	public function register_hooks() {
-		register_activation_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( $this, 'activate' ) );
-		register_deactivation_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( $this, 'deactivate' ) );
-		register_uninstall_hook( SMAILY_WP_CONNECT_PLUGIN_FILE, array( __CLASS__, 'uninstall' ) );
+		register_activation_hook( SMAILY_CONNECT_PLUGIN_FILE, array( $this, 'activate' ) );
+		register_deactivation_hook( SMAILY_CONNECT_PLUGIN_FILE, array( $this, 'deactivate' ) );
+		register_uninstall_hook( SMAILY_CONNECT_PLUGIN_FILE, array( __CLASS__, 'uninstall' ) );
 		add_action( 'plugins_loaded', array( $this, 'set_locale' ) );
 		add_action( 'plugins_loaded', array( $this, 'update' ) );
 		add_action( 'upgrader_process_complete', array( $this, 'check_for_update' ), 10, 2 );
@@ -181,7 +181,7 @@ class Lifecycle {
 	 * @param array           $options         Array of bulk item update data.
 	 */
 	public function check_for_update( $upgrader_object, $options ) {
-		$smaily_basename = plugin_basename( SMAILY_WP_CONNECT_PLUGIN_FILE );
+		$smaily_basename = plugin_basename( SMAILY_CONNECT_PLUGIN_FILE );
 
 		$plugin_was_updated = $options['action'] === 'update' && $options['type'] === 'plugin';
 		if ( ! isset( $options['plugins'] ) || ! $plugin_was_updated ) {
@@ -206,7 +206,7 @@ class Lifecycle {
 	 * @access private
 	 */
 	private function run_migrations() {
-		$plugin_version = SMAILY_WP_CONNECT_PLUGIN_VERSION;
+		$plugin_version = SMAILY_CONNECT_PLUGIN_VERSION;
 		$db_version     = get_option( Options::DATABASE_VERSION_OPTION, '0.0.0' );
 
 		if ( $plugin_version === $db_version ) {
@@ -221,7 +221,7 @@ class Lifecycle {
 				continue;
 			}
 
-			$migration_file = SMAILY_WP_CONNECT_PLUGIN_PATH . 'migrations/' . $migration_file;
+			$migration_file = SMAILY_CONNECT_PLUGIN_PATH . 'migrations/' . $migration_file;
 			if ( ! file_exists( $migration_file ) ) {
 				continue;
 			}
@@ -248,7 +248,7 @@ class Lifecycle {
 		load_plugin_textdomain(
 			'smaily-connect',
 			false,
-			plugin_basename( SMAILY_WP_CONNECT_PLUGIN_PATH ) . '/languages/'
+			plugin_basename( SMAILY_CONNECT_PLUGIN_PATH ) . '/languages/'
 		);
 	}
 }
