@@ -8,7 +8,7 @@ class Cart {
 	/**
 	 * Abandoned cart table name.
 	 */
-	const ABANDONED_CART_TABLE_NAME = 'smaily_wp_connect_abandoned_carts';
+	const ABANDONED_CART_TABLE_NAME = 'smaily_connect_abandoned_carts';
 
 	/**
 	 * Constructor.
@@ -55,14 +55,14 @@ class Cart {
 		}
 
 		// Check if the function has already run in this request.
-		if ( get_transient( 'smaily_wp_connect_cart_updated' ) ) {
+		if ( get_transient( 'smaily_connect_cart_updated' ) ) {
 			return;
 		}
 
 		/**
 		 * Set a transient to prevent multiple calls in a small duration.
 		 */
-		set_transient( 'smaily_wp_connect_cart_updated', true, 1 );
+		set_transient( 'smaily_connect_cart_updated', true, 1 );
 
 		global $wpdb;
 		// Customer data.

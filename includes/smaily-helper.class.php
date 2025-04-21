@@ -250,7 +250,7 @@ class Helper {
 	 * @return void
 	 */
 	public static function set_user_language_code( int $user_id ) {
-		update_user_meta( $user_id, 'smaily_wp_connect_user_language', self::get_user_language_code( $user_id ) );
+		update_user_meta( $user_id, 'smaily_connect_user_language', self::get_user_language_code( $user_id ) );
 	}
 
 	/**
@@ -263,7 +263,7 @@ class Helper {
 	 */
 	public static function get_user_language_code( $user_id = null ) {
 		if ( $user_id ) {
-			$lang = get_user_meta( $user_id, 'smaily_wp_connect_user_language', true );
+			$lang = get_user_meta( $user_id, 'smaily_connect_user_language', true );
 			if ( ! empty( $lang ) ) {
 				return $lang;
 			}

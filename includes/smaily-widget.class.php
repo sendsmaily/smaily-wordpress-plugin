@@ -22,7 +22,7 @@ class Widget extends WP_Widget {
 	 */
 	public function __construct( Options $options ) {
 		$widget_ops = array( 'description' => __( 'Smaily Classic Subscription Widget', 'smaily-connect' ) );
-		parent::__construct( 'smaily_wp_connect_subscription_widget', __( 'Smaily Classic Subscription Widget', 'smaily-connect' ), $widget_ops );
+		parent::__construct( 'smaily_connect_subscription_widget', __( 'Smaily Classic Subscription Widget', 'smaily-connect' ), $widget_ops );
 
 		$this->options = $options;
 	}

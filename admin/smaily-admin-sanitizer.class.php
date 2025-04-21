@@ -17,7 +17,7 @@ class Sanitizer {
 
 		if ( $enabled === true && $autoresponder_id === '' ) {
 			add_settings_error(
-				'smaily_wp_connect_messages',
+				'smaily_connect_messages',
 				'no_autoresponder_for_abandoned_cart',
 				__( 'Please select autoresponder for abandoned cart automation.', 'smaily-connect' ),
 				'error'
@@ -41,7 +41,7 @@ class Sanitizer {
 		// Disconnect.
 		if ( isset( $input['enabled'] ) && $input['enabled'] === '1' ) {
 			add_settings_error(
-				'smaily_wp_connect_messages',
+				'smaily_connect_messages',
 				'credentials_validated',
 				'API credentials disconnected!',
 				'success'
@@ -67,7 +67,7 @@ class Sanitizer {
 		if ( ! empty( $validation_errors ) ) {
 			$validation_errors = implode( '<br>', $validation_errors );
 			add_settings_error(
-				'smaily_wp_connect_messages',
+				'smaily_connect_messages',
 				'invalid_api_credentials',
 				$validation_errors,
 				'error'

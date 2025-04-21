@@ -46,7 +46,7 @@ class Lifecycle {
 			$this->set_scheduled_actions();
 
 			// Set to flush rewrite rules during init action if not yet flushed.
-			update_option( 'smaily_wp_connect_flush_rewrite_rules', true );
+			update_option( 'smaily_connect_flush_rewrite_rules', true );
 		}
 
 		$this->run_migrations();
@@ -64,21 +64,21 @@ class Lifecycle {
 	 */
 	private function set_scheduled_actions() {
 		// Check if the daily sync action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_wp_connect_cron_sync_subscribers' ) ) {
+		if ( ! wp_next_scheduled( 'smaily_connect_cron_sync_subscribers' ) ) {
 			// Add Cron job to sync subscribers.
-			wp_schedule_event( time(), 'daily', 'smaily_wp_connect_cron_sync_subscribers' );
+			wp_schedule_event( time(), 'daily', 'smaily_connect_cron_sync_subscribers' );
 		}
 
 		// Check if the abandoned cart status action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_wp_connect_cron_abandoned_carts_status' ) ) {
+		if ( ! wp_next_scheduled( 'smaily_connect_cron_abandoned_carts_status' ) ) {
 			// Schedule event to track abandoned statuses.
-			wp_schedule_event( time(), 'smaily_wp_connect_15_minutes', 'smaily_wp_connect_cron_abandoned_carts_status' );
+			wp_schedule_event( time(), 'smaily_connect_15_minutes', 'smaily_connect_cron_abandoned_carts_status' );
 		}
 
 		// Check if the abandoned cart email action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_wp_connect_cron_abandoned_carts_email' ) ) {
+		if ( ! wp_next_scheduled( 'smaily_connect_cron_abandoned_carts_email' ) ) {
 			// Schedule event to send emails.
-			wp_schedule_event( time(), 'smaily_wp_connect_15_minutes', 'smaily_wp_connect_cron_abandoned_carts_email' );
+			wp_schedule_event( time(), 'smaily_connect_15_minutes', 'smaily_connect_cron_abandoned_carts_email' );
 		}
 	}
 
@@ -90,7 +90,7 @@ class Lifecycle {
 		if ( $plugin === 'woocommerce/woocommerce.php' ) {
 			$this->create_woocommerce_tables();
 			$this->set_scheduled_actions();
-			update_option( 'smaily_wp_connect_flush_rewrite_rules', true );
+			update_option( 'smaily_connect_flush_rewrite_rules', true );
 		}
 	}
 
@@ -131,9 +131,9 @@ class Lifecycle {
 		// Flush rewrite rules.
 		flush_rewrite_rules();
 		// Stop Cron.
-		wp_clear_scheduled_hook( 'smaily_wp_connect_cron_sync_subscribers' );
-		wp_clear_scheduled_hook( 'smaily_wp_connect_cron_abandoned_carts_email' );
-		wp_clear_scheduled_hook( 'smaily_wp_connect_cron_abandoned_carts_status' );
+		wp_clear_scheduled_hook( 'smaily_connect_cron_sync_subscribers' );
+		wp_clear_scheduled_hook( 'smaily_connect_cron_abandoned_carts_email' );
+		wp_clear_scheduled_hook( 'smaily_connect_cron_abandoned_carts_status' );
 		$this->logger->info( 'Plugin deactivated' );
 	}
 
@@ -154,7 +154,7 @@ class Lifecycle {
 
 		Options::delete_all_options();
 
-		delete_transient( 'smaily_wp_connect_plugin_updated' );
+		delete_transient( 'smaily_connect_plugin_updated' );
 	}
 
 	/**
@@ -164,11 +164,11 @@ class Lifecycle {
 	 *
 	 */
 	public function update() {
-		if ( get_transient( 'smaily_wp_connect_plugin_updated' ) !== true ) {
+		if ( get_transient( 'smaily_connect_plugin_updated' ) !== true ) {
 			return;
 		}
 		$this->run_migrations();
-		delete_transient( 'smaily_wp_connect_plugin_updated' );
+		delete_transient( 'smaily_connect_plugin_updated' );
 	}
 
 	/**
@@ -193,7 +193,7 @@ class Lifecycle {
 
 		foreach ( $updated_plugins as $plugin_basename ) {
 			if ( $smaily_basename === $plugin_basename ) {
-				return set_transient( 'smaily_wp_connect_plugin_updated', true );
+				return set_transient( 'smaily_connect_plugin_updated', true );
 			}
 		}
 	}

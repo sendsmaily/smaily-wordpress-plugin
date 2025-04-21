@@ -16,7 +16,7 @@ if ( isset( $_GET['tab'] ) ) {
 	}
 }
 $show_submit_button = isset( $tabs[ $current_tab ]['submit_button_text'] );
-settings_errors( 'smaily_wp_connect_messages' );
+settings_errors( 'smaily_connect_messages' );
 
 ?>
 <div class="wrap smaily-connect-admin-settings">

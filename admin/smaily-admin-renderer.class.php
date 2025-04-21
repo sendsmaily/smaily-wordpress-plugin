@@ -105,7 +105,7 @@ class Renderer {
 									'You can add the %1$s shortcode to any page or post.',
 									'smaily-connect'
 								),
-								'<span class="regular-text code">[smaily_wp_connect_newsletter_form]</span>'
+								'<span class="regular-text code">[smaily_connect_newsletter_form]</span>'
 							);
 						?>
 						</p>

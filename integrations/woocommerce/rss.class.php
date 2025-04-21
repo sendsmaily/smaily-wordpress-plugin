@@ -113,9 +113,9 @@ class Rss {
 	 * Conditionally flush rewrite rules.
 	 */
 	public function maybe_flush_rewrite_rules() {
-		if ( get_option( 'smaily_wp_connect_flush_rewrite_rules' ) ) {
+		if ( get_option( 'smaily_connect_flush_rewrite_rules' ) ) {
 			flush_rewrite_rules();
-			delete_option( 'smaily_wp_connect_flush_rewrite_rules' );
+			delete_option( 'smaily_connect_flush_rewrite_rules' );
 		}
 	}
 

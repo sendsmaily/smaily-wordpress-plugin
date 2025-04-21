@@ -41,7 +41,7 @@ class Settings {
 	 *
 	 */
 	public function register_connection_tab_settings( $option_group, $page ) {
-		$section = 'smaily_wp_connect_connection_section';
+		$section = 'smaily_connect_connection_section';
 
 		register_setting(
 			$option_group,
@@ -79,7 +79,7 @@ class Settings {
 	 */
 	public function register_tutorial_tab_settings( $option_group, $page ) {
 		add_settings_section(
-			'smaily_wp_connect_subscriber_collection_section',
+			'smaily_connect_subscriber_collection_section',
 			__( 'Setting up subscriber collection', 'smaily-connect' ),
 			array( $this->renderer, 'render_tutorial_subscriber_collection_section' ),
 			$page
@@ -87,7 +87,7 @@ class Settings {
 
 		if ( Helper::is_woocommerce_active() ) {
 			add_settings_section(
-				'smaily_wp_connect_woocommerce_section',
+				'smaily_connect_woocommerce_section',
 				__( 'WooCommerce Integration', 'smaily-connect' ),
 				array( $this->renderer, 'render_tutorial_woocommerce_section' ),
 				$page
@@ -101,7 +101,7 @@ class Settings {
 	 * @return void
 	 */
 	public function register_subscriber_sync_tab_settings( $option_group, $page ) {
-		$subscriber_sync_section = 'smaily_wp_connect_subscriber_sync_section';
+		$subscriber_sync_section = 'smaily_connect_subscriber_sync_section';
 
 		register_setting(
 			$option_group,
@@ -150,7 +150,7 @@ class Settings {
 			$subscriber_sync_section
 		);
 
-		$checkout_subscription_section = 'smaily_wp_connect_checkout_subscription_section';
+		$checkout_subscription_section = 'smaily_connect_checkout_subscription_section';
 		register_setting(
 			$option_group,
 			Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION,
@@ -230,7 +230,7 @@ class Settings {
 	 * @return void
 	 */
 	public function register_abandoned_cart_tab_settings( $option_group, $page ) {
-		$abandoned_cart_section = 'smaily_wp_connect_abandoned_cart_section';
+		$abandoned_cart_section = 'smaily_connect_abandoned_cart_section';
 
 		register_setting(
 			$option_group,
@@ -308,7 +308,7 @@ class Settings {
 	 * @return void
 	 */
 	public function register_rss_tab_settings( $option_group, $page ) {
-		$rss_section = 'smaily_wp_connect_rss_section';
+		$rss_section = 'smaily_connect_rss_section';
 
 		register_setting(
 			$option_group,

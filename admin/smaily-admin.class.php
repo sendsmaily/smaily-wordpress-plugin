@@ -145,7 +145,7 @@ class Admin {
 		$credentials_valid = $this->validate_api_credentials( $new_value['subdomain'], $new_value['username'], $new_value['password'] );
 		if ( $credentials_valid[0] === true ) {
 			add_settings_error(
-				'smaily_wp_connect_messages',
+				'smaily_connect_messages',
 				'credentials_validated',
 				__( 'API credentials validated successfully!', 'smaily-connect' ),
 				'success'
@@ -160,7 +160,7 @@ class Admin {
 			switch ( $credentials_valid[1] ) {
 				case 404:
 					add_settings_error(
-						'smaily_wp_connect_messages',
+						'smaily_connect_messages',
 						'invalid_api_credentials',
 						__( 'Check subdomain. API credentials validation failed.', 'smaily-connect' ),
 						'error'
@@ -168,7 +168,7 @@ class Admin {
 					break;
 				default:
 					add_settings_error(
-						'smaily_wp_connect_messages',
+						'smaily_connect_messages',
 						'invalid_api_credentials',
 						__( 'API credentials validation failed. Please check your details.', 'smaily-connect' ),
 						'error'
@@ -221,8 +221,8 @@ class Admin {
 						''
 					),
 					'register_settings'  => array( $this->settings, 'register_connection_tab_settings' ),
-					'option_group'       => 'smaily_wp_connect_connection',
-					'page'               => 'smaily_wp_connect_tab_connection',
+					'option_group'       => 'smaily_connect_connection',
+					'page'               => 'smaily_connect_tab_connection',
 				),
 			);
 
@@ -237,8 +237,8 @@ class Admin {
 						''
 					),
 					'register_settings' => array( $this->settings, 'register_tutorial_tab_settings' ),
-					'option_group'      => 'smaily_wp_connect_tutorial',
-					'page'              => 'smaily_wp_connect_tab_tutorial',
+					'option_group'      => 'smaily_connect_tutorial',
+					'page'              => 'smaily_connect_tab_tutorial',
 				);
 			}
 
@@ -254,8 +254,8 @@ class Admin {
 						''
 					),
 					'register_settings'  => array( $this->settings, 'register_subscriber_sync_tab_settings' ),
-					'option_group'       => 'smaily_wp_connect_subscriber_sync',
-					'page'               => 'smaily_wp_connect_tab_subscriber_sync',
+					'option_group'       => 'smaily_connect_subscriber_sync',
+					'page'               => 'smaily_connect_tab_subscriber_sync',
 				);
 
 				$tabs['abandoned_cart'] = array(
@@ -269,8 +269,8 @@ class Admin {
 						''
 					),
 					'register_settings'  => array( $this->settings, 'register_abandoned_cart_tab_settings' ),
-					'option_group'       => 'smaily_wp_connect_abandoned_cart',
-					'page'               => 'smaily_wp_connect_tab_abandoned_cart',
+					'option_group'       => 'smaily_connect_abandoned_cart',
+					'page'               => 'smaily_connect_tab_abandoned_cart',
 				);
 
 				$tabs['rss'] = array(
@@ -284,8 +284,8 @@ class Admin {
 						''
 					),
 					'register_settings'  => array( $this->settings, 'register_rss_tab_settings' ),
-					'option_group'       => 'smaily_wp_connect_rss',
-					'page'               => 'smaily_wp_connect_tab_rss',
+					'option_group'       => 'smaily_connect_rss',
+					'page'               => 'smaily_connect_tab_rss',
 				);
 			}
 

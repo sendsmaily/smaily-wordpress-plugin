@@ -97,22 +97,22 @@ class Options {
 	 */
 	const RSS_DEFAULT_ORDER_BY = 'DESC';
 
-	const API_CREDENTIALS_OPTION                = 'smaily_wp_connect_api_credentials';
-	const SUBSCRIBER_SYNC_ENABLED_OPTION        = 'smaily_wp_connect_subscriber_sync_enabled';
-	const SUBSCRIBER_SYNC_FIELDS_OPTION         = 'smaily_wp_connect_subscriber_sync_fields';
-	const ABANDONED_CART_STATUS_OPTION          = 'smaily_wp_connect_abandoned_cart_status';
-	const ABANDONED_CART_CUTOFF_OPTION          = 'smaily_wp_connect_abandoned_cart_cutoff';
-	const ABANDONED_CART_FIELDS_OPTION          = 'smaily_wp_connect_abandoned_cart_fields';
-	const CHECKOUT_SUBSCRIPTION_ENABLED_OPTION  = 'smaily_wp_connect_checkout_subscription_enabled';
-	const CHECKOUT_SUBSCRIPTION_POSITION_OPTION = 'smaily_wp_connect_checkout_subscription_position';
-	const CHECKOUT_SUBSCRIPTION_LOCATION_OPTION = 'smaily_wp_connect_checkout_subscription_location';
-	const RSS_LIMIT_OPTION                      = 'smaily_wp_connect_rss_limit';
-	const RSS_CATEGORY_OPTION                   = 'smaily_wp_connect_rss_category';
-	const RSS_SORT_BY_OPTION                    = 'smaily_wp_connect_rss_sort_by';
-	const RSS_ORDER_BY_OPTION                   = 'smaily_wp_connect_rss_order_by';
-	const RSS_URL_OPTION                        = 'smaily_wp_connect_rss_url';
-	const DATABASE_VERSION_OPTION               = 'smaily_wp_connect_db_version';
-	const CONTACT_FORM_7_STATUS_OPTION          = 'smaily_wp_connect_cf7_status';
+	const API_CREDENTIALS_OPTION                = 'smaily_connect_api_credentials';
+	const SUBSCRIBER_SYNC_ENABLED_OPTION        = 'smaily_connect_subscriber_sync_enabled';
+	const SUBSCRIBER_SYNC_FIELDS_OPTION         = 'smaily_connect_subscriber_sync_fields';
+	const ABANDONED_CART_STATUS_OPTION          = 'smaily_connect_abandoned_cart_status';
+	const ABANDONED_CART_CUTOFF_OPTION          = 'smaily_connect_abandoned_cart_cutoff';
+	const ABANDONED_CART_FIELDS_OPTION          = 'smaily_connect_abandoned_cart_fields';
+	const CHECKOUT_SUBSCRIPTION_ENABLED_OPTION  = 'smaily_connect_checkout_subscription_enabled';
+	const CHECKOUT_SUBSCRIPTION_POSITION_OPTION = 'smaily_connect_checkout_subscription_position';
+	const CHECKOUT_SUBSCRIPTION_LOCATION_OPTION = 'smaily_connect_checkout_subscription_location';
+	const RSS_LIMIT_OPTION                      = 'smaily_connect_rss_limit';
+	const RSS_CATEGORY_OPTION                   = 'smaily_connect_rss_category';
+	const RSS_SORT_BY_OPTION                    = 'smaily_connect_rss_sort_by';
+	const RSS_ORDER_BY_OPTION                   = 'smaily_connect_rss_order_by';
+	const RSS_URL_OPTION                        = 'smaily_connect_rss_url';
+	const DATABASE_VERSION_OPTION               = 'smaily_connect_db_version';
+	const CONTACT_FORM_7_STATUS_OPTION          = 'smaily_connect_cf7_status';
 
 	/**
 	 * Array of all option fields.

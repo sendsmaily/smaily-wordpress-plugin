@@ -413,7 +413,7 @@ class Profile_Settings {
 			);
 
 			$enabled_fields = $this->filter_enabled_fields( $fields );
-			$this->fields   = apply_filters( 'smaily_wp_connect_account_fields', $enabled_fields );
+			$this->fields   = apply_filters( 'smaily_connect_account_fields', $enabled_fields );
 		}
 
 		return $this->fields;

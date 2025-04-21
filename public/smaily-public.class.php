@@ -62,7 +62,7 @@ class Public_Base {
 	 *
 	 */
 	public function add_shortcodes() {
-		add_shortcode( 'smaily_wp_connect_newsletter_form', array( $this, 'smaily_shortcode_render' ) );
+		add_shortcode( 'smaily_connect_newsletter_form', array( $this, 'smaily_shortcode_render' ) );
 	}
 
 	/**
