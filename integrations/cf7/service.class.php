@@ -36,7 +36,7 @@ class Service extends WPCF7_Service {
 	}
 
 	public function get_title() {
-		return __( 'Smaily WP Connect', 'smaily-connect' );
+		return __( 'Smaily Connect', 'smaily-connect' );
 	}
 
 	public function is_active() {

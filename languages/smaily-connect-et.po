@@ -827,7 +827,7 @@ msgstr ""
 #. Plugin Name of the plugin
 #: smaily-connect.php
 #: integrations/cf7/service.class.php:39
-msgid "Smaily WP Connect"
+msgid "Smaily Connect"
 msgstr ""
 
 #. Plugin URI of the plugin
