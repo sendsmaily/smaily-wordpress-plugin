@@ -1,6 +1,6 @@
 <?php
 
-namespace Smaily_WP_Connect\Integrations\WooCommerce;
+namespace Smaily_Connect\Integrations\WooCommerce;
 
 use WC_Product;
 

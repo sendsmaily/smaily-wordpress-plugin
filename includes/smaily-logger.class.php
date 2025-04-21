@@ -3,7 +3,7 @@
  * Logger class for Smaily plugin logging.
  */
 
-namespace Smaily_WP_Connect\Includes;
+namespace Smaily_Connect\Includes;
 
 class Logger {
 	const LEVEL_INFO    = 'info';

@@ -3,7 +3,7 @@
  * Smaily helper class with static methods
  */
 
-namespace Smaily_WP_Connect\Includes;
+namespace Smaily_Connect\Includes;
 
 class Helper {
 	/**

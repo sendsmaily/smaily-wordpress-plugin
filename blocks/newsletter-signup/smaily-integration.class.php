@@ -1,8 +1,8 @@
 <?php
 
-namespace Smaily_WP_Connect\Blocks\Newsletter_Signup;
+namespace Smaily_Connect\Blocks\Newsletter_Signup;
 
-use Smaily_WP_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Helper;
 
 class Integration {
 	/**

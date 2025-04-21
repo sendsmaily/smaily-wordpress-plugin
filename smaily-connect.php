@@ -59,6 +59,6 @@ require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily.class.php';
  * Begins execution of the plugin.
  *
  */
-if ( class_exists( 'Smaily_WP_Connect' ) ) {
-	new Smaily_WP_Connect( SMAILY_CONNECT_PLUGIN_NAME, SMAILY_CONNECT_PLUGIN_VERSION );
+if ( class_exists( 'Smaily_Connect' ) ) {
+	new Smaily_Connect( SMAILY_CONNECT_PLUGIN_NAME, SMAILY_CONNECT_PLUGIN_VERSION );
 }

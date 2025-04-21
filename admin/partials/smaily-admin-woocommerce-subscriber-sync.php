@@ -2,10 +2,10 @@
 /**
  * WooCommerce subscriber sync fields.
  *
- * @var Smaily_WP_Connect\Admin\Renderer $this
+ * @var Smaily_Connect\Admin\Renderer $this
  */
 
-use Smaily_WP_Connect\Includes\Options;
+use Smaily_Connect\Includes\Options;
 
 defined( 'ABSPATH' ) || exit;
 $mandatory   = array( 'user_email', 'store_url', 'language' );

@@ -3,7 +3,7 @@
  * Defines the encryption and decryption functionality.
  */
 
-namespace Smaily_WP_Connect\Includes;
+namespace Smaily_Connect\Includes;
 
 class Cypher {
 	/**

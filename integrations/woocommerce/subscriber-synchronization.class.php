@@ -1,12 +1,12 @@
 <?php
 
-namespace Smaily_WP_Connect\Integrations\WooCommerce;
+namespace Smaily_Connect\Integrations\WooCommerce;
 
-use Smaily_WP_Connect\Blocks\Checkout_Optin\Extend_Store_Endpoint;
-use Smaily_WP_Connect\Includes\Helper;
-use Smaily_WP_Connect\Includes\Logger;
-use Smaily_WP_Connect\Includes\Options;
-use Smaily_WP_Connect\Includes\Smaily_Client;
+use Smaily_Connect\Blocks\Checkout_Optin\Extend_Store_Endpoint;
+use Smaily_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Logger;
+use Smaily_Connect\Includes\Options;
+use Smaily_Connect\Includes\Smaily_Client;
 use WC_Order;
 use WP_REST_Request;
 

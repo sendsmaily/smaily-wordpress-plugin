@@ -2,7 +2,7 @@
 /**
  * Smaily admin page template.
  *
- * @var Smaily_WP_Connect\Admin $this
+ * @var Smaily_Connect\Admin $this
  */
 
 defined( 'ABSPATH' ) || exit;

@@ -1,10 +1,10 @@
 <?php
 
-namespace Smaily_WP_Connect;
+namespace Smaily_Connect;
 
 use Exception;
-use Smaily_WP_Connect\Includes\Helper;
-use Smaily_WP_Connect\Includes\Options;
+use Smaily_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Options;
 
 class Public_Base {
 	/**

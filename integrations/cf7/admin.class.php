@@ -1,9 +1,9 @@
 <?php
 
-namespace Smaily_WP_Connect\Integrations\CF7;
+namespace Smaily_Connect\Integrations\CF7;
 
-use Smaily_WP_Connect\Includes\Helper;
-use Smaily_WP_Connect\Includes\Options;
+use Smaily_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Options;
 use WPCF7_ContactForm;
 use WPCF7_Integration;
 

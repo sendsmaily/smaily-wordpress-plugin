@@ -1,14 +1,14 @@
 <?php
 
-namespace Smaily_WP_Connect;
+namespace Smaily_Connect;
 
-use Smaily_WP_Connect\Admin\Settings;
-use Smaily_WP_Connect\Includes\Cypher;
-use Smaily_WP_Connect\Includes\Helper;
-use Smaily_WP_Connect\Includes\Options;
-use Smaily_WP_Connect\Includes\Smaily_Client;
-use Smaily_WP_Connect\Includes\Widget;
-use Smaily_WP_Connect\Integrations\WooCommerce\Rss;
+use Smaily_Connect\Admin\Settings;
+use Smaily_Connect\Includes\Cypher;
+use Smaily_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Options;
+use Smaily_Connect\Includes\Smaily_Client;
+use Smaily_Connect\Includes\Widget;
+use Smaily_Connect\Integrations\WooCommerce\Rss;
 
 class Admin {
 	/**

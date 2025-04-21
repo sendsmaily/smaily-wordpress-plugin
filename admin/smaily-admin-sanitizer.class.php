@@ -1,8 +1,8 @@
 <?php
 
-namespace Smaily_WP_Connect\Admin;
+namespace Smaily_Connect\Admin;
 
-use Smaily_WP_Connect\Includes\Options;
+use Smaily_Connect\Includes\Options;
 
 class Sanitizer {
 	/**

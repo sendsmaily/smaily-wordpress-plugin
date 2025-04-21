@@ -1,11 +1,11 @@
 <?php
 
-namespace Smaily_WP_Connect\Admin;
+namespace Smaily_Connect\Admin;
 
-use Smaily_WP_Connect\Includes\Helper;
-use Smaily_WP_Connect\Includes\Options;
-use Smaily_WP_Connect\Includes\Smaily_Client;
-use Smaily_WP_Connect\Integrations\WooCommerce\Rss;
+use Smaily_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Options;
+use Smaily_Connect\Includes\Smaily_Client;
+use Smaily_Connect\Integrations\WooCommerce\Rss;
 
 class Renderer {
 	/**

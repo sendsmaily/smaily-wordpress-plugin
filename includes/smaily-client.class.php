@@ -1,8 +1,8 @@
 <?php
 
-namespace Smaily_WP_Connect\Includes;
+namespace Smaily_Connect\Includes;
 
-use Smaily_WP_Connect\Includes\Options;
+use Smaily_Connect\Includes\Options;
 
 class Smaily_Client {
 	/**

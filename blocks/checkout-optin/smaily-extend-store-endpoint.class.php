@@ -1,6 +1,6 @@
 <?php
 
-namespace Smaily_WP_Connect\Blocks\Checkout_Optin;
+namespace Smaily_Connect\Blocks\Checkout_Optin;
 
 use Automattic\WooCommerce\StoreApi\Schemas\ExtendSchema;
 use Automattic\WooCommerce\StoreApi\Schemas\V1\CheckoutSchema;

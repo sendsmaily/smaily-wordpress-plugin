@@ -1,9 +1,9 @@
 <?php
 
-namespace Smaily_WP_Connect\Integrations\WooCommerce;
+namespace Smaily_Connect\Integrations\WooCommerce;
 
-use Smaily_WP_Connect\Includes\Options;
-use Smaily_WP_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Options;
+use Smaily_Connect\Includes\Helper;
 
 class Data_Handler {
 	/**

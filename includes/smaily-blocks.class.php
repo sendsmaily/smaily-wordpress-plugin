@@ -1,9 +1,9 @@
 <?php
 
-namespace Smaily_WP_Connect\Includes;
+namespace Smaily_Connect\Includes;
 
-use Smaily_WP_Connect\Blocks\Checkout_Optin\Extend_Store_Endpoint;
-use Smaily_WP_Connect\Blocks\Checkout_Optin\Integration;
+use Smaily_Connect\Blocks\Checkout_Optin\Extend_Store_Endpoint;
+use Smaily_Connect\Blocks\Checkout_Optin\Integration;
 
 class Blocks {
 	/**
@@ -72,7 +72,7 @@ class Blocks {
 		register_block_type(
 			SMAILY_CONNECT_PLUGIN_PATH . '/blocks/newsletter-signup/build',
 			array(
-				'render_callback' => array( 'Smaily_WP_Connect\Blocks\Newsletter_Signup\Integration', 'render' ),
+				'render_callback' => array( 'Smaily_Connect\Blocks\Newsletter_Signup\Integration', 'render' ),
 			)
 		);
 		wp_set_script_translations(

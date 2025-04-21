@@ -1,6 +1,6 @@
 <?php
 
-use Smaily_WP_Connect\Integrations\WooCommerce\Rss;
+use Smaily_Connect\Integrations\WooCommerce\Rss;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {

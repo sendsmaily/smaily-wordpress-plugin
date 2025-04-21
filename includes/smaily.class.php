@@ -1,21 +1,21 @@
 <?php
 
-use Smaily_WP_Connect\Admin;
-use Smaily_WP_Connect\Includes\API;
-use Smaily_WP_Connect\Includes\Blocks;
-use Smaily_WP_Connect\Includes\Helper;
-use Smaily_WP_Connect\Includes\Lifecycle;
-use Smaily_WP_Connect\Includes\Options;
-use Smaily_WP_Connect\Integrations\CF7\Admin as Smaily_CF7_Admin;
-use Smaily_WP_Connect\Integrations\CF7\Public_Base as Smaily_CF7_Public;
-use Smaily_WP_Connect\Integrations\WooCommerce\Cart;
-use Smaily_WP_Connect\Integrations\WooCommerce\Cron;
-use Smaily_WP_Connect\Integrations\WooCommerce\Profile_Settings;
-use Smaily_WP_Connect\Integrations\WooCommerce\Rss;
-use Smaily_WP_Connect\Integrations\WooCommerce\Subscriber_Synchronization;
-use Smaily_WP_Connect\Public_Base;
+use Smaily_Connect\Admin;
+use Smaily_Connect\Includes\API;
+use Smaily_Connect\Includes\Blocks;
+use Smaily_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Lifecycle;
+use Smaily_Connect\Includes\Options;
+use Smaily_Connect\Integrations\CF7\Admin as Smaily_CF7_Admin;
+use Smaily_Connect\Integrations\CF7\Public_Base as Smaily_CF7_Public;
+use Smaily_Connect\Integrations\WooCommerce\Cart;
+use Smaily_Connect\Integrations\WooCommerce\Cron;
+use Smaily_Connect\Integrations\WooCommerce\Profile_Settings;
+use Smaily_Connect\Integrations\WooCommerce\Rss;
+use Smaily_Connect\Integrations\WooCommerce\Subscriber_Synchronization;
+use Smaily_Connect\Public_Base;
 
-class Smaily_WP_Connect {
+class Smaily_Connect {
 	/**
 	 * The unique identifier of this plugin.
 	 *

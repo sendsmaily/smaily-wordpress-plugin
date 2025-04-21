@@ -2,7 +2,7 @@
 /**
  * The credentials form for the Smaily API.
  *
- * @var Smaily_WP_Connect\Admin\Renderer $this
+ * @var Smaily_Connect\Admin\Renderer $this
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -14,7 +14,7 @@ $connected = $subdomain && $username;
 ?>
 
 <fieldset>
-	<input type="hidden" name="<?php echo esc_attr( \Smaily_WP_Connect\Includes\Options::API_CREDENTIALS_OPTION ); ?>[enabled]" value="<?php echo esc_attr( $connected ); ?>" />
+	<input type="hidden" name="<?php echo esc_attr( \Smaily_Connect\Includes\Options::API_CREDENTIALS_OPTION ); ?>[enabled]" value="<?php echo esc_attr( $connected ); ?>" />
 	<p class="smaily-connect-admin-form-field">
 		<label for="smaily_subdomain">
 			<?php esc_html_e( 'Smaily account subdomain', 'smaily-connect' ); ?>*
@@ -25,7 +25,7 @@ $connected = $subdomain && $username;
 				required
 				class="regular-text code"
 				id="smaily_subdomain"
-				name="<?php echo esc_attr( \Smaily_WP_Connect\Includes\Options::API_CREDENTIALS_OPTION ); ?>[subdomain]"
+				name="<?php echo esc_attr( \Smaily_Connect\Includes\Options::API_CREDENTIALS_OPTION ); ?>[subdomain]"
 				type="text"
 				value="<?php echo esc_attr( $subdomain ); ?>"
 			/>
@@ -52,7 +52,7 @@ $connected = $subdomain && $username;
 				<?php endif; ?>
 				required
 				class="regular-text code"
-				name="<?php echo esc_attr( \Smaily_WP_Connect\Includes\Options::API_CREDENTIALS_OPTION ); ?>[username]"
+				name="<?php echo esc_attr( \Smaily_Connect\Includes\Options::API_CREDENTIALS_OPTION ); ?>[username]"
 				type="text" id="smaily_username"
 				value="<?php echo esc_attr( $username ); ?>"
 			/>
@@ -69,7 +69,7 @@ $connected = $subdomain && $username;
 				required
 				class="regular-text code"
 				id="smaily_password"
-				name="<?php echo esc_attr( \Smaily_WP_Connect\Includes\Options::API_CREDENTIALS_OPTION ); ?>[password]"
+				name="<?php echo esc_attr( \Smaily_Connect\Includes\Options::API_CREDENTIALS_OPTION ); ?>[password]"
 				type="password"
 				value=""
 			/>

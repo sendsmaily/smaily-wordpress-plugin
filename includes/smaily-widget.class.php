@@ -1,8 +1,8 @@
 <?php
 
-namespace Smaily_WP_Connect\Includes;
+namespace Smaily_Connect\Includes;
 
-use Smaily_WP_Connect\Public_Base;
+use Smaily_Connect\Public_Base;
 use WP_Widget;
 
 class Widget extends WP_Widget {

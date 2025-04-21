@@ -1,8 +1,8 @@
 <?php
 
-namespace Smaily_WP_Connect\Includes;
+namespace Smaily_Connect\Includes;
 
-use Smaily_WP_Connect\Integrations\WooCommerce\Cart;
+use Smaily_Connect\Integrations\WooCommerce\Cart;
 
 class Lifecycle {
 	/**

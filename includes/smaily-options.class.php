@@ -1,6 +1,6 @@
 <?php
 
-namespace Smaily_WP_Connect\Includes;
+namespace Smaily_Connect\Includes;
 
 class Options {
 	/**
