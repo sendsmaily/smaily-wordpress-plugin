@@ -87,7 +87,7 @@ class Public_Base {
 				$payload['email'] = ! is_null( $posted_value ) ? $posted_value : '';
 			} elseif ( $is_single_option_radio || $is_single_option_menu ) {
 				// Single option dropdown menu and radio button can only have one value.
-				$payload[ $this->format_field( $tag->name ) ] = $tag->values[0];
+				$payload[ $this->format_field( $tag->name ) ] = $posted_value[0] ?? '';
 			} elseif ( $tag->basetype === 'select' || $tag->basetype === 'radio' || $tag->basetype === 'checkbox' ) {
 				// Tags with multiple options need to have default values, because browsers do not send values of unchecked inputs.
 				foreach ( $tag->values as $value ) {
@@ -111,6 +111,9 @@ class Public_Base {
 			switch ( $response['body']['code'] ) {
 				case 201:
 					$error_message = esc_html__( 'Form was not submitted using POST method.', 'smaily-connect' );
+					break;
+				case 203:
+					$error_message = esc_html__( 'Invalid data submitted.', 'smaily-connect' );
 					break;
 				case 204:
 					$error_message = esc_html__( 'Input does not contain a valid email address.', 'smaily-connect' );
