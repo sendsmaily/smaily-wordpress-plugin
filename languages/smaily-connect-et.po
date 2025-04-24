@@ -871,8 +871,8 @@ msgstr "Smaily Sätted"
 #. Plugin Name of the plugin
 #: smaily-connect.php
 #: integrations/cf7/service.class.php:39
-msgid "Smaily WP Connect"
-msgstr "Smaily WP Connect"
+msgid "Smaily Connect"
+msgstr "Smaily Connect"
 
 #: integrations/elementor/newsletter-widget.class.php:565
 #: integrations/elementor/newsletter-widget.class.php:755
@@ -1064,7 +1064,7 @@ msgid "Smaily Connect"
 msgstr ""
 
 #: admin/smaily-admin-renderer.class.php:114
-msgid "https://smaily.com/help/how-to/ecommerce-integrations/smaily-connect"
+msgid "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/"
 msgstr ""
 
 #: blocks/checkout-optin/build/block.json

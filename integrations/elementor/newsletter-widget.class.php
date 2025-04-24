@@ -12,7 +12,7 @@ use Smaily_Connect\Includes\Options;
 
 class Newsletter_Widget extends Widget_Base {
 	/**
-	 * Smaily WP Connect plugin options.
+	 * Smaily Connect plugin options.
 	 *
 	 * @var Options
 	 */
@@ -104,7 +104,7 @@ class Newsletter_Widget extends Widget_Base {
 			?>
 				<div class="error">
 					<p>
-						<?php echo esc_html__( 'Please configure the Smaily WP Connect plugin settings first.', 'smaily-connect' ); ?>
+						<?php echo esc_html__( 'Please configure the Smaily Connect plugin settings first.', 'smaily-connect' ); ?>
 					</p>
 				</div>
 			<?php
@@ -235,7 +235,7 @@ class Newsletter_Widget extends Widget_Base {
 			?>
 				<div class="error">
 					<p>
-						<?php echo esc_html__( 'Please configure the Smaily WP Connect plugin settings first.', 'smaily-connect' ); ?>
+						<?php echo esc_html__( 'Please configure the Smaily Connect plugin settings first.', 'smaily-connect' ); ?>
 					</p>
 				</div>
 			<?php
@@ -300,9 +300,9 @@ class Newsletter_Widget extends Widget_Base {
 	}
 
 	/**
-	 * Lazy load the Smaily WP Connect plugin options.
+	 * Lazy load the Smaily Connect plugin options.
 	 *
-	 * @return Options The Smaily WP Connect plugin options.
+	 * @return Options The Smaily Connect plugin options.
 	 */
 	private function get_options() {
 		if ( ! $this->options ) {
