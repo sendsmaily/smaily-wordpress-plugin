@@ -56,7 +56,7 @@ defined( 'ABSPATH' ) || exit;
 				</p>
 				<?php
 					$anchor = esc_html__( 'read the detailed guide', 'smaily-connect' );
-					$domain = esc_url( __( 'https://smaily.com/help/how-to/ecommerce-integrations/smaily-connect', 'smaily-connect' ) );
+					$domain = esc_url( __( 'https://smaily.com/help/user-manual/smaily-connect-for-wordpress/', 'smaily-connect' ) );
 					$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
 					echo sprintf(
 						/* translators: 1: link to setting up block component guide */
@@ -127,7 +127,7 @@ defined( 'ABSPATH' ) || exit;
 				<p>
 				<?php
 					$anchor = esc_html__( 'read the detailed guide', 'smaily-connect' );
-					$domain = esc_url( __( 'https://smaily.com/help/how-to/ecommerce-integrations/smaily-connect', 'smaily-connect' ) );
+					$domain = esc_url( __( 'https://smaily.com/help/user-manual/smaily-connect-for-wordpress/', 'smaily-connect' ) );
 					$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
 					echo sprintf(
 						/* translators: 1: link to setting up block component guide */
