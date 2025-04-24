@@ -65,3 +65,13 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 = 1.0.0 =
 If upgrading from individual Smaily plugins to the combined version, please review your settings to ensure all integrations are correctly configured.
+
+== Screenshots ==
+
+1. Smaily Connect Admin View
+2. Getting Started
+3. Subscriber Synchronization
+4. Abandoned Cart Reminder Emails
+5. Import Products To Templates From RSS-Feed
+6. Opt-In Form Block
+7. Integrate With Contact Form 7
