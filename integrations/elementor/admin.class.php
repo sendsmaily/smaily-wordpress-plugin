@@ -1,9 +1,9 @@
 <?php
 
-namespace Smaily_WP_Connect\Integrations\Elementor;
+namespace Smaily_Connect\Integrations\Elementor;
 
 class Admin {
-	const WIDGET_CATEGORY = SMAILY_WP_CONNECT_PLUGIN_NAME . '-elementor-category';
+	const WIDGET_CATEGORY = SMAILY_CONNECT_PLUGIN_NAME . '-elementor-category';
 
 	/**
 	 * Register hooks for the Elementor integration.
@@ -24,7 +24,7 @@ class Admin {
 		$elements_manager->add_category(
 			self::WIDGET_CATEGORY,
 			array(
-				'title' => __( 'Smaily', 'smaily-wp-connect' ),
+				'title' => __( 'Smaily', 'smaily-connect' ),
 				'icon'  => 'fa fa-envelope',
 			)
 		);
@@ -50,10 +50,10 @@ class Admin {
 	 */
 	public function register_frontend_styles() {
 		wp_register_style(
-			'smaily-wp-connect-elementor-newsletter-widget',
-			SMAILY_WP_CONNECT_PLUGIN_URL . '/integrations/elementor/assets/css/newsletter-widget.css',
+			'smaily-connect-elementor-newsletter-widget',
+			SMAILY_CONNECT_PLUGIN_URL . '/integrations/elementor/assets/css/newsletter-widget.css',
 			array(),
-			SMAILY_WP_CONNECT_PLUGIN_VERSION
+			SMAILY_CONNECT_PLUGIN_VERSION
 		);
 	}
 
@@ -61,6 +61,6 @@ class Admin {
 	 * Enqueue frontend styles for elementor widgets.
 	 */
 	public function enqueue_frontend_styles() {
-		wp_enqueue_style( 'smaily-wp-connect-elementor-newsletter-widget' );
+		wp_enqueue_style( 'smaily-connect-elementor-newsletter-widget' );
 	}
 }

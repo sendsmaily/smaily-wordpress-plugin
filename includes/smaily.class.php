@@ -242,7 +242,7 @@ class Smaily_Connect {
 		}
 
 		if ( Helper::is_elementor_active() ) {
-			require_once SMAILY_WP_CONNECT_PLUGIN_PATH . 'integrations/elementor/admin.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/elementor/admin.class.php';
 		}
 	}
 

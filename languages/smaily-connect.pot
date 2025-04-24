@@ -97,7 +97,7 @@ msgstr ""
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:59
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:130
-msgid "https://smaily.com/help/how-to/ecommerce-integrations/smaily-wp-connect"
+msgid "https://smaily.com/help/how-to/ecommerce-integrations/smaily-connect"
 msgstr ""
 
 #. translators: 1: link to setting up block component guide

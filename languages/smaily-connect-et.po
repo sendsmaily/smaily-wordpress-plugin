@@ -869,7 +869,7 @@ msgid "Smaily Settings"
 msgstr "Smaily Sätted"
 
 #. Plugin Name of the plugin
-#: smaily-wp-connect.php
+#: smaily-connect.php
 #: integrations/cf7/service.class.php:39
 msgid "Smaily WP Connect"
 msgstr "Smaily WP Connect"
