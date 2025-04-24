@@ -79,3 +79,4 @@ If upgrading from individual Smaily plugins to the combined version, please revi
 5. Import Products To Templates From RSS-Feed
 6. Opt-In Form Block
 7. Integrate With Contact Form 7
+8. Smaily Elementor Opt-In Form
