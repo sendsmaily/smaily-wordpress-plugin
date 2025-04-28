@@ -2,7 +2,7 @@
 /*
  * Author URI:        https://smaily.com
  * Author:            Sendsmaily LLC
- * Description:       Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations.
+ * Description:       Smaily integration plugin that includes WooCommerce, Elementor and Contact Form 7 integrations.
  * Domain Path:       /languages
  * License URI:       https://www.gnu.org/licenses/gpl-3.0.en.html
  * License:           GPL-3.0+

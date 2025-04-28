@@ -6,7 +6,7 @@ The Smaily plugin integrates Contact Form 7 and WooCommerce, offering a complete
 
 **Smaily Connect – The Only Email Marketing Plugin You Need!**
 
-Transform your **WordPress website, WooCommerce store, and Contact Form 7** into an **email marketing powerhouse** with Smaily – the all-in-one plugin designed to **automate your marketing, grow your audience, and drive more sales effortlessly**.
+Transform your **WordPress website, WooCommerce store, Contact Form 7 and Elementor** into an **email marketing powerhouse** with Smaily – the all-in-one plugin designed to **automate your marketing, grow your audience, and drive more sales effortlessly**.
 
 **Why Smaily Connect?**
 
@@ -15,6 +15,8 @@ Transform your **WordPress website, WooCommerce store, and Contact Form 7** into
 **Automate Like a Pro** – Send high-converting emails effortlessly: welcome emails and abandoned cart reminders – **without lifting a finger**.
 
 **Smart Form Integration** – Sync your **Contact Form 7** submissions directly to your Smaily lists for a frictionless email collection experience.
+
+**Elementor Integration** – Build beautiful newsletter sign-up forms right inside Elementor using our dedicated widget!
 
 **Smarter Email Campaigns** – Segment your audience and send **relevant offers, tailored product updates, and engaging content** that keeps subscribers interested and active.
 
