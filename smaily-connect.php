@@ -9,7 +9,7 @@
  * Requires at least: 6.0
  * Requires PHP:      7.0
  * Plugin Name:       Smaily Connect
- * Plugin URI:        https://github.com/sendsmaily/smaily-wordpress-plugin
+ * Plugin URI:        https://smaily.com/help/user-manual/smaily-connect-for-wordpress/
  * Text Domain:       smaily-connect
  * Version:           1.1.0
 */
