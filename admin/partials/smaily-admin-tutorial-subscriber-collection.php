@@ -99,10 +99,17 @@ defined( 'ABSPATH' ) || exit;
 				</p>
 				<?php if ( Helper::is_cf7_active() ) : ?>
 					<p>
-						<a href="<?php echo esc_url( menu_page_url( 'wpcf7', false ) ); ?>">
-							<?php esc_html_e( 'Enable Smaily Opt-In under the form settings.', 'smaily-connect' ); ?>
-						</a>
-					</p>
+					<?php
+						$anchor = esc_html__( 'read the detailed guide', 'smaily-connect' );
+						$domain = esc_url( __( 'https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#cf7', 'smaily-connect' ) );
+						$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
+						echo sprintf(
+							/* translators: 1: link to setting up block component guide */
+							esc_html__( 'For more configuration options %1$s.', 'smaily-connect' ),
+							wp_kses_post( $link )
+						);
+					?>
+				</p>
 				<?php else : ?>
 					<p>
 						<?php
@@ -127,7 +134,7 @@ defined( 'ABSPATH' ) || exit;
 				<p>
 				<?php
 					$anchor = esc_html__( 'read the detailed guide', 'smaily-connect' );
-					$domain = esc_url( __( 'https://smaily.com/help/user-manual/smaily-connect-for-wordpress/', 'smaily-connect' ) );
+					$domain = esc_url( __( 'https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#elementor', 'smaily-connect' ) );
 					$link   = sprintf( '<a href="%s" target="_blank">%s</a>', $domain, $anchor );
 					echo sprintf(
 						/* translators: 1: link to setting up block component guide */

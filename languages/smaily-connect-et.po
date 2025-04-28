@@ -7,8 +7,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-04-24T11:46:56+00:00\n"
-"PO-Revision-Date: 2025-04-24T11:46:56+00:00\n"
+"POT-Creation-Date: 2025-04-28T11:47:22+00:00\n"
+"PO-Revision-Date: 2025-04-28T11:47:22+00:00\n"
 "Language: et\n"
 "Plural-Forms: nplurals = 2; plural = (n !== 1)\n"
 "X-Generator: Tolgee\n"
@@ -349,10 +349,6 @@ msgstr "Lubatud"
 msgid "Enable Smaily for this form"
 msgstr "Aktiveeri Smaily selle vormi jaoks"
 
-#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:103
-msgid "Enable Smaily Opt-In under the form settings."
-msgstr "Aktiveeriga Smaily Opt-In vormi seadetes."
-
 #: admin/smaily-admin-settings.class.php:135
 msgid "Enable Subscriber Synchronization"
 msgstr "Aktiveeri Uudiskirjaga Liitujate Sünkroniseerimine"
@@ -444,7 +440,8 @@ msgstr "vorm"
 
 #. translators: 1: link to setting up block component guide
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:63
-#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:134
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:108
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:141
 msgid "For more configuration options %1$s."
 msgstr "Rohkemate seadistusvõimaluste jaoks %s."
 
@@ -520,11 +517,6 @@ msgstr "Kuidas lisada RSS-voogu oma kirjapõhja?"
 #: admin/smaily-admin-renderer.class.php:51
 msgid "How to create API credentials?"
 msgstr "Kuidas luua API ligipääsu?"
-
-#. Plugin URI of the plugin
-#: smaily-connect.php
-msgid "https://github.com/sendsmaily/smaily-wordpress-plugin"
-msgstr "https://github.com/sendsmaily/smaily-wordpress-plugin"
 
 #. Author URI of the plugin
 #: smaily-connect.php
@@ -697,6 +689,11 @@ msgstr "Telefon"
 msgid "Please authenticate Smaily credentials under Smaily Settings."
 msgstr "Palun kinnitage Smaily API kasutaja Smaily seadete alt."
 
+#: integrations/elementor/newsletter-widget.class.php:107
+#: integrations/elementor/newsletter-widget.class.php:238
+msgid "Please configure the Smaily Connect plugin settings first."
+msgstr "Palun seadistage esmalt Smaily Connect plugin."
+
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:117
 msgid "Please connect your Smaily account before adding a form!"
@@ -714,7 +711,7 @@ msgstr "Palun sisestage alamdomeen!"
 msgid "Please enter username!"
 msgstr "Palun sisestage kasutajanimi!"
 
-#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:109
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:116
 msgid "Please install the Contact Form 7 plugin to use this integration."
 msgstr "Selle integratsiooni kasutamiseks installige palun Contact Form 7 pistikmoodul."
 
@@ -772,7 +769,8 @@ msgid "Random"
 msgstr "Juhuslik"
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:58
-#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:129
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:103
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:136
 msgid "read the detailed guide"
 msgstr "lugege üksikasjalikku juhendit"
 
@@ -802,11 +800,6 @@ msgstr "Vali lisaväljad, mida soovite Smaily-sse saata."
 #: admin/smaily-admin-renderer.class.php:81
 msgid "Send Abandoned Cart reminder emails to store customers."
 msgstr "Saatke klientidele Hüljatud Ostukorvi meeldetuletusmeile."
-
-#. Author of the plugin
-#: smaily-connect.php
-msgid "Sendsmaily LLC"
-msgstr "Sendsmaily OÜ"
 
 #: admin/smaily-admin.class.php:346
 msgid "Settings"
@@ -844,6 +837,8 @@ msgstr "Saidi pealkiri"
 msgid "smaily"
 msgstr "smaily"
 
+#. Author of the plugin
+#: smaily-connect.php
 #: integrations/elementor/admin.class.php:27
 msgid "Smaily"
 msgstr "Smaily"
@@ -884,8 +879,8 @@ msgstr "Smaily integratsioon on sellel lehel aktiivne."
 
 #. Description of the plugin
 #: smaily-connect.php
-msgid "Smaily integration plugin that includes WooCommerce and Contact Form 7 integrations."
-msgstr "Smaily pistikmoodul, mis sisaldab WooCommerce'i ja Contact Form 7 integratsioone."
+msgid "Smaily integration plugin that includes WooCommerce, Elementor and Contact Form 7 integrations."
+msgstr "Smaily pistikmoodul, mis sisaldab WooCommerce'i, Elementor'i ja Contact Form 7 integratsioone."
 
 #: admin/smaily-admin-renderer.class.php:75
 msgid "Smaily integration with your WooCommerce store allows you to:"
@@ -1034,7 +1029,7 @@ msgstr "Kasutaja uudiskirja tellimus"
 msgid "Use the Contact Form 7 form builder and Smaily connector."
 msgstr "Kasutada Contact Form 7 vormi koostajat ja Smaily ühendust."
 
-#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:120
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:127
 msgid "Use the Smaily Opt-In Form Elementor widget."
 msgstr "Kasutage Smaily Liitumisvorm Elementor-i vidinat."
 
@@ -1084,7 +1079,7 @@ msgstr "Vidina saate oma veebisaidile lisada vidinate lehelt."
 msgid "You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account."
 msgstr "Võite kasutada ka Contact Form 7 vormi koostajat, et luua kohandatud vorme ja ühendada need oma Smaily kontoga."
 
-#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:124
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:131
 msgid "You can use the built-in Smaily Opt-In Form widget to generate and style a subscription form."
 msgstr "Saate kasutada sisseehitatud Smaily Liitumisvormi vidinat, et luua ja kujundada uudiskirjaga liitumise vorme."
 
@@ -1103,15 +1098,19 @@ msgstr "Saate vaadata näidisvormi %s."
 msgid "Smaily Connect"
 msgstr ""
 
+#. Plugin URI of the plugin
+#: smaily-connect.php
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:59
-#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:130
 msgid "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:107
-#: integrations/elementor/newsletter-widget.class.php:238
-msgid "Please configure the Smaily Connect plugin settings first."
-msgstr "Palun seadistage esmalt Smaily Connect plugin."
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:104
+msgid "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#cf7"
+msgstr ""
+
+#: admin/partials/smaily-admin-tutorial-subscriber-collection.php:137
+msgid "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#elementor"
+msgstr ""
 
 #: blocks/checkout-optin/build/block.json
 #: blocks/checkout-optin/src/block.json
