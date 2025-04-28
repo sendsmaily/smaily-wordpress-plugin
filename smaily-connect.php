@@ -6,6 +6,8 @@
  * Domain Path:       /languages
  * License URI:       https://www.gnu.org/licenses/gpl-3.0.en.html
  * License:           GPL-3.0+
+ * Requires at least: 6.0
+ * Requires PHP:      7.0
  * Plugin Name:       Smaily Connect
  * Plugin URI:        https://github.com/sendsmaily/smaily-wordpress-plugin
  * Text Domain:       smaily-connect
