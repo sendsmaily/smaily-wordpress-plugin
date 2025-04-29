@@ -134,11 +134,11 @@ class Blocks {
 	 * @return void
 	 */
 	public function register_landingpage_block() {
-		register_block_type( SMAILY_WP_CONNECT_PLUGIN_PATH . '/blocks/landingpage/build' );
+		register_block_type( SMAILY_CONNECT_PLUGIN_PATH . '/blocks/landingpage/build' );
 		wp_set_script_translations(
 			'smaily-landingpage-editor-script',
 			'smaily',
-			SMAILY_WP_CONNECT_PLUGIN_PATH . 'languages'
+			SMAILY_CONNECT_PLUGIN_PATH . 'languages'
 		);
 	}
 }
