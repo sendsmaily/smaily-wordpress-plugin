@@ -3,9 +3,9 @@
 	"apiVersion": 2,
 	"name": "smaily/landingpage-block",
 	"version": "1.0.0",
-	"title": "Smaily Landingpage",
+	"title": "Smaily Landing Page",
 	"category": "widgets",
-	"description": "Smaily landingpage ",
+	"description": "Smaily landing page",
 	"example": {},
 	"keywords": ["smaily", "landingpage", "newsletter", "subscription"],
 	"attributes": {

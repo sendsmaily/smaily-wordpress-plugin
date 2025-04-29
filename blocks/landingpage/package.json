@@ -1,7 +1,7 @@
 {
 	"name": "smaily-landingpage-block",
 	"version": "1.0.0",
-	"description": "Smaily landingpage block",
+	"description": "Smaily landing page block",
 	"author": "Smaily",
 	"license": "GPL-2.0-or-later",
 	"main": "build/index.js",
