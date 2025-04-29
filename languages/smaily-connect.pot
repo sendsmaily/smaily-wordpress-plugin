@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-04-28T11:47:18+00:00\n"
+"POT-Creation-Date: 2025-04-29T07:28:43+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -64,7 +64,7 @@ msgid "You can use the following methods to collect subscribers:"
 msgstr ""
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:16
-msgid "Use the Smaily subscription form block."
+msgid "Use the Smaily subscription form block or landing page form block."
 msgstr ""
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:20
@@ -1125,6 +1125,56 @@ msgctxt "block description"
 msgid "Adds a newsletter subscription checkbox to the checkout."
 msgstr ""
 
+#: blocks/landingpage/build/block.json
+msgctxt "block title"
+msgid "Smaily Landingpage"
+msgstr ""
+
+#: blocks/landingpage/build/block.json
+msgctxt "block description"
+msgid "Smaily landingpage "
+msgstr ""
+
+#: blocks/landingpage/build/block.json
+#: blocks/landingpage/src/block.json
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "smaily"
+msgstr ""
+
+#: blocks/landingpage/build/block.json
+#: blocks/landingpage/src/block.json
+msgctxt "block keyword"
+msgid "landingpage"
+msgstr ""
+
+#: blocks/landingpage/build/block.json
+#: blocks/landingpage/src/block.json
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "newsletter"
+msgstr ""
+
+#: blocks/landingpage/build/block.json
+#: blocks/landingpage/src/block.json
+#: blocks/newsletter-signup/build/block.json
+#: blocks/newsletter-signup/src/block.json
+msgctxt "block keyword"
+msgid "subscription"
+msgstr ""
+
+#: blocks/landingpage/src/block.json
+msgctxt "block title"
+msgid "Smaily Landing Page"
+msgstr ""
+
+#: blocks/landingpage/src/block.json
+msgctxt "block description"
+msgid "Smaily landing page"
+msgstr ""
+
 #: blocks/newsletter-signup/build/block.json
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block title"
@@ -1135,24 +1185,6 @@ msgstr ""
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block description"
 msgid "Smaily newsletter subscription form"
-msgstr ""
-
-#: blocks/newsletter-signup/build/block.json
-#: blocks/newsletter-signup/src/block.json
-msgctxt "block keyword"
-msgid "smaily"
-msgstr ""
-
-#: blocks/newsletter-signup/build/block.json
-#: blocks/newsletter-signup/src/block.json
-msgctxt "block keyword"
-msgid "newsletter"
-msgstr ""
-
-#: blocks/newsletter-signup/build/block.json
-#: blocks/newsletter-signup/src/block.json
-msgctxt "block keyword"
-msgid "subscription"
 msgstr ""
 
 #: blocks/newsletter-signup/build/block.json
