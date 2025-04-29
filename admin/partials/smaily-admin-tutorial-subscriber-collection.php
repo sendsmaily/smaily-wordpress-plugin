@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 			<?php if ( wp_is_block_theme() ) : ?>
 			<li>
 				<h3>
-					<?php esc_html_e( 'Use the Smaily subscription form block.', 'smaily-connect' ); ?>
+					<?php esc_html_e( 'Use the Smaily subscription form block or landing page form block.', 'smaily-connect' ); ?>
 				</h3>
 				<p>
 					<?php
