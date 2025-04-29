@@ -10,7 +10,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 	const [error, setError] = useState('');
 
 	const blockProps = useBlockProps({
-		className: 'smaily-wp-connect-landingpage-block-edit-wrapper',
+		className: 'smaily-connect-landingpage-block-edit-wrapper',
 		style: {
 			height: attributes.height,
 			width: attributes.width,
@@ -98,7 +98,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						placeholder={__('Landing page URL', 'smaily')}
 					/>
 					{error !== '' && (
-						<p className="smaily-wp-connect-landingpage-block-error">
+						<p className="smaily-connect-landingpage-block-error">
 							<em>{__('Invalid landing page URL!', 'smaily')}</em>
 						</p>
 					)}
@@ -134,7 +134,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 
 export const Save = ({ attributes }) => {
 	const blockProps = useBlockProps.save({
-		className: 'smaily-wp-connect-landingpage-block-front-wrapper',
+		className: 'smaily-connect-landingpage-block-front-wrapper',
 		style: {
 			height: attributes.height,
 			width: attributes.width,
@@ -148,7 +148,7 @@ export const Save = ({ attributes }) => {
 	return (
 		<div {...blockProps}>
 			<iframe
-				className="smaily-wp-connect-landingpage-block-front"
+				className="smaily-connect-landingpage-block-front"
 				src={attributes.url}
 				title={__('Smaily Landing Page', 'smaily')}
 				loading="lazy"
@@ -160,7 +160,7 @@ export const Save = ({ attributes }) => {
 
 const SetupSection = () => {
 	return (
-		<div className="smaily-wp-connect-landingpage-block-edit-setup">
+		<div className="smaily-connect-landingpage-block-edit-setup">
 			<h3>{__('Smaily WP Connect Landing Page', 'smaily')}</h3>
 			<p>
 				{__(
@@ -188,9 +188,9 @@ const SetupSection = () => {
 
 const ErrorSection = (props) => {
 	return (
-		<div className="smaily-wp-connect-landingpage-block-edit-error">
+		<div className="smaily-connect-landingpage-block-edit-error">
 			<h3>{__('Invalid Landing Page URL!', 'smaily')}</h3>
-			<p className="smaily-wp-connect-landingpage-block-error">
+			<p className="smaily-connect-landingpage-block-error">
 				{props.message}
 			</p>
 		</div>
