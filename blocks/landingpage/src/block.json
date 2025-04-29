@@ -33,8 +33,7 @@
 	"supports": {
 		"html": false
 	},
-	"textdomain": "smaily",
+	"textdomain": "smaily-connect",
 	"editorScript": "file:./index.js",
-	"style": "file:./index.css",
-	"viewScript": "file:./view.js"
+	"style": "file:./index.css"
 }
