@@ -3,9 +3,10 @@ import { __ } from '@wordpress/i18n';
 /**
  * Generates the landing page URL based on the subdomain and PK.
  *
- * @param  {string} subdomain Subdomain of the Smaily account.
- * @param  {string} pk        PK of the landing page.
- * @return {string}           Landing page URL.
+ * @param {string} subdomain Subdomain of the Smaily account.
+ * @param {string} pk        PK of the landing page.
+ *
+ * @return {string} The generated landing page URL.
  */
 export const generateLandingPageURL = (subdomain, pk) => {
 	if (!pk) {
@@ -34,8 +35,9 @@ export const generateLandingPageURL = (subdomain, pk) => {
 /**
  * Validates the landing page URL and extracts the PK.
  *
- * @param  {string} url                           URL to validate
- * @param  {string} subdomain                     Subdomain of the Smaily account.
+ * @param {string} url       URL to validate
+ * @param {string} subdomain Subdomain of the Smaily account.
+ *
  * @return {LandingPageURL|InvalidLandingPageURL} Object containing the validation result and the PK.
  */
 export const validateLandingPageURL = (url, subdomain) => {

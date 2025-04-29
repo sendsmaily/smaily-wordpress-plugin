@@ -39,7 +39,10 @@ export const Edit = ({ attributes, setAttributes }) => {
 			return;
 		}
 
-		const { valid, pk, message } = validateLandingPageURL(value, attributes.subdomain);
+		const { valid, pk, message } = validateLandingPageURL(
+			value,
+			attributes.subdomain
+		);
 		if (!valid) {
 			setAttributes({ landingpagePK: '' });
 			setError(message);
