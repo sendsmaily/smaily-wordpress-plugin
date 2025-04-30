@@ -1,14 +1,11 @@
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
-import { useState, useEffect } from '@wordpress/element';
-import { isURL } from '@wordpress/url';
+import { useEffect } from '@wordpress/element';
 import { validateLandingPageURL, generateLandingPageURL } from './urlParser';
 import { PanelBody, TextControl, Notice, Tip } from '@wordpress/components';
 
 export const Edit = ({ attributes, setAttributes }) => {
-	const [error, setError] = useState('');
-
 	const blockProps = useBlockProps({
 		className: 'smaily-connect-landingpage-block-edit-wrapper',
 		style: {
@@ -35,7 +32,6 @@ export const Edit = ({ attributes, setAttributes }) => {
 				height: 450,
 				width: 500,
 			});
-			setError('');
 			return;
 		}
 
@@ -45,9 +41,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 		);
 		if (!valid) {
 			setAttributes({ landingpagePK: '' });
-			setError(__('Please check the entered URL, it is invalid!', 'smaily-connect'));
 		} else {
-			setError('');
 			setAttributes({
 				landingpagePK: pk,
 			});
@@ -71,14 +65,14 @@ export const Edit = ({ attributes, setAttributes }) => {
 	const userHasEnteredValidURL =
 		attributes.url !== '' && attributes.landingpagePK !== '';
 
-	const hasError = error !== '';
-
 	return (
 		<>
 			<div {...blockProps}>
-				{!hasError && !isURL(attributes.url) && <SetupSection />}
-				{hasError && <ErrorSection message={error} />}
-				{userHasEnteredValidURL && !hasError && (
+				{attributes.url === '' && <SetupSection />}
+				{attributes.url !== '' && !userHasEnteredValidURL && (
+					<ErrorSection />
+				)}
+				{userHasEnteredValidURL && (
 					<iframe
 						loading="lazy"
 						referrerPolicy="no-referrer"
@@ -97,7 +91,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						label={__('URL', 'smaily-connect')}
 						onChange={handleChangeURL}
 						help={
-							error === ''
+							attributes.url === ''
 								? __(
 										'Enter the URL of the landing page you want to display.',
 										'smaily-connect'
@@ -106,7 +100,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						}
 						placeholder={__('Landing page URL', 'smaily-connect')}
 					/>
-					{error !== '' && (
+					{attributes.url !== '' && !userHasEnteredValidURL && (
 						<p className="smaily-connect-landingpage-block-error">
 							<em>
 								{__(
@@ -217,12 +211,12 @@ const SetupSection = () => {
 	);
 };
 
-const ErrorSection = (props) => {
+const ErrorSection = () => {
 	return (
 		<div className="smaily-connect-landingpage-block-edit-error">
 			<h3>{__('Invalid Landing Page URL!', 'smaily-connect')}</h3>
 			<p className="smaily-connect-landingpage-block-error">
-				{props.message}
+				{__('Please check the entered URL. It is invalid!', 'smaily-connect')}
 			</p>
 		</div>
 	);
