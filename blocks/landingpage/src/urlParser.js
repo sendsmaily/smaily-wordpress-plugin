@@ -17,19 +17,11 @@ export const generateLandingPageURL = (subdomain, pk) => {
 };
 
 /**
- * Valid Landing Page URL object.
+ * Landing Page URL object.
  *
  * @typedef  {Object}  LandingPageURL
  * @property {boolean} valid Whether the URL is valid or not.
  * @property {string}  pk    The PK of the landing page.
- */
-
-/**
- * Invalid Landing Page URL object.
- *
- * @typedef  {Object}  InvalidLandingPageURL
- * @property {boolean} valid   Whether the URL is valid or not.
- * @property {string}  message The error message.
  */
 
 /**
@@ -38,11 +30,11 @@ export const generateLandingPageURL = (subdomain, pk) => {
  * @param {string} url       URL to validate
  * @param {string} subdomain Subdomain of the Smaily account.
  *
- * @return {LandingPageURL|InvalidLandingPageURL} Object containing the validation result and the PK.
+ * @return {LandingPageURL} Object containing the validation result and the PK.
  */
 export const validateLandingPageURL = (url, subdomain) => {
 	if (typeof url !== 'string' || !url.trim()) {
-		return { valid: false, message: __('URL is empty.', 'smaily-connect') };
+		return { valid: false, pk: '' };
 	}
 
 	try {
@@ -51,37 +43,28 @@ export const validateLandingPageURL = (url, subdomain) => {
 		if (urlObj.protocol !== 'https:') {
 			return {
 				valid: false,
-				message: __('URL must use HTTPS protocol.', 'smaily-connect'),
+				pk: '',
 			};
 		}
 
 		if (!urlObj.hostname.endsWith('sendsmaily.net')) {
 			return {
 				valid: false,
-				message: __(
-					'URL must originate from sendsmaily.net domain.',
-					'smaily-connect'
-				),
+				pk: '',
 			};
 		}
 
 		if (urlObj.hostname !== `${subdomain}.sendsmaily.net`) {
 			return {
 				valid: false,
-				message: __(
-					"Landing page doesn't originate from your account.",
-					'smaily-connect'
-				),
+				pk: '',
 			};
 		}
 
 		if (urlObj.pathname.includes('/landing-pages/') === false) {
 			return {
 				valid: false,
-				message: __(
-					'URL must contain a landing page path.',
-					'smaily-connect'
-				),
+				pk: '',
 			};
 		}
 
@@ -89,10 +72,7 @@ export const validateLandingPageURL = (url, subdomain) => {
 		if (!pk) {
 			return {
 				valid: false,
-				message: __(
-					'URL must contain a valid landing page PK.',
-					'smaily-connect'
-				),
+				pk: '',
 			};
 		}
 
@@ -100,7 +80,7 @@ export const validateLandingPageURL = (url, subdomain) => {
 	} catch (error) {
 		return {
 			valid: false,
-			message: __('Please enter a valid URL.', 'smaily-connect'),
+			pk: '',
 		};
 	}
 };

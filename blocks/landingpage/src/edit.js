@@ -39,13 +39,13 @@ export const Edit = ({ attributes, setAttributes }) => {
 			return;
 		}
 
-		const { valid, pk, message } = validateLandingPageURL(
+		const { valid, pk } = validateLandingPageURL(
 			value,
 			attributes.subdomain
 		);
 		if (!valid) {
 			setAttributes({ landingpagePK: '' });
-			setError(message);
+			setError(__('Please check the entered URL, it is invalid!', 'smaily-connect'));
 		} else {
 			setError('');
 			setAttributes({
@@ -71,12 +71,14 @@ export const Edit = ({ attributes, setAttributes }) => {
 	const userHasEnteredValidURL =
 		attributes.url !== '' && attributes.landingpagePK !== '';
 
+	const hasError = error !== '';
+
 	return (
 		<>
 			<div {...blockProps}>
-				{error === '' && !isURL(attributes.url) && <SetupSection />}
-				{error !== '' && <ErrorSection message={error} />}
-				{userHasEnteredValidURL && !error && (
+				{!hasError && !isURL(attributes.url) && <SetupSection />}
+				{hasError && <ErrorSection message={error} />}
+				{userHasEnteredValidURL && !hasError && (
 					<iframe
 						loading="lazy"
 						referrerPolicy="no-referrer"
@@ -175,7 +177,10 @@ export const Save = ({ attributes }) => {
 		<div {...blockProps}>
 			<iframe
 				className="smaily-connect-landingpage-block-front"
-				src={attributes.url}
+				src={generateLandingPageURL(
+					attributes.subdomain,
+					attributes.landingpagePK
+				)}
 				title={__('Smaily Landing Page', 'smaily-connect')}
 				loading="lazy"
 				referrerPolicy="no-referrer"
@@ -187,24 +192,24 @@ export const Save = ({ attributes }) => {
 const SetupSection = () => {
 	return (
 		<div className="smaily-connect-landingpage-block-edit-setup">
-			<h3>{__('Smaily Connect Landing Page', 'smaily')}</h3>
+			<h3>{__('Smaily Connect Landing Page', 'smaily-connect')}</h3>
 			<p>
 				{__(
 					'Copy the URL of the landing page you want to display in this block and paste it in the Block settings.',
-					'smaily'
+					'smaily-connect'
 				)}
 			</p>
 			<p>
 				{__(
 					'If you need any help setting up the landing page, follow our awesome guide:',
-					'smaily'
+					'smaily-connect'
 				)}{' '}
 				<a
 					href="https://smaily.com/help/user-manual/landing-pages/creating-landing-pages/"
 					target="_blank"
 					rel="noreferrer"
 				>
-					{__('creating a landing page', 'smaily')}
+					{__('creating a landing page', 'smaily-connect')}
 				</a>
 				.
 			</p>
@@ -215,7 +220,7 @@ const SetupSection = () => {
 const ErrorSection = (props) => {
 	return (
 		<div className="smaily-connect-landingpage-block-edit-error">
-			<h3>{__('Invalid Landing Page URL!', 'smaily')}</h3>
+			<h3>{__('Invalid Landing Page URL!', 'smaily-connect')}</h3>
 			<p className="smaily-connect-landingpage-block-error">
 				{props.message}
 			</p>
