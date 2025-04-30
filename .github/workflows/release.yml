@@ -27,6 +27,9 @@ jobs:
     - name: Build newsletter-signup block
       run: npm install --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/newsletter-signup/ && npm run build --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/newsletter-signup/
 
+    - name: Build landing page block
+      run: npm install --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/landingpage/ && npm run build --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/landingpage/
+
     - name: Add composer mount directory to GIT safe directory
       run: git config --global --add safe.directory /app/${{ env.WP_PLUGIN_NAME }}
 
