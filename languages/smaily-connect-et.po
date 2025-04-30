@@ -7,8 +7,8 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-04-29T07:28:46+00:00\n"
-"PO-Revision-Date: 2025-04-29T07:28:46+00:00\n"
+"POT-Creation-Date: 2025-04-30T09:05:47+00:00\n"
+"PO-Revision-Date: 2025-04-30T09:05:47+00:00\n"
 "Language: et\n"
 "Plural-Forms: nplurals = 2; plural = (n !== 1)\n"
 "X-Generator: Tolgee\n"
@@ -216,6 +216,11 @@ msgstr "Konteiner"
 msgid "Copy"
 msgstr "Kopeeri"
 
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:189
+msgid "Copy the URL of the landing page you want to display in this block and paste it in the Block settings."
+msgstr "Kopeerige selle maandumislehe URL, mida soovite selles plokis kuvada, ja kleepige see ploki seadistustesse."
+
 #: admin/smaily-admin-renderer.class.php:269
 msgid "Copy this URL into your template editor's RSS block, to receive RSS-feed."
 msgstr "Kopeerige see URL oma kirjapõhja redaktori RSS-blokki, et saada lisada tooteid uudiskirja."
@@ -227,6 +232,11 @@ msgstr "Maksimaalse paindlikkuse ja täiustatud funktsionaalsuse saavutamiseks l
 #: admin/smaily-admin-settings.class.php:427
 msgid "Created At"
 msgstr "Loodud"
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:204
+msgid "creating a landing page"
+msgstr "maandumislehe loomine"
 
 #: admin/smaily-admin-settings.class.php:69
 msgid "Credentials"
@@ -383,6 +393,11 @@ msgstr "Sisestage õnnestumise teade"
 msgid "Enter success URL"
 msgstr "Sisestage õnnestumise URL"
 
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:93
+msgid "Enter the URL of the landing page you want to display."
+msgstr "Sisestage maandumislehe URL mida soovite kuvada."
+
 #: integrations/elementor/newsletter-widget.class.php:352
 #: integrations/elementor/newsletter-widget.class.php:361
 #: integrations/elementor/newsletter-widget.class.php:362
@@ -488,7 +503,7 @@ msgstr "Süvistatud"
 #: integrations/elementor/newsletter-widget.class.php:727
 #: integrations/elementor/newsletter-widget.class.php:984
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:133
+#: blocks/landingpage/src/edit.js:127
 msgid "Height"
 msgstr "Kõrgus"
 
@@ -549,6 +564,11 @@ msgstr "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#elemen
 msgid "ID"
 msgstr "ID"
 
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:195
+msgid "If you need any help setting up the landing page, follow our awesome guide:"
+msgstr "Kui vajate abi maandumislehe loomisel, järgige meie vingeid juhiseid:"
+
 #: integrations/woocommerce/cron.class.php:65
 msgid "In every 15 minutes"
 msgstr "Iga 15 minuti järel"
@@ -569,9 +589,29 @@ msgstr "Sisestusväljad"
 msgid "Invalid data submitted."
 msgstr "Sisestatud andmed on vigased."
 
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:104
+msgid "Invalid landing page URL!"
+msgstr "Vigane maandumislehe URL!"
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:215
+msgid "Invalid Landing Page URL!"
+msgstr "Vigane maandumislehe URL!"
+
 #: integrations/elementor/newsletter-widget.class.php:630
 msgid "Labels"
 msgstr "Sildid"
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/index.js:41
+msgid "landing page"
+msgstr "maandumisleht"
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:99
+msgid "Landing page URL"
+msgstr "Maandumislehe URL"
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:19
 #: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:19
@@ -624,6 +664,11 @@ msgstr "Nimi Silt"
 #: integrations/elementor/newsletter-widget.class.php:394
 msgid "Name Placeholder"
 msgstr "Nime Kohatäitja"
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:118
+msgid "Need a custom thank you page?"
+msgstr "Soovite kujundada tänulehte?"
 
 #: integrations/elementor/newsletter-widget.class.php:75
 #: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
@@ -708,6 +753,16 @@ msgstr "Telefon"
 #: integrations/cf7/partials/smaily-cf7-admin.php:22
 msgid "Please authenticate Smaily credentials under Smaily Settings."
 msgstr "Palun kinnitage Smaily API kasutaja Smaily seadete alt."
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:217
+msgid "Please check the entered URL. It is invalid!"
+msgstr "Palun kontrollige sisestatud URL-i. See on vigane!"
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:59
+msgid "Please configure the plugin first."
+msgstr "Palun seadistage esmalt pistikmoodul."
 
 #: integrations/elementor/newsletter-widget.class.php:107
 #: integrations/elementor/newsletter-widget.class.php:238
@@ -823,7 +878,7 @@ msgstr "Saatke klientidele Hüljatud Ostukorvi meeldetuletusmeile."
 
 #: admin/smaily-admin.class.php:346
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:92
+#: blocks/landingpage/src/edit.js:86
 msgid "Settings"
 msgstr "Seaded"
 
@@ -885,6 +940,11 @@ msgstr "Smaily Classic Uudiskirja Vidin"
 msgid "Smaily Connect"
 msgstr "Smaily Connect"
 
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:187
+msgid "Smaily Connect Landing Page"
+msgstr "Smaily Connect Maandumisleht"
+
 #: public/partials/smaily-public-basic.php:47
 msgid "Smaily credentials not validated. Subscription form will not work!"
 msgstr "Puudub Smaily API ühendus. Liitumisvorm ei tööta!"
@@ -913,6 +973,13 @@ msgstr "Smaily pistikmoodul, mis sisaldab WooCommerce'i, Elementor'i ja Contact 
 #: admin/smaily-admin-renderer.class.php:75
 msgid "Smaily integration with your WooCommerce store allows you to:"
 msgstr "Smaily integratsioon sinu WooCommerce'i poega võimaldab:"
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:77
+#: blocks/landingpage/src/edit.js:176
+#: blocks/landingpage/src/index.js:32
+msgid "Smaily Landing Page"
+msgstr "Smaily Maandumisleht"
 
 #: integrations/elementor/newsletter-widget.class.php:44
 #: blocks/newsletter-signup/build/index.js:1
@@ -1049,6 +1116,11 @@ msgstr "Ülemine vahe"
 msgid "Type"
 msgstr "Tüüp"
 
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:89
+msgid "URL"
+msgstr "URL"
+
 #: blocks/checkout-optin/smaily-extend-store-endpoint.class.php:56
 msgid "User newsletter subscription"
 msgstr "Kasutaja uudiskirja tellimus"
@@ -1085,6 +1157,11 @@ msgstr "Nähtavad väljad"
 #: integrations/elementor/newsletter-widget.class.php:341
 msgid "Visible Fields"
 msgstr "Nähtavad väljad"
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:139
+msgid "Width"
+msgstr "Laius"
 
 #: admin/smaily-admin-settings.class.php:91
 msgid "WooCommerce Integration"
@@ -1134,6 +1211,18 @@ msgstr ""
 
 #: blocks/landingpage/build/block.json
 #: blocks/landingpage/src/block.json
+msgctxt "block title"
+msgid "Smaily Landing Page"
+msgstr ""
+
+#: blocks/landingpage/build/block.json
+#: blocks/landingpage/src/block.json
+msgctxt "block description"
+msgid "Smaily landing page"
+msgstr ""
+
+#: blocks/landingpage/build/block.json
+#: blocks/landingpage/src/block.json
 #: blocks/newsletter-signup/build/block.json
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
@@ -1162,18 +1251,6 @@ msgctxt "block keyword"
 msgid "subscription"
 msgstr ""
 
-#: blocks/landingpage/build/block.json
-#: blocks/landingpage/src/block.json
-msgctxt "block title"
-msgid "Smaily Landing Page"
-msgstr ""
-
-#: blocks/landingpage/build/block.json
-#: blocks/landingpage/src/block.json
-msgctxt "block description"
-msgid "Smaily landing page"
-msgstr ""
-
 #: blocks/newsletter-signup/build/block.json
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block title"
@@ -1190,86 +1267,4 @@ msgstr ""
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
 msgid "form"
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:65
-msgid "Please configure the plugin first."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:83
-#: blocks/landingpage/src/edit.js:179
-#: blocks/landingpage/src/index.js:32
-msgid "Smaily Landing Page"
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:95
-msgid "URL"
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/urlParser.js:45
-msgid "URL is empty."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/urlParser.js:54
-msgid "URL must use HTTPS protocol."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/urlParser.js:61
-msgid "URL must originate from sendsmaily.net domain."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/urlParser.js:71
-msgid "Landing page doesn't originate from your account."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/urlParser.js:81
-msgid "URL must contain a landing page path."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/urlParser.js:92
-msgid "URL must contain a valid landing page PK."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/urlParser.js:103
-msgid "Please enter a valid URL."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:99
-msgid "Enter the URL of the landing page you want to display."
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:105
-msgid "Landing page URL"
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:110
-msgid "Invalid landing page URL!"
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:124
-msgid "Need a custom thank you page?"
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:145
-msgid "Width"
-msgstr ""
-
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/index.js:41
-msgid "landing page"
 msgstr ""

@@ -136,8 +136,8 @@ class Blocks {
 	public function register_landingpage_block() {
 		register_block_type( SMAILY_CONNECT_PLUGIN_PATH . '/blocks/landingpage/build' );
 		wp_set_script_translations(
-			'smaily-landingpage-editor-script',
-			'smaily',
+			'smaily-landingpage-block-editor-script',
+			'smaily-connect',
 			SMAILY_CONNECT_PLUGIN_PATH . 'languages'
 		);
 	}
