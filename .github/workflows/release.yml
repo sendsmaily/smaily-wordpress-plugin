@@ -62,30 +62,32 @@ jobs:
         filename: build.zip
         path: ${{ env.WP_PLUGIN_NAME }}
         exclusions: >
+          /${{ env.WP_PLUGIN_NAME }}/.env*
           /${{ env.WP_PLUGIN_NAME }}/.git*
           /${{ env.WP_PLUGIN_NAME }}/.vscode*
+          /${{ env.WP_PLUGIN_NAME }}/.zipignore
+          /${{ env.WP_PLUGIN_NAME }}/*.sh
+          /${{ env.WP_PLUGIN_NAME }}/*.zip
           /${{ env.WP_PLUGIN_NAME }}/assets*
-          /${{ env.WP_PLUGIN_NAME }}/blocks/readme.md
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/node_modules*
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/src*
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/__tests__*
           /${{ env.WP_PLUGIN_NAME }}/blocks/*/.gitignore
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/*.json
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/*.js
-          /${{ env.WP_PLUGIN_NAME }}/vendor*
-          /${{ env.WP_PLUGIN_NAME }}/languages/*.pot
-          /${{ env.WP_PLUGIN_NAME }}/languages/*.po
-          /${{ env.WP_PLUGIN_NAME }}/languages/.gitignore
-          /${{ env.WP_PLUGIN_NAME }}/.env*
-          /${{ env.WP_PLUGIN_NAME }}/.gitignore
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/node_modules*
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/package-lock.json
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/package.json
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/src*
+          /${{ env.WP_PLUGIN_NAME }}/blocks/*/webpack.config.js
+          /${{ env.WP_PLUGIN_NAME }}/blocks/readme.md
+          /${{ env.WP_PLUGIN_NAME }}/compose.min.yaml
           /${{ env.WP_PLUGIN_NAME }}/compose.yaml
           /${{ env.WP_PLUGIN_NAME }}/composer.*
           /${{ env.WP_PLUGIN_NAME }}/contributing.md
           /${{ env.WP_PLUGIN_NAME }}/Dockerfile
+          /${{ env.WP_PLUGIN_NAME }}/languages/.gitignore
+          /${{ env.WP_PLUGIN_NAME }}/languages/*.po
+          /${{ env.WP_PLUGIN_NAME }}/languages/*.pot
           /${{ env.WP_PLUGIN_NAME }}/phpcs.xml
           /${{ env.WP_PLUGIN_NAME }}/readme.md
-          /${{ env.WP_PLUGIN_NAME }}/*.sh
-          /${{ env.WP_PLUGIN_NAME }}/.zipignore
-          /${{ env.WP_PLUGIN_NAME }}/*.zip
+          /${{ env.WP_PLUGIN_NAME }}/vendor*
 
     - name: Get release URL
       id: get_release_url
