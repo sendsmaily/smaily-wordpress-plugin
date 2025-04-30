@@ -29,15 +29,15 @@ registerBlockType(metadata.name, {
 	save: Save,
 	icon: smailyIcon,
 	category: 'widgets',
-	title: __('Smaily Landing Page', 'smaily'),
+	title: __('Smaily Landing Page', 'smaily-connect'),
 	description: __(
 		'Use Smaily Landing page for collecting subscribers.',
 		'smaily'
 	),
 	keywords: [
-		__('email', 'smaily'),
-		__('newsletter', 'smaily'),
+		__('email', 'smaily-connect'),
+		__('newsletter', 'smaily-connect'),
 		'smaily',
-		__('landing page', 'smaily'),
+		__('landing page', 'smaily-connect'),
 	],
 });

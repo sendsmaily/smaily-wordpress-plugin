@@ -4,7 +4,7 @@ import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
 import { useState, useEffect } from '@wordpress/element';
 import { isURL } from '@wordpress/url';
 import { validateLandingPageURL, generateLandingPageURL } from './urlParser';
-import { PanelBody, TextControl, Notice } from '@wordpress/components';
+import { PanelBody, TextControl, Notice, Tip } from '@wordpress/components';
 
 export const Edit = ({ attributes, setAttributes }) => {
 	const [error, setError] = useState('');
@@ -62,7 +62,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 		return (
 			<div {...blockProps}>
 				<Notice status="info" isDismissible={false}>
-					{__('Please configure the plugin first.', 'smaily')}
+					{__('Please configure the plugin first.', 'smaily-connect')}
 				</Notice>
 			</div>
 		);
@@ -80,7 +80,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 					<iframe
 						loading="lazy"
 						referrerPolicy="no-referrer"
-						title={__('Smaily Landing Page', 'smaily')}
+						title={__('Smaily Landing Page', 'smaily-connect')}
 						src={generateLandingPageURL(
 							attributes.subdomain,
 							attributes.landingpagePK
@@ -89,25 +89,48 @@ export const Edit = ({ attributes, setAttributes }) => {
 				)}
 			</div>
 			<InspectorControls>
-				<PanelBody title={__('Settings', 'smaily')}>
+				<PanelBody title={__('Settings', 'smaily-connect')}>
 					<TextControl
 						value={attributes.url}
-						label={__('URL', 'smaily')}
+						label={__('URL', 'smaily-connect')}
 						onChange={handleChangeURL}
-						help={__(
-							'Enter the URL of the landing page you want to display.',
-							'smaily'
-						)}
-						placeholder={__('Landing page URL', 'smaily')}
+						help={
+							error === ''
+								? __(
+										'Enter the URL of the landing page you want to display.',
+										'smaily-connect'
+									)
+								: undefined
+						}
+						placeholder={__('Landing page URL', 'smaily-connect')}
 					/>
 					{error !== '' && (
 						<p className="smaily-connect-landingpage-block-error">
-							<em>{__('Invalid landing page URL!', 'smaily')}</em>
+							<em>
+								{__(
+									'Invalid landing page URL!',
+									'smaily-connect'
+								)}
+							</em>
 						</p>
 					)}
+					<div className="components-base-control">
+						<Tip>
+							<a
+								target="_blank"
+								rel="noreferrer"
+								href="https://smaily.com/help/user-manual/landing-pages/adding-a-success-page-to-a-form/"
+							>
+								{__(
+									'Need a custom thank you page?',
+									'smaily-connect'
+								)}
+							</a>
+						</Tip>
+					</div>
 					<TextControl
 						className="components-base-control"
-						label={__('Height', 'smaily')}
+						label={__('Height', 'smaily-connect')}
 						type="number"
 						value={attributes.height}
 						onChange={(value) => {
@@ -119,7 +142,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 					/>
 					<TextControl
 						className="components-base-control"
-						label={__('Width', 'smaily')}
+						label={__('Width', 'smaily-connect')}
 						type="number"
 						value={attributes.width}
 						onChange={(value) => {
@@ -153,7 +176,7 @@ export const Save = ({ attributes }) => {
 			<iframe
 				className="smaily-connect-landingpage-block-front"
 				src={attributes.url}
-				title={__('Smaily Landing Page', 'smaily')}
+				title={__('Smaily Landing Page', 'smaily-connect')}
 				loading="lazy"
 				referrerPolicy="no-referrer"
 			/>
@@ -164,7 +187,7 @@ export const Save = ({ attributes }) => {
 const SetupSection = () => {
 	return (
 		<div className="smaily-connect-landingpage-block-edit-setup">
-			<h3>{__('Smaily WP Connect Landing Page', 'smaily')}</h3>
+			<h3>{__('Smaily Connect Landing Page', 'smaily')}</h3>
 			<p>
 				{__(
 					'Copy the URL of the landing page you want to display in this block and paste it in the Block settings.',
