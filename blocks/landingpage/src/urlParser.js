@@ -1,5 +1,3 @@
-import { __ } from '@wordpress/i18n';
-
 /**
  * Generates the landing page URL based on the subdomain and PK.
  *

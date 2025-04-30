@@ -63,16 +63,13 @@ export const Edit = ({ attributes, setAttributes }) => {
 	}
 
 	const isURLProvided = attributes.url && attributes.url.trim() !== '';
-	const isURLValid =
-		isURLProvided && attributes.landingpagePK !== '';
+	const isURLValid = isURLProvided && attributes.landingpagePK !== '';
 
 	return (
 		<>
 			<div {...blockProps}>
 				{!isURLProvided && <SetupSection />}
-				{isURLProvided && !isURLValid && (
-					<ErrorSection />
-				)}
+				{isURLProvided && !isURLValid && <ErrorSection />}
 				{isURLValid && (
 					<iframe
 						loading="lazy"
@@ -217,7 +214,10 @@ const ErrorSection = () => {
 		<div className="smaily-connect-landingpage-block-edit-error">
 			<h3>{__('Invalid Landing Page URL!', 'smaily-connect')}</h3>
 			<p className="smaily-connect-landingpage-block-error">
-				{__('Please check the entered URL. It is invalid!', 'smaily-connect')}
+				{__(
+					'Please check the entered URL. It is invalid!',
+					'smaily-connect'
+				)}
 			</p>
 		</div>
 	);

@@ -307,6 +307,8 @@ msgid "Double"
 msgstr "Kahekordne"
 
 #: integrations/elementor/newsletter-widget.class.php:76
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/index.js:38
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:35
 msgid "email"
@@ -485,6 +487,8 @@ msgstr "Süvistatud"
 
 #: integrations/elementor/newsletter-widget.class.php:727
 #: integrations/elementor/newsletter-widget.class.php:984
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:133
 msgid "Height"
 msgstr "Kõrgus"
 
@@ -624,6 +628,8 @@ msgstr "Nime Kohatäitja"
 #: integrations/elementor/newsletter-widget.class.php:75
 #: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
 #: blocks/checkout-optin/src/index.js:35
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/index.js:39
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:35
 msgid "newsletter"
@@ -816,6 +822,8 @@ msgid "Send Abandoned Cart reminder emails to store customers."
 msgstr "Saatke klientidele Hüljatud Ostukorvi meeldetuletusmeile."
 
 #: admin/smaily-admin.class.php:346
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:92
 msgid "Settings"
 msgstr "Seaded"
 
@@ -1125,16 +1133,6 @@ msgid "Adds a newsletter subscription checkbox to the checkout."
 msgstr ""
 
 #: blocks/landingpage/build/block.json
-msgctxt "block title"
-msgid "Smaily Landingpage"
-msgstr ""
-
-#: blocks/landingpage/build/block.json
-msgctxt "block description"
-msgid "Smaily landingpage "
-msgstr ""
-
-#: blocks/landingpage/build/block.json
 #: blocks/landingpage/src/block.json
 #: blocks/newsletter-signup/build/block.json
 #: blocks/newsletter-signup/src/block.json
@@ -1164,11 +1162,13 @@ msgctxt "block keyword"
 msgid "subscription"
 msgstr ""
 
+#: blocks/landingpage/build/block.json
 #: blocks/landingpage/src/block.json
 msgctxt "block title"
 msgid "Smaily Landing Page"
 msgstr ""
 
+#: blocks/landingpage/build/block.json
 #: blocks/landingpage/src/block.json
 msgctxt "block description"
 msgid "Smaily landing page"
@@ -1190,4 +1190,86 @@ msgstr ""
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
 msgid "form"
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:65
+msgid "Please configure the plugin first."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:83
+#: blocks/landingpage/src/edit.js:179
+#: blocks/landingpage/src/index.js:32
+msgid "Smaily Landing Page"
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:95
+msgid "URL"
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/urlParser.js:45
+msgid "URL is empty."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/urlParser.js:54
+msgid "URL must use HTTPS protocol."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/urlParser.js:61
+msgid "URL must originate from sendsmaily.net domain."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/urlParser.js:71
+msgid "Landing page doesn't originate from your account."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/urlParser.js:81
+msgid "URL must contain a landing page path."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/urlParser.js:92
+msgid "URL must contain a valid landing page PK."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/urlParser.js:103
+msgid "Please enter a valid URL."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:99
+msgid "Enter the URL of the landing page you want to display."
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:105
+msgid "Landing page URL"
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:110
+msgid "Invalid landing page URL!"
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:124
+msgid "Need a custom thank you page?"
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/edit.js:145
+msgid "Width"
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/index.js:41
+msgid "landing page"
 msgstr ""
