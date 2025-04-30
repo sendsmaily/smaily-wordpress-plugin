@@ -62,17 +62,18 @@ export const Edit = ({ attributes, setAttributes }) => {
 		);
 	}
 
-	const userHasEnteredValidURL =
-		attributes.url !== '' && attributes.landingpagePK !== '';
+	const isURLProvided = attributes.url && attributes.url.trim() !== '';
+	const isURLValid =
+		isURLProvided && attributes.landingpagePK !== '';
 
 	return (
 		<>
 			<div {...blockProps}>
-				{attributes.url === '' && <SetupSection />}
-				{attributes.url !== '' && !userHasEnteredValidURL && (
+				{!isURLProvided && <SetupSection />}
+				{isURLProvided && !isURLValid && (
 					<ErrorSection />
 				)}
-				{userHasEnteredValidURL && (
+				{isURLValid && (
 					<iframe
 						loading="lazy"
 						referrerPolicy="no-referrer"
@@ -91,7 +92,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						label={__('URL', 'smaily-connect')}
 						onChange={handleChangeURL}
 						help={
-							attributes.url === ''
+							!isURLProvided
 								? __(
 										'Enter the URL of the landing page you want to display.',
 										'smaily-connect'
@@ -100,7 +101,7 @@ export const Edit = ({ attributes, setAttributes }) => {
 						}
 						placeholder={__('Landing page URL', 'smaily-connect')}
 					/>
-					{attributes.url !== '' && !userHasEnteredValidURL && (
+					{isURLProvided && !isURLValid && (
 						<p className="smaily-connect-landingpage-block-error">
 							<em>
 								{__(
