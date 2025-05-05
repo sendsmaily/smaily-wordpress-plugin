@@ -141,6 +141,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.2.1
+
+- Fixed a bug where abandoned cart reminder emails were not sent due to a syntax error in the query statement building process.
+
 ## 1.2.0
 
 - Added a new block component for embedding Smaily Landing Pages.

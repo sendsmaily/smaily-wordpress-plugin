@@ -123,7 +123,7 @@ class Cart {
 		// Get row with user id.
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT * FROM `%1$s` WHERE customer_id=%d',
+				'SELECT * FROM `%1$s` WHERE customer_id = %2$d',
 				$wpdb->prefix . self::ABANDONED_CART_TABLE_NAME,
 				$customer_id
 			),

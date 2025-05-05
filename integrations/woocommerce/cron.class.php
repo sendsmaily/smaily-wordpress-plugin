@@ -263,7 +263,7 @@ class Cron {
 		global $wpdb;
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT * FROM `%1$s` WHERE cart_status=%s AND mail_sent IS NULL',
+				'SELECT * FROM `%1$s` WHERE cart_status = \'%2$s\' AND mail_sent IS NULL',
 				$wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME,
 				'abandoned'
 			),
@@ -293,7 +293,7 @@ class Cron {
 			// Select all carts before cutoff time.
 			$carts = $wpdb->get_results(
 				$wpdb->prepare(
-					'SELECT * FROM `%1$s` WHERE cart_status=%s AND mail_sent IS NULL AND cart_updated < %s',
+					'SELECT * FROM `%1$s` WHERE cart_status = \'%2$s\' AND mail_sent IS NULL AND cart_updated < \'%3$s\'',
 					$table,
 					'open',
 					$time
