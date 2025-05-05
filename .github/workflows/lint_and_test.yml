@@ -22,11 +22,15 @@ jobs:
           ${{ runner.os }}-composer-
           ${{ runner.os }}-
 
+    - name: Get Node cache directory
+      id: node-cache
+      run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+
     - name: Cache Node modules
       uses: actions/cache@v4
       with:
-        path: blocks/*/node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('blocks/*/package-lock.json') }}
+        path: ${{ steps.node-cache.outputs.dir }}
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
         restore-keys: |
           ${{ runner.os }}-node-
           ${{ runner.os }}-
