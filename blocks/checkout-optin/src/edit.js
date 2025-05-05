@@ -3,7 +3,9 @@ import { CheckboxControl } from '@woocommerce/blocks-checkout';
 import { getSetting } from '@woocommerce/settings';
 
 import './style.scss';
-const { optInDefaultText, smailyCheckoutOptinActive } = getSetting('smaily-checkout-optin_data');
+const { optInDefaultText, smailyCheckoutOptinActive } = getSetting(
+	'smaily-checkout-optin_data'
+);
 
 export const Edit = ( { attributes, setAttributes } ) => {
 	const { text } = attributes;
