@@ -8,6 +8,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+
+    # Composer cache
+    - name: Cache composer packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.composer/cache
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
+          ${{ runner.os }}-
+
+    # Node cache
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: blocks/*/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('blocks/*/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+          ${{ runner.os }}-
+
     - name: Set up PHP
       uses: shivammathur/setup-php@v2
       with:
@@ -17,7 +38,7 @@ jobs:
       with:
         node-version: 20
     - name: Install dependencies
-      run: composer install
+      run: composer install --no-interaction --prefer-dist
     - name: Install blocks dependencies
       run: composer run install-block-modules
     - name: Lint
