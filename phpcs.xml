@@ -5,7 +5,7 @@
     <!-- Exclude directories. -->
     <exclude-pattern>/vendor/*</exclude-pattern>
     <exclude-pattern>/blocks/*/build</exclude-pattern>
-    <exclude-pattern>/blocks/*/node_modules</exclude-pattern>
+    <exclude-pattern>/blocks/node_modules</exclude-pattern>
 
     <arg name="cache" />
     <arg name="parallel" value="8" />

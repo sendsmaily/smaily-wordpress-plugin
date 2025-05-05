@@ -11,16 +11,16 @@
 		"lint:js": "wp-scripts lint-js",
 		"packages-update": "wp-scripts packages-update",
 		"start": "wp-scripts start --webpack-copy-php",
-		"postinstall": "npm i --D \"prettier@npm:wp-prettier@latest\" && npm i --D eslint-plugin-prettier@latest"
+		"test:unit": "wp-scripts test-unit-js --passWithNoTests"
 	},
 	"devDependencies": {
 		"@woocommerce/dependency-extraction-webpack-plugin": "^3.1.0",
 		"@wordpress/block-editor": "^14.17.0",
 		"@wordpress/blocks": "^14.11.0",
 		"@wordpress/element": "^6.22.0",
-		"@wordpress/prettier-config": "^2.18.2",
+		"@wordpress/prettier-config": "^4.22.0",
 		"@wordpress/scripts": "^27",
-		"eslint-plugin-prettier": "^5.3.1",
+		"eslint-plugin-prettier": "^5.4.0",
 		"mini-css-extract-plugin": "^2.9.2",
 		"prettier": "npm:wp-prettier@^3.0.3"
 	},

@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"description": "Smaily newsletter subscription block.",
 	"author": "Smaily",
+	"lockfileVersion": 3,
 	"license": "GPL-2.0-or-later",
 	"main": "build/index.js",
 	"scripts": {
@@ -11,10 +12,11 @@
 		"lint:css": "wp-scripts lint-style",
 		"lint:js": "wp-scripts lint-js",
 		"packages-update": "wp-scripts packages-update",
-		"start": "wp-scripts start --webpack-copy-php"
+		"start": "wp-scripts start --webpack-copy-php",
+		"test:unit": "wp-scripts test-unit-js --passWithNoTests"
 	},
 	"devDependencies": {
-		"@wordpress/prettier-config": "^4.18.0",
+		"@wordpress/prettier-config": "^4.22.0",
 		"@wordpress/scripts": "^27"
 	},
 	"prettier": "@wordpress/prettier-config"
