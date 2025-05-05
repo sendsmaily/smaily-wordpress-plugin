@@ -7,19 +7,23 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+
+    - name: Get composer cache directory
+      id: composer-cache
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
     - name: Cache PHP packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
-        path: ~/.composer/cache
+        path: ${{ steps.composer-cache.outputs.dir }}
         key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
         restore-keys: |
           ${{ runner.os }}-composer-
           ${{ runner.os }}-
 
     - name: Cache Node modules
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: blocks/*/node_modules
         key: ${{ runner.os }}-node-${{ hashFiles('blocks/*/package-lock.json') }}
