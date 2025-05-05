@@ -4,7 +4,7 @@ on: pull_request
 
 jobs:
   lint_and_test:
-    name: Lint
+    name: Lint and test the codebase
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
