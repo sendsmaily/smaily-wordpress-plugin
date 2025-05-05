@@ -1,0 +1,28 @@
+name: Lint and test the codebase
+
+on: pull_request
+
+jobs:
+  lint_and_test:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: php-actions/composer@v6
+      with:
+        php_version: 7.0
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+    - uses: php-actions/composer@v6
+      with:
+        php_version: 7.0
+        command: run install-block-modules
+    - uses: php-actions/composer@v6
+      with:
+        php_version: 7.0
+        command: run lint
+    - uses: php-actions/composer@v6
+      with:
+        php_version: 7.0
+        command: run test

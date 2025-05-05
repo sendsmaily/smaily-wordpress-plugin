@@ -1,0 +1,27 @@
+{
+  "name": "smaily-connect-blocks",
+  "version": "1.0.0",
+  "description": "Scripts collection for managing Smaily Connect block components",
+  "scripts": {
+    "build:checkout-optin": "npm --prefix ./checkout-optin/ run build",
+    "build:landingpage": "npm --prefix ./landingpage/ run build",
+    "build:newsletter-signup": "npm --prefix ./newsletter-signup/ run build",
+    "build": "npm run build:checkout-optin && npm run build:newsletter-signup && npm run build:landingpage",
+    "ci:checkout-optin": "npm --prefix ./checkout-optin/ ci",
+    "ci:landingpage": "npm --prefix ./landingpage/ ci",
+    "ci:newsletter-signup": "npm --prefix ./newsletter-signup/ ci",
+    "ci": "npm run ci:checkout-optin && npm run ci:newsletter-signup && npm run ci:landingpage",
+    "format:checkout-optin": "npm --prefix ./checkout-optin/ run format",
+    "format:landingpage": "npm --prefix ./landingpage/ run format",
+    "format:newsletter-signup": "npm --prefix ./newsletter-signup/ run format",
+    "format": "npm run format:checkout-optin && npm run format:newsletter-signup && npm run format:landingpage",
+    "lint:checkout-optin": "npm --prefix ./checkout-optin/ run lint:js && npm --prefix ./checkout-optin/ run lint:css",
+    "lint:landingpage": "npm --prefix ./landingpage/ run lint:js && npm --prefix ./landingpage/ run lint:css",
+    "lint:newsletter-signup": "npm --prefix ./newsletter-signup/ run lint:js && npm --prefix ./newsletter-signup/ run lint:css",
+    "lint": "npm run lint:checkout-optin && npm run lint:newsletter-signup && npm run lint:landingpage",
+    "test:landingpage": "npm --prefix ./landingpage/ run test:unit",
+    "test": "npm run test:landingpage"
+  },
+  "author": "Smaily",
+  "license": "ISC"
+}

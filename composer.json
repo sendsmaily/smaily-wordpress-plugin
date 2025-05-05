@@ -16,11 +16,11 @@
         }
     },
     "scripts": {
-        "lint": "phpcs .",
-        "format": "phpcbf .",
-        "build:newsletter-signup": "npm --prefix blocks/newsletter-signup/ ci blocks/newsletter-signup/ && npm run build --prefix blocks/newsletter-signup/",
-        "build:checkout-optin": "npm --prefix blocks/checkout-optin/ ci blocks/checkout-optin/ && npm run build --prefix blocks/checkout-optin/",
-        "build:landingpage": "npm --prefix blocks/landingpage/ ci blocks/landingpage/ && npm run build --prefix blocks/landingpage/",
+        "install-block-modules": "npm run ci --prefix blocks",
+        "lint": "phpcs . && npm run lint --prefix blocks",
+        "test": "npm run test --prefix blocks",
+        "format": "phpcbf . && npm run format --prefix blocks",
+        "build": "npm run build --prefix blocks",
         "extract-text-domain": "wp i18n make-pot . languages/smaily-connect.pot && msginit -i languages/smaily-connect.pot -o languages/smaily-connect-en.po -l en --no-translator",
         "compile-translations": "rm -f languages/smaily-connect-en.po && wp i18n update-po languages/smaily-connect.pot languages/ && wp i18n make-mo languages/ && wp i18n make-json languages/ --no-purge",
         "package": "cat .zipignore | xargs zip -r smaily-connect.zip . -x"
