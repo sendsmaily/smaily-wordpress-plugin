@@ -207,7 +207,10 @@ export default function Edit({ attributes, setAttributes }) {
 						}
 					/>
 					<ToggleControl
-						label={__('Full width subscribe button', 'smaily-connect')}
+						label={__(
+							'Full width subscribe button',
+							'smaily-connect'
+						)}
 						checked={subscribeButtonWidth === '100%'}
 						onChange={(checked) =>
 							setAttributes({
@@ -252,14 +255,20 @@ export default function Edit({ attributes, setAttributes }) {
 						value={successURL}
 						name="successURL"
 						onChange={(val) => setAttributes({ successURL: val })}
-						help={__('Defaults to current page URL.', 'smaily-connect')}
+						help={__(
+							'Defaults to current page URL.',
+							'smaily-connect'
+						)}
 					/>
 					<TextControl
 						label={__('Failure URL', 'smaily-connect')}
 						value={errorURL}
 						name="failure_url"
 						onChange={(val) => setAttributes({ errorURL: val })}
-						help={__('Defaults to current page URL.', 'smaily-connect')}
+						help={__(
+							'Defaults to current page URL.',
+							'smaily-connect'
+						)}
 					/>
 					<SelectControl
 						label={__('Autoresponder', 'smaily-connect')}

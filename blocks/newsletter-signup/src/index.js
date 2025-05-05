@@ -32,5 +32,9 @@ registerBlockType(metadata.name, {
 		'Opt-in subscribers directly to Smaily for seamless email marketing.',
 		'smaily-connect'
 	),
-	keywords: [__('email', 'smaily-connect'), __('newsletter', 'smaily-connect'), 'smaily'],
+	keywords: [
+		__('email', 'smaily-connect'),
+		__('newsletter', 'smaily-connect'),
+		'smaily',
+	],
 });
