@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - name: Add Git safe directory
+      run: git config --global --add safe.directory /app
     - uses: php-actions/composer@v6
       with:
         php_version: 7.0
