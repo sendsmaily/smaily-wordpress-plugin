@@ -7,7 +7,7 @@
 	"category": "widgets",
 	"description": "Smaily landing page",
 	"example": {},
-	"keywords": ["smaily", "landingpage", "newsletter", "subscription"],
+	"keywords": [ "smaily", "landingpage", "newsletter", "subscription" ],
 	"attributes": {
 		"subdomain": {
 			"type": "string",

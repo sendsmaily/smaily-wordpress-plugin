@@ -24,20 +24,20 @@ const smailyIcon = (
 	</svg>
 );
 
-registerBlockType(metadata.name, {
+registerBlockType( metadata.name, {
 	edit: Edit,
 	save: Save,
 	icon: smailyIcon,
 	category: 'widgets',
-	title: __('Smaily Landing Page', 'smaily-connect'),
+	title: __( 'Smaily Landing Page', 'smaily-connect' ),
 	description: __(
 		'Use Smaily Landing page for collecting subscribers.',
 		'smaily'
 	),
 	keywords: [
-		__('email', 'smaily-connect'),
-		__('newsletter', 'smaily-connect'),
+		__( 'email', 'smaily-connect' ),
+		__( 'newsletter', 'smaily-connect' ),
 		'smaily',
-		__('landing page', 'smaily-connect'),
+		__( 'landing page', 'smaily-connect' ),
 	],
-});
+} );

@@ -6,12 +6,12 @@
  *
  * @return {string} The generated landing page URL.
  */
-export const generateLandingPageURL = (subdomain, pk) => {
-	if (!pk) {
+export const generateLandingPageURL = ( subdomain, pk ) => {
+	if ( ! pk ) {
 		return '';
 	}
 
-	return `https://${subdomain}.sendsmaily.net/landing-pages/${pk}/html/`;
+	return `https://${ subdomain }.sendsmaily.net/landing-pages/${ pk }/html/`;
 };
 
 /**
@@ -30,44 +30,44 @@ export const generateLandingPageURL = (subdomain, pk) => {
  *
  * @return {LandingPageURL} Object containing the validation result and the PK.
  */
-export const validateLandingPageURL = (url, subdomain) => {
-	if (typeof url !== 'string' || !url.trim()) {
+export const validateLandingPageURL = ( url, subdomain ) => {
+	if ( typeof url !== 'string' || ! url.trim() ) {
 		return { valid: false, pk: '' };
 	}
 
 	try {
-		const urlObj = new URL(url);
+		const urlObj = new URL( url );
 
-		if (urlObj.protocol !== 'https:') {
+		if ( urlObj.protocol !== 'https:' ) {
 			return {
 				valid: false,
 				pk: '',
 			};
 		}
 
-		if (!urlObj.hostname.endsWith('sendsmaily.net')) {
+		if ( ! urlObj.hostname.endsWith( 'sendsmaily.net' ) ) {
 			return {
 				valid: false,
 				pk: '',
 			};
 		}
 
-		if (urlObj.hostname !== `${subdomain}.sendsmaily.net`) {
+		if ( urlObj.hostname !== `${ subdomain }.sendsmaily.net` ) {
 			return {
 				valid: false,
 				pk: '',
 			};
 		}
 
-		if (urlObj.pathname.includes('/landing-pages/') === false) {
+		if ( urlObj.pathname.includes( '/landing-pages/' ) === false ) {
 			return {
 				valid: false,
 				pk: '',
 			};
 		}
 
-		const pk = findPKFromURL(urlObj.pathname);
-		if (!pk) {
+		const pk = findPKFromURL( urlObj.pathname );
+		if ( ! pk ) {
 			return {
 				valid: false,
 				pk: '',
@@ -75,7 +75,7 @@ export const validateLandingPageURL = (url, subdomain) => {
 		}
 
 		return { valid: true, pk };
-	} catch (error) {
+	} catch ( error ) {
 		return {
 			valid: false,
 			pk: '',
@@ -83,11 +83,11 @@ export const validateLandingPageURL = (url, subdomain) => {
 	}
 };
 
-const findPKFromURL = (url) => {
+const findPKFromURL = ( url ) => {
 	// Smaily landing page URL pattern.
 	// https://<subdomain>.sendsmaily.net/landing-pages/<pk>/html/
-	const pk = url.split('/landing-pages/')[1]?.split('/')[0];
-	if (!pk) {
+	const pk = url.split( '/landing-pages/' )[ 1 ]?.split( '/' )[ 0 ];
+	if ( ! pk ) {
 		return null;
 	}
 
@@ -95,7 +95,7 @@ const findPKFromURL = (url) => {
 	const isUUID =
 		/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-	if (!isUUID.test(pk)) {
+	if ( ! isUUID.test( pk ) ) {
 		return null;
 	}
 

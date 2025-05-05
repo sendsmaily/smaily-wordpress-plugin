@@ -24,17 +24,17 @@ const smailyIcon = (
 	</svg>
 );
 
-registerBlockType(metadata.name, {
+registerBlockType( metadata.name, {
 	edit: Edit,
 	icon: smailyIcon,
-	title: __('Smaily Opt-In Form', 'smaily-connect'),
+	title: __( 'Smaily Opt-In Form', 'smaily-connect' ),
 	description: __(
 		'Opt-in subscribers directly to Smaily for seamless email marketing.',
 		'smaily-connect'
 	),
 	keywords: [
-		__('email', 'smaily-connect'),
-		__('newsletter', 'smaily-connect'),
+		__( 'email', 'smaily-connect' ),
+		__( 'newsletter', 'smaily-connect' ),
 		'smaily',
 	],
-});
+} );

@@ -7,7 +7,7 @@
 	"category": "widgets",
 	"description": "Smaily newsletter subscription form",
 	"example": {},
-	"keywords": ["smaily", "newsletter", "subscription", "form"],
+	"keywords": [ "smaily", "newsletter", "subscription", "form" ],
 	"attributes": {
 		"subdomain": {
 			"type": "string",
