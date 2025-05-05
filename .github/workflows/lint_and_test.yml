@@ -9,8 +9,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    # Composer cache
-    - name: Cache composer packages
+    - name: Cache PHP packages
       uses: actions/cache@v3
       with:
         path: ~/.composer/cache
@@ -19,8 +18,7 @@ jobs:
           ${{ runner.os }}-composer-
           ${{ runner.os }}-
 
-    # Node cache
-    - name: Cache node modules
+    - name: Cache Node modules
       uses: actions/cache@v3
       with:
         path: blocks/*/node_modules
@@ -29,19 +27,25 @@ jobs:
           ${{ runner.os }}-node-
           ${{ runner.os }}-
 
-    - name: Set up PHP
+    - name: Set up PHP environment
       uses: shivammathur/setup-php@v2
       with:
         php-version: 8.3
         tools: composer
-    - uses: actions/setup-node@v4
+
+    - name: Set up Node environment
+      uses: actions/setup-node@v4
       with:
         node-version: 20
-    - name: Install dependencies
+
+    - name: Install PHP dependencies
       run: composer install --no-interaction --prefer-dist
-    - name: Install blocks dependencies
+
+    - name: Install Node dependencies
       run: composer run install-block-modules
+
     - name: Lint
       run: composer run lint
+
     - name: Test
       run: composer run test
