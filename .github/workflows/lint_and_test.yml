@@ -9,6 +9,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Set up PHP environment
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.3
+        tools: composer
+
     - name: Get composer cache directory
       id: composer-cache
       run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
@@ -21,6 +27,11 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-composer-
           ${{ runner.os }}-
+
+    - name: Set up Node environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
 
     - name: Get Node cache directory
       id: node-cache
@@ -40,11 +51,6 @@ jobs:
       with:
         php-version: 8.3
         tools: composer
-
-    - name: Set up Node environment
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
 
     - name: Install PHP dependencies
       run: composer install --no-interaction --prefer-dist
