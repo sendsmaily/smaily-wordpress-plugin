@@ -46,12 +46,6 @@ jobs:
           ${{ runner.os }}-node-
           ${{ runner.os }}-
 
-    - name: Set up PHP environment
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: 8.3
-        tools: composer
-
     - name: Install PHP dependencies
       run: composer install --no-interaction --prefer-dist
 
