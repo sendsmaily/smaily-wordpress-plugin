@@ -16,91 +16,65 @@ jobs:
       with:
         path: ${{ env.WP_PLUGIN_NAME }}
 
-    - name: Setup Node.js
+    - name: Set up PHP environment
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.3
+        tools: composer
+
+    - name: Get composer cache directory
+      id: composer-cache
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache PHP packages
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
+          ${{ runner.os }}-
+
+    - name: Set up Node environment
       uses: actions/setup-node@v4
       with:
         node-version: 20
 
-    - name: Build checkout-optin block
-      run: npm install --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/checkout-optin/ && npm run build --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/checkout-optin/
+    - name: Get Node cache directory
+      id: node-cache
+      run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
 
-    - name: Build newsletter-signup block
-      run: npm install --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/newsletter-signup/ && npm run build --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/newsletter-signup/
-
-    - name: Build landing page block
-      run: npm install --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/landingpage/ && npm run build --prefix ${{ env.WP_PLUGIN_NAME }}/blocks/landingpage/
-
-    - name: Add composer mount directory to GIT safe directory
-      run: git config --global --add safe.directory /app/${{ env.WP_PLUGIN_NAME }}
-
-    - name: Install composer dependencies
-      uses: php-actions/composer@v6
+    - name: Cache Node modules
+      uses: actions/cache@v4
       with:
-        working_dir: ${{ env.WP_PLUGIN_NAME }}
+        path: ${{ steps.node-cache.outputs.dir }}
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+          ${{ runner.os }}-
 
-    - name: Add context to translation files
-      uses: php-actions/composer@v6
-      with:
-        container_workdir: /app/${{ env.WP_PLUGIN_NAME }}
-        command: exec wp i18n update-po languages/${{ env.WP_PLUGIN_NAME }}.pot languages/
+    - name: Install PHP dependencies
+      run: composer install --no-interaction --prefer-dist
+      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
-    - name: Generate Translation MO files
-      uses: php-actions/composer@v6
-      with:
-        container_workdir: /app/${{ env.WP_PLUGIN_NAME }}
-        command: exec wp i18n make-mo languages/
+    - name: Install Node dependencies
+      run: composer run install-block-modules
+      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
-    - name: Generate translation JSON files
-      uses: php-actions/composer@v6
-      with:
-        container_workdir: /app/${{ env.WP_PLUGIN_NAME }}
-        command: exec wp i18n make-json languages/
+    - name: Build blocks
+      run: composer run build
+      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
-    - name: Compress ZIP
-      uses: thedoctor0/zip-release@0.7.5
-      with:
-        filename: build.zip
-        path: ${{ env.WP_PLUGIN_NAME }}
-        exclusions: >
-          /${{ env.WP_PLUGIN_NAME }}/.env*
-          /${{ env.WP_PLUGIN_NAME }}/.git*
-          /${{ env.WP_PLUGIN_NAME }}/.vscode*
-          /${{ env.WP_PLUGIN_NAME }}/.zipignore
-          /${{ env.WP_PLUGIN_NAME }}/*.sh
-          /${{ env.WP_PLUGIN_NAME }}/*.zip
-          /${{ env.WP_PLUGIN_NAME }}/assets*
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/__tests__*
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/.gitignore
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/node_modules*
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/package-lock.json
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/package.json
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/src*
-          /${{ env.WP_PLUGIN_NAME }}/blocks/*/webpack.config.js
-          /${{ env.WP_PLUGIN_NAME }}/blocks/readme.md
-          /${{ env.WP_PLUGIN_NAME }}/compose.min.yaml
-          /${{ env.WP_PLUGIN_NAME }}/compose.yaml
-          /${{ env.WP_PLUGIN_NAME }}/composer.*
-          /${{ env.WP_PLUGIN_NAME }}/contributing.md
-          /${{ env.WP_PLUGIN_NAME }}/Dockerfile
-          /${{ env.WP_PLUGIN_NAME }}/languages/.gitignore
-          /${{ env.WP_PLUGIN_NAME }}/languages/*.po
-          /${{ env.WP_PLUGIN_NAME }}/languages/*.pot
-          /${{ env.WP_PLUGIN_NAME }}/phpcs.xml
-          /${{ env.WP_PLUGIN_NAME }}/readme.md
-          /${{ env.WP_PLUGIN_NAME }}/vendor*
+    - name: Compile translations
+      run: composer run compile-translations
+      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
-    - name: Get release URL
-      id: get_release_url
-      uses: bruceadams/get-release@v1.3.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Package the plugin
+      run: composer run package
+      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
     - name: Upload release assets
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
-        upload_url: ${{ steps.get_release_url.outputs.upload_url }}
-        asset_path: ./build.zip
-        asset_name: ${{ env.WP_PLUGIN_NAME }}.zip
-        asset_content_type: application/zip
+        files: ${{ env.WP_PLUGIN_NAME }}/${{ env.WP_PLUGIN_NAME }}.zip
+        token: ${{ secrets.GITHUB_TOKEN }}
