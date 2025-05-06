@@ -13,8 +13,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        path: ${{ env.WP_PLUGIN_NAME }}
 
     - name: Set up PHP environment
       uses: shivammathur/setup-php@v2
@@ -55,26 +53,21 @@ jobs:
 
     - name: Install PHP dependencies
       run: composer install --no-interaction --prefer-dist
-      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
     - name: Install Node dependencies
       run: composer run install-block-modules
-      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
     - name: Build blocks
       run: composer run build
-      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
     - name: Compile translations
       run: composer run compile-translations
-      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
     - name: Package the plugin
       run: composer run package
-      working-directory: ${{ env.WP_PLUGIN_NAME }}
 
     - name: Upload release assets
       uses: softprops/action-gh-release@v2
       with:
-        files: ${{ env.WP_PLUGIN_NAME }}/${{ env.WP_PLUGIN_NAME }}.zip
+        files: ${{ env.WP_PLUGIN_NAME }}.zip
         token: ${{ secrets.GITHUB_TOKEN }}
