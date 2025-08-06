@@ -427,7 +427,6 @@ class Settings {
 					'date'     => __( 'Created At', 'smaily-connect' ),
 					'id'       => __( 'ID', 'smaily-connect' ),
 					'name'     => __( 'Name', 'smaily-connect' ),
-					'rand'     => __( 'Random', 'smaily-connect' ),
 					'type'     => __( 'Type', 'smaily-connect' ),
 				),
 				'class'       => 'smaily-rss-options',

@@ -141,6 +141,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.2.2
+
+- Fixed RSS feed product query by removing random ordering. The combination of random ordering and query limits could result in empty product feeds on subsequent requests, causing RSS parser failures.
+
 ## 1.2.1
 
 - Fixed a bug where abandoned cart reminder emails were not sent due to a syntax error in the query statement building process.

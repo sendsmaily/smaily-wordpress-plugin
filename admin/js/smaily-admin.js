@@ -21,7 +21,7 @@
 			}
 
 			var rss_order = $('#smaily-rss-sort-order').val()
-			if (rss_order_by != 'none' && rss_order_by != 'rand') {
+			if (rss_order_by != 'none') {
 				rss_url.searchParams.set('order', rss_order);
 			}
 

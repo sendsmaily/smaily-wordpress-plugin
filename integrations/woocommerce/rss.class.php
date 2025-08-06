@@ -46,7 +46,7 @@ class Rss {
 		if ( isset( $rss_order_by ) && $rss_order_by !== 'none' ) {
 			$parameters['order_by'] = $rss_order_by;
 		}
-		if ( isset( $rss_order ) && $rss_order_by !== 'none' && $rss_order_by !== 'rand' ) {
+		if ( isset( $rss_order ) && $rss_order_by !== 'none' ) {
 			$parameters['order'] = $rss_order;
 		}
 

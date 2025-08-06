@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smaily Connect 1.2.0\n"
+"Project-Id-Version: Smaily Connect 1.2.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-wordpress-plugin\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-04-30T09:05:43+00:00\n"
+"POT-Creation-Date: 2025-08-06T10:50:47+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -453,26 +453,22 @@ msgid "Name"
 msgstr ""
 
 #: admin/smaily-admin-settings.class.php:430
-msgid "Random"
-msgstr ""
-
-#: admin/smaily-admin-settings.class.php:431
 msgid "Type"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:440
+#: admin/smaily-admin-settings.class.php:439
 msgid "Order by"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:447
+#: admin/smaily-admin-settings.class.php:446
 msgid "Ascending"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:448
+#: admin/smaily-admin-settings.class.php:447
 msgid "Descending"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:457
+#: admin/smaily-admin-settings.class.php:456
 msgid "Product RSS feed"
 msgstr ""
 
@@ -524,7 +520,7 @@ msgstr ""
 
 #: admin/smaily-admin.class.php:346
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:86
+#: blocks/landingpage/src/edit.js:89
 msgid "Settings"
 msgstr ""
 
@@ -572,21 +568,21 @@ msgstr ""
 
 #: includes/smaily-widget.class.php:131
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:174
+#: blocks/newsletter-signup/src/edit.js:181
 msgid "Display name field"
 msgstr ""
 
 #: includes/smaily-widget.class.php:134
 #: integrations/elementor/newsletter-widget.class.php:466
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:251
+#: blocks/newsletter-signup/src/edit.js:266
 msgid "Success URL"
 msgstr ""
 
 #: includes/smaily-widget.class.php:138
 #: integrations/elementor/newsletter-widget.class.php:479
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:258
+#: blocks/newsletter-signup/src/edit.js:278
 msgid "Failure URL"
 msgstr ""
 
@@ -603,7 +599,7 @@ msgstr ""
 #: integrations/cf7/partials/smaily-cf7-admin.php:47
 #: integrations/elementor/newsletter-widget.class.php:326
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:273
+#: blocks/newsletter-signup/src/edit.js:298
 msgid "No autoresponder"
 msgstr ""
 
@@ -630,7 +626,7 @@ msgstr ""
 #: integrations/cf7/partials/smaily-cf7-admin.php:42
 #: integrations/elementor/newsletter-widget.class.php:454
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:265
+#: blocks/newsletter-signup/src/edit.js:290
 msgid "Autoresponder"
 msgstr ""
 
@@ -684,7 +680,7 @@ msgstr ""
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/index.js:39
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/index.js:35
+#: blocks/newsletter-signup/src/index.js:37
 msgid "newsletter"
 msgstr ""
 
@@ -692,7 +688,7 @@ msgstr ""
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/index.js:38
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/index.js:35
+#: blocks/newsletter-signup/src/index.js:36
 msgid "email"
 msgstr ""
 
@@ -964,7 +960,7 @@ msgstr ""
 #: integrations/elementor/newsletter-widget.class.php:727
 #: integrations/elementor/newsletter-widget.class.php:984
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:127
+#: blocks/landingpage/src/edit.js:133
 msgid "Height"
 msgstr ""
 
@@ -1051,32 +1047,32 @@ msgid "checkout"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:187
+#: blocks/landingpage/src/edit.js:193
 msgid "Smaily Connect Landing Page"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:189
+#: blocks/landingpage/src/edit.js:195
 msgid "Copy the URL of the landing page you want to display in this block and paste it in the Block settings."
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:195
+#: blocks/landingpage/src/edit.js:201
 msgid "If you need any help setting up the landing page, follow our awesome guide:"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:204
+#: blocks/landingpage/src/edit.js:210
 msgid "creating a landing page"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:215
+#: blocks/landingpage/src/edit.js:221
 msgid "Invalid Landing Page URL!"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:217
+#: blocks/landingpage/src/edit.js:223
 msgid "Please check the entered URL. It is invalid!"
 msgstr ""
 
@@ -1086,39 +1082,39 @@ msgid "Please configure the plugin first."
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:77
-#: blocks/landingpage/src/edit.js:176
+#: blocks/landingpage/src/edit.js:80
+#: blocks/landingpage/src/edit.js:182
 #: blocks/landingpage/src/index.js:32
 msgid "Smaily Landing Page"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:89
+#: blocks/landingpage/src/edit.js:92
 msgid "URL"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:93
+#: blocks/landingpage/src/edit.js:96
 msgid "Enter the URL of the landing page you want to display."
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:99
+#: blocks/landingpage/src/edit.js:102
 msgid "Landing page URL"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:104
+#: blocks/landingpage/src/edit.js:110
 msgid "Invalid landing page URL!"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:118
+#: blocks/landingpage/src/edit.js:124
 msgid "Need a custom thank you page?"
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:139
+#: blocks/landingpage/src/edit.js:145
 msgid "Width"
 msgstr ""
 
@@ -1128,68 +1124,68 @@ msgid "landing page"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:109
+#: blocks/newsletter-signup/src/edit.js:112
 msgid "Go to plugin settings"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:115
+#: blocks/newsletter-signup/src/edit.js:119
 msgid "Plugin setup is not complete!"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:117
+#: blocks/newsletter-signup/src/edit.js:122
 msgid "Please connect your Smaily account before adding a form!"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:172
+#: blocks/newsletter-signup/src/edit.js:179
 msgid "Visible fields"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:185
+#: blocks/newsletter-signup/src/edit.js:192
 msgid "Name field label"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:194
+#: blocks/newsletter-signup/src/edit.js:201
 msgid "Email field label"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:202
+#: blocks/newsletter-signup/src/edit.js:209
 msgid "Subscribe button label"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:210
+#: blocks/newsletter-signup/src/edit.js:220
 msgid "Full width subscribe button"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:222
+#: blocks/newsletter-signup/src/edit.js:235
 msgid "Button border radius"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:232
+#: blocks/newsletter-signup/src/edit.js:245
 msgid "Success message"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:240
+#: blocks/newsletter-signup/src/edit.js:253
 msgid "Error message"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:247
+#: blocks/newsletter-signup/src/edit.js:262
 msgid "Hidden fields"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:255
-#: blocks/newsletter-signup/src/edit.js:262
+#: blocks/newsletter-signup/src/edit.js:272
+#: blocks/newsletter-signup/src/edit.js:284
 msgid "Defaults to current page URL."
 msgstr ""
 
