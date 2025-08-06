@@ -23,6 +23,6 @@
         "build": "npm run build --prefix blocks",
         "extract-text-domain": "wp i18n make-pot . languages/smaily-connect.pot && msginit -i languages/smaily-connect.pot -o languages/smaily-connect-en.po -l en --no-translator",
         "compile-translations": "rm -f languages/smaily-connect-en.po && wp i18n update-po languages/smaily-connect.pot languages/ && wp i18n make-mo languages/ && wp i18n make-json languages/ --no-purge",
-        "package": "cat .zipignore | xargs zip -r smaily-connect.zip . -x"
+        "package": "rm -rf smaily-connect.zip && mkdir -p staging/smaily-connect && rsync -av --exclude-from=.zipignore --exclude=staging ./ staging/smaily-connect/ && cd staging && zip -r ../smaily-connect.zip smaily-connect/ && cd .. && rm -rf staging"
     }
 }
