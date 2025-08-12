@@ -141,6 +141,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.2.3
+
+- Load the plugin text domain in the `init` action. This complies with the WordPress 6.7+ plugin development standards and ensures that the plugin translations are loaded correctly.
+
 ## 1.2.2
 
 - Fixed RSS feed product query by removing random ordering. The combination of random ordering and query limits could result in empty product feeds on subsequent requests, causing RSS parser failures.

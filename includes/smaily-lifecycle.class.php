@@ -32,7 +32,7 @@ class Lifecycle {
 		register_activation_hook( SMAILY_CONNECT_PLUGIN_FILE, array( $this, 'activate' ) );
 		register_deactivation_hook( SMAILY_CONNECT_PLUGIN_FILE, array( $this, 'deactivate' ) );
 		register_uninstall_hook( SMAILY_CONNECT_PLUGIN_FILE, array( __CLASS__, 'uninstall' ) );
-		add_action( 'plugins_loaded', array( $this, 'set_locale' ) );
+		add_action( 'init', array( $this, 'set_locale' ) );
 		add_action( 'plugins_loaded', array( $this, 'update' ) );
 		add_action( 'upgrader_process_complete', array( $this, 'check_for_update' ), 10, 2 );
 		add_action( 'activated_plugin', array( $this, 'check_for_dependency' ), 10, 2 );
