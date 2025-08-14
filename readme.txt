@@ -5,7 +5,7 @@ Requires PHP: 7.0
 Requires at least: 6.0
 Tested up to: 6.8
 WC tested up to: 9.6.1
-Stable tag: 1.2.3
+Stable tag: 1.2.4
 License: GPLv3 or later
 
 The Smaily Connect plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution.
@@ -60,13 +60,17 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 == Changelog ==
 
-## 1.2.3
+= 1.2.4 =
 
-- Load the plugin text domain in the `init` action. This complies with the WordPress 6.7+ plugin development standards and ensures that the plugin translations are loaded correctly.
+Render admin notices outside the form element to ensure proper display and avoid potential conflicts with form submission.
+
+= 1.2.3 =
+
+Load the plugin text domain in the `init` action. This complies with the WordPress 6.7+ plugin development standards and ensures that the plugin translations are loaded correctly.
 
 = 1.2.2 =
 
-- Fixed RSS feed product query by removing random ordering. The combination of random ordering and query limits could result in empty product feeds on subsequent requests, causing RSS parser failures.
+Fixed RSS feed product query by removing random ordering. The combination of random ordering and query limits could result in empty product feeds on subsequent requests, causing RSS parser failures.
 
 = 1.2.1 =
 

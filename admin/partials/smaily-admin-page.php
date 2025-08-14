@@ -19,6 +19,10 @@ $show_submit_button = isset( $tabs[ $current_tab ]['submit_button_text'] );
 settings_errors( 'smaily_connect_messages' );
 
 ?>
+<!-- Rendering admin notices outside the form. Check wp-admin/js/common.js:1087 for ref. -->
+<div class="wrap">
+	<h1></h1>
+</div>
 <div class="wrap smaily-connect-admin-settings">
 	<form action="options.php" method="post">
 		<nav class="smaily-connect-admin-tab-nav">

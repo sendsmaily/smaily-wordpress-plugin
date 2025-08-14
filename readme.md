@@ -141,6 +141,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.2.4
+
+- Render admin notices outside the form element to ensure proper display and avoid potential conflicts with form submission.
+
 ## 1.2.3
 
 - Load the plugin text domain in the `init` action. This complies with the WordPress 6.7+ plugin development standards and ensures that the plugin translations are loaded correctly.
