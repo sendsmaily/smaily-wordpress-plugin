@@ -5,6 +5,7 @@ namespace Smaily_Connect;
 use Smaily_Connect\Admin\Settings;
 use Smaily_Connect\Includes\Cypher;
 use Smaily_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Lifecycle;
 use Smaily_Connect\Includes\Options;
 use Smaily_Connect\Includes\Smaily_Client;
 use Smaily_Connect\Includes\Widget;
@@ -80,6 +81,7 @@ class Admin {
 		add_action( 'widgets_init', array( $this, 'smaily_subscription_widget_init' ) );
 		add_action( 'wp_ajax_smaily_admin_save', array( $this, 'smaily_admin_save' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( SMAILY_CONNECT_PLUGIN_FILE ), array( $this, 'settings_link' ) );
+		add_action( 'admin_init', array( $this, 'upgrade_notices' ) );
 	}
 
 	/**
@@ -356,5 +358,24 @@ class Admin {
 	public function smaily_subscription_widget_init() {
 		$widget = new Widget( $this->options );
 		register_widget( $widget );
+	}
+
+	/**
+	 * Show upgrade notices for the plugin.
+	 *
+	 */
+	public function upgrade_notices() {
+		foreach ( Lifecycle::MIGRATIONS as $migration_version => $migration_file ) {
+			$migration_file = SMAILY_CONNECT_PLUGIN_PATH . 'migrations/' . $migration_file;
+			if ( ! file_exists( $migration_file ) ) {
+				continue;
+			}
+
+			$notice = null;
+			require_once $migration_file;
+			if ( is_callable( $notice ) ) {
+				$notice();
+			}
+		}
 	}
 }

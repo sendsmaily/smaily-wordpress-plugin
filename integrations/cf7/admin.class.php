@@ -212,6 +212,4 @@ class Admin {
 		}
 		return false;
 	}
-
-
 }

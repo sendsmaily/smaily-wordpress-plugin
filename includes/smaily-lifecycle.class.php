@@ -14,6 +14,14 @@ class Lifecycle {
 	const SERVICE = 'lifecycle';
 
 	/**
+	 * List of migrations.
+	 * @var array<string,string> Version and file path.
+	 */
+	const MIGRATIONS = array(
+		'1.3.0' => 'upgrade-1-3-0.php',
+	);
+
+	/**
 	 * Logger.
 	 * @var Logger
 	 */
@@ -157,6 +165,7 @@ class Lifecycle {
 		Options::delete_all_options();
 
 		delete_transient( 'smaily_connect_plugin_updated' );
+		delete_transient( 'smaily_connect_1_3_0_upgrade_notice' );
 	}
 
 	/**
@@ -215,9 +224,7 @@ class Lifecycle {
 			return;
 		}
 
-		$migrations = array();
-
-		foreach ( $migrations as $migration_version => $migration_file ) {
+		foreach ( self::MIGRATIONS as $migration_version => $migration_file ) {
 			// Database is up-to-date with plugin version.
 			if ( version_compare( $db_version, $migration_version, '>=' ) ) {
 				continue;
