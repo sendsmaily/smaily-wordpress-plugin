@@ -25,6 +25,14 @@ $upgrade = function () {
 		return;
 	}
 
+	if ( isset( $current_settings['enabled'] ) && ! $current_settings['enabled'] ) {
+		// Smaily integration was disabled.
+		// We don't have to migrate forms nor show admin notices.
+		// We can simply remove the stale values.
+		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, array() );
+		return;
+	}
+
 	$forms = get_posts(
 		array(
 			'numberposts' => -1,
@@ -58,7 +66,7 @@ $upgrade = function () {
 };
 
 $notice = function () {
-	if ( ! get_transient( 'smaily_connect_1_3_0_upgrade_notice' ) ) {
+	if ( get_transient( 'smaily_connect_1_3_0_upgrade_notice' ) ) {
 		add_action( 'admin_notices', 'smaily_connect_1_3_0_upgrade_notice' );
 		add_action( 'wp_ajax_smaily_connect_1_3_0_dismiss_upgrade_notice', 'smaily_connect_1_3_0_dismiss_upgrade_notice' );
 	}
