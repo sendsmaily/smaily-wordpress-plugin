@@ -141,6 +141,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.3.0
+
+- Improved the Contact Form 7 integration by allowing user to configure each form individually.
+
 ## 1.2.4
 
 - Render admin notices outside the form element to ensure proper display and avoid potential conflicts with form submission.
