@@ -1,4 +1,5 @@
 {
     "phpcs.executablePath": "vendor/bin/phpcs",
     "editor.inlayHints.enabled": "offUnlessPressed",
+    "files.insertFinalNewline": true,
 }
