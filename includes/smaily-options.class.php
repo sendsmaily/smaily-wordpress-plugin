@@ -269,17 +269,14 @@ class Options {
 	 *
 	 *
 	 * @access private
-	 * @return array   Smaily Contact Form 7 settings in proper format
+	 * @return array<int, array{is_enabled: bool, autoresponder_id: int}> Dictionary of form settings with form ID as key.
+	 *
+	 * @since 1.3.0 Changed the settings structure to dictionary format where
+	 * each form has its own settings array. This allows users to manage settings
+	 * for each form individually.
 	 */
 	private function get_cf7_settings_from_db() {
-		$settings = get_option( self::CONTACT_FORM_7_STATUS_OPTION, array() );
-		return array_merge(
-			array(
-				'autoresponder_id' => 0,
-				'is_enabled'       => 0,
-			),
-			$settings
-		);
+		return get_option( self::CONTACT_FORM_7_STATUS_OPTION, array() );
 	}
 
 	/**

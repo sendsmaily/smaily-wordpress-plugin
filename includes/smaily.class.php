@@ -287,7 +287,7 @@ class Smaily_Connect {
 		}
 
 		if ( Helper::is_cf7_active() ) {
-			$this->cf7_admin = new Smaily_CF7_Admin( $this->options, $this->plugin_name );
+			$this->cf7_admin = new Smaily_CF7_Admin( $this->options, $this->plugin_name, $this->version );
 			$this->cf7_admin->register_hooks();
 		}
 

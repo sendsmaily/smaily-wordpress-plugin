@@ -7,58 +7,67 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 ?>
 <?php if ( ! isset( $_GET['post'] ) ) : ?>
-	<div id='form-id-unknown'>
-		<p id='smailyforcf7-form-id-error' style='padding:15px; background-color:#f2dede; margin:0 0 10px;'>
-			<?php
-			esc_html_e(
-				'Configuring Smaily integration is disabled when using "Add New Form". Please save this form or edit an already existing form',
-				'smaily-connect'
-			);
-			?>
-		</p>
-	</div>
-<?php else : ?>
-	<p id='smailyforcf7-captcha-error' style='padding:15px; background-color:#ffdf92; margin:0 0 10px; display:<?php echo $has_credentials ? 'none' : 'block'; ?>'>
-		<?php esc_html_e( 'Please authenticate Smaily credentials under Smaily Settings.', 'smaily-connect' ); ?>
+	<p class="smaily-connect-cf7-notice error">
+		<?php
+		esc_html_e(
+			'Configuring Smaily integration is disabled when using "Add New Form". Please save this form or edit an already existing form',
+			'smaily-connect'
+		);
+		?>
 	</p>
-	<div id='smailyforcf7-credentials-valid' style='display:<?php echo $has_credentials ? 'block' : 'none'; ?>'>
-		<p id='smailyforcf7-captcha-error' style='padding:15px; background-color:#ffdf92; margin:0 0 10px; display:<?php echo $captcha_enabled ? 'none' : 'block'; ?>'>
-			<?php esc_html_e( 'CAPTCHA disabled. Please use a CAPTCHA if this is a public site.', 'smaily-connect' ); ?>
+<?php else : ?>
+	<?php if ( ! $template_variables['has_credentials'] ) : ?>
+		<p class="smaily-connect-cf7-notice error">
+			<?php esc_html_e( 'Please authenticate Smaily credentials under Smaily Settings.', 'smaily-connect' ); ?>
 		</p>
-		<table class='autoresponders-table' style='margin:15px'>
-			<tr class="form-field">
-				<th scope="row" style="text-align:left;padding:10px;">
-					<label for="smaily_status">
-						<?php esc_html_e( 'Enable Smaily for this form', 'smaily-connect' ); ?>
-					</label>
-				</th>
-				<td>
-					<input name="smailyforcf7[status]" type="checkbox" <?php checked( $is_enabled ); ?> class="smaily-toggle" id="smaily_status" value="<?php echo (int) $is_enabled; ?>" />
-					<label for="smaily_status"></label>
-				</td>
-			</tr>
-			<tr id='smailyforcf7-autoresponders' class='form-field'>
-				<th style="text-align:left;padding:10px;">
-					<?php esc_html_e( 'Autoresponder', 'smaily-connect' ); ?>
-				</th>
-				<td>
-					<select id='smailyforcf7-autoresponder-select' name='smailyforcf7-autoresponder'>
-						<option value='' <?php echo $default_autoresponder === 0 ? 'selected="selected"' : ''; ?>>
-							<?php esc_html_e( 'No autoresponder', 'smaily-connect' ); ?>
-						</option>
-						<?php foreach ( $autoresponder_list as $autoresponder_id => $autoresponder_title ) : ?>
-							<option value='<?php echo esc_html( $autoresponder_id ); ?>'
-								<?php if ( $default_autoresponder === $autoresponder_id ) : ?>
-									selected='selected'
-								<?php endif; ?>
-							>
-								<?php echo esc_html( $autoresponder_title ); ?>
+	<?php else : ?>
+		<div>
+			<?php if ( ! $template_variables['is_captcha_enabled'] ) : ?>
+				<p class="smaily-connect-cf7-notice warning">
+					<?php esc_html_e( 'CAPTCHA disabled. Please use a CAPTCHA if this is a public site.', 'smaily-connect' ); ?>
+				</p>
+			<?php endif; ?>
+			<table class="smaily-connect-cf7-table">
+				<tr class="form-field">
+					<th scope="row">
+						<label for="smaily_status">
+							<?php esc_html_e( 'Enable Smaily for this form', 'smaily-connect' ); ?>
+						</label>
+					</th>
+					<td>
+						<input
+							<?php checked( $template_variables['is_enabled'] ); ?> 
+							class="smaily-toggle"
+							id="smaily_status"
+							name="smailyforcf7[status]"
+							type="checkbox"
+							value="<?php echo (int) $template_variables['is_enabled']; ?>"
+						/>
+						<label for="smaily_status"></label>
+					</td>
+				</tr>
+				<tr class='form-field'>
+					<th>
+						<?php esc_html_e( 'Autoresponder', 'smaily-connect' ); ?>
+					</th>
+					<td>
+						<select id='smailyforcf7-autoresponder-select' name='smailyforcf7-autoresponder'>
+							<option value='' <?php echo $template_variables['autoresponder_id'] === 0 ? 'selected="selected"' : ''; ?>>
+								<?php esc_html_e( 'No autoresponder', 'smaily-connect' ); ?>
 							</option>
-						<?php endforeach; ?>
-					</select>
-				</td>
-				</th>
-			</tr>
-		</table>
-	</div>
+							<?php foreach ( $template_variables['autoresponders'] as $autoresponder_id => $autoresponder_title ) : ?>
+								<option value='<?php echo esc_html( $autoresponder_id ); ?>'
+									<?php if ( $template_variables['autoresponder_id'] === $autoresponder_id ) : ?>
+										selected='selected'
+									<?php endif; ?>
+								>
+									<?php echo esc_html( $autoresponder_title ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</td>
+				</tr>
+			</table>
+		</div>
+	<?php endif; ?>
 <?php endif; ?>

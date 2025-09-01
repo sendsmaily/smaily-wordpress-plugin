@@ -1,0 +1,21 @@
+.smaily-connect-cf7-notice {
+    padding:15px;
+    margin:0 0 10px;
+}
+
+.smaily-connect-cf7-notice.warning {
+    background-color:#ffdf92;
+}
+
+.smaily-connect-cf7-notice.error {
+    background-color:#f2dede;
+}
+
+.smaily-connect-cf7-table {
+    margin: 15px 0;
+}
+
+.smaily-connect-cf7-table th {
+    text-align: left;
+    padding: 10px;
+}

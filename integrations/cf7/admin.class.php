@@ -21,13 +21,19 @@ class Admin {
 	private $options;
 
 	/**
+	 * @var string Plugin version.
+	 */
+	private $version;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param Options $options Instance of Smaily Options.
 	 */
-	public function __construct( Options $options, $plugin_name ) {
+	public function __construct( Options $options, $plugin_name, $version ) {
 		$this->options     = $options;
 		$this->plugin_name = $plugin_name;
+		$this->version     = $version;
 	}
 
 	/**
@@ -39,6 +45,7 @@ class Admin {
 		add_action( 'wpcf7_editor_panels', array( $this, 'add_tab' ), -1 );
 		add_action( 'wpcf7_after_save', array( $this, 'save' ) );
 		add_action( 'wpcf7_init', array( $this, 'register_service' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_styles' ) );
 	}
 
 	/**
@@ -51,6 +58,21 @@ class Admin {
 			$this->plugin_name,
 			Service::get_instance( $this->options, $this->plugin_name )
 		);
+	}
+
+	/**
+	 * Enqueue admin styles.
+	 * @return void
+	 */
+	public function enqueue_admin_styles() {
+		wp_register_style(
+			$this->plugin_name . '_cf7_styles',
+			SMAILY_CONNECT_PLUGIN_URL . '/integrations/cf7/css/smaily-cf7-admin.css',
+			array(),
+			$this->version,
+			'all'
+		);
+		wp_enqueue_style( $this->plugin_name . '_cf7_styles' );
 	}
 
 	/**
@@ -72,17 +94,32 @@ class Admin {
 		}
 
 		// Validation and sanitization.
-		$status = isset( $_POST['smailyforcf7']['status'] ) ? 1 : 0;
+		$status = isset( $_POST['smailyforcf7']['status'] ) ? true : false;
 
 		$autoresponder = isset( $_POST['smailyforcf7-autoresponder'] ) ? (int) $_POST['smailyforcf7-autoresponder'] : 0;
 
-		update_option(
-			Options::CONTACT_FORM_7_STATUS_OPTION,
-			array(
-				'is_enabled'       => $status,
-				'autoresponder_id' => $autoresponder,
-			)
+		$this->save_form_settings( $args->id(), $status, $autoresponder );
+	}
+
+
+	/**
+	 * Saves Smaily settings for specific form.
+	 * @param int $form_id
+	 * @param bool $is_enabled
+	 * @param int $autoresponder_id
+	 * @return void
+	 *
+	 * @since 1.3.0
+	 */
+	private function save_form_settings( $form_id, $is_enabled, $autoresponder_id ) {
+		$settings = $this->options->get_settings()['cf7'];
+
+		$settings[ $form_id ] = array(
+			'is_enabled'       => $is_enabled,
+			'autoresponder_id' => $autoresponder_id,
 		);
+
+		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, $settings );
 	}
 
 	/**
@@ -109,17 +146,26 @@ class Admin {
 	 * @param WPCF7_ContactForm $args Contact Form 7 tab arguments.
 	 */
 	public function panel_content( $args ) {
-		// Fetch saved Smaily CF7 option here to pass data along to view.
 		$smaily_cf7_settings = $this->options->get_settings()['cf7'];
+		$form_id             = $args->id();
 
-		$is_enabled            = (bool) esc_html( $smaily_cf7_settings['is_enabled'] );
-		$default_autoresponder = (int) esc_html( $smaily_cf7_settings['autoresponder_id'] );
+		$template_variables = array(
+			'autoresponder_id'   => 0,
+			'autoresponders'     => array(),
+			'has_credentials'    => false,
+			'is_captcha_enabled' => false,
+			'is_enabled'         => false,
+		);
 
-		$has_credentials    = $this->options->has_credentials();
-		$autoresponder_list = Helper::get_autoresponders_list( $this->options );
+		if ( isset( $smaily_cf7_settings[ $form_id ] ) ) {
+			$template_variables = array_merge( $template_variables, $smaily_cf7_settings[ $form_id ] );
+		}
 
-		$form_tags       = \WPCF7_FormTagsManager::get_instance()->get_scanned_tags();
-		$captcha_enabled = $this->is_captcha_enabled( $form_tags );
+		$template_variables['has_credentials']    = $this->options->has_credentials();
+		$template_variables['autoresponders']     = Helper::get_autoresponders_list( $this->options );
+		$template_variables['is_captcha_enabled'] = $this->is_captcha_enabled(
+			\WPCF7_FormTagsManager::get_instance()->get_scanned_tags()
+		);
 
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/cf7/partials/smaily-cf7-admin.php';
 	}
@@ -166,4 +212,6 @@ class Admin {
 		}
 		return false;
 	}
+
+
 }

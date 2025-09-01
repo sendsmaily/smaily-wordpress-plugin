@@ -63,8 +63,15 @@ class Public_Base {
 		// Don't continue if no posted data or no saved credentials.
 		$posted_data  = $submission_instance->get_posted_data();
 		$cf7_settings = $this->options->get_settings()['cf7'];
+		$form_id      = $instance->id();
 
-		if ( ! $this->options->has_credentials() || ! $cf7_settings['is_enabled'] ) {
+		$form_settings = isset( $cf7_settings[ $form_id ] ) ? $cf7_settings[ $form_id ] : null;
+
+		if ( ! $form_settings || ! $this->options->has_credentials() ) {
+			return;
+		}
+
+		if ( isset( $form_settings['is_enabled'] ) && ! $form_settings['is_enabled'] ) {
 			return;
 		}
 
@@ -102,8 +109,9 @@ class Public_Base {
 
 		$payload = Helper::sanitize_array( $payload );
 
-		$request  = new Smaily_Client( $this->options );
-		$response = $request->trigger_automation( (int) $cf7_settings['autoresponder_id'], array( $payload ) );
+		$request          = new Smaily_Client( $this->options );
+		$autoresponder_id = isset( $form_settings['autoresponder_id'] ) ? (int) $form_settings['autoresponder_id'] : 0;
+		$response         = $request->trigger_automation( $autoresponder_id, array( $payload ) );
 
 		if ( empty( $response['body'] ) ) {
 			$error_message = esc_html__( 'Something went wrong', 'smaily-connect' );
