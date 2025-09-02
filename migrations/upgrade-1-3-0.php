@@ -55,7 +55,7 @@ $upgrade = function () {
 		// We can migrate a single form using previous settings.
 		$settings = array(
 			$forms[0]->ID => array(
-				'enabled'          => isset( $current_settings['is_enabled'] ) ? (bool) $current_settings['is_enabled'] : false,
+				'is_enabled'       => isset( $current_settings['is_enabled'] ) ? (bool) $current_settings['is_enabled'] : false,
 				'autoresponder_id' => isset( $current_settings['autoresponder_id'] ) ? (int) $current_settings['autoresponder_id'] : 0,
 			),
 		);
