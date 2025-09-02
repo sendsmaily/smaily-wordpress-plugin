@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smaily Connect 1.2.2\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-wordpress-plugin\n"
+"Project-Id-Version: Smaily Connect 1.3.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-connect\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-08-06T10:50:47+00:00\n"
+"POT-Creation-Date: 2025-09-02T07:52:56+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -341,7 +341,7 @@ msgid "Please enter password!"
 msgstr ""
 
 #: admin/smaily-admin-settings.class.php:62
-#: admin/smaily-admin.class.php:214
+#: admin/smaily-admin.class.php:216
 msgid "Connection"
 msgstr ""
 
@@ -472,53 +472,53 @@ msgstr ""
 msgid "Product RSS feed"
 msgstr ""
 
-#: admin/smaily-admin.class.php:92
+#: admin/smaily-admin.class.php:94
 msgid "Smaily Settings"
 msgstr ""
 
-#: admin/smaily-admin.class.php:150
+#: admin/smaily-admin.class.php:152
 msgid "API credentials validated successfully!"
 msgstr ""
 
-#: admin/smaily-admin.class.php:165
+#: admin/smaily-admin.class.php:167
 msgid "Check subdomain. API credentials validation failed."
 msgstr ""
 
-#: admin/smaily-admin.class.php:173
+#: admin/smaily-admin.class.php:175
 msgid "API credentials validation failed. Please check your details."
 msgstr ""
 
-#: admin/smaily-admin.class.php:215
+#: admin/smaily-admin.class.php:217
 msgid "Disconnect"
 msgstr ""
 
-#: admin/smaily-admin.class.php:215
+#: admin/smaily-admin.class.php:217
 msgid "Make a connection"
 msgstr ""
 
-#: admin/smaily-admin.class.php:231
+#: admin/smaily-admin.class.php:233
 msgid "Getting started"
 msgstr ""
 
-#: admin/smaily-admin.class.php:247
+#: admin/smaily-admin.class.php:249
 msgid "Subscriber Synchronization"
 msgstr ""
 
-#: admin/smaily-admin.class.php:248
-#: admin/smaily-admin.class.php:263
-#: admin/smaily-admin.class.php:278
+#: admin/smaily-admin.class.php:250
+#: admin/smaily-admin.class.php:265
+#: admin/smaily-admin.class.php:280
 msgid "Save"
 msgstr ""
 
-#: admin/smaily-admin.class.php:262
+#: admin/smaily-admin.class.php:264
 msgid "Abandoned Cart"
 msgstr ""
 
-#: admin/smaily-admin.class.php:277
+#: admin/smaily-admin.class.php:279
 msgid "RSS"
 msgstr ""
 
-#: admin/smaily-admin.class.php:346
+#: admin/smaily-admin.class.php:348
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/edit.js:89
 msgid "Settings"
@@ -596,58 +596,58 @@ msgid "Autoresponder ID"
 msgstr ""
 
 #: includes/smaily-widget.class.php:145
-#: integrations/cf7/partials/smaily-cf7-admin.php:47
+#: integrations/cf7/partials/smaily-cf7-admin.php:56
 #: integrations/elementor/newsletter-widget.class.php:326
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:298
 msgid "No autoresponder"
 msgstr ""
 
-#: integrations/cf7/admin.class.php:97
+#: integrations/cf7/admin.class.php:134
 msgid "Smaily for Contact Form 7"
 msgstr ""
 
-#: integrations/cf7/partials/smaily-cf7-admin.php:13
+#: integrations/cf7/partials/smaily-cf7-admin.php:12
 msgid "Configuring Smaily integration is disabled when using \"Add New Form\". Please save this form or edit an already existing form"
 msgstr ""
 
-#: integrations/cf7/partials/smaily-cf7-admin.php:22
+#: integrations/cf7/partials/smaily-cf7-admin.php:21
 msgid "Please authenticate Smaily credentials under Smaily Settings."
 msgstr ""
 
-#: integrations/cf7/partials/smaily-cf7-admin.php:26
+#: integrations/cf7/partials/smaily-cf7-admin.php:27
 msgid "CAPTCHA disabled. Please use a CAPTCHA if this is a public site."
 msgstr ""
 
-#: integrations/cf7/partials/smaily-cf7-admin.php:32
+#: integrations/cf7/partials/smaily-cf7-admin.php:34
 msgid "Enable Smaily for this form"
 msgstr ""
 
-#: integrations/cf7/partials/smaily-cf7-admin.php:42
+#: integrations/cf7/partials/smaily-cf7-admin.php:51
 #: integrations/elementor/newsletter-widget.class.php:454
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:290
 msgid "Autoresponder"
 msgstr ""
 
-#: integrations/cf7/public.class.php:109
+#: integrations/cf7/public.class.php:117
 msgid "Something went wrong"
 msgstr ""
 
-#: integrations/cf7/public.class.php:113
+#: integrations/cf7/public.class.php:121
 #: public/partials/smaily-public-basic.php:8
 msgid "Form was not submitted using POST method."
 msgstr ""
 
-#: integrations/cf7/public.class.php:116
+#: integrations/cf7/public.class.php:124
 msgid "Invalid data submitted."
 msgstr ""
 
-#: integrations/cf7/public.class.php:119
+#: integrations/cf7/public.class.php:127
 msgid "Input does not contain a valid email address."
 msgstr ""
 
-#: integrations/cf7/public.class.php:122
+#: integrations/cf7/public.class.php:130
 #: public/partials/smaily-public-basic.php:11
 msgid "Subscribing failed with unknown reason."
 msgstr ""
@@ -1017,6 +1017,10 @@ msgstr ""
 
 #: integrations/woocommerce/profile-settings.class.php:396
 msgid "Enter birthday"
+msgstr ""
+
+#: migrations/upgrade-1-3-0.php:125
+msgid "Multiple Contact Form 7 forms detected! Please review Smaily Connect integration settings for your forms. You can now configure each form individually."
 msgstr ""
 
 #: public/partials/smaily-public-basic.php:7
