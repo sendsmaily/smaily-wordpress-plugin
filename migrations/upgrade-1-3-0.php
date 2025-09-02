@@ -10,6 +10,9 @@
  * This allows users to add more than one form with its own
  * unique settings.
  *
+ * Previous: ['is_enabled' => int, 'autoresponder_id' => int]
+ * Current: [form_id => ['is_enabled' => bool, 'autoresponder_id' => int]]
+ *
  * @since 1.3.0
  */
 
@@ -25,10 +28,8 @@ $upgrade = function () {
 		return;
 	}
 
-	if ( isset( $current_settings['enabled'] ) && ! $current_settings['enabled'] ) {
-		// Smaily integration was disabled.
+	if ( integration_disabled( $current_settings ) ) {
 		// We don't have to migrate forms nor show admin notices.
-		// We can simply remove the stale values.
 		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, array() );
 		return;
 	}
@@ -41,29 +42,44 @@ $upgrade = function () {
 	);
 
 	if ( empty( $forms ) ) {
-		// No forms found.
+		// No forms found, but the integration is enabled.
+		// Form has been removed.
+		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, array() );
 		return;
 	}
 
 	if ( isset( $current_settings[ $forms[0]->ID ] ) ) {
-		// Settings already exist for this form, do not overwrite.
+		// Safeguard: Malformed settings or already migrated.
 		return;
 	}
 
-	$settings = array();
 	if ( count( $forms ) === 1 ) {
 		// We can migrate a single form using previous settings.
-		$settings[ $forms[0]->ID ] = array(
-			'enabled'          => isset( $current_settings['enabled'] ) ? (bool) $current_settings['enabled'] : false,
-			'autoresponder_id' => isset( $current_settings['autoresponder_id'] ) ? (int) $current_settings['autoresponder_id'] : 0,
+		$settings = array(
+			$forms[0]->ID => array(
+				'enabled'          => isset( $current_settings['is_enabled'] ) ? (bool) $current_settings['is_enabled'] : false,
+				'autoresponder_id' => isset( $current_settings['autoresponder_id'] ) ? (int) $current_settings['autoresponder_id'] : 0,
+			),
 		);
 
 		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, $settings );
 	} else {
+		// Remove previous settings.
+		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, array() );
 		// User needs to manually configure each form.
 		set_transient( 'smaily_connect_1_3_0_upgrade_notice', true );
 	}
 };
+
+/**
+ * Check if Smaily Contact Form 7 integration is enabled.
+ *
+ * @param array $settings
+ * @return bool
+ */
+function integration_disabled( array $settings ): bool {
+	return empty( $settings ) || ( isset( $settings['is_enabled'] ) && ! (bool) $settings['is_enabled'] );
+}
 
 $notice = function () {
 	if ( get_transient( 'smaily_connect_1_3_0_upgrade_notice' ) ) {
