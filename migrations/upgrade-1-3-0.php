@@ -30,8 +30,7 @@ $upgrade = function () {
 
 	if ( integration_disabled( $current_settings ) ) {
 		// We don't have to migrate forms nor show admin notices.
-		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, array() );
-		return;
+		return remove_legacy_keys( $current_settings );
 	}
 
 	$forms = get_posts(
@@ -44,13 +43,12 @@ $upgrade = function () {
 	if ( empty( $forms ) ) {
 		// No forms found, but the integration is enabled.
 		// Form has been removed.
-		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, array() );
-		return;
+		return remove_legacy_keys( $current_settings );
 	}
 
-	if ( isset( $current_settings[ $forms[0]->ID ] ) ) {
-		// Safeguard: Malformed settings or already migrated.
-		return;
+	if ( forms_migrated( $forms, $current_settings ) ) {
+		// Safeguard.
+		return remove_legacy_keys( $current_settings );
 	}
 
 	if ( count( $forms ) === 1 ) {
@@ -65,20 +63,48 @@ $upgrade = function () {
 		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, $settings );
 	} else {
 		// Remove previous settings.
-		update_option( Options::CONTACT_FORM_7_STATUS_OPTION, array() );
+		remove_legacy_keys( $current_settings );
 		// User needs to manually configure each form.
 		set_transient( 'smaily_connect_1_3_0_upgrade_notice', true );
 	}
 };
 
 /**
- * Check if Smaily Contact Form 7 integration is enabled.
+ * Check if Smaily Contact Form 7 integration was previously enabled.
  *
  * @param array $settings
  * @return bool
  */
 function integration_disabled( array $settings ): bool {
 	return empty( $settings ) || ( isset( $settings['is_enabled'] ) && ! (bool) $settings['is_enabled'] );
+}
+
+/**
+ * Check if forms have already been migrated.
+ *
+ * @param array $forms
+ * @param array $settings
+ * @return bool
+ */
+function forms_migrated( array $forms, array $settings ): bool {
+	foreach ( $forms as $form ) {
+		if ( isset( $settings[ $form->ID ] ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Remove legacy keys from the settings.
+ *
+ * @param array $settings
+ */
+function remove_legacy_keys( array $settings ) {
+	unset( $settings['is_enabled'] );
+	unset( $settings['autoresponder_id'] );
+	update_option( Options::CONTACT_FORM_7_STATUS_OPTION, $settings );
 }
 
 $notice = function () {

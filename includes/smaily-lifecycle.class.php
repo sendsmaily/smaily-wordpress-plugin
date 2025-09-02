@@ -175,7 +175,7 @@ class Lifecycle {
 	 *
 	 */
 	public function update() {
-		if ( get_transient( 'smaily_connect_plugin_updated' ) !== true ) {
+		if ( (bool) get_transient( 'smaily_connect_plugin_updated' ) !== true ) {
 			return;
 		}
 		$this->run_migrations();
