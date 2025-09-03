@@ -20,14 +20,13 @@ class Notices {
 	 */
 	public function display_notices() {
 		$notices      = Notice_Registry::get_notices();
-		$current_user = get_current_user_id();
 
 		foreach ( $notices as $id => $notice ) {
 			if ( ! current_user_can( $notice['capability'] ) ) {
 				continue;
 			}
 
-			if ( Notice_Registry::is_dismissed( $id, $current_user ) ) {
+			if ( Notice_Registry::is_dismissed( $id ) ) {
 				continue;
 			}
 
@@ -86,10 +85,8 @@ class Notices {
 			wp_send_json_error( $err );
 		}
 
-		$notice_id    = sanitize_text_field( wp_unslash( $_POST['id'] ) );
-		$current_user = get_current_user_id();
-
-		Notice_Registry::dismiss_notice( $notice_id, $current_user );
+		$notice_id = sanitize_text_field( wp_unslash( $_POST['id'] ) );
+		Notice_Registry::dismiss_notice( $notice_id );
 
 		wp_send_json_success();
 	}
