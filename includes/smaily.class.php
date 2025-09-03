@@ -189,24 +189,24 @@ class Smaily_Connect {
 	 *
 	 * Include the following files that make up the plugin:
 	 *
+	 * - Admin_Notices. Defines the notice management functionality on the admin side.
+	 * - Admin.         Defines all hooks for the admin area.
+	 * - Block.         Define the Gutenberg newsletter subscription block functionality.
 	 * - Helper.        Defines helper methods for various purposes.
 	 * - Logger.        Defines the logging functionality.
-	 * - Admin.         Defines all hooks for the admin area.
-	 * - Admin_Notices. Defines the notice management functionality on the admin side.
-	 * - Block.         Define the Gutenberg newsletter subscription block functionality.
 	 * - Options.       Defines the database related queries of Options API.
-	 * - Widget.        Defines the widget functionality.
 	 * - Public_Base.   Defines all hooks for the public side of the site.
+	 * - Widget.        Defines the widget functionality.
 	 *
 	 * Woocommerce related dependencies
 	 *
+	 * - Integrations\WooCommerce\Cart                         Manages status of user cart in abandoned carts table.
+	 * - Integrations\WooCommerce\Cron.                        Handles data synchronization between Smaily and WooCommerce.
 	 * - Integrations\WooCommerce\Data_Handler.                Handles woocommerce related data retrieval
 	 * - Integrations\WooCommerce\Data_Prepare.                Class for preparing Woocommerce related data
-	 * - Integrations\WooCommerce\Cron.                        Handles data synchronization between Smaily and WooCommerce.
-	 * - Integrations\WooCommerce\Cart                         Manages status of user cart in abandoned carts table.
-	 * - Integrations\WooCommerce\Subscriber_Synchronization   Defines functionality for user subscriptions
 	 * - Integrations\WooCommerce\Profile_Settings.            Adds and controls WordPress/Woocommerce fields.
 	 * - Integrations\WooCommerce\Rss.                         Handles RSS generation for Smaily newsletter.
+	 * - Integrations\WooCommerce\Subscriber_Synchronization   Defines functionality for user subscriptions
 	 *
 	 * Create an instance of the loader which will be used to register the hooks
 	 * with WordPress.
