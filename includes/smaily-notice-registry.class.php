@@ -7,13 +7,17 @@ class Notice_Registry {
 	/**
 	 * Add a notice to the notice registry.
 	 *
-	 * @param string $id
-	 * @param string $message
-	 * @param array $args
+	 * @param string $id Unique identifier for the notice.
+	 * @param string $template Template name for the notice.
+	 * @param array $args Additional arguments for the notice.
 	 *
 	 * @since 1.3.0
 	 */
-	public static function add_notice( string $id, string $message, array $args = array() ) {
+	public static function add_notice( string $id, string $template, array $args = array() ) {
+		if ( empty( $id ) || empty( $template ) ) {
+			return;
+		}
+
 		$defaults = array(
 			'capability'  => 'manage_options',
 			'dismissible' => true,
@@ -26,7 +30,7 @@ class Notice_Registry {
 		$notices[ $id ] = array(
 			'capability'  => $args['capability'],
 			'dismissible' => $args['dismissible'],
-			'message'     => $message,
+			'template'    => sanitize_file_name( $template ),
 			'type'        => $args['type'],
 		);
 
@@ -61,6 +65,7 @@ class Notice_Registry {
 
 	/**
 	 * Dismiss a notice for a user.
+	 * If no user ID is provided, the current user ID will be used.
 	 *
 	 * @param string $id
 	 * @param int|null $user_id
@@ -78,6 +83,7 @@ class Notice_Registry {
 
 	/**
 	 * Check if a notice is dismissed for a user.
+	 * If no user ID is provided, the current user ID will be used.
 	 *
 	 * @param string $id
 	 * @param int|null $user_id

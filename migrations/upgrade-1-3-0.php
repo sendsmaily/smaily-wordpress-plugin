@@ -67,7 +67,7 @@ $upgrade = function () {
 		remove_legacy_keys( $current_settings );
 		Notice_Registry::add_notice(
 			'smaily_connect_1_3_0_upgrade',
-			__( 'Multiple Contact Form 7 forms detected! Please review Smaily Connect integration settings for your forms. You can now configure each form individually.', 'smaily-connect' )
+			'1_3_0_upgrade_cf7_notice'
 		);
 	}
 };

@@ -42,36 +42,18 @@ class Notices {
 	 * @param array  $notice The notice data.
 	 */
 	private function render_notice( string $id, array $notice ) {
-		?>
-		<div
-			id="<?php echo esc_attr( $id ); ?>" 
-			class="notice notice-<?php echo esc_attr( $notice['type'] ); ?> 
-			<?php echo $notice['dismissible'] ? 'is-dismissible' : ''; ?>">
-			<p>
-				<?php echo esc_html( $notice['message'] ); ?>
-			</p>
-		</div>
-		<script>
-			jQuery(document).ready(function($){
-				$('#<?php echo esc_attr( $id ); ?>').on('click', '.notice-dismiss', function() {
-					// Dismiss the notice via AJAX.
-					$.post(
-						ajaxurl,
-						{
-							action: 'smaily_connect_dismiss_notice',
-							id: '<?php echo esc_js( $id ); ?>',
-							nonce: '<?php echo esc_attr( wp_create_nonce( 'smaily_connect_dismiss_notice' ) ); ?>'
-						},
-						function(response) {
-							if (response.success) {
-								$('#<?php echo esc_attr( $id ); ?>').fadeOut();
-							}
-						}
-					);
-				});
-			});
-		</script>
-		<?php
+		if ( ! isset( $notice['template'] ) || empty( $notice['template'] ) ) {
+			return;
+		}
+
+		$template_path = SMAILY_CONNECT_PLUGIN_PATH . 'admin/partials/notices/' . $notice['template'] . '.php';
+		if ( ! file_exists( $template_path ) ) {
+			return;
+		}
+
+		$id;
+		$notice;
+		require SMAILY_CONNECT_PLUGIN_PATH . 'admin/partials/smaily-admin-notice.php';
 	}
 
 	/**
