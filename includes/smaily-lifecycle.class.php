@@ -165,7 +165,6 @@ class Lifecycle {
 		Options::delete_all_options();
 
 		delete_transient( 'smaily_connect_plugin_updated' );
-		delete_transient( 'smaily_connect_1_3_0_upgrade_notice' );
 	}
 
 	/**
