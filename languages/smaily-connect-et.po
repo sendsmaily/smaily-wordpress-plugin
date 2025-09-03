@@ -13,7 +13,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n !== 1)\n"
 "X-Generator: Tolgee\n"
 
-#: admin/smaily-admin.class.php:264
+#: admin/smaily-admin.class.php:262
 msgid "Abandoned Cart"
 msgstr "Hüljatud ostukorv"
 
@@ -43,7 +43,7 @@ msgstr "Lisab kassasse uudiskirja tellimise märkeruudu."
 msgid "Add the Smaily Sign-Up Form block to any page or post. The block is available in the block editor."
 msgstr "Lisage Smaily Registreerimisvorm mis tahes lehele või postitusele. Vorm on saadaval plokkide redaktoris."
 
-#: includes/smaily-options.class.php:159
+#: includes/smaily-options.class.php:161
 msgid "After"
 msgstr "Pärast"
 
@@ -55,11 +55,11 @@ msgstr "Kõik"
 msgid "An error occurred. Please try again."
 msgstr "Ilmnes viga. Palun proovige uuesti."
 
-#: admin/smaily-admin.class.php:152
+#: admin/smaily-admin.class.php:150
 msgid "API credentials validated successfully!"
 msgstr "API kasutaja on edukalt valideeritud!"
 
-#: admin/smaily-admin.class.php:175
+#: admin/smaily-admin.class.php:173
 msgid "API credentials validation failed. Please check your details."
 msgstr "API kasutaja valideerimine nurjus. Palun kontrollige oma andmeid."
 
@@ -100,11 +100,11 @@ msgstr "Automaatvastaja ID"
 msgid "Background Color"
 msgstr "Taustavärv"
 
-#: includes/smaily-options.class.php:158
+#: includes/smaily-options.class.php:160
 msgid "Before"
 msgstr "Enne"
 
-#: includes/smaily-options.class.php:183
+#: includes/smaily-options.class.php:185
 msgid "Billing form"
 msgstr "Arvelduse vorm"
 
@@ -187,7 +187,7 @@ msgstr "Ostukorv loetakse aegunuks (minutites)"
 msgid "checkout"
 msgstr "kassa"
 
-#: admin/smaily-admin.class.php:167
+#: admin/smaily-admin.class.php:165
 msgid "Check subdomain. API credentials validation failed."
 msgstr "Kontrollige alamdomeeni. API kasutaja valideerimine nurjus."
 
@@ -204,7 +204,7 @@ msgid "Configuring Smaily integration is disabled when using \"Add New Form\". P
 msgstr "Smaily integratsiooni seadistamine on uue kontaktivormi lisamisel välja lülitatud. Palun salvestage see vorm või redigeerige juba olemasolevat vormi."
 
 #: admin/smaily-admin-settings.class.php:62
-#: admin/smaily-admin.class.php:216
+#: admin/smaily-admin.class.php:214
 msgid "Connection"
 msgstr "Ühendus"
 
@@ -286,7 +286,7 @@ msgstr "Vaikimisi praeguse lehekülje URL."
 msgid "Descending"
 msgstr "Kahanevalt"
 
-#: admin/smaily-admin.class.php:217
+#: admin/smaily-admin.class.php:215
 msgid "Disconnect"
 msgstr "Ühenda lahti"
 
@@ -481,7 +481,7 @@ msgstr "Sugu"
 msgid "Generate RSS-feeds of your products that enables product import into Smaily drag-and-drop templates."
 msgstr "Genereeri oma toodetest RSS-vooge, mis võimaldavad tooteid importida Smaily drag-and-drop kirjapõhjadesse."
 
-#: admin/smaily-admin.class.php:233
+#: admin/smaily-admin.class.php:231
 msgid "Getting started"
 msgstr "Alustamine"
 
@@ -634,7 +634,7 @@ msgstr "Piirake, kui palju tooteid kuvatakse. Maksimaalselt 250."
 msgid "Location"
 msgstr "Asukoht"
 
-#: admin/smaily-admin.class.php:217
+#: admin/smaily-admin.class.php:215
 msgid "Make a connection"
 msgstr "Looge ühendus"
 
@@ -646,7 +646,7 @@ msgstr "Mees"
 msgid "Modified At"
 msgstr "Muudetud"
 
-#: migrations/upgrade-1-3-0.php:125
+#: admin/partials/notices/1_3_0_upgrade_cf7_notice.php:2
 msgid "Multiple Contact Form 7 forms detected! Please review Smaily Connect integration settings for your forms. You can now configure each form individually."
 msgstr "Tuvastati mitu Contact Form 7 vormi! Palun kontrollige Smaily Connect-i integratsiooni seadeid. Nüüd on võimalik iga vormi seadistada eraldi."
 
@@ -737,7 +737,7 @@ msgstr "Lisa uudiskirjaga liitujad otse Smaily'sse sujuvaks e-posti turunduseks.
 msgid "Order by"
 msgstr "Sorteeri"
 
-#: includes/smaily-options.class.php:184
+#: includes/smaily-options.class.php:186
 msgid "Order notes"
 msgstr "Tellimuse märkmed"
 
@@ -849,17 +849,17 @@ msgstr "Toote SKU"
 msgid "read the detailed guide"
 msgstr "lugege üksikasjalikku juhendit"
 
-#: includes/smaily-options.class.php:182
+#: includes/smaily-options.class.php:184
 msgid "Registration form"
 msgstr "Registreerimisvorm"
 
-#: admin/smaily-admin.class.php:279
+#: admin/smaily-admin.class.php:277
 msgid "RSS"
 msgstr "RSS"
 
-#: admin/smaily-admin.class.php:250
-#: admin/smaily-admin.class.php:265
-#: admin/smaily-admin.class.php:280
+#: admin/smaily-admin.class.php:248
+#: admin/smaily-admin.class.php:263
+#: admin/smaily-admin.class.php:278
 msgid "Save"
 msgstr "Salvesta"
 
@@ -876,7 +876,7 @@ msgstr "Vali lisaväljad, mida soovite Smaily-sse saata."
 msgid "Send Abandoned Cart reminder emails to store customers."
 msgstr "Saatke klientidele Hüljatud Ostukorvi meeldetuletusmeile."
 
-#: admin/smaily-admin.class.php:348
+#: admin/smaily-admin.class.php:346
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/edit.js:89
 msgid "Settings"
@@ -894,7 +894,7 @@ msgstr "Integratsiooni seadistamine"
 msgid "Set up the Smaily Classic Subscription widget."
 msgstr "Seadistage Smaily Classic Uudiskirja vidin."
 
-#: includes/smaily-options.class.php:185
+#: includes/smaily-options.class.php:187
 msgid "Shipping form"
 msgstr "Tarne vorm"
 
@@ -995,7 +995,7 @@ msgstr "Smaily RSS-voog"
 msgid "Smaily RSS feed allows you insert product feeds to email templates."
 msgstr "Smaily RSS-voog võimaldab sisestada tootevooge kirjapõhjadesse."
 
-#: admin/smaily-admin.class.php:94
+#: admin/smaily-admin.class.php:92
 msgid "Smaily Settings"
 msgstr "Smaily Sätted"
 
@@ -1040,7 +1040,7 @@ msgstr "Liitu"
 msgid "Subscribe button label"
 msgstr "Liitumisnupu silt"
 
-#: admin/smaily-admin.class.php:249
+#: admin/smaily-admin.class.php:247
 msgid "Subscriber Synchronization"
 msgstr "Uudiskirjaga Liitujate Sünkroniseerimine"
 
