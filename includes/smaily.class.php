@@ -1,6 +1,7 @@
 <?php
 
 use Smaily_Connect\Admin;
+use Smaily_Connect\Admin\Notices;
 use Smaily_Connect\Includes\API;
 use Smaily_Connect\Includes\Blocks;
 use Smaily_Connect\Includes\Helper;
@@ -43,6 +44,15 @@ class Smaily_Connect {
 	 * @var    Admin $admin Admin class instance.
 	 */
 	protected $admin;
+
+	/**
+	 * Admin_Notices class instance.
+	 *
+	 *
+	 * @access private
+	 * @var    Notices $notices Admin_Notices class instance.
+	 */
+	protected $admin_notices;
 
 	/**
 	 * Blocks class instance.
@@ -179,13 +189,14 @@ class Smaily_Connect {
 	 *
 	 * Include the following files that make up the plugin:
 	 *
-	 * - Helper.    Defines helper methods for various purposes.
-	 * - Logger.    Defines the logging functionality.
-	 * - Admin.     Defines all hooks for the admin area.
-	 * - Block.     Define the Gutenberg newsletter subscription block functionality.
-	 * - Options.   Defines the database related queries of Options API.
-	 * - Widget.    Defines the widget functionality.
-	 * - Public_Base.    Defines all hooks for the public side of the site.
+	 * - Helper.        Defines helper methods for various purposes.
+	 * - Logger.        Defines the logging functionality.
+	 * - Admin.         Defines all hooks for the admin area.
+	 * - Admin_Notices. Defines the notice management functionality on the admin side.
+	 * - Block.         Define the Gutenberg newsletter subscription block functionality.
+	 * - Options.       Defines the database related queries of Options API.
+	 * - Widget.        Defines the widget functionality.
+	 * - Public_Base.   Defines all hooks for the public side of the site.
 	 *
 	 * Woocommerce related dependencies
 	 *
@@ -209,6 +220,7 @@ class Smaily_Connect {
 	 * @access private
 	 */
 	private function load_dependencies() {
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-notices.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-renderer.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
@@ -216,11 +228,12 @@ class Smaily_Connect {
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-integration.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-api.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-blocks.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-client.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-helper.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-logger.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-notice-registry.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-options.class.php';
-		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-client.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-widget.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'public/smaily-public.class.php';
 
@@ -254,6 +267,9 @@ class Smaily_Connect {
 	private function init_classes() {
 		$this->admin = new Admin( $this->options, $this->plugin_name, $this->version );
 		$this->admin->register_hooks();
+
+		$this->admin_notices = new Notices();
+		$this->admin_notices->register_hooks();
 
 		$this->api = new API( $this->options, $this->plugin_name );
 		$this->api->register_hooks();

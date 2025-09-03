@@ -16,8 +16,9 @@
  * @since 1.3.0
  */
 
-require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-options.class.php';
+namespace Smaily_Connect\Migrations;
 
+use Smaily_Connect\Includes\Notice_Registry;
 use Smaily_Connect\Includes\Options;
 
 $upgrade = function () {
@@ -64,8 +65,10 @@ $upgrade = function () {
 	} else {
 		// Remove previous settings.
 		remove_legacy_keys( $current_settings );
-		// User needs to manually configure each form.
-		set_transient( 'smaily_connect_1_3_0_upgrade_notice', true );
+		Notice_Registry::add_notice(
+			'smaily_connect_1_3_0_upgrade',
+			__( 'Multiple Contact Form 7 forms detected! Please review Smaily Connect integration settings for your forms. You can now configure each form individually.', 'smaily-connect' )
+		);
 	}
 };
 
@@ -105,58 +108,4 @@ function remove_legacy_keys( array $settings ) {
 	unset( $settings['is_enabled'] );
 	unset( $settings['autoresponder_id'] );
 	update_option( Options::CONTACT_FORM_7_STATUS_OPTION, $settings );
-}
-
-$notice = function () {
-	if ( get_transient( 'smaily_connect_1_3_0_upgrade_notice' ) ) {
-		add_action( 'admin_notices', 'smaily_connect_1_3_0_upgrade_notice' );
-		add_action( 'wp_ajax_smaily_connect_1_3_0_dismiss_upgrade_notice', 'smaily_connect_1_3_0_dismiss_upgrade_notice' );
-	}
-};
-
-function smaily_connect_1_3_0_upgrade_notice() {
-	if ( current_user_can( 'manage_options' ) ) {
-		if ( get_user_meta( get_current_user_id(), 'smaily_connect_1_3_0_upgrade_notice_dismissed', true ) ) {
-			return;
-		}
-		?>
-		<div id="smaily-connect-1-3-0-upgrade-notice" class="notice notice-warning is-dismissible">
-			<p>
-				<?php esc_html_e( 'Multiple Contact Form 7 forms detected! Please review Smaily Connect integration settings for your forms. You can now configure each form individually.', 'smaily-connect' ); ?>
-			</p>
-		</div>
-		<script>
-			jQuery(document).ready(function($){
-				$('#smaily-connect-1-3-0-upgrade-notice').on('click', '.notice-dismiss', function() {
-					// Dismiss the notice via AJAX.
-					$.post(
-						ajaxurl,
-						{
-							action: 'smaily_connect_1_3_0_dismiss_upgrade_notice',
-							nonce: '<?php echo esc_attr( wp_create_nonce( 'smaily_connect_1_3_0_upgrade_notice' ) ); ?>'
-						},
-						function(response) {
-							if (response.success) {
-								$('#smaily-connect-1-3-0-upgrade-notice').fadeOut();
-							}
-						}
-					);
-				});
-			});
-		</script>
-		<?php
-	}
-}
-
-function smaily_connect_1_3_0_dismiss_upgrade_notice() {
-	check_ajax_referer( 'smaily_connect_1_3_0_upgrade_notice', 'nonce' );
-
-	if ( ! current_user_can( 'manage_options' ) ) {
-		$err = new WP_Error( 'forbidden', 'You do not have permission to perform this action.' );
-		wp_send_json_error( $err );
-	}
-
-	update_user_meta( get_current_user_id(), 'smaily_connect_1_3_0_upgrade_notice_dismissed', true );
-
-	wp_send_json_success();
 }

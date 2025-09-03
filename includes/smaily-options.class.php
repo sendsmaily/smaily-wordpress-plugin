@@ -113,6 +113,7 @@ class Options {
 	const RSS_URL_OPTION                        = 'smaily_connect_rss_url';
 	const DATABASE_VERSION_OPTION               = 'smaily_connect_db_version';
 	const CONTACT_FORM_7_STATUS_OPTION          = 'smaily_connect_cf7_status';
+	const NOTICE_REGISTRY_OPTION                = 'smaily_connect_notices';
 
 	/**
 	 * Array of all option fields.
@@ -136,6 +137,7 @@ class Options {
 		self::RSS_URL_OPTION,
 		self::DATABASE_VERSION_OPTION,
 		self::CONTACT_FORM_7_STATUS_OPTION,
+		self::NOTICE_REGISTRY_OPTION,
 	);
 
 	/**
