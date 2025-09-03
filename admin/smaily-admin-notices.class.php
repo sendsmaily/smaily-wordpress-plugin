@@ -19,7 +19,7 @@ class Notices {
 	 * Display admin notices.
 	 */
 	public function display_notices() {
-		$notices      = Notice_Registry::get_notices();
+		$notices = Notice_Registry::get_notices();
 
 		foreach ( $notices as $id => $notice ) {
 			if ( ! current_user_can( $notice['capability'] ) ) {
