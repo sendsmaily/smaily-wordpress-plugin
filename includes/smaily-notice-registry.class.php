@@ -73,10 +73,18 @@ class Notice_Registry {
 	 * @since 1.3.0
 	 */
 	public static function dismiss_notice( string $id, int $user_id = null ) {
+		if ( empty( $id ) ) {
+			return;
+		}
+
 		$current_user = $user_id ? $user_id : get_current_user_id();
 		$dismissed    = get_user_meta( $current_user, 'smaily_connect_notice_dismissed', true );
 
-		$dismissed = array_unique( array_merge( (array) $dismissed, array( $id ) ) );
+		if ( ! is_array( $dismissed ) ) {
+			$dismissed = array();
+		}
+
+		$dismissed = array_unique( array_merge( $dismissed, array( $id ) ) );
 		update_user_meta( $current_user, 'smaily_connect_notice_dismissed', $dismissed );
 	}
 
