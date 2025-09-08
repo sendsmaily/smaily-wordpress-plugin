@@ -11,7 +11,7 @@
  * Plugin Name:       Smaily Connect
  * Plugin URI:        https://smaily.com/help/user-manual/smaily-connect-for-wordpress/
  * Text Domain:       smaily-connect
- * Version:           1.3.0
+ * Version:           1.3.1
 */
 
 // Exit if accessed directly.
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Current plugin version.
  */
-define( 'SMAILY_CONNECT_PLUGIN_VERSION', '1.3.0' );
+define( 'SMAILY_CONNECT_PLUGIN_VERSION', '1.3.1' );
 
 /**
  * The name of the plugin.

@@ -141,6 +141,11 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.3.1
+
+- Improved the admin notice when the Smaily API credentials are invalid. Now the notice is rendered closer to the credentials input fields for better visibility.
+- Improved autoresponder listing function validation to handle edge cases and ensure robust performance.
+
 ## 1.3.0
 
 - Improved the Contact Form 7 integration by allowing user to configure each form individually.
