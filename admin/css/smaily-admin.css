@@ -5,6 +5,16 @@
   letter-spacing: 2%;
 }
 
+.smaily-connect-admin-notice {
+  background-color: #fff3f6;
+  padding: 10px 20px;
+  margin-bottom: 20px;
+}
+
+.smaily-connect-admin-notice.notice-error {
+  border-left: 4px solid #e91e63;
+}
+
 .smaily-connect-admin-settings input[type="text"],
 .smaily-connect-admin-settings input[type="password"],
 .smaily-connect-admin-settings input[type="number"],

@@ -108,7 +108,7 @@ class API {
 	 * @param string $path     Endpoint URL path.
 	 * @param string $methods  Methods accepted by the endpoint.
 	 * @param string $callback Function name for the endpoint logic.
-	 * @param array $args      Extra arguments for register_rest_route.
+	 * @param array  $args      Extra arguments for register_rest_route.
 	 */
 	private function register_endpoint( $version, $path, $methods, $callback, $args = array() ) {
 		$defaults = array(

@@ -32,7 +32,7 @@ class Renderer {
 	public function render_connection_section_header() {
 		?>
 		<?php if ( ! $this->are_credentials_valid() ) : ?>
-			<div class="error smaily-notice is-dismissible">
+			<div class="smaily-connect-admin-notice notice-error">
 				<p>
 					<?php
 					esc_html_e(
