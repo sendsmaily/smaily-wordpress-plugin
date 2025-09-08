@@ -21,16 +21,29 @@ class Helper {
 		$request = new Smaily_Client( $options );
 		$result  = $request->list_autoresponders();
 
-		if ( empty( $result['body'] ) ) {
+		if ( ! isset( $result['body'] ) || empty( $result['body'] ) ) {
 			return array();
 		}
 
 		$autoresponder_list = array();
 		foreach ( $result['body'] as $autoresponder ) {
+			if ( ! is_array( $autoresponder ) ) {
+				continue;
+			}
+
+			if ( ! isset( $autoresponder['id'] ) || ! isset( $autoresponder['title'] ) ) {
+				continue;
+			}
+
+			if ( empty( $autoresponder['id'] ) || empty( $autoresponder['title'] ) ) {
+				continue;
+			}
+
 			$id                        = $autoresponder['id'];
 			$title                     = $autoresponder['title'];
 			$autoresponder_list[ $id ] = $title;
 		}
+
 		return $autoresponder_list;
 	}
 
