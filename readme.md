@@ -141,6 +141,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.3.2
+
+Fixed a bug where the RSS-feed `pubDate` was not correctly formatted, which could lead to issues while importing sorted products into Smaily templates. Now the `pubDate` is formatted according to the RFC 822 standard, ensuring compatibility with RSS parsers.
+
 ## 1.3.1
 
 - Improved the admin notice when the Smaily API credentials are invalid. Now the notice is rendered closer to the credentials input fields for better visibility.

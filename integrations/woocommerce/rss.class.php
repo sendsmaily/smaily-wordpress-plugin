@@ -152,7 +152,7 @@ class Rss {
 				'discount'      => self::calculate_discount( floatval( $current_price ), floatval( $regular_price ) ),
 				'url'           => $url,
 				'title'         => $product->get_title(),
-				'created_at'    => $product->get_date_created()->date_i18n( 'D, d M Y H:i:s' ),
+				'created_at'    => $product->get_date_created()->format( DATE_RFC822 ),
 				'enclosure_url' => self::get_product_image_url( $product->get_id() ),
 				'description'   => do_shortcode( $product->get_description() ),
 			);
