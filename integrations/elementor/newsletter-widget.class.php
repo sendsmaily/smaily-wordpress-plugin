@@ -81,6 +81,15 @@ class Newsletter_Widget extends Widget_Base {
 	}
 
 	/**
+	 * Whether the element returns dynamic content.
+	 * Set to determine whether to cache the element output or not.
+	 * @return bool
+	 */
+	protected function is_dynamic_content(): bool {
+		return false;
+	}
+
+	/**
 	 * Register the controls for the widget.
 	 *
 	 * @return void
@@ -318,6 +327,12 @@ class Newsletter_Widget extends Widget_Base {
 	 * @return array The list of autoresponders.
 	 */
 	private function listAutoresponders() {
+		// Frontend uses saved autoresponder_id. Autoresponders list is only needed
+		// in admin where the widget is configured.
+		if ( ! is_admin() ) {
+			return array();
+		}
+
 		if ( ! $this->autoresponders ) {
 			$autoresponders = Helper::get_autoresponders_list( $this->get_options() );
 			foreach ( $autoresponders as $id => $title ) {

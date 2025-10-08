@@ -43,7 +43,6 @@ Privacy Policy: [Smaily Privacy Policy](https://smaily.com/privacy-policy/)
 
 Terms of Service: [Smaily Terms of Service](https://smaily.com/terms-of-service/)
 
-
 ## Contribute
 
 Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-wordpress-plugin). We welcome new issues and pull requests.
@@ -53,7 +52,6 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 1. Upload the plugin files to your site's `/wp-content/plugins/` directory, or install the plugin through the WordPress plugins screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress.
 
-
 ## Subscriber Synchronization
 
 The subscriber synchronization runs once per day and is triggered by a WordPress cron job.
@@ -61,6 +59,7 @@ The subscriber synchronization runs once per day and is triggered by a WordPress
 ### Two-way Automatic Synchronization
 
 The two way automatic synchronization works as follows:
+
 1. Users who have been unsubscribed from the newsletter in Smaily are also unsubscribed in WordPress.
 2. Users who have subscribed status are now added to Smaily.
 
@@ -73,6 +72,7 @@ Additionally, the users who have been unsubscribed from the newsletter in Smaily
 The real-time synchronization is triggered by the user's actions on the site. These happen instantly and do not require the WordPress cron job to run.
 
 There are quite a few options available:
+
 - subscriber uses the built-in Smaily newsletter subscription form (widget, shortcode, or block)
 - subscriber checks the subscription checkbox during registration or checkout
 - subscriber updates their account details and checks the subscription checkbox
@@ -96,11 +96,13 @@ This is a description of the values that are added to the user's meta data when 
 ### Subscriber Synchronization
 
 Automatically added values:
+
 - `email` - user's email address
 - `store` - store URL
 - `language` - user's language
 
 Optional values:
+
 - `customer_group` - user's role
 - `customer_id` - user's ID
 - `first_name` - user's first name
@@ -115,12 +117,14 @@ Optional values:
 ### Abandoned Cart Synchronization
 
 Automatically added values:
+
 - `email` - user's email address
 - `store` - store URL
 - `language` - user's language
 - `is_abandoned_cart` - true
 
 Optional values:
+
 - `first_name` - user's first name
 - `last_name` - user's last name
 
@@ -129,6 +133,7 @@ Product values:
 Up to 10 products can be added to the abandoned cart. The products follow the format `{attribute}_{number}` where `{number}` is the product number (1-10) and `{attribute}` is the product attribute. For example `product_name_1`, `product_name_2`, `product_name_3`, etc.
 
 The following attributes are available:
+
 - `product_name` - product name
 - `product_description` - product description
 - `product_sku` - product SKU
@@ -138,8 +143,11 @@ The following attributes are available:
 - `product_image_url` - product image URL. Featured image is used. If not set the first image from the product gallery is used.
 - `over_10_product` - true if there are more than 10 products in the cart
 
-
 ## Changelog
+
+## 1.3.3
+
+Improved the Elementor widget performance by reducing the number of API calls made during the rendering process.
 
 ## 1.3.2
 
@@ -179,4 +187,5 @@ Fixed a bug where the RSS-feed `pubDate` was not correctly formatted, which coul
 - Added a Elementor widget for the Smaily subscription form.
 
 ### 1.0.0
+
 - Combined Smaily for Contact Form 7, Smaily for WP, and Smaily for WooCommerce into a single plugin for a streamlined experience.
