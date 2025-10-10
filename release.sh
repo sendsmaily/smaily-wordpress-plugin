@@ -146,7 +146,7 @@ svn commit --username=$SVN_USER -m "Release "${VERSION}", see readme.txt for the
 # REMOVE THE TEMP DIRS
 echo "CLEANING UP"
 cd $GIT_REPO_PATH && git checkout main
-rm -Rf $TEMP_SVN_REPO
+rm -Rf $TEMP_SVN_REPO "/tmp/${PLUGIN_SLUG}-${VERSION}.zip" "/tmp/${PLUGIN_SLUG}"
 
 # DONE, BYE
 echo "RELEASER DONE :D"
