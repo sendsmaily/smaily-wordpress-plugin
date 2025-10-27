@@ -138,8 +138,8 @@ class Rss {
 				continue;
 			}
 
-			$current_price = $product->get_price();
-			$regular_price = $product->get_regular_price();
+			$current_price = wc_get_price_to_display( $product, array( 'price' => $product->get_price() ) );
+			$regular_price = wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) );
 			$url           = get_permalink( $product->get_id() );
 
 			if ( $url === false ) {
@@ -148,7 +148,7 @@ class Rss {
 
 			$rss_feed_item = array(
 				'current_price' => $current_price,
-				'regular_price' => $product->is_on_sale() ? $regular_price : $current_price,
+				'regular_price' => $regular_price,
 				'discount'      => self::calculate_discount( floatval( $current_price ), floatval( $regular_price ) ),
 				'url'           => $url,
 				'title'         => $product->get_title(),
@@ -171,7 +171,7 @@ class Rss {
 	 * @return float
 	 */
 	private static function calculate_discount( $current_price, $regular_price ) {
-		if ( $current_price > $regular_price ) {
+		if ( $current_price >= $regular_price ) {
 			return 0.0;
 		}
 
