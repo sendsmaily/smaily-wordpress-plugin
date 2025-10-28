@@ -3,6 +3,7 @@
 namespace Smaily_Connect\Integrations\WooCommerce;
 
 use WC_Product;
+use Smaily_Connect\Includes\Helper;
 
 class Rss {
 	/**
@@ -138,8 +139,8 @@ class Rss {
 				continue;
 			}
 
-			$current_price = wc_get_price_to_display( $product, array( 'price' => $product->get_price() ) );
-			$regular_price = wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) );
+			$current_price = self::get_current_price_with_tax( $product );
+			$regular_price = self::get_regular_price_with_tax( $product );
 			$url           = get_permalink( $product->get_id() );
 
 			if ( $url === false ) {
@@ -161,6 +162,33 @@ class Rss {
 		}
 
 		return $items;
+	}
+
+	/**
+	 * Get the current price of the product including tax, considering discount rules if active.
+	 *
+	 * @param WC_Product $product
+	 * @return float
+	 */
+	private static function get_current_price_with_tax( $product ) {
+		$current_price_with_tax = wc_get_price_to_display( $product, array( 'price' => $product->get_price() ) );
+
+		if ( Helper::is_discount_rules_for_woocommerce_active() ) {
+			$discounted_price       = apply_filters( 'advanced_woo_discount_rules_get_product_discount_price', $product->get_price(), $product );
+			$current_price_with_tax = wc_get_price_to_display( $product, array( 'price' => $discounted_price ) );
+		}
+
+		return $current_price_with_tax;
+	}
+
+	/**
+	 * Get the regular price of the product including tax.
+	 *
+	 * @param WC_Product $product
+	 * @return float
+	 */
+	private static function get_regular_price_with_tax( $product ) {
+		return wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) );
 	}
 
 	/**
