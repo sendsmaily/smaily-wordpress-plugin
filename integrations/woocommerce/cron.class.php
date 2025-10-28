@@ -2,7 +2,7 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
-use Smaily_Connect\Includes\Helper;
+use Smaily_Connect\Includes\Helper as Smaily_Base_Helper;
 use Smaily_Connect\Includes\Logger;
 use Smaily_Connect\Includes\Options;
 use Smaily_Connect\Includes\Smaily_Client;
@@ -200,14 +200,9 @@ class Cron {
 	 * @param \WC_Product $product WooCommerce product object.
 	 * @return string
 	 */
-	public function get_sale_price( $product ) {
+	public function get_sale_price_with_tax( $product ) {
 		$price = wc_price(
-			wc_get_price_to_display(
-				$product,
-				array(
-					'price' => $product->get_sale_price(),
-				)
-			)
+			Helper::get_current_price_with_tax( $product )
 		);
 
 		return wp_strip_all_tags( html_entity_decode( $price, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) );
@@ -219,14 +214,9 @@ class Cron {
 	 * @param \WC_Product $product WooCommerce product object.
 	 * @return string
 	 */
-	public function get_base_price( $product ) {
+	public function get_base_price_with_tax( $product ) {
 		$price = wc_price(
-			wc_get_price_to_display(
-				$product,
-				array(
-					'price' => $product->get_regular_price(),
-				)
-			)
+			Helper::get_regular_price_with_tax( $product )
 		);
 
 		return wp_strip_all_tags( html_entity_decode( $price, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) );
@@ -346,7 +336,7 @@ class Cron {
 					$addresses['email'] = $user->user_email;
 					break;
 				case 'language':
-					$addresses['language'] = Helper::get_user_language_code( $user->ID );
+					$addresses['language'] = Smaily_Base_Helper::get_user_language_code( $user->ID );
 					break;
 				case 'first_name':
 					$addresses['first_name'] = $user->first_name;
@@ -416,10 +406,10 @@ class Cron {
 							$product['product_quantity'] = $cart_item['quantity'];
 							break;
 						case 'product_price':
-							$product['product_price'] = $this->get_sale_price( $details );
+							$product['product_price'] = $this->get_sale_price_with_tax( $details );
 							break;
 						case 'product_base_price':
-							$product['product_base_price'] = $this->get_base_price( $details );
+							$product['product_base_price'] = $this->get_base_price_with_tax( $details );
 							break;
 						case 'product_image_url':
 							$url = $this->get_product_image_url( $details );

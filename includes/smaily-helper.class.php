@@ -61,19 +61,6 @@ class Helper {
 	}
 
 	/**
-	 * Check if Discount Rules for WooCommerce is active.
-	 *
-	 * @return bool True if Discount Rules for WooCommerce is active, false otherwise.
-	 */
-	public static function is_discount_rules_for_woocommerce_active() {
-		if ( function_exists( 'is_plugin_active' ) ) {
-			return is_plugin_active( 'woo-discount-rules/woo-discount-rules.php' );
-		} else {
-			return false;
-		}
-	}
-
-	/**
 	 * Check if Contact Form 7 is active.
 	 *
 	 * @return bool True if Contact Form 7 is active, false otherwise.

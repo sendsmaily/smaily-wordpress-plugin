@@ -246,6 +246,7 @@ class Smaily_Connect {
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/profile-settings.class.php';
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/rss.class.php';
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/subscriber-synchronization.class.php';
+			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/helper.class.php';
 		}
 
 		if ( Helper::is_cf7_active() ) {
