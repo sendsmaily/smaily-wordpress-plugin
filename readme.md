@@ -147,7 +147,7 @@ The following attributes are available:
 
 ## 1.4.0
 
-Improved RSS-feed items to show prices including taxes. Also added support for Discount Rules for WooCommerce plugin to correctly show discounted prices in the feed.
+Improved RSS-feed items to show prices including taxes. Also added support for Discount Rules for WooCommerce plugin to correctly show discounted prices in the feed and in the abandoned cart reminders.
 
 ## 1.3.3
 
