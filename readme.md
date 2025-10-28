@@ -145,6 +145,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.4.0
+
+Improved RSS-feed items to show prices including taxes. Also added support for Discount Rules for WooCommerce plugin to correctly show discounted prices in the feed.
+
 ## 1.3.3
 
 Improved the Elementor widget performance by reducing the number of API calls made during the rendering process.

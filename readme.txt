@@ -5,7 +5,7 @@ Requires PHP: 7.0
 Requires at least: 6.0
 Tested up to: 6.8
 WC tested up to: 9.6.1
-Stable tag: 1.3.3
+Stable tag: 1.4.0
 License: GPLv3 or later
 
 The Smaily Connect plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution.
@@ -59,6 +59,10 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 2. Activate the plugin through the 'Plugins' screen in WordPress.
 
 == Changelog ==
+
+= 1.4.0 =
+
+Improved RSS-feed items to show prices including taxes. Also added support for Discount Rules for WooCommerce plugin to correctly show discounted prices in the feed.
 
 = 1.3.3 = 
 
