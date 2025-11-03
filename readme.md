@@ -145,6 +145,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.4.1
+
+Fixes an issue where the abandoned cart cutoff time minimum value was 30 minutes instead of 10 minutes as intended. The minimum cutoff time has been corrected to 10 minutes, allowing users to set a lower threshold for considering carts as abandoned.
+
 ## 1.4.0
 
 Improved RSS-feed items to show prices including taxes. Also added support for Discount Rules for WooCommerce plugin to correctly show discounted prices in the feed and in the abandoned cart reminders.

@@ -288,7 +288,7 @@ class Settings {
 			$abandoned_cart_section,
 			array(
 				'option_name' => Options::ABANDONED_CART_CUTOFF_OPTION,
-				'min'         => Options::ABANDONED_CART_DEFAULT_CUTOFF,
+				'min'         => Options::ABANDONED_CART_MIN_CUTOFF,
 				'help'        => __( 'Time in minutes after which the cart is considered abandoned. Minimum 10 minutes.', 'smaily-connect' ),
 			)
 		);

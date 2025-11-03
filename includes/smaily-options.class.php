@@ -55,6 +55,13 @@ class Options {
 	);
 
 	/**
+	 * Minimum value the abandoned cart cutoff time can be set to in minutes.
+	 *
+	 * @var array
+	 */
+	const ABANDONED_CART_MIN_CUTOFF = 10;
+
+	/**
 	 * Default cart cutoff time in minutes.
 	 * Best practice, offering largest potential for conversion.
 	 *
