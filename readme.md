@@ -145,6 +145,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.4.3
+
+Added more hooks where the Smaily abandoned cart record is deleted. The current approach might on some occasions leave abandoned cart records lingering around even when the user has made a purchase.
+
 ## 1.4.2
 
 Fixes an issue where Elementor integration assets were being excluded from the plugin package. This caused the Elementor widget styles to be missing after installation. The packaging patterns have been updated to ensure all necessary assets are included.

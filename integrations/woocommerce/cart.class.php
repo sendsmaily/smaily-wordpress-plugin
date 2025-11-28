@@ -22,7 +22,9 @@ class Cart {
 	 */
 	public function register_hooks() {
 		add_action( 'woocommerce_cart_updated', array( $this, 'smaily_update_cart_details' ) );
+		add_action( 'woocommerce_thankyou', array( $this, 'smaily_checkout_delete_cart' ) );
 		add_action( 'woocommerce_checkout_order_processed', array( $this, 'smaily_checkout_delete_cart' ) );
+		add_action( 'woocommerce_store_api_checkout_order_processed', array( $this, 'smaily_checkout_delete_cart' ) );
 	}
 
 	/**
