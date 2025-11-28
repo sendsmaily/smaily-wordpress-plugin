@@ -88,6 +88,54 @@ You can run the environment by executing:
 
 You can develop the plugin locally in the current folder and the changes are reflected in the development container. This is beneficial when doing simple changes that doesn't require intellisense for WordPress related functions.
 
+### Installing dependencies
+
+Plugin is packaged during release process. Packaging process includes installing dependencies, building block components, compiling translations and everything else required to get the source code ready for actual plugin usage.
+
+While developing you need to run these actions when initially setting up the environment and after updating resources.
+
+**Composer modules**
+
+Composer is the package manager for PHP. It is used to install and manage dependencies for the plugin. To install Composer dependencies, run the following command:
+
+    $ composer install
+
+
+> **Note!** When running the command inside container the `vendor` directory might be created with `root` permissions. This may cause issues when executing Composer-related functions locally afterwards.
+
+This command allows you to run further commands that depend on Composer packages such as compiling translations or running code sniffing.
+
+**Block Modules**
+
+Installing block component dependencies can be done using the following command. This will install all the required npm packages for every block component.
+
+    $ composer run install-block-modules
+
+You need to also build the block components from the source code. This will create a `build` folder inside each block component folder. The `build` folder contains the compiled files used by the plugin and WordPress references these folders when looking for block components.
+
+    $ composer run build
+
+When developing a block component you can also watch for file changes and automatically rebuild the component when a file is changed. This is useful when you want to see the changes immediately without having to manually run the build command every time. You can do this by running the following command in the block component folder you are currently developing.
+
+For example running the watch command in the `blocks/checkout-optin` folder will watch for file changes in that folder and rebuild the component when a file is changed.
+
+    $ npm run start
+
+**Translations**
+
+Plugin translations are stored in `/languages` folder. These include `smaily-connect.pot` and `smaily-connect-<locale>.po` files. However, these files are not readable by the WordPress translation loading system. Instead, these provide a basis for building machine readable translation files `*.mo`.
+
+To compile the machine readable translation files, run the following command:
+
+    $ composer run compile-translations
+
+When making changes to the translation files, you need to update the translation template file `smaily-connect.pot` to include the changed strings. You can do this by running the following command:
+
+    $ composer run extract-text-domain
+
+You can translate the plugin to different languages. The most convenient way to do this is by using a translation editor plugin such as [Loco Translate](https://wordpress.org/plugins/loco-translate/). This plugin allows you to edit the translation files directly from the WordPress administration interface.
+
+
 ### VS Code Remote Containers
 
 In order to get intellisense for WordPress related functions and navigate through the whole WordPress installation you can use [VS Code Remote Containers](https://code.visualstudio.com/docs/devcontainers/containers). The build process reflected your local user into the container to maintain correct file permissions when editing files in the container. We have also prepared a [VS Code Workspace](https://code.visualstudio.com/docs/editor/workspaces) that includes two folders:
@@ -125,14 +173,6 @@ For quick edits or when a remote container is not required, you can also modify 
 ### Code Sniffing and Linting
 
 This repository uses PHP CodeSniffer with specific rules defined in the `phpcs.xml` file. To run the code sniffer locally, you need to have [Composer](https://getcomposer.org/) installed. The remote container environment is already set up with Composer.
-
-To install PHP CodeSniffer and the required coding standards, run the following command:
-
-```
-$ composer install
-```
-
-> **Note!** When running the command inside container the `vendor` directory is created with `root` permissions. This may cause issues when executing Composer-related functions locally afterwards.
 
 You can check for linting errors by executing:
 
