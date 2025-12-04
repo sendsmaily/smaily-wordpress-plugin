@@ -64,6 +64,10 @@
 		"autoresponderId": {
 			"type": "string",
 			"default": ""
+		},
+		"hiddenFields": {
+			"type": "array",
+			"default": []
 		}
 	},
 	"supports": {

@@ -34,6 +34,7 @@ class Integration {
 			'nameInputLabel'                 => 'Name',
 			'emailInputLabel'                => 'Email',
 			'subscribeButtonLabel'           => 'Subscribe',
+			'hiddenFields'                   => array(),
 		);
 		$attributes = wp_parse_args( $attributes, $defaults );
 
@@ -89,8 +90,19 @@ class Integration {
 							<input type="hidden" name="language" value="<?php echo esc_attr( $language_code ); ?>" />
 						<?php endif ?>
 						<input type="hidden" name="success_url" value="<?php echo ! empty( $attributes['successURL'] ) ? esc_url( $attributes['successURL'] ) : esc_url( $current_url ); ?>" />
-						<input type="hidden" name="failure_url" value="<?php echo ! empty( $attributes['errorURL'] ) ? esc_url( $attributes['errorURL'] ) : esc_url( $current_url ); ?>" />
-						<?php if ( $attributes['showNameField'] === true ) : ?>
+					<input type="hidden" name="failure_url" value="<?php echo ! empty( $attributes['errorURL'] ) ? esc_url( $attributes['errorURL'] ) : esc_url( $current_url ); ?>" />
+					<?php if ( ! empty( $attributes['hiddenFields'] ) && is_array( $attributes['hiddenFields'] ) ) : ?>
+						<?php foreach ( $attributes['hiddenFields'] as $field ) : ?>
+							<?php
+							$field_name  = isset( $field['name'] ) ? sanitize_text_field( $field['name'] ) : '';
+							$field_value = isset( $field['value'] ) ? sanitize_text_field( $field['value'] ) : '';
+							?>
+							<?php if ( ! empty( $field_name ) ) : ?>
+								<input type="hidden" name="<?php echo esc_attr( $field_name ); ?>" value="<?php echo esc_attr( $field_value ); ?>" />
+							<?php endif; ?>
+						<?php endforeach; ?>
+					<?php endif; ?>
+					<?php if ( $attributes['showNameField'] === true ) : ?>
 						<div class="smaily-newsletter-block-form-control">
 							<label for="name">
 								<?php echo esc_html( $attributes['nameInputLabel'] ); ?>

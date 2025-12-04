@@ -304,6 +304,12 @@ export default function Edit( { attributes, setAttributes } ) {
 							...autoresponders,
 						] }
 					/>
+					<HiddenFieldsControl
+						hiddenFields={ attributes.hiddenFields || [] }
+						onChange={ ( val ) =>
+							setAttributes( { hiddenFields: val } )
+						}
+					/>
 				</PanelBody>
 			</InspectorControls>
 		</>
@@ -324,4 +330,68 @@ function getColorCode( color ) {
 
 	// HEX
 	return color;
+}
+
+function HiddenFieldsControl( { hiddenFields, onChange } ) {
+	const handleAddField = () => {
+		onChange( [ ...hiddenFields, { name: '', value: '' } ] );
+	};
+
+	const handleRemoveField = ( index ) => {
+		const updated = hiddenFields.filter( ( _, i ) => i !== index );
+		onChange( updated );
+	};
+
+	const handleChangeField = ( index, key, val ) => {
+		const updated = [ ...hiddenFields ];
+		updated[ index ] = { ...updated[ index ], [ key ]: val };
+		onChange( updated );
+	};
+
+	return (
+		<div>
+			{ hiddenFields.length > 0 && (
+				<div style={ { marginBottom: '16px' } }>
+					{ hiddenFields.map( ( field, index ) => (
+						<div
+							key={ index }
+							style={ {
+								display: 'flex',
+								gap: '8px',
+								marginBottom: '8px',
+							} }
+						>
+							<TextControl
+								label={ __( 'Name', 'smaily-connect' ) }
+								value={ field.name }
+								onChange={ ( val ) =>
+									handleChangeField( index, 'name', val )
+								}
+								style={ { flex: 1, marginBottom: 0 } }
+							/>
+							<TextControl
+								label={ __( 'Value', 'smaily-connect' ) }
+								value={ field.value }
+								onChange={ ( val ) =>
+									handleChangeField( index, 'value', val )
+								}
+								style={ { flex: 1, marginBottom: 0 } }
+							/>
+							<Button
+								isSmall
+								isDestructive
+								onClick={ () => handleRemoveField( index ) }
+								style={ { alignSelf: 'center' } }
+							>
+								{ __( 'Remove', 'smaily-connect' ) }
+							</Button>
+						</div>
+					) ) }
+				</div>
+			) }
+			<Button variant="secondary" onClick={ handleAddField }>
+				{ __( 'Add field', 'smaily-connect' ) }
+			</Button>
+		</div>
+	);
 }
