@@ -38,7 +38,7 @@ msgstr "Lisateave"
 #: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
 #: blocks/checkout-optin/src/index.js:29
 msgid "Adds a newsletter subscription checkbox to the checkout."
-msgstr "Lisab kassasse uudiskirja tellimise märkeruudu."
+msgstr "Lisab uudiskirjaga liitumise märkeruudu kassa lehele."
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:20
 msgid "Add the Smaily Sign-Up Form block to any page or post. The block is available in the block editor."
@@ -1204,7 +1204,7 @@ msgstr "Saate vaadata näidisvormi %s."
 #: blocks/checkout-optin/src/block.json
 msgctxt "block title"
 msgid "Smaily Checkout Opt-In"
-msgstr "Smaily Checkout Opt-In"
+msgstr "Smaily Kassalehel Liitumine"
 
 #: blocks/checkout-optin/build/block.json
 #: blocks/checkout-optin/src/block.json
@@ -1216,13 +1216,13 @@ msgstr "Lisab uudiskirjaga liitumise märkeruudu kassa lehele."
 #: blocks/landingpage/src/block.json
 msgctxt "block title"
 msgid "Smaily Landing Page"
-msgstr "Smaily Landing Page"
+msgstr "Smaily Maandumisleht"
 
 #: blocks/landingpage/build/block.json
 #: blocks/landingpage/src/block.json
 msgctxt "block description"
 msgid "Smaily landing page"
-msgstr "Smaily maandumisleht"
+msgstr "Smaily Maandumisleht"
 
 #: blocks/landingpage/build/block.json
 #: blocks/landingpage/src/block.json
@@ -1252,7 +1252,7 @@ msgstr "uudiskiri"
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
 msgid "subscription"
-msgstr "liituja"
+msgstr "uudiskiri"
 
 #: blocks/newsletter-signup/build/block.json
 #: blocks/newsletter-signup/src/block.json
@@ -1270,7 +1270,7 @@ msgstr "Smaily uudiskirjaga liitumise vorm"
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
 msgid "form"
-msgstr "form"
+msgstr "vorm"
 
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:373
