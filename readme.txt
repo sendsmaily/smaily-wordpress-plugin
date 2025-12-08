@@ -5,7 +5,7 @@ Requires PHP: 7.0
 Requires at least: 6.0
 Tested up to: 6.8
 WC tested up to: 9.6.1
-Stable tag: 1.4.3
+Stable tag: 1.5.0
 License: GPLv3 or later
 
 The Smaily Connect plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution.
@@ -59,6 +59,10 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 2. Activate the plugin through the 'Plugins' screen in WordPress.
 
 == Changelog ==
+
+= 1.5.0 =
+
+You can now customize the hidden fields on the Smaily subscription block form. This allows to set custom fields for subscribers added via the block form allowing to better segment the subscribers in Smaily.
 
 = 1.4.3 =
 

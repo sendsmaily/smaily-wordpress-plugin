@@ -145,6 +145,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.5.0
+
+You can now customize the hidden fields on the Smaily subscription block form. This allows to set custom fields for subscribers added via the block form allowing to better segment the subscribers in Smaily.
+
 ## 1.4.3
 
 Added more hooks where the Smaily abandoned cart record is deleted. The current approach might on some occasions leave abandoned cart records lingering around even when the user has made a purchase.
