@@ -8,7 +8,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2025-09-02T08:02:40+00:00\n"
-"PO-Revision-Date: 2025-12-08 05:22+0000\n"
+"PO-Revision-Date: 2025-12-08 05:19+0000\n"
 "Language: et\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Loco https://localise.biz/\n"
@@ -1287,7 +1287,6 @@ msgstr "Eemalda"
 msgid "Add field"
 msgstr "Lisa väli"
 
-#: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/index.js:33
 msgid "Use Smaily Landing page for collecting subscribers."
-msgstr "Kasuta Smaily Maandumislehte uudiskirjaga liitujate kogumiseks."
+msgstr ""

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-12-08T05:15:03+00:00\n"
+"POT-Creation-Date: 2025-12-08T05:24:13+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -1122,6 +1122,11 @@ msgstr ""
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/edit.js:145
 msgid "Width"
+msgstr ""
+
+#: blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/index.js:33
+msgid "Use Smaily Landing page for collecting subscribers."
 msgstr ""
 
 #: blocks/landingpage/build/index.js:1

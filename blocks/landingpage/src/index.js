@@ -32,7 +32,7 @@ registerBlockType( metadata.name, {
 	title: __( 'Smaily Landing Page', 'smaily-connect' ),
 	description: __(
 		'Use Smaily Landing page for collecting subscribers.',
-		'smaily'
+		'smaily-connect'
 	),
 	keywords: [
 		__( 'email', 'smaily-connect' ),
