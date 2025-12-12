@@ -364,11 +364,11 @@ class Settings {
 
 		register_setting(
 			$option_group,
-			Options::RSS_STORE_TAX_RATE,
+			Options::RSS_TAX_RATE,
 			array(
 				'type'              => 'number',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => $store_default_tax_rate ?? Options::RSS_DEFAULT_STORE_TAX_RATE,
+				'default'           => $store_default_tax_rate ?? Options::RSS_DEFAULT_TAX_RATE,
 			)
 		);
 
@@ -474,13 +474,13 @@ class Settings {
 		);
 
 		add_settings_field(
-			Options::RSS_STORE_TAX_RATE,
+			Options::RSS_TAX_RATE,
 			__( 'Tax Rate (%)', 'smaily-connect' ),
 			array( $this->renderer, 'render_number_field' ),
 			$page,
 			$rss_section,
 			array(
-				'option_name' => Options::RSS_STORE_TAX_RATE,
+				'option_name' => Options::RSS_TAX_RATE,
 				'min'         => 0,
 				'help'        => __( 'Set the item tax rate as a percentage.', 'smaily-connect' ),
 				'class'       => 'smaily-rss-options',

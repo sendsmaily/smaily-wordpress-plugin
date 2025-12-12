@@ -258,7 +258,7 @@ class Renderer {
 			get_option( Options::RSS_LIMIT_OPTION, null ),
 			get_option( Options::RSS_SORT_BY_OPTION, null ),
 			get_option( Options::RSS_ORDER_BY_OPTION, null ),
-			get_option( Options::RSS_STORE_TAX_RATE, null )
+			get_option( Options::RSS_TAX_RATE, null )
 		);
 		?>
 		<fieldset style="max-width: 315px;">
