@@ -31,7 +31,13 @@ class Rss {
 	 * @param string $rss_order ASC/DESC order
 	 * @return string
 	 */
-	public static function make_rss_feed_url( $rss_category = null, $rss_limit = null, $rss_order_by = null, $rss_order = null ) {
+	public static function make_rss_feed_url(
+		$rss_category = null,
+		$rss_limit = null,
+		$rss_order_by = null,
+		$rss_order = null,
+		$tax_rate = null
+	) {
 		global $wp_rewrite;
 
 		$site_url   = get_site_url( null, 'smaily-rss-feed' );
@@ -48,6 +54,9 @@ class Rss {
 		}
 		if ( isset( $rss_order ) && $rss_order_by !== 'none' ) {
 			$parameters['order'] = $rss_order;
+		}
+		if ( isset( $tax_rate ) ) {
+			$parameters['tax_rate'] = $tax_rate;
 		}
 
 		// Handle URL when permalinks have not been enabled.
@@ -82,6 +91,7 @@ class Rss {
 		$vars[] = 'limit';
 		$vars[] = 'order_by';
 		$vars[] = 'order';
+		$vars[] = 'tax_rate';
 		return $vars;
 	}
 
@@ -126,9 +136,10 @@ class Rss {
 	 * @param int $limit
 	 * @param string $order_by
 	 * @param string $order
+	 * @param float|null $tax_rate
 	 * @return array{created_at: string, current_price: string, description: string, discount: float, enclosure_url: string, regular_price: string, title: string, url: string}
 	 */
-	public static function list_rss_feed_items( $category, $limit, $order_by, $order ) {
+	public static function list_rss_feed_items( $category, $limit, $order_by, $order, $tax_rate ) {
 		$products = Data_Handler::get_products( $category, $limit, $order_by, $order );
 		$items    = array();
 		foreach ( $products as $prod ) {
@@ -138,8 +149,8 @@ class Rss {
 				continue;
 			}
 
-			$current_price = Helper::get_current_price_with_tax( $product );
-			$regular_price = Helper::get_regular_price_with_tax( $product );
+			$current_price = Helper::get_current_price_with_tax( $product, $tax_rate );
+			$regular_price = Helper::get_regular_price_with_tax( $product, $tax_rate );
 			$url           = get_permalink( $product->get_id() );
 
 			if ( $url === false ) {

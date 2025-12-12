@@ -257,7 +257,8 @@ class Renderer {
 			get_option( Options::RSS_CATEGORY_OPTION, null ),
 			get_option( Options::RSS_LIMIT_OPTION, null ),
 			get_option( Options::RSS_SORT_BY_OPTION, null ),
-			get_option( Options::RSS_ORDER_BY_OPTION, null )
+			get_option( Options::RSS_ORDER_BY_OPTION, null ),
+			get_option( Options::RSS_STORE_TAX_RATE, null )
 		);
 		?>
 		<fieldset style="max-width: 315px;">
@@ -336,11 +337,13 @@ class Renderer {
 		$max   = $args['max'] ?? '';
 		$help  = $args['help'] ?? '';
 		$class = $args['class'] ?? '';
+		$step  = $args['step'] ?? '';
 		?>
 		<fieldset>
 			<label for="<?php echo esc_attr( $name ); ?>">
 				<input
 					type="number"
+					step="<?php echo esc_attr( $step ); ?>"
 					id="<?php echo esc_attr( $id ); ?>"
 					class="<?php echo esc_attr( $class ); ?>"
 					min="<?php echo esc_attr( $min ); ?>"

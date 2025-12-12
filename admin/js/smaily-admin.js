@@ -25,6 +25,11 @@
 				rss_url.searchParams.set('order', rss_order);
 			}
 
+			var tax_rate = $('#smaily-rss-tax-rate').val()
+			if (tax_rate != '') {
+				rss_url.searchParams.set('tax_rate', tax_rate);
+			}
+
 			$('#smaily-rss-feed-url').html(rss_url.href)
 		});
 

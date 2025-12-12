@@ -11,11 +11,13 @@ $category       = sanitize_text_field( get_query_var( 'category' ) );
 $limit          = (int) sanitize_text_field( get_query_var( 'limit' ) );
 $order_by       = sanitize_text_field( get_query_var( 'order_by' ) );
 $rss_order      = sanitize_text_field( get_query_var( 'order' ) );
+$tax_rate       = sanitize_text_field( get_query_var( 'tax_rate' ) );
+$tax_rate       = $tax_rate !== '' ? (float) $tax_rate : null;
 $currencysymbol = get_woocommerce_currency_symbol();
 
 // Default to 50 products.
 $limit = $limit === 0 ? 50 : $limit;
-$items = Rss::list_rss_feed_items( $category, $limit, $order_by, $order );
+$items = Rss::list_rss_feed_items( $category, $limit, $order_by, $rss_order, $tax_rate );
 
 header( 'Content-Type: application/xml' );
 ?>

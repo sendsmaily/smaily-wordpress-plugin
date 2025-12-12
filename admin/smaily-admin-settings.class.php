@@ -5,6 +5,7 @@ namespace Smaily_Connect\Admin;
 use Smaily_Connect\Includes\Helper;
 use Smaily_Connect\Includes\Options;
 use Smaily_Connect\Integrations\WooCommerce\Rss;
+use WC_Tax;
 
 class Settings {
 	/**
@@ -350,6 +351,27 @@ class Settings {
 			)
 		);
 
+		$store_default_tax_rate = null;
+		if ( wc_tax_enabled() ) {
+			$rates = WC_Tax::get_base_tax_rates();
+			foreach ( $rates as $rate ) {
+				if ( array_key_exists( 'rate', $rate ) ) {
+					$store_default_tax_rate = $rate['rate'];
+					break;
+				}
+			}
+		}
+
+		register_setting(
+			$option_group,
+			Options::RSS_STORE_TAX_RATE,
+			array(
+				'type'              => 'number',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => $store_default_tax_rate ?? Options::RSS_DEFAULT_STORE_TAX_RATE,
+			)
+		);
+
 		register_setting(
 			$option_group,
 			Options::RSS_URL_OPTION,
@@ -448,6 +470,22 @@ class Settings {
 				),
 				'class'       => 'smaily-rss-options',
 				'id'          => 'smaily-rss-sort-order',
+			)
+		);
+
+		add_settings_field(
+			Options::RSS_STORE_TAX_RATE,
+			__( 'Tax Rate (%)', 'smaily-connect' ),
+			array( $this->renderer, 'render_number_field' ),
+			$page,
+			$rss_section,
+			array(
+				'option_name' => Options::RSS_STORE_TAX_RATE,
+				'min'         => 0,
+				'help'        => __( 'Set the item tax rate as a percentage.', 'smaily-connect' ),
+				'class'       => 'smaily-rss-options',
+				'id'          => 'smaily-rss-tax-rate',
+				'step'        => '0.01',
 			)
 		);
 

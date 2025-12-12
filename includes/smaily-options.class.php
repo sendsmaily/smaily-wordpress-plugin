@@ -91,6 +91,13 @@ class Options {
 	const RSS_DEFAULT_LIMIT = 50;
 
 	/**
+	 * Default RSS feed store tax rate.
+	 *
+	 * @var array
+	 */
+	const RSS_DEFAULT_STORE_TAX_RATE = 0;
+
+	/**
 	 * Default RSS feed sort by.
 	 *
 	 * @var array
@@ -117,6 +124,7 @@ class Options {
 	const RSS_CATEGORY_OPTION                   = 'smaily_connect_rss_category';
 	const RSS_SORT_BY_OPTION                    = 'smaily_connect_rss_sort_by';
 	const RSS_ORDER_BY_OPTION                   = 'smaily_connect_rss_order_by';
+	const RSS_STORE_TAX_RATE                    = 'smaily_connect_rss_store_tax_rate';
 	const RSS_URL_OPTION                        = 'smaily_connect_rss_url';
 	const DATABASE_VERSION_OPTION               = 'smaily_connect_db_version';
 	const CONTACT_FORM_7_STATUS_OPTION          = 'smaily_connect_cf7_status';
