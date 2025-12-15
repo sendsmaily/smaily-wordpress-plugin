@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smaily Connect 1.5.1\n"
+"Project-Id-Version: Smaily Connect 1.6.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-connect\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-12-15T05:45:19+00:00\n"
+"POT-Creation-Date: 2025-12-15T06:58:04+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -344,146 +344,145 @@ msgstr ""
 msgid "Please enter password!"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:63
+#: admin/smaily-admin-settings.class.php:62
 #: admin/smaily-admin.class.php:214
 msgid "Connection"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:70
+#: admin/smaily-admin-settings.class.php:69
 msgid "Credentials"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:84
+#: admin/smaily-admin-settings.class.php:83
 msgid "Setting up subscriber collection"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:92
+#: admin/smaily-admin-settings.class.php:91
 msgid "WooCommerce Integration"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:129
+#: admin/smaily-admin-settings.class.php:128
 msgid "Daily Automatic Subscriber Synchronization"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:136
+#: admin/smaily-admin-settings.class.php:135
 msgid "Enable Subscriber Synchronization"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:142
+#: admin/smaily-admin-settings.class.php:141
 msgid "The cron job will run once a day."
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:148
-#: admin/smaily-admin-settings.class.php:299
+#: admin/smaily-admin-settings.class.php:147
+#: admin/smaily-admin-settings.class.php:298
 msgid "Additional Fields"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:187
+#: admin/smaily-admin-settings.class.php:186
 msgid "Newsletter Subscription On Checkout"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:194
+#: admin/smaily-admin-settings.class.php:193
 msgid "Enable Checkout Subscription"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:205
+#: admin/smaily-admin-settings.class.php:204
 msgid "Position"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:217
+#: admin/smaily-admin-settings.class.php:216
 msgid "Location"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:271
+#: admin/smaily-admin-settings.class.php:270
 msgid "Abandoned Cart Reminder Emails"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:278
+#: admin/smaily-admin-settings.class.php:277
 msgid "Enable Abandoned Cart"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:286
+#: admin/smaily-admin-settings.class.php:285
 msgid "Cart cutoff time (minutes)"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:293
+#: admin/smaily-admin-settings.class.php:292
 msgid "Time in minutes after which the cart is considered abandoned. Minimum 10 minutes."
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:392
+#: admin/smaily-admin-settings.class.php:391
 msgid "Smaily RSS feed"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:399
+#: admin/smaily-admin-settings.class.php:398
 msgid "Limit"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:407
+#: admin/smaily-admin-settings.class.php:406
 msgid "Limit how many products you will add to your field. Maximum 250."
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:424
+#: admin/smaily-admin-settings.class.php:423
 msgid "Product Category"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:431
+#: admin/smaily-admin-settings.class.php:430
 msgid "All"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:433
+#: admin/smaily-admin-settings.class.php:432
 msgid "Show products from specific category."
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:441
+#: admin/smaily-admin-settings.class.php:440
 msgid "Sort by"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:448
+#: admin/smaily-admin-settings.class.php:447
 msgid "Modified At"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:449
+#: admin/smaily-admin-settings.class.php:448
 msgid "Created At"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:450
+#: admin/smaily-admin-settings.class.php:449
 msgid "ID"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:451
+#: admin/smaily-admin-settings.class.php:450
 #: integrations/elementor/newsletter-widget.class.php:398
 #: public/partials/smaily-public-basic.php:36
-#: blocks/newsletter-signup/build/index.js:305
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:369
-#: blocks/newsletter-signup/build/index.js:366
 msgid "Name"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:452
+#: admin/smaily-admin-settings.class.php:451
 msgid "Type"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:461
+#: admin/smaily-admin-settings.class.php:460
 msgid "Order by"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:468
+#: admin/smaily-admin-settings.class.php:467
 msgid "Ascending"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:469
+#: admin/smaily-admin-settings.class.php:468
 msgid "Descending"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:478
+#: admin/smaily-admin-settings.class.php:477
 msgid "Tax Rate (%)"
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:485
+#: admin/smaily-admin-settings.class.php:484
 msgid "Set the item tax rate as a percentage."
 msgstr ""
 
-#: admin/smaily-admin-settings.class.php:494
+#: admin/smaily-admin-settings.class.php:493
 msgid "Product RSS feed"
 msgstr ""
 
@@ -582,25 +581,22 @@ msgid "Title"
 msgstr ""
 
 #: includes/smaily-widget.class.php:131
-#: blocks/newsletter-signup/build/index.js:163
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:182
-#: blocks/newsletter-signup/build/index.js:182
 msgid "Display name field"
 msgstr ""
 
 #: includes/smaily-widget.class.php:134
 #: integrations/elementor/newsletter-widget.class.php:481
-#: blocks/newsletter-signup/build/index.js:224
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:267
-#: blocks/newsletter-signup/build/index.js:267
 msgid "Success URL"
 msgstr ""
 
 #: includes/smaily-widget.class.php:138
 #: integrations/elementor/newsletter-widget.class.php:494
-#: blocks/newsletter-signup/build/index.js:232
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:279
-#: blocks/newsletter-signup/build/index.js:279
 msgid "Failure URL"
 msgstr ""
 
@@ -616,9 +612,8 @@ msgstr ""
 #: includes/smaily-widget.class.php:145
 #: integrations/cf7/partials/smaily-cf7-admin.php:56
 #: integrations/elementor/newsletter-widget.class.php:341
-#: blocks/newsletter-signup/build/index.js:247
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:299
-#: blocks/newsletter-signup/build/index.js:299
 msgid "No autoresponder"
 msgstr ""
 
@@ -644,9 +639,8 @@ msgstr ""
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:51
 #: integrations/elementor/newsletter-widget.class.php:469
-#: blocks/newsletter-signup/build/index.js:240
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:291
-#: blocks/newsletter-signup/build/index.js:291
 msgid "Autoresponder"
 msgstr ""
 
@@ -689,9 +683,8 @@ msgid "Setup integration"
 msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:44
-#: blocks/newsletter-signup/build/index.js:373
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:30
-#: blocks/newsletter-signup/build/index.js:429
 msgid "Smaily Opt-In Form"
 msgstr ""
 
@@ -700,18 +693,16 @@ msgstr ""
 #: blocks/checkout-optin/src/index.js:35
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/index.js:39
-#: blocks/newsletter-signup/build/index.js:375
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:37
-#: blocks/newsletter-signup/build/index.js:436
 msgid "newsletter"
 msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:76
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/index.js:38
-#: blocks/newsletter-signup/build/index.js:375
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:36
-#: blocks/newsletter-signup/build/index.js:435
 msgid "email"
 msgstr ""
 
@@ -1151,114 +1142,94 @@ msgstr ""
 msgid "landing page"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:125
-#: blocks/newsletter-signup/src/edit.js:113
-#: blocks/newsletter-signup/build/index.js:113
-msgid "Go to plugin settings"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:129
-#: blocks/newsletter-signup/src/edit.js:120
-#: blocks/newsletter-signup/build/index.js:120
-msgid "Plugin setup is not complete!"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:129
-#: blocks/newsletter-signup/src/edit.js:123
-#: blocks/newsletter-signup/build/index.js:123
-msgid "Please connect your Smaily account before adding a form!"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:161
-#: blocks/newsletter-signup/src/edit.js:180
-#: blocks/newsletter-signup/build/index.js:180
-msgid "Visible fields"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:170
-#: blocks/newsletter-signup/src/edit.js:193
-#: blocks/newsletter-signup/build/index.js:193
-msgid "Name field label"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:177
-#: blocks/newsletter-signup/src/edit.js:202
-#: blocks/newsletter-signup/build/index.js:202
-msgid "Email field label"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:184
-#: blocks/newsletter-signup/src/edit.js:210
-#: blocks/newsletter-signup/build/index.js:210
-msgid "Subscribe button label"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:191
-#: blocks/newsletter-signup/src/edit.js:221
-#: blocks/newsletter-signup/build/index.js:221
-msgid "Full width subscribe button"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:198
-#: blocks/newsletter-signup/src/edit.js:236
-#: blocks/newsletter-signup/build/index.js:236
-msgid "Button border radius"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:207
-#: blocks/newsletter-signup/src/edit.js:246
-#: blocks/newsletter-signup/build/index.js:246
-msgid "Success message"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:214
-#: blocks/newsletter-signup/src/edit.js:254
-#: blocks/newsletter-signup/build/index.js:254
-msgid "Error message"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:221
-#: blocks/newsletter-signup/src/edit.js:263
-#: blocks/newsletter-signup/build/index.js:263
-msgid "Hidden fields"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:230
-#: blocks/newsletter-signup/build/index.js:238
-#: blocks/newsletter-signup/src/edit.js:273
-#: blocks/newsletter-signup/src/edit.js:285
-#: blocks/newsletter-signup/build/index.js:273
-#: blocks/newsletter-signup/build/index.js:285
-msgid "Defaults to current page URL."
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:292
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:355
-#: blocks/newsletter-signup/build/index.js:353
 msgid "Custom fields"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:313
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:377
-#: blocks/newsletter-signup/build/index.js:374
 msgid "Value"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:327
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:390
-#: blocks/newsletter-signup/build/index.js:387
 msgid "Remove"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:330
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:397
-#: blocks/newsletter-signup/build/index.js:394
 msgid "Add field"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:374
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:113
+msgid "Go to plugin settings"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:120
+msgid "Plugin setup is not complete!"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:123
+msgid "Please connect your Smaily account before adding a form!"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:180
+msgid "Visible fields"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:193
+msgid "Name field label"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:202
+msgid "Email field label"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:210
+msgid "Subscribe button label"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:221
+msgid "Full width subscribe button"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:236
+msgid "Button border radius"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:246
+msgid "Success message"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:254
+msgid "Error message"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:263
+msgid "Hidden fields"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:273
+#: blocks/newsletter-signup/src/edit.js:285
+msgid "Defaults to current page URL."
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:31
-#: blocks/newsletter-signup/build/index.js:430
 msgid "Opt-in subscribers directly to Smaily for seamless email marketing."
 msgstr ""
 
