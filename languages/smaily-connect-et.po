@@ -27,7 +27,7 @@ msgid "Abandoned Cart Reminder Emails"
 msgstr "Hüljatud Ostukorvi Meeldetuletuskirjad"
 
 #: blocks/newsletter-signup/build/index.js:330
-#: blocks/newsletter-signup/src/edit.js:394
+#: blocks/newsletter-signup/src/edit.js:397
 #: blocks/newsletter-signup/build/index.js:394
 msgid "Add field"
 msgstr "Lisa väli"
@@ -324,7 +324,7 @@ msgid "Credentials"
 msgstr "API Ligipääsud"
 
 #: blocks/newsletter-signup/build/index.js:292
-#: blocks/newsletter-signup/src/edit.js:353
+#: blocks/newsletter-signup/src/edit.js:355
 #: blocks/newsletter-signup/build/index.js:353
 msgid "Custom fields"
 msgstr "Kohandatud väljad"
@@ -752,7 +752,7 @@ msgstr "Tuvastati mitu Contact Form 7 vormi! Palun kontrollige Smaily Connect-i 
 #: integrations/elementor/newsletter-widget.class.php:398
 #: public/partials/smaily-public-basic.php:36
 #: blocks/newsletter-signup/build/index.js:305
-#: blocks/newsletter-signup/src/edit.js:366
+#: blocks/newsletter-signup/src/edit.js:369
 #: blocks/newsletter-signup/build/index.js:366
 msgid "Name"
 msgstr "Nimi"
@@ -961,7 +961,7 @@ msgid "Registration form"
 msgstr "Registreerimisvorm"
 
 #: blocks/newsletter-signup/build/index.js:327
-#: blocks/newsletter-signup/src/edit.js:387
+#: blocks/newsletter-signup/src/edit.js:390
 #: blocks/newsletter-signup/build/index.js:387
 msgid "Remove"
 msgstr "Eemalda"
@@ -1268,7 +1268,7 @@ msgid "User newsletter subscription"
 msgstr "Kasutaja uudiskirja tellimus"
 
 #: blocks/newsletter-signup/build/index.js:313
-#: blocks/newsletter-signup/src/edit.js:374
+#: blocks/newsletter-signup/src/edit.js:377
 #: blocks/newsletter-signup/build/index.js:374
 msgid "Value"
 msgstr "Väärtus"

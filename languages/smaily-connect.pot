@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smaily Connect 1.5.0\n"
+"Project-Id-Version: Smaily Connect 1.5.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-connect\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-12-15T05:29:43+00:00\n"
+"POT-Creation-Date: 2025-12-15T05:45:19+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -454,7 +454,7 @@ msgstr ""
 #: integrations/elementor/newsletter-widget.class.php:398
 #: public/partials/smaily-public-basic.php:36
 #: blocks/newsletter-signup/build/index.js:305
-#: blocks/newsletter-signup/src/edit.js:366
+#: blocks/newsletter-signup/src/edit.js:369
 #: blocks/newsletter-signup/build/index.js:366
 msgid "Name"
 msgstr ""
@@ -1225,25 +1225,25 @@ msgid "Defaults to current page URL."
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:292
-#: blocks/newsletter-signup/src/edit.js:353
+#: blocks/newsletter-signup/src/edit.js:355
 #: blocks/newsletter-signup/build/index.js:353
 msgid "Custom fields"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:313
-#: blocks/newsletter-signup/src/edit.js:374
+#: blocks/newsletter-signup/src/edit.js:377
 #: blocks/newsletter-signup/build/index.js:374
 msgid "Value"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:327
-#: blocks/newsletter-signup/src/edit.js:387
+#: blocks/newsletter-signup/src/edit.js:390
 #: blocks/newsletter-signup/build/index.js:387
 msgid "Remove"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:330
-#: blocks/newsletter-signup/src/edit.js:394
+#: blocks/newsletter-signup/src/edit.js:397
 #: blocks/newsletter-signup/build/index.js:394
 msgid "Add field"
 msgstr ""

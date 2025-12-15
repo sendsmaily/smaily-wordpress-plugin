@@ -350,7 +350,10 @@ function HiddenFieldsControl( { hiddenFields, onChange } ) {
 	};
 
 	return (
-		<BaseControl label={ __( 'Custom fields', 'smaily-connect' ) }>
+		<BaseControl
+			id="smaily-connect-newsletter-signup-custom-hidden-fields"
+			label={ __( 'Custom fields', 'smaily-connect' ) }
+		>
 			{ hiddenFields.length > 0 && (
 				<div style={ { marginBottom: '16px' } }>
 					{ hiddenFields.map( ( field, index ) => (
