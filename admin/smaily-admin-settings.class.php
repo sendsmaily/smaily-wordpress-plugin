@@ -5,7 +5,6 @@ namespace Smaily_Connect\Admin;
 use Smaily_Connect\Includes\Helper;
 use Smaily_Connect\Includes\Options;
 use Smaily_Connect\Integrations\WooCommerce\Rss;
-use WC_Tax;
 
 class Settings {
 	/**
@@ -353,7 +352,7 @@ class Settings {
 
 		$store_default_tax_rate = null;
 		if ( wc_tax_enabled() ) {
-			$rates = WC_Tax::get_base_tax_rates();
+			$rates = \WC_Tax::get_base_tax_rates();
 			foreach ( $rates as $rate ) {
 				if ( array_key_exists( 'rate', $rate ) ) {
 					$store_default_tax_rate = $rate['rate'];
