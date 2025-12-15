@@ -12,7 +12,8 @@ class Helper {
 	 */
 	public static function get_current_price_with_tax( $product, $tax_rate = null ) {
 		if ( $tax_rate !== null ) {
-			return self::calculate_price_on_tax_rate( $product, $tax_rate );
+			$price_excl_tax = wc_get_price_excluding_tax( $product, array( 'price' => $product->get_price() ) );
+			return self::calculate_price_on_tax_rate( $price_excl_tax, $tax_rate );
 		}
 
 		$current_price_with_tax = wc_get_price_to_display( $product, array( 'price' => $product->get_price() ) );
@@ -34,7 +35,8 @@ class Helper {
 	 */
 	public static function get_regular_price_with_tax( $product, $tax_rate = null ) {
 		if ( $tax_rate !== null ) {
-			return self::calculate_price_on_tax_rate( $product, $tax_rate );
+			$price_excl_tax = wc_get_price_excluding_tax( $product, array( 'price' => $product->get_regular_price() ) );
+			return self::calculate_price_on_tax_rate( $price_excl_tax, $tax_rate );
 		}
 
 		return wc_get_price_to_display( $product, array( 'price' => $product->get_regular_price() ) );
@@ -76,14 +78,13 @@ class Helper {
 	 * Calculates the price price based on the given tax rate.
 	 * This is used when the tax rate is provided externally rather than relying on WooCommerce's tax settings.
 	 *
-	 * @param \WC_Product $product
+	 * @param float $base_price
 	 * @param float $tax_rate
 	 * @return float
 	 */
-	private static function calculate_price_on_tax_rate( $product, $tax_rate ) {
-		$price_excl_tax = wc_get_price_excluding_tax( $product );
+	private static function calculate_price_on_tax_rate( $base_price, $tax_rate ) {
 		$tax_multiplier = 1 + ( $tax_rate / 100 );
 
-		return round( $price_excl_tax * $tax_multiplier, wc_get_price_decimals() );
+		return round( $base_price * $tax_multiplier, wc_get_price_decimals() );
 	}
 }
