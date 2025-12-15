@@ -76,7 +76,7 @@ class Helper {
 	 * Calculates the price price based on the given tax rate.
 	 * This is used when the tax rate is provided externally rather than relying on WooCommerce's tax settings.
 	 *
-	 * @param mixed $product
+	 * @param \WC_Product $product
 	 * @param float $tax_rate
 	 * @return float
 	 */
