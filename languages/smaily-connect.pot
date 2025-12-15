@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-12-15T06:58:04+00:00\n"
+"POT-Creation-Date: 2025-12-15T12:49:30+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -160,7 +160,7 @@ msgstr ""
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:15
 #: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:24
-#: integrations/elementor/newsletter-widget.class.php:366
+#: integrations/elementor/newsletter-widget.class.php:380
 #: public/partials/smaily-public-basic.php:32
 msgid "Email"
 msgstr ""
@@ -451,7 +451,8 @@ msgid "ID"
 msgstr ""
 
 #: admin/smaily-admin-settings.class.php:450
-#: integrations/elementor/newsletter-widget.class.php:398
+#: integrations/elementor/newsletter-widget.class.php:412
+#: integrations/elementor/newsletter-widget.class.php:528
 #: public/partials/smaily-public-basic.php:36
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:369
@@ -587,21 +588,21 @@ msgid "Display name field"
 msgstr ""
 
 #: includes/smaily-widget.class.php:134
-#: integrations/elementor/newsletter-widget.class.php:481
+#: integrations/elementor/newsletter-widget.class.php:495
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:267
 msgid "Success URL"
 msgstr ""
 
 #: includes/smaily-widget.class.php:138
-#: integrations/elementor/newsletter-widget.class.php:494
+#: integrations/elementor/newsletter-widget.class.php:508
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:279
 msgid "Failure URL"
 msgstr ""
 
 #: includes/smaily-widget.class.php:141
-#: integrations/elementor/newsletter-widget.class.php:500
+#: integrations/elementor/newsletter-widget.class.php:514
 msgid "Note: URLs are optional. If left empty, the current page URL will be used."
 msgstr ""
 
@@ -611,7 +612,7 @@ msgstr ""
 
 #: includes/smaily-widget.class.php:145
 #: integrations/cf7/partials/smaily-cf7-admin.php:56
-#: integrations/elementor/newsletter-widget.class.php:341
+#: integrations/elementor/newsletter-widget.class.php:355
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:299
 msgid "No autoresponder"
@@ -638,7 +639,7 @@ msgid "Enable Smaily for this form"
 msgstr ""
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:51
-#: integrations/elementor/newsletter-widget.class.php:469
+#: integrations/elementor/newsletter-widget.class.php:483
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:291
 msgid "Autoresponder"
@@ -719,293 +720,315 @@ msgid "smaily"
 msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:116
-#: integrations/elementor/newsletter-widget.class.php:247
+#: integrations/elementor/newsletter-widget.class.php:261
 msgid "Please configure the Smaily Connect plugin settings first."
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:356
+#: integrations/elementor/newsletter-widget.class.php:370
 msgid "Visible Fields"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:364
+#: integrations/elementor/newsletter-widget.class.php:378
 msgid "Email Label"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:367
-#: integrations/elementor/newsletter-widget.class.php:376
-#: integrations/elementor/newsletter-widget.class.php:377
+#: integrations/elementor/newsletter-widget.class.php:381
+#: integrations/elementor/newsletter-widget.class.php:390
+#: integrations/elementor/newsletter-widget.class.php:391
 msgid "Enter your email"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:374
+#: integrations/elementor/newsletter-widget.class.php:388
 msgid "Email Placeholder"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:384
+#: integrations/elementor/newsletter-widget.class.php:398
 msgid "Show Name Field"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:386
+#: integrations/elementor/newsletter-widget.class.php:400
 msgid "Yes"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:387
+#: integrations/elementor/newsletter-widget.class.php:401
 msgid "No"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:396
+#: integrations/elementor/newsletter-widget.class.php:410
 msgid "Name Label"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:399
-#: integrations/elementor/newsletter-widget.class.php:411
-#: integrations/elementor/newsletter-widget.class.php:412
+#: integrations/elementor/newsletter-widget.class.php:413
+#: integrations/elementor/newsletter-widget.class.php:425
+#: integrations/elementor/newsletter-widget.class.php:426
 msgid "Enter your name"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:409
+#: integrations/elementor/newsletter-widget.class.php:423
 msgid "Name Placeholder"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:422
+#: integrations/elementor/newsletter-widget.class.php:436
 msgid "Button Text"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:424
+#: integrations/elementor/newsletter-widget.class.php:438
 #: public/partials/smaily-public-basic.php:41
 msgid "Subscribe"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:425
+#: integrations/elementor/newsletter-widget.class.php:439
 msgid "Enter button text"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:432
+#: integrations/elementor/newsletter-widget.class.php:446
 msgid "Success Message"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:434
+#: integrations/elementor/newsletter-widget.class.php:448
 msgid "Thank you for subscribing!"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:435
+#: integrations/elementor/newsletter-widget.class.php:449
 msgid "Enter success message"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:442
+#: integrations/elementor/newsletter-widget.class.php:456
 msgid "Error Message"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:444
+#: integrations/elementor/newsletter-widget.class.php:458
 msgid "An error occurred. Please try again."
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:445
+#: integrations/elementor/newsletter-widget.class.php:459
 msgid "Enter error message"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:461
+#: integrations/elementor/newsletter-widget.class.php:475
 msgid "Hidden Fields"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:474
+#: integrations/elementor/newsletter-widget.class.php:488
 msgid "Select an autoresponder if you want to target a specific automation workflow."
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:487
+#: integrations/elementor/newsletter-widget.class.php:501
 msgid "Enter success URL"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:502
+#: integrations/elementor/newsletter-widget.class.php:516
 msgid "Enter failure URL"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:521
+#: integrations/elementor/newsletter-widget.class.php:523
+msgid "Custom Fields"
+msgstr ""
+
+#: integrations/elementor/newsletter-widget.class.php:531
+msgid "Enter field name"
+msgstr ""
+
+#: integrations/elementor/newsletter-widget.class.php:535
+#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/src/edit.js:377
+msgid "Value"
+msgstr ""
+
+#: integrations/elementor/newsletter-widget.class.php:538
+msgid "Enter field value"
+msgstr ""
+
+#: integrations/elementor/newsletter-widget.class.php:543
+msgid "Add custom hidden fields to include additional data in the subscription."
+msgstr ""
+
+#: integrations/elementor/newsletter-widget.class.php:562
 msgid "Container"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:529
+#: integrations/elementor/newsletter-widget.class.php:570
 msgid "Orientation"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:533
+#: integrations/elementor/newsletter-widget.class.php:574
 msgid "Vertical"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:534
+#: integrations/elementor/newsletter-widget.class.php:575
 msgid "Horizontal"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:545
-#: integrations/elementor/newsletter-widget.class.php:723
-#: integrations/elementor/newsletter-widget.class.php:855
-#: integrations/elementor/newsletter-widget.class.php:973
-#: integrations/elementor/newsletter-widget.class.php:1125
-#: integrations/elementor/newsletter-widget.class.php:1272
-#: integrations/elementor/newsletter-widget.class.php:1369
+#: integrations/elementor/newsletter-widget.class.php:586
+#: integrations/elementor/newsletter-widget.class.php:764
+#: integrations/elementor/newsletter-widget.class.php:896
+#: integrations/elementor/newsletter-widget.class.php:1014
+#: integrations/elementor/newsletter-widget.class.php:1166
+#: integrations/elementor/newsletter-widget.class.php:1313
+#: integrations/elementor/newsletter-widget.class.php:1410
 msgid "Background Color"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:556
+#: integrations/elementor/newsletter-widget.class.php:597
 msgid "Padding"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:575
-#: integrations/elementor/newsletter-widget.class.php:765
-#: integrations/elementor/newsletter-widget.class.php:866
-#: integrations/elementor/newsletter-widget.class.php:1045
-#: integrations/elementor/newsletter-widget.class.php:1147
-#: integrations/elementor/newsletter-widget.class.php:1283
-#: integrations/elementor/newsletter-widget.class.php:1380
+#: integrations/elementor/newsletter-widget.class.php:616
+#: integrations/elementor/newsletter-widget.class.php:806
+#: integrations/elementor/newsletter-widget.class.php:907
+#: integrations/elementor/newsletter-widget.class.php:1086
+#: integrations/elementor/newsletter-widget.class.php:1188
+#: integrations/elementor/newsletter-widget.class.php:1324
+#: integrations/elementor/newsletter-widget.class.php:1421
 msgid "Border Style"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:579
-#: integrations/elementor/newsletter-widget.class.php:769
-#: integrations/elementor/newsletter-widget.class.php:870
-#: integrations/elementor/newsletter-widget.class.php:1049
-#: integrations/elementor/newsletter-widget.class.php:1151
-#: integrations/elementor/newsletter-widget.class.php:1287
-#: integrations/elementor/newsletter-widget.class.php:1384
+#: integrations/elementor/newsletter-widget.class.php:620
+#: integrations/elementor/newsletter-widget.class.php:810
+#: integrations/elementor/newsletter-widget.class.php:911
+#: integrations/elementor/newsletter-widget.class.php:1090
+#: integrations/elementor/newsletter-widget.class.php:1192
+#: integrations/elementor/newsletter-widget.class.php:1328
+#: integrations/elementor/newsletter-widget.class.php:1425
 msgid "None"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:580
-#: integrations/elementor/newsletter-widget.class.php:770
-#: integrations/elementor/newsletter-widget.class.php:871
-#: integrations/elementor/newsletter-widget.class.php:1050
-#: integrations/elementor/newsletter-widget.class.php:1152
-#: integrations/elementor/newsletter-widget.class.php:1288
-#: integrations/elementor/newsletter-widget.class.php:1385
+#: integrations/elementor/newsletter-widget.class.php:621
+#: integrations/elementor/newsletter-widget.class.php:811
+#: integrations/elementor/newsletter-widget.class.php:912
+#: integrations/elementor/newsletter-widget.class.php:1091
+#: integrations/elementor/newsletter-widget.class.php:1193
+#: integrations/elementor/newsletter-widget.class.php:1329
+#: integrations/elementor/newsletter-widget.class.php:1426
 msgid "Solid"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:581
-#: integrations/elementor/newsletter-widget.class.php:771
-#: integrations/elementor/newsletter-widget.class.php:872
-#: integrations/elementor/newsletter-widget.class.php:1051
-#: integrations/elementor/newsletter-widget.class.php:1153
-#: integrations/elementor/newsletter-widget.class.php:1289
-#: integrations/elementor/newsletter-widget.class.php:1386
+#: integrations/elementor/newsletter-widget.class.php:622
+#: integrations/elementor/newsletter-widget.class.php:812
+#: integrations/elementor/newsletter-widget.class.php:913
+#: integrations/elementor/newsletter-widget.class.php:1092
+#: integrations/elementor/newsletter-widget.class.php:1194
+#: integrations/elementor/newsletter-widget.class.php:1330
+#: integrations/elementor/newsletter-widget.class.php:1427
 msgid "Dashed"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:582
-#: integrations/elementor/newsletter-widget.class.php:772
-#: integrations/elementor/newsletter-widget.class.php:873
-#: integrations/elementor/newsletter-widget.class.php:1052
-#: integrations/elementor/newsletter-widget.class.php:1154
-#: integrations/elementor/newsletter-widget.class.php:1290
-#: integrations/elementor/newsletter-widget.class.php:1387
+#: integrations/elementor/newsletter-widget.class.php:623
+#: integrations/elementor/newsletter-widget.class.php:813
+#: integrations/elementor/newsletter-widget.class.php:914
+#: integrations/elementor/newsletter-widget.class.php:1093
+#: integrations/elementor/newsletter-widget.class.php:1195
+#: integrations/elementor/newsletter-widget.class.php:1331
+#: integrations/elementor/newsletter-widget.class.php:1428
 msgid "Dotted"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:583
-#: integrations/elementor/newsletter-widget.class.php:773
-#: integrations/elementor/newsletter-widget.class.php:874
-#: integrations/elementor/newsletter-widget.class.php:1053
-#: integrations/elementor/newsletter-widget.class.php:1155
-#: integrations/elementor/newsletter-widget.class.php:1291
-#: integrations/elementor/newsletter-widget.class.php:1388
+#: integrations/elementor/newsletter-widget.class.php:624
+#: integrations/elementor/newsletter-widget.class.php:814
+#: integrations/elementor/newsletter-widget.class.php:915
+#: integrations/elementor/newsletter-widget.class.php:1094
+#: integrations/elementor/newsletter-widget.class.php:1196
+#: integrations/elementor/newsletter-widget.class.php:1332
+#: integrations/elementor/newsletter-widget.class.php:1429
 msgid "Double"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:584
-#: integrations/elementor/newsletter-widget.class.php:774
-#: integrations/elementor/newsletter-widget.class.php:875
-#: integrations/elementor/newsletter-widget.class.php:1054
-#: integrations/elementor/newsletter-widget.class.php:1156
-#: integrations/elementor/newsletter-widget.class.php:1292
-#: integrations/elementor/newsletter-widget.class.php:1389
+#: integrations/elementor/newsletter-widget.class.php:625
+#: integrations/elementor/newsletter-widget.class.php:815
+#: integrations/elementor/newsletter-widget.class.php:916
+#: integrations/elementor/newsletter-widget.class.php:1095
+#: integrations/elementor/newsletter-widget.class.php:1197
+#: integrations/elementor/newsletter-widget.class.php:1333
+#: integrations/elementor/newsletter-widget.class.php:1430
 msgid "Groove"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:595
-#: integrations/elementor/newsletter-widget.class.php:785
-#: integrations/elementor/newsletter-widget.class.php:886
-#: integrations/elementor/newsletter-widget.class.php:1065
-#: integrations/elementor/newsletter-widget.class.php:1167
-#: integrations/elementor/newsletter-widget.class.php:1303
-#: integrations/elementor/newsletter-widget.class.php:1400
+#: integrations/elementor/newsletter-widget.class.php:636
+#: integrations/elementor/newsletter-widget.class.php:826
+#: integrations/elementor/newsletter-widget.class.php:927
+#: integrations/elementor/newsletter-widget.class.php:1106
+#: integrations/elementor/newsletter-widget.class.php:1208
+#: integrations/elementor/newsletter-widget.class.php:1344
+#: integrations/elementor/newsletter-widget.class.php:1441
 msgid "Border Color"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:609
-#: integrations/elementor/newsletter-widget.class.php:802
-#: integrations/elementor/newsletter-widget.class.php:900
-#: integrations/elementor/newsletter-widget.class.php:1079
-#: integrations/elementor/newsletter-widget.class.php:1181
-#: integrations/elementor/newsletter-widget.class.php:1318
-#: integrations/elementor/newsletter-widget.class.php:1415
+#: integrations/elementor/newsletter-widget.class.php:650
+#: integrations/elementor/newsletter-widget.class.php:843
+#: integrations/elementor/newsletter-widget.class.php:941
+#: integrations/elementor/newsletter-widget.class.php:1120
+#: integrations/elementor/newsletter-widget.class.php:1222
+#: integrations/elementor/newsletter-widget.class.php:1359
+#: integrations/elementor/newsletter-widget.class.php:1456
 msgid "Border Width"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:624
-#: integrations/elementor/newsletter-widget.class.php:824
-#: integrations/elementor/newsletter-widget.class.php:922
-#: integrations/elementor/newsletter-widget.class.php:1094
-#: integrations/elementor/newsletter-widget.class.php:1196
-#: integrations/elementor/newsletter-widget.class.php:1340
-#: integrations/elementor/newsletter-widget.class.php:1437
+#: integrations/elementor/newsletter-widget.class.php:665
+#: integrations/elementor/newsletter-widget.class.php:865
+#: integrations/elementor/newsletter-widget.class.php:963
+#: integrations/elementor/newsletter-widget.class.php:1135
+#: integrations/elementor/newsletter-widget.class.php:1237
+#: integrations/elementor/newsletter-widget.class.php:1381
+#: integrations/elementor/newsletter-widget.class.php:1478
 msgid "Border Radius"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:645
+#: integrations/elementor/newsletter-widget.class.php:686
 msgid "Labels"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:653
+#: integrations/elementor/newsletter-widget.class.php:694
 msgid "Color"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:675
+#: integrations/elementor/newsletter-widget.class.php:716
 msgid "Bottom Gap"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:704
+#: integrations/elementor/newsletter-widget.class.php:745
 msgid "Input Fields"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:716
-#: integrations/elementor/newsletter-widget.class.php:966
+#: integrations/elementor/newsletter-widget.class.php:757
+#: integrations/elementor/newsletter-widget.class.php:1007
 msgid "Normal"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:742
-#: integrations/elementor/newsletter-widget.class.php:999
+#: integrations/elementor/newsletter-widget.class.php:783
+#: integrations/elementor/newsletter-widget.class.php:1040
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/edit.js:133
 msgid "Height"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:848
-#: integrations/elementor/newsletter-widget.class.php:1118
+#: integrations/elementor/newsletter-widget.class.php:889
+#: integrations/elementor/newsletter-widget.class.php:1159
 msgid "Hover"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:954
+#: integrations/elementor/newsletter-widget.class.php:995
 msgid "Button"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:987
-#: integrations/elementor/newsletter-widget.class.php:1136
-#: integrations/elementor/newsletter-widget.class.php:1236
+#: integrations/elementor/newsletter-widget.class.php:1028
+#: integrations/elementor/newsletter-widget.class.php:1177
+#: integrations/elementor/newsletter-widget.class.php:1277
 msgid "Text Color"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:1022
+#: integrations/elementor/newsletter-widget.class.php:1063
 msgid "Top Gap"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:1228
+#: integrations/elementor/newsletter-widget.class.php:1269
 msgid "Feedback Messages"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:1264
+#: integrations/elementor/newsletter-widget.class.php:1305
 msgid "Success Messages"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:1361
+#: integrations/elementor/newsletter-widget.class.php:1402
 msgid "Error Messages"
 msgstr ""
 
@@ -1145,11 +1168,6 @@ msgstr ""
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:355
 msgid "Custom fields"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:377
-msgid "Value"
 msgstr ""
 
 #: blocks/newsletter-signup/build/index.js:1

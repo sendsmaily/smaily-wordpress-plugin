@@ -509,7 +509,6 @@ class Newsletter_Widget extends Widget_Base {
 				'type'        => Controls_Manager::URL,
 				'default'     => array(
 					'url' => '',
-
 				),
 				'description' => __( 'Note: URLs are optional. If left empty, the current page URL will be used.', 'smaily-connect' ),
 				'options'     => false,
@@ -525,14 +524,14 @@ class Newsletter_Widget extends Widget_Base {
 				'fields'        => array(
 					array(
 						'name'        => 'field_name',
-						'label'       => __( 'Field Name', 'smaily-connect' ),
+						'label'       => __( 'Name', 'smaily-connect' ),
 						'type'        => Controls_Manager::TEXT,
 						'default'     => '',
 						'placeholder' => __( 'Enter field name', 'smaily-connect' ),
 					),
 					array(
 						'name'        => 'field_value',
-						'label'       => __( 'Field Value', 'smaily-connect' ),
+						'label'       => __( 'Value', 'smaily-connect' ),
 						'type'        => Controls_Manager::TEXT,
 						'default'     => '',
 						'placeholder' => __( 'Enter field value', 'smaily-connect' ),
