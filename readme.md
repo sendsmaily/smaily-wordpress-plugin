@@ -145,6 +145,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.6.0
+
+Added support for adding a tax rate to the RSS-feed product prices. This allows to change the tax rate used in the feed to match the tax rate used in Smaily email templates. This is especially useful for stores that want to target customers in different regions with different tax rates in their email campaigns.
+
 ## 1.5.1
 
 Added a label to the hidden fields section in the Smaily subscription block settings for better clarity.
