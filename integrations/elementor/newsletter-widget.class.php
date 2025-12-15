@@ -122,19 +122,20 @@ class Newsletter_Widget extends Widget_Base {
 
 		$settings_for_display = $this->get_settings_for_display();
 		$parameters           = array(
-			'autoresponder_id'  => $settings_for_display['autoresponder_id'] ?? '',
-			'button_text'       => $settings_for_display['button_text'] ?? '',
-			'email_label'       => $settings_for_display['email_label'] ?? '',
-			'email_placeholder' => $settings_for_display['email_placeholder'] ?? '',
-			'error_message'     => $settings_for_display['error_message'] ?? '',
-			'language_code'     => Helper::get_current_language_code(),
-			'failure_url'       => $settings_for_display['failure_url']['url'] ?? Helper::get_current_url(),
-			'name_label'        => $settings_for_display['name_label'] ?? '',
-			'name_placeholder'  => $settings_for_display['name_placeholder'] ?? '',
-			'show_name'         => $settings_for_display['show_name'] === 'yes',
-			'subdomain'         => $options->get_subdomain(),
-			'success_message'   => $settings_for_display['success_message'] ?? '',
-			'success_url'       => $settings_for_display['success_url']['url'] ?? Helper::get_current_url(),
+			'autoresponder_id'     => $settings_for_display['autoresponder_id'] ?? '',
+			'button_text'          => $settings_for_display['button_text'] ?? '',
+			'email_label'          => $settings_for_display['email_label'] ?? '',
+			'email_placeholder'    => $settings_for_display['email_placeholder'] ?? '',
+			'error_message'        => $settings_for_display['error_message'] ?? '',
+			'language_code'        => Helper::get_current_language_code(),
+			'failure_url'          => $settings_for_display['failure_url']['url'] ?? Helper::get_current_url(),
+			'name_label'           => $settings_for_display['name_label'] ?? '',
+			'name_placeholder'     => $settings_for_display['name_placeholder'] ?? '',
+			'show_name'            => $settings_for_display['show_name'] === 'yes',
+			'subdomain'            => $options->get_subdomain(),
+			'success_message'      => $settings_for_display['success_message'] ?? '',
+			'success_url'          => $settings_for_display['success_url']['url'] ?? Helper::get_current_url(),
+			'custom_hidden_fields' => $settings_for_display['custom_hidden_fields'] ?? array(),
 		);
 
 		$optin_form_response  = Helper::get_optin_form_response_type();
@@ -192,6 +193,19 @@ class Newsletter_Widget extends Widget_Base {
 					name="failure_url"
 					value="<?php echo ! empty( $parameters['success_url'] ) ? esc_url( $parameters['success_url'] ) : esc_url( $current_url ); ?>"
 				>
+				<?php foreach ( $parameters['custom_hidden_fields'] as $custom_hidden_field ) : ?>
+					<?php
+					$field_name  = isset( $custom_hidden_field['field_name'] ) ? sanitize_text_field( $custom_hidden_field['field_name'] ) : '';
+					$field_value = isset( $custom_hidden_field['field_value'] ) ? sanitize_text_field( $custom_hidden_field['field_value'] ) : '';
+					?>
+					<?php if ( ! empty( $field_name ) ) : ?>
+						<input
+							type="hidden"
+							name="<?php echo esc_attr( $field_name ); ?>"
+							value="<?php echo esc_attr( $field_value ); ?>"
+						>
+					<?php endif; ?>
+				<?php endforeach; ?>
 				<div class="smaily-connect-elementor-newsletter-form-visible-fields">
 					<div class="smaily-connect-elementor-newsletter-form-input-container">
 						<?php if ( $parameters['email_label'] ) : ?>
@@ -500,6 +514,33 @@ class Newsletter_Widget extends Widget_Base {
 				'description' => __( 'Note: URLs are optional. If left empty, the current page URL will be used.', 'smaily-connect' ),
 				'options'     => false,
 				'placeholder' => __( 'Enter failure URL', 'smaily-connect' ),
+			)
+		);
+
+		$this->add_control(
+			'custom_hidden_fields',
+			array(
+				'label'         => __( 'Custom Fields', 'smaily-connect' ),
+				'type'          => Controls_Manager::REPEATER,
+				'fields'        => array(
+					array(
+						'name'        => 'field_name',
+						'label'       => __( 'Field Name', 'smaily-connect' ),
+						'type'        => Controls_Manager::TEXT,
+						'default'     => '',
+						'placeholder' => __( 'Enter field name', 'smaily-connect' ),
+					),
+					array(
+						'name'        => 'field_value',
+						'label'       => __( 'Field Value', 'smaily-connect' ),
+						'type'        => Controls_Manager::TEXT,
+						'default'     => '',
+						'placeholder' => __( 'Enter field value', 'smaily-connect' ),
+					),
+				),
+				'prevent_empty' => false,
+				'title_field'   => '{{ field_name }}',
+				'description'   => __( 'Add custom hidden fields to include additional data in the subscription.', 'smaily-connect' ),
 			)
 		);
 
