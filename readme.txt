@@ -64,6 +64,8 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 Added support for adding a tax rate to the RSS-feed product prices. This allows to change the tax rate used in the feed to match the tax rate used in Smaily email templates. This is especially useful for stores that want to target customers in different regions with different tax rates in their email campaigns.
 
+Smaily Elementor widget now supports adding custom hidden fields to the subscription form. This allows to set custom fields for subscribers added via the Elementor widget allowing to better segment the subscribers in Smaily.
+
 = 1.5.1 =
 
 Added a label to the hidden fields section in the Smaily subscription block settings for better clarity.
