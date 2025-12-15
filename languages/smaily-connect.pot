@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-12-08T05:24:13+00:00\n"
+"POT-Creation-Date: 2025-12-15T05:29:43+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -453,8 +453,9 @@ msgstr ""
 #: admin/smaily-admin-settings.class.php:429
 #: integrations/elementor/newsletter-widget.class.php:398
 #: public/partials/smaily-public-basic.php:36
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:365
+#: blocks/newsletter-signup/build/index.js:305
+#: blocks/newsletter-signup/src/edit.js:366
+#: blocks/newsletter-signup/build/index.js:366
 msgid "Name"
 msgstr ""
 
@@ -573,22 +574,25 @@ msgid "Title"
 msgstr ""
 
 #: includes/smaily-widget.class.php:131
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:181
+#: blocks/newsletter-signup/build/index.js:163
+#: blocks/newsletter-signup/src/edit.js:182
+#: blocks/newsletter-signup/build/index.js:182
 msgid "Display name field"
 msgstr ""
 
 #: includes/smaily-widget.class.php:134
 #: integrations/elementor/newsletter-widget.class.php:481
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:266
+#: blocks/newsletter-signup/build/index.js:224
+#: blocks/newsletter-signup/src/edit.js:267
+#: blocks/newsletter-signup/build/index.js:267
 msgid "Success URL"
 msgstr ""
 
 #: includes/smaily-widget.class.php:138
 #: integrations/elementor/newsletter-widget.class.php:494
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:278
+#: blocks/newsletter-signup/build/index.js:232
+#: blocks/newsletter-signup/src/edit.js:279
+#: blocks/newsletter-signup/build/index.js:279
 msgid "Failure URL"
 msgstr ""
 
@@ -604,8 +608,9 @@ msgstr ""
 #: includes/smaily-widget.class.php:145
 #: integrations/cf7/partials/smaily-cf7-admin.php:56
 #: integrations/elementor/newsletter-widget.class.php:341
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:298
+#: blocks/newsletter-signup/build/index.js:247
+#: blocks/newsletter-signup/src/edit.js:299
+#: blocks/newsletter-signup/build/index.js:299
 msgid "No autoresponder"
 msgstr ""
 
@@ -631,8 +636,9 @@ msgstr ""
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:51
 #: integrations/elementor/newsletter-widget.class.php:469
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:290
+#: blocks/newsletter-signup/build/index.js:240
+#: blocks/newsletter-signup/src/edit.js:291
+#: blocks/newsletter-signup/build/index.js:291
 msgid "Autoresponder"
 msgstr ""
 
@@ -675,8 +681,9 @@ msgid "Setup integration"
 msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:44
-#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/build/index.js:373
 #: blocks/newsletter-signup/src/index.js:30
+#: blocks/newsletter-signup/build/index.js:429
 msgid "Smaily Opt-In Form"
 msgstr ""
 
@@ -685,16 +692,18 @@ msgstr ""
 #: blocks/checkout-optin/src/index.js:35
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/index.js:39
-#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/build/index.js:375
 #: blocks/newsletter-signup/src/index.js:37
+#: blocks/newsletter-signup/build/index.js:436
 msgid "newsletter"
 msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:76
 #: blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/index.js:38
-#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/build/index.js:375
 #: blocks/newsletter-signup/src/index.js:36
+#: blocks/newsletter-signup/build/index.js:435
 msgid "email"
 msgstr ""
 
@@ -1134,89 +1143,114 @@ msgstr ""
 msgid "landing page"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:373
-msgid "Value"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:386
-msgid "Remove"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:393
-msgid "Add field"
-msgstr ""
-
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:112
+#: blocks/newsletter-signup/build/index.js:125
+#: blocks/newsletter-signup/src/edit.js:113
+#: blocks/newsletter-signup/build/index.js:113
 msgid "Go to plugin settings"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:119
+#: blocks/newsletter-signup/build/index.js:129
+#: blocks/newsletter-signup/src/edit.js:120
+#: blocks/newsletter-signup/build/index.js:120
 msgid "Plugin setup is not complete!"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:122
+#: blocks/newsletter-signup/build/index.js:129
+#: blocks/newsletter-signup/src/edit.js:123
+#: blocks/newsletter-signup/build/index.js:123
 msgid "Please connect your Smaily account before adding a form!"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:179
+#: blocks/newsletter-signup/build/index.js:161
+#: blocks/newsletter-signup/src/edit.js:180
+#: blocks/newsletter-signup/build/index.js:180
 msgid "Visible fields"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:192
+#: blocks/newsletter-signup/build/index.js:170
+#: blocks/newsletter-signup/src/edit.js:193
+#: blocks/newsletter-signup/build/index.js:193
 msgid "Name field label"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:201
+#: blocks/newsletter-signup/build/index.js:177
+#: blocks/newsletter-signup/src/edit.js:202
+#: blocks/newsletter-signup/build/index.js:202
 msgid "Email field label"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:209
+#: blocks/newsletter-signup/build/index.js:184
+#: blocks/newsletter-signup/src/edit.js:210
+#: blocks/newsletter-signup/build/index.js:210
 msgid "Subscribe button label"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:220
+#: blocks/newsletter-signup/build/index.js:191
+#: blocks/newsletter-signup/src/edit.js:221
+#: blocks/newsletter-signup/build/index.js:221
 msgid "Full width subscribe button"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:235
+#: blocks/newsletter-signup/build/index.js:198
+#: blocks/newsletter-signup/src/edit.js:236
+#: blocks/newsletter-signup/build/index.js:236
 msgid "Button border radius"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:245
+#: blocks/newsletter-signup/build/index.js:207
+#: blocks/newsletter-signup/src/edit.js:246
+#: blocks/newsletter-signup/build/index.js:246
 msgid "Success message"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:253
+#: blocks/newsletter-signup/build/index.js:214
+#: blocks/newsletter-signup/src/edit.js:254
+#: blocks/newsletter-signup/build/index.js:254
 msgid "Error message"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:262
+#: blocks/newsletter-signup/build/index.js:221
+#: blocks/newsletter-signup/src/edit.js:263
+#: blocks/newsletter-signup/build/index.js:263
 msgid "Hidden fields"
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
-#: blocks/newsletter-signup/src/edit.js:272
-#: blocks/newsletter-signup/src/edit.js:284
+#: blocks/newsletter-signup/build/index.js:230
+#: blocks/newsletter-signup/build/index.js:238
+#: blocks/newsletter-signup/src/edit.js:273
+#: blocks/newsletter-signup/src/edit.js:285
+#: blocks/newsletter-signup/build/index.js:273
+#: blocks/newsletter-signup/build/index.js:285
 msgid "Defaults to current page URL."
 msgstr ""
 
-#: blocks/newsletter-signup/build/index.js:1
+#: blocks/newsletter-signup/build/index.js:292
+#: blocks/newsletter-signup/src/edit.js:353
+#: blocks/newsletter-signup/build/index.js:353
+msgid "Custom fields"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:313
+#: blocks/newsletter-signup/src/edit.js:374
+#: blocks/newsletter-signup/build/index.js:374
+msgid "Value"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:327
+#: blocks/newsletter-signup/src/edit.js:387
+#: blocks/newsletter-signup/build/index.js:387
+msgid "Remove"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:330
+#: blocks/newsletter-signup/src/edit.js:394
+#: blocks/newsletter-signup/build/index.js:394
+msgid "Add field"
+msgstr ""
+
+#: blocks/newsletter-signup/build/index.js:374
 #: blocks/newsletter-signup/src/index.js:31
+#: blocks/newsletter-signup/build/index.js:430
 msgid "Opt-in subscribers directly to Smaily for seamless email marketing."
 msgstr ""
 

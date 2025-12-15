@@ -145,6 +145,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 1.5.1
+
+Added a label to the hidden fields section in the Smaily subscription block settings for better clarity.
+
 ## 1.5.0
 
 You can now customize the hidden fields on the Smaily subscription block form. This allows to set custom fields for subscribers added via the block form allowing to better segment the subscribers in Smaily.

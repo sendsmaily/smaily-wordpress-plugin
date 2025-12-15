@@ -3,6 +3,7 @@ import { __ } from '@wordpress/i18n';
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
 import { useState, useEffect, useRef } from '@wordpress/element';
 import {
+	BaseControl,
 	Button,
 	Notice,
 	PanelBody,
@@ -349,7 +350,7 @@ function HiddenFieldsControl( { hiddenFields, onChange } ) {
 	};
 
 	return (
-		<div>
+		<BaseControl label={ __( 'Custom fields', 'smaily-connect' ) }>
 			{ hiddenFields.length > 0 && (
 				<div style={ { marginBottom: '16px' } }>
 					{ hiddenFields.map( ( field, index ) => (
@@ -392,6 +393,6 @@ function HiddenFieldsControl( { hiddenFields, onChange } ) {
 			<Button variant="secondary" onClick={ handleAddField }>
 				{ __( 'Add field', 'smaily-connect' ) }
 			</Button>
-		</div>
+		</BaseControl>
 	);
 }
