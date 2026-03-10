@@ -174,6 +174,19 @@ class Rss {
 		return $items;
 	}
 
+	/**
+	 * Format discount percentage for display.
+	 *
+	 * @param float $discount
+	 * @return string
+	 */
+	public static function format_discount_percentage( $discount ) {
+		$decimals = number_format( floatval( $discount ), 1, '.', ',' );
+		$decimals = rtrim( $decimals, '0' );
+		$decimals = rtrim( $decimals, '.' );
+
+		return '-' . $decimals . '%';
+	}
 
 	/**
 	 * Get the thumbnail image URL for the product.

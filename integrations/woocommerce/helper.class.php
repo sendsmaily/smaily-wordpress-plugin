@@ -11,16 +11,19 @@ class Helper {
 	 * @return float
 	 */
 	public static function get_current_price_with_tax( $product, $tax_rate = null ) {
-		if ( $tax_rate !== null ) {
-			$price_excl_tax = wc_get_price_excluding_tax( $product, array( 'price' => $product->get_price() ) );
-			return self::calculate_price_on_tax_rate( $price_excl_tax, $tax_rate );
-		}
-
 		$current_price_with_tax = wc_get_price_to_display( $product, array( 'price' => $product->get_price() ) );
 
+		if ( $tax_rate !== null ) {
+			$current_price_without_tax = wc_get_price_excluding_tax( $product, array( 'price' => $product->get_price() ) );
+			$current_price_with_tax    = self::calculate_price_on_tax_rate( $current_price_without_tax, $tax_rate );
+		}
+
 		if ( self::is_discount_rules_for_woocommerce_active() ) {
-			$discounted_price       = apply_filters( 'advanced_woo_discount_rules_get_product_discount_price', $product->get_price(), $product );
-			$current_price_with_tax = wc_get_price_to_display( $product, array( 'price' => $discounted_price ) );
+			$discount_percentage = apply_filters( 'advanced_woo_discount_rules_get_product_discount_percentage', 0, $product );
+			if ( $discount_percentage > 0 ) {
+				$discount_multiplier    = 1 - ( $discount_percentage / 100 );
+				$current_price_with_tax = round( $current_price_with_tax * $discount_multiplier, wc_get_price_decimals() );
+			}
 		}
 
 		return $current_price_with_tax;

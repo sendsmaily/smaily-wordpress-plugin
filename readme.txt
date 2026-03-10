@@ -5,7 +5,7 @@ Requires PHP: 7.0
 Requires at least: 6.0
 Tested up to: 6.8
 WC tested up to: 9.6.1
-Stable tag: 1.6.0
+Stable tag: 1.6.1
 License: GPLv3 or later
 
 The Smaily Connect plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution.
@@ -59,6 +59,12 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 2. Activate the plugin through the 'Plugins' screen in WordPress.
 
 == Changelog ==
+
+= 1.6.1 =
+
+Fixed an issue where the discounted price was not correctly calculated in the RSS feed when using the tax rate parameter. The discounted price is now calculated correctly regardless of the tax rate used in the feed.
+
+Unified the discount percentage display value in the RSS feed. The discount percentage is now displayed at most with one decimal place and without trailing zeros. For example, a discount of 10% will be displayed as "10%" instead of "10.0%". A discount of 10.5% will be displayed as "10.5%" instead of "10.50%". This change improves the readability of the discount percentage for the imported products in Smaily templates.
 
 = 1.6.0 =
 

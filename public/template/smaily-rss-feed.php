@@ -21,7 +21,6 @@ $items = Rss::list_rss_feed_items( $category, $limit, $order_by, $rss_order, $ta
 
 header( 'Content-Type: application/xml' );
 ?>
-
 <rss xmlns:smly="https://sendsmaily.net/schema/editor/rss.xsd" version="2.0">
 	<channel>
 		<title><![CDATA[Store]]></title>
@@ -39,7 +38,7 @@ header( 'Content-Type: application/xml' );
 				<smly:price><![CDATA[<?php echo esc_html( number_format( floatval( $item['current_price'] ), 2, '.', ',' ) . html_entity_decode( $currencysymbol, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) ); ?>]]></smly:price>
 				<?php if ( $item['discount'] > 0 ) : ?>
 					<smly:old_price><![CDATA[<?php echo esc_html( number_format( floatval( $item['regular_price'] ), 2, '.', ',' ) . html_entity_decode( $currencysymbol, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) ); ?>]]></smly:old_price>
-					<smly:discount><![CDATA[-<?php echo esc_html( $item['discount'] ); ?>%]]></smly:discount>
+					<smly:discount><![CDATA[<?php echo esc_html( Rss::format_discount_percentage( $item['discount'] ) ); ?>]]></smly:discount>
 				<?php endif ?>
 			</item>
 		<?php endforeach ?>
