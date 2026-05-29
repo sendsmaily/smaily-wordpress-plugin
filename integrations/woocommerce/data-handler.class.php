@@ -105,7 +105,10 @@ class Data_Handler {
 					// 2014-03-28 to YYYY-MM-DD format.
 					$birthday = $meta['user_dob'][0] ?? '';
 					if ( ! empty( $birthday ) ) {
-						$user_sync_data['birthday'] = gmdate( 'Y-m-d', strtotime( $birthday ) );
+						$timestamp = strtotime( $birthday );
+						if ( $timestamp !== false ) {
+							$user_sync_data['birthday'] = gmdate( 'Y-m-d', $timestamp );
+						}
 					}
 					break;
 				case 'first_name':
