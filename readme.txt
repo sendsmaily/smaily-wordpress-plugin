@@ -3,9 +3,9 @@ Contributors: sendsmaily, kaarel
 Tags: smaily, newsletter, email, mail, marketing
 Requires PHP: 7.0
 Requires at least: 6.0
-Tested up to: 6.8
+Tested up to: 6.9
 WC tested up to: 9.6.1
-Stable tag: 1.6.1
+Stable tag: 1.6.2
 License: GPLv3 or later
 
 The Smaily Connect plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution.
@@ -60,6 +60,22 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 == Changelog ==
 
+= 1.6.2 =
+
+Fixed a bug in the Elementor newsletter widget where the failure redirect URL was incorrectly using the success URL value, causing subscribers to be redirected to the wrong page after a failed subscription attempt.
+
+Fixed a bug where changes made to user profile fields (first name, last name, phone, date of birth, gender) on the WooCommerce account page were silently discarded and never saved.
+
+Fixed a bug where the WooCommerce abandoned cart cron job would skip carts with items, treating them as empty due to checking the wrong variable.
+
+Fixed a bug where the WooCommerce subscriber sync would send incorrect gender values to Smaily, causing gender data to not match the subscriber profile.
+
+Fixed a bug where malformed or unparseable date of birth values would cause a PHP warning during WooCommerce subscriber sync. Invalid dates are now silently skipped.
+
+Fixed the checkout opt-in block not loading its frontend script correctly due to a wrong asset manifest filename.
+
+Fixed the admin credentials page where an untranslated error message was shown when disconnecting the API.
+
 = 1.6.1 =
 
 Fixed an issue where the discounted price was not correctly calculated in the RSS feed when using the tax rate parameter. The discounted price is now calculated correctly regardless of the tax rate used in the feed.
@@ -94,7 +110,7 @@ Fixes an issue where the abandoned cart cutoff time minimum value was 30 minutes
 
 Improved RSS-feed items to show prices including taxes. Also added support for Discount Rules for WooCommerce plugin to correctly show discounted prices in the feed and in the abandoned cart reminders.
 
-= 1.3.3 = 
+= 1.3.3 =
 
 Improved the Elementor widget performance by reducing the number of API calls made during the rendering process.
 
