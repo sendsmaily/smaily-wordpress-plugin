@@ -12,7 +12,7 @@ class Smaily_Client {
 	 * @access private
 	 * @var    string $subdomain Smaily API Subdomain.
 	 */
-	private $_subdomain;
+	private $subdomain;
 
 	/**
 	 * Smaily API Username.
@@ -21,7 +21,7 @@ class Smaily_Client {
 	 * @access private
 	 * @var    string $username Smaily API Username.
 	 */
-	private $_username;
+	private $username;
 
 	/**
 	 * Smaily API Password.
@@ -30,7 +30,7 @@ class Smaily_Client {
 	 * @access private
 	 * @var    string $password Smaily API Password.
 	 */
-	private $_password;
+	private $password;
 
 	/**
 	 * Constructor.
@@ -41,14 +41,14 @@ class Smaily_Client {
 	 */
 	public function __construct( $subdomain = '', $username = '', $password = '' ) {
 		if ( $subdomain instanceof Options ) {
-			$credentials      = $subdomain->get_api_credentials();
-			$this->_subdomain = $credentials['subdomain'];
-			$this->_username  = $credentials['username'];
-			$this->_password  = $credentials['password'];
+			$credentials     = $subdomain->get_api_credentials();
+			$this->subdomain = $credentials['subdomain'];
+			$this->username  = $credentials['username'];
+			$this->password  = $credentials['password'];
 		} else {
-			$this->_subdomain = $subdomain;
-			$this->_username  = $username;
-			$this->_password  = $password;
+			$this->subdomain = $subdomain;
+			$this->username  = $username;
+			$this->password  = $password;
 		}
 	}
 
@@ -143,17 +143,17 @@ class Smaily_Client {
 		$useragent = 'smaily-connect/' . SMAILY_CONNECT_PLUGIN_VERSION . ' (WordPress/' . get_bloginfo( 'version' ) . '; +' . get_bloginfo( 'url' ) . ')';
 		$args      = array(
 			'headers'    => array(
-				'Authorization' => 'Basic ' . base64_encode( $this->_username . ':' . $this->_password ),
+				'Authorization' => 'Basic ' . base64_encode( $this->username . ':' . $this->password ),
 			),
 			'user-agent' => $useragent,
 		);
 
 		switch ( $method ) {
 			case 'GET':
-				$api_call = wp_remote_get( 'https://' . $this->_subdomain . '.sendsmaily.net/api/' . $endpoint . '.php?' . http_build_query( $data ), $args );
+				$api_call = wp_remote_get( 'https://' . $this->subdomain . '.sendsmaily.net/api/' . $endpoint . '.php?' . http_build_query( $data ), $args );
 				break;
 			case 'POST':
-				$api_call = wp_remote_post( 'https://' . $this->_subdomain . '.sendsmaily.net/api/' . $endpoint . '.php', array_merge( $args, $data ) );
+				$api_call = wp_remote_post( 'https://' . $this->subdomain . '.sendsmaily.net/api/' . $endpoint . '.php', array_merge( $args, $data ) );
 				break;
 		}
 

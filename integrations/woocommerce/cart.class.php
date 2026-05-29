@@ -2,6 +2,10 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use Smaily_Connect\Includes\Helper;
 
 class Cart {
@@ -35,7 +39,7 @@ class Cart {
 			global $wpdb;
 			$user_id    = get_current_user_id();
 			$table_name = $wpdb->prefix . self::ABANDONED_CART_TABLE_NAME;
-			$wpdb->delete(
+			$wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$table_name,
 				array(
 					'customer_id' => $user_id,
@@ -80,7 +84,7 @@ class Cart {
 		if ( ! $has_previous_cart ) {
 			// Insert new row to table.
 			if ( ! WC()->cart->is_empty() ) {
-				$insert_query = $wpdb->insert(
+				$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 					$table,
 					array(
 						'customer_id'  => $user_id,
@@ -93,7 +97,7 @@ class Cart {
 		} else {
 			// If customer has items update cart contents and time.
 			if ( ! WC()->cart->is_empty() ) {
-				$update_query = $wpdb->update(
+				$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 					$table,
 					array(
 						'cart_updated' => $current_time,
@@ -103,7 +107,7 @@ class Cart {
 					array( 'customer_id' => $user_id )
 				);
 			} else {
-				$wpdb->delete(
+				$wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 					$table,
 					array(
 						'customer_id' => $user_id,
@@ -123,10 +127,9 @@ class Cart {
 		global $wpdb;
 
 		// Get row with user id.
-		$row = $wpdb->get_row(
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
-				'SELECT * FROM `%1$s` WHERE customer_id = \'%2$d\'',
-				$wpdb->prefix . self::ABANDONED_CART_TABLE_NAME,
+				'SELECT * FROM `' . $wpdb->prefix . self::ABANDONED_CART_TABLE_NAME . '` WHERE customer_id = %d', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name is a plugin constant
 				$customer_id
 			),
 			'ARRAY_A'

@@ -2,6 +2,10 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use Smaily_Connect\Includes\Helper as Smaily_Base_Helper;
 use Smaily_Connect\Includes\Logger;
 use Smaily_Connect\Includes\Options;
@@ -95,7 +99,7 @@ class Cron {
 
 		$unsubscribers_emails = array();
 		foreach ( $response['body'] as $value ) {
-			array_push( $unsubscribers_emails, $value['email'] );
+			$unsubscribers_emails[] = $value['email'];
 		}
 
 		// Change WooCommerce subscriber status based on Smaily unsubscribers.
@@ -201,11 +205,7 @@ class Cron {
 	 * @return string
 	 */
 	public function get_sale_price_with_tax( $product ) {
-		$price = wc_price(
-			Helper::get_current_price_with_tax( $product )
-		);
-
-		return wp_strip_all_tags( html_entity_decode( $price, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) );
+		return $this->format_price( Helper::get_current_price_with_tax( $product ) );
 	}
 
 	/**
@@ -215,11 +215,17 @@ class Cron {
 	 * @return string
 	 */
 	public function get_base_price_with_tax( $product ) {
-		$price = wc_price(
-			Helper::get_regular_price_with_tax( $product )
-		);
+		return $this->format_price( Helper::get_regular_price_with_tax( $product ) );
+	}
 
-		return wp_strip_all_tags( html_entity_decode( $price, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) );
+	/**
+	 * Format a numeric price into a plain-text string using WooCommerce formatting.
+	 *
+	 * @param float|string $amount
+	 * @return string
+	 */
+	private function format_price( $amount ) {
+		return wp_strip_all_tags( html_entity_decode( wc_price( $amount ), ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) );
 	}
 
 	/**
@@ -232,7 +238,7 @@ class Cron {
 		global $wpdb;
 
 		$table = $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME;
-		$wpdb->update(
+		$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$table,
 			array(
 				'mail_sent'      => 1,
@@ -251,10 +257,9 @@ class Cron {
 	 */
 	public function get_abandoned_carts() {
 		global $wpdb;
-		return $wpdb->get_results(
+		return $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$wpdb->prepare(
-				'SELECT * FROM `%1$s` WHERE cart_status = \'%2$s\' AND mail_sent IS NULL',
-				$wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME,
+				'SELECT * FROM `' . $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME . '` WHERE cart_status = %s AND mail_sent IS NULL', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name is a plugin constant
 				'abandoned'
 			),
 			'ARRAY_A'
@@ -281,10 +286,9 @@ class Cron {
 			$time  = gmdate( 'Y-m-d\TH:i:s\Z', $limit );
 
 			// Select all carts before cutoff time.
-			$carts = $wpdb->get_results(
+			$carts = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$wpdb->prepare(
-					'SELECT * FROM `%1$s` WHERE cart_status = \'%2$s\' AND mail_sent IS NULL AND cart_updated < \'%3$s\'',
-					$table,
+					'SELECT * FROM `' . $table . '` WHERE cart_status = %s AND mail_sent IS NULL AND cart_updated < %s', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name is a plugin constant
 					'open',
 					$time
 				),
@@ -294,7 +298,7 @@ class Cron {
 			foreach ( $carts as $cart ) {
 				// Update abandoned status and time.
 				$customer_id = $cart['customer_id'];
-				$wpdb->update(
+				$wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 					$table,
 					array(
 						'cart_status'         => 'abandoned',

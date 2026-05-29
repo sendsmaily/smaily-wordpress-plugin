@@ -285,7 +285,7 @@ class Newsletter_Widget extends Widget_Base {
 				</div>
 				<# } #>
 			</div>
-			<form class="smaily-connect-elementor-newsletter-form"">
+			<form class="smaily-connect-elementor-newsletter-form">
 				<div class="smaily-connect-elementor-newsletter-form-visible-fields">
 					<div class="smaily-connect-elementor-newsletter-form-input-container">
 						<label for="smaily-connect-elementor-newsletter-form-email">

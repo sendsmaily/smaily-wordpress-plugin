@@ -2,6 +2,10 @@
 
 namespace Smaily_Connect\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use Smaily_Connect\Includes\Notice_Registry;
 
 class Notices {
@@ -51,8 +55,6 @@ class Notices {
 			return;
 		}
 
-		$id;
-		$notice;
 		require SMAILY_CONNECT_PLUGIN_PATH . 'admin/partials/smaily-admin-notice.php';
 	}
 
@@ -63,7 +65,7 @@ class Notices {
 		check_ajax_referer( 'smaily_connect_dismiss_notice', 'nonce' );
 
 		if ( ! isset( $_POST['id'] ) ) {
-			$err = new WP_Error( 'missing_id', 'The notice ID is missing.' );
+			$err = new \WP_Error( 'missing_id', 'The notice ID is missing.' );
 			wp_send_json_error( $err );
 		}
 

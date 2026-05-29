@@ -65,11 +65,10 @@ class Sanitizer {
 			$validation_errors[] = __( 'Please enter password!', 'smaily-connect' );
 		}
 		if ( ! empty( $validation_errors ) ) {
-			$validation_errors = implode( '<br>', $validation_errors );
 			add_settings_error(
 				'smaily_connect_messages',
 				'invalid_api_credentials',
-				$validation_errors,
+				implode( '<br>', array_map( 'esc_html', $validation_errors ) ),
 				'error'
 			);
 
@@ -90,19 +89,7 @@ class Sanitizer {
 	 * @return array
 	 */
 	public function sanitize_subscriber_sync_fields( $input ) {
-		$default_fields = Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS;
-
-		$sanitized = array();
-		foreach ( $default_fields as $field => $default_value ) {
-			if ( $default_value === true ) {
-				$sanitized[ $field ] = true;
-				continue;
-			}
-
-			$sanitized[ $field ] = ! empty( $input[ $field ] ) && $input[ $field ] !== '0';
-		}
-
-		return $sanitized;
+		return $this->sanitize_fields( $input, Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS );
 	}
 
 	/**
@@ -112,8 +99,18 @@ class Sanitizer {
 	 * @return array
 	 */
 	public function sanitize_abandoned_cart_fields( $input ) {
-		$default_fields = Options::ABANDONED_CART_DEFAULT_FIELDS;
+		return $this->sanitize_fields( $input, Options::ABANDONED_CART_DEFAULT_FIELDS );
+	}
 
+	/**
+	 * Sanitizes a set of boolean fields against a defaults map.
+	 * Fields marked true in defaults are always kept true (required fields).
+	 *
+	 * @param array $input
+	 * @param array $default_fields
+	 * @return array
+	 */
+	private function sanitize_fields( $input, $default_fields ) {
 		$sanitized = array();
 		foreach ( $default_fields as $field => $default_value ) {
 			if ( $default_value === true ) {

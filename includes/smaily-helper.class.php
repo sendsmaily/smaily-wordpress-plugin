@@ -1,9 +1,14 @@
 <?php
+
+namespace Smaily_Connect\Includes;
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Smaily helper class with static methods
  */
-
-namespace Smaily_Connect\Includes;
 
 class Helper {
 	/**
@@ -53,11 +58,7 @@ class Helper {
 	 * @return bool True if WooCommerce is active, false otherwise.
 	 */
 	public static function is_woocommerce_active() {
-		if ( function_exists( 'is_plugin_active' ) ) {
-			return is_plugin_active( 'woocommerce/woocommerce.php' );
-		} else {
-			return class_exists( 'WooCommerce' );
-		}
+		return self::is_plugin_active( 'woocommerce/woocommerce.php', 'WooCommerce' );
 	}
 
 	/**
@@ -66,11 +67,7 @@ class Helper {
 	 * @return bool True if Contact Form 7 is active, false otherwise.
 	 */
 	public static function is_cf7_active() {
-		if ( function_exists( 'is_plugin_active' ) ) {
-			return is_plugin_active( 'contact-form-7/wp-contact-form-7.php' );
-		} else {
-			return class_exists( 'WPCF7' );
-		}
+		return self::is_plugin_active( 'contact-form-7/wp-contact-form-7.php', 'WPCF7' );
 	}
 
 	/**
@@ -79,11 +76,23 @@ class Helper {
 	 * @return bool True if Elementor is active, false otherwise.
 	 */
 	public static function is_elementor_active() {
+		return self::is_plugin_active( 'elementor/elementor.php', 'Elementor\Plugin' );
+	}
+
+	/**
+	 * Check if a plugin is active by plugin file slug, falling back to class existence check
+	 * when is_plugin_active() is not available (e.g. outside admin context).
+	 *
+	 * @param string $plugin_slug Plugin file slug (e.g. 'woocommerce/woocommerce.php').
+	 * @param string $class_name  Fully-qualified class name to fall back to.
+	 * @return bool
+	 */
+	private static function is_plugin_active( $plugin_slug, $class_name ) {
 		if ( function_exists( 'is_plugin_active' ) ) {
-			return is_plugin_active( 'elementor/elementor.php' );
-		} else {
-			return class_exists( 'Elementor\Plugin' );
+			return is_plugin_active( $plugin_slug );
 		}
+
+		return class_exists( $class_name );
 	}
 
 	/**

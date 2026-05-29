@@ -2,6 +2,10 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use WC_Product;
 
 class Rss {

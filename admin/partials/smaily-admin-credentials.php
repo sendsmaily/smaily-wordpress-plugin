@@ -63,9 +63,6 @@ $connected = $subdomain && $username;
 		<label for="smaily_password">
 			<?php esc_html_e( 'API Password', 'smaily-connect' ); ?>*
 			<input
-				<?php if ( ! empty( $password ) ) : ?>
-					disabled
-				<?php endif; ?>
 				required
 				class="regular-text code"
 				id="smaily_password"

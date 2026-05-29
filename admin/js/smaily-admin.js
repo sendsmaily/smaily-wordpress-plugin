@@ -36,7 +36,6 @@
 		// Copy RSS product feed URL to clipboard.
 		$('#smaily-rss-feed-url-copy').on('click', function () {
 			var url = document.getElementById("smaily-rss-feed-url").innerText;
-			console.log(url);
 			navigator.clipboard.writeText(url).then(function() {
 				$('#smaily-rss-feed-url-copy-icon').animate({opacity: 1}, 200);
 				setTimeout(function() {

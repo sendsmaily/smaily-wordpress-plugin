@@ -16,10 +16,10 @@ $is_error         = $code !== null && ! $is_success;
 
 <?php if ( $parameters['has_credentials'] ) : ?>
 <form id="smly" action="https://<?php echo esc_attr( $parameters['subdomain'] ); ?>.sendsmaily.net/api/opt-in/" method="post">
-	<p class="error" style="padding:15px;background-color:#f2dede;margin:0 0 10px;display:<?php echo $is_error ? 'block' : 'none'; ?>">
+	<p class="error" style="padding:15px;background-color:#f2dede;margin:0 0 10px;display:<?php echo esc_attr( $is_error ? 'block' : 'none' ); ?>">
 		<?php echo esc_html( $response_message ); ?>
 	</p>
-	<p class="success" style="padding:15px;background-color:#dff0d8;margin:0 0 10px;display:<?php echo $is_success ? 'block' : 'none'; ?>">
+	<p class="success" style="padding:15px;background-color:#dff0d8;margin:0 0 10px;display:<?php echo esc_attr( $is_success ? 'block' : 'none' ); ?>">
 		<?php echo esc_html( $response_message ); ?>
 	</p>
 	<?php if ( $parameters['autoresponder_id'] ) : ?>

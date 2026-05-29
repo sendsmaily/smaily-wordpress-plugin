@@ -52,7 +52,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 					</th>
 					<td>
 						<select id='smailyforcf7-autoresponder-select' name='smailyforcf7-autoresponder'>
-							<option value='' <?php echo $template_variables['autoresponder_id'] === 0 ? 'selected="selected"' : ''; ?>>
+							<option value='' <?php selected( $template_variables['autoresponder_id'], 0 ); ?>>
 								<?php esc_html_e( 'No autoresponder', 'smaily-connect' ); ?>
 							</option>
 							<?php foreach ( $template_variables['autoresponders'] as $autoresponder_id => $autoresponder_title ) : ?>

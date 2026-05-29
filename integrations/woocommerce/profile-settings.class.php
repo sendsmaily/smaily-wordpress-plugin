@@ -2,6 +2,10 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use Smaily_Connect\Includes\Options;
 
 class Profile_Settings {

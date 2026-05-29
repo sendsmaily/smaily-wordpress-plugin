@@ -41,7 +41,7 @@ settings_errors( 'smaily_connect_messages' );
 			</div>
 			<?php foreach ( $tabs as $tab => $options ) : ?>
 				<a
-					class="smaily-connect-admin-tab <?php echo $tab === $current_tab ? 'smaily-connect-admin-tab-active' : ''; ?>"
+					class="smaily-connect-admin-tab <?php echo esc_attr( $tab === $current_tab ? 'smaily-connect-admin-tab-active' : '' ); ?>"
 					href="<?php echo esc_url( $options['url'] ); ?>"
 				>
 				<?php echo esc_html( $options['title'] ); ?>

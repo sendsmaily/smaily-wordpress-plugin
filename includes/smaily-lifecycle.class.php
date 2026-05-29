@@ -2,6 +2,10 @@
 
 namespace Smaily_Connect\Includes;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cart.class.php';
 
 use Smaily_Connect\Integrations\WooCommerce\Cart;
@@ -114,7 +118,7 @@ class Lifecycle {
 
 		// Create abandoned_cart table if it does not exist.
 		$abandoned_table_name = $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME;
-		$query                = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $abandoned_table_name ) );
+		$query                = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $abandoned_table_name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		// Check if the table already exists.
 		if ( $query !== $abandoned_table_name ) {
@@ -155,12 +159,8 @@ class Lifecycle {
 		global $wpdb;
 
 		// Delete Smaily plugin abandoned cart table.
-		$wpdb->query(
-			$wpdb->prepare(
-				'DROP TABLE IF EXISTS `%1$s`',
-				$wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME
-			)
-		);
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name is a plugin constant
+		$wpdb->query( 'DROP TABLE IF EXISTS `' . $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME . '`' );
 
 		Options::delete_all_options();
 
@@ -253,7 +253,7 @@ class Lifecycle {
 	 *
 	 */
 	public function set_locale() {
-		load_plugin_textdomain(
+		load_plugin_textdomain( // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound
 			'smaily-connect',
 			false,
 			plugin_basename( SMAILY_CONNECT_PLUGIN_PATH ) . '/languages/'

@@ -18,6 +18,10 @@
 
 namespace Smaily_Connect\Migrations;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use Smaily_Connect\Includes\Notice_Registry;
 use Smaily_Connect\Includes\Options;
 
