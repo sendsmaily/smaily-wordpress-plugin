@@ -163,7 +163,7 @@ class Cron {
 
 		foreach ( $this->get_abandoned_carts() as $cart ) {
 			$cart_content = maybe_unserialize( $cart['cart_content'] );
-			if ( empty( $cart ) ) {
+			if ( empty( $cart_content ) ) {
 				continue;
 			}
 
