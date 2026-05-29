@@ -43,7 +43,7 @@ class Sanitizer {
 			add_settings_error(
 				'smaily_connect_messages',
 				'credentials_validated',
-				'API credentials disconnected!',
+				__( 'API credentials disconnected!', 'smaily-connect' ),
 				'success'
 			);
 

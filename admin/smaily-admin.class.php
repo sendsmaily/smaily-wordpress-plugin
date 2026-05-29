@@ -107,7 +107,7 @@ class Admin {
 	 */
 	public function render_admin_page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			return wp_die( 'Insufficient permissions' );
+			return wp_die( esc_html__( 'Insufficient permissions', 'smaily-connect' ) );
 		}
 
 		include_once SMAILY_CONNECT_PLUGIN_PATH . '/admin/partials/smaily-admin-page.php';
