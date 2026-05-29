@@ -3,31 +3,36 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
 "Last-Translator: \n"
-"Language-Team: Eesti\n"
+"Language-Team: Estonian\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "POT-Creation-Date: 2025-09-02T08:02:40+00:00\n"
-"PO-Revision-Date: 2025-12-15 12:49+0000\n"
+"PO-Revision-Date: 2026-05-29 15:38+0000\n"
 "Language: et\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Loco https://localise.biz/\n"
 "X-Loco-Version: 2.8.0; wp-6.9; php-8.3.28\n"
 
-#: admin/smaily-admin.class.php:262
+#: admin/smaily-admin.class.php:265
 msgid "Abandoned Cart"
 msgstr "Hüljatud ostukorv"
 
 #: admin/smaily-admin-renderer.class.php:143
-msgid "Abandoned Cart allows you to send automated emails to customers who have left their shopping cart."
-msgstr "Hüljatud ostukorv võimaldab saata automaatseid e-kirju klientidele, kes on oma ostukorvi hüljanud."
+msgid ""
+"Abandoned Cart allows you to send automated emails to customers who have "
+"left their shopping cart."
+msgstr ""
+"Hüljatud ostukorv võimaldab saata automaatseid e-kirju klientidele, kes on "
+"oma ostukorvi hüljanud."
 
 #: admin/smaily-admin-settings.class.php:270
 msgid "Abandoned Cart Reminder Emails"
 msgstr "Hüljatud Ostukorvi Meeldetuletuskirjad"
 
-#: integrations/elementor/newsletter-widget.class.php:543
-msgid "Add custom hidden fields to include additional data in the subscription."
+#: integrations/elementor/newsletter-widget.class.php:542
+msgid ""
+"Add custom hidden fields to include additional data in the subscription."
 msgstr "Lisage peidetud välju, mis lisatakse uudiskirjaga liituja andmetele."
 
 #: blocks/newsletter-signup/build/index.js:1
@@ -36,15 +41,19 @@ msgid "Add field"
 msgstr "Lisa väli"
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:20
-msgid "Add the Smaily Sign-Up Form block to any page or post. The block is available in the block editor."
-msgstr "Lisage Smaily Registreerimisvorm mis tahes lehele või postitusele. Vorm on saadaval plokkide redaktoris."
+msgid ""
+"Add the Smaily Sign-Up Form block to any page or post. The block is "
+"available in the block editor."
+msgstr ""
+"Lisage Smaily Registreerimisvorm mis tahes lehele või postitusele. Vorm on "
+"saadaval plokkide redaktoris."
 
 #: admin/smaily-admin-settings.class.php:147
 #: admin/smaily-admin-settings.class.php:298
 msgid "Additional Fields"
 msgstr "Täiendavad väljad"
 
-#: integrations/woocommerce/profile-settings.class.php:112
+#: integrations/woocommerce/profile-settings.class.php:116
 msgid "Additional Information"
 msgstr "Lisateave"
 
@@ -65,11 +74,15 @@ msgstr "Kõik"
 msgid "An error occurred. Please try again."
 msgstr "Ilmnes viga. Palun proovige uuesti."
 
-#: admin/smaily-admin.class.php:150
+#: admin/smaily-admin-sanitizer.class.php:46
+msgid "API credentials disconnected!"
+msgstr "API kasutaja lahtiühendatud!"
+
+#: admin/smaily-admin.class.php:153
 msgid "API credentials validated successfully!"
 msgstr "API kasutaja on edukalt valideeritud!"
 
-#: admin/smaily-admin.class.php:173
+#: admin/smaily-admin.class.php:176
 msgid "API credentials validation failed. Please check your details."
 msgstr "API kasutaja valideerimine nurjus. Palun kontrollige oma andmeid."
 
@@ -86,8 +99,12 @@ msgid "Ascending"
 msgstr "Kasvavalt"
 
 #: admin/smaily-admin-renderer.class.php:78
-msgid "Automatically Synchronize subscribers using the daily Subscriber Synchronization."
-msgstr "Sünkroniseerige uudiskirjaga liitujaid automaatselt kasutades igapäevast Uudiskirjaga Liitujate Sünkroniseerimist."
+msgid ""
+"Automatically Synchronize subscribers using the daily Subscriber "
+"Synchronization."
+msgstr ""
+"Sünkroniseerige uudiskirjaga liitujaid automaatselt kasutades igapäevast "
+"Uudiskirjaga Liitujate Sünkroniseerimist."
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:51
 #: integrations/elementor/newsletter-widget.class.php:483
@@ -100,13 +117,13 @@ msgstr "Automaatvastaja"
 msgid "Autoresponder ID"
 msgstr "Automaatvastaja ID"
 
-#: integrations/elementor/newsletter-widget.class.php:586
-#: integrations/elementor/newsletter-widget.class.php:764
-#: integrations/elementor/newsletter-widget.class.php:896
-#: integrations/elementor/newsletter-widget.class.php:1014
-#: integrations/elementor/newsletter-widget.class.php:1166
-#: integrations/elementor/newsletter-widget.class.php:1313
-#: integrations/elementor/newsletter-widget.class.php:1410
+#: integrations/elementor/newsletter-widget.class.php:585
+#: integrations/elementor/newsletter-widget.class.php:763
+#: integrations/elementor/newsletter-widget.class.php:895
+#: integrations/elementor/newsletter-widget.class.php:1013
+#: integrations/elementor/newsletter-widget.class.php:1165
+#: integrations/elementor/newsletter-widget.class.php:1312
+#: integrations/elementor/newsletter-widget.class.php:1409
 msgid "Background Color"
 msgstr "Taustavärv"
 
@@ -119,18 +136,16 @@ msgid "Billing form"
 msgstr "Arvelduse vorm"
 
 #: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:23
-#: integrations/woocommerce/profile-settings.class.php:395
+#: integrations/woocommerce/profile-settings.class.php:399
 msgid "Birthday"
 msgstr "Sünnipäev"
 
-#: blocks/checkout-optin/build/block.json
-#: blocks/checkout-optin/src/block.json
+#: blocks/checkout-optin/build/block.json blocks/checkout-optin/src/block.json
 msgctxt "block description"
 msgid "Adds a newsletter subscription checkbox to the checkout."
 msgstr "Lisab uudiskirjaga liitumise märkeruudu kassa lehele."
 
-#: blocks/landingpage/build/block.json
-#: blocks/landingpage/src/block.json
+#: blocks/landingpage/build/block.json blocks/landingpage/src/block.json
 msgctxt "block description"
 msgid "Smaily landing page"
 msgstr "Smaily Maandumisleht"
@@ -147,44 +162,38 @@ msgctxt "block keyword"
 msgid "form"
 msgstr "vorm"
 
-#: blocks/landingpage/build/block.json
-#: blocks/landingpage/src/block.json
+#: blocks/landingpage/build/block.json blocks/landingpage/src/block.json
 msgctxt "block keyword"
 msgid "landingpage"
 msgstr "maandumisleht"
 
-#: blocks/landingpage/build/block.json
-#: blocks/landingpage/src/block.json
+#: blocks/landingpage/build/block.json blocks/landingpage/src/block.json
 #: blocks/newsletter-signup/build/block.json
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
 msgid "newsletter"
 msgstr "uudiskiri"
 
-#: blocks/landingpage/build/block.json
-#: blocks/landingpage/src/block.json
+#: blocks/landingpage/build/block.json blocks/landingpage/src/block.json
 #: blocks/newsletter-signup/build/block.json
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
 msgid "smaily"
 msgstr "smaily"
 
-#: blocks/landingpage/build/block.json
-#: blocks/landingpage/src/block.json
+#: blocks/landingpage/build/block.json blocks/landingpage/src/block.json
 #: blocks/newsletter-signup/build/block.json
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
 msgid "subscription"
 msgstr "uudiskiri"
 
-#: blocks/checkout-optin/build/block.json
-#: blocks/checkout-optin/src/block.json
+#: blocks/checkout-optin/build/block.json blocks/checkout-optin/src/block.json
 msgctxt "block title"
 msgid "Smaily Checkout Opt-In"
 msgstr "Smaily Kassalehel Liitumine"
 
-#: blocks/landingpage/build/block.json
-#: blocks/landingpage/src/block.json
+#: blocks/landingpage/build/block.json blocks/landingpage/src/block.json
 msgctxt "block title"
 msgid "Smaily Landing Page"
 msgstr "Smaily Maandumisleht"
@@ -195,47 +204,47 @@ msgctxt "block title"
 msgid "Smaily Sign-Up Form"
 msgstr "Smaily Liitumisvorm"
 
-#: integrations/elementor/newsletter-widget.class.php:636
-#: integrations/elementor/newsletter-widget.class.php:826
-#: integrations/elementor/newsletter-widget.class.php:927
-#: integrations/elementor/newsletter-widget.class.php:1106
-#: integrations/elementor/newsletter-widget.class.php:1208
-#: integrations/elementor/newsletter-widget.class.php:1344
-#: integrations/elementor/newsletter-widget.class.php:1441
+#: integrations/elementor/newsletter-widget.class.php:635
+#: integrations/elementor/newsletter-widget.class.php:825
+#: integrations/elementor/newsletter-widget.class.php:926
+#: integrations/elementor/newsletter-widget.class.php:1105
+#: integrations/elementor/newsletter-widget.class.php:1207
+#: integrations/elementor/newsletter-widget.class.php:1343
+#: integrations/elementor/newsletter-widget.class.php:1440
 msgid "Border Color"
 msgstr "Piirjoone Värv"
 
-#: integrations/elementor/newsletter-widget.class.php:665
-#: integrations/elementor/newsletter-widget.class.php:865
-#: integrations/elementor/newsletter-widget.class.php:963
-#: integrations/elementor/newsletter-widget.class.php:1135
-#: integrations/elementor/newsletter-widget.class.php:1237
-#: integrations/elementor/newsletter-widget.class.php:1381
-#: integrations/elementor/newsletter-widget.class.php:1478
+#: integrations/elementor/newsletter-widget.class.php:664
+#: integrations/elementor/newsletter-widget.class.php:864
+#: integrations/elementor/newsletter-widget.class.php:962
+#: integrations/elementor/newsletter-widget.class.php:1134
+#: integrations/elementor/newsletter-widget.class.php:1236
+#: integrations/elementor/newsletter-widget.class.php:1380
+#: integrations/elementor/newsletter-widget.class.php:1477
 msgid "Border Radius"
 msgstr "Piirjoone Raadius"
 
-#: integrations/elementor/newsletter-widget.class.php:616
-#: integrations/elementor/newsletter-widget.class.php:806
-#: integrations/elementor/newsletter-widget.class.php:907
-#: integrations/elementor/newsletter-widget.class.php:1086
-#: integrations/elementor/newsletter-widget.class.php:1188
-#: integrations/elementor/newsletter-widget.class.php:1324
-#: integrations/elementor/newsletter-widget.class.php:1421
+#: integrations/elementor/newsletter-widget.class.php:615
+#: integrations/elementor/newsletter-widget.class.php:805
+#: integrations/elementor/newsletter-widget.class.php:906
+#: integrations/elementor/newsletter-widget.class.php:1085
+#: integrations/elementor/newsletter-widget.class.php:1187
+#: integrations/elementor/newsletter-widget.class.php:1323
+#: integrations/elementor/newsletter-widget.class.php:1420
 msgid "Border Style"
 msgstr "Piirjoone Stiil"
 
-#: integrations/elementor/newsletter-widget.class.php:650
-#: integrations/elementor/newsletter-widget.class.php:843
-#: integrations/elementor/newsletter-widget.class.php:941
-#: integrations/elementor/newsletter-widget.class.php:1120
-#: integrations/elementor/newsletter-widget.class.php:1222
-#: integrations/elementor/newsletter-widget.class.php:1359
-#: integrations/elementor/newsletter-widget.class.php:1456
+#: integrations/elementor/newsletter-widget.class.php:649
+#: integrations/elementor/newsletter-widget.class.php:842
+#: integrations/elementor/newsletter-widget.class.php:940
+#: integrations/elementor/newsletter-widget.class.php:1119
+#: integrations/elementor/newsletter-widget.class.php:1221
+#: integrations/elementor/newsletter-widget.class.php:1358
+#: integrations/elementor/newsletter-widget.class.php:1455
 msgid "Border Width"
 msgstr "Piirjoone Laius"
 
-#: integrations/elementor/newsletter-widget.class.php:716
+#: integrations/elementor/newsletter-widget.class.php:715
 msgid "Bottom Gap"
 msgstr "Alumine Vahe"
 
@@ -243,7 +252,7 @@ msgstr "Alumine Vahe"
 msgid "Build your own from component."
 msgstr "Ehitage vorm ise."
 
-#: integrations/elementor/newsletter-widget.class.php:995
+#: integrations/elementor/newsletter-widget.class.php:994
 msgid "Button"
 msgstr "Nupp"
 
@@ -258,13 +267,15 @@ msgstr "Nupu Tekst"
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:27
 msgid "CAPTCHA disabled. Please use a CAPTCHA if this is a public site."
-msgstr "CAPTCHA välja lülitatud. Palun kasutage CAPTCHA, kui tegemist on avaliku saidiga."
+msgstr ""
+"CAPTCHA välja lülitatud. Palun kasutage CAPTCHA, kui tegemist on avaliku "
+"saidiga."
 
 #: admin/smaily-admin-settings.class.php:285
 msgid "Cart cutoff time (minutes)"
 msgstr "Ostukorv loetakse aegunuks (minutites)"
 
-#: admin/smaily-admin.class.php:165
+#: admin/smaily-admin.class.php:168
 msgid "Check subdomain. API credentials validation failed."
 msgstr "Kontrollige alamdomeeni. API kasutaja valideerimine nurjus."
 
@@ -277,20 +288,23 @@ msgstr "kassa"
 msgid "Collect subscribers during checkout."
 msgstr "Koguda uudiskirjaga liitujaid kassas."
 
-#: integrations/elementor/newsletter-widget.class.php:694
+#: integrations/elementor/newsletter-widget.class.php:693
 msgid "Color"
 msgstr "Värv"
 
 #: integrations/cf7/partials/smaily-cf7-admin.php:12
-msgid "Configuring Smaily integration is disabled when using \"Add New Form\". Please save this form or edit an already existing form"
-msgstr "Smaily integratsiooni seadistamine on uue kontaktivormi lisamisel välja lülitatud. Palun salvestage see vorm või redigeerige juba olemasolevat vormi."
+msgid ""
+"Configuring Smaily integration is disabled when using \"Add New Form\". "
+"Please save this form or edit an already existing form"
+msgstr ""
+"Smaily integratsiooni seadistamine on uue kontaktivormi lisamisel välja "
+"lülitatud. Palun salvestage see vorm või redigeerige juba olemasolevat vormi."
 
-#: admin/smaily-admin-settings.class.php:62
-#: admin/smaily-admin.class.php:214
+#: admin/smaily-admin-settings.class.php:62 admin/smaily-admin.class.php:217
 msgid "Connection"
 msgstr "Ühendus"
 
-#: integrations/elementor/newsletter-widget.class.php:562
+#: integrations/elementor/newsletter-widget.class.php:561
 msgid "Container"
 msgstr "Konteiner"
 
@@ -298,25 +312,36 @@ msgstr "Konteiner"
 msgid "Copy"
 msgstr "Kopeeri"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:195
-msgid "Copy the URL of the landing page you want to display in this block and paste it in the Block settings."
-msgstr "Kopeerige selle maandumislehe URL, mida soovite selles plokis kuvada, ja kleepige see ploki seadistustesse."
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:195
+msgid ""
+"Copy the URL of the landing page you want to display in this block and paste "
+"it in the Block settings."
+msgstr ""
+"Kopeerige selle maandumislehe URL, mida soovite selles plokis kuvada, ja "
+"kleepige see ploki seadistustesse."
 
 #: admin/smaily-admin-renderer.class.php:270
-msgid "Copy this URL into your template editor's RSS block, to receive RSS-feed."
-msgstr "Kopeerige see URL oma kirjapõhja redaktori RSS-blokki, et saada lisada tooteid uudiskirja."
+msgid ""
+"Copy this URL into your template editor's RSS block, to receive RSS-feed."
+msgstr ""
+"Kopeerige see URL oma kirjapõhja redaktori RSS-blokki, et saada lisada "
+"tooteid uudiskirja."
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:74
-msgid "Create a custom HTML form for maximum flexibility and advanced functionality. While this requires more technical knowledge, it gives you complete control over the form's appearance and behavior."
-msgstr "Maksimaalse paindlikkuse ja täiustatud funktsionaalsuse saavutamiseks looge kohandatud HTML-vorm. Kuigi see nõuab rohkem tehnilisi teadmisi, annab see teile täieliku kontrolli vormi välimuse ja käitumise üle."
+msgid ""
+"Create a custom HTML form for maximum flexibility and advanced functionality."
+" While this requires more technical knowledge, it gives you complete control "
+"over the form's appearance and behavior."
+msgstr ""
+"Maksimaalse paindlikkuse ja täiustatud funktsionaalsuse saavutamiseks looge "
+"kohandatud HTML-vorm. Kuigi see nõuab rohkem tehnilisi teadmisi, annab see "
+"teile täieliku kontrolli vormi välimuse ja käitumise üle."
 
 #: admin/smaily-admin-settings.class.php:448
 msgid "Created At"
 msgstr "Loodud"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:210
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:210
 msgid "creating a landing page"
 msgstr "maandumislehe loomine"
 
@@ -324,7 +349,7 @@ msgstr "maandumislehe loomine"
 msgid "Credentials"
 msgstr "API Ligipääsud"
 
-#: integrations/elementor/newsletter-widget.class.php:523
+#: integrations/elementor/newsletter-widget.class.php:522
 msgid "Custom Fields"
 msgstr "Kohandatud Väljad"
 
@@ -350,20 +375,22 @@ msgid "Customer Last Name"
 msgstr "Kliendi Perekonnanimi"
 
 #: admin/smaily-admin-renderer.class.php:217
-msgid "Customers can subscribe by checking \"subscribe to newsletter\" checkbox on checkout page."
+msgid ""
+"Customers can subscribe by checking \"subscribe to newsletter\" checkbox on "
+"checkout page."
 msgstr "Kliendid saavad tellida uudiskirja, kasutades  märkeruutu kassalehel."
 
 #: admin/smaily-admin-settings.class.php:128
 msgid "Daily Automatic Subscriber Synchronization"
 msgstr "Igapäevane Automaatne Uudiskirjaga Liitujate Sünkroniseerimine"
 
-#: integrations/elementor/newsletter-widget.class.php:622
-#: integrations/elementor/newsletter-widget.class.php:812
-#: integrations/elementor/newsletter-widget.class.php:913
-#: integrations/elementor/newsletter-widget.class.php:1092
-#: integrations/elementor/newsletter-widget.class.php:1194
-#: integrations/elementor/newsletter-widget.class.php:1330
-#: integrations/elementor/newsletter-widget.class.php:1427
+#: integrations/elementor/newsletter-widget.class.php:621
+#: integrations/elementor/newsletter-widget.class.php:811
+#: integrations/elementor/newsletter-widget.class.php:912
+#: integrations/elementor/newsletter-widget.class.php:1091
+#: integrations/elementor/newsletter-widget.class.php:1193
+#: integrations/elementor/newsletter-widget.class.php:1329
+#: integrations/elementor/newsletter-widget.class.php:1426
 msgid "Dashed"
 msgstr "Katkendlik"
 
@@ -377,7 +404,7 @@ msgstr "Vaikimisi praeguse lehekülje URL."
 msgid "Descending"
 msgstr "Kahanevalt"
 
-#: admin/smaily-admin.class.php:215
+#: admin/smaily-admin.class.php:218
 msgid "Disconnect"
 msgstr "Ühenda lahti"
 
@@ -387,6 +414,16 @@ msgstr "Ühenda lahti"
 msgid "Display name field"
 msgstr "Kuva nime väli"
 
+#: integrations/elementor/newsletter-widget.class.php:622
+#: integrations/elementor/newsletter-widget.class.php:812
+#: integrations/elementor/newsletter-widget.class.php:913
+#: integrations/elementor/newsletter-widget.class.php:1092
+#: integrations/elementor/newsletter-widget.class.php:1194
+#: integrations/elementor/newsletter-widget.class.php:1330
+#: integrations/elementor/newsletter-widget.class.php:1427
+msgid "Dotted"
+msgstr "Punktiir"
+
 #: integrations/elementor/newsletter-widget.class.php:623
 #: integrations/elementor/newsletter-widget.class.php:813
 #: integrations/elementor/newsletter-widget.class.php:914
@@ -394,16 +431,6 @@ msgstr "Kuva nime väli"
 #: integrations/elementor/newsletter-widget.class.php:1195
 #: integrations/elementor/newsletter-widget.class.php:1331
 #: integrations/elementor/newsletter-widget.class.php:1428
-msgid "Dotted"
-msgstr "Punktiir"
-
-#: integrations/elementor/newsletter-widget.class.php:624
-#: integrations/elementor/newsletter-widget.class.php:814
-#: integrations/elementor/newsletter-widget.class.php:915
-#: integrations/elementor/newsletter-widget.class.php:1094
-#: integrations/elementor/newsletter-widget.class.php:1196
-#: integrations/elementor/newsletter-widget.class.php:1332
-#: integrations/elementor/newsletter-widget.class.php:1429
 msgid "Double"
 msgstr "Kahekordne"
 
@@ -415,8 +442,7 @@ msgid "Email"
 msgstr "E-post"
 
 #: integrations/elementor/newsletter-widget.class.php:76
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/index.js:38
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/index.js:38
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:36
 msgid "email"
@@ -456,7 +482,7 @@ msgstr "Aktiveeri Uudiskirjaga Liitujate Sünkroniseerimine"
 msgid "Enabled"
 msgstr "Lubatud"
 
-#: integrations/woocommerce/profile-settings.class.php:396
+#: integrations/woocommerce/profile-settings.class.php:400
 msgid "Enter birthday"
 msgstr "Sisestage sünnipäev"
 
@@ -468,19 +494,19 @@ msgstr "Sisestage nupu tekst"
 msgid "Enter error message"
 msgstr "Sisestage veateade"
 
-#: integrations/elementor/newsletter-widget.class.php:516
+#: integrations/elementor/newsletter-widget.class.php:515
 msgid "Enter failure URL"
 msgstr "Sisestage tõrke URL"
 
-#: integrations/elementor/newsletter-widget.class.php:531
+#: integrations/elementor/newsletter-widget.class.php:530
 msgid "Enter field name"
 msgstr "Sisesta nimi"
 
-#: integrations/elementor/newsletter-widget.class.php:538
+#: integrations/elementor/newsletter-widget.class.php:537
 msgid "Enter field value"
 msgstr "Sisesta väärtus"
 
-#: integrations/woocommerce/profile-settings.class.php:385
+#: integrations/woocommerce/profile-settings.class.php:389
 msgid "Enter phone number"
 msgstr "Sisestage telefoninumber"
 
@@ -492,8 +518,7 @@ msgstr "Sisestage õnnestumise teade"
 msgid "Enter success URL"
 msgstr "Sisestage õnnestumise URL"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:96
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:96
 msgid "Enter the URL of the landing page you want to display."
 msgstr "Sisestage maandumislehe URL mida soovite kuvada."
 
@@ -518,7 +543,7 @@ msgstr "Veateade"
 msgid "Error message"
 msgstr "Veateade"
 
-#: integrations/elementor/newsletter-widget.class.php:1402
+#: integrations/elementor/newsletter-widget.class.php:1401
 msgid "Error Messages"
 msgstr "Veateated"
 
@@ -529,11 +554,11 @@ msgstr "Veateated"
 msgid "Failure URL"
 msgstr "Tõrke URL"
 
-#: integrations/elementor/newsletter-widget.class.php:1269
+#: integrations/elementor/newsletter-widget.class.php:1268
 msgid "Feedback Messages"
 msgstr "Tagasiside Sõnumid"
 
-#: integrations/woocommerce/profile-settings.class.php:375
+#: integrations/woocommerce/profile-settings.class.php:379
 msgid "Female"
 msgstr "Naine"
 
@@ -561,7 +586,7 @@ msgstr "Rohkemate seadistusvõimaluste jaoks %s."
 msgid "form"
 msgstr "vorm"
 
-#: integrations/cf7/public.class.php:121
+#: integrations/cf7/public.class.php:125
 #: public/partials/smaily-public-basic.php:8
 msgid "Form was not submitted using POST method."
 msgstr "Vormi ei saadetud POST meetodit kasutades."
@@ -572,15 +597,19 @@ msgid "Full width subscribe button"
 msgstr "Täislaiuses liitumisnupp"
 
 #: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:25
-#: integrations/woocommerce/profile-settings.class.php:370
+#: integrations/woocommerce/profile-settings.class.php:374
 msgid "Gender"
 msgstr "Sugu"
 
 #: admin/smaily-admin-renderer.class.php:87
-msgid "Generate RSS-feeds of your products that enables product import into Smaily drag-and-drop templates."
-msgstr "Genereeri oma toodetest RSS-vooge, mis võimaldavad tooteid importida Smaily drag-and-drop kirjapõhjadesse."
+msgid ""
+"Generate RSS-feeds of your products that enables product import into Smaily "
+"drag-and-drop templates."
+msgstr ""
+"Genereeri oma toodetest RSS-vooge, mis võimaldavad tooteid importida Smaily "
+"drag-and-drop kirjapõhjadesse."
 
-#: admin/smaily-admin.class.php:231
+#: admin/smaily-admin.class.php:234
 msgid "Getting started"
 msgstr "Alustamine"
 
@@ -589,20 +618,19 @@ msgstr "Alustamine"
 msgid "Go to plugin settings"
 msgstr "Minge pistikprogrammi seadetesse"
 
-#: integrations/elementor/newsletter-widget.class.php:625
-#: integrations/elementor/newsletter-widget.class.php:815
-#: integrations/elementor/newsletter-widget.class.php:916
-#: integrations/elementor/newsletter-widget.class.php:1095
-#: integrations/elementor/newsletter-widget.class.php:1197
-#: integrations/elementor/newsletter-widget.class.php:1333
-#: integrations/elementor/newsletter-widget.class.php:1430
+#: integrations/elementor/newsletter-widget.class.php:624
+#: integrations/elementor/newsletter-widget.class.php:814
+#: integrations/elementor/newsletter-widget.class.php:915
+#: integrations/elementor/newsletter-widget.class.php:1094
+#: integrations/elementor/newsletter-widget.class.php:1196
+#: integrations/elementor/newsletter-widget.class.php:1332
+#: integrations/elementor/newsletter-widget.class.php:1429
 msgid "Groove"
 msgstr "Süvistatud"
 
-#: integrations/elementor/newsletter-widget.class.php:783
-#: integrations/elementor/newsletter-widget.class.php:1040
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:133
+#: integrations/elementor/newsletter-widget.class.php:782
+#: integrations/elementor/newsletter-widget.class.php:1039
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:133
 msgid "Height"
 msgstr "Kõrgus"
 
@@ -619,12 +647,12 @@ msgstr "Peidetud Väljad"
 msgid "Hidden fields"
 msgstr "Peidetud väljad"
 
-#: integrations/elementor/newsletter-widget.class.php:575
+#: integrations/elementor/newsletter-widget.class.php:574
 msgid "Horizontal"
 msgstr "Horisontaalne"
 
-#: integrations/elementor/newsletter-widget.class.php:889
-#: integrations/elementor/newsletter-widget.class.php:1159
+#: integrations/elementor/newsletter-widget.class.php:888
+#: integrations/elementor/newsletter-widget.class.php:1158
 msgid "Hover"
 msgstr "Kursor Peal"
 
@@ -642,8 +670,12 @@ msgid "https://smaily.com"
 msgstr "https://smaily.com"
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:82
-msgid "https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/"
-msgstr "https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-form/"
+msgid ""
+"https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-"
+"form/"
+msgstr ""
+"https://smaily.com/help/how-to/forms-subscriptions/an-example-of-a-signup-"
+"form/"
 
 #. Plugin URI of the plugin
 #: smaily-connect.php
@@ -656,19 +688,21 @@ msgid "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#cf7"
 msgstr "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#cf7"
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:137
-msgid "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#elementor"
-msgstr "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#elementor"
+msgid ""
+"https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#elementor"
+msgstr ""
+"https://smaily.com/help/user-manual/smaily-connect-for-wordpress/#elementor"
 
 #: admin/smaily-admin-settings.class.php:449
 msgid "ID"
 msgstr "ID"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:201
-msgid "If you need any help setting up the landing page, follow our awesome guide:"
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:201
+msgid ""
+"If you need any help setting up the landing page, follow our awesome guide:"
 msgstr "Kui vajate abi maandumislehe loomisel, järgige meie vingeid juhiseid:"
 
-#: integrations/woocommerce/cron.class.php:65
+#: integrations/woocommerce/cron.class.php:69
 msgid "In every 15 minutes"
 msgstr "Iga 15 minuti järel"
 
@@ -676,39 +710,39 @@ msgstr "Iga 15 minuti järel"
 msgid "Input does not contain a recognizable email address."
 msgstr "Vigane e-posti aadress."
 
-#: integrations/cf7/public.class.php:127
+#: integrations/cf7/public.class.php:131
 msgid "Input does not contain a valid email address."
 msgstr "Vigane e-posti aadress."
 
-#: integrations/elementor/newsletter-widget.class.php:745
+#: integrations/elementor/newsletter-widget.class.php:744
 msgid "Input Fields"
 msgstr "Sisestusväljad"
 
-#: integrations/cf7/public.class.php:124
+#: admin/smaily-admin.class.php:110
+msgid "Insufficient permissions"
+msgstr "Puuduvad piisavad õigused"
+
+#: integrations/cf7/public.class.php:128
 msgid "Invalid data submitted."
 msgstr "Sisestatud andmed on vigased."
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:221
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:221
 msgid "Invalid Landing Page URL!"
 msgstr "Vigane maandumislehe URL!"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:110
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:110
 msgid "Invalid landing page URL!"
 msgstr "Vigane maandumislehe URL!"
 
-#: integrations/elementor/newsletter-widget.class.php:686
+#: integrations/elementor/newsletter-widget.class.php:685
 msgid "Labels"
 msgstr "Sildid"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/index.js:41
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/index.js:41
 msgid "landing page"
 msgstr "maandumisleht"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:102
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:102
 msgid "Landing page URL"
 msgstr "Maandumislehe URL"
 
@@ -733,11 +767,11 @@ msgstr "Piirake, kui palju tooteid kuvatakse. Maksimaalselt 250."
 msgid "Location"
 msgstr "Asukoht"
 
-#: admin/smaily-admin.class.php:215
+#: admin/smaily-admin.class.php:218
 msgid "Make a connection"
 msgstr "Looge ühendus"
 
-#: integrations/woocommerce/profile-settings.class.php:374
+#: integrations/woocommerce/profile-settings.class.php:378
 msgid "Male"
 msgstr "Mees"
 
@@ -745,13 +779,18 @@ msgstr "Mees"
 msgid "Modified At"
 msgstr "Muudetud"
 
-#: admin/partials/notices/1_3_0_upgrade_cf7_notice.php:2
-msgid "Multiple Contact Form 7 forms detected! Please review Smaily Connect integration settings for your forms. You can now configure each form individually."
-msgstr "Tuvastati mitu Contact Form 7 vormi! Palun kontrollige Smaily Connect-i integratsiooni seadeid. Nüüd on võimalik iga vormi seadistada eraldi."
+#: admin/partials/notices/1_3_0_upgrade_cf7_notice.php:3
+msgid ""
+"Multiple Contact Form 7 forms detected! Please review Smaily Connect "
+"integration settings for your forms. You can now configure each form "
+"individually."
+msgstr ""
+"Tuvastati mitu Contact Form 7 vormi! Palun kontrollige Smaily Connect-i "
+"integratsiooni seadeid. Nüüd on võimalik iga vormi seadistada eraldi."
 
 #: admin/smaily-admin-settings.class.php:450
 #: integrations/elementor/newsletter-widget.class.php:412
-#: integrations/elementor/newsletter-widget.class.php:528
+#: integrations/elementor/newsletter-widget.class.php:527
 #: public/partials/smaily-public-basic.php:36
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:369
@@ -771,17 +810,14 @@ msgstr "Nimi Silt"
 msgid "Name Placeholder"
 msgstr "Nime Kohatäitja"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:124
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:124
 msgid "Need a custom thank you page?"
 msgstr "Soovite kujundada tänulehte?"
 
 #: integrations/elementor/newsletter-widget.class.php:75
 #: blocks/checkout-optin/build/smaily-checkout-optin-block.js:1
-#: blocks/checkout-optin/src/index.js:35
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/index.js:39
-#: blocks/newsletter-signup/build/index.js:1
+#: blocks/checkout-optin/src/index.js:35 blocks/landingpage/build/index.js:1
+#: blocks/landingpage/src/index.js:39 blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:37
 msgid "newsletter"
 msgstr "uudiskiri"
@@ -810,30 +846,34 @@ msgstr "Automaatvastajaid pole loodud"
 msgid "No autoresponder"
 msgstr "Automaatvastaja puudub"
 
-#: integrations/elementor/newsletter-widget.class.php:620
-#: integrations/elementor/newsletter-widget.class.php:810
-#: integrations/elementor/newsletter-widget.class.php:911
-#: integrations/elementor/newsletter-widget.class.php:1090
-#: integrations/elementor/newsletter-widget.class.php:1192
-#: integrations/elementor/newsletter-widget.class.php:1328
-#: integrations/elementor/newsletter-widget.class.php:1425
+#: integrations/elementor/newsletter-widget.class.php:619
+#: integrations/elementor/newsletter-widget.class.php:809
+#: integrations/elementor/newsletter-widget.class.php:910
+#: integrations/elementor/newsletter-widget.class.php:1089
+#: integrations/elementor/newsletter-widget.class.php:1191
+#: integrations/elementor/newsletter-widget.class.php:1327
+#: integrations/elementor/newsletter-widget.class.php:1424
 msgid "None"
 msgstr "Puudub"
 
-#: integrations/elementor/newsletter-widget.class.php:757
-#: integrations/elementor/newsletter-widget.class.php:1007
+#: integrations/elementor/newsletter-widget.class.php:756
+#: integrations/elementor/newsletter-widget.class.php:1006
 msgid "Normal"
 msgstr "Tavaline"
 
 #: includes/smaily-widget.class.php:141
-#: integrations/elementor/newsletter-widget.class.php:514
-msgid "Note: URLs are optional. If left empty, the current page URL will be used."
-msgstr "Märkus.: URL-id on valikulised. Kui see jäetakse tühjaks, kasutatakse vormi lehe URL-i."
+#: integrations/elementor/newsletter-widget.class.php:513
+msgid ""
+"Note: URLs are optional. If left empty, the current page URL will be used."
+msgstr ""
+"Märkus.: URL-id on valikulised. Kui see jäetakse tühjaks, kasutatakse vormi "
+"lehe URL-i."
 
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/index.js:31
 msgid "Opt-in subscribers directly to Smaily for seamless email marketing."
-msgstr "Lisa uudiskirjaga liitujad otse Smaily'sse sujuvaks e-posti turunduseks."
+msgstr ""
+"Lisa uudiskirjaga liitujad otse Smaily'sse sujuvaks e-posti turunduseks."
 
 #: admin/smaily-admin-settings.class.php:460
 msgid "Order by"
@@ -843,16 +883,16 @@ msgstr "Sorteeri"
 msgid "Order notes"
 msgstr "Tellimuse märkmed"
 
-#: integrations/elementor/newsletter-widget.class.php:570
+#: integrations/elementor/newsletter-widget.class.php:569
 msgid "Orientation"
 msgstr "Suund"
 
-#: integrations/elementor/newsletter-widget.class.php:597
+#: integrations/elementor/newsletter-widget.class.php:596
 msgid "Padding"
 msgstr "Äärised"
 
 #: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:26
-#: integrations/woocommerce/profile-settings.class.php:384
+#: integrations/woocommerce/profile-settings.class.php:388
 msgid "Phone"
 msgstr "Telefon"
 
@@ -860,13 +900,11 @@ msgstr "Telefon"
 msgid "Please authenticate Smaily credentials under Smaily Settings."
 msgstr "Palun kinnitage Smaily API kasutaja Smaily seadete alt."
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:223
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:223
 msgid "Please check the entered URL. It is invalid!"
 msgstr "Palun kontrollige sisestatud URL-i. See on vigane!"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:59
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:59
 msgid "Please configure the plugin first."
 msgstr "Palun seadistage esmalt pistikmoodul."
 
@@ -894,7 +932,9 @@ msgstr "Palun sisestage kasutajanimi!"
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:116
 msgid "Please install the Contact Form 7 plugin to use this integration."
-msgstr "Selle integratsiooni kasutamiseks installige palun Contact Form 7 pistikmoodul."
+msgstr ""
+"Selle integratsiooni kasutamiseks installige palun Contact Form 7 "
+"pistikmoodul."
 
 #: admin/smaily-admin-sanitizer.class.php:22
 msgid "Please select autoresponder for abandoned cart automation."
@@ -960,19 +1000,21 @@ msgstr "Registreerimisvorm"
 msgid "Remove"
 msgstr "Eemalda"
 
-#: admin/smaily-admin.class.php:277
+#: admin/smaily-admin.class.php:280
 msgid "RSS"
 msgstr "RSS"
 
-#: admin/smaily-admin.class.php:248
-#: admin/smaily-admin.class.php:263
-#: admin/smaily-admin.class.php:278
+#: admin/smaily-admin.class.php:251 admin/smaily-admin.class.php:266
+#: admin/smaily-admin.class.php:281
 msgid "Save"
 msgstr "Salvesta"
 
 #: integrations/elementor/newsletter-widget.class.php:488
-msgid "Select an autoresponder if you want to target a specific automation workflow."
-msgstr "Valige automaatvastaja, kui soovite kasutada konkreetset automaatika töövoogu."
+msgid ""
+"Select an autoresponder if you want to target a specific automation workflow."
+msgstr ""
+"Valige automaatvastaja, kui soovite kasutada konkreetset automaatika "
+"töövoogu."
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:49
 #: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:49
@@ -995,8 +1037,7 @@ msgstr "Seadistage Smaily Classic Uudiskirja vidin."
 msgid "Setting up subscriber collection"
 msgstr "Uudiskirjaga liitujate kogumise seadistamine"
 
-#: admin/smaily-admin.class.php:346
-#: blocks/landingpage/build/index.js:1
+#: admin/smaily-admin.class.php:349 blocks/landingpage/build/index.js:1
 #: blocks/landingpage/src/edit.js:89
 msgid "Settings"
 msgstr "Seaded"
@@ -1022,8 +1063,7 @@ msgid "Site Title"
 msgstr "Saidi pealkiri"
 
 #. Author of the plugin
-#: smaily-connect.php
-#: integrations/elementor/admin.class.php:27
+#: smaily-connect.php integrations/elementor/admin.class.php:31
 msgid "Smaily"
 msgstr "Smaily"
 
@@ -1040,19 +1080,16 @@ msgstr "Smaily konto alamdomeen"
 msgid "Smaily Checkout Opt-In"
 msgstr "Smaily Kassalehel Liitumine"
 
-#: includes/smaily-widget.class.php:24
-#: includes/smaily-widget.class.php:25
+#: includes/smaily-widget.class.php:24 includes/smaily-widget.class.php:25
 msgid "Smaily Classic Subscription Widget"
 msgstr "Smaily Classic Uudiskirja Vidin"
 
 #. Plugin Name of the plugin
-#: smaily-connect.php
-#: integrations/cf7/service.class.php:39
+#: smaily-connect.php integrations/cf7/service.class.php:39
 msgid "Smaily Connect"
 msgstr "Smaily Connect"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:193
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:193
 msgid "Smaily Connect Landing Page"
 msgstr "Smaily Connect Maandumisleht"
 
@@ -1061,10 +1098,16 @@ msgid "Smaily credentials not validated. Subscription form will not work!"
 msgstr "Puudub Smaily API ühendus. Liitumisvorm ei tööta!"
 
 #: integrations/cf7/service.class.php:77
-msgid "Smaily email marketing and automation plugin for Contact Form 7 allows you to automatically add newsletter subscribers to your Smaily subscriber list, by using forms created in Contact Form 7."
-msgstr "Contact Form 7 Smaily meiliturunduse ja automatiseerimise pistikprogramm võimaldab teil automaatselt koguda uudiskirjaga liitujaid kasutades Contact Form 7 loodud vorme."
+msgid ""
+"Smaily email marketing and automation plugin for Contact Form 7 allows you "
+"to automatically add newsletter subscribers to your Smaily subscriber list, "
+"by using forms created in Contact Form 7."
+msgstr ""
+"Contact Form 7 Smaily meiliturunduse ja automatiseerimise pistikprogramm "
+"võimaldab teil automaatselt koguda uudiskirjaga liitujaid kasutades Contact "
+"Form 7 loodud vorme."
 
-#: integrations/cf7/admin.class.php:134
+#: integrations/cf7/admin.class.php:138
 msgid "Smaily for Contact Form 7"
 msgstr "Smaily Contact Form 7-me Jaoks"
 
@@ -1078,17 +1121,19 @@ msgstr "Smaily integratsioon on sellel lehel aktiivne."
 
 #. Description of the plugin
 #: smaily-connect.php
-msgid "Smaily integration plugin that includes WooCommerce, Elementor and Contact Form 7 integrations."
-msgstr "Smaily pistikmoodul, mis sisaldab WooCommerce'i, Elementor'i ja Contact Form 7 integratsioone."
+msgid ""
+"Smaily integration plugin that includes WooCommerce, Elementor and Contact "
+"Form 7 integrations."
+msgstr ""
+"Smaily pistikmoodul, mis sisaldab WooCommerce'i, Elementor'i ja Contact Form "
+"7 integratsioone."
 
 #: admin/smaily-admin-renderer.class.php:75
 msgid "Smaily integration with your WooCommerce store allows you to:"
 msgstr "Smaily integratsioon sinu WooCommerce'i poega võimaldab:"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:80
-#: blocks/landingpage/src/edit.js:182
-#: blocks/landingpage/src/index.js:32
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:80
+#: blocks/landingpage/src/edit.js:182 blocks/landingpage/src/index.js:32
 msgid "Smaily Landing Page"
 msgstr "Smaily Maandumisleht"
 
@@ -1106,21 +1151,21 @@ msgstr "Smaily RSS-voog"
 msgid "Smaily RSS feed allows you insert product feeds to email templates."
 msgstr "Smaily RSS-voog võimaldab sisestada tootevooge kirjapõhjadesse."
 
-#: admin/smaily-admin.class.php:92
+#: admin/smaily-admin.class.php:95
 msgid "Smaily Settings"
 msgstr "Smaily Sätted"
 
-#: integrations/elementor/newsletter-widget.class.php:621
-#: integrations/elementor/newsletter-widget.class.php:811
-#: integrations/elementor/newsletter-widget.class.php:912
-#: integrations/elementor/newsletter-widget.class.php:1091
-#: integrations/elementor/newsletter-widget.class.php:1193
-#: integrations/elementor/newsletter-widget.class.php:1329
-#: integrations/elementor/newsletter-widget.class.php:1426
+#: integrations/elementor/newsletter-widget.class.php:620
+#: integrations/elementor/newsletter-widget.class.php:810
+#: integrations/elementor/newsletter-widget.class.php:911
+#: integrations/elementor/newsletter-widget.class.php:1090
+#: integrations/elementor/newsletter-widget.class.php:1192
+#: integrations/elementor/newsletter-widget.class.php:1328
+#: integrations/elementor/newsletter-widget.class.php:1425
 msgid "Solid"
 msgstr "Täisjoon"
 
-#: integrations/cf7/public.class.php:117
+#: integrations/cf7/public.class.php:121
 msgid "Something went wrong"
 msgstr "Midagi läks valesti"
 
@@ -1129,8 +1174,15 @@ msgid "Sort by"
 msgstr "Sorteeri"
 
 #: admin/smaily-admin-renderer.class.php:48
-msgid "Start by connecting your Smaily account with your website. Go to your Smaily account's settings integrations tab and create a new API user. Then copy the account subdomain, API username and API password below."
-msgstr "Alustage Smaily konto ühendamisest oma veebisaidiga. Minge oma Smaily konto seadete lehele, integratsioonide vahekaardile ja loge uus API kasutaja. Seejärel kopeerige konto alamdomeen, API kasutajanimi ja API parool alumisse vormi."
+msgid ""
+"Start by connecting your Smaily account with your website. Go to your Smaily "
+"account's settings integrations tab and create a new API user. Then copy the "
+"account subdomain, API username and API password below."
+msgstr ""
+"Alustage Smaily konto ühendamisest oma veebisaidiga. Minge oma Smaily konto "
+"seadete lehele, integratsioonide vahekaardile ja loge uus API kasutaja. "
+"Seejärel kopeerige konto alamdomeen, API kasutajanimi ja API parool alumisse "
+"vormi."
 
 #: admin/partials/smaily-admin-woocommerce-abandoned-cart.php:16
 #: admin/partials/smaily-admin-woocommerce-subscriber-sync.php:22
@@ -1151,20 +1203,24 @@ msgstr "uudiskiri"
 msgid "Subscribe button label"
 msgstr "Liitumisnupu silt"
 
-#: blocks/checkout-optin/smaily-integration.class.php:59
-#: integrations/woocommerce/profile-settings.class.php:406
+#: blocks/checkout-optin/smaily-integration.class.php:63
+#: integrations/woocommerce/profile-settings.class.php:410
 msgid "Subscribe to newsletter"
 msgstr "Liitu uudiskirjaga"
 
-#: admin/smaily-admin.class.php:247
+#: admin/smaily-admin.class.php:250
 msgid "Subscriber Synchronization"
 msgstr "Uudiskirjaga Liitujate Sünkroniseerimine"
 
 #: admin/smaily-admin-renderer.class.php:123
-msgid "Subscriber Synchronization allows you Synchronize newsletter subscribers and their information directly to Smaily"
-msgstr "Uudiskirjaga Liitujate Sünkroniseerimine võimaldab  teill sünkroniseerida uudiskirja tellijaid ja nende andmeid otse Smaily'ga"
+msgid ""
+"Subscriber Synchronization allows you Synchronize newsletter subscribers and "
+"their information directly to Smaily"
+msgstr ""
+"Uudiskirjaga Liitujate Sünkroniseerimine võimaldab  teill sünkroniseerida "
+"uudiskirja tellijaid ja nende andmeid otse Smaily'ga"
 
-#: integrations/cf7/public.class.php:130
+#: integrations/cf7/public.class.php:134
 #: public/partials/smaily-public-basic.php:11
 msgid "Subscribing failed with unknown reason."
 msgstr "Uudiskirjaga liitumine ebaõnnestus teadmata põhjusel."
@@ -1178,7 +1234,7 @@ msgstr "Õnnestumise Teade"
 msgid "Success message"
 msgstr "Õnnestumise teade"
 
-#: integrations/elementor/newsletter-widget.class.php:1305
+#: integrations/elementor/newsletter-widget.class.php:1304
 msgid "Success Messages"
 msgstr "Õnnestumise Teated"
 
@@ -1193,9 +1249,9 @@ msgstr "Õnnestumise URL"
 msgid "Tax Rate (%)"
 msgstr "Maksumäär (%)"
 
-#: integrations/elementor/newsletter-widget.class.php:1028
-#: integrations/elementor/newsletter-widget.class.php:1177
-#: integrations/elementor/newsletter-widget.class.php:1277
+#: integrations/elementor/newsletter-widget.class.php:1027
+#: integrations/elementor/newsletter-widget.class.php:1176
+#: integrations/elementor/newsletter-widget.class.php:1276
 msgid "Text Color"
 msgstr "Teksti värv"
 
@@ -1212,18 +1268,26 @@ msgid "The cron job will run once a day."
 msgstr "Croni töö käivitub kord päevas."
 
 #: admin/smaily-admin-renderer.class.php:38
-msgid "There seems to be a problem with your connection to Smaily. Please revalidate your credentials!"
-msgstr "Tundub, et ühenduses Smaily-ga ilmnes pobleem. Palun kinnitage oma API  kasutaja uuesti!"
+msgid ""
+"There seems to be a problem with your connection to Smaily. Please "
+"revalidate your credentials!"
+msgstr ""
+"Tundub, et ühenduses Smaily-ga ilmnes pobleem. Palun kinnitage oma API  "
+"kasutaja uuesti!"
 
 #: admin/smaily-admin-settings.class.php:292
-msgid "Time in minutes after which the cart is considered abandoned. Minimum 10 minutes."
-msgstr "Aeg minutites, mille järel loetakse ostukorvi hüljatuks. Minimaalselt 10 minutit."
+msgid ""
+"Time in minutes after which the cart is considered abandoned. Minimum 10 "
+"minutes."
+msgstr ""
+"Aeg minutites, mille järel loetakse ostukorvi hüljatuks. Minimaalselt 10 "
+"minutit."
 
 #: includes/smaily-widget.class.php:126
 msgid "Title"
 msgstr "Pealkiri"
 
-#: integrations/elementor/newsletter-widget.class.php:1063
+#: integrations/elementor/newsletter-widget.class.php:1062
 msgid "Top Gap"
 msgstr "Ülemine vahe"
 
@@ -1231,13 +1295,11 @@ msgstr "Ülemine vahe"
 msgid "Type"
 msgstr "Tüüp"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:92
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:92
 msgid "URL"
 msgstr "URL"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/index.js:33
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/index.js:33
 msgid "Use Smaily Landing page for collecting subscribers."
 msgstr "Kasuta Smaily Maandumislehte uudiskirjaga liitujate kogumiseks."
 
@@ -1265,13 +1327,13 @@ msgstr "Kasutada Smaily uudiskirjaga liitumise vidinat."
 msgid "User newsletter subscription"
 msgstr "Kasutaja uudiskirja tellimus"
 
-#: integrations/elementor/newsletter-widget.class.php:535
+#: integrations/elementor/newsletter-widget.class.php:534
 #: blocks/newsletter-signup/build/index.js:1
 #: blocks/newsletter-signup/src/edit.js:377
 msgid "Value"
 msgstr "Väärtus"
 
-#: integrations/elementor/newsletter-widget.class.php:574
+#: integrations/elementor/newsletter-widget.class.php:573
 msgid "Vertical"
 msgstr "Vertikaalne"
 
@@ -1284,8 +1346,7 @@ msgstr "Nähtavad väljad"
 msgid "Visible fields"
 msgstr "Nähtavad väljad"
 
-#: blocks/landingpage/build/index.js:1
-#: blocks/landingpage/src/edit.js:145
+#: blocks/landingpage/build/index.js:1 blocks/landingpage/src/edit.js:145
 msgid "Width"
 msgstr "Laius"
 
@@ -1307,12 +1368,20 @@ msgid "You can add the widget to your website from the widgets page."
 msgstr "Vidina saate oma veebisaidile lisada vidinate lehelt."
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:97
-msgid "You can also use Contact Form 7 form builder to create custom forms and connect them to your Smaily account."
-msgstr "Võite kasutada ka Contact Form 7 vormi koostajat, et luua kohandatud vorme ja ühendada need oma Smaily kontoga."
+msgid ""
+"You can also use Contact Form 7 form builder to create custom forms and "
+"connect them to your Smaily account."
+msgstr ""
+"Võite kasutada ka Contact Form 7 vormi koostajat, et luua kohandatud vorme "
+"ja ühendada need oma Smaily kontoga."
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:131
-msgid "You can use the built-in Smaily Opt-In Form widget to generate and style a subscription form."
-msgstr "Saate kasutada sisseehitatud Smaily Liitumisvormi vidinat, et luua ja kujundada uudiskirjaga liitumise vorme."
+msgid ""
+"You can use the built-in Smaily Opt-In Form widget to generate and style a "
+"subscription form."
+msgstr ""
+"Saate kasutada sisseehitatud Smaily Liitumisvormi vidinat, et luua ja "
+"kujundada uudiskirjaga liitumise vorme."
 
 #: admin/partials/smaily-admin-tutorial-subscriber-collection.php:11
 msgid "You can use the following methods to collect subscribers:"
