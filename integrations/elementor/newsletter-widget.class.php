@@ -191,7 +191,7 @@ class Newsletter_Widget extends Widget_Base {
 				<input
 					type="hidden"
 					name="failure_url"
-					value="<?php echo ! empty( $parameters['success_url'] ) ? esc_url( $parameters['success_url'] ) : esc_url( $current_url ); ?>"
+					value="<?php echo ! empty( $parameters['failure_url'] ) ? esc_url( $parameters['failure_url'] ) : esc_url( $current_url ); ?>"
 				>
 				<?php foreach ( $parameters['custom_hidden_fields'] as $custom_hidden_field ) : ?>
 					<?php
