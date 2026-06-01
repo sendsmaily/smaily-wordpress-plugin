@@ -32,13 +32,16 @@ $connected = $subdomain && $username;
 		</label>
 		<small class="form-text text-muted">
 			<?php
-			printf(
-				/* translators: 1: example subdomain between strong tags */
-				esc_html__(
-					'For example "%1$s" from https://%1$s.sendsmaily.net/',
-					'smaily-connect'
+			echo wp_kses(
+				sprintf(
+					/* translators: 1: example subdomain wrapped in strong tags */
+					__(
+						'For example "%1$s" from https://%1$s.sendsmaily.net/',
+						'smaily-connect'
+					),
+					'<strong>demo</strong>'
 				),
-				'<strong>demo</strong>'
+				array( 'strong' => array() )
 			);
 			?>
 		</small>
