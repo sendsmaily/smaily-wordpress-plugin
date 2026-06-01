@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-05-29T15:35:52+00:00\n"
+"POT-Creation-Date: 2026-06-01T11:39:50+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.11.0\n"
 "X-Domain: smaily-connect\n"
@@ -50,16 +50,16 @@ msgstr ""
 msgid "Smaily account subdomain"
 msgstr ""
 
-#. translators: 1: example subdomain between strong tags
-#: admin/partials/smaily-admin-credentials.php:37
+#. translators: 1: example subdomain wrapped in strong tags
+#: admin/partials/smaily-admin-credentials.php:38
 msgid "For example \"%1$s\" from https://%1$s.sendsmaily.net/"
 msgstr ""
 
-#: admin/partials/smaily-admin-credentials.php:48
+#: admin/partials/smaily-admin-credentials.php:51
 msgid "API Username"
 msgstr ""
 
-#: admin/partials/smaily-admin-credentials.php:64
+#: admin/partials/smaily-admin-credentials.php:67
 msgid "API Password"
 msgstr ""
 
