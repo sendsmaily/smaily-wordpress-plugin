@@ -6,12 +6,12 @@
  * Domain Path:       /languages
  * License URI:       https://www.gnu.org/licenses/gpl-3.0.en.html
  * License:           GPL-3.0+
- * Requires at least: 6.0
- * Requires PHP:      7.0
+ * Requires at least: 6.5
+ * Requires PHP:      7.4
  * Plugin Name:       Smaily Connect
  * Plugin URI:        https://smaily.com/help/user-manual/smaily-connect-for-wordpress/
  * Text Domain:       smaily-connect
- * Version:           1.6.2
+ * Version:           2.0.0
 */
 
 // Exit if accessed directly.
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Current plugin version.
  */
-define( 'SMAILY_CONNECT_PLUGIN_VERSION', '1.6.2' );
+define( 'SMAILY_CONNECT_PLUGIN_VERSION', '2.0.0' );
 
 /**
  * The name of the plugin.

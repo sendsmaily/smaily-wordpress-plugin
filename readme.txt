@@ -60,6 +60,10 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 
 == Changelog ==
 
+= 2.0.0 =
+
+Upgrades the minimum required WordPress version to 6.5 and minimum required PHP version to 7.4. This change also improves the support for WordPress version 7.0.
+
 = 1.6.2 =
 
 Fixed a bug in the Elementor newsletter widget where the failure redirect URL was incorrectly using the success URL value, causing subscribers to be redirected to the wrong page after a failed subscription attempt.

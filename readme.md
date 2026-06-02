@@ -145,6 +145,10 @@ The following attributes are available:
 
 ## Changelog
 
+## 2.0.0
+
+Upgrades the minimum required WordPress version to 6.5 and minimum required PHP version to 7.4. This change also improves the support for WordPress version 7.0.
+
 ## 1.6.1
 
 Fixed an issue where the discounted price was not correctly calculated in the RSS feed when using the tax rate parameter. The discounted price is now calculated correctly regardless of the tax rate used in the feed.
