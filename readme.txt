@@ -1,11 +1,11 @@
 === Smaily Connect ===
 Contributors: sendsmaily, kaarel
 Tags: smaily, newsletter, email, mail, marketing
-Requires PHP: 7.0
-Requires at least: 6.0
-Tested up to: 6.9
-WC tested up to: 9.6.1
-Stable tag: 1.6.2
+Requires PHP: 7.4
+Requires at least: 6.5
+Tested up to: 7.0
+WC tested up to: 10.8.1
+Stable tag: 2.0.0
 License: GPLv3 or later
 
 The Smaily Connect plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution.
