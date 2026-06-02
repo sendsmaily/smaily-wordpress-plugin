@@ -99,10 +99,7 @@ export default function Edit( { attributes, setAttributes } ) {
 
 	if ( subdomain === '' ) {
 		return (
-			<Notice
-				status="error"
-				isDismissible={ false }
-			>
+			<Notice status="error" isDismissible={ false }>
 				<h3>
 					{ __( 'Plugin setup is not complete!', 'smaily-connect' ) }
 				</h3>
@@ -112,12 +109,12 @@ export default function Edit( { attributes, setAttributes } ) {
 						'smaily-connect'
 					) }
 				</p>
-				<a target="_top" href={settingsURL.current}>
+				<a target="_top" href={ settingsURL.current }>
 					<Button
 						className="smaily-newsletter-block-button-submit"
 						variant="primary"
 					>
-						{__('Go to plugin settings', 'smaily-connect')}
+						{ __( 'Go to plugin settings', 'smaily-connect' ) }
 					</Button>
 				</a>
 			</Notice>

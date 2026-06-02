@@ -80,7 +80,7 @@ class API {
 			$configuration,
 			array(
 				'subdomain'    => $credentials['subdomain'],
-				'settings_url' => admin_url('admin.php?page=' . $this->plugin_name ),
+				'settings_url' => admin_url( 'admin.php?page=' . $this->plugin_name ),
 			)
 		);
 	}
