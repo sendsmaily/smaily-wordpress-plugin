@@ -51,6 +51,8 @@
   }
 
   &:checked {
+    background-color: white;
+
     &::before {
       content: "✔";
       display: block;
