@@ -316,10 +316,36 @@ class Admin {
 	 *
 	 */
 	public function enqueue_scripts() {
-		wp_register_script( $this->plugin_name . '-jscolor', SMAILY_CONNECT_PLUGIN_URL . '/admin/js/jscolor.min.js', array(), $this->version, true );
-		wp_register_script( $this->plugin_name, SMAILY_CONNECT_PLUGIN_URL . '/admin/js/smaily-admin.js', array( 'jquery', 'jquery-ui-tabs' ), $this->version, true );
-		wp_register_script( $this->plugin_name . '-widget', SMAILY_CONNECT_PLUGIN_URL . '/admin/js/admin-widget.js', array( 'jquery', $this->plugin_name . '-jscolor' ), $this->version, true );
-
+		wp_register_script(
+			$this->plugin_name . '-jscolor',
+			SMAILY_CONNECT_PLUGIN_URL . '/admin/js/jscolor.min.js',
+			array(),
+			$this->version,
+			array(
+				'in_footer' => true,
+				'strategy'  => 'defer',
+			)
+		);
+		wp_register_script(
+			$this->plugin_name,
+			SMAILY_CONNECT_PLUGIN_URL . '/admin/js/smaily-admin.js',
+			array( 'jquery', 'jquery-ui-tabs' ),
+			$this->version,
+			array(
+				'in_footer' => true,
+				'strategy'  => 'defer',
+			)
+		);
+		wp_register_script(
+			$this->plugin_name . '-widget',
+			SMAILY_CONNECT_PLUGIN_URL . '/admin/js/admin-widget.js',
+			array( 'jquery', $this->plugin_name . '-jscolor' ),
+			$this->version,
+			array(
+				'in_footer' => true,
+				'strategy'  => 'defer',
+			)
+		);
 		wp_enqueue_script( $this->plugin_name . '-jscolor' );
 		wp_enqueue_script( $this->plugin_name );
 		wp_enqueue_script( $this->plugin_name . '-widget' );

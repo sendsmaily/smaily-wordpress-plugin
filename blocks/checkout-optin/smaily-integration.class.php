@@ -82,7 +82,10 @@ class Integration implements IntegrationInterface {
 			$script_url,
 			$script_asset['dependencies'],
 			$script_asset['version'],
-			true
+			array(
+				'in_footer' => true,
+				'strategy'  => 'defer',
+			)
 		);
 
 		wp_set_script_translations(
@@ -108,7 +111,10 @@ class Integration implements IntegrationInterface {
 			$script_url,
 			$script_asset['dependencies'],
 			$script_asset['version'],
-			true
+			array(
+				'in_footer' => true,
+				'strategy'  => 'defer',
+			)
 		);
 		wp_set_script_translations(
 			'smaily-checkout-optin-block-frontend', // script handle
