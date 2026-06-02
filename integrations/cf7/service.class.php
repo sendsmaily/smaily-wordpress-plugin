@@ -2,6 +2,10 @@
 
 namespace Smaily_Connect\Integrations\CF7;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 class_exists( 'WPCF7_Service' ) || exit;
 
 use WPCF7_Service;
