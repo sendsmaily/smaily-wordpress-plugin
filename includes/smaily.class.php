@@ -314,7 +314,7 @@ class Smaily_Connect {
 		}
 
 		if ( Helper::is_elementor_active() ) {
-			$this->elementor = new Elementor_Admin( $this->plugin_name );
+			$this->elementor = new Elementor_Admin();
 			$this->elementor->register_hooks();
 		}
 	}
