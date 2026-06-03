@@ -16,7 +16,7 @@ class Newsletter_Widget extends Widget_Base {
 	 *
 	 * @var Options
 	 */
-	private ?Options $options = NULL;
+	private ?Options $options = null;
 
 	/**
 	 * List of autoresponders as [key => value] pairs where key is the autoresponder ID
@@ -328,7 +328,7 @@ class Newsletter_Widget extends Widget_Base {
 	 * @return Options The Smaily Connect plugin options.
 	 */
 	private function get_options() {
-		if ( $this->options === NULL ) {
+		if ( $this->options === null ) {
 			$this->options = new Options();
 		}
 

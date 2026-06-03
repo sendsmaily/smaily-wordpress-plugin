@@ -25,8 +25,8 @@ class Public_Base {
 	 *
 	 * @param Options $options     Reference to options handler class.
 	 */
-	public function __construct( Options $options) {
-		$this->options     = $options;
+	public function __construct( Options $options ) {
+		$this->options = $options;
 	}
 
 	/**

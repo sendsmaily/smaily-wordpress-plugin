@@ -48,7 +48,7 @@ class Admin {
 	 * @access private
 	 * @var    array $tabs The tabs for the settings page.
 	 */
-	private ?array $tabs = NULL;
+	private ?array $tabs = null;
 
 	/**
 	 * Page settings
