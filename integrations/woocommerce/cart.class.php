@@ -120,7 +120,7 @@ class Cart {
 	/**
 	 * Check if customer has active cart in database.
 	 *
-	 * @param int $user_id Customer id.
+	 * @param int $customer_id Customer id.
 	 * @return boolean
 	 */
 	private function has_previous_cart( $customer_id ) {
