@@ -5,7 +5,7 @@ services:
       service: wordpress
     build:
       args:
-        WORDPRESS_VERSION: 6.0.0
+        WORDPRESS_VERSION: 6.5.0
         CF7_VERSION: 5.7.7
         REALLY_SIMPLE_CAPTCHA_VERSION: 2.1
         WOOCOMMERCE_VERSION: 7.7.2
