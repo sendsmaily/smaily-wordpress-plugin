@@ -8,12 +8,6 @@ use Smaily_Connect\Integrations\WooCommerce\Rss;
 
 class Settings {
 	/**
-	 * Smaily options.
-	 * @var Options
-	 */
-	private $options;
-
-	/**
 	 * HTML renderer.
 	 * @var Renderer
 	 */
@@ -31,7 +25,6 @@ class Settings {
 	 * @param Options $options
 	 */
 	public function __construct( Options $options ) {
-		$this->options   = $options;
 		$this->renderer  = new Renderer( $options );
 		$this->sanitizer = new Sanitizer();
 	}
