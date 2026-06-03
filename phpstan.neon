@@ -1,0 +1,25 @@
+parameters:
+  level: 5
+  paths:
+    - admin
+    - blocks
+    - includes
+    - integrations
+    - migrations
+    - public
+    - smaily-connect.php
+  bootstrapFiles:
+    - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+    - vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+    - vendor/arts/elementor-stubs/elementor-stubs.php
+  excludePaths:
+    - blocks/node_modules
+    - admin/partials
+    - integrations/cf7/partials
+    - public/partials
+    - public/template
+  reportUnmatchedIgnoredErrors: false
+  ignoreErrors:
+    - '#Constant (SMAILY_CONNECT_PLUGIN_PATH|SMAILY_CONNECT_PLUGIN_URL|SECURE_AUTH_KEY|AUTH_KEY) not found#'
+    - '#(class|type) WPCF7_#'
+    - '#Automattic\\WooCommerce\\StoreApi#'

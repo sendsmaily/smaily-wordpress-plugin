@@ -8,16 +8,23 @@
         "squizlabs/php_codesniffer": "^3.10",
         "wp-coding-standards/wpcs": "^3.1",
         "phpcompatibility/phpcompatibility-wp": "^2.1",
-        "wp-cli/wp-cli-bundle": "^2.11"
+        "wp-cli/wp-cli-bundle": "^2.11",
+        "szepeviktor/phpstan-wordpress": "^2.0",
+        "php-stubs/wordpress-stubs": "^6.9",
+        "phpstan/extension-installer": "^1.4",
+        "php-stubs/woocommerce-stubs": "^10.8",
+        "arts/elementor-stubs": "^4.1"
     },
     "config": {
         "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": true
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "phpstan/extension-installer": true
         }
     },
     "scripts": {
         "install-block-modules": "npm run ci --prefix blocks",
         "lint": "phpcs . && npm run lint --prefix blocks",
+        "analyze": "phpstan analyze --memory-limit=2G",
         "test": "npm run test --prefix blocks",
         "format": "phpcbf . && npm run format --prefix blocks",
         "build": "npm run build --prefix blocks",
