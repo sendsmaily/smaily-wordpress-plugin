@@ -57,7 +57,7 @@ class Options {
 	/**
 	 * Minimum value the abandoned cart cutoff time can be set to in minutes.
 	 *
-	 * @var array
+	 * @var integer
 	 */
 	const ABANDONED_CART_MIN_CUTOFF = 10;
 
@@ -65,49 +65,49 @@ class Options {
 	 * Default cart cutoff time in minutes.
 	 * Best practice, offering largest potential for conversion.
 	 *
-	 * @var array
+	 * @var integer
 	 */
 	const ABANDONED_CART_DEFAULT_CUTOFF = 30;
 
 	/**
 	 * Default position for checkout subscription checkbox.
 	 *
-	 * @var array
+	 * @var string
 	 */
 	const CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION = 'before';
 
 	/**
 	 * Default location for checkout subscription checkbox.
 	 *
-	 * @var array
+	 * @var string
 	 */
 	const CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION = 'order';
 
 	/**
 	 * Default number of RSS feed items.
 	 *
-	 * @var array
+	 * @var integer
 	 */
 	const RSS_DEFAULT_LIMIT = 50;
 
 	/**
 	 * Default RSS feed store tax rate.
 	 *
-	 * @var array
+	 * @var integer
 	 */
 	const RSS_DEFAULT_TAX_RATE = 0;
 
 	/**
 	 * Default RSS feed sort by.
 	 *
-	 * @var array
+	 * @var string
 	 */
 	const RSS_DEFAULT_SORT_BY = 'modified';
 
 	/**
 	 * Default RSS feed order by.
 	 *
-	 * @var array
+	 * @var string
 	 */
 	const RSS_DEFAULT_ORDER_BY = 'DESC';
 
