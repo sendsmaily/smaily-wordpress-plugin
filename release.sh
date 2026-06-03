@@ -77,10 +77,13 @@ if [[ ! -d $TEMP_SVN_REPO ]];
 then
     echo "Checking out WordPress.org plugin repository"
     svn checkout $SVN_REPO $TEMP_SVN_REPO --depth immediates || { echo "Unable to checkout repo."; exit 1; }
-    svn update $TEMP_SVN_REPO/assets --set-depth infinity
-    svn update $TEMP_SVN_REPO/tags/${VERSION} --set-depth infinity
-    svn update $TEMP_SVN_REPO/trunk --set-depth infinity
 fi
+
+echo "Updating WordPress.org plugin repository"
+svn cleanup $TEMP_SVN_REPO
+svn update $TEMP_SVN_REPO/assets --set-depth infinity
+svn update $TEMP_SVN_REPO/tags/${VERSION} --set-depth infinity
+svn update $TEMP_SVN_REPO/trunk --set-depth infinity
 
 # Ensure we are on version branch.
 echo "Switching to branch"
