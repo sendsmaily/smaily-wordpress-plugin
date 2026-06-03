@@ -118,7 +118,7 @@ class Sanitizer {
 				continue;
 			}
 
-			$sanitized[ $field ] = ! empty( $input[ $field ] ) && $input[ $field ] !== '0';
+			$sanitized[ $field ] = ! empty( $input[ $field ] );
 		}
 
 		return $sanitized;
