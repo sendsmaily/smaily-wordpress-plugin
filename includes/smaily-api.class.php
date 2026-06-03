@@ -37,7 +37,6 @@ class API {
 	 * Sets up a new instance of the API.
 	 *
 	 * @param Options $options     Reference to options handler class.
-	 * @param Admin   $admin_model Reference to admin class.
 	 */
 	public function __construct( Options $options, string $plugin_name ) {
 		$this->options     = $options;
@@ -88,7 +87,7 @@ class API {
 	/**
 	 * List available autoresponders to be used as block options.
 	 *
-	 * @return array{label: string, value: string}
+	 * @return list<array{label: string, value: string}>
 	 */
 	public function list_autoresponders() {
 		$autoresponders = Helper::get_autoresponders_list( $this->options );
