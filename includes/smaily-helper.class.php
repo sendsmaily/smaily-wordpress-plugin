@@ -200,7 +200,6 @@ class Helper {
 		$allowed_atts            = array(
 			'align'       => array(),
 			'class'       => array(),
-			'type'        => array(),
 			'id'          => array(),
 			'dir'         => array(),
 			'lang'        => array(),
