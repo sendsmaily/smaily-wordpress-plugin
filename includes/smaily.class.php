@@ -281,7 +281,7 @@ class Smaily_Connect {
 		$this->lifecycle = new Lifecycle();
 		$this->lifecycle->register_hooks();
 
-		$this->public_base = new Public_Base( $this->options, $this->plugin_name, $this->version );
+		$this->public_base = new Public_Base( $this->options );
 		$this->public_base->register_hooks();
 
 		if ( Helper::is_woocommerce_active() ) {

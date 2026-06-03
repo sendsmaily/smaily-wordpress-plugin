@@ -12,24 +12,6 @@ use Smaily_Connect\Includes\Options;
 
 class Public_Base {
 	/**
-	 * The ID of this plugin.
-	 *
-	 *
-	 * @access private
-	 * @var    string  $plugin_name The ID of this plugin.
-	 */
-	private $plugin_name;
-
-	/**
-	 * The version of this plugin.
-	 *
-	 *
-	 * @access private
-	 * @var    string  $version The current version of this plugin.
-	 */
-	private $version;
-
-	/**
 	 * Handler for storing/retrieving data via Options API.
 	 *
 	 *
@@ -42,13 +24,9 @@ class Public_Base {
 	 * Initialize the class and set its properties.
 	 *
 	 * @param Options $options     Reference to options handler class.
-	 * @param string                $plugin_name The name of the plugin.
-	 * @param string                $version     The version of this plugin.
 	 */
-	public function __construct( Options $options, $plugin_name, $version ) {
+	public function __construct( Options $options) {
 		$this->options     = $options;
-		$this->plugin_name = $plugin_name;
-		$this->version     = $version;
 	}
 
 	/**
