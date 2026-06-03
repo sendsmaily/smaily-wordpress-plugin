@@ -48,7 +48,7 @@ class Admin {
 	 * @access private
 	 * @var    array $tabs The tabs for the settings page.
 	 */
-	private $tabs;
+	private ?array $tabs = NULL;
 
 	/**
 	 * Page settings
@@ -211,7 +211,7 @@ class Admin {
 	 * @return array
 	 */
 	public function list_admin_page_tabs() {
-		if ( ! isset( $this->tabs ) ) {
+		if ( $this->tabs === null ) {
 			$tabs = array(
 				'connection' => array(
 					'title'              => __( 'Connection', 'smaily-connect' ),
