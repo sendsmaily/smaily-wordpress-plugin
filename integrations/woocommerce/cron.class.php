@@ -86,15 +86,18 @@ class Cron {
 		$request  = new Smaily_Client( $this->options );
 		$response = $request->list_unsubscribers();
 		if ( empty( $response ) ) {
-			return $this->logger->error( 'Failed to get unsubscribers - received an empty response' );
+			$this->logger->error( 'Failed to get unsubscribers - received an empty response' );
+			return;
 		}
 
 		if ( isset( $response['error'] ) ) {
-			return $this->logger->error( sprintf( 'Receiving unsusbsribers failed with an error: %s', $response['error'] ) );
+			$this->logger->error( sprintf( 'Receiving unsusbsribers failed with an error: %s', $response['error'] ) );
+			return;
 		}
 
 		if ( isset( $response['code'] ) && $response['code'] !== 200 ) {
-			return $this->logger->error( sprintf( 'Unable to retrieve unsubscribed users: %s', wp_json_encode( $response ) ) );
+			$this->logger->error( sprintf( 'Unable to retrieve unsubscribed users: %s', wp_json_encode( $response ) ) );
+			return;
 		}
 
 		$unsubscribers_emails = array();
@@ -114,12 +117,13 @@ class Cron {
 		$users = get_users(
 			array(
 				'meta_key'   => 'user_newsletter', // phpcs:ignore WordPress.DB.SlowDBQuery
-				'meta_value' => 1, // phpcs:ignore WordPress.DB.SlowDBQuery
+				'meta_value' => '1', // phpcs:ignore WordPress.DB.SlowDBQuery
 			)
 		);
 
 		if ( empty( $users ) ) {
-			return $this->logger->info( 'No subscribers for synchronization!' );
+			$this->logger->info( 'No subscribers for synchronization!' );
+			return;
 		}
 
 		$list = array();
@@ -130,15 +134,18 @@ class Cron {
 
 		$response = $request->update_subscribers( $list );
 		if ( empty( $response ) ) {
-			return $this->logger->error( 'Failed to send subscribers to Smaily - received an empty response' );
+			$this->logger->error( 'Failed to send subscribers to Smaily - received an empty response' );
+			return;
 		}
 
 		if ( isset( $response['error'] ) ) {
-			return $this->logger->error( sprintf( 'Failed to send subscribers to Smaily with an error: %s', $response['error'] ) );
+			$this->logger->error( sprintf( 'Failed to send subscribers to Smaily with an error: %s', $response['error'] ) );
+			return;
 		}
 
 		if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
-			return $this->logger->error( sprintf( 'Unable to send subscribers to Smaily: %s', wp_json_encode( $response ) ) );
+			$this->logger->error( sprintf( 'Unable to send subscribers to Smaily: %s', wp_json_encode( $response ) ) );
+			return;
 		}
 	}
 
@@ -183,15 +190,18 @@ class Cron {
 			);
 
 			if ( empty( $response ) ) {
-				return $this->logger->error( 'Failed to trigger abandoned cart email flow - received an empty response' );
+				$this->logger->error( 'Failed to trigger abandoned cart email flow - received an empty response' );
+				return;
 			}
 
 			if ( isset( $response['error'] ) ) {
-				return $this->logger->error( sprintf( 'Failed to send abandoned cart email with an error: %s', $response['error'] ) );
+				$this->logger->error( sprintf( 'Failed to send abandoned cart email with an error: %s', $response['error'] ) );
+				return;
 			}
 
 			if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
-				return $this->logger->error( sprintf( 'Failed to send abandoned cart email: %s', wp_json_encode( $response ) ) );
+				$this->logger->error( sprintf( 'Failed to send abandoned cart email: %s', wp_json_encode( $response ) ) );
+				return;
 			}
 
 			$this->update_mail_sent_status( $cart['customer_id'] );
@@ -455,7 +465,7 @@ class Cron {
 		$image_url = '';
 
 		if ( $product->get_image_id() ) {
-			$image_url = wp_get_attachment_url( $product->get_image_id() );
+			$image_url = wp_get_attachment_url( (int) $product->get_image_id() );
 		}
 
 		// Default to featured image.
