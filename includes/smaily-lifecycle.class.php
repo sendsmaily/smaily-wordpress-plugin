@@ -234,6 +234,7 @@ class Lifecycle {
 				continue;
 			}
 
+			/** @var callable|null $upgrade */
 			$upgrade = null;
 			require_once $migration_file;
 			if ( is_callable( $upgrade ) ) {
