@@ -141,7 +141,7 @@ class Rss {
 	 * @param string $order_by
 	 * @param string $order
 	 * @param float|null $tax_rate
-	 * @return array{created_at: string, current_price: string, description: string, discount: float, enclosure_url: string, regular_price: string, title: string, url: string}
+	 * @return list<array{created_at: string, current_price: float, description: string, discount: float, enclosure_url: string, regular_price: float, title: string, url: string}>
 	 */
 	public static function list_rss_feed_items( $category, $limit, $order_by, $order, $tax_rate ) {
 		$products = Data_Handler::get_products( $category, $limit, $order_by, $order );
