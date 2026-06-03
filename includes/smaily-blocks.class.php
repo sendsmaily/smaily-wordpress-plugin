@@ -11,46 +11,6 @@ use Smaily_Connect\Blocks\Checkout_Optin\Integration;
 
 class Blocks {
 	/**
-	 * The ID of this plugin.
-	 *
-	 *
-	 * @access private
-	 * @var    string  $plugin_name The ID of this plugin.
-	 */
-	private $plugin_name;
-
-	/**
-	 * The version of this plugin.
-	 *
-	 *
-	 * @access private
-	 * @var    string  $version The current version of this plugin.
-	 */
-	private $version;
-
-	/**
-	 * Handler for storing/retrieving data via Options API.
-	 *
-	 *
-	 * @access private
-	 * @var    Options $options Handler for Options API.
-	 */
-	private $options;
-
-	/**
-	 * Initialize the class and set its properties.
-	 *
-	 * @param Options $options     Reference to options handler class.
-	 * @param string                $plugin_name The name of the plugin.
-	 * @param string                $version     The version of this plugin.
-	 */
-	public function __construct( Options $options, $plugin_name, $version ) {
-		$this->options     = $options;
-		$this->plugin_name = $plugin_name;
-		$this->version     = $version;
-	}
-
-	/**
 	 * Register hooks for the block functionality of the plugin.
 	 *
 	 * @return void

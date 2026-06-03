@@ -275,7 +275,7 @@ class Smaily_Connect {
 		$this->api = new API( $this->options, $this->plugin_name );
 		$this->api->register_hooks();
 
-		$this->blocks = new Blocks( $this->options, $this->plugin_name, $this->version );
+		$this->blocks = new Blocks();
 		$this->blocks->register_hooks();
 
 		$this->lifecycle = new Lifecycle();
