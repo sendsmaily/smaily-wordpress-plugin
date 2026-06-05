@@ -37,6 +37,7 @@ class API {
 	 * Sets up a new instance of the API.
 	 *
 	 * @param Options $options     Reference to options handler class.
+	 * @param string  $plugin_name The ID of this plugin.
 	 */
 	public function __construct( Options $options, string $plugin_name ) {
 		$this->options     = $options;
