@@ -2,6 +2,7 @@
 /.env*
 /.git*
 /.vscode*
+/.wp-env.json
 /.zipignore
 /*.sh
 /*.zip
