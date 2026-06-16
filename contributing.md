@@ -3,19 +3,23 @@ First off, thanks for taking the time to contribute!
 # Table of contents
 
 - [Getting started](#getting-started)
+  - [Running the minimum supported version](#running-the-minimum-supported-version)
 - [Internals](#internals)
   - [Structure of the repository](#structure-of-the-repository)
 - [Development](#development)
   - [Starting the environment](#starting-the-environment)
   - [Stopping the environment](#stopping-the-environment)
   - [Resetting the environment](#resetting-the-environment)
+  - [Running WP-CLI commands](#running-wp-cli-commands)
+  - [Inspecting outgoing mail](#inspecting-outgoing-mail)
   - [Developing the plugin](#developing-the-plugin)
-    - [Development options](#development-options)
+    - [Installing dependencies](#installing-dependencies)
+    - [Translations](#translations)
     - [Code Sniffing and Linting](#code-sniffing-and-linting)
 
 # Getting started
 
-The development environment requires [Docker](https://docs.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) to run. Please refer to the official documentation for step-by-step installation guide.
+The development environment is built on [`@wordpress/env`](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-env/), which provisions a local WordPress site in Docker. You need [Docker](https://docs.docker.com/) and [Node.js](https://nodejs.org/) (which provides `npx`) installed. Please refer to the official documentation for step-by-step installation guides.
 
 Clone the repository:
 
@@ -25,36 +29,43 @@ Next, change your working directory to the local repository:
 
     $ cd smaily-wordpress-plugin
 
-First you need to build the application and reflect the local user with correct permissions into the container.
-The `user.sh` script will read your user id, group id, names and store it in `.env` file to provide context for the build command.
+Boot up the environment:
 
-    $ ./user.sh
-    $ docker compose build
+    $ composer start
 
-This installs the latest version of WordPress and also includes the following plugins:
-- [Contact Form 7](https://wordpress.org/plugins/contact-form-7/)
+This downloads WordPress, maps the plugin into the site, activates it and installs the following plugins:
 - [WooCommerce](https://wordpress.org/plugins/woocommerce/)
+- [Contact Form 7](https://wordpress.org/plugins/contact-form-7/)
 - [Really Simple Captcha](https://wordpress.org/plugins/really-simple-captcha/)
-- [Mailhog for WordPress](https://wordpress.org/plugins/wp-mailhog-smtp/)
 
-And boot up the environment:
+Once it finishes, the site is available at `http://localhost:8888` and the administration interface at `http://localhost:8888/wp-admin`. Sign in with the default credentials `admin` / `password`.
 
-    $ docker compose up -d
-
-During first run WordPress installation wizard guides you through the setup process. After completing the installation, the site can be accessed from `http://localhost:8080` and the administration interface from `http://localhost:8080/wp-admin` URL.
 
 ## Running the minimum supported version
 
-The plugin should be compatible with the latest version of WordPress and the minimum supported version. The minimum supported version is defined in the `compose.min.yaml` file. Also the latest plugin versions that are compatible with the minimum supported versions are defined there.
+The plugin should be compatible with both the latest version of WordPress and the minimum supported version. Both stacks are committed as separate wp-env configurations:
 
-It is recommended to clean up the environment before switching between the latest and minimum supported versions. You can do this by running:
+- `.wp-env.json` — the default stack: latest WordPress, WooCommerce, Contact Form 7 and Really Simple Captcha on PHP 8.3.
+- `.wp-env.min.json` — the minimum supported stack: WordPress 6.5, WooCommerce 7.7.2, Contact Form 7 5.7.7 and Really Simple Captcha 2.1 on PHP 7.4.
 
-    $ docker compose -f compose.min.yaml -f compose.yaml down --remove-orphans --volumes
+Start the minimum supported stack with:
 
-To run the minimum supported version, you can use the following command:
+    $ composer start:min
 
-    $ docker compose -f compose.min.yaml -f compose.yaml build
-    $ docker compose -f compose.min.yaml -f compose.yaml up -d
+Both stacks listen on the same port (8888), so only one can run at a time. A single `composer stop` stops whichever stack is running, so switching is always stop-then-start. To switch from the default stack to the minimum one:
+
+    $ composer stop
+    $ composer start:min
+
+When the minimum stack is running, WP-CLI commands must be pointed at its configuration with `--config`:
+
+    $ npx @wordpress/env --config .wp-env.min.json run cli wp core version
+    $ npx @wordpress/env --config .wp-env.min.json run cli wp plugin get woocommerce --field=version
+
+To switch back to the default stack:
+
+    $ composer stop
+    $ composer start
 
 # Internals
 
@@ -78,101 +89,98 @@ The repository is split into multiple parts:
 
 Documentation about WordPress coding standards and plugin development can be found in the [WordPress development resources](https://developer.wordpress.org/).
 
+The plugin source is live-mapped into the running site, so edits to the files in this repository are reflected in the environment immediately — no rebuild or copy step is needed for PHP changes.
+
 ## Starting the environment
 
-You can run the environment by executing:
+You can start the default environment by executing:
 
-    $ docker compose up -d
+    $ composer start
 
-> **Note!** Make sure you do not have any other process(es) listening on ports 8080, 8888 and 8025. Port 8888 is used by phpmyadmin and port 8025 is used by the mailhog service.
+To start the minimum supported stack instead, run `composer start:min` (see [Running the minimum supported version](#running-the-minimum-supported-version)).
 
-You can develop the plugin locally in the current folder and the changes are reflected in the development container. This is beneficial when doing simple changes that doesn't require intellisense for WordPress related functions.
+> **Note!** Make sure you do not have any other process listening on port 8888 (the development site). The default and minimum stacks share this port, so only one can run at a time.
+
+## Stopping the environment
+
+The environment can be stopped by executing:
+
+    $ composer stop
+
+This stops whichever stack is running — the default or the minimum supported one.
+
+## Resetting the environment
+
+If you need to reset the WordPress installation (database and uploads) while keeping the downloaded WordPress and plugins, run:
+
+    $ npx @wordpress/env clean all
+
+To tear the environment down completely, removing all of its Docker containers, volumes and downloaded sources:
+
+    $ npx @wordpress/env destroy
+
+## Running WP-CLI commands
+
+You can run [WP-CLI](https://wp-cli.org/) commands against the environment through the `cli` container, for example:
+
+    $ npx @wordpress/env run cli wp plugin list
+    $ npx @wordpress/env run cli wp option get siteurl
+
+## Inspecting outgoing mail
+
+The environment runs with `WP_DEBUG` and `WP_DEBUG_LOG` enabled, so PHP notices and anything written through the WordPress logging facilities — including diagnostics around outgoing mail — are appended to `wp-content/debug.log` inside the site. There is no rendered-mail inbox; the debug log is the place to inspect mail-related activity.
+
+View the log with:
+
+    $ npx @wordpress/env run cli tail -f wp-content/debug.log
+
+## Developing the plugin
 
 ### Installing dependencies
 
-Plugin is packaged during release process. Packaging process includes installing dependencies, building block components, compiling translations and everything else required to get the source code ready for actual plugin usage.
+The plugin is packaged during the release process. Packaging includes installing dependencies, building block components, compiling translations and everything else required to get the source code ready for actual plugin usage.
 
 While developing you need to run these actions when initially setting up the environment and after updating resources.
 
 **Composer modules**
 
-Composer is the package manager for PHP. It is used to install and manage dependencies for the plugin. To install Composer dependencies, run the following command:
+Composer is the package manager for PHP. It is used to install and manage dependencies for the plugin. To install Composer dependencies, run:
 
     $ composer install
 
-
-> **Note!** When running the command inside container the `vendor` directory might be created with `root` permissions. This may cause issues when executing Composer-related functions locally afterwards.
-
 This command allows you to run further commands that depend on Composer packages such as compiling translations or running code sniffing.
 
-**Block Modules**
+**Block modules**
 
 Installing block component dependencies can be done using the following command. This will install all the required npm packages for every block component.
 
     $ composer run install-block-modules
 
-You need to also build the block components from the source code. This will create a `build` folder inside each block component folder. The `build` folder contains the compiled files used by the plugin and WordPress references these folders when looking for block components.
+You also need to build the block components from the source code. This creates a `build` folder inside each block component folder. The `build` folder contains the compiled files used by the plugin, and WordPress references these folders when looking for block components.
 
     $ composer run build
 
-When developing a block component you can also watch for file changes and automatically rebuild the component when a file is changed. This is useful when you want to see the changes immediately without having to manually run the build command every time. You can do this by running the following command in the block component folder you are currently developing.
-
-For example running the watch command in the `blocks/checkout-optin` folder will watch for file changes in that folder and rebuild the component when a file is changed.
+When developing a block component you can also watch for file changes and automatically rebuild the component when a file changes. Run the following command in the block component folder you are currently developing. For example, running the watch command in `blocks/checkout-optin` will watch for file changes in that folder and rebuild the component when a file is changed.
 
     $ npm run start
 
-**Translations**
+### Translations
 
-Plugin translations are stored in `/languages` folder. These include `smaily-connect.pot` and `smaily-connect-<locale>.po` files. However, these files are not readable by the WordPress translation loading system. Instead, these provide a basis for building machine readable translation files `*.mo`.
+Plugin translations are stored in the `/languages` folder. These include `smaily-connect.pot` and `smaily-connect-<locale>.po` files. However, these files are not readable by the WordPress translation loading system. Instead, they provide a basis for building machine readable translation files `*.mo`.
 
-To compile the machine readable translation files, run the following command:
+To compile the machine readable translation files, run:
 
     $ composer run compile-translations
 
-When making changes to the translation files, you need to update the translation template file `smaily-connect.pot` to include the changed strings. You can do this by running the following command:
+When making changes to the translation files, you need to update the translation template file `smaily-connect.pot` to include the changed strings:
 
     $ composer run extract-text-domain
 
 You can translate the plugin to different languages. The most convenient way to do this is by using a translation editor plugin such as [Loco Translate](https://wordpress.org/plugins/loco-translate/). This plugin allows you to edit the translation files directly from the WordPress administration interface.
 
-
-### VS Code Remote Containers
-
-In order to get intellisense for WordPress related functions and navigate through the whole WordPress installation you can use [VS Code Remote Containers](https://code.visualstudio.com/docs/devcontainers/containers). The build process reflected your local user into the container to maintain correct file permissions when editing files in the container. We have also prepared a [VS Code Workspace](https://code.visualstudio.com/docs/editor/workspaces) that includes two folders:
-
-- html - root of the WordPress installation
-- smaily - root of the plugin
-
-This allows to get type hints for WordPress related functions while developing the application and ease of access to plugin files. You can use the `File->Open Workspace from File...` command in the editor to open the Workspace. You can find the workspace file in:
-
-    /var/www/html/wp-content/plugins/smaily/.vscode/container.code-workspace
-
-## Stopping the environment
-
-Environment can be stopped by executing:
-
-    $ docker compose down --remove-orphans
-
-## Resetting the environment
-
-If you need to reset the installation, just simply delete environment's Docker volumes. Easiest way to achieve this is by running:
-
-    $ docker compose down --remove-orphans --volumes
-
-## Developing the plugin
-
-### Development options
-
-This module can be developed both locally and in a containerized environment. Visual Studio Code offers support for developing the plugin inside a remote container, providing the following benefits:
-
-- IntelliSense Support: Access to IntelliSense for WordPress internal functions, enhancing the development experience.
-- Seamless Environment: The remote container replicates the WordPress environment, reducing compatibility issues.
-
-For quick edits or when a remote container is not required, you can also modify the files directly on your local machine. These changes will be immediately reflected in the running WordPress instance.
-
 ### Code Sniffing and Linting
 
-This repository uses PHP CodeSniffer with specific rules defined in the `phpcs.xml` file. To run the code sniffer locally, you need to have [Composer](https://getcomposer.org/) installed. The remote container environment is already set up with Composer.
+This repository uses PHP CodeSniffer with specific rules defined in the `phpcs.xml` file. To run the code sniffer locally, you need to have [Composer](https://getcomposer.org/) installed.
 
 You can check for linting errors by executing:
 

@@ -3,6 +3,7 @@
 /.git*
 /.vscode*
 /.wp-env.json
+/.wp-env.min.json
 /.zipignore
 /*.sh
 /*.zip
