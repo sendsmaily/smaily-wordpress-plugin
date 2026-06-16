@@ -17,6 +17,6 @@
     "wp-content/plugins/smaily-connect": "."
   },
   "lifecycleScripts": {
-    "afterStart": "npm --prefix blocks run build && wp-env run cli wp plugin activate smaily-connect"
+    "afterStart": "([ -d blocks/node_modules ] || npm --prefix blocks run ci) && npm --prefix blocks run build && wp-env run cli wp plugin activate smaily-connect"
   }
 }
