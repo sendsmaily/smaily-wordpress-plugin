@@ -7,11 +7,8 @@
 /*.sh
 /*.zip
 /assets
-/compose.min.yaml
-/compose.yaml
 /composer.*
 /contributing.md
-/Dockerfile
 /phpcs.xml
 /readme.md
 /vendor*
