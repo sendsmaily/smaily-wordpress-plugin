@@ -23,23 +23,6 @@ final class TransactionalRetryGuardTest extends TestCase {
 		Monkey\setUp();
 
 		Functions\when( '__' )->returnArg( 1 );
-
-		// Every order id resolves, except 999 (the deleted-order case below).
-		Functions\when( 'wc_get_order' )->alias(
-			static function ( int $id ) {
-				return 999 === $id ? false : new class( $id ) extends \WC_Order {
-					private int $id;
-
-					public function __construct( int $id ) {
-						$this->id = $id;
-					}
-
-					public function get_id(): int {
-						return $this->id;
-					}
-				};
-			}
-		);
 	}
 
 	protected function tearDown(): void {
@@ -48,8 +31,8 @@ final class TransactionalRetryGuardTest extends TestCase {
 	}
 
 	public function test_a_marketing_row_is_never_refused(): void {
-		self::assertSame( '', TransactionalRetryGuard::refusal_reason( 'automation.abandoned_cart', '77', '{}' ) );
-		self::assertSame( '', TransactionalRetryGuard::refusal_reason( 'contact.sync', 'a@b.test', '{}' ) );
+		self::assertSame( '', TransactionalRetryGuard::refusal_reason( 'automation.abandoned_cart', '{}', true ) );
+		self::assertSame( '', TransactionalRetryGuard::refusal_reason( 'contact.sync', '{}', false ) );
 	}
 
 	public function test_an_order_confirmation_is_refused_because_the_wc_email_went_out(): void {
@@ -57,8 +40,8 @@ final class TransactionalRetryGuardTest extends TestCase {
 			TransactionalRetryGuard::REASON_WC_EMAIL_SENT,
 			TransactionalRetryGuard::refusal_reason(
 				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
-				'501',
-				'{"to_status":""}'
+				'{"to_status":""}',
+				true
 			)
 		);
 	}
@@ -70,8 +53,8 @@ final class TransactionalRetryGuardTest extends TestCase {
 			TransactionalRetryGuard::REASON_WC_EMAIL_SENT,
 			TransactionalRetryGuard::refusal_reason(
 				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
-				'502',
-				'{"to_status":"completed"}'
+				'{"to_status":"completed"}',
+				true
 			)
 		);
 	}
@@ -84,8 +67,8 @@ final class TransactionalRetryGuardTest extends TestCase {
 			'',
 			TransactionalRetryGuard::refusal_reason(
 				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
-				'503',
-				'{"to_status":"shipped"}'
+				'{"to_status":"shipped"}',
+				true
 			)
 		);
 	}
@@ -95,21 +78,23 @@ final class TransactionalRetryGuardTest extends TestCase {
 		// so it takes the safe side: never risk a second confirmation.
 		self::assertSame(
 			TransactionalRetryGuard::REASON_WC_EMAIL_SENT,
-			TransactionalRetryGuard::refusal_reason( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, '504', '' )
+			TransactionalRetryGuard::refusal_reason( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, '', true )
 		);
 		self::assertSame(
 			TransactionalRetryGuard::REASON_WC_EMAIL_SENT,
-			TransactionalRetryGuard::refusal_reason( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, '505', 'not-json' )
+			TransactionalRetryGuard::refusal_reason( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, 'not-json', true )
 		);
 	}
 
 	public function test_a_row_whose_order_is_gone_is_refused_with_its_own_reason(): void {
+		// Existence is resolved by the caller (one batched lookup) and handed
+		// in — the guard itself does no I/O.
 		self::assertSame(
 			TransactionalRetryGuard::REASON_ORDER_MISSING,
 			TransactionalRetryGuard::refusal_reason(
 				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
-				'999',
-				'{"to_status":"shipped"}'
+				'{"to_status":"shipped"}',
+				false
 			)
 		);
 	}

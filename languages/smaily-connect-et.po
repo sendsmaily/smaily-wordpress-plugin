@@ -198,7 +198,7 @@ msgstr "See ühendus on veel seadistamata. Lõpeta kõigepealt seadistamine."
 msgid "Unsupported job_type."
 msgstr "Toetamata töötüüp (job_type)."
 
-#: includes/REST/EventsEndpoint.php:101
+#: includes/REST/EventsEndpoint.php:103
 msgid "You do not have permission to view the event log."
 msgstr "Sul ei ole õigust sündmuste logi vaadata."
 
@@ -1153,7 +1153,7 @@ msgid "Time (UTC)"
 msgstr "Aeg (UTC)"
 
 #: admin/src/components/settings/EventLog.tsx:189
-#: admin/src/components/settings/EventLog.tsx:321
+#: admin/src/components/settings/EventLog.tsx:312
 msgid "Source"
 msgstr "Allikas"
 
@@ -1162,22 +1162,22 @@ msgid "Event"
 msgstr "Sündmus"
 
 #: admin/src/components/settings/EventLog.tsx:191
-#: admin/src/components/settings/EventLog.tsx:329
+#: admin/src/components/settings/EventLog.tsx:320
 msgid "Entity"
 msgstr "Olem"
 
 #: admin/src/components/settings/EventLog.tsx:192
-#: admin/src/components/settings/EventLog.tsx:325
+#: admin/src/components/settings/EventLog.tsx:316
 msgid "Status"
 msgstr "Olek"
 
 #: admin/src/components/settings/EventLog.tsx:193
-#: admin/src/components/settings/EventLog.tsx:333
+#: admin/src/components/settings/EventLog.tsx:324
 msgid "Attempts"
 msgstr "Katsed"
 
 #: admin/src/components/settings/EventLog.tsx:194
-#: admin/src/components/settings/EventLog.tsx:346
+#: admin/src/components/settings/EventLog.tsx:337
 msgid "Last error"
 msgstr "Viimane viga"
 
@@ -1224,31 +1224,31 @@ msgstr "Lehekülg %1$d / %2$d"
 msgid "Next"
 msgstr "Järgmine"
 
-#: admin/src/components/settings/EventLog.tsx:309
+#: admin/src/components/settings/EventLog.tsx:300
 msgid "Close details"
 msgstr "Sulge üksikasjad"
 
-#: admin/src/components/settings/EventLog.tsx:317
+#: admin/src/components/settings/EventLog.tsx:308
 msgid "Close"
 msgstr "Sule"
 
-#: admin/src/components/settings/EventLog.tsx:340
+#: admin/src/components/settings/EventLog.tsx:331
 msgid "Created (UTC)"
 msgstr "Loodud (UTC)"
 
-#: admin/src/components/settings/EventLog.tsx:350
+#: admin/src/components/settings/EventLog.tsx:341
 msgid "Request sent to the engine"
 msgstr "Mootorisse saadetud päring"
 
-#: admin/src/components/settings/EventLog.tsx:351
+#: admin/src/components/settings/EventLog.tsx:342
 msgid "— nothing recorded (not sent, or the row predates this version)"
 msgstr "— midagi pole salvestatud (ei saadetud või rida on sellest versioonist vanem)"
 
-#: admin/src/components/settings/EventLog.tsx:354
+#: admin/src/components/settings/EventLog.tsx:345
 msgid "Engine response"
 msgstr "Mootori vastus"
 
-#: admin/src/components/settings/EventLog.tsx:358
+#: admin/src/components/settings/EventLog.tsx:349
 msgid "Enqueued payload"
 msgstr "Järjekorda pandud sisu"
 
@@ -2605,12 +2605,10 @@ msgstr "Konto on deaktiveeritud"
 msgid "Your Smaily Campaign Intelligence account has been deactivated, so syncing has stopped. Contact Smaily to reactivate it. Once it is active again, disconnect here and connect it with a new setup link."
 msgstr "Sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega sünkroonimine on peatunud. Konto taasaktiveerimiseks võta ühendust Smailyga. Kui konto on jälle aktiivne, katkesta siin ühendus ja ühenda konto uue seadistuslingiga."
 
-#: includes/Smaily/TransactionalRetryGuard.php:75
-#: admin/src/components/settings/EventLog.tsx:289
+#: includes/Smaily/TransactionalRetryGuard.php:80
 msgid "This order no longer exists, so this event cannot be re-sent."
 msgstr "Seda tellimust enam ei ole, seega seda sündmust ei saa uuesti saata."
 
-#: includes/Smaily/TransactionalRetryGuard.php:78
-#: admin/src/components/settings/EventLog.tsx:291
+#: includes/Smaily/TransactionalRetryGuard.php:83
 msgid "This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent."
 msgstr "See kinnitus saadeti kliendile juba WooCommerce'i tavalise e-kirjana; seda ei saa uuesti saata."

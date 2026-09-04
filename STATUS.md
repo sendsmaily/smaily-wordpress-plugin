@@ -26,7 +26,34 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-04 (**PRO-1733 — the Event Log's Retry on a
+_Last updated: 2026-09-04 (**PRO-1733 simplification pass — the same rules,
+one home each.** A review of the PRO-1733 commits produced a closed fix list,
+applied as one commit with no merchant-visible change (which rows offer Retry,
+what Details say, what the 409 says are all unchanged, pinned by the existing
+tests). "Which event types are transactional" is now
+`TransactionalFlusher::EVENT_TYPES`, read by the flusher's own pull + ceiling,
+the main Flusher's exclusion, the Event Log's two SQL fragments and
+`TransactionalRetryGuard`. The guard does no I/O any more: it takes order
+existence as an argument, and `EventsEndpoint` resolves it ONCE per request
+with a batched `wc_get_orders()` (`post__in`, and status `all` under HPOS —
+`include` is silently ignored, and HPOS's status filter hides an order whose
+merchant-defined status was never registered as a post status, which is exactly
+the retryable case). The read model calls the guard only for FAILED
+transactional rows, and now ships the Details sentence with the row
+(`retry_refusal_message`, from `TransactionalRetryGuard::message()`) so the
+wording has one home — the TS reason→string map is gone. Bulk retry stopped
+growing a `NOT IN` id list: `reset_failed()` takes `$exclude_event_types`
+(the `$exclude_ids` parameter is gone) and the cleared transactional ids are
+reset by their own call, and the PRO-1519 recovery recipe moved into
+`TransactionalFlusher::revive()`. Gates: `npm run ci:strict` **exit=0**
+(PHPUnit unit **770**, vitest **306**, PHPCS 0 errors + no new warnings,
+PHPStan `[OK] No errors`) and `sg docker -c "composer run test:integration"`
+**OK 262 tests / 1543 assertions**, dev sandbox tenant "Smaily Connect test"
+restored. i18n rebuilt: the two retry msgids are unchanged in the `.po`/`.pot`
+(PHP-side now), the admin bundle catalog just loses its two JS copies. **No
+version bump** — still lands with PRO-1893 in the next release after 3.11.2.)_
+
+Prior: 2026-09-04 (**PRO-1733 — the Event Log's Retry on a
 transactional row now tells the truth: it is offered only where the shopper
 got nothing.** Reviving a failed `transactional.*` row did nothing useful —
 `EventsEndpoint::retry()` kicks the main flush hook and CartFlusher's, never

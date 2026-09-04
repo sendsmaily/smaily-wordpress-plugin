@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-04T10:15:37+00:00\n"
+"POT-Creation-Date: 2026-09-04T10:45:07+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: smaily-connect\n"
@@ -209,7 +209,7 @@ msgstr ""
 msgid "Unsupported job_type."
 msgstr ""
 
-#: includes/REST/EventsEndpoint.php:101
+#: includes/REST/EventsEndpoint.php:103
 msgid "You do not have permission to view the event log."
 msgstr ""
 
@@ -357,13 +357,11 @@ msgstr ""
 msgid "This workflow is disabled in Smaily (or no longer exists) — form submissions will not trigger anything until you enable it in Smaily or pick another workflow."
 msgstr ""
 
-#: includes/Smaily/TransactionalRetryGuard.php:75
-#: admin/src/components/settings/EventLog.tsx:289
+#: includes/Smaily/TransactionalRetryGuard.php:80
 msgid "This order no longer exists, so this event cannot be re-sent."
 msgstr ""
 
-#: includes/Smaily/TransactionalRetryGuard.php:78
-#: admin/src/components/settings/EventLog.tsx:291
+#: includes/Smaily/TransactionalRetryGuard.php:83
 msgid "This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent."
 msgstr ""
 
@@ -1186,7 +1184,7 @@ msgid "Time (UTC)"
 msgstr ""
 
 #: admin/src/components/settings/EventLog.tsx:189
-#: admin/src/components/settings/EventLog.tsx:321
+#: admin/src/components/settings/EventLog.tsx:312
 msgid "Source"
 msgstr ""
 
@@ -1195,22 +1193,22 @@ msgid "Event"
 msgstr ""
 
 #: admin/src/components/settings/EventLog.tsx:191
-#: admin/src/components/settings/EventLog.tsx:329
+#: admin/src/components/settings/EventLog.tsx:320
 msgid "Entity"
 msgstr ""
 
 #: admin/src/components/settings/EventLog.tsx:192
-#: admin/src/components/settings/EventLog.tsx:325
+#: admin/src/components/settings/EventLog.tsx:316
 msgid "Status"
 msgstr ""
 
 #: admin/src/components/settings/EventLog.tsx:193
-#: admin/src/components/settings/EventLog.tsx:333
+#: admin/src/components/settings/EventLog.tsx:324
 msgid "Attempts"
 msgstr ""
 
 #: admin/src/components/settings/EventLog.tsx:194
-#: admin/src/components/settings/EventLog.tsx:346
+#: admin/src/components/settings/EventLog.tsx:337
 msgid "Last error"
 msgstr ""
 
@@ -1257,31 +1255,31 @@ msgstr ""
 msgid "Next"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:309
+#: admin/src/components/settings/EventLog.tsx:300
 msgid "Close details"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:317
+#: admin/src/components/settings/EventLog.tsx:308
 msgid "Close"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:340
+#: admin/src/components/settings/EventLog.tsx:331
 msgid "Created (UTC)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:350
+#: admin/src/components/settings/EventLog.tsx:341
 msgid "Request sent to the engine"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:351
+#: admin/src/components/settings/EventLog.tsx:342
 msgid "— nothing recorded (not sent, or the row predates this version)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:354
+#: admin/src/components/settings/EventLog.tsx:345
 msgid "Engine response"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:358
+#: admin/src/components/settings/EventLog.tsx:349
 msgid "Enqueued payload"
 msgstr ""
 

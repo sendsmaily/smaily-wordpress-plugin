@@ -643,11 +643,15 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 	 * @return array<string, mixed>
 	 */
 	private function listed_row( int $id ): array {
-		$request = new \WP_REST_Request( 'GET', '/smaily-connect/v1/events' );
-		$request->set_param( 'source', 'smaily' );
-		$request->set_param( 'status', 'failed' );
+		$response = RestRequestHelper::get(
+			'/events',
+			array(
+				'source' => 'smaily',
+				'status' => 'failed',
+			)
+		);
 
-		foreach ( ( new \Smaily\Connect\REST\EventsEndpoint() )->list_events( $request )->get_data()['events'] as $row ) {
+		foreach ( $response->get_data()['events'] as $row ) {
 			if ( (int) $row['id'] === $id ) {
 				return $row;
 			}

@@ -15,6 +15,7 @@ const ROW = {
   last_error: 'http_503 service unavailable',
   created_at: '2026-06-09 10:00:00',
   retry_refusal: '',
+  retry_refusal_message: '',
 };
 
 /**
@@ -29,6 +30,8 @@ const TRANSACTIONAL_REFUSED_ROW = {
   event_type: 'transactional.order_confirmation',
   last_error: 'retry_ceiling_exceeded',
   retry_refusal: 'wc_email_sent',
+  retry_refusal_message:
+    'This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent.',
 };
 
 describe('EventLog', () => {
@@ -183,6 +186,7 @@ describe('EventLog', () => {
           ...TRANSACTIONAL_REFUSED_ROW,
           event_type: 'transactional.shipping_confirmation',
           retry_refusal: '',
+          retry_refusal_message: '',
         },
       ],
       total: 1,

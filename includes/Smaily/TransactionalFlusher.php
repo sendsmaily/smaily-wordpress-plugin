@@ -58,6 +58,18 @@ class TransactionalFlusher {
 	public const EVENT_TYPE_ORDER_CONFIRMATION    = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_ORDER_CONFIRMATION ]['event_type'];
 	public const EVENT_TYPE_SHIPPING_CONFIRMATION = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ]['event_type'];
 
+	/**
+	 * The pair as a set — the one place "which event types are
+	 * transactional" is written. Every scoping site (this flusher's
+	 * pending() pull + retry ceiling, the main Flusher's exclusion, the
+	 * Event Log's SQL and TransactionalRetryGuard) reads it from here so
+	 * a third type can't be added to some of them and not the rest.
+	 */
+	public const EVENT_TYPES = array(
+		self::EVENT_TYPE_ORDER_CONFIRMATION,
+		self::EVENT_TYPE_SHIPPING_CONFIRMATION,
+	);
+
 	public const FLUSH_HOOK = 'smly_plus_flush_transactional_events';
 	public const AS_GROUP   = EventQueue::AS_GROUP;
 
@@ -198,12 +210,42 @@ class TransactionalFlusher {
 			'retried'   => 0,
 		);
 
-		foreach ( $this->queue->pending( $batch_size, array( self::EVENT_TYPE_ORDER_CONFIRMATION, self::EVENT_TYPE_SHIPPING_CONFIRMATION ) ) as $event ) {
+		foreach ( $this->queue->pending( $batch_size, self::EVENT_TYPES ) as $event ) {
 			++$stats['processed'];
 			++$stats[ $this->process( $event ) ];
 		}
 
 		return $stats;
+	}
+
+	/**
+	 * Put already-revived (FAILED→PENDING) transactional rows back in
+	 * business (PRO-1733). Two things the caller must not have to know:
+	 * the PRO-1519 ceiling runs from created_at, so a row revived after an
+	 * hour would terminal-fail on the very next tick unless its age starts
+	 * over; and these rows are drained by THIS flusher's own hook, which no
+	 * other reset path kicks. Deduplicated the same way EventQueue's own
+	 * kick is, so several revives in one request collapse to one AS row.
+	 *
+	 * @param int[] $ids Row ids in the Smaily queue.
+	 */
+	public static function revive( EventQueue $queue, array $ids ): void {
+		if ( $ids === array() ) {
+			return;
+		}
+
+		$queue->restart_age( $ids );
+
+		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
+			return;
+		}
+		if ( function_exists( 'as_next_scheduled_action' )
+			&& as_next_scheduled_action( self::FLUSH_HOOK, array(), self::AS_GROUP ) !== false
+		) {
+			return;
+		}
+
+		as_enqueue_async_action( self::FLUSH_HOOK, array(), self::AS_GROUP );
 	}
 
 	/**
@@ -270,7 +312,7 @@ class TransactionalFlusher {
 	 * @throws TerminalDispatchException When the row has aged past the ceiling.
 	 */
 	private function enforce_retry_ceiling( string $event_type, array $event ): void {
-		if ( ! in_array( $event_type, array( self::EVENT_TYPE_ORDER_CONFIRMATION, self::EVENT_TYPE_SHIPPING_CONFIRMATION ), true ) ) {
+		if ( ! in_array( $event_type, self::EVENT_TYPES, true ) ) {
 			return;
 		}
 
@@ -400,18 +442,32 @@ class TransactionalFlusher {
 	}
 
 	/**
-	 * @return array<string, mixed>
+	 * Non-throwing read of a stored row payload: the decoded array, or null
+	 * when the JSON isn't one. Shared with TransactionalRetryGuard, which
+	 * reads the same payload from the read model where throwing would be
+	 * wrong; decode_payload() puts the terminal-failure contract on top.
 	 *
-	 * @throws TerminalDispatchException When the payload isn't a valid JSON-encoded array.
+	 * @return array<string, mixed>|null
 	 */
-	private function decode_payload( string $json ): array {
+	public static function read_payload( string $json ): ?array {
 		if ( $json === '' ) {
 			return array();
 		}
 
 		$decoded = json_decode( $json, true );
 
-		if ( ! is_array( $decoded ) ) {
+		return is_array( $decoded ) ? $decoded : null;
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 *
+	 * @throws TerminalDispatchException When the payload isn't a valid JSON-encoded array.
+	 */
+	private function decode_payload( string $json ): array {
+		$decoded = self::read_payload( $json );
+
+		if ( $decoded === null ) {
 			throw new TerminalDispatchException( 'payload_decode_failure' );
 		}
 

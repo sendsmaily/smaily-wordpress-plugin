@@ -28,7 +28,9 @@ defined( 'ABSPATH' ) || exit;
  * Event Log read model (hide the Retry action, explain why) and by the
  * retry route (refuse the request). It reads only what the queue row
  * already stores — the event type plus the enqueued payload's `to_status`
- * — so there is no new stored field.
+ * — so there is no new stored field, and it does no I/O of its own: the
+ * caller resolves order existence (one batched lookup per request) and
+ * hands the answer in.
  *
  * A transactional row whose order can no longer be loaded is refused too:
  * a retry would rebuild nothing and fail-open has no order to fall back on.
@@ -42,15 +44,18 @@ final class TransactionalRetryGuard {
 	public const REASON_ORDER_MISSING = 'order_missing';
 
 	/**
+	 * @param bool $order_exists Whether the row's order still loads —
+	 *                           resolved by the caller, never here.
+	 *
 	 * @return string '' when the row may be retried (including every
 	 *                non-transactional row); otherwise a REASON_* code.
 	 */
-	public static function refusal_reason( string $event_type, string $entity_id, string $payload_json ): string {
+	public static function refusal_reason( string $event_type, string $payload_json, bool $order_exists ): string {
 		if ( ! self::is_transactional( $event_type ) ) {
 			return '';
 		}
 
-		if ( ! self::order_exists( $entity_id ) ) {
+		if ( ! $order_exists ) {
 			return self::REASON_ORDER_MISSING;
 		}
 
@@ -78,43 +83,13 @@ final class TransactionalRetryGuard {
 		return __( 'This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent.', 'smaily-connect' );
 	}
 
-	public static function is_transactional( string $event_type ): bool {
-		return in_array(
-			$event_type,
-			array(
-				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
-				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
-			),
-			true
-		);
+	private static function is_transactional( string $event_type ): bool {
+		return in_array( $event_type, TransactionalFlusher::EVENT_TYPES, true );
 	}
 
 	private static function to_status( string $payload_json ): string {
-		if ( $payload_json === '' ) {
-			return '';
-		}
+		$payload = TransactionalFlusher::read_payload( $payload_json );
 
-		$decoded = json_decode( $payload_json, true );
-
-		return is_array( $decoded ) && isset( $decoded['to_status'] ) ? (string) $decoded['to_status'] : '';
-	}
-
-	/**
-	 * WooCommerce absent (the row is being read on a store where WC is
-	 * deactivated) means "can't tell" — not "gone"; the event-type rules
-	 * below still decide, which keeps the safe side (refuse) in reach.
-	 */
-	private static function order_exists( string $entity_id ): bool {
-		$order_id = (int) $entity_id;
-
-		if ( $order_id <= 0 ) {
-			return false;
-		}
-
-		if ( ! function_exists( 'wc_get_order' ) ) {
-			return true;
-		}
-
-		return wc_get_order( $order_id ) instanceof \WC_Order;
+		return isset( $payload['to_status'] ) ? (string) $payload['to_status'] : '';
 	}
 }

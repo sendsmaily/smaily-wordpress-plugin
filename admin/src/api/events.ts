@@ -21,6 +21,12 @@ export interface EventRow {
    * gone (`order_missing`).
    */
   retry_refusal: string;
+  /**
+   * The sentence Details shows for that refusal, '' when there is none. The
+   * server owns the wording (TransactionalRetryGuard::message) so the 409 body
+   * and the Event Log can't drift apart.
+   */
+  retry_refusal_message: string;
 }
 
 export interface EventsListResponse {

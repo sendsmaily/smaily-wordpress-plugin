@@ -340,18 +340,6 @@ function prettyJson(raw: string): string {
   }
 }
 
-/** The one plain sentence a row with no Retry action owes the merchant (PRO-1733). */
-function retryRefusalNote(reason: string): string {
-  if (reason === 'order_missing') {
-    return __('This order no longer exists, so this event cannot be re-sent.', 'smaily-connect');
-  }
-
-  return __(
-    'This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent.',
-    'smaily-connect',
-  );
-}
-
 function EventDetailModal({
   detail,
   onClose,
@@ -405,9 +393,12 @@ function EventDetailModal({
             <dd className="font-mono">{event.created_at}</dd>
           </div>
         </dl>
-        {event.retry_refusal !== '' && (
+        {/* The one plain sentence a row with no Retry action owes the
+            merchant (PRO-1733) — worded by the server, so the Details panel
+            and the retry route's 409 can't drift apart. */}
+        {event.retry_refusal_message !== '' && (
           <Banner tone="info" className="mt-3">
-            {retryRefusalNote(event.retry_refusal)}
+            {event.retry_refusal_message}
           </Banner>
         )}
         {event.last_error !== '' && (

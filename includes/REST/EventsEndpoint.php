@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
+use Automattic\WooCommerce\Utilities\OrderUtil;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\EventQueue;
@@ -36,8 +37,9 @@ use WP_REST_Response;
  *   GET /events/detail   query: ?source=rec_engine|smaily&id=123
  *                        → { ...row, payload }   (the full payload for drill-down)
  *
- * This is the visibility half of the 3.10 pilot-hardening work (Layer 1). It is
- * strictly READ-ONLY — recovery (reset-failed / retry) is 3.10.1. The data is a
+ * This is the visibility half of the 3.10 pilot-hardening work (Layer 1), plus
+ * the 3.10.1 recovery write route (`POST /events/retry`) over the same rows.
+ * The data is a
  * UNION over `smly_rec_event_queue` (source=rec_engine) and
  * `smly_plus_event_queue` (source=smaily); both already carry every column the
  * §13 view needs (status / attempts / last_error / created_at), so there is no
@@ -145,7 +147,7 @@ class EventsEndpoint {
 
 		return new WP_REST_Response(
 			array(
-				'events'     => array_map( array( $this, 'shape_row' ), is_array( $rows ) ? $rows : array() ),
+				'events'     => $this->shape_rows( is_array( $rows ) ? $rows : array() ),
 				'total'      => $total,
 				'page'       => $page,
 				'per_page'   => $per_page,
@@ -185,7 +187,7 @@ class EventsEndpoint {
 
 		return new WP_REST_Response(
 			array(
-				'event'         => $this->shape_row( $row ),
+				'event'         => $this->shape_rows( array( $row ) )[0],
 				'payload'       => isset( $row['payload'] ) ? (string) $row['payload'] : '',
 				// The send-time exchange (F3-44): exactly what was POSTed + the
 				// engine reply. Empty for rows enqueued before this shipped, or
@@ -207,14 +209,8 @@ class EventsEndpoint {
 	 * reset_failed() flips FAILED→PENDING; this then kicks the recurring flushes
 	 * so the rows re-send promptly instead of waiting for the next 60s tick.
 	 *
-	 * A failed transactional row is the exception (PRO-1733): reviving one
-	 * whose fail-open already re-fired the native WooCommerce email would send
-	 * the shopper a second confirmation, so a single-row request for it is
-	 * REFUSED and a bulk revive skips it. The one transactional row that may be
-	 * retried — a shipping confirmation on a merchant-defined shipped status,
-	 * where nothing was ever sent — additionally gets its PRO-1519 age ceiling
-	 * restarted and its own flusher kicked, without which the revived row would
-	 * terminal-fail again on the next tick.
+	 * Which failed transactional rows may be revived at all is not this
+	 * route's rule to state — see TransactionalRetryGuard (PRO-1733).
 	 */
 	public function retry( WP_REST_Request $request ): WP_REST_Response {
 		$source = $this->sanitize_source( (string) $request->get_param( 'source' ) );
@@ -245,13 +241,18 @@ class EventsEndpoint {
 						'error'   => 'transactional_retry_refused',
 						'reason'  => $refused[ $id ],
 						'message' => TransactionalRetryGuard::message( $refused[ $id ] ),
-						'reset'   => 0,
 					),
 					409
 				);
 			}
 
-			$n = $plus->reset_failed( $ids, array_keys( $refused ) );
+			// A bulk revive leaves EVERY transactional row alone and then
+			// resets the few the guard cleared, so "Retry all failed" can
+			// never revive what the single-row route turns down (PRO-1733).
+			$n = $ids === null
+				? $plus->reset_failed( null, TransactionalFlusher::EVENT_TYPES ) + $plus->reset_failed( $retryable_transactional )
+				: $plus->reset_failed( $ids );
+
 			if ( $n > 0 ) {
 				$plus->schedule_flush();
 				// A revived automation.abandoned_cart row is drained by the
@@ -259,12 +260,7 @@ class EventsEndpoint {
 				// retries re-send promptly (PRO-1195).
 				$this->kick_flush( CartFlusher::FLUSH_HOOK, CartFlusher::AS_GROUP );
 			}
-			if ( $n > 0 && $retryable_transactional !== array() ) {
-				// PRO-1733: the transactional rows are drained by their own
-				// flusher, and their one-hour ceiling runs from created_at.
-				$plus->restart_age( $retryable_transactional );
-				$this->kick_flush( TransactionalFlusher::FLUSH_HOOK, TransactionalFlusher::AS_GROUP );
-			}
+			TransactionalFlusher::revive( $plus, $retryable_transactional );
 			$reset += $n;
 		}
 
@@ -283,15 +279,11 @@ class EventsEndpoint {
 		global $wpdb;
 
 		$table  = $this->smaily_table();
-		$params = array(
-			EventQueue::STATUS_FAILED,
-			TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
-			TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
-		);
-		$where  = 'status = %s AND event_type IN ( %s, %s )';
+		$params = array_merge( array( EventQueue::STATUS_FAILED ), TransactionalFlusher::EVENT_TYPES );
+		$where  = 'status = %s AND event_type IN ( ' . implode( ', ', array_fill( 0, count( TransactionalFlusher::EVENT_TYPES ), '%s' ) ) . ' )';
 
 		if ( $ids !== null ) {
-			$ids = array_values( array_filter( array_map( 'intval', $ids ), static fn ( int $i ): bool => $i > 0 ) );
+			$ids = EventQueue::clean_ids( $ids );
 			if ( $ids === array() ) {
 				return array( array(), array() );
 			}
@@ -306,14 +298,16 @@ class EventsEndpoint {
 		);
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
+		$rows      = is_array( $rows ) ? $rows : array();
+		$existing  = $this->existing_orders( array_column( $rows, 'entity_id' ) );
 		$refused   = array();
 		$retryable = array();
 
-		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+		foreach ( $rows as $row ) {
 			$reason = TransactionalRetryGuard::refusal_reason(
 				(string) ( $row['event_type'] ?? '' ),
-				(string) ( $row['entity_id'] ?? '' ),
-				(string) ( $row['payload'] ?? '' )
+				(string) ( $row['payload'] ?? '' ),
+				$this->order_exists( (string) ( $row['entity_id'] ?? '' ), $existing )
 			);
 
 			if ( $reason === '' ) {
@@ -438,30 +432,136 @@ class EventsEndpoint {
 	}
 
 	/**
-	 * @param array<string, mixed> $row
+	 * Shape a set of rows for the wire, resolving order existence for the
+	 * failed transactional rows among them in ONE batched lookup (PRO-1733)
+	 * — the guard takes existence as an input and does no I/O itself.
+	 *
+	 * @param array<int, array<string, mixed>> $rows
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function shape_rows( array $rows ): array {
+		$entity_ids = array();
+		foreach ( $rows as $row ) {
+			if ( $this->is_failed_transactional( $row ) ) {
+				$entity_ids[] = (string) ( $row['entity_id'] ?? '' );
+			}
+		}
+
+		$existing = $this->existing_orders( $entity_ids );
+		$shaped   = array();
+		foreach ( $rows as $row ) {
+			$shaped[] = $this->shape_row( $row, $existing );
+		}
+
+		return $shaped;
+	}
+
+	/**
+	 * @param array<string, mixed>  $row
+	 * @param array<int, true>      $existing_orders
 	 *
 	 * @return array<string, mixed>
 	 */
-	private function shape_row( array $row ): array {
+	private function shape_row( array $row, array $existing_orders ): array {
+		// PRO-1733: '' when the row may be retried; otherwise why not, plus
+		// the sentence the Details panel shows. Only a FAILED transactional
+		// row can be refused, and only for those does the list query carry a
+		// payload (retry_payload); detail() reads the row's own payload.
+		$refusal = $this->is_failed_transactional( $row )
+			? TransactionalRetryGuard::refusal_reason(
+				(string) ( $row['event_type'] ?? '' ),
+				(string) ( $row['retry_payload'] ?? $row['payload'] ?? '' ),
+				$this->order_exists( (string) ( $row['entity_id'] ?? '' ), $existing_orders )
+			)
+			: '';
+
 		return array(
-			'id'            => isset( $row['id'] ) ? (int) $row['id'] : 0,
-			'source'        => isset( $row['source'] ) ? (string) $row['source'] : '',
-			'event_type'    => isset( $row['event_type'] ) ? (string) $row['event_type'] : '',
-			'entity_id'     => isset( $row['entity_id'] ) ? (string) $row['entity_id'] : '',
-			'status'        => isset( $row['status'] ) ? (string) $row['status'] : '',
-			'attempts'      => isset( $row['attempts'] ) ? (int) $row['attempts'] : 0,
-			'max_attempts'  => isset( $row['max_attempts'] ) && $row['max_attempts'] !== null ? (int) $row['max_attempts'] : null,
-			'last_error'    => isset( $row['last_error'] ) ? (string) $row['last_error'] : '',
-			'created_at'    => isset( $row['created_at'] ) ? (string) $row['created_at'] : '',
-			// PRO-1733: '' when the row may be retried; otherwise why not.
-			// The list query only carries a payload for failed transactional
-			// rows (retry_payload); detail() reads the row's own payload.
-			'retry_refusal' => TransactionalRetryGuard::refusal_reason(
-				isset( $row['event_type'] ) ? (string) $row['event_type'] : '',
-				isset( $row['entity_id'] ) ? (string) $row['entity_id'] : '',
-				(string) ( $row['retry_payload'] ?? $row['payload'] ?? '' )
-			),
+			'id'                    => isset( $row['id'] ) ? (int) $row['id'] : 0,
+			'source'                => isset( $row['source'] ) ? (string) $row['source'] : '',
+			'event_type'            => isset( $row['event_type'] ) ? (string) $row['event_type'] : '',
+			'entity_id'             => isset( $row['entity_id'] ) ? (string) $row['entity_id'] : '',
+			'status'                => isset( $row['status'] ) ? (string) $row['status'] : '',
+			'attempts'              => isset( $row['attempts'] ) ? (int) $row['attempts'] : 0,
+			'max_attempts'          => isset( $row['max_attempts'] ) && $row['max_attempts'] !== null ? (int) $row['max_attempts'] : null,
+			'last_error'            => isset( $row['last_error'] ) ? (string) $row['last_error'] : '',
+			'created_at'            => isset( $row['created_at'] ) ? (string) $row['created_at'] : '',
+			'retry_refusal'         => $refusal,
+			'retry_refusal_message' => $refusal === '' ? '' : TransactionalRetryGuard::message( $refusal ),
 		);
+	}
+
+	/**
+	 * @param array<string, mixed> $row
+	 */
+	private function is_failed_transactional( array $row ): bool {
+		return (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_FAILED
+			&& in_array( (string) ( $row['event_type'] ?? '' ), TransactionalFlusher::EVENT_TYPES, true );
+	}
+
+	/**
+	 * The order ids among $entity_ids that still exist, in ONE query against
+	 * whichever order storage is active (HPOS or the legacy posts table).
+	 * Two arg choices that look arbitrary and are not: `post__in` is the id
+	 * filter both stores honour (`include` is silently ignored and would
+	 * report every order as present), and HPOS is asked for status `all` —
+	 * its status filter otherwise hides an order whose merchant-defined
+	 * status was never registered as a post status (stored raw, `shipped`
+	 * rather than `wc-shipped`), which is exactly the PRO-1733 retry case.
+	 * WP_Query has no `all` literal, so the legacy store keeps its own
+	 * default status list (which stores every status `wc-`-prefixed anyway).
+	 *
+	 * @param array<int, mixed> $entity_ids
+	 *
+	 * @return array<int, true>
+	 */
+	private function existing_orders( array $entity_ids ): array {
+		$ids = EventQueue::clean_ids( array_map( 'intval', $entity_ids ) );
+
+		if ( $ids === array() || ! function_exists( 'wc_get_orders' ) ) {
+			return array();
+		}
+
+		$args = array(
+			'post__in' => array_values( array_unique( $ids ) ),
+			'limit'    => -1,
+			'return'   => 'ids',
+		);
+
+		if ( class_exists( OrderUtil::class ) && OrderUtil::custom_orders_table_usage_is_enabled() ) {
+			$args['status'] = 'all';
+		}
+
+		/** @var int[] $found `return => ids` yields ids — the stub types wc_get_orders() as WC_Order[]. */
+		$found = wc_get_orders( $args );
+
+		$existing = array();
+		foreach ( $found as $found_id ) {
+			$existing[ (int) $found_id ] = true;
+		}
+
+		return $existing;
+	}
+
+	/**
+	 * WooCommerce absent (the row is read on a store where WC is deactivated)
+	 * means "can't tell" — not "gone"; the guard's event-type rules still
+	 * decide, which keeps the safe side (refuse) in reach.
+	 *
+	 * @param array<int, true> $existing
+	 */
+	private function order_exists( string $entity_id, array $existing ): bool {
+		$order_id = (int) $entity_id;
+
+		if ( $order_id <= 0 ) {
+			return false;
+		}
+
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return true;
+		}
+
+		return isset( $existing[ $order_id ] );
 	}
 
 	/**
@@ -476,10 +576,9 @@ class EventsEndpoint {
 		}
 
 		return sprintf(
-			"CASE WHEN status = %s AND event_type IN ( %s, %s ) THEN payload ELSE '' END",
+			"CASE WHEN status = %s AND event_type IN ( %s ) THEN payload ELSE '' END",
 			$this->quote( EventQueue::STATUS_FAILED ),
-			$this->quote( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION ),
-			$this->quote( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION )
+			implode( ', ', array_map( array( $this, 'quote' ), TransactionalFlusher::EVENT_TYPES ) )
 		);
 	}
 

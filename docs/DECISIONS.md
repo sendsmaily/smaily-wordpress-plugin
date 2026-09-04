@@ -5723,8 +5723,11 @@ payload) is treated as case 1.
   to honour — no migration, no second timestamp to keep consistent. The cost
   is that a retried row's "Created (UTC)" shows the retry, which is arguably
   what a merchant means by it anyway.
-- `reset_failed()` grew an `$exclude_ids` argument so "Retry all failed"
-  cannot revive in bulk exactly the rows the single-row route refuses.
+- `reset_failed()` grew an `$exclude_event_types` argument so "Retry all
+  failed" skips the transactional event types wholesale and the route then
+  resets only the ids the guard cleared — it cannot revive in bulk exactly
+  the rows the single-row route refuses. (The simplification pass replaced an
+  earlier `$exclude_ids` id-list parameter with this predicate.)
 
 **Alternatives considered:** hiding Retry for ALL transactional rows (the
 original brief) — rejected once the premise check found case 2, where the

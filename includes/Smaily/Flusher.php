@@ -104,11 +104,7 @@ final class Flusher {
 		foreach ( $this->queue->pending(
 			$batch_size,
 			null,
-			array(
-				CartFlusher::EVENT_TYPE,
-				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
-				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
-			)
+			array_merge( array( CartFlusher::EVENT_TYPE ), TransactionalFlusher::EVENT_TYPES )
 		) as $event ) {
 			++$stats['processed'];
 

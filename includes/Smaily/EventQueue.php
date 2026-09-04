@@ -250,32 +250,32 @@ class EventQueue {
 	 * clears the retry-park + last_error, so a row that hit the RetryPolicy
 	 * ceiling (or a refusal classified permanent) starts fresh and is due
 	 * immediately. `$ids` null = every failed row; otherwise only the given ids.
-	 * `$exclude_ids` holds rows a bulk revive must skip — the transactional
-	 * rows whose retry is refused (PRO-1733); without it "Retry all failed"
-	 * would revive exactly the rows the single-row route turns down.
+	 * `$exclude_event_types` holds event types a bulk revive must leave alone
+	 * — the transactional ones, whose retry the guard decides row by row
+	 * (PRO-1733); without it "Retry all failed" would revive exactly the rows
+	 * the single-row route turns down, so the caller resets the few it may.
 	 * Manual-only by design (a deterministic failure would loop under auto-retry).
 	 * Returns the row count.
 	 *
 	 * @param int[]|null $ids
-	 * @param int[]      $exclude_ids
+	 * @param string[]   $exclude_event_types
 	 */
-	public function reset_failed( ?array $ids = null, array $exclude_ids = array() ): int {
+	public function reset_failed( ?array $ids = null, array $exclude_event_types = array() ): int {
 		global $wpdb;
 		$table = $this->table_name();
 
 		$set = 'SET status = %s, attempts = 0, last_error = NULL, next_retry_at = NULL';
 
-		$exclude_ids = self::clean_ids( $exclude_ids );
 		$exclude_sql = '';
-		if ( $exclude_ids !== array() ) {
-			$exclude_sql = ' AND id NOT IN ( ' . implode( ', ', array_fill( 0, count( $exclude_ids ), '%d' ) ) . ' )';
+		if ( $exclude_event_types !== array() ) {
+			$exclude_sql = ' AND event_type NOT IN ( ' . implode( ', ', array_fill( 0, count( $exclude_event_types ), '%s' ) ) . ' )';
 		}
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 		if ( $ids === null ) {
 			$sql = $wpdb->prepare(
 				"UPDATE {$table} {$set} WHERE status = %s{$exclude_sql}",
-				array_merge( array( self::STATUS_PENDING, self::STATUS_FAILED ), $exclude_ids )
+				array_merge( array( self::STATUS_PENDING, self::STATUS_FAILED ), $exclude_event_types )
 			);
 		} else {
 			$ids = self::clean_ids( $ids );
@@ -285,7 +285,7 @@ class EventQueue {
 			$placeholders = implode( ', ', array_fill( 0, count( $ids ), '%d' ) );
 			$sql          = $wpdb->prepare(
 				"UPDATE {$table} {$set} WHERE status = %s AND id IN ( {$placeholders} ){$exclude_sql}",
-				array_merge( array( self::STATUS_PENDING, self::STATUS_FAILED ), $ids, $exclude_ids )
+				array_merge( array( self::STATUS_PENDING, self::STATUS_FAILED ), $ids, $exclude_event_types )
 			);
 		}
 
@@ -329,7 +329,7 @@ class EventQueue {
 	 *
 	 * @return int[]
 	 */
-	private static function clean_ids( array $ids ): array {
+	public static function clean_ids( array $ids ): array {
 		return array_values( array_filter( array_map( 'intval', $ids ), static fn ( int $i ): bool => $i > 0 ) );
 	}
 
