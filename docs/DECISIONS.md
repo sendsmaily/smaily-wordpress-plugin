@@ -5604,10 +5604,13 @@ regenerate flow revives a purged tenant.
 1. **Detect centrally, at the Client.** `Client::request_url()` is the single
    chokepoint every engine call passes through; a 403 whose `error` code is
    `tenant_inactive` records the refusal there. No caller recognises the code.
-2. **Persist it as connection state.** Two `smly_rec_*` options —
+2. **Persist it as connection state.** One `smly_rec_*` option,
    `smly_rec_refused_at` (the FIRST refusal, so the merchant learns when sending
-   stopped) and `smly_rec_refused_error`. The family's existing prefix sweeps
-   (uninstall, the snapshot guard) cover them with no new line anywhere.
+   stopped). The family's existing prefix sweeps (uninstall, the snapshot guard)
+   cover it with no new line anywhere. The refusal shipped with a second option
+   holding the error code; the 2026-09-04 simplification pass dropped it —
+   `tenant_inactive` is the only code that ever reaches the writer, so the
+   timestamp alone carries the state.
 3. **One new gate, `RecEngineSettings::sending_allowed()`** (`is_connected() &&
    ! is_refused()`), consulted by every path that SENDS: the four D6 flushers,
    the three backfills, the `/relay` proxy, the automations config calls, the
@@ -5620,6 +5623,10 @@ regenerate flow revives a purged tenant.
    or `disconnect()`. No automatic re-probe.
 6. **The discriminator is the error CODE.** §2 states `tenant_status` is a fixed
    string and identical for a suspension and a purge; nothing reads it.
+
+**Release:** this lands in the next release AFTER 3.11.2 — 3.11.2 was published
+to wordpress.org on 2026-09-04 at 09:25 GMT, before this work landed on the
+official `main`.
 
 **Rationale:** the refusal is a verdict, not an outage, and the two need opposite
 handling — an outage is waited out, a verdict is acted on. Recording it locally is

@@ -26,7 +26,43 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-04 (**PRO-1893 — a deactivated Campaign
+_Last updated: 2026-09-04 (**PRO-1893 simplification pass — the same
+behaviour, less machinery.** A review of the five PRO-1893 commits produced a
+closed fix list, applied as one commit with no behaviour change. Settings: the
+refusal is now ONE option — `smly_rec_refused_error`, `refused_error()` and
+`mark_refused()`'s parameter are gone (only `tenant_inactive` ever reaches the
+writer), and `smly_rec_refused_at` moves to **autoload=true** (a bare int, no
+secret, read on every `/relay` request, admin boot payload and sending path).
+Gates: `AutomationsEndpoint` falls through to `is_connected()` after its own
+refused branch and answers with `Client::ERROR_TENANT_INACTIVE`;
+`BeaconEndpoint::is_enabled()` reads the autoloaded browse toggle first.
+Notices: the stale-`engine_down` suppression moves from the render loop into
+`active_notices()` (every reader gets the corrected set), the dismissal-cooldown
+check becomes one `is_dismissed()` helper for all five notices, and the consent
+advisory is handed the gate `render()` already computed. `Client` takes its
+`RecEngineSettings` as an optional constructor collaborator instead of
+constructing one inside the transport class; `AbstractBackfillJob` builds its
+result shape once. Tests: two ClientTenantInactiveTest cases dropped (a 2xx
+body carrying the code is unreachable — the branch is inside the >=400 path —
+and the 401 case adds nothing over the non-tenant-inactive 403; the reassuring
+`tenant_status` case STAYS, it is the acceptance evidence); the integration test
+drops the option-write case the unit tests own and an endpoints re-point the
+exchange already does, and asserts the rendered notice instead of the persisted
+option shape; six per-test settings doubles become
+`tests/Unit/Support/FakeRecEngineSettings`; the mock's state-file path is
+hoisted. Docs: the "connected but refused" note is stated once (WizardState),
+CLAUDE.md names the backfill carve-out (`AbstractBackfillJob::process_batch()`
+gates on `sending_allowed()` because an import inline-drains, so it SENDS), and
+the docs site's ET/EN "only Smaily can reactivate" sentence no longer
+contradicts the connection card (a new setup link IS the way back once the
+account is active). Gates: `npm run ci:strict` **exit=0** (PHPUnit unit **763**,
+vitest **303**, PHPCS 0 errors + no new warnings, PHPStan `[OK] No errors`) and
+`sg docker -c "composer run test:integration"` **OK 260 tests / 1512
+assertions, 1 pre-existing skip**, dev sandbox tenant "Smaily Connect test"
+restored. **No version bump** — lands with PRO-1893 in the next release after
+3.11.2.)_
+
+Prior: 2026-09-04 (**PRO-1893 — a deactivated Campaign
 Intelligence account stops scheduled sends and is told to the merchant
 plainly.** Contract §2's `403 tenant_inactive` was half-implemented: the batch
 that met it was terminal (the shared flusher treats any non-429 4xx that way),
@@ -73,7 +109,9 @@ the sandbox tenant cannot be deactivated, so the real-engine half of "a live
 way and fixed in the test commit: `EnvScrub` LIKE-swept the notice options'
 ROWS but left their values in the object cache, so a later `update_option()`
 wrote nothing and a test read an earlier test's notices (the PRO-1943 class,
-now listed there). **No version bump** — ships in 3.11.2. DECISIONS PRO-1893;
+now listed there). **No version bump** — lands in the next release after
+3.11.2 (3.11.2 was published to wordpress.org at 09:25 GMT the same day, before
+this landed). DECISIONS PRO-1893;
 merchant docs site updated in EN + ET; ET strings await Erkki's proofread.)_
 
 Prior: 2026-09-04 (**PRO-1709 — the CI vitest coverage gate is green
@@ -353,46 +391,33 @@ Docs-only; no code, so no gates run.)_
 
 **Next session opens with:**
 
-- **(a) The 3.11.2 bump — DONE** (this file's own commit): versions, test pins,
-  `readme.txt` changelog + Upgrade Notice; `ci:strict`, the integration suite and
-  a full local ZIP pre-flight (`verify-release-zip.sh … 3.11.2`) all green.
-  Nothing tagged, nothing released, remotes untouched.
-- **(b) The ONE blocker for 3.11.2 is an approving review on PR #135 from a
-  sendsmaily admin** — asked of Kait 2026-09-03 (PRO-2283 + a review request on
-  the PR). A direct push to the official `main` was REJECTED by its branch rules
-  (no merge commits — ours is the 2026-08-04 upstream merge `4a3d979` — and one
-  approving review required); the repo allows **squash-merge only**, and Erkki's
-  decision is squash + Kait's approval, with the full history staying in the
-  archived fork. `origin` already points at the official repo, so until the merge
-  lands workers push to the fork = PR #135's head (`git push
-  https://github.com/erkkimarkus/smaily-wordpress-plugin.git main:main`).
-- **(b2) After approval, in order** (Erkki's, one-way door): squash-merge PR #135
-  → reset local `main` to `origin/main` → `gh release create 3.11.2 --repo
-  sendsmaily/smaily-wordpress-plugin --target main --notes-file
-  ~/.local/state/smaily-connect/release-notes-3.11.2.md` (plain tag, no `v`, no
-  local ZIP argument) → CI attaches the verified ZIP → verify it →
-  `./release.sh -u sendsmaily` (**install SVN first**) → update the pilot stores
-  by hand → archive the fork read-only.
-- **Done this session, all landing in 3.11.2:** PRO-2292 (the setup-completed
-  flag reads through `SetupState::completed()`; refactor only), PRO-2298 (the
-  wizard's Campaign Intelligence copy — the ET rendered in a browser is still
-  human acceptance, see (d)) and PRO-2288 (the POT slug pin + catalog refresh).
-  None of them moves the gate; it is (b).
-- **PRO-2295 decided:** no rollback rehearsal — `docs/MIGRATION.md` keeps its
-  honest hedge that the 3.11.2 → 2.0.0 direction was not rehearsed.
-- Human acceptance on a real legacy store is still open for PRO-2286 (criterion
-  1 was proven live only against a synthetic account with the Smaily hop
-  stubbed). No AI-attribution trailers on commits from here on.
-- **(c) Human-acceptance batch** once MiuMjau is updated: PRO-1679, PRO-1680 +
-  PRO-1729, PRO-1681, PRO-1683, PRO-1684, plus an Estonian admin-strings
-  spot-check (the ZIP's `.mo` is host-built — PRO-2277).
-- **(d)** PRO-1770 needs Erkki's list of stores; PRO-1893 tenant-inactive
-  handling needs a design nod first. **GMS-11 / PRO-2298 is DONE** (in 3.11.2) —
-  the only thing left on it is Erkki's proofread of the Estonian paragraphs
-  before the release.
-- **Open question:** PRO-1878 awaits the engine team's answer (since 2026-08-10).
-  **Low backlog still open:** PRO-2279 (Actions majors), PRO-2282 (developer
-  README).
+- **3.11.2 is RELEASED.** PR #135 was squash-merged as `be00bb6` (Kait granted
+  the review exclusion), release `3.11.2` was created in
+  `sendsmaily/smaily-wordpress-plugin`, CI built and `verify-release-zip.sh`
+  verified the ZIP, and `release.sh -u sendsmaily` published it to
+  wordpress.org (09:25 GMT). **Run `release.sh` from a separate clone at the
+  tag** — it does a `git checkout <tag>` in its own working tree, so never in
+  this checkout while a worker is active. The fork
+  `erkkimarkus/smaily-wordpress-plugin` is archived read-only; local `main` IS
+  official `main` and a direct push works.
+- **Landed on official `main` AFTER the tag** (so they ship in the NEXT
+  release): PRO-1709 (the CI coverage gate, green) and PRO-1893 (the refused
+  Campaign Intelligence account) plus its simplification pass — this file's
+  own entry.
+- **Erkki's hand, in order:** update the pilot stores (MiuMjau, Prike) to
+  3.11.2 by hand; PRO-1770 = re-run the contact import on **Prike only**; add
+  the first-48-hours observation to PRO-2283; add the
+  `ENGINE_CONTRACT_READ_TOKEN` secret to the official repo (the
+  contract-staleness workflow is red until then — a **secret** problem, not a
+  stale contract); proofread the PRO-1893 Estonian strings and the PRO-2298
+  wizard paragraphs; PRO-2318 (Tanel) refreshes the wordpress.org listing copy
+  + screenshots.
+- **Engine team:** PRO-2319 — a deactivated throwaway tenant, so the PRO-1893
+  403 can be checked against the live engine (the sandbox tenant cannot be
+  deactivated, so this is the only route).
+- **CI on official `main`:** the PHP jobs are red as documented (PRO-1708 — no
+  WooCommerce in the runner); the Admin bundle job is green since PRO-1709.
+- **Low backlog unchanged:** PRO-2279, PRO-2282, PRO-2296, PRO-2300, PRO-2317.
 
 Prior: 2026-09-03 (**PRO-2280 — pre-merge tidy ahead of PR #135.**
 Three things go stale the moment the upstream merge lands, fixed now. (1)
