@@ -26,7 +26,57 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-04 (**PRO-1709 — the CI vitest coverage gate is green
+_Last updated: 2026-09-04 (**PRO-1893 — a deactivated Campaign
+Intelligence account stops scheduled sends and is told to the merchant
+plainly.** Contract §2's `403 tenant_inactive` was half-implemented: the batch
+that met it was terminal (the shared flusher treats any non-429 4xx that way),
+but nothing stopped the NEXT one — every scheduled flush kept burning requests
+against a tenant that will refuse forever — and the merchant was shown the
+generic `engine_down` notice ("unreachable … will resume automatically"), which
+is false in all three clauses. Now: **`Client::request_url()`** — the one
+chokepoint every engine call passes through — records a persistent local
+refusal when a 403 carries error code `tenant_inactive`, in two new
+`smly_rec_*` options (`smly_rec_refused_at` + `smly_rec_refused_error`, so the
+existing prefix sweeps in `uninstall.php` and the snapshot guard cover them
+with no new line). The gate is **`RecEngineSettings::sending_allowed()`**
+(= `is_connected() && ! is_refused()`), consulted by every path that SENDS:
+`AbstractD6Flusher::flush()` (all four D6 flushers), `AbstractBackfillJob::
+process_batch()` (via `AbstractD6Flusher::sending_allowed()` — the three
+imports stop enqueueing too, cursor and `running` status untouched so a tick
+resumes them), `BeaconEndpoint::is_enabled()` (the `/relay` proxy 404s the
+browser, forwards nothing), `AutomationsEndpoint::not_ready_response()` (with
+its own message, not "finish setup first"), `NotificationManager::
+probe_engine()` (no re-probe — the engine's answer will not change on its own),
+`IdentityHookHandler::on_login()`, both `GdprHandler` engine calls and both
+`ProfilingConsent` ones. **`is_connected()` deliberately stays the gate for
+everything that only enqueues, reads or displays** — queued rows are kept, not
+mass-failed, and resume on a new connection. Two deliberate exceptions:
+"Test connection" (`RecEngineEndpoint::ping()`) still reaches the engine — a
+merchant asking a direct question gets the engine's direct answer — and
+attribution capture (no engine request). Admin: a live-rendered
+`notice-error` (`NotificationManager::TENANT_INACTIVE_KEY`, same dismiss +
+24h-cooldown semantics as the health-check notices) naming the one action that
+helps; `engine_down` and the consent advisory are suppressed while it shows;
+the wizard/Settings connection card swaps the green "Connected as …" tick for
+an "Account deactivated" banner with no dead-end reconnect button (the
+new-setup-link path stays reachable through Disconnect). Clears on exactly two
+events: a successful setup exchange (`store()`) or `disconnect()`. **The
+decision reads the `error` CODE only** — §2 forbids branching on
+`tenant_status`, and the unit tests send the same misleading value on a body
+that must be recorded and one that must not. Gates: `npm run ci:strict`
+**exit=0** (PHPUnit unit **765**, vitest **303**, PHPCS 0 errors + no new
+warnings, PHPStan `[OK] No errors`) and `sg docker -c "composer run
+test:integration"` **OK 261 tests / 1514 assertions, 1 pre-existing skip**, dev
+sandbox tenant "Smaily Connect test" restored. **No live-walk is possible** —
+the sandbox tenant cannot be deactivated, so the real-engine half of "a live
+403 is recognised" is human acceptance with the engine team. Caught along the
+way and fixed in the test commit: `EnvScrub` LIKE-swept the notice options'
+ROWS but left their values in the object cache, so a later `update_option()`
+wrote nothing and a test read an earlier test's notices (the PRO-1943 class,
+now listed there). **No version bump** — ships in 3.11.2. DECISIONS PRO-1893;
+merchant docs site updated in EN + ET; ET strings await Erkki's proofread.)_
+
+Prior: 2026-09-04 (**PRO-1709 — the CI vitest coverage gate is green
 again, with the threshold untouched.** The "Admin bundle" job's coverage step
 failed at `admin/src/api/**/*.ts`: **67.64 % lines / 65 % functions** against the
 70/70 threshold, dragged under by two wrappers that had no test at all —

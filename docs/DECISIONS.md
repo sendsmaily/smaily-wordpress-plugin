@@ -5585,6 +5585,83 @@ leaving it.
 gate whose const this replaces).
 
 
+### PRO-1893 — A deactivated engine account is remembered locally, and every sending path asks before it sends (2026-09-04)
+
+**Context:** contract §2 answers `403 tenant_inactive` when a tenant is
+deactivated — operator-suspended, or purged and offboarded under GDPR — from
+every API-key-authenticated endpoint, and the sender rule is "stop sending,
+surface an admin notice; retries will not clear it". We had the first half by
+accident: `AbstractD6Flusher::is_terminal()` treats any non-429 4xx as terminal,
+so the batch that met the 403 failed without per-row retry. Nothing stopped the
+NEXT batch, the next import, the next probe, or the next browse relay, so a
+deactivated store kept burning requests indefinitely — and the merchant was told
+"Campaign Intelligence has been unreachable for over an hour — sync is queued and
+will resume automatically when it recovers", which is false three times over: the
+engine answers fine, nothing recovers on its own, and no key, setup token or
+regenerate flow revives a purged tenant.
+
+**Decision** (Erkki, 2026-09-04):
+1. **Detect centrally, at the Client.** `Client::request_url()` is the single
+   chokepoint every engine call passes through; a 403 whose `error` code is
+   `tenant_inactive` records the refusal there. No caller recognises the code.
+2. **Persist it as connection state.** Two `smly_rec_*` options —
+   `smly_rec_refused_at` (the FIRST refusal, so the merchant learns when sending
+   stopped) and `smly_rec_refused_error`. The family's existing prefix sweeps
+   (uninstall, the snapshot guard) cover them with no new line anywhere.
+3. **One new gate, `RecEngineSettings::sending_allowed()`** (`is_connected() &&
+   ! is_refused()`), consulted by every path that SENDS: the four D6 flushers,
+   the three backfills, the `/relay` proxy, the automations config calls, the
+   health probe, identity merge, and the GDPR + profiling customer calls.
+   `is_connected()` stays the gate for everything that only enqueues, reads or
+   displays.
+4. **Queued rows are kept.** Not mass-failed, not dropped — they resume when a
+   live connection is set up.
+5. **It clears on exactly two events:** a successful setup exchange (`store()`)
+   or `disconnect()`. No automatic re-probe.
+6. **The discriminator is the error CODE.** §2 states `tenant_status` is a fixed
+   string and identical for a suspension and a purge; nothing reads it.
+
+**Rationale:** the refusal is a verdict, not an outage, and the two need opposite
+handling — an outage is waited out, a verdict is acted on. Recording it locally is
+what lets the plugin act without asking again; putting the check at the Client
+means a future engine call cannot forget it, and putting the gate on the settings
+object means a future scheduler inherits it by using the same accessor everyone
+else does. Keeping `is_connected()` true while refused is what preserves the
+queue, the Event Log and the Settings card: nothing about the connection is
+wrong, only the account.
+
+**Alternatives considered:** (b) treat it as a disconnect (wipe the connection) —
+rejected: it destroys the queue and the merchant's context, and a suspension is
+often lifted; (c) branch on `tenant_status` to tell suspension from purge —
+rejected, the contract forbids it and the plugin's correct reaction is the same
+either way; (d) keep probing hourly so recovery is automatic — rejected: an
+operator lifting a suspension is not something the plugin can observe cheaply, and
+a re-probe an hour is exactly the traffic this issue exists to stop; (e) raise the
+notice from the hourly health check like `engine_down` — rejected: the refusal is
+known the instant a call meets it, and making the merchant wait up to an hour to
+be told why sync stopped is the wrong answer. The notice renders live off the
+recorded state instead.
+
+**Two deliberate exceptions to "no requests":** "Test connection"
+(`RecEngineEndpoint::ping()`) still reaches the engine — a merchant asking a
+direct question should get the engine's direct answer, and it is neither
+scheduled nor repeated; and attribution capture, which makes no engine request at
+all. The automations endpoint answers a refused account with its own message
+rather than the shared "not configured — finish setup first", which would send the
+merchant re-running a wizard that cannot help.
+
+**Verification limit:** the sandbox tenant cannot be deactivated, so no live-walk
+is possible. The mock reproduces the §2 body exactly (and counts the requests that
+arrive, which is the only honest evidence for "nothing was sent"); the real
+engine's 403 is human acceptance with the engine team.
+
+**Relationships:** PRO-1843 (the contract sync that named this a follow-up and
+described the half-compliance verbatim), PRO-1690 / PRO-1820 (the engine states
+that make the response reachable), PRO-1686 (the same "report the cause the other
+side gave, not a generic outage" move on the Smaily side), F3-18
+(`AbstractD6Flusher`'s terminal/retry policy, unchanged).
+
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

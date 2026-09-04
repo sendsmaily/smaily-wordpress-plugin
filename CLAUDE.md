@@ -362,6 +362,40 @@ contact-sync tick all call it, and the wizard's Finish route writes through the
 same constant. Check this before adding any new gate on either flag: read the
 accessor, never the raw key.
 
+### A deactivated engine account is `sending_allowed()`, not `is_connected()` (PRO-1893)
+Contract §2's `403 tenant_inactive` (a suspended OR GDPR-purged tenant, from
+EVERY API-key endpoint) is recorded ONCE, centrally, in
+`Client::request_url()` — the chokepoint every engine call passes through —
+into `smly_rec_refused_at` + `smly_rec_refused_error`. From then on the gate
+for anything that SENDS is **`RecEngineSettings::sending_allowed()`**
+(`is_connected() && ! is_refused()`): the four D6 flushers, the three
+backfills (via `AbstractD6Flusher::sending_allowed()`), the `/relay` proxy,
+the automations config calls, the health probe, identity merge, GDPR +
+profiling customer calls. **`is_connected()` deliberately stays the gate for
+anything that only enqueues, reads or displays** — hook handlers keep filling
+the queue, the Event Log and the Settings card keep reading it, and the rows
+resume on a new connection. If you add a new engine call, gate it on
+`sending_allowed()`; if you add a new enqueue path, leave it on
+`is_connected()`. **Never read the 403 body's `tenant_status`** — the contract
+says it is a fixed string (`"suspended"` for a purge too), never a state
+discriminator; the `error` code is the only signal. The state clears on a
+successful `store()` (new setup exchange) or `disconnect()`, never by a
+re-probe. Not live-walkable: the sandbox tenant cannot be deactivated, so the
+mock (`tests/Integration/Fixtures/mock-rec-engine/router.php`, `tenant_inactive`
+state flag + `request_count`) is the only automated proof, and the real
+engine's 403 is human acceptance.
+
+**Test trap it exposed:** `EnvScrub::reset()` LIKE-sweeps `smly_%` rows in raw
+SQL, which does NOT clear the per-key object cache of an `autoload=false`
+option. A later `update_option()` then compares against the stale cache,
+UPDATEs a row that no longer exists, affects 0 rows, writes nothing and leaves
+the cache — so one test reads another's value, and `delete_option()` does not
+rescue it (it returns early when the row is already gone). Any option written
+with `update_option( …, false )` that the suite asserts on must be added to
+`EnvScrub`'s `$keys_to_flush` list. Cost two green-in-isolation / red-in-suite
+cycles here (the NotificationManager notice options); the same class as the
+PRO-1943 version stamp already listed there.
+
 ### Contact-sync language goes through ContactLanguageResolver — never get_user_locale / get_current_language_code (F3-47)
 The Smaily contact `language` code is resolved ONLY by `Support\
 ContactLanguageResolver` (`for_user` / `for_order`). It is context-independent
