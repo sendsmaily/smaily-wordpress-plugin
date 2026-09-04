@@ -510,10 +510,8 @@ class EnvDetector {
 		$settings = new RecEngineSettings();
 		return array(
 			'connected'     => $settings->is_connected(),
-			// The engine refused this account outright (contract §2
-			// `403 tenant_inactive`) — still "connected" (the credentials are
-			// stored and valid), but nothing is being sent, so the connection
-			// card must say so rather than show a green tick (PRO-1893).
+			// The engine refused this account outright — see the React side's
+			// WizardState.recEngineRefused for the full note (PRO-1893).
 			'refused'       => $settings->is_refused(),
 			'tenantName'    => $settings->tenant_name(),
 			'tenantId'      => $settings->tenant_id(),

@@ -19,6 +19,7 @@ use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 
 final class CustomerFlusherTest extends TestCase {
 
@@ -249,18 +250,7 @@ final class CustomerFlusherTest extends TestCase {
 	 * @param array<int, true> $users_by_id Entity ids that resolve to a (stub) WP_User.
 	 */
 	private function fake_flusher( IngestQueue $queue, Client $client, bool $connected, array $users_by_id = array() ): CustomerFlusher {
-		$settings = new class( $connected ) extends RecEngineSettings {
-			private bool $connected;
-			public function __construct( bool $connected ) {
-				$this->connected = $connected;
-			}
-			public function is_connected(): bool {
-				return $this->connected;
-			}
-			public function is_refused(): bool {
-				return false;
-			}
-		};
+		$settings = new FakeRecEngineSettings( $connected );
 
 		$builder = new class() extends CustomerPayloadBuilder {
 			public function build( \WP_User $user, string $event_uuid ): array {

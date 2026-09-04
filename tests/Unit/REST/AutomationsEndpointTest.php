@@ -20,6 +20,7 @@ use Smaily\Connect\REST\AutomationsEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 use WP_REST_Request;
 
 final class AutomationsEndpointTest extends TestCase {
@@ -230,41 +231,7 @@ final class AutomationsEndpointTest extends TestCase {
 	 * @param array<string, string> $endpoints
 	 */
 	private function settings( bool $connected, string $api_key = 'sk_unit', string $base_url = 'https://engine.unit', array $endpoints = array() ): RecEngineSettings {
-		return new class( $connected, $api_key, $base_url, $endpoints ) extends RecEngineSettings {
-			private bool $test_connected;
-			private string $test_api_key;
-			private string $test_base_url;
-			/** @var array<string, string> */
-			private array $test_endpoints;
-
-			/** @param array<string, string> $endpoints */
-			public function __construct( bool $connected, string $api_key, string $base_url, array $endpoints ) {
-				$this->test_connected = $connected;
-				$this->test_api_key   = $api_key;
-				$this->test_base_url  = $base_url;
-				$this->test_endpoints = $endpoints;
-			}
-
-			public function is_connected(): bool {
-				return $this->test_connected;
-			}
-
-			public function api_key(): string {
-				return $this->test_api_key;
-			}
-
-			public function base_url(): string {
-				return $this->test_base_url;
-			}
-
-			public function endpoints(): array {
-				return $this->test_endpoints;
-			}
-
-			public function is_refused(): bool {
-				return false;
-			}
-		};
+		return new FakeRecEngineSettings( $connected, false, $api_key, $base_url, $endpoints );
 	}
 
 	/**

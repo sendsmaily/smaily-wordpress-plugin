@@ -69,7 +69,7 @@ final class RecEngineRefusalTest extends TestCase {
 		$this->options[ RecEngineSettings::OPTION_CONNECTED ] = true;
 		$settings = new RecEngineSettings();
 
-		$settings->mark_refused( 'tenant_inactive' );
+		$settings->mark_refused();
 
 		self::assertTrue( $settings->is_refused() );
 		self::assertFalse( $settings->sending_allowed(), 'Nothing may be sent to a deactivated account.' );
@@ -77,7 +77,6 @@ final class RecEngineRefusalTest extends TestCase {
 			$settings->is_connected(),
 			'The connection itself survives — the queue, the Event Log and the Settings card all still read it.'
 		);
-		self::assertSame( 'tenant_inactive', $settings->refused_error() );
 		self::assertGreaterThan( 0, $settings->refused_at() );
 	}
 
@@ -85,11 +84,11 @@ final class RecEngineRefusalTest extends TestCase {
 		// The merchant wants to know when sending STOPPED, not when the last
 		// scheduled job re-confirmed it.
 		$settings = new RecEngineSettings();
-		$settings->mark_refused( 'tenant_inactive' );
+		$settings->mark_refused();
 		$first = $settings->refused_at();
 
 		$this->options[ RecEngineSettings::OPTION_REFUSED_AT ] = $first - 3600;
-		$settings->mark_refused( 'tenant_inactive' );
+		$settings->mark_refused();
 
 		self::assertSame( $first - 3600, $settings->refused_at() );
 	}
@@ -97,12 +96,12 @@ final class RecEngineRefusalTest extends TestCase {
 	public function test_disconnecting_clears_the_refusal(): void {
 		$this->options[ RecEngineSettings::OPTION_CONNECTED ] = true;
 		$settings = new RecEngineSettings();
-		$settings->mark_refused( 'tenant_inactive' );
+		$settings->mark_refused();
 
 		$settings->disconnect();
 
 		self::assertFalse( $settings->is_refused() );
-		self::assertSame( '', $settings->refused_error() );
+		self::assertSame( 0, $settings->refused_at() );
 	}
 
 	public function test_a_disconnected_store_is_not_allowed_to_send_either(): void {

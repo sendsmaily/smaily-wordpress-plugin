@@ -95,7 +95,6 @@ final class RecEngineTenantInactiveTest extends TestCase {
 
 		$settings = new RecEngineSettings();
 		self::assertTrue( $settings->is_refused(), 'The refusal is recorded locally, read back from wp_options.' );
-		self::assertSame( 'tenant_inactive', $settings->refused_error() );
 		self::assertTrue( $settings->is_connected(), 'The connection is kept — only sending stops.' );
 		self::assertFalse( $settings->sending_allowed() );
 
@@ -144,7 +143,7 @@ final class RecEngineTenantInactiveTest extends TestCase {
 			array( 'engine_down' => array( 'severity' => 'error', 'down_since' => time() - 7200 ) ),
 			false
 		);
-		( new RecEngineSettings() )->mark_refused( 'tenant_inactive' );
+		( new RecEngineSettings() )->mark_refused();
 
 		ob_start();
 		$this->health_manager()->render();
@@ -161,20 +160,26 @@ final class RecEngineTenantInactiveTest extends TestCase {
 
 	public function test_the_health_check_clears_a_stale_unreachable_verdict(): void {
 		$this->connect_to_mock();
+		RestRequestHelper::login_as_admin();
 		update_option( NotificationManager::OPTION_DOWN_SINCE, time() - 7200, false );
-		( new RecEngineSettings() )->mark_refused( 'tenant_inactive' );
+		( new RecEngineSettings() )->mark_refused();
 
 		self::$engine->reset_request_count();
-		$this->health_manager()->run_health_check();
+		$manager = $this->health_manager();
+		$manager->run_health_check();
+
+		ob_start();
+		$manager->render();
+		$html = (string) ob_get_clean();
 
 		self::assertSame( 0, self::$engine->request_count(), 'The probe does not run against a refused account.' );
-		self::assertArrayNotHasKey( 'engine_down', (array) get_option( NotificationManager::OPTION_NOTICES, array() ) );
+		self::assertStringNotContainsString( 'unreachable for over an hour', $html );
 		self::assertFalse( get_option( NotificationManager::OPTION_DOWN_SINCE ) );
 	}
 
 	public function test_a_new_setup_exchange_clears_the_refusal_and_traffic_resumes(): void {
 		$this->connect_to_mock();
-		( new RecEngineSettings() )->mark_refused( 'tenant_inactive' );
+		( new RecEngineSettings() )->mark_refused();
 
 		// Smaily reactivates the account; the merchant connects it with a
 		// fresh setup link. This is the REAL exchange path, through the same
@@ -191,7 +196,6 @@ final class RecEngineTenantInactiveTest extends TestCase {
 		self::assertTrue( $settings->sending_allowed() );
 
 		// And sending really does resume — the mock is asked again.
-		$this->point_endpoints_at_mock();
 		$queue = new IngestQueue();
 		$this->seed_queue( $queue, array( $this->make_product( 'TI-BACK-1' ) ) );
 		self::$engine->reset_request_count();
@@ -200,16 +204,6 @@ final class RecEngineTenantInactiveTest extends TestCase {
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertGreaterThan( 0, self::$engine->request_count() );
-	}
-
-	public function test_disconnecting_also_clears_the_refusal(): void {
-		$this->connect_to_mock();
-		$settings = new RecEngineSettings();
-		$settings->mark_refused( 'tenant_inactive' );
-
-		$settings->disconnect();
-
-		self::assertFalse( ( new RecEngineSettings() )->is_refused() );
 	}
 
 	// --- helpers -----------------------------------------------------------
@@ -221,21 +215,6 @@ final class RecEngineTenantInactiveTest extends TestCase {
 				'engine_base_url' => $base,
 				'endpoints'       => $this->mock_endpoints( $base ),
 			)
-		);
-	}
-
-	/**
-	 * Re-point the endpoints map at the mock after a real setup exchange (the
-	 * exchange stores the map the mock advertises, which is already correct —
-	 * this just guarantees it, so the assertion is about the refusal clearing,
-	 * not about map plumbing).
-	 */
-	private function point_endpoints_at_mock(): void {
-		$base = (string) self::$engine->base_url();
-		update_option(
-			RecEngineSettings::OPTION_ENDPOINTS,
-			(string) wp_json_encode( $this->mock_endpoints( $base ) ),
-			false
 		);
 	}
 

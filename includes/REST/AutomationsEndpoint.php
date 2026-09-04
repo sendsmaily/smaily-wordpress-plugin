@@ -203,14 +203,14 @@ class AutomationsEndpoint {
 		if ( $this->settings->is_refused() ) {
 			return new WP_REST_Response(
 				array(
-					'error'   => 'tenant_inactive',
+					'error'   => Client::ERROR_TENANT_INACTIVE,
 					'message' => __( 'Your Smaily Campaign Intelligence account has been deactivated, so its automations cannot be read or saved. Contact Smaily to reactivate it.', 'smaily-connect' ),
 				),
 				503
 			);
 		}
 
-		if ( ! $this->settings->sending_allowed() ) {
+		if ( ! $this->settings->is_connected() ) {
 			return new WP_REST_Response(
 				array(
 					'error'   => 'not_configured',

@@ -25,6 +25,7 @@ use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\REST\BeaconEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 use WP_REST_Request;
 
 final class BeaconEndpointIdentityTest extends TestCase {
@@ -211,23 +212,7 @@ final class BeaconEndpointIdentityTest extends TestCase {
 	// --- doubles ----------------------------------------------------------
 
 	private function endpoint( string $resolved_email, Client $client, ?ProfilingConsent $profiling ): BeaconEndpoint {
-		$settings = new class() extends RecEngineSettings {
-			public function is_connected(): bool {
-				return true;
-			}
-			public function is_refused(): bool {
-				return false;
-			}
-			public function api_key(): string {
-				return 'sk_unit';
-			}
-			public function base_url(): string {
-				return 'https://engine.unit';
-			}
-			public function config(): array {
-				return array();
-			}
-		};
+		$settings = new FakeRecEngineSettings();
 
 		return new class( $settings, $client, $profiling, $resolved_email ) extends BeaconEndpoint {
 			private string $test_email;

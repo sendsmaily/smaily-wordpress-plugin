@@ -199,13 +199,15 @@ class BeaconEndpoint {
 	}
 
 	/**
-	 * The gate: a connection the plugin may actually send on (connected AND
-	 * not refused — contract §2 `403 tenant_inactive`, PRO-1893) plus
-	 * browse-tracking enabled. A refused account 404s the browser here rather
-	 * than forwarding a batch the engine will reject forever.
+	 * The gate: browse-tracking enabled plus a connection the plugin may
+	 * actually send on (connected AND not refused — contract §2
+	 * `403 tenant_inactive`, PRO-1893). A refused account 404s the browser here
+	 * rather than forwarding a batch the engine will reject forever. The
+	 * autoloaded merchant toggle is read first: it is the cheaper of the two and
+	 * the one that is off on most stores.
 	 */
 	public function is_enabled(): bool {
-		return $this->settings->sending_allowed() && (bool) get_option( self::OPTION_TRACK_BROWSING, false );
+		return (bool) get_option( self::OPTION_TRACK_BROWSING, false ) && $this->settings->sending_allowed();
 	}
 
 	public function handle( WP_REST_Request $request ): WP_REST_Response {

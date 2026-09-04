@@ -120,6 +120,8 @@ class Client {
 
 	private int $max_attempts;
 
+	private RecEngineSettings $settings;
+
 	/**
 	 * @param string                $api_key      Bearer key, e.g. "sk_8f3k2a...".
 	 * @param string                $base_url     Engine origin, e.g. "https://intelligence.smaily.com".
@@ -130,12 +132,15 @@ class Client {
 	 *                                            small value (1-2): a long sleep-backoff would block
 	 *                                            the Action Scheduler worker, and the durable queue
 	 *                                            already retries at the row level via next_retry_at.
+	 * @param RecEngineSettings     $settings     Where a refusal is persisted (PRO-1893). Optional so
+	 *                                            no call site has to change.
 	 */
-	public function __construct( string $api_key, string $base_url, array $endpoints = array(), int $max_attempts = self::DEFAULT_MAX_ATTEMPTS ) {
+	public function __construct( string $api_key, string $base_url, array $endpoints = array(), int $max_attempts = self::DEFAULT_MAX_ATTEMPTS, ?RecEngineSettings $settings = null ) {
 		$this->api_key      = $api_key;
 		$this->base_url     = rtrim( $base_url, '/' );
 		$this->endpoints    = $endpoints;
 		$this->max_attempts = max( 1, $max_attempts );
+		$this->settings     = $settings ?? new RecEngineSettings();
 	}
 
 	/**
@@ -619,10 +624,14 @@ class Client {
 	 * customer calls — no caller has to recognise the code itself.
 	 *
 	 * Protected so tests can observe it through the subclass-as-double idiom
-	 * the rest of this class already uses.
+	 * the rest of this class already uses — which is also why the code that
+	 * triggered the refusal is still handed over, though only one code ever
+	 * reaches here.
+	 *
+	 * @param string $error_code The engine error code (contract §2: `tenant_inactive`).
 	 */
 	protected function record_tenant_refusal( string $error_code ): void {
-		( new RecEngineSettings() )->mark_refused( $error_code );
+		$this->settings->mark_refused();
 	}
 
 	/**

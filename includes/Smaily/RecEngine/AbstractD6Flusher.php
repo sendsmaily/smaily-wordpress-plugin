@@ -99,12 +99,7 @@ abstract class AbstractD6Flusher {
 	 */
 	abstract protected function row_to_object( array $row ): ?array;
 
-	/**
-	 * May this flusher talk to the engine at all? Connected AND not refused
-	 * (contract §2 `403 tenant_inactive`, PRO-1893). Public because the
-	 * backfill jobs share this flusher and need the same answer before they
-	 * start enqueueing work that could never be sent.
-	 */
+	/** May this flusher talk to the engine at all? (PRO-1893; the backfills ask too.) */
 	public function sending_allowed(): bool {
 		return $this->settings->sending_allowed();
 	}

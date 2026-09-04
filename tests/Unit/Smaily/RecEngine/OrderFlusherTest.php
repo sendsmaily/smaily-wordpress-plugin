@@ -19,6 +19,7 @@ use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
+use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 
 final class OrderFlusherTest extends TestCase {
 
@@ -269,18 +270,7 @@ final class OrderFlusherTest extends TestCase {
 	 * @param array<int, true> $orders_by_id Entity ids that resolve to an order.
 	 */
 	private function fake_flusher( IngestQueue $queue, Client $client, bool $connected, array $orders_by_id = array(), string $map_status = 'completed', bool $with_items = true ): OrderFlusher {
-		$settings = new class( $connected ) extends RecEngineSettings {
-			private bool $connected;
-			public function __construct( bool $connected ) {
-				$this->connected = $connected;
-			}
-			public function is_connected(): bool {
-				return $this->connected;
-			}
-			public function is_refused(): bool {
-				return false;
-			}
-		};
+		$settings = new FakeRecEngineSettings( $connected );
 
 		$builder = new class( $map_status, $with_items ) extends OrderPayloadBuilder {
 			private string $map_status;

@@ -103,7 +103,7 @@ final class RecEngineMockServer {
 	}
 
 	public static function reset(): void {
-		$state_file = sys_get_temp_dir() . '/smaily-rec-mock-state.json';
+		$state_file = self::state_file();
 		if ( file_exists( $state_file ) ) {
 			unlink( $state_file );
 		}
@@ -122,7 +122,7 @@ final class RecEngineMockServer {
 	 * @return array<string, mixed>
 	 */
 	public function state(): array {
-		$state_file = sys_get_temp_dir() . '/smaily-rec-mock-state.json';
+		$state_file = self::state_file();
 		if ( ! file_exists( $state_file ) ) {
 			return array();
 		}
@@ -161,8 +161,12 @@ final class RecEngineMockServer {
 	 * @param array<string, mixed> $patch
 	 */
 	private function write_state( array $patch ): void {
-		$state_file = sys_get_temp_dir() . '/smaily-rec-mock-state.json';
-		file_put_contents( $state_file, (string) json_encode( array_merge( $this->state(), $patch ) ) );
+		file_put_contents( self::state_file(), (string) json_encode( array_merge( $this->state(), $patch ) ) );
+	}
+
+	/** The shared state file the router and this class both read and write. */
+	private static function state_file(): string {
+		return sys_get_temp_dir() . '/smaily-rec-mock-state.json';
 	}
 
 	/**

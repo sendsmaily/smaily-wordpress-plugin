@@ -342,16 +342,7 @@ final class NotificationManager {
 		}
 
 		foreach ( $notices as $key => $notice ) {
-			// A deactivated account is not an outage. The probe stops running
-			// while refused, so this stamp only survives from before the
-			// refusal — telling the merchant to wait for a recovery that will
-			// never come would bury the one thing they can act on.
-			if ( $refused && $key === 'engine_down' ) {
-				continue;
-			}
-
-			$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
-			if ( $dismissed_at > 0 && ( $now - $dismissed_at ) < self::DISMISS_COOLDOWN ) {
+			if ( $this->is_dismissed( $key, $dismissed, $now ) ) {
 				continue;
 			}
 
@@ -366,7 +357,7 @@ final class NotificationManager {
 		// Config advisory (live, not cron-driven): browse tracking on + connected but
 		// no WP Consent API ⇒ the beacon is fail-closed and sends nothing. Not an
 		// error — a setup advisory (notice-warning), same 24h dismiss cooldown.
-		$this->render_consent_advisory( $dismissed, $now );
+		$this->render_consent_advisory( $dismissed, $now, ! $refused );
 
 		// Same kind of advisory: the saved contact-field selection is in a shape
 		// this version can't read, so which fields the merchant chose is unknown.
@@ -383,9 +374,8 @@ final class NotificationManager {
 	 * @param array<string, int> $dismissed
 	 */
 	private function render_tenant_inactive_notice( array $dismissed, int $now ): void {
-		$key          = self::TENANT_INACTIVE_KEY;
-		$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
-		if ( $dismissed_at > 0 && ( $now - $dismissed_at ) < self::DISMISS_COOLDOWN ) {
+		$key = self::TENANT_INACTIVE_KEY;
+		if ( $this->is_dismissed( $key, $dismissed, $now ) ) {
 			return;
 		}
 
@@ -401,23 +391,23 @@ final class NotificationManager {
 
 	/**
 	 * @param array<string, int> $dismissed
+	 * @param bool               $sending_allowed The gate render() already computed —
+	 *        a refused account collects nothing for a reason installing a consent
+	 *        plugin cannot fix, and the deactivation notice is the one to act on
+	 *        (PRO-1893).
 	 */
-	private function render_consent_advisory( array $dismissed, int $now ): void {
-		// sending_allowed(), not is_connected(): a refused account already
-		// collects nothing for a reason installing a consent plugin cannot fix,
-		// and the deactivation notice above is the one to act on (PRO-1893).
+	private function render_consent_advisory( array $dismissed, int $now, bool $sending_allowed ): void {
 		$active = $this->needs_consent_api_notice(
 			(bool) get_option( BeaconEndpoint::OPTION_TRACK_BROWSING, false ),
-			$this->settings->sending_allowed(),
+			$sending_allowed,
 			function_exists( 'wp_has_consent' )
 		);
 		if ( ! $active ) {
 			return;
 		}
 
-		$key          = self::CONSENT_ADVISORY_KEY;
-		$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
-		if ( $dismissed_at > 0 && ( $now - $dismissed_at ) < self::DISMISS_COOLDOWN ) {
+		$key = self::CONSENT_ADVISORY_KEY;
+		if ( $this->is_dismissed( $key, $dismissed, $now ) ) {
 			return;
 		}
 
@@ -446,9 +436,8 @@ final class NotificationManager {
 			return;
 		}
 
-		$key          = self::SYNC_FIELDS_ADVISORY_KEY;
-		$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
-		if ( $dismissed_at > 0 && ( $now - $dismissed_at ) < self::DISMISS_COOLDOWN ) {
+		$key = self::SYNC_FIELDS_ADVISORY_KEY;
+		if ( $this->is_dismissed( $key, $dismissed, $now ) ) {
 			return;
 		}
 
@@ -480,11 +469,36 @@ final class NotificationManager {
 	}
 
 	/**
+	 * Is this notice inside its 24h dismiss cooldown?
+	 *
+	 * @param array<string, int> $dismissed
+	 */
+	private function is_dismissed( string $key, array $dismissed, int $now ): bool {
+		$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
+		return $dismissed_at > 0 && ( $now - $dismissed_at ) < self::DISMISS_COOLDOWN;
+	}
+
+	/**
+	 * The health check's persisted notice set, corrected for what is true now.
+	 *
+	 * A deactivated account is not an outage: the probe stops running while
+	 * refused, so an `engine_down` verdict can only survive from before the
+	 * refusal, and telling the merchant to wait for a recovery that will never
+	 * come would bury the one thing they can act on. Dropped here rather than
+	 * at the point of rendering so every reader of the set sees the same
+	 * corrected answer (PRO-1893).
+	 *
 	 * @return array<string, array<string, mixed>>
 	 */
 	public function active_notices(): array {
 		$notices = get_option( self::OPTION_NOTICES, array() );
-		return is_array( $notices ) ? $notices : array();
+		$notices = is_array( $notices ) ? $notices : array();
+
+		if ( $this->settings->is_refused() ) {
+			unset( $notices['engine_down'] );
+		}
+
+		return $notices;
 	}
 
 	/**

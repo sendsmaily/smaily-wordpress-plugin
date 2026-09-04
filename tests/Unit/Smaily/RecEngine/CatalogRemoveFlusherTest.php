@@ -13,11 +13,11 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
-use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 
 final class CatalogRemoveFlusherTest extends TestCase {
 
@@ -222,18 +222,7 @@ final class CatalogRemoveFlusherTest extends TestCase {
 	}
 
 	private function flusher( IngestQueue $queue, Client $client, bool $connected ): CatalogRemoveFlusher {
-		$settings = new class( $connected ) extends RecEngineSettings {
-			private bool $connected;
-			public function __construct( bool $connected ) {
-				$this->connected = $connected;
-			}
-			public function is_connected(): bool {
-				return $this->connected;
-			}
-			public function is_refused(): bool {
-				return false;
-			}
-		};
+		$settings = new FakeRecEngineSettings( $connected );
 
 		return new CatalogRemoveFlusher(
 			$queue,

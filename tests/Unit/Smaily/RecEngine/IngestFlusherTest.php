@@ -19,6 +19,7 @@ use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 
 final class IngestFlusherTest extends TestCase {
 
@@ -331,20 +332,7 @@ final class IngestFlusherTest extends TestCase {
 	 * @param array<int, true> $products_by_id Entity ids that resolve to a (stub) product.
 	 */
 	private function fake_flusher( IngestQueue $queue, Client $client, bool $connected, array $products_by_id = array(), bool $refused = false ): IngestFlusher {
-		$settings = new class( $connected, $refused ) extends RecEngineSettings {
-			private bool $connected;
-			private bool $refused;
-			public function __construct( bool $connected, bool $refused ) {
-				$this->connected = $connected;
-				$this->refused   = $refused;
-			}
-			public function is_connected(): bool {
-				return $this->connected;
-			}
-			public function is_refused(): bool {
-				return $this->refused;
-			}
-		};
+		$settings = new FakeRecEngineSettings( $connected, $refused );
 
 		$builder = new class() extends CatalogPayloadBuilder {
 			public function build( \WC_Product $product, string $event_uuid ): array {

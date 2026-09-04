@@ -366,8 +366,8 @@ accessor, never the raw key.
 Contract §2's `403 tenant_inactive` (a suspended OR GDPR-purged tenant, from
 EVERY API-key endpoint) is recorded ONCE, centrally, in
 `Client::request_url()` — the chokepoint every engine call passes through —
-into `smly_rec_refused_at` + `smly_rec_refused_error`. From then on the gate
-for anything that SENDS is **`RecEngineSettings::sending_allowed()`**
+into `smly_rec_refused_at`. From then on the gate for anything that SENDS is
+**`RecEngineSettings::sending_allowed()`**
 (`is_connected() && ! is_refused()`): the four D6 flushers, the three
 backfills (via `AbstractD6Flusher::sending_allowed()`), the `/relay` proxy,
 the automations config calls, the health probe, identity merge, GDPR +
@@ -376,9 +376,12 @@ anything that only enqueues, reads or displays** — hook handlers keep filling
 the queue, the Event Log and the Settings card keep reading it, and the rows
 resume on a new connection. If you add a new engine call, gate it on
 `sending_allowed()`; if you add a new enqueue path, leave it on
-`is_connected()`. **Never read the 403 body's `tenant_status`** — the contract
-says it is a fixed string (`"suspended"` for a purge too), never a state
-discriminator; the `error` code is the only signal. The state clears on a
+`is_connected()` — with one carve-out, `AbstractBackfillJob::process_batch()`,
+which gates on `sending_allowed()` because an import does not merely enqueue:
+it inline-drains what it enqueued, so it SENDS.
+**Never read the 403 body's `tenant_status`** — the contract says it is a fixed
+string (`"suspended"` for a purge too), never a state discriminator; the
+`error` code is the only signal. The state clears on a
 successful `store()` (new setup exchange) or `disconnect()`, never by a
 re-probe. Not live-walkable: the sandbox tenant cannot be deactivated, so the
 mock (`tests/Integration/Fixtures/mock-rec-engine/router.php`, `tenant_inactive`

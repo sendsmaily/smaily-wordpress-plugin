@@ -122,12 +122,7 @@ export interface BootPayload {
      */
     recEngine?: {
       connected: boolean;
-      /**
-       * The engine refused this account outright (contract §2
-       * `403 tenant_inactive`). Still `connected` — the stored credentials
-       * are valid — but nothing is being sent, so the connection card says
-       * "deactivated" instead of showing a green tick.
-       */
+      /** The engine refused this account outright — see WizardState.recEngineRefused. */
       refused?: boolean;
       tenantName: string;
       tenantId: string;

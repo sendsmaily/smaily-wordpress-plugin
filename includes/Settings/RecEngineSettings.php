@@ -34,15 +34,17 @@ use Smaily\Connect\Smaily\RecEngine\ExchangeResult;
  *   smly_rec_endpoints         json       autoload=false  endpoint url map
  *   smly_rec_config            json       autoload=false  cookie names + TTLs + rate limits
  *   smly_rec_issued_at         string     autoload=false  ISO 8601
- *   smly_rec_refused_at        int        autoload=false  unix ts of the first refusal
- *   smly_rec_refused_error     string     autoload=false  the engine error code ("tenant_inactive")
+ *   smly_rec_refused_at        int        autoload=true   unix ts of the first refusal
  *
- * autoload=false on the api_key (and everything except the gate)
+ * autoload=false on the api_key (and everything except the gates)
  * keeps the encrypted secret out of the alloptions cache that lands
  * in every page request — small perf win, small surface-reduction
  * win. The merchant-facing UI only ever reads `connected` + tenant
  * display info on first paint; the api_key is re-fetched only when
- * a Client request actually needs it.
+ * a Client request actually needs it. `refused_at` is autoloaded for
+ * the opposite reason: it is a bare int, no secret, and it is read on
+ * every `/relay` request, every admin boot payload and every sending
+ * path, so it belongs in the cache the gate flag already lives in.
  *
  * Non-final: keeps the class testable through subclass-as-double in
  * unit tests, mirroring Settings\Credentials and Smaily\Client.
@@ -63,11 +65,10 @@ class RecEngineSettings {
 	 * The engine refused this connection outright (contract §2 `403
 	 * tenant_inactive`): the key is valid, the account is not. Persisted
 	 * locally so the plugin stops sending instead of re-discovering the
-	 * refusal on every scheduled job (PRO-1893). Two scalars rather than a
+	 * refusal on every scheduled job (PRO-1893). A bare scalar rather than a
 	 * blob so a support read is a plain `wp option get`.
 	 */
-	public const OPTION_REFUSED_AT    = 'smly_rec_refused_at';
-	public const OPTION_REFUSED_ERROR = 'smly_rec_refused_error';
+	public const OPTION_REFUSED_AT = 'smly_rec_refused_at';
 
 	public function is_connected(): bool {
 		return (bool) get_option( self::OPTION_CONNECTED, false );
@@ -88,11 +89,6 @@ class RecEngineSettings {
 		return (int) get_option( self::OPTION_REFUSED_AT, 0 );
 	}
 
-	/** The engine error code that caused the refusal (contract §2: `tenant_inactive`). */
-	public function refused_error(): string {
-		return (string) get_option( self::OPTION_REFUSED_ERROR, '' );
-	}
-
 	/**
 	 * The gate every SENDING path consults: connected AND not refused. The
 	 * bare is_connected() stays the gate for everything that only enqueues,
@@ -108,17 +104,15 @@ class RecEngineSettings {
 	 * know when sending stopped, not when we last confirmed it — so repeat
 	 * calls from concurrent jobs are a no-op.
 	 */
-	public function mark_refused( string $error_code ): void {
+	public function mark_refused(): void {
 		if ( $this->is_refused() ) {
 			return;
 		}
-		update_option( self::OPTION_REFUSED_AT, time(), false );
-		update_option( self::OPTION_REFUSED_ERROR, $error_code, false );
+		update_option( self::OPTION_REFUSED_AT, time(), true );
 	}
 
 	public function clear_refused(): void {
 		delete_option( self::OPTION_REFUSED_AT );
-		delete_option( self::OPTION_REFUSED_ERROR );
 	}
 
 	public function api_key(): string {
@@ -199,9 +193,8 @@ class RecEngineSettings {
 		// connection (PRO-1893): a new setup token means a live tenant,
 		// possibly a different one, so the stale refusal must not survive it.
 		$this->clear_refused();
-		// connected is the only autoloaded flag — boot payload reads
-		// it on every admin page, so the alloptions cache makes the
-		// gate cheap.
+		// connected is autoloaded — boot payload reads it on every
+		// admin page, so the alloptions cache makes the gate cheap.
 		update_option( self::OPTION_CONNECTED, true, true );
 	}
 
@@ -226,7 +219,6 @@ class RecEngineSettings {
 			self::OPTION_CONFIG,
 			self::OPTION_ISSUED_AT,
 			self::OPTION_REFUSED_AT,
-			self::OPTION_REFUSED_ERROR,
 		);
 		foreach ( $keys as $key ) {
 			delete_option( $key );

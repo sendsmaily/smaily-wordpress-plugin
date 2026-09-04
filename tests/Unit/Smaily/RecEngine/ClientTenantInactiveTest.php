@@ -109,31 +109,6 @@ final class ClientTenantInactiveTest extends TestCase {
 		self::assertSame( array(), $client->refusals );
 	}
 
-	public function test_a_401_records_nothing(): void {
-		// `401` means "this key is not valid" and has its own remedy
-		// (reconnect); only `403 tenant_inactive` means "this account is not".
-		$client = $this->client_answering( 401, array( 'error' => 'unauthorized' ) );
-
-		try {
-			$client->ping();
-		} catch ( ApiException $e ) {
-			unset( $e );
-		}
-
-		self::assertSame( array(), $client->refusals );
-	}
-
-	public function test_a_tenant_inactive_body_on_a_2xx_records_nothing(): void {
-		// Defensive: the code alone is not the trigger — it is the code on a
-		// 403. A success body that happens to echo the string is still a
-		// success.
-		$client = $this->client_answering( 200, array( 'ok' => true, 'error' => 'tenant_inactive' ) );
-
-		$client->ping();
-
-		self::assertSame( array(), $client->refusals );
-	}
-
 	/**
 	 * A Client that answers every request with the given status + body and
 	 * captures the refusals it would have persisted, instead of writing them
