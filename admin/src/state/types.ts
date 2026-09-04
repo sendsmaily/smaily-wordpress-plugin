@@ -295,6 +295,12 @@ export interface WizardState {
   defaultFallbackAccountKey: string;
   recEngineSetupToken: string;
   recEngineConnection: AsyncStatus;
+  /**
+   * The engine refused this account outright (contract §2
+   * `403 tenant_inactive`): connected, credentials valid, account
+   * deactivated. Sending has stopped; only Smaily can reactivate it.
+   */
+  recEngineRefused: boolean;
 
   /** Step 3 — WooCommerce automations. Workflow id per (trigger, account_key). */
   automationMappings: AutomationMapping[];

@@ -276,11 +276,29 @@ function ConnectedView({
     <>
       <Card title={__('Engine connection', 'smaily-connect')}>
         <div className="flex items-center justify-between gap-4">
-          <Banner tone="success" className="flex-1">
-            <span className="font-medium">✓ {__('Connected', 'smaily-connect')}</span>{' '}
-            {__('as', 'smaily-connect')}{' '}
-            <span className="font-mono">{tenantName}</span>
-          </Banner>
+          {state.recEngineRefused ? (
+            // The engine refused this account outright (contract §2
+            // `403 tenant_inactive`). The credentials are still stored and
+            // valid, so this is not a "reconnect" situation — only Smaily can
+            // reactivate the account. Say that, and name the one path that
+            // does work afterwards, rather than offering a button that cannot
+            // help.
+            <Banner tone="danger" className="flex-1">
+              <span className="font-medium">
+                {__('Account deactivated', 'smaily-connect')}
+              </span>{' '}
+              {__(
+                'Your Smaily Campaign Intelligence account has been deactivated, so syncing has stopped. Contact Smaily to reactivate it. Once it is active again, disconnect here and connect it with a new setup link.',
+                'smaily-connect',
+              )}
+            </Banner>
+          ) : (
+            <Banner tone="success" className="flex-1">
+              <span className="font-medium">✓ {__('Connected', 'smaily-connect')}</span>{' '}
+              {__('as', 'smaily-connect')}{' '}
+              <span className="font-mono">{tenantName}</span>
+            </Banner>
+          )}
           <div className="flex shrink-0 gap-2">
             <Button
               variant="secondary"

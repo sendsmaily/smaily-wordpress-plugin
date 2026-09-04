@@ -50,6 +50,7 @@ export const wizardInitialState: WizardState = {
   defaultFallbackAccountKey: 'default',
   recEngineSetupToken: '',
   recEngineConnection: idleAsync,
+  recEngineRefused: false,
 
   subscriberSyncEnabled: true,
   syncFields: [...DEFAULT_SYNC_FIELDS],

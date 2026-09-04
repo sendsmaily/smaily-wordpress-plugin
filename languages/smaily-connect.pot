@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-03T17:32:05+00:00\n"
+"POT-Creation-Date: 2026-09-04T09:07:54+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: smaily-connect\n"
@@ -84,59 +84,63 @@ msgstr ""
 msgid "Subscribe to newsletter"
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:369
+#: includes/Notifications/NotificationManager.php:394
+msgid "Smaily Connect: your Smaily Campaign Intelligence account has been deactivated, so no product, customer or order data is being sent to it. Contact Smaily to reactivate it. Nothing is lost in the meantime — queued data waits, and syncing resumes once you connect the reactivated account."
+msgstr ""
+
+#: includes/Notifications/NotificationManager.php:426
 msgid "Smaily Connect: browse tracking is on, but no cookie-consent signal was found, so no browse data is being collected. Install the free WP Consent API plugin so your consent banner (CookieYes, Complianz, Real Cookie Banner, …) can tell Smaily when a visitor consents."
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:400
+#: includes/Notifications/NotificationManager.php:457
 msgid "Smaily Connect: your saved list of contact fields to sync could not be read, so every supported field is being synced. Open the Subscribers settings, tick the fields you want and save to fix it."
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:413
+#: includes/Notifications/NotificationManager.php:470
 msgid "Open Subscribers settings"
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:421
+#: includes/Notifications/NotificationManager.php:478
 msgid "Install WP Consent API"
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:444
+#: includes/Notifications/NotificationManager.php:501
 msgid "Invalid request."
 msgstr ""
 
 #. translators: %d: number of failed sync events in the last 24 hours.
-#: includes/Notifications/NotificationManager.php:469
+#: includes/Notifications/NotificationManager.php:526
 #, php-format
 msgid "Smaily Connect: %d sync event failed in the last 24 hours."
 msgid_plural "Smaily Connect: %d sync events failed in the last 24 hours."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/Notifications/NotificationManager.php:480
+#: includes/Notifications/NotificationManager.php:537
 msgid "Smaily Connect: Smaily Campaign Intelligence has been unreachable for over an hour — sync is queued and will resume automatically when it recovers."
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:487
+#: includes/Notifications/NotificationManager.php:544
 msgid "Smaily Connect: the Smaily API has been unreachable for over an hour — contact sync and email automations are paused until the connection recovers."
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:494
+#: includes/Notifications/NotificationManager.php:551
 msgid "Smaily Connect: Smaily is refusing every request because this account's package does not include API access. Contact sync and email automations stay stopped until the account is on a package that includes it — waiting will not restore them, and the credentials cannot be checked until then."
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:501
+#: includes/Notifications/NotificationManager.php:558
 msgid "Smaily Connect: Smaily is rejecting the saved API credentials, so contact sync and email automations have stopped. Check the subdomain, API username and password under Settings → Connection."
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:507
+#: includes/Notifications/NotificationManager.php:564
 msgid "Smaily Connect: a sync health check needs your attention."
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:514
+#: includes/Notifications/NotificationManager.php:571
 msgid "View Event Log"
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:533
+#: includes/Notifications/NotificationManager.php:590
 msgid "Dismiss"
 msgstr ""
 
@@ -175,17 +179,21 @@ msgstr ""
 msgid "Request body must be a JSON object with a `configs` array."
 msgstr ""
 
-#: includes/REST/AutomationsEndpoint.php:204
+#: includes/REST/AutomationsEndpoint.php:207
+msgid "Your Smaily Campaign Intelligence account has been deactivated, so its automations cannot be read or saved. Contact Smaily to reactivate it."
+msgstr ""
+
+#: includes/REST/AutomationsEndpoint.php:217
 #: includes/REST/RecEngineEndpoint.php:222
 msgid "Smaily Campaign Intelligence is not configured. Finish setup first."
 msgstr ""
 
-#: includes/REST/AutomationsEndpoint.php:214
+#: includes/REST/AutomationsEndpoint.php:227
 #: includes/REST/RecEngineEndpoint.php:235
 msgid "Stored rec-engine configuration is incomplete. Re-run setup."
 msgstr ""
 
-#: includes/REST/AutomationsEndpoint.php:260
+#: includes/REST/AutomationsEndpoint.php:273
 msgid "Smaily Campaign Intelligence rejected the stored API key. Disconnect and re-run setup with a fresh setup link."
 msgstr ""
 
@@ -1424,7 +1432,7 @@ msgid "✓ Connected"
 msgstr ""
 
 #: admin/src/components/steps/CredentialBlock.tsx:53
-#: admin/src/components/steps/Step4Recommendations.tsx:195
+#: admin/src/components/steps/Step4Recommendations.tsx:210
 msgid "as"
 msgstr ""
 
@@ -1453,7 +1461,7 @@ msgid "Leave empty to keep using the stored password."
 msgstr ""
 
 #: admin/src/components/steps/CredentialBlock.tsx:120
-#: admin/src/components/steps/Step4Recommendations.tsx:207
+#: admin/src/components/steps/Step4Recommendations.tsx:222
 msgid "Test connection"
 msgstr ""
 
@@ -2010,90 +2018,98 @@ msgstr ""
 msgid "Engine connection"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:192
+#: admin/src/components/steps/Step4Recommendations.tsx:197
+msgid "Account deactivated"
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx:199
+msgid "Your Smaily Campaign Intelligence account has been deactivated, so syncing has stopped. Contact Smaily to reactivate it. Once it is active again, disconnect here and connect it with a new setup link."
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx:207
 msgid "Connected"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:210
+#: admin/src/components/steps/Step4Recommendations.tsx:225
 msgid "Disconnect"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:225
+#: admin/src/components/steps/Step4Recommendations.tsx:240
 msgid "Data synchronisation"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:226
+#: admin/src/components/steps/Step4Recommendations.tsx:241
 msgid "While connected, the engine learns from your joined order, customer, and product data — all three sync automatically."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:231
+#: admin/src/components/steps/Step4Recommendations.tsx:246
 msgid "Syncing starts as soon as you connect and runs in the background — there's nothing to switch on per data type. Use"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:236
-#: admin/src/components/steps/Step4Recommendations.tsx:248
+#: admin/src/components/steps/Step4Recommendations.tsx:251
+#: admin/src/components/steps/Step4Recommendations.tsx:263
 msgid "Import existing data"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:238
+#: admin/src/components/steps/Step4Recommendations.tsx:253
 msgid "below to seed history into the engine; future changes sync on their own. Browsing telemetry is the one exception — it's opt-in and configured separately below."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:249
+#: admin/src/components/steps/Step4Recommendations.tsx:264
 msgid "The toggles above sync future changes. Import your existing catalog, customers, and orders into the engine once so recommendations have history to learn from. Runs in the background in batches."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:258
+#: admin/src/components/steps/Step4Recommendations.tsx:273
 msgid "Products"
 msgstr ""
 
 #. translators: %d: number of detected languages.
-#: admin/src/components/steps/Step4Recommendations.tsx:262
+#: admin/src/components/steps/Step4Recommendations.tsx:277
 #, js-format
 msgid "Counts one entry per language (%d detected). Translations are merged into a single product during import, so the synced total will be lower."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:274
+#: admin/src/components/steps/Step4Recommendations.tsx:289
 msgid "Customers"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:282
+#: admin/src/components/steps/Step4Recommendations.tsx:297
 msgid "Orders"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:292
+#: admin/src/components/steps/Step4Recommendations.tsx:307
 msgid "Browsing telemetry"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:293
+#: admin/src/components/steps/Step4Recommendations.tsx:308
 msgid "Tracks product / category views to power 'similar products' recommendations."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:304
+#: admin/src/components/steps/Step4Recommendations.tsx:319
 msgid "Track browsing behaviour"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:305
+#: admin/src/components/steps/Step4Recommendations.tsx:320
 msgid "Requires marketing consent (WP Consent API / Cookiebot / Complianz / CookieYes)."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:311
+#: admin/src/components/steps/Step4Recommendations.tsx:326
 msgid "Browsing telemetry only fires when the visitor has granted marketing consent. If your site doesn't have a consent banner installed, the beacon won't collect events."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:323
+#: admin/src/components/steps/Step4Recommendations.tsx:338
 msgid "Setup URL not recognised"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:325
+#: admin/src/components/steps/Step4Recommendations.tsx:340
 msgid "Setup link already used"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:327
+#: admin/src/components/steps/Step4Recommendations.tsx:342
 msgid "Setup link not found"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:330
+#: admin/src/components/steps/Step4Recommendations.tsx:345
 msgid "Engine unreachable"
 msgstr ""
 

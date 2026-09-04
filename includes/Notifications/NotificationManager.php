@@ -64,6 +64,15 @@ final class NotificationManager {
 	/** Advisory key: browse tracking on + connected, but no WP Consent API present. */
 	public const CONSENT_ADVISORY_KEY = 'consent_api_missing';
 
+	/**
+	 * Notice key: the engine refused this account outright (contract §2
+	 * `403 tenant_inactive`). Rendered live off the persisted refusal rather
+	 * than from the health-check's notice set — the refusal is recorded the
+	 * instant a call meets it, and making the merchant wait up to an hour for
+	 * the next tick to be told why sync stopped would be the wrong answer.
+	 */
+	public const TENANT_INACTIVE_KEY = 'engine_tenant_inactive';
+
 	/** Advisory key: the saved contact-field selection is in a shape we can't read. */
 	public const SYNC_FIELDS_ADVISORY_KEY = 'sync_fields_unreadable';
 
@@ -326,8 +335,21 @@ final class NotificationManager {
 		$notices   = $this->active_notices();
 		$dismissed = (array) get_option( self::OPTION_DISMISSED, array() );
 		$now       = time();
+		$refused   = $this->settings->is_refused();
+
+		if ( $refused ) {
+			$this->render_tenant_inactive_notice( $dismissed, $now );
+		}
 
 		foreach ( $notices as $key => $notice ) {
+			// A deactivated account is not an outage. The probe stops running
+			// while refused, so this stamp only survives from before the
+			// refusal — telling the merchant to wait for a recovery that will
+			// never come would bury the one thing they can act on.
+			if ( $refused && $key === 'engine_down' ) {
+				continue;
+			}
+
 			$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
 			if ( $dismissed_at > 0 && ( $now - $dismissed_at ) < self::DISMISS_COOLDOWN ) {
 				continue;
@@ -352,12 +374,41 @@ final class NotificationManager {
 	}
 
 	/**
+	 * The engine has refused this account outright (contract §2). Says so
+	 * plainly and names the only action that helps — contact Smaily — instead
+	 * of the generic "unreachable, it will resume" story, which is false here:
+	 * no retry, key, setup token or regenerate flow revives a deactivated
+	 * tenant. Same dismissal semantics as the health-check notices.
+	 *
+	 * @param array<string, int> $dismissed
+	 */
+	private function render_tenant_inactive_notice( array $dismissed, int $now ): void {
+		$key          = self::TENANT_INACTIVE_KEY;
+		$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
+		if ( $dismissed_at > 0 && ( $now - $dismissed_at ) < self::DISMISS_COOLDOWN ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-error"><p>%1$s %2$s</p></div>',
+			esc_html__(
+				'Smaily Connect: your Smaily Campaign Intelligence account has been deactivated, so no product, customer or order data is being sent to it. Contact Smaily to reactivate it. Nothing is lost in the meantime — queued data waits, and syncing resumes once you connect the reactivated account.',
+				'smaily-connect'
+			),
+			wp_kses_post( $this->dismiss_link( $key ) )
+		);
+	}
+
+	/**
 	 * @param array<string, int> $dismissed
 	 */
 	private function render_consent_advisory( array $dismissed, int $now ): void {
+		// sending_allowed(), not is_connected(): a refused account already
+		// collects nothing for a reason installing a consent plugin cannot fix,
+		// and the deactivation notice above is the one to act on (PRO-1893).
 		$active = $this->needs_consent_api_notice(
 			(bool) get_option( BeaconEndpoint::OPTION_TRACK_BROWSING, false ),
-			$this->settings->is_connected(),
+			$this->settings->sending_allowed(),
 			function_exists( 'wp_has_consent' )
 		);
 		if ( ! $active ) {

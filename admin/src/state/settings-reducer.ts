@@ -104,6 +104,7 @@ export function buildSettingsInitialState(env: ServerEnv = {}): WizardState {
     defaultFallbackAccountKey: 'default',
     recEngineSetupToken: '',
     recEngineConnection: idleAsync,
+    recEngineRefused: false,
 
     subscriberSyncEnabled: env.subscriberSyncEnabled ?? true,
     syncFields: env.syncFields ?? [...DEFAULT_SYNC_FIELDS],

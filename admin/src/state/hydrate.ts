@@ -122,6 +122,13 @@ export interface BootPayload {
      */
     recEngine?: {
       connected: boolean;
+      /**
+       * The engine refused this account outright (contract §2
+       * `403 tenant_inactive`). Still `connected` — the stored credentials
+       * are valid — but nothing is being sent, so the connection card says
+       * "deactivated" instead of showing a green tick.
+       */
+      refused?: boolean;
       tenantName: string;
       tenantId: string;
       engineVersion: string;
@@ -180,6 +187,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       defaultFallbackAccountKey: 'default',
       recEngineSetupToken: '',
       recEngineConnection: idleAsync,
+      recEngineRefused: false,
       automationMappings: [],
       welcomeEnabled: false,
       firstOrderEnabled: false,
@@ -247,6 +255,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
     defaultFallbackAccountKey: s.defaultFallbackAccountKey || 'default',
     recEngineSetupToken: '',
     recEngineConnection: deriveRecEngineConnection(s.recEngine),
+    recEngineRefused: s.recEngine?.refused ?? false,
     automationMappings: normaliseAutomationMappings(s.automationMappings),
     welcomeEnabled: s.welcomeEnabled,
     firstOrderEnabled: s.firstOrderEnabled,
