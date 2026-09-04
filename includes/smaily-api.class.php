@@ -2,11 +2,8 @@
 
 namespace Smaily_Connect\Includes;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+defined( 'ABSPATH' ) || exit;
 
-use Smaily_Connect\Admin;
 use Smaily_Connect\Includes\Options;
 
 class API {

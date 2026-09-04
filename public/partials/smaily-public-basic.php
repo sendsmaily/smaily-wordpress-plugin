@@ -2,6 +2,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound, WordPress.Security.NonceVerification.Recommended -- display partial: reads a GET value only to render (sanitized), no state change; locals are file-scoped.
+
 $code             = isset( $_GET['code'] ) ? intval( $_GET['code'] ) : null;
 $messages         = array(
 	101 => __( 'Thank you for subscribing to our newsletter.', 'smaily-connect' ),

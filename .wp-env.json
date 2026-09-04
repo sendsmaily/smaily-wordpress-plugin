@@ -1,11 +1,9 @@
 {
   "core": "https://wordpress.org/wordpress-7.0.zip",
   "phpVersion": "8.3",
-  "testsEnvironment": false,
   "plugins": [
-    "https://downloads.wordpress.org/plugin/woocommerce.10.8.1.zip",
-    "https://downloads.wordpress.org/plugin/contact-form-7.latest-stable.zip",
-    "https://downloads.wordpress.org/plugin/really-simple-captcha.latest-stable.zip"
+    "https://downloads.wordpress.org/plugin/woocommerce.10.7.0.zip",
+    "https://downloads.wordpress.org/plugin/polylang.latest-stable.zip"
   ],
   "config": {
     "WP_DEBUG": true,
@@ -15,8 +13,5 @@
   },
   "mappings": {
     "wp-content/plugins/smaily-connect": "."
-  },
-  "lifecycleScripts": {
-    "afterStart": "([ -d blocks/node_modules ] || npm --prefix blocks run ci) && npm --prefix blocks run build && wp-env run cli wp plugin activate smaily-connect"
   }
 }

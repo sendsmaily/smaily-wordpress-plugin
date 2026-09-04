@@ -2,7 +2,9 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
-use Smaily_Connect\Includes\Options;
+defined( 'ABSPATH' ) || exit;
+
+use Smaily\Connect\Smaily\SubscriberPayloadBuilder;
 use Smaily_Connect\Includes\Helper;
 
 class Data_Handler {
@@ -55,15 +57,13 @@ class Data_Handler {
 			return $user_sync_data;
 		}
 
-		$options = get_option(
-			Options::SUBSCRIBER_SYNC_FIELDS_OPTION,
-			Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS
-		);
-		foreach ( $options as $field => $enabled ) {
-			if ( ! $enabled ) {
-				continue;
-			}
+		// Read through the sync's own interpreter — the selection has two stored
+		// shapes and reading it as a map only left a wizard-configured store
+		// matching nothing, so the contact went to Smaily without even an email
+		// address (PRO-1772).
+		$enabled_sync_fields = SubscriberPayloadBuilder::effective_selection_legacy_keys();
 
+		foreach ( $enabled_sync_fields as $field ) {
 			switch ( $field ) {
 				case 'language':
 					$user_sync_data['language'] = Helper::get_user_language_code( $user_id );

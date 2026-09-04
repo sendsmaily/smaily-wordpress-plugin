@@ -2,6 +2,8 @@
 
 namespace Smaily_Connect\Includes;
 
+defined( 'ABSPATH' ) || exit;
+
 use Smaily_Connect\Includes\Options;
 
 class Smaily_Client {

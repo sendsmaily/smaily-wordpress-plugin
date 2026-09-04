@@ -1,0 +1,37 @@
+parameters:
+    level: 6
+    paths:
+        - smaily-connect.php
+        - includes/
+        - admin/wizard.php
+        - admin/settings.php
+
+    excludePaths:
+        analyse:
+            # Legacy upstream class tree (kept untouched during the BETA):
+            # the files use require_once chains that PHPStan can't resolve
+            # without manually mapping every dependency, and rewriting them
+            # is out of Phase 1 scope. The new Smaily\Connect\* code remains
+            # under level-6 scrutiny.
+            - includes/*.class.php
+            - includes/index.php
+
+    scanFiles:
+        # Legacy classes the namespaced code calls into (outside the analysed
+        # new-code tree — symbol discovery only): the WC price helpers
+        # CartPayloadBuilder reuses for legacy wire parity (PRO-1195).
+        - integrations/woocommerce/helper.class.php
+
+    bootstrapFiles:
+        # szepeviktor/phpstan-wordpress is auto-registered via
+        # phpstan/extension-installer, so its WordPress stubs load
+        # automatically. WooCommerce stubs aren't part of that bundle —
+        # load them explicitly so WC_Order / wc_get_order / etc. resolve
+        # under static analysis.
+        - vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+        # Plugin lifecycle constants (SMAILY_CONNECT_PLUGIN_PATH etc) —
+        # set at runtime by smaily-connect.php but invisible to the
+        # static analyser's per-file walk.
+        - tests/phpstan-bootstrap.php
+
+    treatPhpDocTypesAsCertain: true

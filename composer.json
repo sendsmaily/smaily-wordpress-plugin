@@ -1,24 +1,44 @@
 {
     "name": "smaily/smaily-wordpress-plugin",
     "description": "The Smaily plugin integrates Contact Form 7 and WooCommerce, offering a complete email marketing and automation solution",
-    "type": "project",
-    "license": "GPL-3",
+    "type": "wordpress-plugin",
+    "license": "GPL-3.0-or-later",
     "minimum-stability": "stable",
+    "require": {
+        "php": ">=8.0",
+        "woocommerce/action-scheduler": "^3.7"
+    },
     "require-dev": {
         "squizlabs/php_codesniffer": "^3.10",
         "wp-coding-standards/wpcs": "^3.1",
         "phpcompatibility/phpcompatibility-wp": "^2.1",
         "wp-cli/wp-cli-bundle": "^2.11",
-        "szepeviktor/phpstan-wordpress": "^2.0",
-        "php-stubs/wordpress-stubs": "^6.9",
+        "phpstan/phpstan": "^1.11",
         "phpstan/extension-installer": "^1.4",
-        "php-stubs/woocommerce-stubs": "^10.8",
-        "arts/elementor-stubs": "^4.1"
+        "szepeviktor/phpstan-wordpress": "^1.3",
+        "phpunit/phpunit": "^9.6",
+        "brain/monkey": "^2.6",
+        "yoast/phpunit-polyfills": "^2.0",
+        "php-stubs/woocommerce-stubs": "^10.7"
+    },
+    "autoload": {
+        "psr-4": {
+            "Smaily\\Connect\\": "includes/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Smaily\\Connect\\Tests\\": "tests/"
+        }
     },
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,
-            "phpstan/extension-installer": true
+            "phpstan/extension-installer": true,
+            "composer/installers": true
+        },
+        "platform": {
+            "php": "8.0.99"
         }
     },
     "scripts": {
@@ -26,13 +46,19 @@
         "start:min": "npx @wordpress/env start --config .wp-env.min.json --update",
         "stop": "npx @wordpress/env stop && npx @wordpress/env stop --config .wp-env.min.json",
         "install-block-modules": "npm run ci --prefix blocks",
-        "lint": "phpcs . && npm run lint --prefix blocks",
-        "analyze": "phpstan analyze --memory-limit=2G",
-        "test": "npm run test --prefix blocks",
+        "lint": "phpcs -n . && npm run lint --prefix blocks",
+        "lint:php": "phpcs -n .",
+        "analyze": "phpstan analyse --memory-limit=2G",
+        "test": "phpunit && npm run test --prefix blocks",
+        "test:php": "phpunit",
+        "test:php:coverage": "phpunit --coverage-text --coverage-html=tmp/coverage",
+        "test:integration": "bash bin/run-integration-tests.sh",
         "format": "phpcbf . && npm run format --prefix blocks",
         "build": "npm run build --prefix blocks",
         "extract-text-domain": "wp i18n make-pot . languages/smaily-connect.pot && msginit -i languages/smaily-connect.pot -o languages/smaily-connect-en.po -l en --no-translator",
         "compile-translations": "rm -f languages/smaily-connect-en.po && wp i18n update-po languages/smaily-connect.pot languages/ && wp i18n make-mo languages/ && wp i18n make-json languages/ --no-purge",
-        "package": "rm -rf smaily-connect.zip && mkdir -p staging/smaily-connect && rsync -av --exclude-from=.zipignore --exclude=staging ./ staging/smaily-connect/ && cd staging && zip -r ../smaily-connect.zip smaily-connect/ && cd .. && rm -rf staging"
+        "package:hash": "git rev-parse --short HEAD > build-hash.txt 2>/dev/null && (git diff --quiet HEAD -- 2>/dev/null || echo '-dirty' >> build-hash.txt) && tr -d '\\n' < build-hash.txt > .bh.tmp && mv .bh.tmp build-hash.txt || echo 'dev' > build-hash.txt",
+        "package:strip-map-refs": "find staging/smaily-connect -name '*.js' -exec sed -i '\\|^//# sourceMappingURL=|d' {} +",
+        "package": "composer run package:hash && rm -rf smaily-connect.zip && mkdir -p staging/smaily-connect && rsync -av --exclude-from=.zipignore --exclude=staging ./ staging/smaily-connect/ && composer run package:strip-map-refs && cd staging && zip -r ../smaily-connect.zip smaily-connect/ && cd .. && rm -rf staging"
     }
 }

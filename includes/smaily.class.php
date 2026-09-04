@@ -1,21 +1,23 @@
 <?php
 
-use Smaily_Connect\Admin;
+defined( 'ABSPATH' ) || exit;
+
 use Smaily_Connect\Admin\Notices;
 use Smaily_Connect\Includes\API;
 use Smaily_Connect\Includes\Blocks;
 use Smaily_Connect\Includes\Helper;
 use Smaily_Connect\Includes\Lifecycle;
 use Smaily_Connect\Includes\Options;
+use Smaily_Connect\Includes\Widget;
 use Smaily_Connect\Integrations\CF7\Admin as Smaily_CF7_Admin;
 use Smaily_Connect\Integrations\CF7\Public_Base as Smaily_CF7_Public;
 use Smaily_Connect\Integrations\Elementor\Admin as Elementor_Admin;
-use Smaily_Connect\Integrations\WooCommerce\Cart;
 use Smaily_Connect\Integrations\WooCommerce\Cron;
 use Smaily_Connect\Integrations\WooCommerce\Profile_Settings;
 use Smaily_Connect\Integrations\WooCommerce\Rss;
 use Smaily_Connect\Integrations\WooCommerce\Subscriber_Synchronization;
 use Smaily_Connect\Public_Base;
+use Smaily\Connect\Constants;
 
 class Smaily_Connect {
 	/**
@@ -35,15 +37,6 @@ class Smaily_Connect {
 	 * @var    string $version The current version of the plugin.
 	 */
 	protected $version;
-
-	/**
-	 * Admin class instance.
-	 *
-	 *
-	 * @access private
-	 * @var    Admin $admin Admin class instance.
-	 */
-	protected $admin;
 
 	/**
 	 * Admin_Notices class instance.
@@ -89,15 +82,6 @@ class Smaily_Connect {
 	 * @var    Public_Base $public_base Public_Base class instance.
 	 */
 	protected $public_base;
-
-	/**
-	 * WooCommerce Cart class instance.
-	 *
-	 *
-	 * @access private
-	 * @var    Cart $wc_cart WooCommerce Cart class instance.
-	 */
-	protected $wc_cart;
 
 	/**
 	 * WooCommerce Cron class instance.
@@ -200,7 +184,6 @@ class Smaily_Connect {
 	 *
 	 * Woocommerce related dependencies
 	 *
-	 * - Integrations\WooCommerce\Cart                         Manages status of user cart in abandoned carts table.
 	 * - Integrations\WooCommerce\Cron.                        Handles data synchronization between Smaily and WooCommerce.
 	 * - Integrations\WooCommerce\Data_Handler.                Handles woocommerce related data retrieval
 	 * - Integrations\WooCommerce\Data_Prepare.                Class for preparing Woocommerce related data
@@ -221,10 +204,6 @@ class Smaily_Connect {
 	 */
 	private function load_dependencies() {
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-notices.class.php';
-		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-renderer.class.php';
-		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-sanitizer.class.php';
-		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-settings.class.php';
-		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-integration.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-api.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-blocks.class.php';
@@ -266,8 +245,55 @@ class Smaily_Connect {
 	 * @access private
 	 */
 	private function init_classes() {
-		$this->admin = new Admin( $this->options, $this->plugin_name, $this->version );
-		$this->admin->register_hooks();
+		// The legacy admin settings PAGE was removed (F3-45) — configuration now
+		// lives in the new wizard / Settings UI, which reads + writes the SAME
+		// legacy option keys, so the kept WooCommerce integrations keep working
+		// unchanged. Two live behaviors the old Admin class also carried are
+		// preserved here so merchants lose nothing:
+		// 1) the subscription widget (a classic WP_Widget merchants may have placed).
+		add_action(
+			'widgets_init',
+			function (): void {
+				register_widget( new Widget( $this->options ) );
+			}
+		);
+		// 2) the Plugins-page "Settings" + "Documentation" links. Settings points
+		//    at the new Settings page; Documentation opens the merchant docs site
+		//    (Constants::docs_url() — one place to change when docs move to
+		//    connect.smaily.com). External link, so new tab + rel="noopener".
+		add_filter(
+			'plugin_action_links_' . plugin_basename( SMAILY_CONNECT_PLUGIN_FILE ),
+			static function ( array $links ): array {
+				array_unshift(
+					$links,
+					'<a href="admin.php?page=smaily-connect-settings">' . esc_html__( 'Settings', 'smaily-connect' ) . '</a>',
+					sprintf(
+						'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+						esc_url( Constants::docs_url() ),
+						esc_html__( 'Documentation', 'smaily-connect' )
+					)
+				);
+				return $links;
+			}
+		);
+
+		// Documentation link in the Plugins-page row meta (under the description,
+		// alongside "View details") — a second, conventional discovery spot.
+		add_filter(
+			'plugin_row_meta',
+			static function ( array $meta, string $file ): array {
+				if ( $file === plugin_basename( SMAILY_CONNECT_PLUGIN_FILE ) ) {
+					$meta[] = sprintf(
+						'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+						esc_url( Constants::docs_url() ),
+						esc_html__( 'Documentation', 'smaily-connect' )
+					);
+				}
+				return $meta;
+			},
+			10,
+			2
+		);
 
 		$this->admin_notices = new Notices();
 		$this->admin_notices->register_hooks();
@@ -285,8 +311,10 @@ class Smaily_Connect {
 		$this->public_base->register_hooks();
 
 		if ( Helper::is_woocommerce_active() ) {
-			$this->wc_cart = new Cart();
-			$this->wc_cart->register_hooks();
+			// PRO-1195: the legacy Cart tracker is no longer registered — the
+			// namespaced CartHookHandler (Bootstrap) owns cart tracking (own
+			// scalar row shape, guest carts, Event Log observability). The
+			// class + its table stay (drain source, safe rollback).
 
 			$this->wc_cron = new Cron( $this->options );
 			$this->wc_cron->register_hooks();

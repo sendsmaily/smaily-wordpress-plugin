@@ -2,9 +2,7 @@
 
 namespace Smaily_Connect\Blocks\Checkout_Optin;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+defined( 'ABSPATH' ) || exit;
 
 use Smaily_Connect\Includes\Options;
 use Automattic\WooCommerce\Blocks\Integrations\IntegrationInterface;

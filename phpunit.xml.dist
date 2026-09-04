@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+    bootstrap="tests/bootstrap.php"
+    colors="true"
+    verbose="true"
+    convertErrorsToExceptions="true"
+    convertWarningsToExceptions="true"
+    convertNoticesToExceptions="true"
+    failOnRisky="true"
+    failOnWarning="true"
+    beStrictAboutCoversAnnotation="false"
+    beStrictAboutOutputDuringTests="true"
+    beStrictAboutTestsThatDoNotTestAnything="true"
+    cacheResult="false">
+
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="integration">
+            <!-- Integration tests boot real WordPress via wp-env. -->
+            <!-- They run through phpunit.integration.xml.dist; this entry -->
+            <!-- exists so `phpunit listsuites` shows the suite for tooling. -->
+            <directory>tests/Integration</directory>
+            <exclude>tests/Integration/Support</exclude>
+            <exclude>tests/Integration/bootstrap.php</exclude>
+        </testsuite>
+    </testsuites>
+
+    <coverage processUncoveredFiles="false">
+        <include>
+            <directory suffix=".php">includes</directory>
+        </include>
+        <exclude>
+            <!-- Legacy upstream tree — coverage targets the new code path. -->
+            <directory suffix=".class.php">includes</directory>
+            <file>includes/index.php</file>
+        </exclude>
+    </coverage>
+</phpunit>

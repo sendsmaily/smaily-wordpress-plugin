@@ -1,0 +1,112 @@
+<?xml version="1.0"?>
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    name="Smaily Connect"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/squizlabs/PHP_CodeSniffer/master/phpcs.xsd">
+
+    <description>Coding standards for Smaily Connect (BETA fork, 2.0.x).</description>
+
+    <!-- What to scan. -->
+    <file>.</file>
+    <exclude-pattern>/vendor/*</exclude-pattern>
+    <exclude-pattern>/node_modules/*</exclude-pattern>
+    <exclude-pattern>/blocks/*/build/*</exclude-pattern>
+    <exclude-pattern>/blocks/*/node_modules/*</exclude-pattern>
+    <exclude-pattern>/tmp/*</exclude-pattern>
+    <exclude-pattern>/staging/*</exclude-pattern>
+    <exclude-pattern>/tests/*</exclude-pattern>
+
+    <!--
+         Cache deliberately NOT enabled here.
+
+         Lesson from sub-PR 4 (commit 93b540d): the upstream phpcs.xml
+         carried an arg-cache entry. Locally we kept getting a green
+         "0 errors, 0 warnings" summary on the new namespaced code even
+         though CI was failing with 18 violations on the same commits.
+         Two factors conspired:
+
+           1. PHPCS per-file cache stamps each scanned file with a hash of
+              file content plus ruleset config. Files added in later
+              sub-PRs were scanned once, returned clean, then stayed
+              cached even when neighbour-files violations changed the
+              surrounding ruleset evaluation.
+
+           2. The parallel-worker summary "8 / 8" is a worker-chunk count,
+              NOT a file count. With cache hits and parallel chunking,
+              real violations on 18 lines hid behind a benign summary.
+
+         CI always runs cold. Disabling cache locally is the only reliable
+         way to keep local and CI in lockstep. The cost is ~600ms per full
+         scan, acceptable on a plugin-sized codebase.
+
+         Need a fast iterative workflow on a single file? Pass the cache
+         flag ad hoc on the command line, never re-enable it project-wide.
+
+         Future agents: see also the feedback-no-phpcs-cache memory entry
+         in the persistent memory; rationale is duplicated there so it
+         survives if this file is regenerated.
+    -->
+    <arg name="parallel" value="8" />
+    <arg name="extensions" value="php" />
+    <arg name="colors" />
+    <arg value="ps" />
+
+    <!-- Security baseline — keep upstream's choice to relax the
+         NonceVerification.Recommended sniff (real nonce checks live in the
+         REST controller layer, not in the hook callbacks themselves).
+         Also relax ExceptionNotEscaped: exception messages flow to error
+         logs and admin notices that escape contextually, not to the page
+         output stream, so the sniff produces false positives for every
+         throw new ApiException(sprintf(...)) construction. -->
+    <rule ref="WordPress.Security">
+        <exclude name="WordPress.Security.NonceVerification.Recommended" />
+        <exclude name="WordPress.Security.EscapeOutput.ExceptionNotEscaped" />
+    </rule>
+
+    <!-- Base ruleset: WordPress-Core (matches upstream's baseline so the BETA
+         fork can rebase / merge back cleanly without a wall of style noise on
+         pre-existing files). Stricter PSR-12-style rules for the new
+         Smaily\Connect\* tree can be layered via path-specific rules later.
+         Yoda condition rule omitted: modern PHP tooling catches the
+         assignment-instead-of-comparison mistake the rule guards against, and
+         Yoda style is unfamiliar to many contributors. -->
+    <rule ref="WordPress-Core">
+        <exclude name="WordPress.PHP.YodaConditions.NotYoda" />
+        <exclude name="WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder" />
+    </rule>
+
+    <!-- Generic extras kept from upstream. -->
+    <rule ref="Generic.Commenting.Todo" />
+
+    <!-- PHP version compatibility check.
+         Plugin header sets "Requires PHP: 8.0", so we lint against PHP 8.0+. -->
+    <config name="testVersion" value="8.0-" />
+    <rule ref="PHPCompatibilityWP">
+        <include-pattern>*\.php$</include-pattern>
+    </rule>
+
+    <!-- Minimum supported WordPress version (matches the plugin header). -->
+    <config name="minimum_supported_wp_version" value="6.2" />
+
+    <!-- i18n: enforce the smaily-connect text-domain. -->
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="smaily-connect" />
+            </property>
+        </properties>
+    </rule>
+
+    <!-- File-naming exclusions:
+         - Upstream class files use the smaily-*.class.php pattern (not the
+           WPCS-preferred class-{name}.php). We keep that pattern intact for
+           the legacy tree, so the file-name sniff is excluded universally.
+         - The PSR-4 includes/ namespace uses PascalCase filenames
+           (Bootstrap.php, Constants.php), which also trips WPCS's naming
+           sniff. Excluding the rule once covers both cases. -->
+    <rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+        <exclude-pattern>*</exclude-pattern>
+    </rule>
+    <rule ref="WordPress.Files.FileName.InvalidClassFileName">
+        <exclude-pattern>*</exclude-pattern>
+    </rule>
+</ruleset>

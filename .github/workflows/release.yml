@@ -1,8 +1,14 @@
 name: Build release package
 
+# Builds the shippable plugin ZIP the same way the documented local sequence does
+# (CLAUDE.md § "Cutting a release ZIP + GH release") and refuses to publish a
+# wrong one. On a published release the verified ZIP is attached as the release
+# asset that release.sh pulls; on a manual dispatch it is only a workflow
+# artifact — a dispatch never touches a release.
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -10,9 +16,27 @@ jobs:
     env:
       WP_PLUGIN_NAME: smaily-connect
       WP_CLI_ALLOW_ROOT: true
+      # No Docker on the runner, so bin/build-i18n.sh uses the dev-vendor wp-cli.
+      WP_CLI_BIN: vendor/bin/wp
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Check the release tag matches the plugin version
+      if: github.event_name == 'release'
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+      run: |
+        version="$( sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*\([^[:space:]]*\).*/\1/p' smaily-connect.php | head -1 )"
+        # The tag convention is the PLAIN version (3.11.2) — release.sh builds its
+        # download URL from it. A leading "v" is tolerated (it names the same
+        # version and nothing downstream reads the tag but release.sh's prompt).
+        tag="${RELEASE_TAG#v}"
+        echo "release tag: ${RELEASE_TAG} -> ${tag}; plugin header version: ${version}"
+        if [ "$tag" != "$version" ]; then
+          echo "::error::Release tag '${RELEASE_TAG}' does not match the plugin version '${version}'. Fix the version bump or retag; nothing was uploaded."
+          exit 1
+        fi
 
     - name: Set up PHP environment
       uses: shivammathur/setup-php@v2
@@ -36,7 +60,7 @@ jobs:
     - name: Set up Node environment
       uses: actions/setup-node@v4
       with:
-        node-version: 20
+        node-version: 22
 
     - name: Get Node cache directory
       id: node-cache
@@ -51,23 +75,63 @@ jobs:
           ${{ runner.os }}-node-
           ${{ runner.os }}-
 
+    # Dev dependencies on purpose: wp-cli (translations) lives in require-dev.
+    # The prod-only vendor tree is installed further down, after the build.
     - name: Install PHP dependencies
       run: composer install --no-interaction --prefer-dist
 
     - name: Install Node dependencies
+      run: npm ci
+
+    - name: Build the admin and storefront bundles
+      run: npm run build:admin
+
+    - name: Install block dependencies
       run: composer run install-block-modules
 
     - name: Build blocks
       run: composer run build
 
     - name: Compile translations
-      run: composer run compile-translations
+      run: bash bin/build-i18n.sh
+
+    # build-i18n.sh regenerates the committed .pot/.po (new timestamps, reordered
+    # references). Those are build INPUTS and are not shipped, so restore them —
+    # the .mo/.json it produced are untracked and stay. Keeping the tree clean
+    # also keeps the build stamp from being marked "-dirty".
+    - name: Restore the committed translation sources
+      run: git checkout -- languages/smaily-connect.pot languages/smaily-connect-et.po
+
+    - name: Assert the working tree is clean
+      run: |
+        git diff --quiet HEAD -- || {
+          git status --short
+          echo "::error::The build modified tracked files; the build stamp would be marked -dirty."
+          exit 1
+        }
+
+    - name: Install production PHP dependencies
+      run: composer install --no-interaction --prefer-dist --no-dev --optimize-autoloader
 
     - name: Package the plugin
       run: composer run package
 
+    - name: Verify the package
+      env:
+        RELEASE_TAG: ${{ github.event.release.tag_name }}
+      run: bash bin/verify-release-zip.sh ${{ env.WP_PLUGIN_NAME }}.zip "${RELEASE_TAG#v}"
+
     - name: Upload release assets
+      if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: ${{ env.WP_PLUGIN_NAME }}.zip
         token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload the package as a workflow artifact
+      if: github.event_name != 'release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.WP_PLUGIN_NAME }}-zip
+        path: ${{ env.WP_PLUGIN_NAME }}.zip
+        if-no-files-found: error

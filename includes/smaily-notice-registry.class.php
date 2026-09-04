@@ -2,6 +2,8 @@
 
 namespace Smaily_Connect\Includes;
 
+defined( 'ABSPATH' ) || exit;
+
 class Notice_Registry {
 
 	/**

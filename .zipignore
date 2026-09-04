@@ -2,18 +2,70 @@
 /.env*
 /.git*
 /.vscode*
-/.wp-env.json
-/.wp-env.min.json
 /.zipignore
 /*.sh
 /*.zip
 /assets
-/composer.*
+/composer.lock
 /contributing.md
 /phpcs.xml
 /readme.md
-/vendor*
-/phpstan.neon
+# /vendor was excluded by upstream because their release CI runs
+# `composer install --no-dev` before `composer run package` and emits
+# vendor/ into the staging directory anyway. Locally-built ZIPs need
+# vendor/ inside the archive (WP plugin install can't run composer on
+# the target host) — we now ship the prod-only autoload bundle here
+# instead. See chore(release) commit for context.
+
+# BETA-fork additions — Phase 2 sub-PR 2.H drove a 49MB ZIP because
+# the upstream .zipignore predates these directories. Each line below
+# was bundled into the artifact by accident and serves no purpose at
+# runtime (WordPress needs dist/admin/*, dist/public/js/* (the storefront
+# browse beacon, 3.4), the PHP tree, and blocks/*/build/*).
+# Order matches the on-disk size of the offender —
+# node_modules dominates everything else by two orders of magnitude.
+/node_modules*
+/coverage*
+/tests*
+/bin*
+/admin/src*
+# The storefront bundles' TypeScript sources (incl. *.test.ts) — the exact
+# counterpart of /admin/src for the public/ side. Only PHP loads anything from
+# public/; the built bundles live in dist/public/js/. Nothing here is
+# reachable at runtime; the readable source is the public GitHub repo.
+/public/js*
+/admin/dist*
+# Source maps (PRO-1949). dist/admin/admin.js.map alone embeds the whole
+# TypeScript tree via sourcesContent — ~966 kB of a ~1.14 MB ZIP, which also
+# undoes the source exclusions above. Builds keep emitting them locally for
+# debugging; `composer run package` additionally strips the then-dangling
+# `//# sourceMappingURL=` trailer from the staged bundles.
+*.map
+/spec*
+/docs*
+/CLAUDE.md
+/STATUS.md
+/.claude*
+/.github*
+/.wp-env.json
+/.wp-env.min.json
+/TESTING.md
+/phpstan.neon.dist
+/phpunit.xml.dist
+/phpunit.integration.xml.dist
+/phpcs.xml.dist
+/tsconfig*.json
+/vite.config.ts
+/vitest.config.ts
+/package.json
+/package-lock.json
+/eslint.config.cjs
+/.eslintrc*
+/.prettier*
+/tailwind.config.js
+/postcss.config.js
+/Makefile
+/*.log
 
 # Blocks
 /blocks/.gitignore
@@ -34,3 +86,5 @@
 /languages/.gitignore
 /languages/*.po
 /languages/*.pot
+/BACKLOG.md
+/blocks/.eslintrc.cjs

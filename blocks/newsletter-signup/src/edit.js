@@ -1,5 +1,5 @@
 import apiFetch from '@wordpress/api-fetch';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import { useBlockProps, InspectorControls } from '@wordpress/block-editor';
 import { useState, useEffect, useRef } from '@wordpress/element';
 import {
@@ -96,6 +96,15 @@ export default function Edit( { attributes, setAttributes } ) {
 	if ( autoresponders === null ) {
 		return <Spinner />;
 	}
+
+	// PRO-1334: a saved autoresponderId may point at a workflow that's since
+	// been disabled or deleted in Smaily (filtered out of the fetched list by
+	// the REST endpoint). Detect it client-side from data we already have —
+	// keep it as a selected, flagged option instead of the SelectControl
+	// silently falling back to "No autoresponder" on the next save.
+	const isAutoresponderUnavailable =
+		autoresponderId !== '' &&
+		! autoresponders.some( ( option ) => option.value === autoresponderId );
 
 	if ( subdomain === '' ) {
 		return (
@@ -294,9 +303,32 @@ export default function Edit( { attributes, setAttributes } ) {
 								),
 								value: '',
 							},
+							...( isAutoresponderUnavailable
+								? [
+										{
+											label: sprintf(
+												/* translators: %d: Smaily workflow ID. */
+												__(
+													'Workflow #%d (disabled in Smaily)',
+													'smaily-connect'
+												),
+												parseInt( autoresponderId, 10 )
+											),
+											value: autoresponderId,
+										},
+								  ]
+								: [] ),
 							...autoresponders,
 						] }
 					/>
+					{ isAutoresponderUnavailable && (
+						<Notice status="warning" isDismissible={ false }>
+							{ __(
+								'This workflow is disabled in Smaily (or no longer exists) — form submissions will not trigger anything until you enable it in Smaily or pick another workflow.',
+								'smaily-connect'
+							) }
+						</Notice>
+					) }
 					<HiddenFieldsControl
 						hiddenFields={ attributes.hiddenFields || [] }
 						onChange={ ( val ) =>

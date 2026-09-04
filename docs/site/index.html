@@ -1,0 +1,1331 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smaily Connect — Documentation</title>
+<meta name="description" content="Documentation for Smaily Connect, the WordPress + WooCommerce plugin that links your store to Smaily and Smaily Campaign Intelligence.">
+<style>
+:root{
+  --bg:#ffffff; --panel:#f7f8fa; --panel-2:#f5f6f8;
+  --fg:#16181c; --fg-soft:#33373d; --muted:#5b6169; --faint:#8b929c;
+  --line:#e7e9ec; --line-soft:#eef0f3;
+  --accent:#e91e63; --accent-ink:#c2185b; --accent-wash:#fdeaf1;
+  --good:#1a7f4b; --good-wash:#e6f4ec; --warn:#8a6100; --warn-wash:#fdf3dd; --crit:#c62828; --crit-wash:#fce8e6;
+  --code-bg:#f5f6f8; --code-fg:#1a1d22;
+  --radius:8px; --maxw:744px; --side:280px; --header-h:60px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#16181c; --panel:#1a1d22; --panel-2:#1e2127;
+    --fg:#e6e8eb; --fg-soft:#cfd3d9; --muted:#9aa2ad; --faint:#6b727c;
+    --line:#2a2e35; --line-soft:#24272b;
+    --accent:#ff5c9d; --accent-ink:#ff8ab8; --accent-wash:#33202b;
+    --good:#5fce93; --good-wash:#17301f; --warn:#e2b95c; --warn-wash:#332a13; --crit:#f28b82; --crit-wash:#33201d;
+    --code-bg:#1e2127; --code-fg:#e6e8eb;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16181c; --panel:#1a1d22; --panel-2:#1e2127;
+  --fg:#e6e8eb; --fg-soft:#cfd3d9; --muted:#9aa2ad; --faint:#6b727c;
+  --line:#2a2e35; --line-soft:#24272b;
+  --accent:#ff5c9d; --accent-ink:#ff8ab8; --accent-wash:#33202b;
+  --good:#5fce93; --good-wash:#17301f; --warn:#e2b95c; --warn-wash:#332a13; --crit:#f28b82; --crit-wash:#33201d;
+  --code-bg:#1e2127; --code-fg:#e6e8eb;
+}
+:root[data-theme="light"]{
+  --bg:#ffffff; --panel:#f7f8fa; --panel-2:#f5f6f8;
+  --fg:#16181c; --fg-soft:#33373d; --muted:#5b6169; --faint:#8b929c;
+  --line:#e7e9ec; --line-soft:#eef0f3;
+  --accent:#e91e63; --accent-ink:#c2185b; --accent-wash:#fdeaf1;
+  --good:#1a7f4b; --good-wash:#e6f4ec; --warn:#8a6100; --warn-wash:#fdf3dd; --crit:#c62828; --crit-wash:#fce8e6;
+  --code-bg:#f5f6f8; --code-fg:#1a1d22;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:var(--sans); font-size:16px; line-height:1.65;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+/* language toggle visibility */
+:root[data-lang="en"] [data-lang="et"]{display:none !important}
+:root[data-lang="et"] [data-lang="en"]{display:none !important}
+
+a{color:var(--accent-ink); text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--mono); font-size:.87em; background:var(--code-bg); color:var(--code-fg);
+  padding:.12em .38em; border-radius:5px; border:1px solid var(--line-soft)}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:3px}
+
+/* ---------- header ---------- */
+.masthead{
+  position:sticky; top:0; z-index:40; height:var(--header-h);
+  display:flex; align-items:center; gap:14px; padding:0 20px;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:saturate(1.4) blur(8px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex; align-items:center; gap:11px; min-width:0}
+.brand .mark{
+  width:30px; height:30px; border-radius:8px; flex:0 0 auto;
+  display:grid; place-items:center; color:#fff; font-weight:800; font-size:16px;
+  background:linear-gradient(150deg,#ff5c9d,#e91e63 62%,#c2185b);
+  box-shadow:0 2px 8px rgba(233,30,99,.35);
+}
+.brand .names{display:flex; flex-direction:column; line-height:1.1; min-width:0}
+.brand .bn{font-weight:700; font-size:15px; letter-spacing:-.01em; color:var(--fg)}
+.brand .bs{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.09em}
+.mast-spacer{flex:1}
+.langtog{display:inline-flex; padding:2px; background:var(--panel-2); border:1px solid var(--line); border-radius:999px}
+.langtog button{
+  appearance:none; border:0; background:transparent; cursor:pointer; font:inherit;
+  font-size:12px; font-weight:600; letter-spacing:.03em; color:var(--muted);
+  padding:4px 11px; border-radius:999px; line-height:1;
+}
+.langtog button[aria-pressed="true"]{background:var(--accent); color:#fff}
+.iconbtn{
+  appearance:none; border:1px solid var(--line); background:var(--panel-2); color:var(--muted);
+  width:34px; height:32px; border-radius:8px; cursor:pointer; display:grid; place-items:center;
+}
+.iconbtn:hover{color:var(--fg)}
+.iconbtn svg{width:17px; height:17px}
+.menubtn{display:none}
+
+/* ---------- shell ---------- */
+.shell{display:grid; grid-template-columns:var(--side) minmax(0,1fr); align-items:start}
+nav.side{
+  position:sticky; top:var(--header-h); align-self:start;
+  height:calc(100vh - var(--header-h)); overflow-y:auto;
+  padding:22px 12px 60px 20px; border-right:1px solid var(--line);
+}
+.side .grp{margin-bottom:20px}
+.side .grp > .glabel{
+  display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--faint); padding:0 10px; margin-bottom:7px;
+}
+.side a.gl{
+  display:block; font-weight:600; font-size:14px; color:var(--fg-soft);
+  padding:5px 10px; border-radius:6px; margin-bottom:2px;
+}
+.side ul{list-style:none; margin:2px 0 4px; padding:0}
+.side li a{
+  display:block; font-size:13.5px; color:var(--muted); line-height:1.4;
+  padding:5px 10px 5px 12px; border-left:2px solid transparent; margin-left:8px; border-radius:0 6px 6px 0;
+}
+.side li a:hover{color:var(--fg); text-decoration:none; background:var(--panel-2)}
+.side li a.active{color:var(--accent-ink); border-left-color:var(--accent); background:var(--accent-wash); font-weight:600; border-radius:0 8px 8px 0}
+:root[data-theme="dark"] .side li a.active,
+.side li a.active{}
+
+/* ---------- content ---------- */
+main{padding:14px 40px 120px; min-width:0}
+.doc{max-width:var(--maxw); margin:0 auto}
+section.sec{padding-top:30px; scroll-margin-top:calc(var(--header-h) + 12px)}
+section.sec > h1{
+  font-size:31px; line-height:1.15; letter-spacing:-.02em; font-weight:800;
+  margin:6px 0 4px; text-wrap:balance;
+}
+.sec .lede{color:var(--muted); font-size:16.5px; margin:0 0 6px}
+.sub{scroll-margin-top:calc(var(--header-h) + 12px)}
+.sub > h2{font-size:20px; letter-spacing:-.01em; font-weight:700; margin:34px 0 8px; text-wrap:balance;
+  padding-top:8px; border-top:1px solid var(--line-soft)}
+.sub h3{font-size:15.5px; font-weight:700; margin:20px 0 6px; color:var(--fg)}
+p{margin:11px 0}
+.doc ul,.doc ol{margin:11px 0; padding-left:22px}
+.doc li{margin:5px 0}
+.doc li::marker{color:var(--faint)}
+strong{color:var(--fg); font-weight:650}
+hr.secend{border:0; border-top:1px solid var(--line); margin:44px 0 0}
+
+/* callouts */
+.note{border:1px solid var(--line); background:var(--panel); border-radius:var(--radius);
+  padding:12px 15px; margin:16px 0; font-size:14.5px; border-left:3px solid var(--accent)}
+.note.tip{border-left-color:var(--good)}
+.note.warn{border-left-color:var(--warn); background:var(--warn-wash)}
+.note.warn strong{color:var(--warn)}
+.note p:first-child{margin-top:0} .note p:last-child{margin-bottom:0}
+.note .k{display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:3px}
+
+/* steps + kbd */
+.kbd{font-family:var(--mono); font-size:.85em; background:var(--panel-2); border:1px solid var(--line);
+  border-bottom-width:2px; border-radius:5px; padding:.05em .4em; color:var(--fg-soft); white-space:nowrap}
+.path{font-weight:600; color:var(--fg-soft)}
+
+/* tables */
+.tw{overflow-x:auto; margin:16px 0; border:1px solid var(--line); border-radius:var(--radius)}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:440px}
+th,td{text-align:left; padding:9px 13px; border-bottom:1px solid var(--line-soft); vertical-align:top}
+thead th{background:var(--panel); font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700}
+tbody tr:last-child td{border-bottom:0}
+td code{white-space:nowrap}
+
+/* status pills */
+.pill{display:inline-block; font-size:12px; font-weight:650; padding:1px 8px; border-radius:999px; line-height:1.5; white-space:nowrap}
+.pill.sent,.pill.ok{background:var(--good-wash); color:var(--good)}
+.pill.failed{background:var(--crit-wash); color:var(--crit)}
+.pill.pending{background:var(--warn-wash); color:var(--warn)}
+
+.wip{color:var(--faint); font-style:italic; font-size:14px; padding:8px 0}
+
+/* footer */
+.docfoot{max-width:var(--maxw); margin:40px auto 0; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:14px}
+
+/* mobile */
+.scrim{display:none}
+@media (max-width:900px){
+  :root{--header-h:56px}
+  .menubtn{display:grid}
+  .shell{display:block}
+  nav.side{
+    position:fixed; top:var(--header-h); left:0; width:min(310px,84vw); height:calc(100vh - var(--header-h));
+    background:var(--bg); border-right:1px solid var(--line); transform:translateX(-102%);
+    transition:transform .2s ease; z-index:35;
+  }
+  :root[data-nav="open"] nav.side{transform:translateX(0)}
+  :root[data-nav="open"] .scrim{display:block; position:fixed; inset:var(--header-h) 0 0 0; background:rgba(0,0,0,.4); z-index:30}
+  main{padding:8px 20px 100px}
+  section.sec > h1{font-size:26px}
+}
+@media (prefers-reduced-motion:reduce){nav.side{transition:none}}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <button class="iconbtn menubtn" id="menuBtn" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <a class="brand" href="#overview">
+    <span class="mark">S</span>
+    <span class="names">
+      <span class="bn">Smaily Connect</span>
+      <span class="bs" data-lang="en">Documentation</span>
+      <span class="bs" data-lang="et">Dokumentatsioon</span>
+    </span>
+  </a>
+  <span class="mast-spacer"></span>
+  <div class="langtog" role="group" aria-label="Language">
+    <button type="button" data-setlang="en" aria-pressed="true">EN</button>
+    <button type="button" data-setlang="et" aria-pressed="false">ET</button>
+  </div>
+  <button class="iconbtn" id="themeBtn" aria-label="Toggle theme">
+    <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+  </button>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="shell">
+  <nav class="side" id="side">
+    <div class="grp">
+      <a class="gl" href="#overview" data-lang="en">Overview</a>
+      <a class="gl" href="#overview" data-lang="et">Ülevaade</a>
+      <ul>
+        <li><a href="#what-is" data-lang="en">What is Smaily Connect?</a><a href="#what-is" data-lang="et">Mis on Smaily Connect?</a></li>
+        <li><a href="#pieces" data-lang="en">How the pieces fit together</a><a href="#pieces" data-lang="et">Kuidas osad kokku sobivad</a></li>
+        <li><a href="#before" data-lang="en">Before you start</a><a href="#before" data-lang="et">Enne alustamist</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <a class="gl" href="#getting-started" data-lang="en">Getting started</a>
+      <a class="gl" href="#getting-started" data-lang="et">Alustamine</a>
+      <ul>
+        <li><a href="#install" data-lang="en">Install the plugin</a><a href="#install" data-lang="et">Plugina paigaldus</a></li>
+        <li><a href="#dashboard" data-lang="en">The Dashboard</a><a href="#dashboard" data-lang="et">Töölaud</a></li>
+        <li><a href="#step1" data-lang="en">Step 1 — Connect Smaily</a><a href="#step1" data-lang="et">Samm 1 — Ühenda Smaily</a></li>
+        <li><a href="#step2" data-lang="en">Step 2 — Contacts</a><a href="#step2" data-lang="et">Samm 2 — Kontaktid</a></li>
+        <li><a href="#step3" data-lang="en">Step 3 — Automations</a><a href="#step3" data-lang="et">Samm 3 — Automaatikad</a></li>
+        <li><a href="#step4" data-lang="en">Step 4 — Recommendations</a><a href="#step4" data-lang="et">Samm 4 — Soovitused</a></li>
+        <li><a href="#step5" data-lang="en">Step 5 — Forms and RSS feed</a><a href="#step5" data-lang="et">Samm 5 — Vormid ja RSS</a></li>
+        <li><a href="#step6" data-lang="en">Step 6 — Overview</a><a href="#step6" data-lang="et">Samm 6 — Ülevaade</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <a class="gl" href="#settings" data-lang="en">Settings</a>
+      <a class="gl" href="#settings" data-lang="et">Seaded</a>
+      <ul>
+        <li><a href="#set-connection" data-lang="en">Connection</a><a href="#set-connection" data-lang="et">Ühendus</a></li>
+        <li><a href="#set-subscribers" data-lang="en">Contacts</a><a href="#set-subscribers" data-lang="et">Kontaktid</a></li>
+        <li><a href="#set-consent" data-lang="en">How consent is recorded</a><a href="#set-consent" data-lang="et">Kuidas nõusolek salvestatakse</a></li>
+        <li><a href="#set-automations" data-lang="en">Automations</a><a href="#set-automations" data-lang="et">Automaatikad</a></li>
+        <li><a href="#set-transactional" data-lang="en">Transactional emails</a><a href="#set-transactional" data-lang="et">Tehingu‑e‑kirjad</a></li>
+        <li><a href="#set-ci" data-lang="en">Campaign Intelligence</a><a href="#set-ci" data-lang="et">Campaign Intelligence</a></li>
+        <li><a href="#set-integrations" data-lang="en">Integrations</a><a href="#set-integrations" data-lang="et">Integratsioonid</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <a class="gl" href="#importing" data-lang="en">Importing existing data</a>
+      <a class="gl" href="#importing" data-lang="et">Olemasolevate andmete import</a>
+      <ul>
+        <li><a href="#imp-what" data-lang="en">What gets imported</a><a href="#imp-what" data-lang="et">Mida imporditakse</a></li>
+        <li><a href="#imp-progress" data-lang="en">Reading the progress</a><a href="#imp-progress" data-lang="et">Edenemise lugemine</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <a class="gl" href="#errors" data-lang="en">Error messages &amp; fixes</a>
+      <a class="gl" href="#errors" data-lang="et">Veateated &amp; lahendused</a>
+      <ul>
+        <li><a href="#err-smaily" data-lang="en">Smaily connection errors</a><a href="#err-smaily" data-lang="et">Smaily ühenduse vead</a></li>
+        <li><a href="#err-ci" data-lang="en">Campaign Intelligence errors</a><a href="#err-ci" data-lang="et">Campaign Intelligence vead</a></li>
+        <li><a href="#err-companion" data-lang="en">Companion plugins</a><a href="#err-companion" data-lang="et">Kaaslas-pluginad</a></li>
+        <li><a href="#err-retry" data-lang="en">Failed events &amp; retry</a><a href="#err-retry" data-lang="et">Ebaõnnestunud sündmused &amp; kordus</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <a class="gl" href="#faq" data-lang="en">FAQ &amp; troubleshooting</a>
+      <a class="gl" href="#faq" data-lang="et">KKK &amp; tõrkeotsing</a>
+      <ul>
+        <li><a href="#faq-resync" data-lang="en">Is it safe to re-sync?</a><a href="#faq-resync" data-lang="et">Kas re-sünk on ohutu?</a></li>
+        <li><a href="#faq-cadence" data-lang="en">How often does data sync?</a><a href="#faq-cadence" data-lang="et">Kui tihti andmed sünkivad?</a></li>
+        <li><a href="#faq-orders" data-lang="en">Fewer orders than expected?</a><a href="#faq-orders" data-lang="et">Oodatust vähem tellimusi?</a></li>
+        <li><a href="#faq-customers" data-lang="en">Is my whole list imported?</a><a href="#faq-customers" data-lang="et">Kas terve nimekiri imporditakse?</a></li>
+        <li><a href="#faq-disconnect" data-lang="en">What does Disconnect do?</a><a href="#faq-disconnect" data-lang="et">Mida Disconnect teeb?</a></li>
+        <li><a href="#faq-uninstall" data-lang="en">Does uninstalling delete data?</a><a href="#faq-uninstall" data-lang="et">Kas eemaldamine kustutab andmed?</a></li>
+      </ul>
+    </div>
+    <div class="grp">
+      <a class="gl" href="#privacy" data-lang="en">Data &amp; privacy</a>
+      <a class="gl" href="#privacy" data-lang="et">Andmed &amp; privaatsus</a>
+      <ul>
+        <li><a href="#pr-data" data-lang="en">What data the plugin uses</a><a href="#pr-data" data-lang="et">Mis andmeid plugin kasutab</a></li>
+        <li><a href="#pr-gdpr" data-lang="en">Deletion &amp; GDPR</a><a href="#pr-gdpr" data-lang="et">Kustutamine &amp; GDPR</a></li>
+        <li><a href="#pr-policy" data-lang="en">Privacy‑policy text for your store</a><a href="#pr-policy" data-lang="et">Privaatsuspoliitika tekst su poele</a></li>
+        <li><a href="#pr-security" data-lang="en">Security &amp; isolation</a><a href="#pr-security" data-lang="et">Turvalisus &amp; isolatsioon</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+    <div class="doc">
+
+<!-- ============================ OVERVIEW ============================ -->
+<section class="sec" id="overview">
+  <h1><span data-lang="en">Overview</span><span data-lang="et">Ülevaade</span></h1>
+  <p class="lede">
+    <span data-lang="en">Smaily Connect links your WooCommerce store to Smaily email marketing and, optionally, to Smaily Campaign Intelligence for personalised product recommendations.</span>
+    <span data-lang="et">Smaily Connect ühendab su WooCommerce'i poe Smaily e‑turundusega ja soovi korral Smaily Campaign Intelligence'iga personaalsete tootesoovituste jaoks.</span>
+  </p>
+
+  <div class="sub" id="what-is">
+    <h2><span data-lang="en">What is Smaily Connect?</span><span data-lang="et">Mis on Smaily Connect?</span></h2>
+    <div data-lang="en">
+      <p>Smaily Connect is a WordPress plugin that links your WooCommerce store to your own Smaily email‑marketing account and, optionally, to <strong>Smaily Campaign Intelligence</strong> — Smaily's recommendation engine for personalised products and purchase‑based automations.</p>
+      <p>It does three things:</p>
+      <ul>
+        <li><strong>Syncs contacts</strong> — customers who have opted in flow into your Smaily contact list.</li>
+        <li><strong>Triggers automations</strong> — store events (welcome, first order, abandoned cart) start your Smaily workflows.</li>
+        <li><strong>Powers recommendations</strong> — when you connect Campaign Intelligence, your catalog, customers and orders seed personalised recommendations and engine‑run automations.</li>
+      </ul>
+      <p>Your data stays yours. Contacts live in your Smaily account; the plugin only connects the two systems.</p>
+    </div>
+    <div data-lang="et">
+      <p>Smaily Connect on WordPressi plugin, mis ühendab su WooCommerce'i poe sinu enda Smaily e‑turunduse kontoga ja soovi korral <strong>Smaily Campaign Intelligence'iga</strong> — Smaily soovitusmootoriga, mis pakub personaalseid tooteid ja ostupõhiseid automaatikaid.</p>
+      <p>See teeb kolme asja:</p>
+      <ul>
+        <li><strong>Sünkroonib kontakte</strong> — nõusoleku andnud kliendid liiguvad sinu Smaily kontaktinimekirja.</li>
+        <li><strong>Käivitab automaatikaid</strong> — poe sündmused (tervitus, esimene tellimus, pooleli jäänud ostukorv) käivitavad su Smaily töövood.</li>
+        <li><strong>Toidab soovitusi</strong> — kui ühendad Campaign Intelligence'i, siis su tootekataloog, kliendid ja tellimused annavad alusandmed personaalsetele soovitustele ja mootori‑automaatikatele.</li>
+      </ul>
+      <p>Su andmed jäävad sinu omaks. Kontaktid elavad sinu Smaily kontos; plugin ainult ühendab kaks süsteemi.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="pieces">
+    <h2><span data-lang="en">How the pieces fit together</span><span data-lang="et">Kuidas osad kokku sobivad</span></h2>
+    <div data-lang="en">
+      <p>There are three systems:</p>
+      <ul>
+        <li><strong>WooCommerce</strong> — your store: customers, orders, products and storefront activity.</li>
+        <li><strong>Smaily</strong> — your email‑marketing account, where contacts and automation workflows live (<code>yourcompany.sendsmaily.net</code>).</li>
+        <li><strong>Campaign Intelligence</strong> — Smaily's recommendation engine. Optional, connected with a one‑time setup link.</li>
+      </ul>
+      <p>Smaily Connect is the bridge. WooCommerce events reach the plugin; the plugin forwards contacts and triggers to Smaily, and — if connected — catalog, customer and order data to Campaign Intelligence.</p>
+      <div class="note">
+        <span class="k">Under the hood</span>
+        <p>Background work runs on <strong>Action Scheduler</strong> (bundled with WooCommerce), not WP‑Cron. Every record carries a unique event id, so a retry never creates a duplicate. You can watch it all in the <strong>Event Log</strong>.</p>
+      </div>
+    </div>
+    <div data-lang="et">
+      <p>Süsteeme on kolm:</p>
+      <ul>
+        <li><strong>WooCommerce</strong> — sinu pood: kliendid, tellimused, tooted ja poe‑tegevus.</li>
+        <li><strong>Smaily</strong> — sinu e‑turunduse konto, kus elavad kontaktid ja automaatika‑töövood (<code>sinufirma.sendsmaily.net</code>).</li>
+        <li><strong>Campaign Intelligence</strong> — Smaily soovitusmootor. Valikuline, ühendatakse ühekordse seadistuslingiga.</li>
+      </ul>
+      <p>Smaily Connect on sild. WooCommerce'i sündmused jõuavad pluginani; plugin edastab kontaktid ja käivitajad Smailysse ning — kui ühendatud — tootekataloogi, klientide ja tellimuste andmed Campaign Intelligence'isse.</p>
+      <div class="note">
+        <span class="k">Kapoti all</span>
+        <p>Taustatöö käib <strong>Action Scheduleri</strong> peal (tuleb WooCommerce'iga kaasa), mitte WP‑Croni peal. Iga kirje kannab unikaalset sündmuse‑id'd, seega kordus ei tekita kunagi duplikaati. Kõike saab jälgida <strong>Event Logist</strong>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub" id="before">
+    <h2><span data-lang="en">Before you start</span><span data-lang="et">Enne alustamist</span></h2>
+    <div data-lang="en">
+      <p>You need:</p>
+      <ul>
+        <li>A <strong>WooCommerce store</strong> on WordPress, served over <strong>HTTPS</strong> (the Smaily and recommendation APIs are HTTPS‑only).</li>
+        <li>A <strong>Smaily account with API access</strong>. You create API users in Smaily under <span class="path">Settings → API</span> — you'll need the <strong>subdomain</strong>, <strong>API username</strong> and <strong>API password</strong>.</li>
+        <li><em>(Optional)</em> A <strong>Campaign Intelligence setup link</strong> — a one‑time link of the form <code>https://…/setup/…</code>, provided by Smaily if you use the recommendation add‑on.</li>
+      </ul>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Component</th><th>Minimum</th><th>Tested up to</th></tr></thead>
+          <tbody>
+            <tr><td>WordPress</td><td>6.6</td><td>7.0</td></tr>
+            <tr><td>WooCommerce</td><td>6.9</td><td>10.7</td></tr>
+            <tr><td>PHP</td><td>8.0</td><td>8.3</td></tr>
+            <tr><td>HTTPS</td><td>Required</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Everything is set up through a short wizard, described next.</p>
+    </div>
+    <div data-lang="et">
+      <p>Sul on vaja:</p>
+      <ul>
+        <li><strong>WooCommerce'i poodi</strong> WordPressil, <strong>HTTPS</strong> kaudu (Smaily ja soovitus‑API‑d on ainult HTTPS).</li>
+        <li><strong>Smaily kontot API‑ligipääsuga</strong>. API‑kasutajad luuakse Smailys jaotises <span class="path">Settings → API</span> — vaja läheb <strong>alamdomeeni</strong>, <strong>API kasutajanime</strong> ja <strong>API parooli</strong>.</li>
+        <li><em>(Valikuline)</em> <strong>Campaign Intelligence seadistuslinki</strong> — ühekordset linki kujul <code>https://…/setup/…</code>, mille Smaily annab, kui kasutad soovitus‑lisa.</li>
+      </ul>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Komponent</th><th>Miinimum</th><th>Testitud kuni</th></tr></thead>
+          <tbody>
+            <tr><td>WordPress</td><td>6.6</td><td>7.0</td></tr>
+            <tr><td>WooCommerce</td><td>6.9</td><td>10.7</td></tr>
+            <tr><td>PHP</td><td>8.0</td><td>8.3</td></tr>
+            <tr><td>HTTPS</td><td>Nõutud</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Kõik seadistatakse lühikese viisardi kaudu, mida kirjeldab järgmine osa.</p>
+    </div>
+  </div>
+  <hr class="secend">
+</section>
+
+<!-- Remaining sections are filled after the framework preview is approved. -->
+<section class="sec" id="getting-started">
+  <h1><span data-lang="en">Getting started</span><span data-lang="et">Alustamine</span></h1>
+  <p class="lede">
+    <span data-lang="en">Install the plugin, then work through a short 6‑step wizard. No code or command line is required.</span>
+    <span data-lang="et">Paigalda plugin ja läbi lühike 6‑sammuline viisard. Koodi ega käsurida pole vaja.</span>
+  </p>
+
+  <div class="sub" id="install">
+    <h2><span data-lang="en">Install the plugin</span><span data-lang="et">Plugina paigaldus</span></h2>
+    <div data-lang="en">
+      <ol>
+        <li>Download the latest <strong>release ZIP</strong> from the Smaily Connect releases page.</li>
+        <li>In WordPress admin, go to <span class="path">Plugins → Add New Plugin → Upload Plugin</span>.</li>
+        <li>Choose the ZIP, click <strong>Install Now</strong>, then <strong>Activate</strong>.</li>
+        <li>A new <strong>Smaily Connect</strong> item appears in the left admin sidebar. Click it to open the <strong>Initial setup</strong>.</li>
+      </ol>
+      <div class="note tip">
+        <span class="k">Upgrading from an older Smaily plugin?</span>
+        <p>Smaily Connect installs alongside the legacy Smaily plugin and takes over once you finish the initial setup — your existing contact sync keeps working until then. New checkouts and registrations keep syncing throughout; the once-a-day catch-up sync waits and resumes as soon as you finish the setup. Nothing is lost, and you can roll back.</p>
+      </div>
+    </div>
+    <div data-lang="et">
+      <ol>
+        <li>Lae alla uusim <strong>väljalaske‑ZIP</strong> Smaily Connecti väljalaskelehelt.</li>
+        <li>WordPressi halduses mine <span class="path">Plugins → Add New Plugin → Upload Plugin</span>.</li>
+        <li>Vali ZIP, klõpsa <strong>Install Now</strong> ja siis <strong>Activate</strong>.</li>
+        <li>Vasakusse haldusribasse tekib uus <strong>Smaily Connect</strong>. Klõpsa sellel, et avada <strong>Algseadistus</strong>.</li>
+      </ol>
+      <div class="note tip">
+        <span class="k">Uuendad vanemalt Smaily pluginalt?</span>
+        <p>Smaily Connect paigaldub vana Smaily plugina kõrvale ja võtab üle alles siis, kui viisardi lõpetad — su senine kontakti‑sünk töötab kuni selle hetkeni edasi. Uued ostud ja registreerimised sünkivad kogu selle aja; kord ööpäevas käiv järelsünk ootab ära ja käivitub kohe, kui seadistuse lõpetad. Midagi ei lähe kaotsi ja saad tagasi pöörduda.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub" id="dashboard">
+    <h2><span data-lang="en">The Dashboard</span><span data-lang="et">Töölaud</span></h2>
+    <div data-lang="en">
+      <p>Opening <strong>Smaily Connect</strong> lands you on the Dashboard. Until setup is complete it shows <strong>Setup incomplete</strong> with a <strong>Resume setup</strong> button. Until you finish the wizard, clicking <strong>Settings</strong> sends you back to it — so just work through the steps in order.</p>
+      <p>Once things are running the Dashboard shows either <strong>Everything's running</strong> or <strong>Running — with failures to review</strong> (linking to the Event Log). The wizard has <strong>6 steps</strong>; steps after Step 1 stay locked until your Smaily connection is verified.</p>
+    </div>
+    <div data-lang="et">
+      <p><strong>Smaily Connecti</strong> avamine viib su Töölauale. Kuni seadistus on pooleli, näitab see <strong>Setup incomplete</strong> ja nuppu <strong>Resume setup</strong>. Kuni viisard on lõpetamata, saadab <strong>Settings</strong>‑ile klõpsamine su sinna tagasi — nii et lihtsalt läbi sammud järjekorras.</p>
+      <p>Kui asjad käivad, näitab Töölaud kas <strong>Everything's running</strong> või <strong>Running — with failures to review</strong> (viide Event Logile). Viisardil on <strong>6 sammu</strong>; sammud pärast 1. sammu on lukus, kuni su Smaily ühendus on kinnitatud.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="step1">
+    <h2><span data-lang="en">Step 1 — Connect your Smaily account</span><span data-lang="et">Samm 1 — Ühenda Smaily konto</span></h2>
+    <div data-lang="en">
+      <p>Enter your Smaily API credentials — the plugin verifies them before saving.</p>
+      <ul>
+        <li><strong>Subdomain</strong> — the part before <code>.sendsmaily.net</code> (e.g. <code>yourcompany</code>).</li>
+        <li><strong>API username</strong> and <strong>API password</strong> — create these in Smaily under <span class="path">Settings → API</span>.</li>
+      </ul>
+      <p>Press <strong>Test connection</strong>. On success you'll see <span class="pill ok">Verified</span> and <em>Connection verified</em>. You can change these credentials later under <span class="path">Settings → Connection</span>.</p>
+      <p><strong>Upgrading from an older Smaily plugin?</strong> Your subdomain and API username are already filled in and the password field is empty — the plugin never sends a stored password back to the browser. Leave it empty and press <strong>Test connection</strong>: it uses the password already saved for that account. Type a password only if you are switching accounts or have rotated it.</p>
+      <p><em>(Optional)</em> Under <strong>Recommendations engine</strong>, paste the one‑time <strong>setup link</strong> from <span class="path">Smaily admin → Recommendations</span> and press <strong>Connect</strong>. You'll see <em>Connected to tenant: your shop</em>. Skip this if you're not using recommendations yet — you can add it in Step 4 or later from Settings.</p>
+    </div>
+    <div data-lang="et">
+      <p>Sisesta oma Smaily API‑andmed — plugin kontrollib need enne salvestamist üle.</p>
+      <ul>
+        <li><strong>Alamdomeen</strong> — osa enne <code>.sendsmaily.net</code> (nt <code>sinufirma</code>).</li>
+        <li><strong>API kasutajanimi</strong> ja <strong>API parool</strong> — need luuakse Smailys jaotises <span class="path">Settings → API</span>.</li>
+      </ul>
+      <p>Vajuta <strong>Test connection</strong>. Õnnestumisel näed <span class="pill ok">Verified</span> ja <em>Connection verified</em>. Neid andmeid saad hiljem muuta jaotises <span class="path">Settings → Connection</span>.</p>
+      <p><strong>Uuendad vanemalt Smaily pluginalt?</strong> Alamdomeen ja API kasutajanimi on juba täidetud ning parooli väli on tühi — plugin ei saada salvestatud parooli kunagi brauserisse tagasi. Jäta see tühjaks ja vajuta <strong>Test connection</strong>: kasutatakse juba salvestatud parooli. Sisesta parool ainult siis, kui vahetad kontot või oled parooli muutnud.</p>
+      <p><em>(Valikuline)</em> Jaotises <strong>Recommendations engine</strong> kleebi ühekordne <strong>seadistuslink</strong> aadressilt <span class="path">Smaily admin → Recommendations</span> ja vajuta <strong>Connect</strong>. Näed <em>Connected to tenant: sinu pood</em>. Jäta vahele, kui soovitusi veel ei kasuta — saad lisada 4. sammus või hiljem seadetest.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="step2">
+    <h2><span data-lang="en">Step 2 — Contacts</span><span data-lang="et">Samm 2 — Kontaktid</span></h2>
+    <div data-lang="en">
+      <p>Choose who is synced to Smaily and which fields ride along, then bring your existing customers over.</p>
+      <ul>
+        <li>Keep <strong>Sync contacts to Smaily</strong> on, and pick a <strong>consent preset</strong> (see <a href="#set-subscribers">Contacts settings</a>). The default sends only customers who opted in.</li>
+        <li><strong>Email</strong> and <strong>language</strong> are always synced; tick any additional fields you want (name, phone, and so on).</li>
+        <li>Optionally show a newsletter opt‑in checkbox during registration or checkout.</li>
+        <li>Under <strong>Initial contact import</strong>, press <strong>Start import</strong> to send your current customers to Smaily. It runs in the background — you can leave the page.</li>
+      </ul>
+    </div>
+    <div data-lang="et">
+      <p>Vali, kes Smailysse sünkroonitakse ja millised väljad kaasa lähevad, seejärel too olemasolevad kliendid üle.</p>
+      <ul>
+        <li>Hoia <strong>Sync contacts to Smaily</strong> sees ja vali <strong>nõusoleku‑eelseade</strong> (vt <a href="#set-subscribers">Kontaktide seaded</a>). Vaikeväärtus saadab ainult nõusoleku andnud kliendid.</li>
+        <li><strong>E‑post</strong> ja <strong>keel</strong> sünkroonitakse alati; märgi ära soovitud lisaväljad (nimi, telefon jne).</li>
+        <li>Soovi korral näita registreerimisel või kassas uudiskirja nõusoleku‑märkeruutu.</li>
+        <li>Jaotises <strong>Initial contact import</strong> vajuta <strong>Start import</strong>, et saata praegused kliendid Smailysse. See käib taustal — võid lehelt lahkuda.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sub" id="step3">
+    <h2><span data-lang="en">Step 3 — Automations</span><span data-lang="et">Samm 3 — Automaatikad</span></h2>
+    <div data-lang="en">
+      <p>Map store events to your Smaily automation workflows. Turn on the ones you want and pick the Smaily workflow each should trigger:</p>
+      <ul>
+        <li><strong>Welcome</strong> — a shopper creates an account in your store: at checkout, or on the My Account registration form. Accounts you add in WordPress admin, or that another plugin creates, don't trigger it.</li>
+        <li><strong>First order</strong> — a customer's first order.</li>
+        <li><strong>Abandoned cart</strong> — a cart started but not completed. You set a <strong>delay</strong> (minutes of inactivity before the cart counts as abandoned).</li>
+      </ul>
+      <p>Your Smaily workflows must exist in Smaily first; the plugin lists them for you to map. If none appear, none were found on your account (or Smaily couldn't be reached) — create them in Smaily, then revisit.</p>
+    </div>
+    <div data-lang="et">
+      <p>Seo poe sündmused oma Smaily automaatika‑töövoogudega. Lülita sisse need, mida soovid, ja vali Smaily töövoog, mida iga sündmus käivitab:</p>
+      <ul>
+        <li><strong>Welcome</strong> — ostleja loob su poes konto: kassas või „Minu konto“ registreerimisvormil. Kontod, mille lisad WordPressi haldusliideses või mille loob mõni muu plugin, seda ei käivita.</li>
+        <li><strong>First order</strong> — kliendi esimene tellimus.</li>
+        <li><strong>Abandoned cart</strong> — ostukorv alustatud, aga lõpetamata. Sead <strong>viivituse</strong> (tegevusetuse minutid, enne kui korv loetakse hüljatuks).</li>
+      </ul>
+      <p>Su Smaily töövood peavad Smailys enne olemas olema; plugin loetleb need sidumiseks. Kui ühtegi ei kuva, ei leitud su kontolt ühtegi (või Smailyni ei jõutud) — loo need Smailys ja tule tagasi.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="step4">
+    <h2><span data-lang="en">Step 4 — Recommendations</span><span data-lang="et">Samm 4 — Soovitused</span></h2>
+    <div data-lang="en">
+      <p><em>Only if you connected Campaign Intelligence in Step 1.</em> This step seeds the engine and turns on the optional signals.</p>
+      <p><strong>Syncing is automatic.</strong> Once connected, your <strong>products, customers and orders</strong> sync to the engine on their own — there's nothing to switch on per data type.</p>
+      <p><strong>Import existing data:</strong> run the <strong>Products</strong>, <strong>Customers</strong> and <strong>Orders</strong> backfills (one <strong>Start</strong> each) so the engine has history to learn from. Safe to re‑run — duplicates are impossible by design.</p>
+      <h3>Browse tracking (opt‑in)</h3>
+      <p>The <strong>Track browsing behavior</strong> toggle is <strong>off by default</strong>. It powers "similar products" recommendations from what shoppers view, and it is <strong>consent‑gated</strong>: browse events only fire for visitors who have granted marketing consent.</p>
+      <div class="note">
+        <span class="k">Two gates</span>
+        <p>Turning the toggle <strong>on</strong> = <em>you</em> allow browse tracking. The shopper's cookie‑consent banner is the second gate — both must say yes before any browse event is sent. Consent is read through the <strong>WP Consent API</strong> (see <a href="#err-companion">Companion plugins</a>). Server‑side data (orders, customers, products) is unaffected — it always syncs.</p>
+      </div>
+      <h3>Shopper profiling opt‑out (automatic)</h3>
+      <p>Every logged‑in shopper gets a <strong>Personalised recommendations</strong> section on their <span class="path">My Account</span> dashboard with a checkbox — <em>"Use my data for personalised recommendations."</em> It is <strong>on by default</strong> (opt‑out model). Unticking it stops their data being used for profiling, tells the engine to stop profiling them, and is remembered in Smaily too. Shoppers who opt out still receive emails — just non‑personalised ones.</p>
+      <div class="note warn">
+        <span class="k">Your privacy policy must mention profiling</span>
+        <p>Because personalisation is on by default, your store's privacy policy needs a sentence saying that browsing and purchase history is used to personalise recommendations and that customers can turn it off under <span class="path">My Account</span>.</p>
+      </div>
+    </div>
+    <div data-lang="et">
+      <p><em>Ainult siis, kui ühendasid Campaign Intelligence'i 1. sammus.</em> See samm annab mootorile alusandmed ja lülitab sisse valikulised signaalid.</p>
+      <p><strong>Sünkroonimine on automaatne.</strong> Kui ühendatud, sünkroonivad su <strong>tooted, kliendid ja tellimused</strong> mootorisse iseenesest — andmetüübi kaupa pole midagi sisse lülitada.</p>
+      <p><strong>Impordi olemasolevad andmed:</strong> käivita <strong>Products</strong>, <strong>Customers</strong> ja <strong>Orders</strong> backfill'id (igaühe <strong>Start</strong>), et mootoril oleks ajalugu, millest õppida. Kordamine on ohutu — duplikaadid on disaini poolest võimatud.</p>
+      <h3>Sirvimise jälgimine (opt‑in)</h3>
+      <p>Lüliti <strong>Track browsing behavior</strong> on <strong>vaikimisi väljas</strong>. See toidab "sarnaste toodete" soovitusi selle põhjal, mida külastajad vaatavad, ja on <strong>nõusolekuga piiratud</strong>: sirvimissündmused käivituvad ainult külastajatel, kes on andnud turundusnõusoleku.</p>
+      <div class="note">
+        <span class="k">Kaks väravat</span>
+        <p>Lüliti <strong>sisselülitamine</strong> = <em>sina</em> lubad sirvimise jälgimise. Külastaja küpsise‑nõusoleku bänner on teine värav — mõlemad peavad ütlema "jah", enne kui ükski sirvimissündmus saadetakse. Nõusolekut loetakse <strong>WP Consent API</strong> kaudu (vt <a href="#err-companion">Kaaslas‑pluginad</a>). Serveripoolseid andmeid (tellimused, kliendid, tooted) see ei mõjuta — need sünkivad alati.</p>
+      </div>
+      <h3>Kliendi profileerimisest loobumine (automaatne)</h3>
+      <p>Igal sisselogitud kliendil on oma <span class="path">My Account</span> töölaual sektsioon <strong>Personalised recommendations</strong> märkeruuduga — <em>"Kasuta mu andmeid personaalsete soovituste jaoks."</em> See on <strong>vaikimisi sees</strong> (opt‑out mudel). Selle eemaldamine peatab ta andmete kasutamise profileerimiseks, käsib mootoril ta profileerimise lõpetada ja jäetakse meelde ka Smailys. Loobunud kliendid saavad ikka e‑kirju — lihtsalt mitte‑personaalseid.</p>
+      <div class="note warn">
+        <span class="k">Su privaatsuspoliitika peab profileerimist mainima</span>
+        <p>Kuna personaliseerimine on vaikimisi sees, vajab su poe privaatsuspoliitika lauset, et sirvimis‑ ja ostuajalugu kasutatakse soovituste personaliseerimiseks ja et kliendid saavad selle <span class="path">My Account</span> all välja lülitada.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub" id="step5">
+    <h2><span data-lang="en">Step 5 — Forms and RSS feed</span><span data-lang="et">Samm 5 — Vormid ja RSS</span></h2>
+    <div data-lang="en">
+      <p>Wire Smaily into your storefront. This step is mostly informational — nothing here is required to sync.</p>
+      <ul>
+        <li><strong>Newsletter signup block</strong> — add the Smaily newsletter block to any page or widget area; signups land in your Smaily contacts automatically.</li>
+        <li><strong>Contact Form 7</strong> and <strong>Elementor</strong> — if either plugin is active, a Smaily subscription field/widget is available in its editor.</li>
+        <li><strong>Shortcode</strong> — the <code>[smaily_connect_newsletter_form]</code> shortcode gives full control over form placement in any post, page or widget. See <a href="#set-integrations">Settings → Integrations</a>.</li>
+        <li><strong>Product RSS feed</strong> — a URL you paste into Smaily's template editor to load store products into campaigns. Configure it under <a href="#set-integrations">Settings → Integrations</a>.</li>
+      </ul>
+    </div>
+    <div data-lang="et">
+      <p>Ühenda Smaily oma poega. See samm on peamiselt informatiivne — miski siin pole sünkimiseks kohustuslik.</p>
+      <ul>
+        <li><strong>Uudiskirja liitumisplokk</strong> — lisa Smaily uudiskirja plokk mis tahes lehele või vidina‑alale; liitujad jõuavad automaatselt su Smaily kontaktidesse.</li>
+        <li><strong>Contact Form 7</strong> ja <strong>Elementor</strong> — kui üks neist pluginatest on aktiivne, on selle redaktoris saadaval Smaily tellimis‑väli/vidin.</li>
+        <li><strong>Lühikood</strong> — lühikood <code>[smaily_connect_newsletter_form]</code> annab täieliku paigutuskontrolli mis tahes postituses, lehel või vidinas. Vt <a href="#set-integrations">Settings → Integrations</a>.</li>
+        <li><strong>Toodete RSS‑voog</strong> — URL, mille kleebid Smaily malliredaktorisse, et laadida poe tooted kampaaniatesse. Seadista jaotises <a href="#set-integrations">Settings → Integrations</a>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sub" id="step6">
+    <h2><span data-lang="en">Step 6 — Overview</span><span data-lang="et">Samm 6 — Ülevaade</span></h2>
+    <div data-lang="en">
+      <p>Review the summary of everything you configured and press <strong>Finish</strong>. This unlocks the <strong>Settings</strong> tabs for ongoing management. You can revisit and change anything later under Settings.</p>
+    </div>
+    <div data-lang="et">
+      <p>Vaata üle kokkuvõte kõigest, mille seadistasid, ja vajuta <strong>Finish</strong>. See avab jätkuhalduseks <strong>Settings</strong>‑vahekaardid. Kõike saab hiljem seadetest üle vaadata ja muuta.</p>
+    </div>
+  </div>
+  <hr class="secend">
+</section>
+<section class="sec" id="settings">
+  <h1><span data-lang="en">Settings</span><span data-lang="et">Seaded</span></h1>
+  <p class="lede">
+    <span data-lang="en">Everything the wizard configured is here for ongoing management, split into tabs.</span>
+    <span data-lang="et">Kõik, mille viisard seadistas, on siin jätkuhalduseks — vahekaartidena.</span>
+  </p>
+
+  <div class="sub" id="set-connection">
+    <h2><span data-lang="en">Connection</span><span data-lang="et">Ühendus</span></h2>
+    <div data-lang="en">
+      <p>Manage the Smaily account Smaily Connect sends through. Credentials are validated against Smaily before they are saved.</p>
+      <ul>
+        <li>When connected you'll see <span class="pill ok">Verified</span> and <em>Connected as USERNAME @ subdomain.sendsmaily.net</em>.</li>
+        <li><strong>Update credentials</strong> changes the API user.</li>
+        <li><strong>Disconnect</strong> stops contact sync until you reconnect.</li>
+      </ul>
+      <p>If your store sells in more than one language, this tab also offers a <strong>multilingual mode</strong> (a separate Smaily account or workflow per language). Languages are detected automatically from <strong>WPML</strong> or <strong>Polylang</strong> if you run one of them — see <a href="#set-consent">multilingual routing</a>.</p>
+      <p>The recommendation‑engine connection is shown here too, with its own <strong>Test</strong> and <strong>Disconnect</strong>.</p>
+      <p>An optional <strong>transactional emails</strong> account — a second, separate Smaily account used only for order/shipping confirmations — is configured here too, below the main connection; see <a href="#set-transactional">Transactional emails</a>.</p>
+    </div>
+    <div data-lang="et">
+      <p>Halda Smaily kontot, mille kaudu Smaily Connect saadab. Andmed valideeritakse Smaily vastu enne salvestamist.</p>
+      <ul>
+        <li>Kui ühendatud, näed <span class="pill ok">Verified</span> ja <em>Connected as KASUTAJA @ alamdomeen.sendsmaily.net</em>.</li>
+        <li><strong>Update credentials</strong> vahetab API‑kasutaja.</li>
+        <li><strong>Disconnect</strong> peatab kontakti‑sünkimise kuni taasühendamiseni.</li>
+      </ul>
+      <p>Kui su pood müüb mitmes keeles, pakub see vahekaart ka <strong>mitmekeelset režiimi</strong> (eraldi Smaily konto või töövoog keele kohta). Keeled tuvastatakse automaatselt <strong>WPML‑ist</strong> või <strong>Polylangist</strong>, kui üks neist on kasutusel — vt <a href="#set-consent">mitmekeelne suunamine</a>.</p>
+      <p>Siin kuvatakse ka soovitusmootori ühendus koos oma <strong>Test</strong> ja <strong>Disconnect</strong> nuppudega.</p>
+      <p>Ka vabatahtlik <strong>tehingu‑e‑kirjade</strong> konto — teine, eraldi Smaily konto, mida kasutatakse ainult tellimuse/saatmise kinnituste jaoks — seadistatakse siin, põhiühenduse all; vt <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="set-subscribers">
+    <h2><span data-lang="en">Contacts</span><span data-lang="et">Kontaktid</span></h2>
+    <div data-lang="en">
+      <p>Controls who is copied to your Smaily contact list and which fields are sent.</p>
+      <p><strong>Sync contacts to Smaily</strong> is the master switch. When off, customers are no longer copied to Smaily; existing contacts and Smaily automations are unaffected.</p>
+      <h3>Who is synced (consent presets)</h3>
+      <p>Choose by your lawful basis for marketing email. The default is the consent‑safe option.</p>
+      <ul>
+        <li><strong>Subscribers only (consent)</strong> <em>(default)</em> — only customers who opted in to email marketing are sent.</li>
+        <li><strong>All customers (legitimate interest)</strong> — every registered customer is sent regardless of marketing consent. Requires a lawful basis.</li>
+        <li><strong>Checkout opt‑in only</strong> — only shoppers who accept marketing at checkout are sent (guests included).</li>
+      </ul>
+      <h3>Fields to sync</h3>
+      <p><strong>Email</strong> is always synced (it identifies the contact) and <strong>language</strong> is always synced (it routes contacts to the right account in multilingual setups). Pick any additional fields you want copied. You can also sync <strong>guest‑order email addresses</strong>.</p>
+      <p>Upgrading from an older Smaily plugin keeps the fields you had chosen there, and the tick boxes show them — so you can change them like any other setting. In the rare case your saved selection can't be read, the plugin says so in an admin notice and syncs every supported field until you tick and save a new selection.</p>
+    </div>
+    <div data-lang="et">
+      <p>Määrab, kes kopeeritakse su Smaily kontaktinimekirja ja millised väljad saadetakse.</p>
+      <p><strong>Sync contacts to Smaily</strong> on pealüliti. Väljas olles kliente enam Smailysse ei kopeerita; olemasolevaid kontakte ja Smaily automaatikaid see ei mõjuta.</p>
+      <h3>Keda sünkroonitakse (nõusoleku‑eelseaded)</h3>
+      <p>Vali oma turunduse‑e‑kirja seadusliku aluse järgi. Vaikeväärtus on nõusoleku‑ohutu variant.</p>
+      <ul>
+        <li><strong>Subscribers only (consent)</strong> <em>(vaikimisi)</em> — saadetakse ainult kliendid, kes on turundusele nõusoleku andnud.</li>
+        <li><strong>All customers (legitimate interest)</strong> — iga registreeritud klient saadetakse turundusnõusolekust sõltumata. Nõuab seaduslikku alust.</li>
+        <li><strong>Checkout opt‑in only</strong> — saadetakse ainult kassas turunduse aktsepteerinud (sh külalised).</li>
+      </ul>
+      <h3>Sünkroonitavad väljad</h3>
+      <p><strong>E‑post</strong> sünkroonitakse alati (see identifitseerib kontakti) ja <strong>keel</strong> sünkroonitakse alati (see suunab kontaktid mitmekeelses seadistuses õigesse kontosse). Vali soovitud lisaväljad. Sünkida saab ka <strong>külalis‑tellimuste e‑posti aadresse</strong>.</p>
+      <p>Vanemalt Smaily pluginalt uuendades säilivad seal valitud väljad ja märkeruudud näitavad neid — nii saad neid muuta nagu iga teist seadet. Harval juhul, kui salvestatud valikut ei õnnestu lugeda, ütleb plugin seda haldusteates ja sünkroonib kõik toetatud väljad, kuni märgid ja salvestad uue valiku.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="set-consent">
+    <h2><span data-lang="en">How consent is recorded</span><span data-lang="et">Kuidas nõusolek salvestatakse</span></h2>
+    <div data-lang="en">
+      <p>In <strong>Subscribers only (consent)</strong> mode, a customer is synced to Smaily only when your store records them as subscribed to email marketing. Your store's own marketing‑consent record is the evidence — the plugin never assumes consent, it mirrors what your store captured.</p>
+      <p>Consent is captured by your store — the checkout marketing checkbox, the Smaily newsletter block (submitting the form is the opt‑in), or the customer's account. The record carries the marketing state, the opt‑in level, and a timestamp.</p>
+      <h3>Language routing</h3>
+      <p>The <strong>language</strong> sent with each contact is resolved from the customer's preferred language, then their most recent order's language, then the site's multilingual default (WPML / Polylang) — never from the request context. This keeps a scheduled sync and a live request giving the same answer, so a store with an English WordPress locale but Estonian content doesn't get its contacts mislabelled.</p>
+    </div>
+    <div data-lang="et">
+      <p><strong>Subscribers only (consent)</strong> režiimis sünkroonitakse klient Smailysse ainult siis, kui su pood on ta märkinud turundusele tellijaks. Su poe enda turundusnõusoleku‑kirje on tõend — plugin ei eelda kunagi nõusolekut, vaid peegeldab seda, mille su pood salvestas.</p>
+      <p>Nõusoleku salvestab su pood — kassa turunduse‑märkeruut, Smaily uudiskirja plokk (vormi esitamine ongi nõusolek) või kliendi konto. Kirje kannab turundusseisundit, nõusoleku‑taset ja ajatemplit.</p>
+      <h3>Keele suunamine</h3>
+      <p>Iga kontaktiga saadetav <strong>keel</strong> tuletatakse kliendi eelistatud keelest, siis ta viimasest tellimusest, siis saidi mitmekeelsest vaikekeelest (WPML / Polylang) — mitte kunagi päringu kontekstist. Nii annavad ajastatud sünk ja reaalajas päring sama tulemuse, ja inglise WordPressi‑lokaadiga aga eesti sisuga pood ei saa oma kontakte valesti märgitud.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="set-automations">
+    <h2><span data-lang="en">Automations</span><span data-lang="et">Automaatikad</span></h2>
+    <div data-lang="en">
+      <p>Three kinds of automation live here.</p>
+      <div class="note">
+        <span class="k">Where the workflow dropdowns get their list</span>
+        <ul>
+          <li>Every dropdown reads the workflow list <strong>live from your Smaily account</strong> each time you open the settings page — there's no cache and no refresh interval. Made a change in Smaily? Reload the settings page to see it.</li>
+          <li>Only <strong>active</strong> workflows are listed. Deactivate a workflow in Smaily and it disappears from these dropdowns.</li>
+          <li>Each dropdown lists the workflows of the <strong>account its section uses</strong> — the <a href="#set-transactional">transactional‑email</a> sections list the separate transactional account's workflows, not your main account's.</li>
+        </ul>
+      </div>
+      <h3>Store‑run triggers</h3>
+      <p>Map a store event to a Smaily workflow: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome fires when a shopper creates an account in your store (checkout or the My Account registration form) — not for accounts added in WordPress admin or created by another plugin. Abandoned cart has a delay (minutes of inactivity before a cart counts as abandoned). If no workflows appear, none were found on your Smaily account (or Smaily couldn't be reached) — create them in Smaily first.</p>
+      <div class="note">
+        <span class="k">Each trigger marks the contact — build segments on it</span>
+        <p>Every time one of these fires, it writes the moment it ran onto the contact in Smaily, so you can tell an automation‑enrolled contact from someone who subscribed themselves:</p>
+        <ul>
+          <li><code>welcome_automation_at</code></li>
+          <li><code>first_order_automation_at</code></li>
+          <li><code>abandoned_cart_automation_at</code></li>
+        </ul>
+        <p>The value is the <strong>last</strong> run's date and time in UTC (<code>2026-08-04 14:30:00</code>) — it's overwritten on each run, and a trigger that has never fired for a contact leaves its field untouched. Use these in Smaily to include or exclude automation‑touched contacts. The abandoned‑cart template field <code>is_abandoned_cart</code> is unchanged and still sent alongside.</p>
+      </div>
+      <h3>Engine‑run recommendation automations</h3>
+      <p>These are triggered by Campaign Intelligence, not by a store event — the engine enrols each contact into the Smaily workflow you pick at the moment it predicts (a replenishment running out, a customer at risk of churning). Per automation you set:</p>
+      <ul>
+        <li>an <strong>Enable</strong> toggle and the Smaily <strong>workflow</strong> to use;</li>
+        <li>a <strong>Cooldown</strong> — minimum days between two fires for the same customer (<strong>1–365</strong>);</li>
+        <li><strong>Test mode</strong> — while on, emails go only to your test addresses (comma‑separated), never to customers. Use <strong>Activate for real…</strong> to go live.</li>
+      </ul>
+      <div class="note">
+        <span class="k">Fail‑closed by design</span>
+        <p>Test mode starts <strong>on</strong>. A test‑mode automation with no test addresses sends to <strong>no one</strong> until you add at least one address — so an automation can never fire at customers before you mean it to.</p>
+      </div>
+      <h3>Transactional‑email triggers</h3>
+      <p>Order confirmation and Shipping confirmation appear here too — but only once you've connected the separate transactional Smaily account on the <a href="#set-connection">Connection tab</a>. See <a href="#set-transactional">Transactional emails</a> for the full walkthrough.</p>
+    </div>
+    <div data-lang="et">
+      <p>Siin elab kolme liiki automaatikat.</p>
+      <div class="note">
+        <span class="k">Kust töövoo‑rippmenüüd oma nimekirja saavad</span>
+        <ul>
+          <li>Iga rippmenüü loeb töövoogude nimekirja <strong>otse ja reaalajas su Smaily kontolt</strong> iga kord, kui avad seadete lehe — vahemälu ega värskendusintervalli pole. Tegid Smailys muudatuse? Lae seadete leht uuesti, et seda näha.</li>
+          <li>Nimekirjas on ainult <strong>aktiivsed</strong> töövood. Kui deaktiveerid töövoo Smailys, kaob see nendest rippmenüüdest.</li>
+          <li>Iga rippmenüü näitab selle <strong>sektsiooni kasutatava konto</strong> töövoogusid — <a href="#set-transactional">tehingu‑e‑kirjade</a> jaotised näitavad eraldi tehingukonto töövoogusid, mitte su põhikonto omi.</li>
+        </ul>
+      </div>
+      <h3>Poe‑käivitatavad</h3>
+      <p>Seo poe sündmus Smaily töövooga: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome käivitub, kui ostleja loob su poes konto (kassas või „Minu konto“ registreerimisvormil) — mitte kontode puhul, mille lisad WordPressi haldusliideses või mille loob mõni muu plugin. Pooleli jäänud korval on viivitus (tegevusetuse minutid, enne kui korv loetakse hüljatuks). Kui ühtegi töövoogu ei kuva, ei leitud su Smaily kontolt ühtegi (või Smailyni ei jõutud) — loo need enne Smailys.</p>
+      <div class="note">
+        <span class="k">Iga päästik märgistab kontakti — ehita selle peale segmente</span>
+        <p>Iga kord, kui mõni neist käivitub, kirjutab see kontaktile Smailys käivitumise hetke, nii et eristad automaatika kaudu lisatud kontakti sellest, kes ise tellijaks hakkas:</p>
+        <ul>
+          <li><code>welcome_automation_at</code></li>
+          <li><code>first_order_automation_at</code></li>
+          <li><code>abandoned_cart_automation_at</code></li>
+        </ul>
+        <p>Väärtus on <strong>viimase</strong> käivituse kuupäev ja kellaaeg UTC‑s (<code>2026-08-04 14:30:00</code>) — see kirjutatakse igal käivitusel üle ja päästik, mis pole selle kontakti jaoks kunagi käivitunud, jätab oma välja puutumata. Kasuta neid Smailys automaatikaga puudutatud kontaktide kaasamiseks või välistamiseks. Pooleli jäänud korvi malli‑väli <code>is_abandoned_cart</code> on muutmata ja saadetakse endiselt kõrvuti.</p>
+      </div>
+      <h3>Mootori‑käivitatavad soovitus‑automaatikad</h3>
+      <p>Neid käivitab Campaign Intelligence, mitte poe sündmus — mootor lisab iga kontakti sinu valitud Smaily töövoogu hetkel, mil ta ennustab (varu saab otsa, klient ohus lahkuda). Automaatika kohta sead:</p>
+      <ul>
+        <li><strong>Enable</strong> lüliti ja kasutatava Smaily <strong>töövoo</strong>;</li>
+        <li><strong>Cooldown</strong> — vähim päevade arv sama kliendi kahe käivituse vahel (<strong>1–365</strong>);</li>
+        <li><strong>Test mode</strong> — sees olles lähevad e‑kirjad ainult su test‑aadressidele (komadega eraldatud), mitte kunagi klientidele. Reaalseks minekuks kasuta <strong>Activate for real…</strong>.</li>
+      </ul>
+      <div class="note">
+        <span class="k">Disaini poolest fail‑closed</span>
+        <p>Test mode algab <strong>sees</strong>. Test‑režiimi automaatika ilma test‑aadressideta saadab <strong>mitte kellelegi</strong>, kuni lisad vähemalt ühe aadressi — nii ei saa automaatika kunagi klientidele käivituda enne, kui sa seda soovid.</p>
+      </div>
+      <h3>Tehingu‑e‑kirjade päästikud</h3>
+      <p>Tellimuse kinnitus ja Saatmisteade ilmuvad ka siia — aga alles pärast eraldi tehingu‑Smaily konto ühendamist <a href="#set-connection">Connection vahekaardil</a>. Täisjuhendi leiad siit: <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="set-transactional">
+    <h2><span data-lang="en">Transactional emails</span><span data-lang="et">Tehingu‑e‑kirjad</span></h2>
+    <div data-lang="en">
+      <p>Send your order confirmation and shipping notice through Smaily instead of WordPress's own mail, using a <strong>separate Smaily account</strong> bound only to these sends — kept apart from your marketing account so a marketing bounce or complaint can never threaten order‑email delivery.</p>
+      <div class="note">
+        <span class="k">Where to find it</span>
+        <p>Two places, on purpose: <strong>Settings → Connection tab</strong> is where you connect the account (toggle → subdomain/username/password → Test connection → the same green "✓ Connected" checkmark your main Smaily connection uses). <strong>Settings → WooCommerce tab</strong> is where the "Order confirmation" and "Shipping confirmation" sections appear — but only once that connection is established; until then the WooCommerce tab shows nothing transactional.</p>
+      </div>
+      <p>On the Connection tab, <strong>Use transactional emails</strong> is the master switch for the account itself; each of the two triggers on the WooCommerce tab has its own switch too, so you can turn on order confirmations without shipping notices, or vice‑versa.</p>
+      <h3>Order confirmation</h3>
+      <p>Sent once, the moment a customer places an order. Map it to a Smaily workflow the same way as the automations above.</p>
+      <h3>Shipping confirmation</h3>
+      <p>Sent once, when an order first reaches a status you've marked as <strong>"Counts as shipped"</strong> — pick any number of your store's order statuses (built‑in or custom, e.g. a shipping plugin's "Shipped" status). A later flip back into a shipped status for the same order never sends a second notice.</p>
+      <p>While either toggle is on, Smaily Connect quietly takes over WooCommerce's matching built‑in customer email (Processing order / Completed order) so the customer never gets two emails for the same event. Completed‑order suppression only applies when <strong>"completed"</strong> is itself one of your chosen shipped statuses — a custom status (like "Shipped") has no built‑in WooCommerce email to replace.</p>
+      <p>If Smaily can't be reached, or briefly rejects the send, WooCommerce's own email for that order fires automatically as a fallback — a customer is never left without a confirmation. A send that keeps failing is retried for up to about an hour before this fallback kicks in, so a longer Smaily outage doesn't leave the customer waiting indefinitely. The attempt is recorded in your <a href="#err-retry">Event Log</a> either way.</p>
+      <div class="note warn">
+        <span class="k">Two things your Smaily workflow must satisfy</span>
+        <ul>
+          <li>The mapped workflow must have a <strong>single section</strong> — a multi‑section workflow sends every section at once, which isn't what a one‑shot transactional email needs.</li>
+          <li>A subject line that varies per order (e.g. including the order number) must be a <strong>merge tag inside the workflow template</strong> — there's no per‑send subject override from WordPress.</li>
+        </ul>
+      </div>
+    </div>
+    <div data-lang="et">
+      <p>Saada tellimuse kinnitus ja saatmisteade Smaily kaudu (mitte WordPressi enda meili kaudu), kasutades <strong>eraldi Smaily kontot</strong>, mis on seotud ainult nende saadetistega — hoitud lahus su turunduskontost, nii et turunduse tagasipõrge või kaebus ei saa kunagi ohustada tellimuse‑e‑kirjade kohaletoimetamist.</p>
+      <div class="note">
+        <span class="k">Kust see leida</span>
+        <p>Kaks kohta, meelega: <strong>Settings → Connection vahekaart</strong> on koht, kus ühendad konto (lüliti → subdomeen/kasutajanimi/parool → Test connection → sama roheline "✓ Connected" märge, mida su põhi‑Smaily ühendus kasutab). <strong>Settings → WooCommerce vahekaart</strong> on koht, kus ilmuvad "Order confirmation" ja "Shipping confirmation" jaotised — aga alles siis, kui see ühendus on loodud; enne seda ei näita WooCommerce vahekaart tehingu‑e‑kirjade kohta midagi.</p>
+      </div>
+      <p>Connection vahekaardil on <strong>Use transactional emails</strong> pealüliti konto enda jaoks; mõlemal WooCommerce vahekaardi päästikul on ka oma lüliti, nii saad sisse lülitada tellimuskinnitused ilma saatmisteadeteta või vastupidi.</p>
+      <h3>Tellimuse kinnitus</h3>
+      <p>Saadetakse üks kord, hetkel kui klient tellimuse esitab. Seo see Smaily töövooga samamoodi nagu ülal olevad automaatikad.</p>
+      <h3>Saatmisteade</h3>
+      <p>Saadetakse üks kord, kui tellimus jõuab esimest korda staatusesse, mille oled märkinud kui <strong>"Loetakse saadetuks"</strong> — vali suvaline arv oma poe staatuseid (sisseehitatud või kohandatud, nt saatmis‑pluginate "Shipped" staatus). Hilisem tagasipöördumine samasse saadetud‑staatusesse sama tellimuse puhul teist teadet enam ei saada.</p>
+      <p>Kui kumbki lüliti on sees, võtab Smaily Connect vaikselt üle WooCommerce'i vastava sisseehitatud kliendi‑e‑kirja (Processing order / Completed order), et klient ei saaks sama sündmuse kohta kaht e‑kirja. Completed‑order e‑kirja mahasurumine kehtib ainult siis, kui <strong>"completed"</strong> ise on üks su valitud saadetud‑staatustest — kohandatud staatusel (nt "Shipped") pole asendatavat sisseehitatud WooCommerce'i e‑kirja.</p>
+      <p>Kui Smailyni ei jõuta või see lükkab saatmise korraks tagasi, käivitub varuvariandina automaatselt WooCommerce'i enda e‑kiri selle tellimuse jaoks — klient ei jää kunagi kinnituseta. Pidevalt ebaõnnestuvat saatmist proovitakse uuesti kuni umbes tund aega, enne kui see varuvariant käivitub, nii et pikem Smaily katkestus ei jäta klienti lõputult ootama. Katse jääb mõlemal juhul kirja su <a href="#err-retry">Event Log'i</a>.</p>
+      <div class="note warn">
+        <span class="k">Kaks nõuet su Smaily töövoole</span>
+        <ul>
+          <li>Seotud töövoog peab olema <strong>ühe sektsiooniga</strong> — mitme sektsiooniga töövoog saadab kõik sektsioonid korraga, mis ei sobi ühekordse tehingu‑e‑kirja jaoks.</li>
+          <li>Tellimuse kohta muutuv teemarida (nt tellimuse numbriga) peab olema <strong>töövoo malli sees liitmärgend (merge tag)</strong> — WordPressist teemarea ülekirjutamist saadetise kohta pole.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub" id="set-ci">
+    <h2><span data-lang="en">Campaign Intelligence</span><span data-lang="et">Campaign Intelligence</span></h2>
+    <div data-lang="en">
+      <p>When connected, this tab shows the connection (with <strong>Test</strong> and <strong>Disconnect</strong>) plus:</p>
+      <ul>
+        <li><strong>Import existing data</strong> — seed history so recommendations have something to learn from (Products / Customers / Orders). Safe to re‑run.</li>
+        <li><strong>Browse tracking</strong> — captures product and category views to power "similar products" recommendations. Off by default; only runs when the visitor has granted marketing consent (see <a href="#step4">Step 4</a>).</li>
+        <li><strong>Recommendation attribution</strong> — credits store purchases to the recommendation that drove them. It runs automatically once the engine is connected: when a shopper lands from a recommendation link, the plugin captures the attribution parameters and stamps them onto the resulting order. No consent gate and nothing to switch on. The capture happens both on the server and in the browser (a small script the plugin loads on your storefront), so it keeps working behind a page cache and with browse tracking switched off.</li>
+      </ul>
+      <p><strong>Test</strong> confirms the connection is healthy. <strong>Disconnect</strong> stops recommendations and ingest; reconnecting needs a fresh setup link.</p>
+    </div>
+    <div data-lang="et">
+      <p>Kui ühendatud, näitab see vahekaart ühendust (koos <strong>Test</strong> ja <strong>Disconnect</strong>) ning lisaks:</p>
+      <ul>
+        <li><strong>Import existing data</strong> — anna ajalugu, millest soovitused õppida saavad (Products / Customers / Orders). Kordamine on ohutu.</li>
+        <li><strong>Browse tracking</strong> — jäädvustab toote‑ ja kategooria‑vaatamised, et toita "sarnaste toodete" soovitusi. Vaikimisi väljas; töötab ainult siis, kui külastaja on andnud turundusnõusoleku (vt <a href="#step4">4. samm</a>).</li>
+        <li><strong>Recommendation attribution</strong> — omistab poe ostud soovitusele, mis need tõi. See töötab automaatselt, niipea kui mootor on ühendatud: kui klient saabub soovituslingilt, jäädvustab plugin atribuutsiooni‑parameetrid ja märgib need tekkivale tellimusele. Nõusoleku‑väravat pole ja midagi pole sisse lülitada. Jäädvustamine toimub nii serveris kui ka brauseris (plugin laadib poe lehele väikese skripti), nii et see töötab ka lehecache'i taga ja siis, kui sirvimise jälgimine on välja lülitatud.</li>
+      </ul>
+      <p><strong>Test</strong> kinnitab, et ühendus on terve. <strong>Disconnect</strong> peatab soovitused ja andmevoo; taasühendamiseks on vaja uut seadistuslinki.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="set-integrations">
+    <h2><span data-lang="en">Integrations</span><span data-lang="et">Integratsioonid</span></h2>
+    <div data-lang="en">
+      <h3>Storefront newsletter</h3>
+      <p>Add the Smaily newsletter block to any page or widget area; signups land in your Smaily contacts automatically. If you run <strong>Contact Form 7</strong> or <strong>Elementor</strong>, a Smaily subscription field/widget is available in its editor.</p>
+      <h3>Shortcode</h3>
+      <p>For full control over placement, use the <code>[smaily_connect_newsletter_form]</code> shortcode in any post, page, or widget that supports shortcodes. It renders a simple subscription form (email, optional name) that posts directly to your Smaily account.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Attribute</th><th>Meaning</th><th>Default</th></tr></thead>
+          <tbody>
+            <tr><td><code>success_url</code></td><td>Where the shopper is redirected after a successful signup.</td><td>Current page</td></tr>
+            <tr><td><code>failure_url</code></td><td>Where the shopper is redirected if the signup fails.</td><td>Current page</td></tr>
+            <tr><td><code>show_name</code></td><td>Adds a Name field to the form.</td><td><code>false</code></td></tr>
+            <tr><td><code>autoresponder_id</code></td><td>Enrols the new contact into a specific Smaily workflow (find its id in Smaily). Leave it out to add the contact with no workflow.</td><td><em>(none)</em></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Example: <code>[smaily_connect_newsletter_form autoresponder_id="123" show_name="1"]</code></p>
+      <p>Themes can override the markup by providing their own <code>smaily/smaily-public-basic.php</code> template.</p>
+      <div class="note warn">
+        <span class="k">No warning for a hand‑typed workflow id</span>
+        <p>Unlike the workflow dropdowns elsewhere in Settings, <code>autoresponder_id</code> here is typed in by hand — the plugin has no list to check it against. If that workflow is later disabled or deleted in Smaily, the form keeps rendering and submitting normally, but no automation fires. Nothing in WordPress flags this; check the workflow's status directly in Smaily.</p>
+      </div>
+      <h3>Gutenberg block</h3>
+      <p>In the WordPress page or post editor, open the block inserter and search "Smaily" — add the <strong>Smaily Sign-Up Form</strong> block anywhere in your content.</p>
+      <h3>Elementor widget</h3>
+      <p>If you run Elementor, open its editor and look under the <strong>Smaily</strong> category in the widget panel for the <strong>Smaily Opt-In Form</strong> widget.</p>
+      <h3>Classic Widget</h3>
+      <p>Go to <strong>Appearance → Widgets</strong> and add the <strong>Smaily Classic Subscription Widget</strong> to any widget area.</p>
+      <h3>Contact Form 7</h3>
+      <p>If you run Contact Form 7, open a form and switch to the <strong>Smaily for Contact Form 7</strong> tab to enable Smaily signup for that form.</p>
+      <h3>Product RSS feed</h3>
+      <p>A URL that loads store products into Smaily campaigns. The controls only shape the URL — nothing is saved. Adjust <strong>Product category</strong>, <strong>Limit</strong> (1–250) and <strong>Sort by</strong>, press <strong>Update URL</strong>, then copy the <strong>Feed URL</strong> into Smaily's template editor.</p>
+    </div>
+    <div data-lang="et">
+      <h3>Poe uudiskiri</h3>
+      <p>Lisa Smaily uudiskirja plokk mis tahes lehele või vidina‑alale; liitujad jõuavad automaatselt su Smaily kontaktidesse. Kui kasutad <strong>Contact Form 7‑t</strong> või <strong>Elementorit</strong>, on selle redaktoris saadaval Smaily tellimis‑väli/vidin.</p>
+      <h3>Lühikood (shortcode)</h3>
+      <p>Täieliku paigutuskontrolli jaoks kasuta lühikoodi <code>[smaily_connect_newsletter_form]</code> mis tahes postituses, lehel või vidinas, mis lühikoode toetab. See kuvab lihtsa liitumisvormi (e‑post, valikuline nimi), mis saadab andmed otse su Smaily kontosse.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Atribuut</th><th>Tähendus</th><th>Vaikeväärtus</th></tr></thead>
+          <tbody>
+            <tr><td><code>success_url</code></td><td>Kuhu klient suunatakse pärast õnnestunud liitumist.</td><td>Praegune leht</td></tr>
+            <tr><td><code>failure_url</code></td><td>Kuhu klient suunatakse, kui liitumine ebaõnnestub.</td><td>Praegune leht</td></tr>
+            <tr><td><code>show_name</code></td><td>Lisab vormile Nime välja.</td><td><code>false</code></td></tr>
+            <tr><td><code>autoresponder_id</code></td><td>Lisab uue kontakti kindlasse Smaily töövoogu (id leiad Smailyst). Jäta ära, et kontakt lisataks ilma töövooga.</td><td><em>(puudub)</em></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Näide: <code>[smaily_connect_newsletter_form autoresponder_id="123" show_name="1"]</code></p>
+      <p>Teemad saavad kujundust üle kirjutada, pakkudes oma <code>smaily/smaily-public-basic.php</code> malli.</p>
+      <div class="note warn">
+        <span class="k">Käsitsi sisestatud töövoo id kohta hoiatust ei kuvata</span>
+        <p>Erinevalt mujal Settings'is olevatest töövoo‑rippmenüüdest sisestatakse <code>autoresponder_id</code> siin käsitsi — pluginal pole nimekirja, mille vastu seda kontrollida. Kui see töövoog hiljem Smailys keelatakse või kustutatakse, jätkab vorm tavapärast renderdamist ja esitamist, aga ühtegi automaatikat ei käivitu. WordPress ei märgi seda kuidagi — kontrolli töövoo olekut otse Smailyst.</p>
+      </div>
+      <h3>Gutenbergi plokk</h3>
+      <p>Ava WordPressi lehe või postituse redaktoris ploki lisamise aken ja otsi "Smaily" — lisa <strong>Smaily Sign-Up Form</strong> plokk oma sisu ükskõik millisesse kohta.</p>
+      <h3>Elementori vidin</h3>
+      <p>Kui kasutad Elementorit, ava selle redaktor ja otsi vidinate paneelilt <strong>Smaily</strong> kategooriast <strong>Smaily Opt-In Form</strong> vidinat.</p>
+      <h3>Klassikaline vidin</h3>
+      <p>Mine <strong>Väljanägemine → Vidinad</strong> ja lisa <strong>Smaily Classic Subscription Widget</strong> mõnda vidina‑alasse.</p>
+      <h3>Contact Form 7</h3>
+      <p>Kui kasutad Contact Form 7‑t, ava vorm ja lülitu vahekaardile <strong>Smaily for Contact Form 7</strong>, et lubada sellel vormil Smaily liitumine.</p>
+      <h3>Toodete RSS‑voog</h3>
+      <p>URL, mis laadib poe tooted Smaily kampaaniatesse. Juhtnupud ainult kujundavad URL‑i — midagi ei salvestata. Sea <strong>Product category</strong>, <strong>Limit</strong> (1–250) ja <strong>Sort by</strong>, vajuta <strong>Update URL</strong>, seejärel kopeeri <strong>Feed URL</strong> Smaily malliredaktorisse.</p>
+    </div>
+  </div>
+  <hr class="secend">
+</section>
+<section class="sec" id="importing">
+  <h1><span data-lang="en">Importing existing data</span><span data-lang="et">Olemasolevate andmete import</span></h1>
+  <p class="lede">
+    <span data-lang="en">Imports (also called backfills) seed your existing data so sync and recommendations have history to work from.</span>
+    <span data-lang="et">Impordid (ehk backfill'id) toovad su olemasolevad andmed sisse, et sünkimisel ja soovitustel oleks ajalugu, millega töötada.</span>
+  </p>
+
+  <div class="sub" id="imp-what">
+    <h2><span data-lang="en">What gets imported</span><span data-lang="et">Mida imporditakse</span></h2>
+    <div data-lang="en">
+      <p>There are four imports:</p>
+      <ul>
+        <li><strong>Contacts</strong> → your Smaily contact list (from <a href="#set-subscribers">Contacts</a>).</li>
+        <li><strong>Products</strong>, <strong>Customers</strong>, <strong>Orders</strong> → Campaign Intelligence (from <a href="#set-ci">Campaign Intelligence</a>).</li>
+      </ul>
+      <p>Each is a one‑time bulk import that runs in the background — you can leave the page and it keeps going. It is <strong>safe to re‑run</strong>: duplicates are impossible by design, because every record carries a stable id. Press <strong>Start</strong> the first time, <strong>Sync again</strong> afterwards.</p>
+      <div class="note tip">
+        <span class="k">Full history, no window</span>
+        <p>The Orders import brings in your <strong>whole order history</strong> — there is no 60‑day or any other cutoff. It counts only real sales: draft, pending, failed and trashed orders are skipped (they aren't sales), and a custom shipping status like "shipped" still counts.</p>
+      </div>
+    </div>
+    <div data-lang="et">
+      <p>Importe on neli:</p>
+      <ul>
+        <li><strong>Contacts</strong> → su Smaily kontaktinimekiri (jaotisest <a href="#set-subscribers">Kontaktid</a>).</li>
+        <li><strong>Products</strong>, <strong>Customers</strong>, <strong>Orders</strong> → Campaign Intelligence (jaotisest <a href="#set-ci">Campaign Intelligence</a>).</li>
+      </ul>
+      <p>Iga import on ühekordne masssiire, mis käib taustal — võid lehelt lahkuda ja see jätkab. <strong>Kordamine on ohutu</strong>: duplikaadid on disaini poolest võimatud, sest iga kirje kannab stabiilset id'd. Vajuta esimest korda <strong>Start</strong>, seejärel <strong>Sync again</strong>.</p>
+      <div class="note tip">
+        <span class="k">Terve ajalugu, ilma aknata</span>
+        <p>Tellimuste import toob sisse su <strong>kogu tellimuste ajaloo</strong> — 60‑päeva ega muud lõikepiiri pole. See loeb ainult päris müügid: mustand‑, ootel, ebaõnnestunud ja prügikasti‑tellimused jäetakse vahele (need pole müügid), aga kohandatud tarnestaatus nagu "shipped" loeb ikka.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub" id="imp-progress">
+    <h2><span data-lang="en">Reading the progress</span><span data-lang="et">Edenemise lugemine</span></h2>
+    <div data-lang="en">
+      <p>While running you'll see <strong>Importing…</strong> and a count. The number is <strong>engine‑confirmed</strong> — it reflects records the destination actually accepted, not just records read. When it finishes, the status line means:</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Done — N synced.</strong></td><td>Everything imported cleanly.</td></tr>
+            <tr><td><strong>Done — N of M synced.</strong></td><td>Finished; a few records were rejected (usually invalid data). The rest are in.</td></tr>
+            <tr><td><strong>Nothing to import — no contacts match your synchronization settings.</strong></td><td>Contacts import only: nobody on the store is in your sync audience, so there was nothing to send. The run finishes immediately. Check the switch and the mode under <a href="#set-subscribers">Contacts</a>.</td></tr>
+            <tr><td><strong>Stopped — N processed before an error.</strong></td><td>The import hit a real error and halted. See the error banner for what to do.</td></tr>
+            <tr><td><strong>Cancelled — N processed.</strong></td><td>You cancelled it.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If some records failed you'll see a <em>N failed — see Event Log</em> link. Open it to see exactly which records and why (see <a href="#err-retry">Failed events &amp; retry</a>).</p>
+    </div>
+    <div data-lang="et">
+      <p>Jooksmise ajal näed <strong>Importing…</strong> ja loendurit. Number on <strong>mootori‑kinnitatud</strong> — see peegeldab kirjeid, mille sihtkoht päriselt vastu võttis, mitte lihtsalt loetud kirjeid. Lõppedes tähendab olekurida:</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Olek</th><th>Tähendus</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Done — N synced.</strong></td><td>Kõik imporditi puhtalt.</td></tr>
+            <tr><td><strong>Done — N of M synced.</strong></td><td>Lõpetatud; mõni kirje lükati tagasi (tavaliselt vigased andmed). Ülejäänud on sees.</td></tr>
+            <tr><td><strong>Nothing to import — no contacts match your synchronization settings.</strong></td><td>Ainult kontaktide import: ükski poe kasutaja ei kuulu sinu sünkroniseerimise sihtrühma, seega polnud midagi saata. Import lõpeb kohe. Kontrolli lülitit ja režiimi jaotises <a href="#set-subscribers">Kontaktid</a>.</td></tr>
+            <tr><td><strong>Stopped — N processed before an error.</strong></td><td>Import sattus päris veale ja peatus. Vaata veabännerit, mida teha.</td></tr>
+            <tr><td><strong>Cancelled — N processed.</strong></td><td>Sina katkestasid.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Kui mõni kirje ebaõnnestus, näed linki <em>N failed — see Event Log</em>. Ava see, et näha, millised kirjed täpselt ja miks (vt <a href="#err-retry">Ebaõnnestunud sündmused &amp; kordus</a>).</p>
+    </div>
+  </div>
+  <hr class="secend">
+</section>
+<section class="sec" id="errors">
+  <h1><span data-lang="en">Error messages &amp; fixes</span><span data-lang="et">Veateated &amp; lahendused</span></h1>
+  <p class="lede">
+    <span data-lang="en">Almost everything is diagnosable from <span class="path">Settings → Event Log</span>. Here are the messages you might meet and what each means.</span>
+    <span data-lang="et">Peaaegu kõik on diagnoositav jaotisest <span class="path">Settings → Event Log</span>. Siin on teated, mida võid kohata, ja mida iga tähendab.</span>
+  </p>
+
+  <div class="sub" id="err-smaily">
+    <h2><span data-lang="en">Smaily connection errors</span><span data-lang="et">Smaily ühenduse vead</span></h2>
+    <div data-lang="en">
+      <ul>
+        <li><strong>Smaily rejected these credentials (401)</strong> — the subdomain, username or password is wrong. Double‑check them in Smaily under <span class="path">Settings → API</span>.</li>
+        <li><strong>This account's package does not include API access (403)</strong> — the Smaily account is on a package without the API, so every request is refused whatever the credentials are. Upgrade the package in Smaily; the plugin picks the connection back up on its own, with nothing to re‑enter. Waiting does not help — this is not an outage.</li>
+        <li><strong>Could not reach Smaily</strong> — a temporary network issue, or your server can't reach Smaily over HTTPS. Try again.</li>
+        <li><strong>All three fields are required</strong> / <strong>Subdomain may contain only letters, numbers and dashes</strong> — fix the input and retry.</li>
+      </ul>
+    </div>
+    <div data-lang="et">
+      <ul>
+        <li><strong>Smaily rejected these credentials (401)</strong> — alamdomeen, kasutajanimi või parool on vale. Kontrolli üle Smailys jaotises <span class="path">Settings → API</span>.</li>
+        <li><strong>This account's package does not include API access (403)</strong> — Smaily konto pakett ei sisalda API‑t, seega keeldutakse igast päringust olenemata sellest, kas kontoandmed on õiged. Uuenda Smailys paketti; plugin taastab ühenduse ise ja midagi pole vaja uuesti sisestada. Ootamine ei aita — tegemist pole katkestusega.</li>
+        <li><strong>Could not reach Smaily</strong> — ajutine võrgutõrge või su server ei jõua Smailyni HTTPS kaudu. Proovi uuesti.</li>
+        <li><strong>All three fields are required</strong> / <strong>Subdomain may contain only letters, numbers and dashes</strong> — paranda sisend ja proovi uuesti.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sub" id="err-ci">
+    <h2><span data-lang="en">Campaign Intelligence errors</span><span data-lang="et">Campaign Intelligence vead</span></h2>
+    <div data-lang="en">
+      <ul>
+        <li><strong>This setup link was already used</strong> — setup links are one‑time. Ask Smaily for a fresh one.</li>
+        <li><strong>Setup link not recognized</strong> — check you pasted the full URL.</li>
+        <li><strong>Campaign Intelligence did not respond</strong> — try <strong>Test</strong> again shortly; if it persists, contact support.</li>
+        <li><strong>Campaign Intelligence rejected the stored API key</strong> — the key was revoked or rotated. <strong>Disconnect</strong>, reconnect with a fresh setup link, then return.</li>
+        <li><strong>Product rejected — missing SKU</strong> — the engine keys products on SKU. Products with no SKU are given a synthetic one automatically, but if a row still fails, add a SKU to the product and retry.</li>
+      </ul>
+    </div>
+    <div data-lang="et">
+      <ul>
+        <li><strong>This setup link was already used</strong> — seadistuslingid on ühekordsed. Küsi Smailyst uus.</li>
+        <li><strong>Setup link not recognized</strong> — kontrolli, et kleepisid terve URL‑i.</li>
+        <li><strong>Campaign Intelligence did not respond</strong> — proovi peagi uuesti <strong>Test</strong>; kui püsib, võta ühendust toega.</li>
+        <li><strong>Campaign Intelligence rejected the stored API key</strong> — võti tühistati või vahetati. Tee <strong>Disconnect</strong>, ühenda uuesti värske seadistuslingiga ja tule tagasi.</li>
+        <li><strong>Product rejected — missing SKU</strong> — mootor võtmestab tooted SKU järgi. SKU‑ta tooted saavad automaatselt sünteetilise, aga kui rida ikka ebaõnnestub, lisa tootele SKU ja proovi uuesti.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sub" id="err-companion">
+    <h2><span data-lang="en">Companion plugins &amp; permissions</span><span data-lang="et">Kaaslas‑pluginad &amp; õigused</span></h2>
+    <div data-lang="en">
+      <p>Two optional features rely on other free plugins being present. If a feature seems to do nothing, this is usually why.</p>
+      <ul>
+        <li><strong>Browse tracking collects nothing</strong> — browse events are gated on the <strong>WP Consent API</strong>. If your store has no consent framework, <code>wp_has_consent()</code> is undefined and the plugin fails closed (zero events, no error). Install the free <strong>WP Consent API</strong> plugin; most consent banners register into it — <strong>CookieYes</strong>, <strong>Complianz</strong> and <strong>Real Cookie Banner</strong> all do (map their marketing/advertising category to the WP Consent API <code>marketing</code> category). Smaily Connect shows an admin notice when browse tracking is on and connected but no consent signal is available.</li>
+        <li><strong>Multilingual routing</strong> — per‑language contact routing reads languages from <strong>WPML</strong> or <strong>Polylang</strong>. Without either, the site locale is used.</li>
+      </ul>
+      <div class="note">
+        <span class="k">WordPress, not app permissions</span>
+        <p>Unlike an app‑store app, there are no OAuth permission prompts to approve. What a WordPress feature needs is either a capability you already have as an admin, or a companion plugin like the ones above.</p>
+      </div>
+    </div>
+    <div data-lang="et">
+      <p>Kaks valikulist funktsiooni sõltuvad teiste tasuta pluginate olemasolust. Kui mõni funktsioon näib mitte midagi tegevat, on tavaliselt põhjus siin.</p>
+      <ul>
+        <li><strong>Sirvimise jälgimine ei kogu midagi</strong> — sirvimissündmused on <strong>WP Consent API</strong> väraval. Kui su poel pole nõusoleku‑raamistikku, on <code>wp_has_consent()</code> defineerimata ja plugin jääb fail‑closed (null sündmust, viga ei kuva). Paigalda tasuta <strong>WP Consent API</strong> plugin; enamik nõusoleku‑bännereid registreerib sinna — <strong>CookieYes</strong>, <strong>Complianz</strong> ja <strong>Real Cookie Banner</strong> kõik teevad (seo nende turunduse/reklaami kategooria WP Consent API <code>marketing</code>‑kategooriaga). Smaily Connect näitab haldusteadet, kui sirvimise jälgimine on sees ja ühendatud, aga nõusoleku‑signaali pole.</li>
+        <li><strong>Mitmekeelne suunamine</strong> — keelepõhine kontakti‑suunamine loeb keeled <strong>WPML‑ist</strong> või <strong>Polylangist</strong>. Kummagita kasutatakse saidi lokaati.</li>
+      </ul>
+      <div class="note">
+        <span class="k">WordPress, mitte äpi‑õigused</span>
+        <p>Erinevalt äpipoe‑rakendusest pole siin OAuth‑õiguste heakskiitmise viipasid. WordPressi funktsioon vajab kas võimekust, mis sul haldurina juba on, või kaaslas‑pluginat nagu ülal.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub" id="err-retry">
+    <h2><span data-lang="en">Failed events &amp; retry</span><span data-lang="et">Ebaõnnestunud sündmused &amp; kordus</span></h2>
+    <div data-lang="en">
+      <p>The <strong>Event Log</strong> lists what the plugin sent and any failures. Each row shows a status — <span class="pill pending">pending</span>, <span class="pill sent">sent</span> or <span class="pill failed">failed</span> — and <strong>Details</strong> opens the exact request that was sent and the engine's response.</p>
+      <ol>
+        <li>Open <span class="path">Settings → Event Log</span> and set the <strong>Status</strong> filter to <strong>Failed</strong> (or click <em>View only failed</em> in the red banner).</li>
+        <li>Read the <strong>Last error</strong> column. <code>http_4xx</code> / <code>d6_item_error</code> means the record was rejected (fix the record); <code>http_5xx</code> or a timeout is a temporary outage (a retry usually succeeds). On a Smaily send, <code>permanent_http_401</code> (or 403 / 404 / 422) means Smaily refused it in a way a retry can't fix — check the account credentials or the mapped workflow first, and note that <code>permanent_http_403 … (Smaily code 227)</code> means the account's package does not include API access; <code>retry_limit_exceeded</code> means it was retried five times over several hours and then given up on.</li>
+        <li>Click <strong>Retry</strong> on a single row, or <strong>Retry all failed</strong> in the banner. The row flips to <span class="pill pending">pending</span>, then <span class="pill sent">sent</span> within about a minute.</li>
+      </ol>
+      <div class="note">
+        <span class="k">Proactive health notices</span>
+        <p>A periodic health check raises a red admin notice when something needs attention — e.g. <em>"N sync events failed in the last 24 hours"</em>, or that the recommendation engine or the Smaily API has been unreachable for over an hour. When Smaily refuses for a reason it states outright — the account's package does not include the API, or the saved credentials are rejected — the notice says so instead, and appears at the next check rather than after an hour, because waiting cannot change that answer. Each notice links to the Event Log and clears itself once the problem is gone.</p>
+      </div>
+      <p><em>Note:</em> a failed row stays retryable for 90 days, so there is no rush — and a Smaily contact send that keeps failing is retried a few times with growing gaps before it lands in <span class="pill failed">failed</span>, rather than being repeated every minute forever.</p>
+    </div>
+    <div data-lang="et">
+      <p><strong>Event Log</strong> loetleb, mida plugin saatis, ja iga tõrke. Iga rida näitab olekut — <span class="pill pending">pending</span>, <span class="pill sent">sent</span> või <span class="pill failed">failed</span> — ja <strong>Details</strong> avab täpse saadetud päringu ning mootori vastuse.</p>
+      <ol>
+        <li>Ava <span class="path">Settings → Event Log</span> ja sea <strong>Status</strong>‑filter <strong>Failed</strong> peale (või klõpsa punases bänneris <em>View only failed</em>).</li>
+        <li>Loe <strong>Last error</strong> veergu. <code>http_4xx</code> / <code>d6_item_error</code> tähendab, et kirje lükati tagasi (paranda kirje); <code>http_5xx</code> või ajaületus on ajutine katkestus (kordus tavaliselt õnnestub). Smaily saadetise puhul tähendab <code>permanent_http_401</code> (või 403 / 404 / 422), et Smaily keeldus viisil, mida kordus ei paranda — kontrolli esmalt konto andmeid või seotud automaatikat, ja pane tähele, et <code>permanent_http_403 … (Smaily code 227)</code> tähendab, et konto pakett ei sisalda API-ligipääsu; <code>retry_limit_exceeded</code> tähendab, et seda prooviti mitme tunni jooksul viis korda ja siis loobuti.</li>
+        <li>Klõpsa üksikul real <strong>Retry</strong> või bänneris <strong>Retry all failed</strong>. Rida läheb <span class="pill pending">pending</span> peale, siis umbes minutiga <span class="pill sent">sent</span>.</li>
+      </ol>
+      <div class="note">
+        <span class="k">Ennetavad terviseteated</span>
+        <p>Perioodiline tervisekontroll tõstab punase haldusteate, kui miski vajab tähelepanu — nt <em>"N sync events failed in the last 24 hours"</em> või et soovitusmootor või Smaily API on olnud üle tunni kättesaamatu. Kui Smaily keeldub põhjusel, mille ta ise välja ütleb — konto pakett ei sisalda API‑t või salvestatud kontoandmed lükatakse tagasi — ütleb teade seda ja ilmub juba järgmisel kontrollil, mitte tunni pärast, sest ootamine seda vastust ei muuda. Iga teade viitab Event Logile ja kaob ise, kui probleem on möödas.</p>
+      </div>
+      <p><em>Märkus:</em> ebaõnnestunud rida jääb korratavaks 90 päevaks, nii et kiiret pole — ja pidevalt ebaõnnestuvat Smaily kontakti‑saadetist proovitakse mõned korrad üha pikemate vahedega, enne kui see jõuab olekusse <span class="pill failed">failed</span>, selle asemel et seda iga minut lõputult korrata.</p>
+    </div>
+  </div>
+  <hr class="secend">
+</section>
+<section class="sec" id="faq">
+  <h1><span data-lang="en">FAQ &amp; troubleshooting</span><span data-lang="et">KKK &amp; tõrkeotsing</span></h1>
+
+  <div class="sub" id="faq-resync">
+    <h2><span data-lang="en">Is it safe to re‑sync?</span><span data-lang="et">Kas re‑sünk on ohutu?</span></h2>
+    <p data-lang="en">Yes. Every import is safe to re‑run — duplicates are impossible by design. <strong>Sync again</strong> re‑runs from scratch, in the background, and survives you leaving the page.</p>
+    <p data-lang="et">Jah. Iga import on ohutu korrata — duplikaadid on disaini poolest võimatud. <strong>Sync again</strong> jooksutab nullist, taustal, ja jääb püsima ka siis, kui lehelt lahkud.</p>
+  </div>
+
+  <div class="sub" id="faq-cadence">
+    <h2><span data-lang="en">How often does data sync?</span><span data-lang="et">Kui tihti andmed sünkivad?</span></h2>
+    <div data-lang="en">
+      <p>Smaily Connect works at two speeds:</p>
+      <ul>
+        <li><strong>Near‑real‑time</strong> — when a customer or order changes, WooCommerce fires a hook and the plugin queues the change straight away. A live edit (e.g. a product price) typically reaches its destination within about a minute.</li>
+        <li><strong>Every 15 minutes (background)</strong> — an <strong>Action Scheduler</strong> job retries anything still queued, processes abandoned carts, and mirrors state back where needed.</li>
+      </ul>
+      <p>One‑time imports run when you press <strong>Start</strong> / <strong>Sync again</strong> and then continue in the background.</p>
+    </div>
+    <div data-lang="et">
+      <p>Smaily Connect töötab kahel kiirusel:</p>
+      <ul>
+        <li><strong>Peaaegu reaalajas</strong> — kui klient või tellimus muutub, käivitab WooCommerce hooki ja plugin paneb muudatuse kohe järjekorda. Reaalne muudatus (nt toote hind) jõuab sihtkohta tavaliselt umbes minutiga.</li>
+        <li><strong>Iga 15 minuti järel (taust)</strong> — <strong>Action Scheduleri</strong> töö kordab kõike, mis veel järjekorras, töötleb hüljatud korve ja peegeldab seisu vajadusel tagasi.</li>
+      </ul>
+      <p>Ühekordsed impordid käivituvad, kui vajutad <strong>Start</strong> / <strong>Sync again</strong>, ja jätkavad seejärel taustal.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="faq-orders">
+    <h2><span data-lang="en">Why do I see fewer orders than expected?</span><span data-lang="et">Miks näen oodatust vähem tellimusi?</span></h2>
+    <div data-lang="en">
+      <p>The Orders import brings in your <strong>full history</strong> — there is no time window. If a count looks low, it's because only <strong>real sales</strong> are counted: draft, pending, failed and trashed orders are excluded (they aren't completed sales), and a store with many orders often has far fewer <em>unique customers</em> because of repeat buyers.</p>
+    </div>
+    <div data-lang="et">
+      <p>Tellimuste import toob sisse su <strong>terve ajaloo</strong> — ajaakent pole. Kui number tundub madal, on põhjus, et loetakse ainult <strong>päris müügid</strong>: mustand‑, ootel, ebaõnnestunud ja prügikasti‑tellimused on välja jäetud (need pole lõpetatud müügid), ja paljude tellimustega poel on korduvostjate tõttu sageli palju vähem <em>unikaalseid kliente</em>.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="faq-customers">
+    <h2><span data-lang="en">Is my whole customer list imported?</span><span data-lang="et">Kas terve kliendinimekiri imporditakse?</span></h2>
+    <div data-lang="en">
+      <p>Yes. The customer import is not truncated. It sends every registered customer (and, if you enabled it, guest‑order emails). A count lower than you expect is usually repeat buyers collapsing into fewer unique customers — not a dropped record.</p>
+    </div>
+    <div data-lang="et">
+      <p>Jah. Klientide import ei ole kärbitud. See saadab iga registreeritud kliendi (ja kui lubasid, siis külalis‑tellimuste e‑postid). Oodatust madalam number on tavaliselt korduvostjad, kes koonduvad vähemateks unikaalseteks klientideks — mitte kaotatud kirje.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="faq-disconnect">
+    <h2><span data-lang="en">What does Disconnect do?</span><span data-lang="et">Mida Disconnect teeb?</span></h2>
+    <div data-lang="en">
+      <ul>
+        <li><strong>Disconnect Smaily</strong> — contact sync stops until you reconnect. Existing contacts and Smaily automations are untouched.</li>
+        <li><strong>Disconnect Campaign Intelligence</strong> — recommendations and data ingest stop. Reconnecting needs a fresh one‑time setup link.</li>
+      </ul>
+    </div>
+    <div data-lang="et">
+      <ul>
+        <li><strong>Disconnect Smaily</strong> — kontakti‑sünk peatub kuni taasühendamiseni. Olemasolevaid kontakte ja Smaily automaatikaid ei puudutata.</li>
+        <li><strong>Disconnect Campaign Intelligence</strong> — soovitused ja andmevoog peatuvad. Taasühendamiseks on vaja värsket ühekordset seadistuslinki.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sub" id="faq-uninstall">
+    <h2><span data-lang="en">Does uninstalling delete my data?</span><span data-lang="et">Kas eemaldamine kustutab andmed?</span></h2>
+    <div data-lang="en">
+      <p>Uninstalling the plugin removes its settings and local queue data from your WordPress site. Your <strong>Smaily contacts</strong> and any <strong>Campaign Intelligence</strong> data persist — deliberately, so you can change platforms without losing your marketing history. Per‑customer erasure is always available (see below), and your stored Smaily credentials are removed on uninstall.</p>
+    </div>
+    <div data-lang="et">
+      <p>Plugina eemaldamine kustutab su WordPressi saidilt selle seaded ja kohaliku järjekorra andmed. Su <strong>Smaily kontaktid</strong> ja mis tahes <strong>Campaign Intelligence'i</strong> andmed jäävad alles — meelega, et saaksid platvormi vahetada ilma turundusajalugu kaotamata. Kliendipõhine kustutamine on alati saadaval (vt allpool) ja su salvestatud Smaily andmed eemaldatakse eemaldamisel.</p>
+    </div>
+  </div>
+  <hr class="secend">
+</section>
+<section class="sec" id="privacy">
+  <h1><span data-lang="en">Data &amp; privacy</span><span data-lang="et">Andmed &amp; privaatsus</span></h1>
+
+  <div class="sub" id="pr-data">
+    <h2><span data-lang="en">What data the plugin uses</span><span data-lang="et">Mis andmeid plugin kasutab</span></h2>
+    <div data-lang="en">
+      <ul>
+        <li><strong>Customer name and email</strong> — to sync contacts to your Smaily account and, with Campaign Intelligence, as the per‑customer identity.</li>
+        <li><strong>Order and product data</strong> — to power automations and, when enabled, recommendations.</li>
+        <li><strong>Browse events</strong> — only when you enable browse tracking <em>and</em> the shopper has granted marketing consent through the WP Consent API. The browser itself never sends an email or recommendation id — only an opaque visitor token. If the shopper is logged in and hasn't opted out of personalisation, the plugin attaches their email <em>server‑side</em> before forwarding the event, so recommendations stay linked to their account even mid‑session; the email never reaches the page or the browser.</li>
+      </ul>
+      <p>The optional customer fields beyond email are the ones <em>you</em> tick in <a href="#set-subscribers">Contacts</a>.</p>
+    </div>
+    <div data-lang="et">
+      <ul>
+        <li><strong>Kliendi nimi ja e‑post</strong> — kontaktide sünkimiseks su Smaily kontosse ja Campaign Intelligence'iga kliendipõhise identiteedina.</li>
+        <li><strong>Tellimuste ja toodete andmed</strong> — automaatikate ja lubatuna soovituste toitmiseks.</li>
+        <li><strong>Sirvimissündmused</strong> — ainult siis, kui lubad sirvimise jälgimise <em>ja</em> klient on WP Consent API kaudu andnud turundusnõusoleku. Brauser ise ei saada kunagi e‑posti ega soovituse‑id'd — ainult läbipaistmatu külastaja‑tokeni. Kui klient on sisse logitud ja ei ole personaliseerimisest loobunud, lisab plugin tema e‑posti aadressi <em>serveripoolselt</em> enne sündmuse edastamist, et soovitused püsiksid seotuna tema kontoga ka poole sessiooni pealt — e‑post ei jõua kunagi lehele ega brauserisse.</li>
+      </ul>
+      <p>Valikulised kliendiväljad peale e‑posti on need, mille <em>sina</em> märgid jaotises <a href="#set-subscribers">Kontaktid</a>.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="pr-gdpr">
+    <h2><span data-lang="en">Deletion &amp; GDPR</span><span data-lang="et">Kustutamine &amp; GDPR</span></h2>
+    <div data-lang="en">
+      <p>Smaily Connect integrates with WordPress's built‑in <strong>privacy tools</strong> (<span class="path">Tools → Export Personal Data</span> and <span class="path">Erase Personal Data</span>):</p>
+      <ul>
+        <li><strong>Export</strong> — a data request includes the customer's data held by the plugin.</li>
+        <li><strong>Erase</strong> — an erase request removes the customer from the plugin and asks Campaign Intelligence to delete them.</li>
+      </ul>
+      <p>Shoppers also control profiling themselves: the opt‑out under <span class="path">My Account → Personalised recommendations</span> is honoured on the store and mirrored to Smaily. Per‑customer erasure is available on request at any time.</p>
+    </div>
+    <div data-lang="et">
+      <p>Smaily Connect on lõimitud WordPressi sisseehitatud <strong>privaatsustööriistadega</strong> (<span class="path">Tools → Export Personal Data</span> ja <span class="path">Erase Personal Data</span>):</p>
+      <ul>
+        <li><strong>Eksport</strong> — andmepäring sisaldab plugina hoitavaid kliendiandmeid.</li>
+        <li><strong>Kustutamine</strong> — kustutuspäring eemaldab kliendi pluginast ja palub Campaign Intelligence'il ta kustutada.</li>
+      </ul>
+      <p>Kliendid juhivad profileerimist ka ise: loobumine <span class="path">My Account → Personalised recommendations</span> all austatakse poes ja peegeldatakse Smailysse. Kliendipõhine kustutamine on igal ajal soovi korral saadaval.</p>
+    </div>
+  </div>
+
+  <div class="sub" id="pr-policy">
+    <h2><span data-lang="en">Privacy‑policy text for your store</span><span data-lang="et">Privaatsuspoliitika tekst su poele</span></h2>
+    <div data-lang="en">
+      <p>Because personalisation is on by default (<a href="#step4">Step 4</a>), your store's privacy policy needs to disclose it. Below is a template paragraph, written from what the plugin actually does, that you can adapt into your own privacy policy. <strong>This is not legal advice</strong> — have your own legal counsel review the adapted text before publishing it, including the lawful‑basis choice and, if you rely on legitimate interest, a documented balancing test.</p>
+      <h3>Personalised product recommendations (profiling)</h3>
+      <p><strong>Who processes the data.</strong> [Your store name] ("we") is the data controller. To personalise our email marketing we use the Smaily Campaign Intelligence service provided by <strong>Sendsmaily OÜ</strong> ("Smaily"), which processes this data on our behalf as our data processor, under a data processing agreement. Smaily's own privacy information is available at <a href="https://connect.smaily.com/privacy">connect.smaily.com/privacy</a>.</p>
+      <p><strong>What we do.</strong> We use your purchase history and — if you have accepted marketing cookies — your browsing activity in our online store to personalise the product recommendations shown in the emails we send you. This is "profiling" within the meaning of the GDPR: an automated analysis of your shopping behaviour to predict which products may interest you. It only affects which products we show you in our emails and recommendations — it has no legal or similarly significant effect on you, and no automated decisions within the meaning of Article 22 GDPR are made about you.</p>
+      <p><strong>What data is used.</strong></p>
+      <ul>
+        <li>Contact and account details: email address, name, phone number, country and preferred language.</li>
+        <li>Purchase history: products ordered, quantities, prices, order dates and order statuses, and returns — which items were refunded, when, and the reason our staff recorded on the refund.</li>
+        <li>Browsing activity in our store (only if you have accepted marketing cookies): pages and products viewed, cart events and searches, linked to a pseudonymous visitor identifier — and, while you are logged in and have not opted out of personalisation, linked directly to your account.</li>
+        <li>Technical identifiers: a pseudonymous visitor token and session identifier, and first‑party cookies we set when you arrive in our store through a recommendation link in one of our emails (cookies <code>smaily_rec_id</code> and <code>smaily_rec_ctx</code>, kept for up to 30 days, and <code>smaily_rec_uid</code>, kept for up to 365 days, by default). These are used to measure which recommendations led to purchases.</li>
+        <li>Abandoned‑cart reminders (if enabled, separate from the profiling described above): if you leave items in your cart without completing checkout, we may store your cart contents, email address and name for a short time in our own store's systems (not the Smaily Campaign Intelligence recommendation engine) to send you a reminder email.</li>
+      </ul>
+      <p><strong>Legal basis.</strong> We process this data on the basis of our legitimate interest (Article 6(1)(f) GDPR) in offering relevant marketing to our customers, combined with your right to object at any time (Article 21 GDPR). Personalisation is on by default; you can switch it off at any time (see below). Browsing data is collected only with your cookie consent (marketing cookies). <em>[Your legal counsel: confirm the lawful basis for your store and document a legitimate‑interest assessment.]</em></p>
+      <p><strong>How to opt out.</strong> Log in to your account and open My Account: under "Smaily Campaign Intelligence", untick "Use my data for personalised recommendations" and save. Opting out stops the use of your data for personalised recommendations — you will still receive our emails, just without personalisation. You can also opt out by contacting us at [your contact email]. We act on an opt‑out without undue delay; it may take up to 24 hours to take effect across all systems. Withdrawing your marketing‑cookie consent (in the cookie settings) stops the collection of browsing data.</p>
+      <p><strong>Your rights.</strong> You have the right to access the personal data used for recommendations and receive a copy of it, to have it erased, to object to profiling (as described above), and to lodge a complaint with your data protection supervisory authority [name your supervisory authority — e.g. Andmekaitse Inspektsioon for Estonian stores]. To exercise access or erasure, contact us at [your contact email].</p>
+      <p><strong>Retention.</strong> Your browsing activity in our store (pages and products viewed, cart events, linked to the pseudonymous visitor identifier) is kept for up to 90 days after it occurs, and then automatically and permanently deleted. Your purchase history and recommendation profile are kept for as long as you remain our customer. The product recommendations computed for you, and the internal records used to measure which recommendation led to which purchase, are kept for up to 2 years; engagement signals from your email interactions are kept for up to 1 year. If we stop using this service for our store, all associated data is deleted. If you ask us to erase your data at any time (see "Your rights" above), it is deleted immediately regardless of these periods; we retain only a record showing that the deletion was carried out. Abandoned‑cart reminder data (cart contents, email, name — a separate feature from the profiling above) is kept for a short period, by default up to 24 hours since your last cart activity, and then automatically deleted, or deleted immediately once you complete your order or empty your cart.</p>
+      <div class="note warn">
+        <span class="k">Adapt before you publish</span>
+        <p>Replace <code>[Your store name]</code>, <code>[your contact email]</code> and the supervisory‑authority name with your own; drop the browsing‑activity and abandoned‑cart sentences if you don't use those features. Have your own legal counsel review the final text.</p>
+      </div>
+    </div>
+    <div data-lang="et">
+      <p>Kuna personaliseerimine on vaikimisi sees (<a href="#step4">Samm 4</a>), vajab su poe privaatsuspoliitika seda mainima. Allpool on malllõik, kirjutatud selle põhjal, mida plugin tegelikult teeb, mida saad kohandada oma privaatsuspoliitikasse. <strong>See ei ole õigusnõustamine</strong> — lase oma juristil kohandatud tekst enne avaldamist üle vaadata, sh õigusliku aluse valik ja, kui tugined õigustatud huvile, dokumenteeritud kaalumisotsus.</p>
+      <h3>Personaalsed tootesoovitused (profileerimine)</h3>
+      <p><strong>Kes andmeid töötleb.</strong> [Sinu poe nimi] ("meie") on vastutav töötleja. E‑posti turunduse personaliseerimiseks kasutame Smaily Campaign Intelligence'i teenust, mida osutab <strong>Sendsmaily OÜ</strong> ("Smaily") ja mis töötleb neid andmeid meie nimel volitatud töötlejana, andmetöötluslepingu alusel. Smaily enda privaatsusteave on kättesaadav aadressil <a href="https://connect.smaily.com/privacy">connect.smaily.com/privacy</a>.</p>
+      <p><strong>Mida me teeme.</strong> Kasutame sinu ostuajalugu ja — kui oled andnud nõusoleku turundusküpsisteks — sinu sirvimistegevust meie e‑poes, et personaliseerida meie saadetavates e‑kirjades kuvatavaid tootesoovitusi. See on profileerimine isikuandmete kaitse üldmääruse (GDPR) tähenduses: sinu ostukäitumise automaatne analüüs eesmärgiga ennustada, millised tooted võiksid sind huvitada. See mõjutab üksnes seda, milliseid tooteid sulle meie kirjades ja soovitustes näitame — sellel ei ole sinu jaoks õiguslikke ega muid samaväärselt olulisi tagajärgi ning sinu suhtes ei tehta automatiseeritud otsuseid GDPR artikli 22 tähenduses.</p>
+      <p><strong>Milliseid andmeid kasutatakse.</strong></p>
+      <ul>
+        <li>Kontakt- ja kontoandmed: e‑posti aadress, nimi, telefoninumber, riik ja eelistatud keel.</li>
+        <li>Ostuajalugu: tellitud tooted, kogused, hinnad, tellimuste kuupäevad ja staatused ning tagastused — millised tooted tagastati, millal, ja põhjus, mille meie töötaja tagasimaksele märkis.</li>
+        <li>Sirvimistegevus meie poes (ainult turundusküpsiste nõusolekul): vaadatud lehed ja tooted, ostukorvisündmused ja otsingud, seotuna pseudonüümse külastajatunnusega — ning sisselogituna ja kui sa ei ole personaliseerimisest loobunud, seotakse see lisaks otse sinu kontoga.</li>
+        <li>Tehnilised identifikaatorid: pseudonüümne külastajatunnus (visitor token) ja seansitunnus ning esimese osapoole küpsised, mille paigaldame, kui jõuad meie poodi meie e‑kirjas olnud soovituslingi kaudu (küpsised <code>smaily_rec_id</code> ja <code>smaily_rec_ctx</code>, säilivad vaikimisi kuni 30 päeva, ning <code>smaily_rec_uid</code>, säilib vaikimisi kuni 365 päeva). Nende abil mõõdame, millised soovitused viisid ostuni.</li>
+        <li>Hüljatud ostukorvi meeldetuletused (kui funktsioon on sisse lülitatud, eraldiseisev eespool kirjeldatud profileerimisest): kui jätad ostukorvi tellimust vormistamata, võime lühikeseks ajaks salvestada sinu ostukorvi sisu, e‑posti aadressi ja nime meie enda poe süsteemides (mitte Smaily Campaign Intelligence soovitusmootoris), et saata sulle meeldetuletuse e‑kiri.</li>
+      </ul>
+      <p><strong>Õiguslik alus.</strong> Töötleme neid andmeid oma õigustatud huvi alusel (GDPR art 6 lg 1 p f) pakkuda oma klientidele asjakohast turundust, koos sinu õigusega esitada igal ajal vastuväide (GDPR art 21). Personaliseerimine on vaikimisi sisse lülitatud; saad selle igal ajal välja lülitada (vt allpool). Sirvimisandmeid kogume ainult sinu küpsisenõusolekul (turundusküpsised). <em>[Sinu jurist: kinnita oma poe õiguslik alus ja dokumenteeri õigustatud huvi kaalumisotsus.]</em></p>
+      <p><strong>Kuidas loobuda.</strong> Logi sisse ja ava Minu konto: eemalda jaotises "Smaily Campaign Intelligence" linnuke valikult "Kasuta minu andmeid personaalsete soovituste jaoks" ja salvesta. Loobumine peatab sinu andmete kasutamise personaalsete soovituste jaoks — e‑kirju saad edasi, lihtsalt ilma personaliseerimiseta. Loobuda saad ka, kirjutades meile aadressil [sinu kontakt‑e‑post]. Rakendame loobumise põhjendamatu viivituseta; kõigis süsteemides jõustumine võib võtta kuni 24 tundi. Turundusküpsiste nõusoleku tagasivõtmine (küpsiste seadetes) peatab sirvimisandmete kogumise.</p>
+      <p><strong>Sinu õigused.</strong> Sul on õigus tutvuda soovituste jaoks kasutatavate isikuandmetega ja saada neist koopia, nõuda nende kustutamist, esitada vastuväide profileerimisele (nagu eespool kirjeldatud) ning esitada kaebus andmekaitse järelevalveasutusele [nimeta oma järelevalveasutus — nt Andmekaitse Inspektsioon Eesti poodidele]. Andmetega tutvumiseks või kustutamiseks kirjuta meile aadressil [sinu kontakt‑e‑post].</p>
+      <p><strong>Säilitamine.</strong> Sinu sirvimistegevust meie poes (vaadatud lehed ja tooted, ostukorvisündmused), mis on seotud pseudonüümse külastajatunnusega, säilitame kuni 90 päeva pärast sündmuse toimumist ning seejärel kustutame selle automaatselt ja jäädavalt. Sinu ostuajalugu ja soovitusprofiili säilitame seni, kuni oled meie klient. Sulle arvutatud tootesoovitusi ning sisemisi kirjeid, mille abil mõõdame, milline soovitus millise ostuni viis, säilitame kuni 2 aastat; sinu e‑kirjadega seotud kaasatussignaale säilitame kuni 1 aasta. Kui me lõpetame selle teenuse kasutamise oma poe jaoks, kustutatakse kõik sellega seotud andmed. Kui palud oma andmed igal ajal kustutada (vt eespool "Sinu õigused"), kustutatakse need kohe, sõltumata eespool nimetatud tähtaegadest; alles jääb üksnes kirje, mis tõendab, et kustutamine on tehtud. Hüljatud ostukorvi meeldetuletuse andmeid (ostukorvi sisu, e‑post, nimi — eraldiseisev funktsioon eespool kirjeldatud profileerimisest) säilitame lühikest aega, vaikimisi kuni 24 tundi alates viimasest ostukorvi muudatusest, ning kustutame need seejärel automaatselt, või kustutame kohe, kui vormistad tellimuse või tühjendad ostukorvi.</p>
+      <div class="note warn">
+        <span class="k">Kohanda enne avaldamist</span>
+        <p>Asenda <code>[Sinu poe nimi]</code>, <code>[sinu kontakt‑e‑post]</code> ja järelevalveasutuse nimi enda omadega; jäta ära sirvimistegevuse ja hüljatud ostukorvi laused, kui neid funktsioone ei kasuta. Lase lõplik tekst üle vaadata oma juristil.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sub" id="pr-security">
+    <h2><span data-lang="en">Security &amp; isolation</span><span data-lang="et">Turvalisus &amp; isolatsioon</span></h2>
+    <div data-lang="en">
+      <ul>
+        <li><strong>Credentials are encrypted</strong> — your Smaily API password and engine key are stored with AES‑256‑GCM, never in plain text.</li>
+        <li><strong>Secrets never reach the browser</strong> — keys and passwords stay server‑side; Event Log rows store the request and response but never the Authorization header.</li>
+        <li><strong>Per‑connection isolation</strong> — the recommendation engine issues a key per connection, so your store's key is independent of any other store.</li>
+      </ul>
+      <p data-lang="en">Smaily Connect is operated by <strong>Sendsmaily OÜ</strong>. Questions: <a href="mailto:info@smaily.com">info@smaily.com</a>.</p>
+    </div>
+    <div data-lang="et">
+      <ul>
+        <li><strong>Andmed on krüpteeritud</strong> — su Smaily API‑parool ja mootori‑võti salvestatakse AES‑256‑GCM‑iga, mitte kunagi avatekstina.</li>
+        <li><strong>Saladused ei jõua brauserisse</strong> — võtmed ja paroolid jäävad serveripoolseks; Event Logi read salvestavad päringu ja vastuse, aga mitte kunagi Authorization‑päist.</li>
+        <li><strong>Ühenduspõhine isolatsioon</strong> — soovitusmootor annab võtme ühenduse kohta, seega su poe võti on sõltumatu igast teisest poest.</li>
+      </ul>
+      <p>Smaily Connectit haldab <strong>Sendsmaily OÜ</strong>. Küsimused: <a href="mailto:info@smaily.com">info@smaily.com</a>.</p>
+    </div>
+  </div>
+</section>
+
+      <footer class="docfoot">
+        <p data-lang="en">Smaily Connect is operated by Sendsmaily OÜ. Need help? See <a href="https://smaily.com/help/">smaily.com/help</a> or email <a href="mailto:info@smaily.com">info@smaily.com</a>.</p>
+        <p data-lang="et">Smaily Connectit haldab Sendsmaily OÜ. Vajad abi? Vaata <a href="https://smaily.com/help/">smaily.com/help</a> või kirjuta <a href="mailto:info@smaily.com">info@smaily.com</a>.</p>
+      </footer>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+
+  // ----- language -----
+  function setLang(l){
+    root.setAttribute('data-lang',l);
+    root.setAttribute('lang',l);
+    try{localStorage.setItem('sc-docs-lang',l);}catch(e){}
+    document.querySelectorAll('[data-setlang]').forEach(function(b){
+      b.setAttribute('aria-pressed', b.getAttribute('data-setlang')===l ? 'true':'false');
+    });
+  }
+  document.querySelectorAll('[data-setlang]').forEach(function(b){
+    b.addEventListener('click',function(){ setLang(b.getAttribute('data-setlang')); });
+  });
+  var savedLang; try{savedLang=localStorage.getItem('sc-docs-lang');}catch(e){}
+  setLang(savedLang==='et'?'et':'en');
+
+  // ----- theme -----
+  function setTheme(t){ root.setAttribute('data-theme',t); try{localStorage.setItem('sc-docs-theme',t);}catch(e){} }
+  var savedTheme; try{savedTheme=localStorage.getItem('sc-docs-theme');}catch(e){}
+  if(savedTheme) setTheme(savedTheme);
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    if(!cur){ cur = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light'; }
+    setTheme(cur==='dark'?'light':'dark');
+  });
+
+  // ----- mobile nav -----
+  function closeNav(){ root.removeAttribute('data-nav'); }
+  document.getElementById('menuBtn').addEventListener('click',function(){
+    root.getAttribute('data-nav')==='open'?closeNav():root.setAttribute('data-nav','open');
+  });
+  document.getElementById('scrim').addEventListener('click',closeNav);
+  document.querySelectorAll('nav.side a').forEach(function(a){ a.addEventListener('click',closeNav); });
+
+  // ----- scroll-spy -----
+  var links=Array.prototype.slice.call(document.querySelectorAll('nav.side li a[href^="#"]'));
+  var map={};
+  links.forEach(function(a){ var id=a.getAttribute('href').slice(1); (map[id]=map[id]||[]).push(a); });
+  var targets=Object.keys(map).map(function(id){return document.getElementById(id);}).filter(Boolean);
+  function activate(id){
+    links.forEach(function(a){ a.classList.remove('active'); });
+    (map[id]||[]).forEach(function(a){ a.classList.add('active'); });
+  }
+  if('IntersectionObserver' in window){
+    var visible={};
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ visible[e.target.id]=e.isIntersecting?e.boundingClientRect.top:null; });
+      var best=null,bestTop=1e9;
+      targets.forEach(function(t){
+        if(visible[t.id]!=null){ var top=t.getBoundingClientRect().top; if(top<bestTop){bestTop=top; best=t.id;} }
+      });
+      if(best) activate(best);
+    },{rootMargin:'-70px 0px -75% 0px', threshold:0});
+    targets.forEach(function(t){ io.observe(t); });
+  }
+})();
+</script>
+</body>
+</html>

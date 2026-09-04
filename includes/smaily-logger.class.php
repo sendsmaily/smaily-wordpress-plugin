@@ -5,6 +5,8 @@
 
 namespace Smaily_Connect\Includes;
 
+defined( 'ABSPATH' ) || exit;
+
 class Logger {
 	const LEVEL_INFO    = 'info';
 	const LEVEL_WARNING = 'warning';

@@ -2,9 +2,7 @@
 
 namespace Smaily_Connect\Integrations\CF7;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+defined( 'ABSPATH' ) || exit;
 
 use Smaily_Connect\Includes\Helper;
 use Smaily_Connect\Includes\Options;
@@ -169,6 +167,16 @@ class Admin {
 		$template_variables['autoresponders']     = Helper::get_autoresponders_list( $this->options );
 		$template_variables['is_captcha_enabled'] = $this->is_captcha_enabled(
 			\WPCF7_FormTagsManager::get_instance()->get_scanned_tags()
+		);
+
+		// PRO-1277: a previously saved binding may point at a workflow that's
+		// since been disabled (or removed) in Smaily. Don't silently drop it
+		// from the dropdown — the browser would then submit "No autoresponder"
+		// on the next save even though the merchant never touched the field.
+		// Flag it instead so the partial can keep it selectable and visible.
+		$template_variables['autoresponder_unavailable'] = Helper::is_autoresponder_unavailable(
+			(int) $template_variables['autoresponder_id'],
+			$template_variables['autoresponders']
 		);
 
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/cf7/partials/smaily-cf7-admin.php';

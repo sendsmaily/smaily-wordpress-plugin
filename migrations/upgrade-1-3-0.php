@@ -18,9 +18,9 @@
 
 namespace Smaily_Connect\Migrations;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- display template / one-shot script: locals are file-scoped, not global pollution.
 
 use Smaily_Connect\Includes\Notice_Registry;
 use Smaily_Connect\Includes\Options;

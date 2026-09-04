@@ -2,6 +2,8 @@
 
 namespace Smaily_Connect\Includes;
 
+defined( 'ABSPATH' ) || exit;
+
 use Smaily_Connect\Public_Base;
 use WP_Widget;
 
@@ -109,17 +111,25 @@ class Widget extends WP_Widget {
 			)
 		);
 
-		$autoresponders        = Helper::get_autoresponders_list( $this->options );
-		$title_id              = $this->get_field_id( 'title' );
-		$title_name            = $this->get_field_name( 'title' );
-		$show_name_id          = $this->get_field_id( 'show_name' );
-		$show_name_name        = $this->get_field_name( 'show_name' );
-		$success_url_id        = $this->get_field_id( 'success_url' );
-		$success_url_name      = $this->get_field_name( 'success_url' );
-		$failure_url_id        = $this->get_field_id( 'failure_url' );
-		$failure_url_name      = $this->get_field_name( 'failure_url' );
-		$autoresponder_id      = $this->get_field_id( 'autoresponder_id' );
-		$autoresponder_id_name = $this->get_field_name( 'autoresponder_id' );
+		$autoresponders = Helper::get_autoresponders_list( $this->options );
+		// PRO-1334: mirrors CF7's PRO-1277 preserve-and-flag — a previously saved
+		// binding may point at a workflow since disabled (or removed) in Smaily.
+		// Keep it visible/selectable instead of letting the browser silently
+		// submit "No autoresponder" on the next save.
+		$autoresponder_unavailable = Helper::is_autoresponder_unavailable(
+			(int) $instance['autoresponder_id'],
+			$autoresponders
+		);
+		$title_id                  = $this->get_field_id( 'title' );
+		$title_name                = $this->get_field_name( 'title' );
+		$show_name_id              = $this->get_field_id( 'show_name' );
+		$show_name_name            = $this->get_field_name( 'show_name' );
+		$success_url_id            = $this->get_field_id( 'success_url' );
+		$success_url_name          = $this->get_field_name( 'success_url' );
+		$failure_url_id            = $this->get_field_id( 'failure_url' );
+		$failure_url_name          = $this->get_field_name( 'failure_url' );
+		$autoresponder_id          = $this->get_field_id( 'autoresponder_id' );
+		$autoresponder_id_name     = $this->get_field_name( 'autoresponder_id' );
 
 		?>
 		<p>
@@ -143,10 +153,26 @@ class Widget extends WP_Widget {
 			<label for="<?php echo esc_attr( $autoresponder_id ); ?>"><?php esc_html_e( 'Autoresponder ID', 'smaily-connect' ); ?>:</label>
 			<select id="<?php echo esc_attr( $autoresponder_id ); ?>" name="<?php echo esc_attr( $autoresponder_id_name ); ?>">
 				<option value=""><?php esc_html_e( 'No autoresponder', 'smaily-connect' ); ?></option>
+				<?php if ( $autoresponder_unavailable ) : ?>
+					<option value="<?php echo esc_attr( $instance['autoresponder_id'] ); ?>" selected="selected">
+						<?php
+						printf(
+							/* translators: %d: Smaily workflow ID. */
+							esc_html__( 'Workflow #%d (disabled in Smaily)', 'smaily-connect' ),
+							(int) $instance['autoresponder_id']
+						);
+						?>
+					</option>
+				<?php endif; ?>
 				<?php foreach ( $autoresponders as $id => $title ) : ?>
 					<option value="<?php echo esc_attr( $id ); ?>" <?php selected( $instance['autoresponder_id'], $id ); ?>><?php echo esc_attr( $title ); ?></option>
 				<?php endforeach; ?>
 			</select>
+			<?php if ( $autoresponder_unavailable ) : ?>
+				<p class="notice notice-warning inline">
+					<?php esc_html_e( 'This workflow is disabled in Smaily (or no longer exists) — form submissions will not trigger anything until you enable it in Smaily or pick another workflow.', 'smaily-connect' ); ?>
+				</p>
+			<?php endif; ?>
 		</p>
 		<?php
 	}

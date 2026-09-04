@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+    bootstrap="tests/Integration/bootstrap.php"
+    colors="true"
+    verbose="true"
+    convertErrorsToExceptions="true"
+    convertWarningsToExceptions="false"
+    convertNoticesToExceptions="false"
+    failOnRisky="false"
+    failOnWarning="false"
+    beStrictAboutCoversAnnotation="false"
+    beStrictAboutOutputDuringTests="false"
+    beStrictAboutTestsThatDoNotTestAnything="true"
+    cacheResult="false">
+
+    <!--
+        Separate config for the integration suite.
+
+        Why this exists instead of reusing phpunit.xml.dist:
+
+          1. Real WordPress emits notices + deprecations on every request
+             (third-party plugins like Polylang call deprecated APIs).
+             convertNoticesToExceptions=true (the unit-suite default)
+             would fail every integration test on output that our code
+             didn't produce.
+
+          2. The bootstrap path differs — Integration tests load
+             /var/www/html/wp-load.php via tests/Integration/bootstrap.php,
+             which only resolves inside the wp-env container.
+
+          3. failOnWarning + failOnRisky are stricter than what makes
+             sense against a real WP install, where deprecation noise is
+             constant. The DebugLogCleanTest is our targeted check for
+             "PHP Fatal/Warning from our code"; suite-level fail-on-
+             warning would just create false-positive flakes.
+    -->
+    <testsuites>
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+            <exclude>tests/Integration/Support</exclude>
+            <exclude>tests/Integration/bootstrap.php</exclude>
+        </testsuite>
+    </testsuites>
+</phpunit>

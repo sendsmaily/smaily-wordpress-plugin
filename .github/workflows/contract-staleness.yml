@@ -1,0 +1,50 @@
+# Contract staleness guard (PRO-1250; Decision A on PRO-1247).
+#
+# Fails when this repo's vendored docs/RECENGINE_API_CONTRACT.md is no longer
+# byte-identical with the engine repo's (erkkimarkus/smaily-recommendations)
+# main-branch copy. Deliberately its OWN workflow — "Lint and test" is
+# pre-existing red on main (see CLAUDE.md), so the staleness signal must be an
+# unambiguous separate check.
+#
+# The schedule is the real guard: contract drift usually arrives with no push
+# on OUR side, so push/PR triggers alone would never see it.
+#
+# Needs the repo secret ENGINE_CONTRACT_READ_TOKEN — a fine-grained PAT with
+# contents:read on erkkimarkus/smaily-recommendations (the engine repo is
+# private). Missing/expired secret fails with a "CANNOT CHECK" message, which
+# is distinct from "CONTRACT COPY STALE".
+#
+# On red: sync per CLAUDE.md CC-8 (byte-identical + mock + code follow-through
+# in the same pass).
+
+name: Contract staleness
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    # Daily 05:17 UTC — odd minute to avoid the on-the-hour GH cron pile-up.
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: RECENGINE_API_CONTRACT.md vs engine main
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare vendored contract against engine main
+        env:
+          ENGINE_CONTRACT_READ_TOKEN: ${{ secrets.ENGINE_CONTRACT_READ_TOKEN }}
+        run: bash bin/check-contract-staleness.sh

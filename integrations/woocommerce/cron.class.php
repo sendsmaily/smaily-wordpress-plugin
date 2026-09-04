@@ -2,11 +2,13 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+defined( 'ABSPATH' ) || exit;
 
-use Smaily_Connect\Includes\Helper as Smaily_Base_Helper;
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
+
+use Smaily\Connect\Smaily\ApiException;
+use Smaily\Connect\Smaily\AutomationRouter;
+use Smaily\Connect\Support\ContactLanguageResolver;
 use Smaily_Connect\Includes\Logger;
 use Smaily_Connect\Includes\Options;
 use Smaily_Connect\Includes\Smaily_Client;
@@ -49,16 +51,38 @@ class Cron {
 	public function register_hooks() {
 		// Register the custom schedule early
 		add_filter( 'cron_schedules', array( $this, 'smaily_cron_schedules' ) );
-		// Action hook for subscriber synchronization.
-		add_action( 'smaily_connect_cron_sync_subscribers', array( $this, 'smaily_sync_subscribers' ) );
-		// Cron for updating abandoned cart statuses.
-		add_action( 'smaily_connect_cron_abandoned_carts_status', array( $this, 'smaily_abandoned_carts_status' ) );
-		// Cron for sending abandoned cart emails.
-		add_action( 'smaily_connect_cron_abandoned_carts_email', array( $this, 'smaily_abandoned_carts_email' ) );
+		// F3-53: smaily_connect_cron_sync_subscribers is deliberately NOT
+		// registered. F3-48.3 stopped the AS tick from bridging to
+		// smaily_sync_subscribers (its language source is cron-unsafe — the
+		// F3-47 clobber), but the callback stayed registered and a legacy
+		// WP-Cron event surviving/re-armed on a client site fired the
+		// mass-send daily anyway. The new contact-sync path owns this; the
+		// method stays for the upstream diff but nothing may invoke it.
+		//
+		// PRO-1195: the two abandoned-cart hooks
+		// (smaily_connect_cron_abandoned_carts_status / _email) are
+		// deliberately NOT registered either. The namespaced pipeline
+		// (CartHookHandler → CartAbandonmentSweeper → CartFlusher) owns
+		// abandoned cart; the AS smly_plus_abandoned_cart tick no longer
+		// bridges here, and — the F3-53 lesson — a stray surviving legacy
+		// WP-Cron event must not be able to fire the retired pass either
+		// (it would double-remind against the new pipeline). The methods
+		// stay for the upstream diff but nothing may invoke them.
 	}
 
 	/**
 	 * Custom cron schedule for smaily Cron.
+	 *
+	 * DECIDED (2026-06-11, upstream-merge prep): the interval registration
+	 * STAYS. The BETA fork migrated all smaily_connect_cron_* WP-Cron
+	 * entries to Action Scheduler (sub-PR 5.D), so no Smaily-owned cron
+	 * uses 'smaily_connect_15_minutes' anymore — but the schedule name is
+	 * public API (any plugin/theme may have passed it to
+	 * wp_schedule_event()), and silently removing it would leave such
+	 * events unschedulable. Cost of keeping: one array entry per
+	 * cron_schedules filter call. Revisit only with evidence (a grep on a
+	 * real install showing no third-party usage) — absence of pain is not
+	 * that evidence.
 	 *
 	 * @param array $schedules Schedules array.
 	 * @return array $schedules Updated array.
@@ -155,10 +179,11 @@ class Cron {
 	 * @return void
 	 */
 	public function smaily_abandoned_carts_email() {
-		$status = get_option(
-			Options::ABANDONED_CART_STATUS_OPTION,
-			Options::ABANDONED_CART_DEFAULT_STATUS
-		);
+		// Normalized read (F3-54): the option may hold the legacy array OR
+		// the bare boolean the pre-3.4.3 Settings wrote — a raw
+		// $status['enabled'] on the boolean's stored string was a PHP 8
+		// fatal on every tick (the Prike crash loop).
+		$status = Options::abandoned_cart_status();
 		if ( ! $status['enabled'] ) {
 			return;
 		}
@@ -168,9 +193,56 @@ class Cron {
 			Options::ABANDONED_CART_DEFAULT_FIELDS
 		);
 
+		/*
+		 * Backlog guard (F3-37): a reminder is only sent for carts the
+		 * customer touched RECENTLY; anything older is expired (marked
+		 * mail_sent, never emailed). A stale reminder is worthless, and a
+		 * re-armed scheduler must never mass-mail history: this pipeline's
+		 * `abandoned AND mail_sent IS NULL` query has no time bound, so a
+		 * dormant period (dead WP-Cron — exactly the pilot site's state at
+		 * the 1.x→2.x upgrade) accumulates a backlog that the first tick
+		 * after re-arming would drain in one mass send. The age signal is
+		 * cart_updated, NOT cart_abandoned_time: the status pass stamps the
+		 * latter with NOW() when it (re)marks a cart, so after a dormant
+		 * period every historical cart looks freshly abandoned by that
+		 * column. Timestamps are compared as epoch ints — cart_updated reads
+		 * back from MySQL in 'Y-m-d H:i:s' while the writer used the Z-form,
+		 * and a string compare across the two formats breaks on the
+		 * separator byte (' ' < 'T') for same-day values.
+		 */
+		$max_age  = (int) apply_filters( 'smaily_connect_abandoned_cart_max_age_seconds', DAY_IN_SECONDS );
+		$expired  = 0;
+		$unmapped = 0;
+
 		foreach ( $this->get_abandoned_carts() as $cart ) {
+			$updated_ts = isset( $cart['cart_updated'] ) ? strtotime( (string) $cart['cart_updated'] ) : false;
+			if ( $updated_ts !== false && $updated_ts < time() - $max_age ) {
+				$this->update_mail_sent_status( $cart['customer_id'] );
+				++$expired;
+				continue;
+			}
+
+			/*
+			 * Poison-row guard (F3-53): cart_content this pipeline didn't
+			 * write (an older/foreign plugin version's rows surviving an
+			 * in-place module swap) can deserialize to something other than
+			 * a cart-items array. Such a row can never be emailed — mark it
+			 * terminally (observable in the log) instead of leaving it
+			 * mail_sent NULL, where it would be retried forever.
+			 */
 			$cart_content = maybe_unserialize( $cart['cart_content'] );
 			if ( empty( $cart_content ) ) {
+				continue;
+			}
+			if ( ! is_array( $cart_content ) ) {
+				$this->logger->error(
+					sprintf(
+						'Abandoned cart for customer %d has malformed cart_content (%s) - marked sent without emailing.',
+						(int) $cart['customer_id'],
+						gettype( $cart_content )
+					)
+				);
+				$this->update_mail_sent_status( $cart['customer_id'] );
 				continue;
 			}
 
@@ -179,33 +251,138 @@ class Cron {
 				continue;
 			}
 
-			$addresses = $this->prepare_user_data( $user, $sync_fields );
-			$products  = $this->prepare_products_data( $cart_content, $sync_fields );
+			/*
+			 * Per-cart Throwable backstop (F3-53): a data-shape error in one
+			 * cart is deterministic — it would recur on every 15-minute tick
+			 * and, uncaught, abort the WHOLE pass before the other carts (the
+			 * Prike PHP 8 "Cannot access offset of type string on string"
+			 * fatal loop). Mark the cart terminally and move on.
+			 */
+			try {
+				$addresses = $this->prepare_user_data( $user, $sync_fields );
+				$products  = $this->prepare_products_data( $cart_content, $sync_fields );
 
-			$request  = new Smaily_Client( $this->options );
-			$response = $request->trigger_automation(
-				(int) $status['autoresponder_id'],
-				array( array_merge( $addresses, $products ) ),
-				false
-			);
+				/*
+				 * New-path dispatch first (F3-54): a wizard-configured store
+				 * maps the abandoned-cart workflow in the automation-mapping
+				 * table; AutomationRouter resolves it (multilingual modes,
+				 * the contact-sync force_opt_in policy, F3-44 exchange
+				 * capture). The pre-3.4.3 Settings stopped writing
+				 * autoresponder_id, so on those stores the mapping table is
+				 * the ONLY workflow source. ApiException = transient — leave
+				 * the cart unmarked (retried next tick), same semantics as
+				 * the legacy error-array path below.
+				 */
+				$router = $this->automation_router();
+				if ( $router instanceof AutomationRouter ) {
+					$contact = array( 'email' => $user->user_email );
+					if ( isset( $addresses['language'] ) && $addresses['language'] !== '' ) {
+						$contact['language'] = $addresses['language'];
+					}
 
+					try {
+						if ( $router->trigger_automation( 'abandoned_cart', $contact, array_merge( $addresses, $products ) ) ) {
+							$this->update_mail_sent_status( $cart['customer_id'] );
+							continue;
+						}
+					} catch ( ApiException $e ) {
+						$this->logger->error( sprintf( 'Failed to send abandoned cart email (mapped workflow) with an error: %s', $e->getMessage() ) );
+						continue;
+					}
+				}
+
+				/*
+				 * No mapping row — legacy fallback: a pre-wizard store's
+				 * option array still carries the merchant's autoresponder id.
+				 * Enabled with NEITHER source is a config gap: the cart stays
+				 * unmarked (it sends once the merchant maps a workflow; the
+				 * backlog guard expires anything older than the window) and
+				 * the pass logs one line, not one per cart.
+				 */
+				if ( $status['autoresponder_id'] <= 0 ) {
+					++$unmapped;
+					continue;
+				}
+
+				$request  = new Smaily_Client( $this->options );
+				$response = $request->trigger_automation(
+					$status['autoresponder_id'],
+					array( array_merge( $addresses, $products ) ),
+					false
+				);
+			} catch ( \Throwable $e ) {
+				$this->logger->error(
+					sprintf(
+						'Abandoned cart for customer %d failed with %s: %s - marked sent without emailing.',
+						(int) $cart['customer_id'],
+						get_class( $e ),
+						$e->getMessage()
+					)
+				);
+				$this->update_mail_sent_status( $cart['customer_id'] );
+				continue;
+			}
+
+			/*
+			 * Per-cart error handling (F3-37): log and move to the NEXT cart.
+			 * The pre-fix `return` aborted the whole loop on the first failure
+			 * without marking anything — hiding the failure (the rest of the
+			 * batch silently waited) and growing the very backlog the guard
+			 * above expires. An errored cart keeps mail_sent NULL, so it is
+			 * retried next tick until it sends or ages past the guard window.
+			 */
 			if ( empty( $response ) ) {
 				$this->logger->error( 'Failed to trigger abandoned cart email flow - received an empty response' );
-				return;
+				continue;
 			}
 
 			if ( isset( $response['error'] ) ) {
 				$this->logger->error( sprintf( 'Failed to send abandoned cart email with an error: %s', $response['error'] ) );
-				return;
+				continue;
 			}
 
 			if ( isset( $response['body']['code'] ) && $response['body']['code'] !== 101 ) {
 				$this->logger->error( sprintf( 'Failed to send abandoned cart email: %s', wp_json_encode( $response ) ) );
-				return;
+				continue;
 			}
 
 			$this->update_mail_sent_status( $cart['customer_id'] );
 		}
+
+		if ( $expired > 0 ) {
+			$this->logger->error(
+				sprintf(
+					'Backlog guard: expired %d abandoned cart(s) older than the reminder window (%d s) without emailing (filter: smaily_connect_abandoned_cart_max_age_seconds).',
+					$expired,
+					$max_age
+				)
+			);
+		}
+
+		if ( $unmapped > 0 ) {
+			$this->logger->error(
+				sprintf(
+					'Abandoned cart is enabled but no workflow is configured (no automation mapping, no legacy autoresponder id) - %d cart(s) left pending. Map an abandoned-cart workflow in the plugin settings.',
+					$unmapped
+				)
+			);
+		}
+	}
+
+	/**
+	 * The new-path automation router, when the namespaced bootstrap is
+	 * loaded (always, in the combined plugin — the class_exists guard is
+	 * belt-and-braces for a partial load). Protected so tests can inject
+	 * a double.
+	 *
+	 * @return AutomationRouter|null
+	 */
+	protected function automation_router() {
+		if ( ! class_exists( '\Smaily\Connect\Bootstrap' ) ) {
+			return null;
+		}
+
+		return \Smaily\Connect\Bootstrap::instance()->automation_router();
 	}
 
 	/**
@@ -350,7 +527,18 @@ class Cron {
 					$addresses['email'] = $user->user_email;
 					break;
 				case 'language':
-					$addresses['language'] = Smaily_Base_Helper::get_user_language_code( $user->ID );
+					/*
+					 * F3-53 addendum: the legacy helper's fallback is the
+					 * context-dependent get_current_language_code() — in this
+					 * cron/AS pass that's the F3-47 clobber class (its own
+					 * docblock says "not suitable for use in cron jobs").
+					 * Route through the resolver; omit when unresolved —
+					 * Smaily leaves an absent language intact, '' wipes it.
+					 */
+					$language = ( new ContactLanguageResolver() )->for_user( $user );
+					if ( $language !== '' ) {
+						$addresses['language'] = $language;
+					}
 					break;
 				case 'first_name':
 					$addresses['first_name'] = $user->first_name;
@@ -397,6 +585,13 @@ class Cron {
 		if ( ! empty( $selected_fields ) ) {
 			$products_data = array();
 			foreach ( $cart_data as $cart_item ) {
+				// A cart item this pipeline didn't write (foreign/older rows
+				// after an in-place module swap) may be a bare string — on
+				// PHP 8 an offset read on it is fatal, not a notice (F3-53).
+				if ( ! is_array( $cart_item ) || ! isset( $cart_item['product_id'] ) || ! is_scalar( $cart_item['product_id'] ) ) {
+					continue;
+				}
+
 				$product = array();
 
 				// Get product details if selected from user settings.
@@ -417,7 +612,9 @@ class Cron {
 							$product['product_sku'] = $details->get_sku();
 							break;
 						case 'product_quantity':
-							$product['product_quantity'] = $cart_item['quantity'];
+							$product['product_quantity'] = isset( $cart_item['quantity'] ) && is_scalar( $cart_item['quantity'] )
+								? (string) $cart_item['quantity']
+								: '';
 							break;
 						case 'product_price':
 							$product['product_price'] = $this->get_sale_price_with_tax( $details );

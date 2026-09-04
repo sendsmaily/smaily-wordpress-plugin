@@ -1,5 +1,7 @@
 <?php
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- display template / one-shot script: locals are file-scoped, not global pollution.
+
 use Smaily_Connect\Integrations\WooCommerce\Rss;
 
 // Exit if accessed directly.

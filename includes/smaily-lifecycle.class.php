@@ -2,9 +2,9 @@
 
 namespace Smaily_Connect\Includes;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
 require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cart.class.php';
 
@@ -57,7 +57,6 @@ class Lifecycle {
 	public function activate() {
 		if ( class_exists( 'WooCommerce' ) ) {
 			$this->create_woocommerce_tables();
-			$this->set_scheduled_actions();
 
 			// Set to flush rewrite rules during init action if not yet flushed.
 			update_option( 'smaily_connect_flush_rewrite_rules', true );
@@ -67,43 +66,25 @@ class Lifecycle {
 		$this->logger->info( 'Plugin activated' );
 	}
 
-	/**
-	 * Schedule custom actions if they are not already scheduled.
-	 *
-	 * This method sets up the following scheduled actions:
-	 * - Syncing subscribers daily.
-	 * - Tracking abandoned cart statuses every 15 minutes.
-	 * - Sending abandoned cart emails every 15 minutes.
-	 * Additionally, it flushes the rewrite rules.
+	/*
+	 * NOTE (F3-53): this class used to (re)schedule the legacy WP-Cron events
+	 * (smaily_connect_cron_sync_subscribers / _abandoned_carts_status /
+	 * _abandoned_carts_email) here and in check_for_dependency(). Scheduling
+	 * is owned by Action Scheduler now (Bootstrap's smly_plus_* recurring
+	 * actions bridge to the same hook names); the WP-Cron re-arm ran AFTER
+	 * WPCronAuditor's activation-time clear whenever WooCommerce was
+	 * (re)activated, resurrecting a duplicate scheduler — including the daily
+	 * legacy subscriber mass-send (the F3-47 language-clobber path). The
+	 * deactivate() clears below stay, as defense against residue.
 	 */
-	private function set_scheduled_actions() {
-		// Check if the daily sync action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_connect_cron_sync_subscribers' ) ) {
-			// Add Cron job to sync subscribers.
-			wp_schedule_event( time(), 'daily', 'smaily_connect_cron_sync_subscribers' );
-		}
-
-		// Check if the abandoned cart status action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_connect_cron_abandoned_carts_status' ) ) {
-			// Schedule event to track abandoned statuses.
-			wp_schedule_event( time(), 'smaily_connect_15_minutes', 'smaily_connect_cron_abandoned_carts_status' );
-		}
-
-		// Check if the abandoned cart email action is already scheduled.
-		if ( ! wp_next_scheduled( 'smaily_connect_cron_abandoned_carts_email' ) ) {
-			// Schedule event to send emails.
-			wp_schedule_event( time(), 'smaily_connect_15_minutes', 'smaily_connect_cron_abandoned_carts_email' );
-		}
-	}
 
 	/**
-	 * Checks if additional featured plugins are being activated, creates tables if needed and schedules events
+	 * Checks if additional featured plugins are being activated, creates tables if needed
 	 *
 	 */
 	public function check_for_dependency( $plugin, $network ) {
 		if ( $plugin === 'woocommerce/woocommerce.php' ) {
 			$this->create_woocommerce_tables();
-			$this->set_scheduled_actions();
 			update_option( 'smaily_connect_flush_rewrite_rules', true );
 		}
 	}
@@ -254,7 +235,8 @@ class Lifecycle {
 	 *
 	 */
 	public function set_locale() {
-		load_plugin_textdomain( // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound
+		// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- explicit load retained for the private-ZIP distribution; redundant-but-harmless on wp.org (WP 4.6+ auto-loads).
+		load_plugin_textdomain(
 			'smaily-connect',
 			false,
 			plugin_basename( SMAILY_CONNECT_PLUGIN_PATH ) . '/languages/'

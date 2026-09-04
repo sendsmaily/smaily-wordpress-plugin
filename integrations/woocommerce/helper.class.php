@@ -2,6 +2,10 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
+defined( 'ABSPATH' ) || exit;
+
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- third-party plugin hooks (WPML / WooCommerce extensions) consumed here, not hooks we define.
+
 class Helper {
 	/**
 	 * Get the current price of the product including tax, considering discount rules if active.

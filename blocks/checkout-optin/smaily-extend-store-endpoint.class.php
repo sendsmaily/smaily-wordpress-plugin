@@ -2,6 +2,8 @@
 
 namespace Smaily_Connect\Blocks\Checkout_Optin;
 
+defined( 'ABSPATH' ) || exit;
+
 use Automattic\WooCommerce\StoreApi\Schemas\ExtendSchema;
 use Automattic\WooCommerce\StoreApi\Schemas\V1\CheckoutSchema;
 use Automattic\WooCommerce\StoreApi\StoreApi;

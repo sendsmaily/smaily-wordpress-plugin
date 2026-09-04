@@ -1,5 +1,31 @@
 logs/
 vendor/
+node_modules/
+dist/
+# Build stamp (composer run package:hash) — deliberately OUTSIDE dist/, which
+# vite empties on every build. Shipped in the ZIP from disk, never committed.
+build-hash.txt
+coverage/
 .env
 smaily-connect.zip
+smaily-connect-*.zip
+*.zip
 languages/*.po~
+
+# Local PHPCS / PHPStan / PHPUnit override files (the .dist versions are
+# committed; developers can drop a local copy here that the tools pick up
+# first).
+phpcs.xml
+phpstan.neon
+phpunit.xml
+.phpunit.result.cache
+
+# Test coverage output.
+tmp/
+.phpcs-cache
+.claude/*
+!.claude/settings.json
+
+# i18n build (transient: esbuild transpile + make-json use-map)
+_i18n-src/
+languages/i18n-map.json

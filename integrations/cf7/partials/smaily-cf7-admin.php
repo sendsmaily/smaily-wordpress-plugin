@@ -1,5 +1,7 @@
 <?php
 
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound, WordPress.Security.NonceVerification.Recommended -- display partial: reads a GET value only to render (sanitized), no state change; locals are file-scoped.
+
 // Exit if accessed directly
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -55,6 +57,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<option value='' <?php selected( $template_variables['autoresponder_id'], 0 ); ?>>
 								<?php esc_html_e( 'No autoresponder', 'smaily-connect' ); ?>
 							</option>
+							<?php if ( $template_variables['autoresponder_unavailable'] ) : ?>
+								<option value='<?php echo esc_attr( $template_variables['autoresponder_id'] ); ?>' selected='selected'>
+									<?php
+									printf(
+										/* translators: %d: Smaily workflow ID. */
+										esc_html__( 'Workflow #%d (disabled in Smaily)', 'smaily-connect' ),
+										(int) $template_variables['autoresponder_id']
+									);
+									?>
+								</option>
+							<?php endif; ?>
 							<?php foreach ( $template_variables['autoresponders'] as $autoresponder_id => $autoresponder_title ) : ?>
 								<option value='<?php echo esc_html( $autoresponder_id ); ?>'
 									<?php if ( $template_variables['autoresponder_id'] === $autoresponder_id ) : ?>
@@ -65,6 +78,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 								</option>
 							<?php endforeach; ?>
 						</select>
+						<?php if ( $template_variables['autoresponder_unavailable'] ) : ?>
+							<p class="smaily-connect-cf7-notice warning">
+								<?php esc_html_e( 'This workflow is disabled in Smaily (or no longer exists) — form submissions will not trigger anything until you enable it in Smaily or pick another workflow.', 'smaily-connect' ); ?>
+							</p>
+						<?php endif; ?>
 					</td>
 				</tr>
 			</table>

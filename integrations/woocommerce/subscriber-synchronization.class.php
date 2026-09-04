@@ -2,10 +2,9 @@
 
 namespace Smaily_Connect\Integrations\WooCommerce;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Smaily\SubscriberPayloadBuilder;
 use Smaily_Connect\Blocks\Checkout_Optin\Extend_Store_Endpoint;
 use Smaily_Connect\Includes\Helper;
 use Smaily_Connect\Includes\Logger;
@@ -167,8 +166,10 @@ class Subscriber_Synchronization {
 	 * @return void
 	 */
 	private function order_optin_subscriber( WC_Order $order ) {
-		$sync_options        = get_option( Options::SUBSCRIBER_SYNC_FIELDS_OPTION, Options::SUBSCRIBER_SYNC_DEFAULT_FIELDS );
-		$enabled_sync_fields = array_keys( array_filter( $sync_options ) );
+		// Read through the sync's own interpreter — the selection has two stored
+		// shapes and reading it as a map only left a wizard-configured store
+		// matching nothing at all (PRO-1743).
+		$enabled_sync_fields = SubscriberPayloadBuilder::effective_selection_legacy_keys();
 
 		// Order is made by a registered user.
 		$user_id = $order->get_customer_id();

@@ -1,59 +1,198 @@
 name: Lint and test the codebase
 
-on: pull_request
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# Cancel any previous run for the same ref still in progress when a new
+# commit lands. Saves CI minutes when several commits land back-to-back on
+# main, which is the workflow Erkki uses (commits land directly, no PR).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint_and_test:
-    name: Lint and test the codebase
+  php:
+    name: PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Matrix matches PROJECT_PLAN.md §1.4 — PHP 8.0+ is the plugin
+        # header's hard floor, and the supported-versions ceiling tracks
+        # what shivammathur/setup-php ships reliably.
+        php-version: ['8.0', '8.1', '8.2', '8.3']
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up PHP environment
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: 8.3
-        tools: composer
+      - name: Set up PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          coverage: none
+          tools: composer:v2
 
-    - name: Get composer cache directory
-      id: composer-cache
-      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-    - name: Cache PHP packages
-      uses: actions/cache@v4
-      with:
-        path: ${{ steps.composer-cache.outputs.dir }}
-        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-composer-
-          ${{ runner.os }}-
+      - name: Cache PHP packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php${{ matrix.php-version }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php${{ matrix.php-version }}-composer-
 
-    - name: Set up Node environment
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
 
-    - name: Get Node cache directory
-      id: node-cache
-      run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+      - name: Validate composer.json
+        run: composer validate --strict --no-check-publish
 
-    - name: Cache Node modules
-      uses: actions/cache@v4
-      with:
-        path: ${{ steps.node-cache.outputs.dir }}
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
-          ${{ runner.os }}-
+      - name: PHPCS (WordPress-Extra + PHPCompatibility)
+        run: composer run lint:php
 
-    - name: Install PHP dependencies
-      run: composer install --no-interaction --prefer-dist
+      - name: PHPStan (level 6)
+        run: composer run analyze
 
-    - name: Install Node dependencies
-      run: composer run install-block-modules
+      - name: PHPUnit (unit suite)
+        run: composer run test:php
 
-    - name: Lint
-      run: composer run lint
+  admin_bundle:
+    name: Admin bundle (Vite + Tailwind + TypeScript)
+    runs-on: ubuntu-latest
 
-    - name: Test
-      run: composer run test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript strict typecheck
+        run: npm run typecheck
+
+      - name: ESLint (React + TypeScript)
+        run: npm run lint
+
+      - name: Vitest unit suite + coverage thresholds
+        run: npm run test:coverage
+
+      - name: Vite production build
+        run: npm run build
+
+      - name: Verify expected dist artefacts exist
+        run: |
+          test -f dist/admin/admin.js
+          test -f dist/admin/admin.css
+          test -f dist/public/js/sc-runtime.js
+          test -f dist/public/js/sc-landing.js
+
+      - name: Bundle size budget (admin.js must stay under 250KB gzipped)
+        run: |
+          size=$(gzip -c dist/admin/admin.js | wc -c)
+          echo "admin.js gzipped size = $size bytes"
+          test "$size" -lt 256000 || (echo "Bundle exceeded 250KB gzipped budget" && exit 1)
+
+  integration:
+    name: Integration suite (wp-env)
+    runs-on: ubuntu-latest
+    # Sub-PR 3.0: real-WP integration tests catch route-404, dbDelta,
+    # save/read key-mismatch, and other piiri-region bugs that mock
+    # unit tests cannot. Job is must-pass for the plugin-side
+    # contract. Rec-engine connectivity inside the suite is
+    # conditionally skipped (see RecEngineConnectivityTest) so engine
+    # outages don't block plugin regressions from being caught.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Set up PHP environment
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Install Node dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Build admin bundle + build-hash
+        run: |
+          npm run build
+          composer run package:hash
+
+      - name: Start wp-env
+        run: npx @wordpress/env start
+
+      - name: Activate plugin + disable WP_DEBUG_DISPLAY
+        # wp-env doesn't auto-activate our plugin on first boot. We
+        # also flip WP_DEBUG_DISPLAY=false so WP's HTML-rendered
+        # notices don't break CLI invocations of phpunit.
+        run: |
+          npx @wordpress/env run cli wp plugin activate smaily-connect
+          npx @wordpress/env run cli wp config set WP_DEBUG_DISPLAY false --raw
+
+      - name: PHPUnit integration suite
+        run: composer run test:integration
+
+  blocks:
+    name: Gutenberg blocks (lint + test)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP environment
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+
+      - name: Set up Node environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Get Node cache directory
+        id: node-cache
+        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+
+      - name: Cache Node modules
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.node-cache.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json', '**/blocks/*/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install Node dependencies
+        run: composer run install-block-modules
+
+      - name: Lint blocks
+        run: npm run lint --prefix blocks
+
+      - name: Test blocks
+        run: npm run test --prefix blocks

@@ -1,0 +1,52 @@
+/*
+ * Smaily Connect admin bundle — Tailwind + Inter font.
+ *
+ * Fonts are bundled in assets/fonts/ (see STYLE_MAPPING.md §5). The url()
+ * paths point to the location the WordPress installer expects the plugin
+ * to live (wp-content/plugins/smaily-connect/...); Vite doesn't rewrite
+ * these because it's a runtime resource served by WP, not bundled CSS.
+ */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/wp-content/plugins/smaily-connect/assets/fonts/Inter-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/wp-content/plugins/smaily-connect/assets/fonts/Inter-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/wp-content/plugins/smaily-connect/assets/fonts/Inter-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/wp-content/plugins/smaily-connect/assets/fonts/Inter-Bold.woff2') format('woff2');
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom animation utilities preserved from the prototype. */
+@layer utilities {
+  .scp-spin {
+    animation: scp-spin 0.8s linear infinite;
+  }
+  @keyframes scp-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+}

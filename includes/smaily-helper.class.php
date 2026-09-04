@@ -1,14 +1,11 @@
 <?php
-
-namespace Smaily_Connect\Includes;
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
-
 /**
  * Smaily helper class with static methods
  */
+
+namespace Smaily_Connect\Includes;
+
+defined( 'ABSPATH' ) || exit;
 
 class Helper {
 	/**
@@ -30,8 +27,27 @@ class Helper {
 			return array();
 		}
 
+		return self::filter_enabled_autoresponders( $result['body'] );
+	}
+
+	/**
+	 * Shape a raw `workflows.php?trigger_type=form_submitted` response into
+	 * an [id => title] pick list, dropping rows Smaily marked disabled
+	 * (PRO-1277) — enrolling a disabled workflow is accepted but silently
+	 * sends nothing, so it must not be offered in a dropdown.
+	 *
+	 * `is_enabled` may arrive as a bool, an int, or a string ("true"/"false"/
+	 * "1"/"0") — `FILTER_VALIDATE_BOOLEAN` (already used for wire booleans in
+	 * sanitize_array() below) coerces all of those consistently, unlike a bare
+	 * truthy cast which misreads the string "false" as enabled. A row without
+	 * the key at all is kept (we don't know its state, so we don't drop it).
+	 *
+	 * @param array $rows Raw rows from Smaily_Client::list_autoresponders()['body'].
+	 * @return array List of enabled autoresponders in format [id => title].
+	 */
+	public static function filter_enabled_autoresponders( array $rows ) {
 		$autoresponder_list = array();
-		foreach ( $result['body'] as $autoresponder ) {
+		foreach ( $rows as $autoresponder ) {
 			if ( ! is_array( $autoresponder ) ) {
 				continue;
 			}
@@ -44,12 +60,31 @@ class Helper {
 				continue;
 			}
 
+			if ( array_key_exists( 'is_enabled', $autoresponder ) && ! filter_var( $autoresponder['is_enabled'], FILTER_VALIDATE_BOOLEAN ) ) {
+				continue;
+			}
+
 			$id                        = $autoresponder['id'];
 			$title                     = $autoresponder['title'];
 			$autoresponder_list[ $id ] = $title;
 		}
 
 		return $autoresponder_list;
+	}
+
+	/**
+	 * Whether a previously saved autoresponder id is no longer selectable —
+	 * it was disabled (or deleted) in Smaily since it was bound (PRO-1277).
+	 * A binding kept in the dropdown despite this stays selectable/visible
+	 * so a save doesn't silently wipe it to "No autoresponder"; the caller
+	 * uses this to decide whether to show the "disabled in Smaily" marker.
+	 *
+	 * @param int   $saved_id               Bound autoresponder id (0 = none saved).
+	 * @param array $enabled_autoresponders Filtered [id => title] list, e.g. from get_autoresponders_list().
+	 * @return bool
+	 */
+	public static function is_autoresponder_unavailable( $saved_id, array $enabled_autoresponders ) {
+		return $saved_id > 0 && ! array_key_exists( $saved_id, $enabled_autoresponders );
 	}
 
 	/**
@@ -368,6 +403,7 @@ class Helper {
 	 * @return string|bool 'success' or 'error' if the URL contains a code, false otherwise.
 	 */
 	public static function get_optin_form_response_type() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reads a Smaily redirect response code for display; external redirect, not a form post to us, so nonce N/A.
 		$code       = isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : null;
 		$is_success = $code === '101';
 		$is_error   = $code && ! $is_success;

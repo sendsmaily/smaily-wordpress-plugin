@@ -2,6 +2,8 @@
 
 namespace Smaily_Connect\Blocks\Newsletter_Signup;
 
+defined( 'ABSPATH' ) || exit;
+
 use Smaily_Connect\Includes\Helper;
 
 class Integration {
@@ -12,6 +14,7 @@ class Integration {
 	 * @param string $content Block content.
 	 */
 	public static function render( $attributes, $content ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reads a Smaily redirect response code for display; external redirect, not a form post to us, so nonce N/A.
 		$code       = isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : null;
 		$is_success = $code === '101';
 		$is_error   = $code && ! $is_success;

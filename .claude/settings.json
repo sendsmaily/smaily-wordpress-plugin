@@ -1,0 +1,17 @@
+{
+  "enabledPlugins": {
+    "common@internal": true,
+    "linear@internal": true,
+    "outline@internal": true,
+    "engineering@internal": true,
+    "github@internal": true
+  },
+  "extraKnownMarketplaces": {
+    "internal": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/sendsmaily/internal-ai-plugins.git"
+      }
+    }
+  }
+}

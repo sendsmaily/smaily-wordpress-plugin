@@ -46,7 +46,7 @@ Once it finishes, the site is available at `http://localhost:8888` and the admin
 The plugin should be compatible with both the latest version of WordPress and the minimum supported version. Both stacks are committed as separate wp-env configurations:
 
 - `.wp-env.json` — the default stack: latest WordPress, WooCommerce, Contact Form 7 and Really Simple Captcha on PHP 8.3.
-- `.wp-env.min.json` — the minimum supported stack: WordPress 6.5, WooCommerce 7.7.2, Contact Form 7 5.7.7 and Really Simple Captcha 2.1 on PHP 7.4.
+- `.wp-env.min.json` — the minimum supported stack: WordPress 6.6, WooCommerce 7.7.2, Contact Form 7 5.7.7 and Really Simple Captcha 2.1 on PHP 8.0.
 
 Start the minimum supported stack with:
 
@@ -180,7 +180,7 @@ You can translate the plugin to different languages. The most convenient way to 
 
 ### Code Sniffing and Linting
 
-This repository uses PHP CodeSniffer with specific rules defined in the `phpcs.xml` file. To run the code sniffer locally, you need to have [Composer](https://getcomposer.org/) installed.
+This repository uses PHP CodeSniffer with specific rules defined in the `phpcs.xml.dist` file. To run the code sniffer locally, you need to have [Composer](https://getcomposer.org/) installed.
 
 You can check for linting errors by executing:
 
