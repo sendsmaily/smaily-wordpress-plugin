@@ -26,7 +26,32 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-04 (**PRO-2288 — the translation template's slug is
+_Last updated: 2026-09-04 (**PRO-1709 — the CI vitest coverage gate is green
+again, with the threshold untouched.** The "Admin bundle" job's coverage step
+failed at `admin/src/api/**/*.ts`: **67.64 % lines / 65 % functions** against the
+70/70 threshold, dragged under by two wrappers that had no test at all —
+`admin/src/api/recEngine.ts` (4.08 % lines, 0 % functions) and
+`admin/src/api/saveSettings.ts` (9.09 % lines, 0 % functions). Fixed by **adding
+tests, not by lowering or re-scoping the threshold** (`vitest.config.ts` is
+unchanged): two new sibling test files mirroring the existing
+`admin/src/api/*.test.ts` pattern (`_resetApiClient` + `configureApiClient` +
+a `vi.spyOn(global, 'fetch')` stub). `recEngine.test.ts` (10 tests) covers all
+three exported functions on the success path, the endpoint's typed 4xx/502
+failure body, an error reply with no JSON body, and a transport rejection;
+`saveSettings.test.ts` (3 tests) covers the saved reply, the validation reply
+(which surfaces as an `ApiError` carrying the body — `apiRequest` throws on
+non-2xx, so the wrapper does NOT unwrap it, contrary to its own docblock; noted
+as a follow-up, production code deliberately untouched), and a transport
+failure. **No production code changed.** After: `admin/src/api` = **88.97 %
+lines / 85 % functions**, both target files 100 %; `npm run test:coverage` (the
+exact command `.github/workflows/lint_and_test.yml` runs) **exit=0** with no
+threshold ERROR line. Gates: `npm run ci:strict` **exit=0** (vitest **301**
+tests, 41 files; tsc and eslint clean). No PHP touched, so no integration run.
+Context: this repo is now the official `sendsmaily/smaily-wordpress-plugin`
+`main` — PR #135 was squash-merged 2026-09-04 as `be00bb6` and release 3.11.2
+created. No version bump.)_
+
+Prior: 2026-09-04 (**PRO-2288 — the translation template's slug is
 pinned, not read off the checkout directory.** `wp i18n make-pot` derives the
 plugin slug (and from it the `Report-Msgid-Bugs-To` address) from the directory
 name it runs in. Inside the wp-env container that directory IS `smaily-connect`,
