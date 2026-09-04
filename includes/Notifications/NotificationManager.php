@@ -203,9 +203,15 @@ final class NotificationManager {
 	 * successful ping (or when disconnected — no engine to be "down"), set to now
 	 * on the first failed ping, kept across subsequent failures. Returns the
 	 * current down_since (or null when up / disconnected).
+	 *
+	 * A REFUSED connection (contract §2 `403 tenant_inactive`) is not probed at
+	 * all and clears the stamp: the engine is answering perfectly well, it is
+	 * the account that is deactivated. Re-probing would burn a request an hour
+	 * to be told the same thing, and "unreachable" is the wrong story to tell
+	 * the merchant — the deactivation notice below is the true one (PRO-1893).
 	 */
 	private function probe_engine( int $now ): ?int {
-		if ( ! $this->settings->is_connected() ) {
+		if ( ! $this->settings->sending_allowed() ) {
 			delete_option( self::OPTION_DOWN_SINCE );
 			return null;
 		}

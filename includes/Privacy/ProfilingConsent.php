@@ -184,7 +184,7 @@ class ProfilingConsent {
 	}
 
 	private function engine_opt_out( string $email ): void {
-		if ( ! $this->settings->is_connected() ) {
+		if ( ! $this->settings->sending_allowed() ) {
 			return;
 		}
 		try {
@@ -202,7 +202,7 @@ class ProfilingConsent {
 	}
 
 	private function engine_opt_in( string $email ): void {
-		if ( ! $this->settings->is_connected() ) {
+		if ( ! $this->settings->sending_allowed() ) {
 			return;
 		}
 		try {

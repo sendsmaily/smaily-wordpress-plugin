@@ -75,7 +75,7 @@ class IdentityHookHandler {
 	 * `wp_login` fires after a successful authentication; $user is the WP_User.
 	 */
 	public function on_login( string $user_login, \WP_User $user ): void {
-		if ( ! $this->settings->is_connected() ) {
+		if ( ! $this->settings->sending_allowed() ) {
 			return;
 		}
 

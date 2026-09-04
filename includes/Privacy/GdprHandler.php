@@ -175,7 +175,7 @@ class GdprHandler {
 	 * @return array<int, array<string, mixed>>
 	 */
 	private function engine_export_items( string $email ): array {
-		if ( ! $this->settings->is_connected() ) {
+		if ( ! $this->settings->sending_allowed() ) {
 			return array();
 		}
 
@@ -281,7 +281,7 @@ class GdprHandler {
 	// --- erase internals ---------------------------------------------------
 
 	private function erase_engine( string $email ): bool {
-		if ( ! $this->settings->is_connected() ) {
+		if ( ! $this->settings->sending_allowed() ) {
 			return false;
 		}
 		try {

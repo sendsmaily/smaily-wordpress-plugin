@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Smaily\RecEngine;
 
+use Smaily\Connect\Settings\RecEngineSettings;
+
 defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- exception messages are captured to the Event Log / returned to admin-only read models, never echoed to a browser; output-escaping does not apply.
@@ -50,6 +52,15 @@ class Client {
 	 * the same commit that handles a breaking-change migration.
 	 */
 	public const SUPPORTED_MAJOR = 1;
+
+	/**
+	 * The engine's "this account is deactivated" error code (contract §2).
+	 * Answered with HTTP 403 by EVERY API-key-authenticated endpoint
+	 * (§2–§14) for a suspended OR a purged/offboarded tenant. The `error`
+	 * CODE is the only discriminator — the body's `tenant_status` is a fixed
+	 * string the contract explicitly forbids branching on.
+	 */
+	public const ERROR_TENANT_INACTIVE = 'tenant_inactive';
 
 	// ---------------------------------------------------------------
 	// Path constants — every URL the plugin sends to the engine flows
@@ -563,6 +574,11 @@ class Client {
 
 			$error_code = isset( $decoded['error'] ) ? (string) $decoded['error'] : 'http_' . $status;
 			$message    = isset( $decoded['message'] ) ? (string) $decoded['message'] : sprintf( 'Engine returned HTTP %d', $status );
+
+			if ( $status === 403 && $error_code === self::ERROR_TENANT_INACTIVE ) {
+				$this->record_tenant_refusal( $error_code );
+			}
+
 			throw new ApiException( $status, $error_code, $message, $decoded );
 		}
 	}
@@ -593,6 +609,20 @@ class Client {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Persist the engine's outright refusal of this connection (contract §2).
+	 * Every engine call funnels through request_url(), so this ONE chokepoint
+	 * covers the flushers, the backfills' inline drain, the `/relay` proxy
+	 * forward, the automations config calls, the health probe and the GDPR
+	 * customer calls — no caller has to recognise the code itself.
+	 *
+	 * Protected so tests can observe it through the subclass-as-double idiom
+	 * the rest of this class already uses.
+	 */
+	protected function record_tenant_refusal( string $error_code ): void {
+		( new RecEngineSettings() )->mark_refused( $error_code );
 	}
 
 	/**

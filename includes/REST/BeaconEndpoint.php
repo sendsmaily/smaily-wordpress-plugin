@@ -199,10 +199,13 @@ class BeaconEndpoint {
 	}
 
 	/**
-	 * The gate: connected engine + browse-tracking enabled.
+	 * The gate: a connection the plugin may actually send on (connected AND
+	 * not refused — contract §2 `403 tenant_inactive`, PRO-1893) plus
+	 * browse-tracking enabled. A refused account 404s the browser here rather
+	 * than forwarding a batch the engine will reject forever.
 	 */
 	public function is_enabled(): bool {
-		return $this->settings->is_connected() && (bool) get_option( self::OPTION_TRACK_BROWSING, false );
+		return $this->settings->sending_allowed() && (bool) get_option( self::OPTION_TRACK_BROWSING, false );
 	}
 
 	public function handle( WP_REST_Request $request ): WP_REST_Response {

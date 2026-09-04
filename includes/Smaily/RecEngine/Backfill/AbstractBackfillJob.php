@@ -154,7 +154,24 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		}
 
 		$after = isset( $state['cursor_value'] ) ? (int) $state['cursor_value'] : 0;
-		$ids   = $this->fetch_ids_after( $after, $batch_size );
+
+		// The engine refused this account outright (contract §2
+		// `403 tenant_inactive`) — every row this batch enqueued would sit
+		// unsendable, so stop before enumerating anything. The cursor and the
+		// `running` status are left exactly as they are: the import is paused,
+		// not lost, and the next tick resumes it once a new connection is set
+		// up (PRO-1893).
+		if ( ! $this->flusher->sending_allowed() ) {
+			return array(
+				'processed' => 0,
+				'sent'      => 0,
+				'failed'    => 0,
+				'remaining' => max( 0, (int) $state['total_count'] - (int) $state['processed_count'] ),
+				'completed' => false,
+			);
+		}
+
+		$ids = $this->fetch_ids_after( $after, $batch_size );
 
 		foreach ( $ids as $entity_id ) {
 			$this->enqueue_record( (int) $entity_id );

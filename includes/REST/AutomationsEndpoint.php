@@ -197,7 +197,20 @@ class AutomationsEndpoint {
 	 * connection is usable.
 	 */
 	private function not_ready_response(): ?WP_REST_Response {
-		if ( ! $this->settings->is_connected() ) {
+		// A deactivated account (contract §2 `403 tenant_inactive`) is not the
+		// same as an unfinished setup, and saying so would send the merchant
+		// re-running a wizard that cannot help (PRO-1893).
+		if ( $this->settings->is_refused() ) {
+			return new WP_REST_Response(
+				array(
+					'error'   => 'tenant_inactive',
+					'message' => __( 'Your Smaily Campaign Intelligence account has been deactivated, so its automations cannot be read or saved. Contact Smaily to reactivate it.', 'smaily-connect' ),
+				),
+				503
+			);
+		}
+
+		if ( ! $this->settings->sending_allowed() ) {
 			return new WP_REST_Response(
 				array(
 					'error'   => 'not_configured',

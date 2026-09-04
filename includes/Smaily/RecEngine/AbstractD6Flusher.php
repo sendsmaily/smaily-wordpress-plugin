@@ -100,6 +100,16 @@ abstract class AbstractD6Flusher {
 	abstract protected function row_to_object( array $row ): ?array;
 
 	/**
+	 * May this flusher talk to the engine at all? Connected AND not refused
+	 * (contract §2 `403 tenant_inactive`, PRO-1893). Public because the
+	 * backfill jobs share this flusher and need the same answer before they
+	 * start enqueueing work that could never be sent.
+	 */
+	public function sending_allowed(): bool {
+		return $this->settings->sending_allowed();
+	}
+
+	/**
 	 * Process up to $batch_size due rows (defaults to the endpoint's cap).
 	 *
 	 * @return array{processed: int, sent: int, failed: int, retried: int, skipped: int}
@@ -113,7 +123,7 @@ abstract class AbstractD6Flusher {
 			'skipped'   => 0,
 		);
 
-		if ( ! $this->settings->is_connected() ) {
+		if ( ! $this->sending_allowed() ) {
 			return $stats;
 		}
 
