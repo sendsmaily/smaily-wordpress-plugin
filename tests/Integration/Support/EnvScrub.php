@@ -104,6 +104,8 @@ final class EnvScrub {
 			RecEngineSettings::OPTION_ENDPOINTS,
 			RecEngineSettings::OPTION_CONFIG,
 			RecEngineSettings::OPTION_ISSUED_AT,
+			RecEngineSettings::OPTION_REFUSED_AT,
+			RecEngineSettings::OPTION_REFUSED_ERROR,
 			// One-time-stamp options (autoload=false → per-key cache) the
 			// LIKE-sweep deletes from the DB but not from the object cache;
 			// stale cached values would make re-runnable one-time migrations
