@@ -21,6 +21,8 @@ use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
+use Smaily\Connect\Smaily\TransactionalFlusher;
+use Smaily\Connect\Smaily\TransactionalRetryGuard;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -204,6 +206,15 @@ class EventsEndpoint {
 	 *   - neither             → revive ALL failed rows in BOTH queues.
 	 * reset_failed() flips FAILED→PENDING; this then kicks the recurring flushes
 	 * so the rows re-send promptly instead of waiting for the next 60s tick.
+	 *
+	 * A failed transactional row is the exception (PRO-1733): reviving one
+	 * whose fail-open already re-fired the native WooCommerce email would send
+	 * the shopper a second confirmation, so a single-row request for it is
+	 * REFUSED and a bulk revive skips it. The one transactional row that may be
+	 * retried — a shipping confirmation on a merchant-defined shipped status,
+	 * where nothing was ever sent — additionally gets its PRO-1519 age ceiling
+	 * restarted and its own flusher kicked, without which the revived row would
+	 * terminal-fail again on the next tick.
 	 */
 	public function retry( WP_REST_Request $request ): WP_REST_Response {
 		$source = $this->sanitize_source( (string) $request->get_param( 'source' ) );
@@ -226,7 +237,21 @@ class EventsEndpoint {
 			$reset += $n;
 		}
 		if ( $source !== self::SOURCE_REC ) {
-			$n = $plus->reset_failed( $ids );
+			[ $refused, $retryable_transactional ] = $this->classify_failed_transactional( $ids );
+
+			if ( $id > 0 && isset( $refused[ $id ] ) ) {
+				return new WP_REST_Response(
+					array(
+						'error'   => 'transactional_retry_refused',
+						'reason'  => $refused[ $id ],
+						'message' => TransactionalRetryGuard::message( $refused[ $id ] ),
+						'reset'   => 0,
+					),
+					409
+				);
+			}
+
+			$n = $plus->reset_failed( $ids, array_keys( $refused ) );
 			if ( $n > 0 ) {
 				$plus->schedule_flush();
 				// A revived automation.abandoned_cart row is drained by the
@@ -234,10 +259,72 @@ class EventsEndpoint {
 				// retries re-send promptly (PRO-1195).
 				$this->kick_flush( CartFlusher::FLUSH_HOOK, CartFlusher::AS_GROUP );
 			}
+			if ( $n > 0 && $retryable_transactional !== array() ) {
+				// PRO-1733: the transactional rows are drained by their own
+				// flusher, and their one-hour ceiling runs from created_at.
+				$plus->restart_age( $retryable_transactional );
+				$this->kick_flush( TransactionalFlusher::FLUSH_HOOK, TransactionalFlusher::AS_GROUP );
+			}
 			$reset += $n;
 		}
 
 		return new WP_REST_Response( array( 'reset' => $reset ), 200 );
+	}
+
+	/**
+	 * Split the failed transactional rows in the Smaily queue into the ones a
+	 * retry must refuse and the ones it may re-drive (PRO-1733).
+	 *
+	 * @param int[]|null $ids Restrict to these row ids; null = every failed row.
+	 *
+	 * @return array{0: array<int, string>, 1: int[]} [ id => refusal reason ], retryable ids.
+	 */
+	private function classify_failed_transactional( ?array $ids ): array {
+		global $wpdb;
+
+		$table  = $this->smaily_table();
+		$params = array(
+			EventQueue::STATUS_FAILED,
+			TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
+			TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+		);
+		$where  = 'status = %s AND event_type IN ( %s, %s )';
+
+		if ( $ids !== null ) {
+			$ids = array_values( array_filter( array_map( 'intval', $ids ), static fn ( int $i ): bool => $i > 0 ) );
+			if ( $ids === array() ) {
+				return array( array(), array() );
+			}
+			$where .= ' AND id IN ( ' . implode( ', ', array_fill( 0, count( $ids ), '%d' ) ) . ' )';
+			$params = array_merge( $params, $ids );
+		}
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT id, event_type, entity_id, payload FROM {$table} WHERE {$where}", $params ),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+
+		$refused   = array();
+		$retryable = array();
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$reason = TransactionalRetryGuard::refusal_reason(
+				(string) ( $row['event_type'] ?? '' ),
+				(string) ( $row['entity_id'] ?? '' ),
+				(string) ( $row['payload'] ?? '' )
+			);
+
+			if ( $reason === '' ) {
+				$retryable[] = (int) $row['id'];
+				continue;
+			}
+
+			$refused[ (int) $row['id'] ] = $reason;
+		}
+
+		return array( $refused, $retryable );
 	}
 
 	/**
@@ -319,9 +406,10 @@ class EventsEndpoint {
 		$where_sql = $where === array() ? '' : ' WHERE ' . implode( ' AND ', $where );
 
 		$sql = sprintf(
-			'SELECT id, %s AS source, event_type, entity_id, status, attempts, %s AS max_attempts, last_error, created_at FROM %s%s',
+			'SELECT id, %s AS source, event_type, entity_id, status, attempts, %s AS max_attempts, last_error, created_at, %s AS retry_payload FROM %s%s',
 			$this->quote( $source ),
 			$max_attempts_expr,
+			$this->retry_payload_expr( $source ),
 			$table,
 			$where_sql
 		);
@@ -356,15 +444,42 @@ class EventsEndpoint {
 	 */
 	private function shape_row( array $row ): array {
 		return array(
-			'id'           => isset( $row['id'] ) ? (int) $row['id'] : 0,
-			'source'       => isset( $row['source'] ) ? (string) $row['source'] : '',
-			'event_type'   => isset( $row['event_type'] ) ? (string) $row['event_type'] : '',
-			'entity_id'    => isset( $row['entity_id'] ) ? (string) $row['entity_id'] : '',
-			'status'       => isset( $row['status'] ) ? (string) $row['status'] : '',
-			'attempts'     => isset( $row['attempts'] ) ? (int) $row['attempts'] : 0,
-			'max_attempts' => isset( $row['max_attempts'] ) && $row['max_attempts'] !== null ? (int) $row['max_attempts'] : null,
-			'last_error'   => isset( $row['last_error'] ) ? (string) $row['last_error'] : '',
-			'created_at'   => isset( $row['created_at'] ) ? (string) $row['created_at'] : '',
+			'id'            => isset( $row['id'] ) ? (int) $row['id'] : 0,
+			'source'        => isset( $row['source'] ) ? (string) $row['source'] : '',
+			'event_type'    => isset( $row['event_type'] ) ? (string) $row['event_type'] : '',
+			'entity_id'     => isset( $row['entity_id'] ) ? (string) $row['entity_id'] : '',
+			'status'        => isset( $row['status'] ) ? (string) $row['status'] : '',
+			'attempts'      => isset( $row['attempts'] ) ? (int) $row['attempts'] : 0,
+			'max_attempts'  => isset( $row['max_attempts'] ) && $row['max_attempts'] !== null ? (int) $row['max_attempts'] : null,
+			'last_error'    => isset( $row['last_error'] ) ? (string) $row['last_error'] : '',
+			'created_at'    => isset( $row['created_at'] ) ? (string) $row['created_at'] : '',
+			// PRO-1733: '' when the row may be retried; otherwise why not.
+			// The list query only carries a payload for failed transactional
+			// rows (retry_payload); detail() reads the row's own payload.
+			'retry_refusal' => TransactionalRetryGuard::refusal_reason(
+				isset( $row['event_type'] ) ? (string) $row['event_type'] : '',
+				isset( $row['entity_id'] ) ? (string) $row['entity_id'] : '',
+				(string) ( $row['retry_payload'] ?? $row['payload'] ?? '' )
+			),
+		);
+	}
+
+	/**
+	 * The list projection needs a transactional row's payload to tell a
+	 * re-fired-native-email failure from one the shopper never got
+	 * (PRO-1733) — but only for FAILED transactional rows, so a page of
+	 * ordinary events doesn't drag every payload out of the database.
+	 */
+	private function retry_payload_expr( string $source ): string {
+		if ( $source !== self::SOURCE_SMAILY ) {
+			return "''";
+		}
+
+		return sprintf(
+			"CASE WHEN status = %s AND event_type IN ( %s, %s ) THEN payload ELSE '' END",
+			$this->quote( EventQueue::STATUS_FAILED ),
+			$this->quote( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION ),
+			$this->quote( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION )
 		);
 	}
 
