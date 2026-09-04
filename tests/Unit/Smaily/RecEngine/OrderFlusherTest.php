@@ -277,6 +277,9 @@ final class OrderFlusherTest extends TestCase {
 			public function is_connected(): bool {
 				return $this->connected;
 			}
+			public function is_refused(): bool {
+				return false;
+			}
 		};
 
 		$builder = new class( $map_status, $with_items ) extends OrderPayloadBuilder {

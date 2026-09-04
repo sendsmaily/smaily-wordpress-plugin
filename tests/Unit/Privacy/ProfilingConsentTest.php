@@ -58,6 +58,9 @@ final class ProfilingConsentTest extends TestCase {
 	private function resolver( ?SmailyClient $smaily, ?RecEngineClient $rec = null, bool $connected = true ): ProfilingConsent {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'is_connected' )->willReturn( $connected );
+		// The engine-sending gate is sending_allowed() (connected AND not
+		// refused, PRO-1893); a mocked class stubs it independently.
+		$settings->method( 'sending_allowed' )->willReturn( $connected );
 		$rec = $rec ?? $this->createMock( RecEngineClient::class );
 
 		return new ProfilingConsent(

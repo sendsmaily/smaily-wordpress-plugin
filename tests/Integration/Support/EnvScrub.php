@@ -117,6 +117,17 @@ final class EnvScrub {
 			// Bootstrap::maybe_run_upgrade() cannot be re-armed mid-suite and
 			// upgrade-detect tests pass or fail by suite order.
 			\Smaily\Connect\Activation::OPTION_PLUGIN_VERSION,
+			// Same class again (PRO-1893): the notice options are autoload=false
+			// and are written by update_option(). With the row LIKE-swept but the
+			// value still cached, the next update_option() compares against the
+			// stale cache, UPDATEs a row that no longer exists, affects 0 rows —
+			// and leaves the cache untouched. A later test then reads another
+			// test's notices. delete_option() does not rescue it either: it
+			// returns early when the row is already gone.
+			\Smaily\Connect\Notifications\NotificationManager::OPTION_NOTICES,
+			\Smaily\Connect\Notifications\NotificationManager::OPTION_DOWN_SINCE,
+			\Smaily\Connect\Notifications\NotificationManager::OPTION_SMAILY_DOWN_SINCE,
+			\Smaily\Connect\Notifications\NotificationManager::OPTION_DISMISSED,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

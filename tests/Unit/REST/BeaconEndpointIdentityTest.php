@@ -215,6 +215,9 @@ final class BeaconEndpointIdentityTest extends TestCase {
 			public function is_connected(): bool {
 				return true;
 			}
+			public function is_refused(): bool {
+				return false;
+			}
 			public function api_key(): string {
 				return 'sk_unit';
 			}

@@ -260,6 +260,10 @@ final class AutomationsEndpointTest extends TestCase {
 			public function endpoints(): array {
 				return $this->test_endpoints;
 			}
+
+			public function is_refused(): bool {
+				return false;
+			}
 		};
 	}
 

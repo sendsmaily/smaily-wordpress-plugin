@@ -257,6 +257,9 @@ final class CustomerFlusherTest extends TestCase {
 			public function is_connected(): bool {
 				return $this->connected;
 			}
+			public function is_refused(): bool {
+				return false;
+			}
 		};
 
 		$builder = new class() extends CustomerPayloadBuilder {

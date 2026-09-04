@@ -32,6 +32,23 @@ final class IngestFlusherTest extends TestCase {
 		self::assertSame( array(), $queue->sent );
 	}
 
+	public function test_a_refused_account_drains_nothing_and_keeps_the_rows(): void {
+		// The engine has answered `403 tenant_inactive` (contract §2): the
+		// connection is still stored and valid, the ACCOUNT is deactivated.
+		// Sending stops before the request, and the queued row is neither sent
+		// nor failed — it waits for a connection that can carry it (PRO-1893).
+		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ) ) );
+		$client = $this->success_client();
+		$flush  = $this->fake_flusher( $queue, $client, true, array( 100 => true ), true );
+
+		$stats = $flush->flush();
+
+		self::assertSame( 0, $stats['processed'], 'A refused account must not drain the queue.' );
+		self::assertSame( array(), $queue->sent );
+		self::assertSame( array(), $queue->failed, 'Queued rows are kept, never mass-failed.' );
+		self::assertSame( array(), $client->sent_products, 'No request may reach the engine.' );
+	}
+
 	public function test_upsert_batch_all_marked_sent_and_carries_event_ids(): void {
 		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ), $this->upsert_row( 2, 101, 'u2' ) ) );
 		$client = $this->success_client();
@@ -313,14 +330,19 @@ final class IngestFlusherTest extends TestCase {
 	/**
 	 * @param array<int, true> $products_by_id Entity ids that resolve to a (stub) product.
 	 */
-	private function fake_flusher( IngestQueue $queue, Client $client, bool $connected, array $products_by_id = array() ): IngestFlusher {
-		$settings = new class( $connected ) extends RecEngineSettings {
+	private function fake_flusher( IngestQueue $queue, Client $client, bool $connected, array $products_by_id = array(), bool $refused = false ): IngestFlusher {
+		$settings = new class( $connected, $refused ) extends RecEngineSettings {
 			private bool $connected;
-			public function __construct( bool $connected ) {
+			private bool $refused;
+			public function __construct( bool $connected, bool $refused ) {
 				$this->connected = $connected;
+				$this->refused   = $refused;
 			}
 			public function is_connected(): bool {
 				return $this->connected;
+			}
+			public function is_refused(): bool {
+				return $this->refused;
 			}
 		};
 

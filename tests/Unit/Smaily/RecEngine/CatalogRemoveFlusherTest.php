@@ -230,6 +230,9 @@ final class CatalogRemoveFlusherTest extends TestCase {
 			public function is_connected(): bool {
 				return $this->connected;
 			}
+			public function is_refused(): bool {
+				return false;
+			}
 		};
 
 		return new CatalogRemoveFlusher(

@@ -31,3 +31,33 @@ describe('Step4Recommendations — the wizard header introduces Campaign Intelli
     expect(screen.queryByText('Step 4 of 6')).not.toBeInTheDocument();
   });
 });
+
+describe('Step4Recommendations — a deactivated account is stated, not disguised (PRO-1893)', () => {
+  const connected = {
+    ...wizardInitialState,
+    recEngineConnection: { kind: 'success', message: 'Acme Pets' },
+  } as typeof wizardInitialState;
+
+  it('shows the tenant as connected while the account is live', () => {
+    render(<Step4Recommendations state={connected} dispatch={vi.fn()} />);
+
+    expect(screen.getByText('Acme Pets')).toBeInTheDocument();
+    expect(screen.queryByText('Account deactivated')).not.toBeInTheDocument();
+  });
+
+  it('replaces the connected tick with the deactivated banner', () => {
+    render(
+      <Step4Recommendations
+        state={{ ...connected, recEngineRefused: true }}
+        dispatch={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Account deactivated')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Contact Smaily to reactivate it\./),
+    ).toBeInTheDocument();
+    // No green "Connected as <tenant>" while nothing is being sent.
+    expect(screen.queryByText('Connected')).not.toBeInTheDocument();
+  });
+});

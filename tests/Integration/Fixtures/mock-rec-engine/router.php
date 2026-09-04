@@ -45,6 +45,30 @@ function save_state( string $path, array $state ): void {
 	file_put_contents( $path, json_encode( $state ) );
 }
 
+// Every request that actually reaches the engine is counted, so a test can
+// assert the OPPOSITE: after a `403 tenant_inactive`, the plugin must stop
+// sending, and "zero further requests" is only provable from the receiving
+// end (PRO-1893).
+$state['request_count'] = ( isset( $state['request_count'] ) ? (int) $state['request_count'] : 0 ) + 1;
+save_state( $state_file, $state );
+
+// Deactivated-tenant switch (contract §2). A test flips `tenant_inactive` in
+// the state file; every API-key-authenticated route then answers the §2 body
+// — byte-identical for a suspended and a purged tenant, `tenant_status`
+// included, which is a FIXED string senders must not branch on. The
+// unauthenticated setup-exchange route is deliberately exempt: that is how a
+// new connection is established after a deactivation.
+if ( ! empty( $state['tenant_inactive'] ) && $path !== '/api/setup/exchange' ) {
+	reply(
+		403,
+		array(
+			'error'         => 'tenant_inactive',
+			'message'       => 'This tenant is currently deactivated. Contact engine administrator.',
+			'tenant_status' => 'suspended',
+		)
+	);
+}
+
 /**
  * Automation trigger catalog (§11) — shared by GET /automations/catalog and
  * the PUT /automations/config trigger_key validation ("tundmatu trigger").

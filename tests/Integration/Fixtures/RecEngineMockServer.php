@@ -131,6 +131,41 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * How many requests have actually reached the engine since the last
+	 * reset()/counter reset. The evidence for "the plugin stopped sending":
+	 * only the receiving end can prove a request was never made (PRO-1893).
+	 */
+	public function request_count(): int {
+		$state = $this->state();
+		return isset( $state['request_count'] ) ? (int) $state['request_count'] : 0;
+	}
+
+	/**
+	 * Flip the mock into (or out of) the contract §2 deactivated-tenant state:
+	 * every API-key-authenticated route then answers `403 tenant_inactive`.
+	 * The setup-exchange route stays open — that is how a merchant connects a
+	 * reactivated account.
+	 */
+	public function set_tenant_inactive( bool $inactive ): void {
+		$this->write_state( array( 'tenant_inactive' => $inactive ) );
+	}
+
+	/** Zero the request counter so a test can assert "no request since here". */
+	public function reset_request_count(): void {
+		$this->write_state( array( 'request_count' => 0 ) );
+	}
+
+	/**
+	 * Merge keys into the router's shared state file.
+	 *
+	 * @param array<string, mixed> $patch
+	 */
+	private function write_state( array $patch ): void {
+		$state_file = sys_get_temp_dir() . '/smaily-rec-mock-state.json';
+		file_put_contents( $state_file, (string) json_encode( array_merge( $this->state(), $patch ) ) );
+	}
+
+	/**
 	 * Build a setup URL the same shape the engine renders. Tests pass
 	 * this string straight to the REST setup-exchange endpoint.
 	 */

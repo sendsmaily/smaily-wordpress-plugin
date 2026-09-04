@@ -157,6 +157,7 @@ final class GdprHandlerTest extends TestCase {
 	private function handler( CartSessionStore $store ): GdprHandler {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'is_connected' )->willReturn( false );
+		$settings->method( 'sending_allowed' )->willReturn( false );
 
 		return new GdprHandler(
 			$settings,
