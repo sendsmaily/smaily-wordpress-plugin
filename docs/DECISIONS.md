@@ -5669,6 +5669,90 @@ side gave, not a generic outage" move on the Smaily side), F3-18
 (`AbstractD6Flusher`'s terminal/retry policy, unchanged).
 
 
+### PRO-1733 — A failed transactional row offers Retry only when the shopper got nothing (2026-09-04)
+
+**Context:** the Event Log's Retry on a failed `transactional.*` row was a
+silent no-op: `EventsEndpoint::retry()` kicks the main flush hook and the
+CartFlusher's, never `TransactionalFlusher::FLUSH_HOOK`, and by the time that
+flusher's own 60s tick reached the revived row it was long past the PRO-1519
+one-hour ceiling (measured from `created_at`, which a revive does not touch),
+so it terminal-failed again immediately. The merchant saw a button that
+looked like it worked and could not.
+
+**The premise check that shaped the fix:** every terminal failure of a
+transactional row runs `TransactionalFlusher::fail_open()` — but fail-open
+only re-fires a native WooCommerce email when there IS one. For an order
+confirmation, and for a shipping confirmation whose triggering status is
+`completed`, the shopper therefore already HAS a confirmation and a retry
+would send a second. For a shipping confirmation on a merchant-defined
+shipped status (`shipped`, `label-printed`, …) WooCommerce has no email at
+all: nothing was suppressed, fail-open re-fired nothing, and the shopper got
+NOTHING. The same is true, differently, when the order can no longer be
+loaded — fail-open returns early and sends nothing, but there is also nothing
+left to rebuild.
+
+**Decision (Erkki, 2026-09-04) — three cases, one rule per row:**
+1. **Fail-open sent the WooCommerce email** → no Retry action in the Event
+   Log, the retry route refuses the request (`transactional_retry_refused`,
+   reason `wc_email_sent`, HTTP 409) and does not re-queue the row, and
+   Details says the confirmation went out as the standard WooCommerce email.
+2. **Nothing was sent** (shipping confirmation, merchant-defined status) →
+   Retry STAYS and becomes a real re-attempt: the route revives the row,
+   **restarts the PRO-1519 age clock** and kicks `TransactionalFlusher::
+   FLUSH_HOOK`. The hour then runs afresh from the retry.
+3. **The order is gone** → no Retry, refused with reason `order_missing`,
+   Details says the order no longer exists.
+Marketing rows (welcome / first order / abandoned cart) are untouched.
+
+**Rationale:** the harm is asymmetric. A refused retry costs the merchant a
+support question; an allowed one on case 1 sends a real customer a duplicate
+confirmation — the one thing the fail-open design exists to avoid. So the
+classification is deliberately conservative: `TransactionalRetryGuard` reads
+the row's event type plus the enqueued payload's `to_status`, and a row that
+cannot prove nothing was sent (no `to_status` — an old row, an undecodable
+payload) is treated as case 1.
+
+**Mechanism choices (the smaller change, twice):**
+- No new stored field. The `to_status` the guard reads has been in the
+  enqueued payload since PRO-1504 Stage 2; the Event Log list projection just
+  carries the payload of FAILED transactional rows (a `CASE` expression, so an
+  ordinary page still drags no payloads out of the database) and the read
+  model computes `retry_refusal` per row.
+- The age clock restarts by re-dating `created_at` (`EventQueue::
+  restart_age()`), not by adding a retry-stamp column the ceiling would have
+  to honour — no migration, no second timestamp to keep consistent. The cost
+  is that a retried row's "Created (UTC)" shows the retry, which is arguably
+  what a merchant means by it anyway.
+- `reset_failed()` grew an `$exclude_ids` argument so "Retry all failed"
+  cannot revive in bulk exactly the rows the single-row route refuses.
+
+**Alternatives considered:** hiding Retry for ALL transactional rows (the
+original brief) — rejected once the premise check found case 2, where the
+shopper has no email and a retry is the only way to one. Leaving Retry
+offered everywhere and making it merely work — rejected: on case 1 it is a
+duplicate-send button. Restarting the clock inside the flusher on any revived
+row — rejected as a change to the sender, which this issue is not.
+
+**Out of scope:** the transactional sender itself, the ceiling's length, and
+retry semantics of marketing rows.
+
+**Tests:** unit — `TransactionalRetryGuardTest` (marketing row never refused;
+order confirmation refused; shipping-into-`completed` refused; merchant status
+allowed; missing/undecodable `to_status` refused; deleted order refused with
+its own reason; both messages). vitest — `EventLog.test.tsx` (no Retry on a
+refused row, Details carries the sentence, Retry survives on a case-2 row).
+Integration — `TransactionalEmailsPipelineTest` (a `completed` shipping row
+driven to terminal failure is refused 409 through the real REST route, stays
+`failed`, is skipped by a bulk retry, and reads `retry_refusal=wc_email_sent`
+in the list; a merchant-status row driven past the ceiling is revived by the
+route and actually re-sent on the next flusher tick — which only passes
+because the age clock restarted).
+
+**Relationships:** PRO-1504 Stage 2 design point 7 (fail-open) and PRO-1519
+(the ceiling) are the two decisions this reads; 3.10.1 (`/events/retry`) is
+the route it narrows; PRO-1195 (CartFlusher's own kick) is the precedent for
+kicking a second flusher from the retry route.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

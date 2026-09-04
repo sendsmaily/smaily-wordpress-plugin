@@ -26,7 +26,46 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-04 (**PRO-1893 simplification pass — the same
+_Last updated: 2026-09-04 (**PRO-1733 — the Event Log's Retry on a
+transactional row now tells the truth: it is offered only where the shopper
+got nothing.** Reviving a failed `transactional.*` row did nothing useful —
+`EventsEndpoint::retry()` kicks the main flush hook and CartFlusher's, never
+`TransactionalFlusher::FLUSH_HOOK`, and a revived row was already past the
+PRO-1519 one-hour ceiling (measured from `created_at`, untouched by a revive)
+so the next tick terminal-failed it again. **The premise check changed the
+shape of the fix:** every terminal transactional failure runs `fail_open()`,
+but fail-open only re-fires a native WooCommerce email when one exists —
+order confirmations and shipping confirmations into `completed`. A shipping
+confirmation on a MERCHANT-DEFINED shipped status (`shipped`,
+`label-printed`, …) has no native WC email at all, so nothing was suppressed,
+nothing was re-fired and the shopper got NOTHING; there a retry is the only
+route to the email, not a double-send. Erkki's decision (option b): case 1
+(the WC email went out) → no Retry action, the route refuses with
+`transactional_retry_refused` / reason `wc_email_sent` / HTTP 409 and does
+not re-queue, Details says the confirmation went out as the standard
+WooCommerce email; case 2 (nothing was sent) → Retry STAYS and becomes a real
+re-attempt (the route revives the row, **restarts the age clock** via
+`EventQueue::restart_age()` and kicks `TransactionalFlusher::FLUSH_HOOK`);
+case 3 (the order no longer loads) → refused with reason `order_missing`.
+Marketing rows are untouched. **No new stored field** — new
+`Smaily\TransactionalRetryGuard` reads the event type plus the enqueued
+payload's `to_status` (there since PRO-1504 Stage 2) and is the single
+classifier for both the read model (`retry_refusal` on every event row; the
+list projection carries a payload only for FAILED transactional rows, via a
+`CASE`) and the route; a row that cannot prove nothing was sent (no
+`to_status`) is treated as case 1 — never risk a second confirmation.
+`reset_failed()` grew `$exclude_ids` so "Retry all failed" cannot bulk-revive
+what the single-row route refuses; the age clock restarts by re-dating
+`created_at` rather than adding a column the ceiling would have to honour.
+Gates: `npm run ci:strict` **exit=0** (PHPUnit unit **770**, vitest **306**,
+PHPCS 0 errors + no new warnings, PHPStan `[OK] No errors`) and `sg docker -c
+"composer run test:integration"` **OK 262 tests / 1543 assertions**, dev
+sandbox tenant "Smaily Connect test" restored. The browser look at the Event
+Log is human acceptance. DECISIONS PRO-1733; merchant docs site updated in
+EN + ET; ET strings await Erkki's proofread. **No version bump** — lands with
+PRO-1893 in the next release after 3.11.2.)_
+
+Prior: 2026-09-04 (**PRO-1893 simplification pass — the same
 behaviour, less machinery.** A review of the five PRO-1893 commits produced a
 closed fix list, applied as one commit with no behaviour change. Settings: the
 refusal is now ONE option — `smly_rec_refused_error`, `refused_error()` and
@@ -401,9 +440,11 @@ Docs-only; no code, so no gates run.)_
   `erkkimarkus/smaily-wordpress-plugin` is archived read-only; local `main` IS
   official `main` and a direct push works.
 - **Landed on official `main` AFTER the tag** (so they ship in the NEXT
-  release): PRO-1709 (the CI coverage gate, green) and PRO-1893 (the refused
-  Campaign Intelligence account) plus its simplification pass — this file's
-  own entry.
+  release): PRO-1709 (the CI coverage gate, green), PRO-1893 (the refused
+  Campaign Intelligence account) plus its simplification pass, and PRO-1733
+  (Event Log Retry on a transactional row — refused where fail-open already
+  sent the WooCommerce email, a real re-attempt where nothing was sent) —
+  this file's own entry.
 - **Erkki's hand, in order:** update the pilot stores (MiuMjau, Prike) to
   3.11.2 by hand; PRO-1770 = re-run the contact import on **Prike only**; add
   the first-48-hours observation to PRO-2283; add the
