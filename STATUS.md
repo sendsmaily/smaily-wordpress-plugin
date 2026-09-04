@@ -475,35 +475,39 @@ Docs-only; no code, so no gates run.)_
 
 **Next session opens with:**
 
-- **3.11.2 is RELEASED.** PR #135 was squash-merged as `be00bb6` (Kait granted
-  the review exclusion), release `3.11.2` was created in
-  `sendsmaily/smaily-wordpress-plugin`, CI built and `verify-release-zip.sh`
-  verified the ZIP, and `release.sh -u sendsmaily` published it to
-  wordpress.org (09:25 GMT). **Run `release.sh` from a separate clone at the
-  tag** — it does a `git checkout <tag>` in its own working tree, so never in
-  this checkout while a worker is active. The fork
+- **3.11.2 is RELEASED and live on wordpress.org.** PR #135 was squash-merged as
+  `be00bb6`, the `3.11.2` release was created in
+  `sendsmaily/smaily-wordpress-plugin`, CI built the ZIP and
+  `verify-release-zip.sh` verified it, and `release.sh -u sendsmaily` published
+  it from a **separate clone checked out at the tag** (it does its own `git
+  checkout <tag>`, so never run it in this working tree). The fork
   `erkkimarkus/smaily-wordpress-plugin` is archived read-only; local `main` IS
   official `main` and a direct push works.
-- **Landed on official `main` AFTER the tag** (so they ship in the NEXT
-  release): PRO-1709 (the CI coverage gate, green), PRO-1893 (the refused
-  Campaign Intelligence account) plus its simplification pass, and PRO-1733
-  (Event Log Retry on a transactional row — refused where fail-open already
-  sent the WooCommerce email, a real re-attempt where nothing was sent) —
-  this file's own entry.
-- **Erkki's hand, in order:** update the pilot stores (MiuMjau, Prike) to
-  3.11.2 by hand; PRO-1770 = re-run the contact import on **Prike only**; add
-  the first-48-hours observation to PRO-2283; add the
-  `ENGINE_CONTRACT_READ_TOKEN` secret to the official repo (the
-  contract-staleness workflow is red until then — a **secret** problem, not a
-  stale contract); proofread the PRO-1893 Estonian strings and the PRO-2298
-  wizard paragraphs; PRO-2318 (Tanel) refreshes the wordpress.org listing copy
-  + screenshots.
+- Also done today: `ENGINE_CONTRACT_READ_TOKEN` was added to the official repo
+  and the **contract-staleness workflow is GREEN**; both pilot stores (MiuMjau,
+  Prike) were updated to 3.11.2 by hand; the merchant docs site was published
+  live — including the PRO-1893 and PRO-1733 entries, ahead of the release that
+  ships them (Erkki's decision).
+- **Landed on official `main` AFTER the 3.11.2 tag** (so all of it ships in the
+  NEXT release): PRO-1709 (the CI coverage gate), PRO-1893 + its simplification
+  pass, PRO-1733 + its simplification pass, and the readme "What's new in
+  version 3" fix (`11527fd`).
+- **Erkki's hand, in order:** PRO-1770 = **one** fresh contact import on **Prike
+  only**, then close it; then the first-48-hours observation on PRO-2283, then
+  close PRO-2283.
 - **Engine team:** PRO-2319 — a deactivated throwaway tenant, so the PRO-1893
   403 can be checked against the live engine (the sandbox tenant cannot be
   deactivated, so this is the only route).
+- **Marketing:** PRO-2318 (Tanel) — wordpress.org listing copy + screenshots;
+  the "What's new" section is already fixed.
+- **Next release:** cut whenever Erkki decides — bump per the CLAUDE.md release
+  runbook; `readme.txt` and the merchant docs are already current.
+- **Backlog candidates for the next session, by value:** PRO-2295 stays open as
+  a record only. Low: PRO-2296 (install guide), PRO-2323, PRO-2324, PRO-2326,
+  PRO-2321, PRO-2320, PRO-2317, PRO-2300, PRO-2282, PRO-2279, PRO-1708.
 - **CI on official `main`:** the PHP jobs are red as documented (PRO-1708 — no
-  WooCommerce in the runner); the Admin bundle job is green since PRO-1709.
-- **Low backlog unchanged:** PRO-2279, PRO-2282, PRO-2296, PRO-2300, PRO-2317.
+  WooCommerce in the runner); the Admin bundle job is green; contract staleness
+  is green.
 
 Prior: 2026-09-03 (**PRO-2280 — pre-merge tidy ahead of PR #135.**
 Three things go stale the moment the upstream merge lands, fixed now. (1)
