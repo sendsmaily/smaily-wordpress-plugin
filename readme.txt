@@ -33,14 +33,15 @@ Transform your **WordPress website, WooCommerce store, Contact Form 7 and Elemen
 
 **Easy, Fast & Code-Free Setup** – No tech skills needed! A **guided setup wizard** walks you through connecting your Smaily account and configuring every integration.
 
-= What's new in 2.0 =
+= What's new in version 3 =
 
-Version 2.0 is a major update built alongside the proven 1.x feature set:
+Version 3 is a rewrite of the plugin that keeps the familiar 1.x and 2.0 feature set — subscriber synchronization, abandoned cart reminders, the product RSS feed and signup forms — carries your existing settings over through the setup wizard, and adds:
 
 * **Setup wizard** – a guided, step-by-step first-run experience: connect your Smaily account, configure subscriber sync, WooCommerce automations, and form integrations.
 * **Modern admin** – a redesigned, mobile-friendly settings interface.
 * **Campaign Intelligence (WooCommerce)** – optionally connect your store to Smaily Campaign Intelligence. The plugin syncs your product catalog, customers and orders so it can generate personalized product recommendations for your email campaigns.
-* **Browse tracking (opt-in)** – an optional storefront beacon records browsing activity (product views, searches, cart events) to improve recommendations. It is **off by default**, requires the site admin to enable it, and only runs for shoppers who have given cookie consent (WP Consent API compatible, e.g. CookieYes).
+* **Browse tracking (opt-in)** – an optional storefront beacon records browsing activity (product views, searches, cart events) to improve recommendations. It is **off by default**, requires the site admin to enable it, and only runs for shoppers who have given marketing consent through the free WP Consent API plugin (CookieYes, Complianz and Real Cookie Banner all register their consent into it).
+* **Transactional emails (optional)** – send WooCommerce order confirmations and shipping notices through Smaily instead of WooCommerce's own mail, using a **separate Smaily account** kept apart from your marketing account. It is **off by default**; while it is on, the matching built-in WooCommerce email is suppressed so the customer never gets two, and if Smaily cannot be reached WooCommerce's own email is sent as a fallback.
 * **Privacy built in** – integrates with the WordPress Privacy tools (personal data export and erasure), and shoppers can opt out of recommendation profiling from their WooCommerce My Account page.
 * **Reliability you can see** – background work runs on durable queues (Action Scheduler); an Event Log shows every sync event, failed items can be retried from the UI, and health notices warn you proactively when a connected service is unreachable.
 * **Multilingual-aware** – language detection works with Polylang, WPML and TranslatePress for routing subscribers to the right lists and automations.

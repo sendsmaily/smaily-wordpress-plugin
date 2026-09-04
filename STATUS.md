@@ -26,7 +26,25 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-04 (**PRO-1733 simplification pass — the same rules,
+_Last updated: 2026-09-04 (**readme: the "What's new" section now says version
+3, not 2.0.** The wordpress.org description still opened with `= What's new in
+2.0 =` and "Version 2.0 is a major update built alongside the proven 1.x
+feature set" — leftovers from the 2.1.0-beta era when this rewrite was still
+numbered 2.x, and a factual error live on the plugin page as of 3.11.2. The
+heading is now `= What's new in version 3 =` with a lead line naming the 1.x/2.0
+feature set version 3 keeps (subscriber sync, abandoned cart, RSS feed, signup
+forms) and the setup wizard carrying existing settings over. The bullets were
+already describing the v3 plugin and stay; browse-tracking consent now names the
+free WP Consent API plugin the signal actually comes from (CookieYes/Complianz/
+Real Cookie Banner register into it) instead of implying CookieYes compatibility
+directly, and one bullet was added for the optional transactional emails (order
++ shipping confirmations through a separate Smaily account, off by default, WC
+email suppressed while on and fired as a fallback when Smaily is unreachable) —
+scoped against `docs/site/index.html`. No other readme section, and no version
+or `Stable tag` change; this reaches wordpress.org with the next release. No
+gate applies — CI lints no readme.)_
+
+Prior: 2026-09-04 (**PRO-1733 simplification pass — the same rules,
 one home each.** A review of the PRO-1733 commits produced a closed fix list,
 applied as one commit with no merchant-visible change (which rows offer Retry,
 what Details say, what the 409 says are all unchanged, pinned by the existing
