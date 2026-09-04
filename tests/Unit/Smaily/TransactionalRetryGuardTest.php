@@ -1,0 +1,127 @@
+<?php
+/**
+ * TransactionalRetryGuard tests (PRO-1733) — which failed transactional rows
+ * the Event Log may re-drive, and why the rest are refused.
+ *
+ * @package Smaily\Connect\Tests
+ */
+
+declare(strict_types=1);
+
+namespace Smaily\Connect\Tests\Unit\Smaily;
+
+use Brain\Monkey;
+use Brain\Monkey\Functions;
+use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Smaily\TransactionalFlusher;
+use Smaily\Connect\Smaily\TransactionalRetryGuard;
+
+final class TransactionalRetryGuardTest extends TestCase {
+
+	protected function setUp(): void {
+		parent::setUp();
+		Monkey\setUp();
+
+		Functions\when( '__' )->returnArg( 1 );
+
+		// Every order id resolves, except 999 (the deleted-order case below).
+		Functions\when( 'wc_get_order' )->alias(
+			static function ( int $id ) {
+				return 999 === $id ? false : new class( $id ) extends \WC_Order {
+					private int $id;
+
+					public function __construct( int $id ) {
+						$this->id = $id;
+					}
+
+					public function get_id(): int {
+						return $this->id;
+					}
+				};
+			}
+		);
+	}
+
+	protected function tearDown(): void {
+		Monkey\tearDown();
+		parent::tearDown();
+	}
+
+	public function test_a_marketing_row_is_never_refused(): void {
+		self::assertSame( '', TransactionalRetryGuard::refusal_reason( 'automation.abandoned_cart', '77', '{}' ) );
+		self::assertSame( '', TransactionalRetryGuard::refusal_reason( 'contact.sync', 'a@b.test', '{}' ) );
+	}
+
+	public function test_an_order_confirmation_is_refused_because_the_wc_email_went_out(): void {
+		self::assertSame(
+			TransactionalRetryGuard::REASON_WC_EMAIL_SENT,
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
+				'501',
+				'{"to_status":""}'
+			)
+		);
+	}
+
+	public function test_a_shipping_confirmation_into_completed_is_refused(): void {
+		// `completed` is the one shipped status WooCommerce has a native email
+		// for, so fail-open re-fired it — a retry would be the second one.
+		self::assertSame(
+			TransactionalRetryGuard::REASON_WC_EMAIL_SENT,
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+				'502',
+				'{"to_status":"completed"}'
+			)
+		);
+	}
+
+	public function test_a_shipping_confirmation_on_a_merchant_defined_status_may_be_retried(): void {
+		// No native WooCommerce email exists for a custom shipped status, so
+		// nothing was suppressed and fail-open sent nothing — the shopper has
+		// no confirmation at all and the retry is the only way to one.
+		self::assertSame(
+			'',
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+				'503',
+				'{"to_status":"shipped"}'
+			)
+		);
+	}
+
+	public function test_a_shipping_row_with_no_recorded_status_is_refused(): void {
+		// An old row (or an undecodable payload) can't prove nothing was sent,
+		// so it takes the safe side: never risk a second confirmation.
+		self::assertSame(
+			TransactionalRetryGuard::REASON_WC_EMAIL_SENT,
+			TransactionalRetryGuard::refusal_reason( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, '504', '' )
+		);
+		self::assertSame(
+			TransactionalRetryGuard::REASON_WC_EMAIL_SENT,
+			TransactionalRetryGuard::refusal_reason( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, '505', 'not-json' )
+		);
+	}
+
+	public function test_a_row_whose_order_is_gone_is_refused_with_its_own_reason(): void {
+		self::assertSame(
+			TransactionalRetryGuard::REASON_ORDER_MISSING,
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+				'999',
+				'{"to_status":"shipped"}'
+			)
+		);
+	}
+
+	public function test_each_refusal_carries_its_own_merchant_message(): void {
+		self::assertStringContainsString(
+			'standard WooCommerce email',
+			TransactionalRetryGuard::message( TransactionalRetryGuard::REASON_WC_EMAIL_SENT )
+		);
+		self::assertStringContainsString(
+			'no longer exists',
+			TransactionalRetryGuard::message( TransactionalRetryGuard::REASON_ORDER_MISSING )
+		);
+	}
+}

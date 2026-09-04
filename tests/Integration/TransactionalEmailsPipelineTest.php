@@ -358,12 +358,143 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertNotSame( 'retry_ceiling_exceeded', $row['last_error'] );
 	}
 
+	public function test_retry_is_refused_for_a_failed_row_the_woocommerce_email_already_covered(): void {
+		// PRO-1733: this shipping confirmation replaced WC's own
+		// customer_completed_order email, so its terminal failure re-fired
+		// that email — the shopper HAS a confirmation and a retry would be
+		// the second one. The route must refuse it and leave the row alone.
+		$this->configure( array( 'shipping_confirmation' => '5151' ) );
+
+		$product = $this->make_product( 'Refused Retry Product', 11.00 );
+		$order   = wc_get_order( $this->make_order( 'refused@example.test', $product ) );
+		$order->set_status( 'processing' );
+		$order->save();
+
+		$fake = $this->fake_transport_with_code( 203 );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+		self::assertNotNull( $row );
+		self::assertSame( 'failed', $row['status'] );
+
+		$response = RestRequestHelper::post(
+			'/events/retry',
+			array(
+				'source' => 'smaily',
+				'id'     => (int) $row['id'],
+			)
+		);
+
+		self::assertSame( 409, $response->get_status() );
+		$data = $response->get_data();
+		self::assertSame( 'transactional_retry_refused', $data['error'] );
+		self::assertSame( 'wc_email_sent', $data['reason'] );
+		self::assertStringContainsString( 'standard WooCommerce email', (string) $data['message'] );
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+		self::assertSame( 'failed', $row['status'], 'The refused row must not be re-queued.' );
+
+		// The Event Log itself hides Retry for it — same guard, read side.
+		$listed = $this->listed_row( (int) $row['id'] );
+		self::assertSame( 'wc_email_sent', $listed['retry_refusal'] );
+
+		// A bulk "Retry all failed" must not sneak it back in either.
+		self::assertSame( 200, RestRequestHelper::post( '/events/retry', array( 'source' => 'smaily' ) )->get_status() );
+		self::assertSame( 'failed', $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION )['status'] );
+	}
+
+	public function test_retry_re_attempts_a_merchant_status_shipping_confirmation_the_shopper_never_got(): void {
+		// PRO-1733: WooCommerce has no native email for a merchant-defined
+		// shipped status, so fail-open sent nothing — the shopper has no
+		// confirmation at all. Retry must therefore be a real re-attempt:
+		// the row is revived, its PRO-1519 hour starts over (without which
+		// the next tick would terminal-fail it again), and its own flusher
+		// drains it to the Smaily API.
+		$this->configure( array( 'shipping_confirmation' => '5151' ), array( 'shipped' ) );
+
+		$custom_status = static function ( array $statuses ): array {
+			$statuses['wc-shipped'] = 'Shipped';
+			return $statuses;
+		};
+		add_filter( 'wc_order_statuses', $custom_status );
+
+		try {
+			$product = $this->make_product( 'Custom Status Product', 21.00 );
+			$order   = wc_get_order( $this->make_order( 'custom@example.test', $product ) );
+			$order->set_status( 'processing' );
+			$order->save();
+
+			$fake_5xx = $this->fake_transport_with_code( 500, 500 );
+			add_filter( 'pre_http_request', $fake_5xx, 10, 3 );
+			try {
+				$order->update_status( 'shipped' );
+			} finally {
+				remove_filter( 'pre_http_request', $fake_5xx, 10 );
+			}
+
+			$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+			self::assertNotNull( $row, 'The custom shipped status must reach the transactional queue.' );
+			self::assertSame( 'pending', $row['status'] );
+
+			// Age it past the ceiling and let the next tick terminal-fail it —
+			// the exact state a merchant finds in the Event Log.
+			$this->backdate_queue_row( (int) $row['id'], TransactionalFlusher::RETRY_CEILING_SECONDS + 60 );
+			add_filter( 'pre_http_request', $fake_5xx, 10, 3 );
+			try {
+				do_action( TransactionalFlusher::FLUSH_HOOK );
+			} finally {
+				remove_filter( 'pre_http_request', $fake_5xx, 10 );
+			}
+
+			$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+			self::assertSame( 'failed', $row['status'] );
+			self::assertStringContainsString( 'retry_ceiling_exceeded', (string) $row['last_error'] );
+			self::assertSame( '', $this->listed_row( (int) $row['id'] )['retry_refusal'], 'Nothing was sent — the Event Log keeps Retry.' );
+
+			$response = RestRequestHelper::post(
+				'/events/retry',
+				array(
+					'source' => 'smaily',
+					'id'     => (int) $row['id'],
+				)
+			);
+			self::assertSame( 200, $response->get_status() );
+			self::assertSame( 1, $response->get_data()['reset'] );
+
+			$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+			self::assertSame( 'pending', $row['status'] );
+
+			$captured = array();
+			$fake_ok  = $this->fake_transport( $captured );
+			add_filter( 'pre_http_request', $fake_ok, 10, 3 );
+			try {
+				do_action( TransactionalFlusher::FLUSH_HOOK );
+			} finally {
+				remove_filter( 'pre_http_request', $fake_ok, 10 );
+			}
+
+			self::assertCount( 1, $captured, 'The revived row must actually be re-sent, not aged out again.' );
+			self::assertSame( 5151, $captured[0]['body']['autoresponder_id'] );
+			self::assertSame( array( 'custom@example.test' ), $captured[0]['body']['to'] );
+			self::assertSame( 'sent', $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION )['status'] );
+		} finally {
+			remove_filter( 'wc_order_statuses', $custom_status );
+		}
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**
-	 * @param array<string, string> $mappings trigger_type => workflow id.
+	 * @param array<string, string> $mappings         trigger_type => workflow id.
+	 * @param array<int, string>    $shipped_statuses The statuses a shipping
+	 *                                                confirmation fires on.
 	 */
-	private function configure( array $mappings ): void {
+	private function configure( array $mappings, array $shipped_statuses = array( 'completed' ) ): void {
 		$rows = array();
 		foreach ( $mappings as $trigger => $workflow_id ) {
 			$rows[] = array(
@@ -406,7 +537,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 				'data' => array(
 					'orderConfirmationEnabled'    => true,
 					'shippingConfirmationEnabled' => true,
-					'shippedOrderStatuses'        => array( 'completed' ),
+					'shippedOrderStatuses'        => $shipped_statuses,
 					'automationMappings'          => $rows,
 				),
 			)
@@ -503,6 +634,26 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 				'password'  => \Smaily_Connect\Includes\Cypher::encrypt( 'test-password' ),
 			)
 		);
+	}
+
+	/**
+	 * One row as the Event Log list renders it (PRO-1733 — retry_refusal is
+	 * computed by the read model, not stored).
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function listed_row( int $id ): array {
+		$request = new \WP_REST_Request( 'GET', '/smaily-connect/v1/events' );
+		$request->set_param( 'source', 'smaily' );
+		$request->set_param( 'status', 'failed' );
+
+		foreach ( ( new \Smaily\Connect\REST\EventsEndpoint() )->list_events( $request )->get_data()['events'] as $row ) {
+			if ( (int) $row['id'] === $id ) {
+				return $row;
+			}
+		}
+
+		self::fail( sprintf( 'Row %d not in the event list.', $id ) );
 	}
 
 	/** PRO-1519 test-only: push a queue row's created_at back by $seconds without sleeping. */
