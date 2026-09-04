@@ -260,7 +260,11 @@ export function EventLog(): React.JSX.Element {
                   </td>
                   <td className="sticky right-0 border-l border-border-subtle bg-surface py-2 pl-3 text-right">
                     <div className="flex justify-end gap-1 whitespace-nowrap">
-                      {row.status === 'failed' && (
+                      {/* A failed transactional row whose confirmation
+                          already went out as the native WooCommerce email
+                          offers no Retry — it would send a second one
+                          (PRO-1733); Details says so. */}
+                      {row.status === 'failed' && row.retry_refusal === '' && (
                         <Button
                           variant="secondary"
                           type="button"
@@ -336,6 +340,18 @@ function prettyJson(raw: string): string {
   }
 }
 
+/** The one plain sentence a row with no Retry action owes the merchant (PRO-1733). */
+function retryRefusalNote(reason: string): string {
+  if (reason === 'order_missing') {
+    return __('This order no longer exists, so this event cannot be re-sent.', 'smaily-connect');
+  }
+
+  return __(
+    'This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent.',
+    'smaily-connect',
+  );
+}
+
 function EventDetailModal({
   detail,
   onClose,
@@ -389,6 +405,11 @@ function EventDetailModal({
             <dd className="font-mono">{event.created_at}</dd>
           </div>
         </dl>
+        {event.retry_refusal !== '' && (
+          <Banner tone="info" className="mt-3">
+            {retryRefusalNote(event.retry_refusal)}
+          </Banner>
+        )}
         {event.last_error !== '' && (
           <div className="mt-3">
             <p className="text-xs font-medium text-text-tertiary">{__('Last error', 'smaily-connect')}</p>

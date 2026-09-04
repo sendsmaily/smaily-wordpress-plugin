@@ -14,6 +14,13 @@ export interface EventRow {
   max_attempts: number | null;
   last_error: string;
   created_at: string;
+  /**
+   * Why this row's Retry is refused, '' when it may be retried (PRO-1733).
+   * Only failed transactional-email rows are ever refused: fail-open already
+   * re-fired the native WooCommerce email (`wc_email_sent`), or the order is
+   * gone (`order_missing`).
+   */
+  retry_refusal: string;
 }
 
 export interface EventsListResponse {
