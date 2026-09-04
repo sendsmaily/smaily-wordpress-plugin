@@ -14,6 +14,21 @@ const ROW = {
   max_attempts: 5,
   last_error: 'http_503 service unavailable',
   created_at: '2026-06-09 10:00:00',
+  retry_refusal: '',
+};
+
+/**
+ * PRO-1733: a failed order confirmation whose fail-open already re-fired the
+ * native WooCommerce email. Retrying it would send the shopper a second
+ * confirmation, so the server marks it refused.
+ */
+const TRANSACTIONAL_REFUSED_ROW = {
+  ...ROW,
+  id: 9,
+  source: 'smaily' as const,
+  event_type: 'transactional.order_confirmation',
+  last_error: 'retry_ceiling_exceeded',
+  retry_refusal: 'wc_email_sent',
 };
 
 describe('EventLog', () => {
@@ -113,6 +128,77 @@ describe('EventLog', () => {
     // The 24h banner (PRO-1539) stays the only surfaced bulk-retry control
     // when it's showing — no duplicate button alongside it.
     expect(screen.getAllByRole('button', { name: 'Retry all failed' })).toHaveLength(1);
+  });
+
+  it('offers no Retry for a transactional row the WooCommerce email already covered (PRO-1733)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [TRANSACTIONAL_REFUSED_ROW],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 1,
+    });
+
+    render(<EventLog />);
+
+    await screen.findByText('transactional.order_confirmation');
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    // Details stays reachable — the merchant still needs to see why.
+    expect(screen.getByRole('button', { name: 'Details' })).toBeInTheDocument();
+  });
+
+  it('explains in the details panel that the WooCommerce email was sent instead (PRO-1733)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [TRANSACTIONAL_REFUSED_ROW],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 1,
+    });
+    vi.spyOn(eventsApi, 'getEventDetail').mockResolvedValue({
+      event: TRANSACTIONAL_REFUSED_ROW,
+      payload: '{"to_status":""}',
+      sent_payload: '',
+      last_response: '',
+    });
+
+    render(<EventLog />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
+
+    expect(
+      await screen.findByText(
+        'This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps Retry on a transactional row the shopper never got (PRO-1733)', async () => {
+    // A shipping confirmation on a merchant-defined shipped status: WooCommerce
+    // has no native email for it, so nothing was sent and a retry is the only
+    // way the shopper gets one. The server leaves retry_refusal empty.
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [
+        {
+          ...TRANSACTIONAL_REFUSED_ROW,
+          event_type: 'transactional.shipping_confirmation',
+          retry_refusal: '',
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 1,
+    });
+    const retrySpy = vi.spyOn(eventsApi, 'retryEvents').mockResolvedValue({ reset: 1 });
+
+    render(<EventLog />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(retrySpy).toHaveBeenCalledWith({ source: 'smaily', id: 9 });
+    });
   });
 
   it('shows a reachable Retry all failed control for aged failures with no 24h banner (PRO-1539)', async () => {
