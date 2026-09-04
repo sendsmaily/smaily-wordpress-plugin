@@ -128,35 +128,35 @@ msgstr "Liitu"
 msgid "Smaily credentials not validated. Subscription form will not work!"
 msgstr "Puudub Smaily API ühendus. Liitumisvorm ei tööta!"
 
-#: includes/Notifications/NotificationManager.php:501
+#: includes/Notifications/NotificationManager.php:515
 msgid "Invalid request."
 msgstr "Vigane päring."
 
 #. translators: %d: number of failed sync events in the last 24 hours.
-#: includes/Notifications/NotificationManager.php:526
+#: includes/Notifications/NotificationManager.php:540
 #, php-format
 msgid "Smaily Connect: %d sync event failed in the last 24 hours."
 msgid_plural "Smaily Connect: %d sync events failed in the last 24 hours."
 msgstr[0] "Smaily Connect: viimase 24 tunni jooksul ebaõnnestus %d sünkroonimissündmus."
 msgstr[1] "Smaily Connect: viimase 24 tunni jooksul ebaõnnestus %d sünkroonimissündmust."
 
-#: includes/Notifications/NotificationManager.php:537
+#: includes/Notifications/NotificationManager.php:551
 msgid "Smaily Connect: Smaily Campaign Intelligence has been unreachable for over an hour — sync is queued and will resume automatically when it recovers."
 msgstr "Smaily Connect: Smaily Campaign Intelligence on olnud kättesaamatu üle tunni — sünkroonimine on järjekorras ja jätkub automaatselt, kui ühendus taastub."
 
-#: includes/Notifications/NotificationManager.php:544
+#: includes/Notifications/NotificationManager.php:558
 msgid "Smaily Connect: the Smaily API has been unreachable for over an hour — contact sync and email automations are paused until the connection recovers."
 msgstr "Smaily Connect: Smaily API on olnud kättesaamatu üle tunni — kontaktide sünkroonimine ja e-posti automatiseeringud on peatatud, kuni ühendus taastub."
 
-#: includes/Notifications/NotificationManager.php:564
+#: includes/Notifications/NotificationManager.php:578
 msgid "Smaily Connect: a sync health check needs your attention."
 msgstr "Smaily Connect: sünkroonimise seisundikontroll vajab sinu tähelepanu."
 
-#: includes/Notifications/NotificationManager.php:571
+#: includes/Notifications/NotificationManager.php:585
 msgid "View Event Log"
 msgstr "Vaata sündmuste logi"
 
-#: includes/Notifications/NotificationManager.php:590
+#: includes/Notifications/NotificationManager.php:604
 msgid "Dismiss"
 msgstr "Peida"
 
@@ -198,7 +198,7 @@ msgstr "See ühendus on veel seadistamata. Lõpeta kõigepealt seadistamine."
 msgid "Unsupported job_type."
 msgstr "Toetamata töötüüp (job_type)."
 
-#: includes/REST/EventsEndpoint.php:99
+#: includes/REST/EventsEndpoint.php:101
 msgid "You do not have permission to view the event log."
 msgstr "Sul ei ole õigust sündmuste logi vaadata."
 
@@ -1153,7 +1153,7 @@ msgid "Time (UTC)"
 msgstr "Aeg (UTC)"
 
 #: admin/src/components/settings/EventLog.tsx:189
-#: admin/src/components/settings/EventLog.tsx:312
+#: admin/src/components/settings/EventLog.tsx:321
 msgid "Source"
 msgstr "Allikas"
 
@@ -1162,22 +1162,22 @@ msgid "Event"
 msgstr "Sündmus"
 
 #: admin/src/components/settings/EventLog.tsx:191
-#: admin/src/components/settings/EventLog.tsx:320
+#: admin/src/components/settings/EventLog.tsx:329
 msgid "Entity"
 msgstr "Olem"
 
 #: admin/src/components/settings/EventLog.tsx:192
-#: admin/src/components/settings/EventLog.tsx:316
+#: admin/src/components/settings/EventLog.tsx:325
 msgid "Status"
 msgstr "Olek"
 
 #: admin/src/components/settings/EventLog.tsx:193
-#: admin/src/components/settings/EventLog.tsx:324
+#: admin/src/components/settings/EventLog.tsx:333
 msgid "Attempts"
 msgstr "Katsed"
 
 #: admin/src/components/settings/EventLog.tsx:194
-#: admin/src/components/settings/EventLog.tsx:336
+#: admin/src/components/settings/EventLog.tsx:346
 msgid "Last error"
 msgstr "Viimane viga"
 
@@ -1224,31 +1224,31 @@ msgstr "Lehekülg %1$d / %2$d"
 msgid "Next"
 msgstr "Järgmine"
 
-#: admin/src/components/settings/EventLog.tsx:300
+#: admin/src/components/settings/EventLog.tsx:309
 msgid "Close details"
 msgstr "Sulge üksikasjad"
 
-#: admin/src/components/settings/EventLog.tsx:308
+#: admin/src/components/settings/EventLog.tsx:317
 msgid "Close"
 msgstr "Sule"
 
-#: admin/src/components/settings/EventLog.tsx:331
+#: admin/src/components/settings/EventLog.tsx:340
 msgid "Created (UTC)"
 msgstr "Loodud (UTC)"
 
-#: admin/src/components/settings/EventLog.tsx:340
+#: admin/src/components/settings/EventLog.tsx:350
 msgid "Request sent to the engine"
 msgstr "Mootorisse saadetud päring"
 
-#: admin/src/components/settings/EventLog.tsx:341
+#: admin/src/components/settings/EventLog.tsx:351
 msgid "— nothing recorded (not sent, or the row predates this version)"
 msgstr "— midagi pole salvestatud (ei saadetud või rida on sellest versioonist vanem)"
 
-#: admin/src/components/settings/EventLog.tsx:344
+#: admin/src/components/settings/EventLog.tsx:354
 msgid "Engine response"
 msgstr "Mootori vastus"
 
-#: admin/src/components/settings/EventLog.tsx:348
+#: admin/src/components/settings/EventLog.tsx:358
 msgid "Enqueued payload"
 msgstr "Järjekorda pandud sisu"
 
@@ -2053,11 +2053,11 @@ msgstr "Smailysse edastatakse kõik kliendid, sõltumata turundusnõusolekust. T
 msgid "Checkout opt-in only"
 msgstr "Ainult kassas turunduskirjade nõusoleku andnud kontaktid"
 
-#: includes/Notifications/NotificationManager.php:426
+#: includes/Notifications/NotificationManager.php:416
 msgid "Smaily Connect: browse tracking is on, but no cookie-consent signal was found, so no browse data is being collected. Install the free WP Consent API plugin so your consent banner (CookieYes, Complianz, Real Cookie Banner, …) can tell Smaily when a visitor consents."
 msgstr "Smaily Connect: sirvimise jälgimine on sees, aga küpsiste-nõusoleku signaali ei leitud, seega sirvimisandmeid ei koguta. Paigalda tasuta WP Consent API plugin, et sinu nõusolekubänner (CookieYes, Complianz, Real Cookie Banner, …) saaks Smailyle edastada, millal külastaja nõustub."
 
-#: includes/Notifications/NotificationManager.php:478
+#: includes/Notifications/NotificationManager.php:467
 msgid "Install WP Consent API"
 msgstr "Paigalda WP Consent API"
 
@@ -2299,11 +2299,11 @@ msgstr ""
 msgid "Initial setup"
 msgstr "Algseadistus"
 
-#: includes/Notifications/NotificationManager.php:457
+#: includes/Notifications/NotificationManager.php:446
 msgid "Smaily Connect: your saved list of contact fields to sync could not be read, so every supported field is being synced. Open the Subscribers settings, tick the fields you want and save to fix it."
 msgstr ""
 
-#: includes/Notifications/NotificationManager.php:470
+#: includes/Notifications/NotificationManager.php:459
 msgid "Open Subscribers settings"
 msgstr ""
 
@@ -2569,11 +2569,11 @@ msgstr "Kokkuvõte ja viimane kontroll"
 msgid "Nothing to import — no contacts match your synchronization settings."
 msgstr "Pole midagi importida — ükski kontakt ei vasta sinu sünkroniseerimise seadetele."
 
-#: includes/Notifications/NotificationManager.php:551
+#: includes/Notifications/NotificationManager.php:565
 msgid "Smaily Connect: Smaily is refusing every request because this account's package does not include API access. Contact sync and email automations stay stopped until the account is on a package that includes it — waiting will not restore them, and the credentials cannot be checked until then."
 msgstr "Smaily Connect: Smaily keeldub igast päringust, sest selle konto pakett ei sisalda API-ligipääsu. Kontaktide sünkroonimine ja e-posti automatiseeringud jäävad seisma, kuni konto on paketil, mis API-t sisaldab — ootamine neid ei taasta ja kontoandmeid ei saa enne seda kontrollida."
 
-#: includes/Notifications/NotificationManager.php:558
+#: includes/Notifications/NotificationManager.php:572
 msgid "Smaily Connect: Smaily is rejecting the saved API credentials, so contact sync and email automations have stopped. Check the subdomain, API username and password under Settings → Connection."
 msgstr "Smaily Connect: Smaily lükkab salvestatud API-sisselogimisandmed tagasi, mistõttu kontaktide sünkroonimine ja e-posti automatiseeringud on seiskunud. Kontrolli alamdomeeni, API-kasutajanime ja parooli jaotises Settings → Connection."
 
@@ -2589,7 +2589,7 @@ msgstr "Smailyni ei jõudnud. See tundub ajutine — proovi hetke pärast uuesti
 msgid "Leave empty to keep using the stored password."
 msgstr "Jäta tühjaks, et kasutada salvestatud parooli."
 
-#: includes/Notifications/NotificationManager.php:394
+#: includes/Notifications/NotificationManager.php:384
 msgid "Smaily Connect: your Smaily Campaign Intelligence account has been deactivated, so no product, customer or order data is being sent to it. Contact Smaily to reactivate it. Nothing is lost in the meantime — queued data waits, and syncing resumes once you connect the reactivated account."
 msgstr "Smaily Connect: sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega toote-, kliendi- ja tellimusandmeid sinna enam ei saadeta. Konto taasaktiveerimiseks võta ühendust Smailyga. Vahepeal ei lähe midagi kaduma — järjekorras olevad andmed ootavad ära ja sünkroonimine jätkub, kui taasaktiveeritud konto uuesti ühendad."
 
@@ -2604,3 +2604,13 @@ msgstr "Konto on deaktiveeritud"
 #: admin/src/components/steps/Step4Recommendations.tsx:199
 msgid "Your Smaily Campaign Intelligence account has been deactivated, so syncing has stopped. Contact Smaily to reactivate it. Once it is active again, disconnect here and connect it with a new setup link."
 msgstr "Sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega sünkroonimine on peatunud. Konto taasaktiveerimiseks võta ühendust Smailyga. Kui konto on jälle aktiivne, katkesta siin ühendus ja ühenda konto uue seadistuslingiga."
+
+#: includes/Smaily/TransactionalRetryGuard.php:75
+#: admin/src/components/settings/EventLog.tsx:289
+msgid "This order no longer exists, so this event cannot be re-sent."
+msgstr "Seda tellimust enam ei ole, seega seda sündmust ei saa uuesti saata."
+
+#: includes/Smaily/TransactionalRetryGuard.php:78
+#: admin/src/components/settings/EventLog.tsx:291
+msgid "This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent."
+msgstr "See kinnitus saadeti kliendile juba WooCommerce'i tavalise e-kirjana; seda ei saa uuesti saata."
