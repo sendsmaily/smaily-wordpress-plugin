@@ -38,7 +38,8 @@ your existing 2.0.0 settings are important to understand in advance.
   the 2.0.0 hooks are deactivated. You get access to new features (Backfill,
   Campaign Intelligence).
 - **Rollback is possible** by reinstalling 2.0.0 from wordpress.org — your data
-  is not destroyed.
+  is not destroyed, but you have to re-enter the Smaily API password once you
+  are back on 2.0.0 (see Rollback below).
 
 The upgrade was rehearsed end to end before release: a throwaway WordPress site
 running the real wordpress.org 2.0.0 package, configured the way a merchant is,
@@ -340,14 +341,42 @@ to download the 2.0.0 ZIP.
 4. When asked "Replace current with uploaded?", click **Replace**
 5. `Activate`
 
-2.0.0 resumes operation. Your `smaily_connect_*` settings are untouched, so it
-picks up where it left off.
+2.0.0 resumes operation. Your `smaily_connect_*` settings — subscriber sync,
+checkout opt-in, abandoned cart, RSS — are untouched, so it picks up where it
+left off. **The one exception is the Smaily API password, and you have to
+re-enter it.**
 
-**After rolling back, check the connection.** The upgrade re-encrypted your
-stored API password into the newer format; if 2.0.0 reports a credential or
-connection error, re-enter the Smaily API password on its settings page. (The
-rollback direction was not part of the pre-release upgrade rehearsal — the
-forward path was. Report anything unexpected; see Support below.)
+### You must re-enter the API password after rolling back
+
+The upgrade re-encrypted your stored API password into a format the 2.0.0 code
+does not know how to read, so after the rollback it reads as empty. This
+direction was rehearsed on a throwaway site (real 2.0.0 → the 3.x package →
+2.0.0 again), and this is what the legacy `Smaily` settings page shows
+afterwards:
+
+- your subdomain and API username are still filled in, greyed out
+- **the API Password field is not shown at all** — 2.0.0 hides it whenever a
+  subdomain and username are stored
+- the button reads **Make a connection** instead of **Disconnect**
+- only the **Connection** tab is left: **Getting started**, **Subscriber
+  Synchronization** and **Abandoned Cart** are gone
+- there is **no error message, no admin notice and nothing in the debug log** —
+  the page just looks half-connected
+
+Because 2.0.0 treats an empty password as "not connected", subscriber syncing,
+the abandoned-cart mails and the subscription forms stop working until you
+reconnect. Nothing is deleted while that is the case.
+
+**The fix is one click plus a re-entry:**
+
+1. Open `Smaily → Connection`
+2. Click **Make a connection**. Despite the label this performs a disconnect:
+   you get "API credentials disconnected!" and all three fields come back empty
+   — including the API Password field, which is now visible again
+3. Enter your Smaily subdomain, API username and API password and save. 2.0.0
+   checks them against Smaily and stores them in its own format
+
+Everything else resumes at that point; no other setting has to be entered again.
 
 ### What stays behind after rollback
 
