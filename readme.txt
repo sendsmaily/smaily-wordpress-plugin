@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.11.3
+Stable tag: 3.12.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -176,6 +176,14 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 Only releases from 3.0.0 onward are listed here. The complete version history, including the 1.x and 2.x releases, is published at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.12.0 =
+* Improved: abandoned-cart follow-ups now stop once the shopper buys. A reminder still waiting to go out is withdrawn, and the purchase is recorded on the shopper's Smaily contact, so a multi-step follow-up workflow can end there instead of running to the last letter.
+* Improved: the Event Log can now send an order or shipping confirmation a second time. "Send again" appears on a confirmation Smaily itself sent, on an order that still exists, for merchants who need to re-send one on request.
+* Improved: the Event Log now says when a retried or re-sent event will actually go out — at the next scheduled sending pass, not the instant you click. It used to imply the send was immediate.
+* Improved: an abandoned-cart reminder withdrawn because the shopper bought first now reads "cancelled" in the Event Log, instead of looking exactly like a delivered reminder.
+* Improved: when a Retry or "Send again" is turned down, the Event Log now explains why in plain words. It used to show the raw request line, which said nothing about the reason.
+* Improved: the plugin's WordPress.org listing now carries a refreshed description and new screenshots.
+
 = 3.11.3 =
 * Fixed: the Smaily landing page block now keeps the landing page on the page after you save it. On sites where WordPress strips embedded frames from post content, the published page came out empty and the block reported "unexpected or invalid content" the next time it was opened.
 * Fixed: the Smaily landing page block now works for editors, not only administrators. It used to say "Please configure the plugin first" and show no URL field on a fully connected store.
@@ -322,6 +330,9 @@ First general-availability release, graduating the 2.1.0-beta line. Existing set
 * Hardening: WordPress.org Plugin Check pass (sanitization, escaping, prefixing, ABSPATH guards); editor blocks updated to Block API v3 for the WordPress 7.0 iframe editor; diagnostics gated behind WP_DEBUG.
 
 == Upgrade Notice ==
+
+= 3.12.0 =
+Abandoned-cart follow-ups now stop once the shopper buys, and the purchase is recorded on their Smaily contact. Adds "Send again" for order and shipping confirmations, and the Event Log now says when a retry really sends and why one was refused. Safe update.
 
 = 3.11.3 =
 Fixes only. The landing page and newsletter sign-up blocks now work for editors and keep their content after saving; the Event Log retries order and shipping confirmations correctly; a deactivated Campaign Intelligence account now stops sending and says so. Safe update.

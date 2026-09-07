@@ -16,7 +16,7 @@ kept in one place so they can't drift.
 
 Install it from wordpress.org like any other plugin: `Plugins → Add New Plugin`,
 search for **Smaily Connect**, `Install Now`, `Activate`. The slug is
-`smaily-connect` and the current release is **3.11.3**. WP-CLI:
+`smaily-connect` and the current release is **3.12.0**. WP-CLI:
 `wp plugin install smaily-connect --activate`.
 
 The release ZIP attached to each tag in
