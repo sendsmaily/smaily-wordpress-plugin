@@ -35,6 +35,13 @@ export interface EventRow {
    * drift apart.
    */
   can_send_again: boolean;
+  /**
+   * Whether this row was withdrawn rather than sent (PRO-2372) — an
+   * abandoned-cart reminder cancelled because the shopper bought before it
+   * went out. The row's stored status is `sent` (it is terminal and must
+   * never be retried), so the list says "cancelled" instead.
+   */
+  cancelled: boolean;
 }
 
 export interface EventsListResponse {

@@ -1190,6 +1190,10 @@ msgstr "Sündmusi veel pole."
 msgid "Rec"
 msgstr "Mootor"
 
+#: admin/src/components/settings/EventLog.tsx:254
+msgid "cancelled"
+msgstr "tühistatud"
+
 #: admin/src/components/settings/EventLog.tsx:269
 #: admin/src/components/steps/EngineAutomationsSection.tsx:178
 msgid "Retry"

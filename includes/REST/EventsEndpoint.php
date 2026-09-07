@@ -493,10 +493,11 @@ class EventsEndpoint {
 		$where_sql = $where === array() ? '' : ' WHERE ' . implode( ' AND ', $where );
 
 		$sql = sprintf(
-			'SELECT id, %s AS source, event_type, entity_id, status, attempts, %s AS max_attempts, last_error, created_at, %s AS retry_payload FROM %s%s',
+			'SELECT id, %s AS source, event_type, entity_id, status, attempts, %s AS max_attempts, last_error, created_at, %s AS retry_payload, %s AS last_response FROM %s%s',
 			$this->quote( $source ),
 			$max_attempts_expr,
 			$this->retry_payload_expr( $source ),
+			$this->last_response_expr( $source ),
 			$table,
 			$where_sql
 		);
@@ -594,6 +595,10 @@ class EventsEndpoint {
 			'created_at'            => isset( $row['created_at'] ) ? (string) $row['created_at'] : '',
 			'retry_refusal'         => $refusal,
 			'retry_refusal_message' => $refusal === '' ? '' : TransactionalRetryGuard::message( $refusal ),
+			// PRO-2372: a reminder withdrawn because the shopper bought first
+			// is terminal-marked `sent` like any other skip; the merchant
+			// must read "cancelled" on the row without opening Details.
+			'cancelled'             => EventQueue::is_cancelled_response( (string) ( $row['last_response'] ?? '' ) ),
 			// PRO-2324: may the merchant deliberately send this confirmation
 			// a second time? Only a transactional row Smaily itself sent, on
 			// an order that still exists.
@@ -746,6 +751,24 @@ class EventsEndpoint {
 			"CASE WHEN status = %s AND event_type IN ( %s ) THEN payload ELSE '' END",
 			$this->quote( EventQueue::STATUS_FAILED ),
 			implode( ', ', array_map( array( $this, 'quote' ), TransactionalFlusher::EVENT_TYPES ) )
+		);
+	}
+
+	/**
+	 * A withdrawn abandoned-cart reminder is a `sent` row whose stored
+	 * response says `cancelled` (PRO-1723), and the list must label it as
+	 * such (PRO-2372) — so the projection carries the response of SENT rows
+	 * only: a withdrawal is always one, and a failed row's response is the
+	 * big one nobody needs here. The rec queue has no withdrawal path.
+	 */
+	private function last_response_expr( string $source ): string {
+		if ( $source !== self::SOURCE_SMAILY ) {
+			return "''";
+		}
+
+		return sprintf(
+			"CASE WHEN status = %s THEN last_response ELSE '' END",
+			$this->quote( EventQueue::STATUS_SENT )
 		);
 	}
 

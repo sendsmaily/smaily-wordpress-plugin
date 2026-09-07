@@ -51,6 +51,14 @@ class EventQueue {
 	public const FLUSH_HOOK = 'smly_plus_flush_event_queue';
 	public const AS_GROUP   = 'smaily-connect';
 
+	/**
+	 * The `last_response` outcome a withdrawn row carries. The Event Log list
+	 * reads it back to label the row cancelled (PRO-2372) — it is what tells a
+	 * withdrawal apart from the flushers' other terminal skips, which record
+	 * `skipped` and really are ordinary "nothing to send" rows.
+	 */
+	public const OUTCOME_CANCELLED = 'cancelled';
+
 	/** Why a row was withdrawn — the note the Event Log shows on a cancelled row. */
 	private const NOTE_CANCELLED = 'the shopper completed a purchase before the reminder was sent';
 
@@ -251,11 +259,26 @@ class EventQueue {
 			null,
 			(string) wp_json_encode(
 				array(
-					'outcome' => 'cancelled',
+					'outcome' => self::OUTCOME_CANCELLED,
 					'note'    => self::NOTE_CANCELLED,
 				)
 			)
 		);
+	}
+
+	/**
+	 * Whether a stored `last_response` records a withdrawal rather than a send
+	 * (PRO-2372). The one place that knows the shape cancel() writes, so the
+	 * Event Log's read model doesn't have to.
+	 */
+	public static function is_cancelled_response( string $last_response ): bool {
+		if ( $last_response === '' ) {
+			return false;
+		}
+
+		$decoded = json_decode( $last_response, true );
+
+		return is_array( $decoded ) && ( $decoded['outcome'] ?? '' ) === self::OUTCOME_CANCELLED;
 	}
 
 	public function mark_sent( int $id ): void {

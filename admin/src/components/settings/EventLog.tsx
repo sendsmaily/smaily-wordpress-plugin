@@ -306,8 +306,11 @@ export function EventLog(): React.JSX.Element {
                   <td className="py-2 pr-3 font-mono">{row.event_type}</td>
                   <td className="py-2 pr-3 font-mono text-text-secondary">{row.entity_id || '—'}</td>
                   <td className="py-2 pr-3">
-                    <Pill tone={statusTone(row.status)} dot>
-                      {row.status}
+                    {/* A withdrawn abandoned-cart reminder is stored `sent`
+                        (terminal, never retried) but nothing was sent — say
+                        so on the row itself, not only in Details (PRO-2372). */}
+                    <Pill tone={row.cancelled ? 'neutral' : statusTone(row.status)} dot>
+                      {row.cancelled ? __('cancelled', 'smaily-connect') : row.status}
                     </Pill>
                   </td>
                   <td className="py-2 pr-3">
