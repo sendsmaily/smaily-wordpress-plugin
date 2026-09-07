@@ -26,7 +26,41 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**Four Event Log polish items — PRO-2372, PRO-2368,
+_Last updated: 2026-09-07 (**3.12.0 pre-release security-delta audit + PCP, and
+the audit register's missing 3.11.2 row.** The re-audit policy fires on the
+`3.11.3..HEAD` delta by point 2 — it adds an admin REST route (`POST
+/events/resend`), custom-table SQL (migration 011's `contact_key` +
+`idx_type_contact_status`, `withdraw_pending_for()`, the new list projection)
+and a new contact field on the Smaily wire — so the delta was read file by file:
+**0 Blocking / 0 Critical / 0 High / 0 Medium, 1 Low, 5 Info; 3.12.0 may
+proceed.** The Low: the purchase marker keys on the checkout-supplied billing
+address, so an order created with a third party's address withdraws that
+address's pending reminder and stamps `abandoned_cart_purchased_at` on their
+contact — write-only from the actor's side (no oracle), the marker can only
+reach a contact the store already emailed, and the suppression half is inherited
+from the pre-existing ungated `clear_for_order()`; left as a follow-up, no code
+changed. **PCP against the BUILT ZIP: 0 ERRORS, 7 WARNINGS** vs the 3.11.3
+baseline's 0/5 — no new ERROR and no new warning class; the +2 are
+`EventsEndpoint.php:654` `DirectQuery` + `.NoCaching` from the extracted
+`fetch_row()`, which kept only the `PreparedSQL` suppression the inline block
+carried (restore it at the bump). `bin/verify-release-zip.sh smaily-connect.zip
+3.11.3` **exit=0** (3.11.3 is expected — this is a pre-bump build; 906 972 B).
+`ci:strict` **exit=0** (PHPCS 0 errors, PHPStan `[OK] No errors`, unit 787 /
+2 231 assertions, vitest 312). Noted for the bump: the committed `.pot`/`-et.po`
+are 5 msgids behind (four PHP refusal sentences + the JS `cancelled` label) and
+the ET translations still need writing + proofreading. Also closed here:
+**PRO-2361** — the register jumped from 3.11.1 to the 2026-09-07 PRO-2350 pass,
+so the **3.11.2 release gate now has a row** saying plainly what ran: the ZIP
+verification twice (local pre-flight at the bump, then `release.yml` run
+`33855031096` which runs `verify-release-zip.sh`), **no PCP and no re-audit**,
+and no judgement row written at the time — with the one uncovered
+security-sensitive surface in that delta named (PRO-2286's stored-password
+fallback on `TestConnectionEndpoint`). Report:
+`docs/audits/SECURITY_DELTA_AUDIT_2026-09-07_3.12.0.md`; two new rows in
+`docs/audits/INDEX.md`. Audit pass — no product code changed, integration not
+re-run.)_
+
+Prior: 2026-09-07 (**Four Event Log polish items — PRO-2372, PRO-2368,
 PRO-2369, PRO-2367.** (1) **PRO-2372:** a reminder withdrawn because the shopper
 bought first (PRO-1723) is marked terminal through the flushers' own skip pair,
 so the queue row is `sent` and the LIST showed it exactly like a delivered
@@ -960,7 +994,11 @@ Docs-only; no code, so no gates run.)_
   index, migration 011), PRO-2318 (the wordpress.org listing copy and six
   screenshots), and the Event Log polish set PRO-2372 (the cancelled label),
   PRO-2368 (the failed re-send's own sentence), PRO-2369 (refusals reach the
-  banner as words) and PRO-2367 (comment-only next-scheduled-pass wording).
+  banner as words) and PRO-2367 (comment-only next-scheduled-pass wording). The
+  **3.12.0 pre-release re-audit is DONE** (2026-09-07): 1 Low + 5 Info, no
+  Blocking/Critical/High/Medium, PCP 0 ERRORS / 7 warnings against the 3.11.3
+  baseline's 0/5 (no new class) — see the register row and
+  `docs/audits/SECURITY_DELTA_AUDIT_2026-09-07_3.12.0.md`.
 - **PRO-2318 can also go live ahead of 3.12.0** by Erkki's manual SVN commit of
   `readme.txt` + `assets/` — that commit must `svn rm screenshot-7.png` and
   `screenshot-8.png`.
