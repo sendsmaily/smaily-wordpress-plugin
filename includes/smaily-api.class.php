@@ -56,7 +56,24 @@ class API {
 	 * @return void
 	 */
 	public function register_endpoints() {
-		$this->register_endpoint( 'v1', '/autoresponders', 'GET', 'list_autoresponders' );
+		// The newsletter-signup block fills its automation dropdown from here on
+		// every mount, so anyone who may edit content must be able to call it —
+		// an Editor (the usual marketing role) has no `manage_options` and the
+		// block was stuck on its loading spinner for them, with no automation to
+		// pick, on a perfectly connected store (PRO-2347). The response carries
+		// only the automations' names and ids; the store's Smaily credentials
+		// stay server-side, so `edit_posts` is the honest gate.
+		$this->register_endpoint(
+			'v1',
+			'/autoresponders',
+			'GET',
+			'list_autoresponders',
+			array(
+				'permission_callback' => function () {
+					return current_user_can( 'edit_posts' );
+				},
+			)
+		);
 		// The landing-page block reads the account subdomain from here on every
 		// mount, so anyone who may edit content must be able to call it — an
 		// Editor (the usual marketing role) has no `manage_options` and the
