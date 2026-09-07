@@ -12,10 +12,13 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Bootstrap;
 use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\REST\EventsEndpoint;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
+use Smaily\Connect\Smaily\TransactionalResend;
 use WP_REST_Request;
 
 final class RecEngineEventsTest extends TestCase {
@@ -97,12 +100,28 @@ final class RecEngineEventsTest extends TestCase {
 		);
 	}
 
+	/**
+	 * The endpoint as the registry builds it — its write half now carries the
+	 * "Send again" service (PRO-2324), which these read tests never exercise.
+	 */
+	private function endpoint(): EventsEndpoint {
+		$bootstrap = Bootstrap::instance();
+
+		return new EventsEndpoint(
+			new TransactionalResend(
+				$bootstrap->transactional_gate(),
+				new TransactionalPayloadBuilder(),
+				$bootstrap->transactional_flusher()
+			)
+		);
+	}
+
 	private function list( array $params = array() ): array {
 		$req = new WP_REST_Request( 'GET', '/smaily-connect/v1/events' );
 		foreach ( $params as $k => $v ) {
 			$req->set_param( $k, $v );
 		}
-		return ( new EventsEndpoint() )->list_events( $req )->get_data();
+		return $this->endpoint()->list_events( $req )->get_data();
 	}
 
 	public function test_unions_both_queues_with_a_common_projection(): void {
@@ -155,7 +174,7 @@ final class RecEngineEventsTest extends TestCase {
 		$req = new WP_REST_Request( 'GET', '/smaily-connect/v1/events/detail' );
 		$req->set_param( 'source', 'rec_engine' );
 		$req->set_param( 'id', $id );
-		$detail = ( new EventsEndpoint() )->detail( $req )->get_data();
+		$detail = $this->endpoint()->detail( $req )->get_data();
 
 		self::assertSame( 'order.upsert', $detail['event']['event_type'] );
 		self::assertStringContainsString( 'order_id', $detail['payload'] );
@@ -234,7 +253,7 @@ final class RecEngineEventsTest extends TestCase {
 		$req = new WP_REST_Request( 'POST', '/smaily-connect/v1/events/retry' );
 		$req->set_param( 'source', 'rec_engine' );
 		$req->set_param( 'id', $id );
-		$data = ( new EventsEndpoint() )->retry( $req )->get_data();
+		$data = $this->endpoint()->retry( $req )->get_data();
 
 		self::assertSame( 1, $data['reset'] );
 		// phpcs:disable WordPress.DB
@@ -246,7 +265,7 @@ final class RecEngineEventsTest extends TestCase {
 	public function test_retry_all_revives_failed_in_both_queues(): void {
 		// setUp seeds one failed row in each queue.
 		$req  = new WP_REST_Request( 'POST', '/smaily-connect/v1/events/retry' );
-		$data = ( new EventsEndpoint() )->retry( $req )->get_data();
+		$data = $this->endpoint()->retry( $req )->get_data();
 
 		self::assertSame( 2, $data['reset'], 'one failed row revived in each queue' );
 		self::assertSame( 0, $this->list( array( 'status' => 'failed' ) )['total'], 'no failed rows remain' );
@@ -255,7 +274,7 @@ final class RecEngineEventsTest extends TestCase {
 	public function test_retry_single_requires_a_source(): void {
 		$req = new WP_REST_Request( 'POST', '/smaily-connect/v1/events/retry' );
 		$req->set_param( 'id', 123 );
-		$resp = ( new EventsEndpoint() )->retry( $req );
+		$resp = $this->endpoint()->retry( $req );
 
 		self::assertSame( 400, $resp->get_status() );
 	}
