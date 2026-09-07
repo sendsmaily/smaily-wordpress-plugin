@@ -26,7 +26,38 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**Merchant docs site: TranslatePress named, and the
+_Last updated: 2026-09-07 (**PRO-2326 — the Event Log no longer refuses a
+retry as "order no longer exists" on legacy order storage.** PRO-1733 keeps
+Retry on exactly one kind of failed transactional row: a shipping confirmation
+on a merchant-defined shipped status, which WooCommerce has no email for, so
+the shopper got nothing. The read model refuses Retry when the row's order can
+no longer be loaded, and under HPOS that lookup asks for status `all` — so an
+order on a status no plugin registers any more is still found. Legacy storage
+(what the pilot stores run) had no equivalent switch: `wc_get_orders()` falls
+back to WP_Query and its default status list is built from the REGISTERED order
+statuses, so an order parked on `shipped` after the status plugin was
+deactivated came back missing and the one retry that should be allowed was
+refused. `EventsEndpoint::existing_orders()` now reads the legacy orders table
+directly and status-blind (the shape `OrderBackfillJob::table_spec()` already
+defines for that path, filtered to `shop_order`); HPOS is untouched, the guard
+stays pure, still one batched lookup per request, and a genuinely deleted order
+is still reported gone. **Demonstrated on the real legacy path**, which the
+default env cannot show: the dev site was switched off HPOS by writing
+`woocommerce_custom_orders_table_enabled=no` straight to `wp_options` (WC
+refuses the supported switch while orders are out of sync) — the new test is RED
+there before the fix (`order_missing`) and GREEN after, the whole
+`TransactionalEmailsPipelineTest` (13 tests) passes on legacy, no order rows
+leaked into `wp_posts`, and the option was restored to `yes`
+(`custom_orders_table_usage_is_enabled()` = 1 again). Gates in the restored HPOS
+env: `npm run ci:strict` **exit=0** (PHPUnit unit **770 tests / 2162
+assertions**, vitest **306**, PHPCS 0 errors, PHPStan `[OK] No errors`) and `sg
+docker -c "composer run test:integration"` **OK 265 tests / 1562 assertions**,
+dev sandbox tenant "Smaily Connect test" restored. DECISIONS PRO-2326. Merchant
+docs site NOT touched — the user-visible wording and which rows offer Retry are
+unchanged; the site already describes the rule this fix restores. **No version
+bump** — lands with the next release.)_
+
+Prior: 2026-09-07 (**Merchant docs site: TranslatePress named, and the
 landing-page block documented.** Two documentation-only items, no plugin code
 touched. (1) PRO-2318 drift — the plugin resolves a contact's language through
 WPML, Polylang **or TranslatePress** (`Multilingual\DetectorFactory`), and
@@ -536,8 +567,8 @@ Docs-only; no code, so no gates run.)_
 - **Landed on official `main` AFTER the 3.11.2 tag** (so all of it ships in the
   NEXT release): PRO-1709 (the CI coverage gate), PRO-1893 + its simplification
   pass, PRO-1733 + its simplification pass, the readme "What's new in
-  version 3" fix (`11527fd`), and PRO-2346 (the landing-page block works for
-  Editors).
+  version 3" fix (`11527fd`), PRO-2346 (the landing-page block works for
+  Editors) and PRO-2326 (the legacy-storage retry refusal).
 - **Erkki's hand, in order:** PRO-1770 = **one** fresh contact import on **Prike
   only**, then close it; then the first-48-hours observation on PRO-2283, then
   close PRO-2283.
@@ -554,9 +585,9 @@ Docs-only; no code, so no gates run.)_
   runbook; `readme.txt` and the merchant docs are content-current.
 - **Queue:** done this session = PRO-2346 (landing-page block, editor role fix,
   awaiting Jane's role confirmation + next release), PRO-2349 + PRO-2318 docs
-  drift (published); next = PRO-2326 (legacy-storage retry refusal), then
-  backlog by value (PRO-2347 newsletter block editor permission decision,
-  PRO-2296, PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317).
+  drift (published), PRO-2326 (legacy-storage retry refusal); next = backlog by
+  value (PRO-2347 newsletter block editor permission decision, PRO-2296,
+  PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317).
 - **CI on official `main`:** the PHP jobs are red as documented (PRO-1708 — no
   WooCommerce in the runner); the Admin bundle job is green; contract staleness
   is green.

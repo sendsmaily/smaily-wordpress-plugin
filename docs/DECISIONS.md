@@ -5795,6 +5795,51 @@ page and the published post renders it.
 on their own permission checks; this is the legacy `smaily/v1` namespace the
 Gutenberg blocks read.
 
+### PRO-2326 — Order existence for the Event Log's Retry is resolved status-blind on legacy storage too (2026-09-07)
+
+**Context:** PRO-1733 keeps Retry on exactly one kind of failed transactional
+row — a shipping confirmation on a merchant-defined shipped status, for which
+WooCommerce has no email of its own, so fail-open sent nothing and the shopper
+has no confirmation at all. The read model refuses Retry when the row's order
+can no longer be loaded. Under HPOS the batched lookup asks for status `all`,
+so an order whose custom status was never registered as a post status is still
+found. Legacy order storage had no equivalent: `wc_get_orders()` falls back to
+WP_Query, whose default status list is built from the registered order statuses,
+so an order parked on `shipped` after the plugin defining that status was
+deactivated came back missing — and the Event Log refused the very retry the
+feature exists for.
+
+**Decision:** on legacy storage the existence check reads the orders table
+directly and status-blind, on the table/column shape
+`OrderBackfillJob::table_spec()` already defines for that path, filtered to
+`shop_order` posts and the ids on the page. HPOS behaviour is untouched, the
+guard stays pure (it still takes existence as an argument), and there is still
+exactly one order lookup per request.
+
+**Rationale:** the question the read model asks is "can a retry rebuild this
+message?", and the answer is whether the order row is still there — not whether
+its current status is one WooCommerce happens to know about. A status filter can
+only produce false "gone" answers here.
+
+**Alternatives:** (a) pass the legacy store an explicit status list built from
+`wc_get_order_statuses()` plus whatever the row's payload says — still blind to
+a status no longer named anywhere. (b) Ask `wc_get_order()` per row — correct,
+but one query per row on a page of 50, which is what PRO-1733 deliberately
+collapsed into one batched lookup.
+
+**Tests:** integration — `TransactionalEmailsPipelineTest::
+test_a_shipped_status_whose_plugin_is_gone_still_counts_as_an_existing_order`
+(two failed shipping confirmations on an unregistered `shipped` status, one
+order deleted: the surviving one keeps Retry, the deleted one is still refused
+`order_missing`). Demonstrated on legacy storage by switching the dev site off
+HPOS: red before the fix (`order_missing`), green after, and the restored HPOS
+env is green.
+
+**Relationships:** PRO-1733 (the rule this protects), PRO-1519 (the ceiling that
+produces these failed rows), the order backfill's `table_spec()` (the shape
+reused). The merchant-facing wording is unchanged, so the docs site is unchanged.
+
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
