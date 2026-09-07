@@ -82,6 +82,29 @@ final class CartAbandonmentSweeperTest extends TestCase {
 		self::assertSame( array( 7 ), $store->marked, 'The row is stamped so it never gets a second reminder (legacy mail_sent parity).' );
 	}
 
+	public function test_flush_is_left_to_the_next_scheduled_pass_when_one_is_already_queued(): void {
+		// PRO-2323: the sweeper never asks for a run-now flush. The CartFlusher's
+		// recurring action is always scheduled, so the dedup guard always wins and
+		// the reminder goes out on that next scheduled pass — this pins it.
+		Functions\when( 'as_next_scheduled_action' )->justReturn( 4242 );
+
+		$scheduled = false;
+		Functions\when( 'as_enqueue_async_action' )->alias(
+			static function () use ( &$scheduled ): int {
+				$scheduled = true;
+				return 1;
+			}
+		);
+
+		$store = $this->fake_store( array( $this->row( 8 ) ) );
+		$queue = $this->fake_queue();
+
+		$stats = ( new CartAbandonmentSweeper( $store, $this->builder_returning( $this->payload() ), $queue ) )->sweep();
+
+		self::assertSame( 1, $stats['enqueued'], 'The row is still enqueued — only the extra AS job is skipped.' );
+		self::assertFalse( $scheduled, 'A flush already on the schedule must not be duplicated.' );
+	}
+
 	public function test_cutoff_and_backlog_window_bound_the_due_query(): void {
 		// The delay semantics carry over from the legacy pass: due = older
 		// than the merchant's cutoff (minutes option), but newer than the

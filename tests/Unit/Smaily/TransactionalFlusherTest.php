@@ -411,6 +411,28 @@ final class TransactionalFlusherTest extends TestCase {
 	/**
 	 * @param array<int, array<string, mixed>> $events
 	 */
+	public function test_revive_leaves_the_send_to_the_next_scheduled_pass(): void {
+		// PRO-2323: revive() never asks for a run-now flush. This flusher's
+		// recurring action is always scheduled, so the dedup guard always wins
+		// and the revived row goes out on the next scheduled pass. The age
+		// restart (PRO-1519) still has to happen.
+		Functions\when( 'as_next_scheduled_action' )->justReturn( 4242 );
+
+		$scheduled = false;
+		Functions\when( 'as_enqueue_async_action' )->alias(
+			static function () use ( &$scheduled ): int {
+				$scheduled = true;
+				return 1;
+			}
+		);
+
+		$queue = $this->fake_queue( array() );
+		TransactionalFlusher::revive( $queue, array( 11, 12 ) );
+
+		self::assertSame( array( 11, 12 ), $queue->age_restarted );
+		self::assertFalse( $scheduled, 'A flush already on the schedule must not be duplicated.' );
+	}
+
 	private function fake_queue( array $events ): EventQueue {
 		return new class( $events ) extends EventQueue {
 			private array $events;
@@ -426,6 +448,9 @@ final class TransactionalFlusherTest extends TestCase {
 
 			/** @var array<int, array{sent: ?string, response: ?string}> */
 			public array $exchanges = array();
+
+			/** @var int[] */
+			public array $age_restarted = array();
 
 			public function __construct( array $events ) {
 				$this->events = $events;
@@ -456,6 +481,11 @@ final class TransactionalFlusherTest extends TestCase {
 
 			public function store_exchange( int $id, ?string $sent_payload, ?string $last_response ): void {
 				$this->exchanges[ $id ] = array( 'sent' => $sent_payload, 'response' => $last_response );
+			}
+
+			public function restart_age( array $ids ): int {
+				$this->age_restarted = $ids;
+				return count( $ids );
 			}
 		};
 	}

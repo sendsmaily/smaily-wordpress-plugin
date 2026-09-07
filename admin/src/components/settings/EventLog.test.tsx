@@ -203,6 +203,15 @@ describe('EventLog', () => {
     await waitFor(() => {
       expect(retrySpy).toHaveBeenCalledWith({ source: 'smaily', id: 9 });
     });
+
+    // PRO-2323: the retry only re-queues the row — the send happens on the
+    // flusher's next scheduled pass, and the notice must say so rather than
+    // imply the confirmation just went out.
+    expect(
+      await screen.findByText(
+        '1 record is back in the queue — it will be sent at the next scheduled pass, within about a minute.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('shows a reachable Retry all failed control for aged failures with no 24h banner (PRO-1539)', async () => {
