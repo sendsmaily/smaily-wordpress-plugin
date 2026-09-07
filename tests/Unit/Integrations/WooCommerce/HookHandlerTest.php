@@ -15,6 +15,8 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\AutomationMarker;
+use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\ContactReconciler;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\EventQueue;
@@ -23,6 +25,12 @@ final class HookHandlerTest extends TestCase {
 
 	/** @var array<int, array{type: string, entity_id: string, payload: array<string, mixed>}> */
 	private array $enqueued = array();
+
+	/** @var array<int, string> "{event_type}|{email}" pairs the fake queue reports as delivered. */
+	private array $delivered = array();
+
+	/** @var array<int, array{type: string, email: string, note: string}> cancel_pending_for() calls. */
+	private array $cancelled = array();
 
 	private EventQueue $queue;
 
@@ -35,16 +43,25 @@ final class HookHandlerTest extends TestCase {
 		// (a process-global static). Reset so each case resolves through the
 		// single-language SiteLocale fallback, independent of other tests.
 		DetectorFactory::reset();
-		$this->enqueued = array();
+		$this->enqueued  = array();
+		$this->delivered = array();
+		$this->cancelled = array();
 
 		// Fake EventQueue that records enqueue() calls in the local array
-		// instead of touching $wpdb / Action Scheduler.
+		// instead of touching $wpdb / Action Scheduler. The two PRO-1723
+		// lookups are recorded/answered the same way — they are SQL reads.
 		$enqueued    = &$this->enqueued;
-		$this->queue = new class( $enqueued ) extends EventQueue {
+		$delivered   = &$this->delivered;
+		$cancelled   = &$this->cancelled;
+		$this->queue = new class( $enqueued, $delivered, $cancelled ) extends EventQueue {
 			private array $sink;
+			private array $delivered;
+			private array $cancelled;
 
-			public function __construct( array &$sink ) {
-				$this->sink = &$sink;
+			public function __construct( array &$sink, array &$delivered, array &$cancelled ) {
+				$this->sink      = &$sink;
+				$this->delivered = &$delivered;
+				$this->cancelled = &$cancelled;
 			}
 
 			public function enqueue( string $event_type, string $entity_id, array $payload ): ?int {
@@ -54,6 +71,19 @@ final class HookHandlerTest extends TestCase {
 					'payload'   => $payload,
 				);
 				return count( $this->sink );
+			}
+
+			public function has_delivered_to( string $event_type, string $email ): bool {
+				return in_array( $event_type . '|' . $email, $this->delivered, true );
+			}
+
+			public function cancel_pending_for( string $event_type, string $email, string $note ): int {
+				$this->cancelled[] = array(
+					'type'  => $event_type,
+					'email' => $email,
+					'note'  => $note,
+				);
+				return 0;
 			}
 		};
 
@@ -70,6 +100,9 @@ final class HookHandlerTest extends TestCase {
 		);
 		Functions\when( 'sanitize_text_field' )->returnArg( 1 );
 		Functions\when( 'wp_unslash' )->returnArg( 1 );
+		// No account behind an order unless a case says so — the order paths
+		// look the buyer's account address up (PRO-1723).
+		Functions\when( 'get_userdata' )->justReturn( false );
 
 		// Default Settings: subscriber sync on, welcome / first_order off.
 		Functions\when( 'get_option' )->alias(
@@ -619,6 +652,99 @@ final class HookHandlerTest extends TestCase {
 
 		self::assertCount( 1, $this->enqueued );
 		self::assertSame( HookHandler::EVENT_AUTOMATION_FIRST_ORDER, $this->enqueued[0]['type'] );
+	}
+
+	public function test_purchase_marks_the_contact_when_the_plugin_reminded_this_shopper(): void {
+		// PRO-1723: the marker is what lets the merchant's Smaily workflow
+		// stop the follow-up letters once the shopper has bought.
+		$this->delivered[] = CartFlusher::EVENT_TYPE . '|guest@example.test';
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 100, 'guest@example.test', 0, 1 ) );
+
+		( new HookHandler( $this->queue ) )->on_checkout_order_processed( 100, array() );
+
+		$marker = $this->find_enqueued( 'order:100:cart-purchase' );
+		self::assertNotNull( $marker, 'A reminded shopper who buys must have the purchase written to their contact.' );
+		self::assertSame( HookHandler::EVENT_CONTACT_SYNC, $marker['type'], 'The marker is a contact update — it must not trigger an automation.' );
+		self::assertSame( 'guest@example.test', $marker['payload']['email'] );
+		self::assertMatchesRegularExpression(
+			'/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/',
+			$marker['payload']['fields'][ AutomationMarker::FIELD_ABANDONED_CART_PURCHASED ]
+		);
+		self::assertSame(
+			array( AutomationMarker::FIELD_ABANDONED_CART_PURCHASED ),
+			array_keys( $marker['payload']['fields'] ),
+			'Only the purchase marker rides — the reminder\'s product fields belong to the reminder send (PRO-1680).'
+		);
+	}
+
+	public function test_block_checkout_purchase_marks_the_contact_too(): void {
+		$this->delivered[] = CartFlusher::EVENT_TYPE . '|guest@example.test';
+
+		( new HookHandler( $this->queue ) )->on_block_checkout_order_processed(
+			$this->fake_order( 100, 'guest@example.test', 0, 1 )
+		);
+
+		$marker = $this->find_enqueued( 'order:100:cart-purchase' );
+		self::assertNotNull( $marker, 'Block checkout is the WooCommerce default — the marker must fire there too.' );
+		self::assertSame( 'guest@example.test', $marker['payload']['email'] );
+	}
+
+	public function test_purchase_without_a_reminder_writes_no_marker(): void {
+		// Nothing was ever sent to this shopper, so nothing may be written —
+		// the feature must never create a contact of its own.
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 100, 'guest@example.test', 0, 1 ) );
+
+		$handler = new HookHandler( $this->queue );
+		$handler->on_checkout_order_processed( 100, array() );
+		$handler->on_block_checkout_order_processed( $this->fake_order( 101, 'guest@example.test', 0, 1 ) );
+
+		self::assertNull( $this->find_enqueued( 'order:100:cart-purchase' ) );
+		self::assertNull( $this->find_enqueued( 'order:101:cart-purchase' ) );
+	}
+
+	public function test_purchase_cancels_a_reminder_still_queued_for_the_shopper(): void {
+		// The sweeper enqueues up to a minute before the CartFlusher drains,
+		// so a purchase inside that window must withdraw the queued reminder.
+		( new HookHandler( $this->queue ) )->on_block_checkout_order_processed(
+			$this->fake_order( 100, 'guest@example.test', 0, 1 )
+		);
+
+		self::assertSame(
+			array(
+				array(
+					'type'  => CartFlusher::EVENT_TYPE,
+					'email' => 'guest@example.test',
+				),
+			),
+			array_map(
+				static fn ( array $row ): array => array(
+					'type'  => $row['type'],
+					'email' => $row['email'],
+				),
+				$this->cancelled
+			)
+		);
+	}
+
+	public function test_purchase_marks_the_account_address_a_registered_shopper_was_reminded_at(): void {
+		// The cart tracker records a logged-in shopper's ACCOUNT address, which
+		// WooCommerce lets differ from the address they check out with — the
+		// marker has to reach the contact the reminder went to.
+		$this->delivered[] = CartFlusher::EVENT_TYPE . '|account@example.test';
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 9, 'account@example.test', 'A', 'B' ) );
+
+		( new HookHandler( $this->queue ) )->on_block_checkout_order_processed(
+			$this->fake_order( 100, 'billing@example.test', 9, 1 )
+		);
+
+		$marker = $this->find_enqueued( 'order:100:cart-purchase' );
+		self::assertNotNull( $marker );
+		self::assertSame( 'account@example.test', $marker['payload']['email'] );
+		self::assertSame(
+			array( 'billing@example.test', 'account@example.test' ),
+			array_column( $this->cancelled, 'email' ),
+			'Both addresses the buyer could have been reminded at are cleared of queued reminders.'
+		);
 	}
 
 	public function test_checkout_order_syncs_guest_email_in_legitimate_interest(): void {

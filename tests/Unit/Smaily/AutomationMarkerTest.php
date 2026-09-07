@@ -39,6 +39,24 @@ final class AutomationMarkerTest extends TestCase {
 		self::assertLessThanOrEqual( $after, $value );
 	}
 
+	/**
+	 * Same rule for the purchase marker (PRO-1723): the merchant's workflow
+	 * exits the reminder series on this exact name, compared against
+	 * `abandoned_cart_automation_at`, so both the name and the format are a
+	 * wire commitment.
+	 */
+	public function test_the_purchase_marker_keeps_its_name_and_the_marker_format(): void {
+		$before = gmdate( 'Y-m-d H:i:s' );
+		$stamp  = AutomationMarker::purchase_stamp();
+		$after  = gmdate( 'Y-m-d H:i:s' );
+
+		self::assertSame( array( 'abandoned_cart_purchased_at' ), array_keys( $stamp ) );
+		$value = $stamp['abandoned_cart_purchased_at'];
+		self::assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value );
+		self::assertGreaterThanOrEqual( $before, $value );
+		self::assertLessThanOrEqual( $after, $value );
+	}
+
 	public function test_a_trigger_with_no_marker_stamps_nothing(): void {
 		// Omit, never empty: an unmarked trigger sends no key at all, so
 		// Smaily leaves whatever it already holds intact (F3-47 rule 2).
