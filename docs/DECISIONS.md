@@ -5943,6 +5943,70 @@ produces these failed rows), the order backfill's `table_spec()` (the shape
 reused). The merchant-facing wording is unchanged, so the docs site is unchanged.
 
 
+### PRO-2324 — A second confirmation is an explicit Event Log action, never a status flip (2026-09-07)
+
+**Context:** transactional confirmations are once per order and type, enforced by
+an order-meta marker (PRO-1504 design point 1). A merchant who genuinely wants the
+customer to get another one — a corrected tracking number is the real case — had
+no way to ask: moving the order out of the shipped status and back into it is
+silently ignored by that marker, and PRO-1733's Retry covers only a FAILED send
+the shopper never received.
+
+**Decision (Erkki, 2026-09-07):** add an explicit **"Send again"** action on the
+Event Log row of a confirmation Smaily itself sent. It enqueues a NEW queue row
+for the same order and type — own row, own id, so the log shows both sends —
+bypassing the once-per-order marker for THAT enqueue only, and the row goes out
+on the transactional flusher's next scheduled pass (PRO-2323 wording). The
+status-transition guard is untouched. Eligibility is one server-owned rule
+(`TransactionalRetryGuard::resendable()`: a transactional event type, status
+`sent`, order still exists), read both by the list projection's
+`can_send_again` and by the `POST /events/resend` route, so the button and the
+route cannot drift apart.
+
+**Rationale:** the guard is doing its job — an accidental second confirmation
+from a status flip is exactly what it must keep preventing — so the answer is a
+deliberate action a human takes, recorded in the log, not a weaker guard. Status
+`sent` is the existing signal that Smaily (not WooCommerce's fallback email)
+delivered this one: `mark_sent` is written only after a `{code:101}` reply, so a
+fail-open row is `failed` and can never offer the action. The payload is rebuilt
+from the live order, which is what makes the corrected tracking number reach the
+customer.
+
+**Two things the re-send row deliberately does NOT do** (payload flag
+`TransactionalFlusher::PAYLOAD_KEY_RESEND`): it never writes the order-meta
+marker (the marker already records the first send; the bypass is scoped to the
+enqueue), and it never fails open. Fail-open exists so a shopper is never left
+without a confirmation; on a re-send they already have one, so a failure must
+not mail them WooCommerce's own copy on top — the `mark_failed` row is the
+record.
+
+**Alternatives:** (a) let a status flip out of and back into the shipped set send
+again — rejected: it re-opens the accidental-double-send hole the marker exists
+to close, with no way to tell intent from a routine status correction. (b) Extend
+Retry to sent rows — rejected: Retry means "this never reached the customer";
+overloading it would make the refusal rules unreadable. (c) A re-send button on
+the order edit screen — out of scope here (the Event Log is where the send is
+already visible); not ruled out later.
+
+**Tests:** unit — `TransactionalRetryGuardTest` (the eligibility rule: sent
+transactional rows yes; failed / pending / ingest / contact-sync / cart rows and
+a deleted order no) and `TransactionalFlusherTest` (the enqueue leaves the marker
+where it was; a failed re-send neither fails open nor moves the marker).
+vitest — `EventLog.test.tsx` (the button appears only on a `can_send_again` row,
+the confirm step gates the request, the success banner). Integration —
+`TransactionalEmailsPipelineTest::
+test_send_again_queues_a_second_confirmation_the_status_path_would_never_send`
+(a real WC order: first send, a status flip out and back that sends nothing, then
+the REST re-send → two log rows and two Smaily sends) and
+`…::test_send_again_is_refused_for_a_row_smaily_never_sent`.
+
+**Relationships:** PRO-1504 (the once-per-order marker this steps around by
+request), PRO-1733 (the sibling action for the opposite case — a failed send),
+PRO-2323 (the next-scheduled-pass wording reused verbatim). Merchant docs site:
+the Event Log section now states the once-per-order fact and the action, in both
+languages.
+
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

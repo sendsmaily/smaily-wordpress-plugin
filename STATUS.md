@@ -26,7 +26,33 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**3.11.3 is RELEASED and the merchant docs site is
+_Last updated: 2026-09-07 (**PRO-2324 — the Event Log can send a confirmation
+again, on purpose.** A merchant who wants the customer to get a second order or
+shipping confirmation (a corrected tracking number is the real case) had no way
+to ask: the once-per-order-per-type marker silently ignores a status flip out of
+and back into the shipped set, and PRO-1733's Retry covers only a FAILED send the
+shopper never received. Erkki's decision: an explicit **"Send again"** button on
+the Event Log row, never a weakened guard. The row it names is left alone and a
+NEW queue row is enqueued for the same order + type — own id, so the log shows
+both sends — rebuilt from the order as it is NOW, and sent on the transactional
+flusher's next scheduled pass (PRO-2323 wording, within about a minute).
+Eligibility is one server-owned rule, `TransactionalRetryGuard::resendable()` (a
+transactional event type, status `sent`, order still exists), read by both the
+list projection's new `can_send_again` field and the new `POST /events/resend`
+route, so the button and the route can't drift; a failed row keeps Retry, and an
+ingest / contact-sync / cart row offers neither. The re-send row carries
+`TransactionalFlusher::PAYLOAD_KEY_RESEND` and therefore does two things a first
+send does not: it never writes the order-meta marker (the bypass is scoped to
+that one enqueue — the status path is untouched) and it never fails open (the
+shopper already has a confirmation; a failure must not mail them WooCommerce's
+own copy on top). The UI asks first ("This sends the customer a second
+confirmation.") and reports success with the PRO-2323 banner wording. **Four new
+Estonian strings need Erkki's proofread** (quoted in the session report); the
+merchant docs site gained the once-per-order fact + the action in BOTH languages
+and is NOT yet published. Gates: `npm run ci:strict` exit 0, full
+`composer run test:integration` green. DECISIONS PRO-2324.)
+
+Prior: 2026-09-07 (**3.11.3 is RELEASED and the merchant docs site is
 published live — the release chain ran end to end.** The GitHub release
 [`3.11.3`](https://github.com/sendsmaily/smaily-wordpress-plugin/releases/tag/3.11.3)
 was created from official `main` at `82dc053`; `release.yml` run
@@ -826,14 +852,12 @@ Docs-only; no code, so no gates run.)_
 
 **Next session opens with:**
 
-- **Nothing is unshipped.** 3.11.3 is live on wordpress.org (version 3.11.3,
-  tested 7.1, 2026-09-07 12:36 GMT) and the merchant docs site at
-  `https://smaily.com/connect-woo/` matches `docs/site/index.html` at HEAD
-  byte-for-byte. Local `main` is official `main`, clean and pushed.
-- **First: PRO-2324 — an explicit "Send again" action in the Event Log.** NEW
-  functionality; Erkki has given the design nod, but the acceptance criteria
-  still have to be backfilled on the issue before code starts.
-- **Then: PRO-1723 — the plugin writes an `abandoned_cart_purchased_at`
+- **Unshipped on `main`:** PRO-2324 ("Send again") and the PRO-2323 Event Log
+  wording. 3.11.3 is live on wordpress.org (version 3.11.3, tested 7.1,
+  2026-09-07 12:36 GMT); the merchant docs site at
+  `https://smaily.com/connect-woo/` is now BEHIND `docs/site/index.html` by the
+  PRO-2324 Event Log paragraph, which publishes after the Estonian proofread.
+- **First: PRO-1723 — the plugin writes an `abandoned_cart_purchased_at`
   timestamp marker on purchase.** Agreed; the new field NAME is a wire
   commitment, so lock it deliberately (contract/Smaily-side) before building.
 - **Then the Low queue, in this order:** PRO-2321, PRO-2320, PRO-2317,
@@ -846,8 +870,11 @@ Docs-only; no code, so no gates run.)_
 - **Waiting on Erkki:** the Estonian proofread of the PRO-2323 Event Log string
   ("%d kirje on tagasi järjekorras — see saadetakse järgmisel plaanipärasel
   saatmisringil, umbes minuti jooksul." / plural "%d kirjet … need saadetakse
-  …"). It is in the admin catalog and ships with the NEXT release — it is NOT
-  in 3.11.3.
+  …") AND the four PRO-2324 strings ("Saada uuesti", "See saadab kliendile teise
+  kinnituse.", "Teine kinnitus on järjekorras — see saadetakse järgmisel
+  plaanipärasel saatmisringil, umbes minuti jooksul.", "Uuesti saatmine
+  ebaõnnestus.") plus the docs-site paragraph. All of it is on `main` and ships
+  with the NEXT release — none of it is in 3.11.3.
 - **Waiting on a real store:** after updating to 3.11.3, that the sign-up
   block's Autoresponder dropdown lists the account's real automations
   (PRO-2347).
