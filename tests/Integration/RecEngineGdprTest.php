@@ -15,6 +15,7 @@ use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Privacy\GdprHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
+use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
@@ -200,7 +201,8 @@ final class RecEngineGdprTest extends TestCase {
 			static function () use ( $settings ): Client {
 				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
 			},
-			new CartSessionStore()
+			new CartSessionStore(),
+			new EventQueue()
 		);
 	}
 

@@ -328,6 +328,70 @@ final class EventQueueTest extends TestCase {
 		self::assertStringContainsString( 'next_retry_at = NULL', $wpdb->prepare_calls[0]['sql'] );
 	}
 
+	public function test_redaction_keeps_the_shape_and_drops_every_personal_value(): void {
+		// PRO-2383: an erased contact's already-sent row stays in the Event Log,
+		// so the KEYS survive (the merchant can still see what shape went out)
+		// and the values do not — whatever the event type's payload carries.
+		$json = (string) EventQueue::redact_json(
+			(string) wp_json_encode(
+				array(
+					'email'  => 'erase-me@example.test',
+					'fields' => array(
+						'first_name'       => 'Given',
+						'last_name'        => 'Family',
+						'product_name_1'   => 'Mystery Box',
+						'is_abandoned_cart' => 'true',
+					),
+				)
+			)
+		);
+
+		self::assertStringNotContainsString( 'erase-me@example.test', $json );
+		self::assertStringNotContainsString( 'Given', $json );
+		self::assertStringNotContainsString( 'Mystery Box', $json );
+
+		$decoded = json_decode( $json, true );
+		self::assertSame( array( 'email', 'fields' ), array_keys( $decoded ) );
+		self::assertSame( EventQueue::ERASED_PLACEHOLDER, $decoded['email'] );
+		self::assertSame( EventQueue::ERASED_PLACEHOLDER, $decoded['fields']['first_name'] );
+		self::assertArrayHasKey( 'product_name_1', $decoded['fields'], 'The matrix keys stay so the row still reads as a reminder.' );
+	}
+
+	public function test_redaction_keeps_the_routing_and_outcome_scalars(): void {
+		// The Event Log labels a withdrawn reminder from `outcome` (PRO-2372)
+		// and the "Send again" guard reads `to_status` — neither says anything
+		// about the person, and losing them would break a row that must stay
+		// readable after the erasure.
+		$exchange = (string) EventQueue::redact_json( '{"http":200,"outcome":"cancelled","error":"no contact erase-me@example.test"}' );
+		self::assertSame(
+			array(
+				'http'    => 200,
+				'outcome' => 'cancelled',
+				'error'   => EventQueue::ERASED_PLACEHOLDER,
+			),
+			json_decode( $exchange, true )
+		);
+
+		$payload = (string) EventQueue::redact_json( '{"to":"erase-me@example.test","workflow_id":"wf-7","account_key":"main","to_status":"completed"}' );
+		self::assertSame(
+			array(
+				'to'          => EventQueue::ERASED_PLACEHOLDER,
+				'workflow_id' => 'wf-7',
+				'account_key' => 'main',
+				'to_status'   => 'completed',
+			),
+			json_decode( $payload, true )
+		);
+	}
+
+	public function test_redaction_replaces_an_undecodable_blob_wholesale_and_leaves_an_absent_one_alone(): void {
+		// Nothing can be assumed impersonal in a blob we cannot parse; a row
+		// that stored nothing (a terminal skip's null sent_payload) stays null.
+		self::assertSame( EventQueue::ERASED_PLACEHOLDER, EventQueue::redact_json( 'erase-me@example.test' ) );
+		self::assertNull( EventQueue::redact_json( null ) );
+		self::assertSame( '', EventQueue::redact_json( '' ) );
+	}
+
 	/**
 	 * Builds a fake $wpdb compatible enough with EventQueue's usage to record
 	 * insert() and update() calls without touching a real database.

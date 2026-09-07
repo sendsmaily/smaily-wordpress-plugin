@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Privacy\GdprHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
+use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Client;
 
 final class GdprHandlerTest extends TestCase {
@@ -29,6 +30,9 @@ final class GdprHandlerTest extends TestCase {
 		Monkey\setUp();
 		Functions\when( 'get_user_meta' )->justReturn( '' );
 		Functions\when( 'get_user_by' )->justReturn( false );
+		Functions\when( '_n' )->alias(
+			static fn ( string $single, string $plural, int $number ): string => 1 === $number ? $single : $plural
+		);
 	}
 
 	protected function tearDown(): void {
@@ -143,6 +147,46 @@ final class GdprHandlerTest extends TestCase {
 		);
 	}
 
+	public function test_export_lists_queued_smaily_messages_without_their_payload(): void {
+		$queue = $this->fake_queue(
+			array(
+				array(
+					'id'         => 12,
+					'event_type' => 'automation.abandoned_cart',
+					'status'     => 'sent',
+					'created_at' => '2026-09-01 08:00:00',
+				),
+			)
+		);
+
+		$export = $this->handler( $this->fake_store( array() ), $queue )->export( 'erase-me@example.test' );
+		$item   = $this->find_group_item( $export, 'Queued Smaily message' );
+
+		self::assertNotNull( $item );
+		self::assertSame( 'automation.abandoned_cart', $this->field( $item, 'event_type' ) );
+		self::assertSame( '2026-09-01 08:00:00', $this->field( $item, 'created_at' ) );
+		self::assertSame( array( 'event_type', 'created_at' ), array_column( $item['data'], 'name' ) );
+	}
+
+	public function test_erase_reports_the_deleted_and_the_anonymised_queue_rows_apart(): void {
+		// PRO-2383: two different outcomes — a queued message is gone, an
+		// already-sent record stays in the Event Log with nothing personal in it.
+		$queue = $this->fake_queue( array(), 2, 1 );
+
+		$result = $this->handler( $this->fake_store( array() ), $queue )->erase( 'erase-me@example.test' );
+
+		self::assertTrue( $result['items_removed'] );
+		self::assertFalse( $result['items_retained'], 'What stays is anonymised, so nothing personal is retained.' );
+		self::assertSame( array( 'erase-me@example.test' ), $queue->erase_calls );
+		self::assertSame(
+			array(
+				'Removed 2 Smaily messages that were still queued for this address.',
+				'Anonymised 1 already-sent Smaily record in the event log.',
+			),
+			$result['messages']
+		);
+	}
+
 	public function test_erase_reports_false_when_nothing_was_removed_anywhere(): void {
 		$store = $this->fake_store( array() );
 		// delete_return defaults to 0; engine disconnected + no order-meta/user-merge stubs.
@@ -154,7 +198,7 @@ final class GdprHandlerTest extends TestCase {
 
 	// --- helpers -------------------------------------------------------
 
-	private function handler( CartSessionStore $store ): GdprHandler {
+	private function handler( CartSessionStore $store, ?EventQueue $queue = null ): GdprHandler {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'is_connected' )->willReturn( false );
 		$settings->method( 'sending_allowed' )->willReturn( false );
@@ -164,8 +208,49 @@ final class GdprHandlerTest extends TestCase {
 			static function (): Client {
 				throw new \RuntimeException( 'engine must not be called while disconnected' );
 			},
-			$store
+			$store,
+			$queue ?? $this->fake_queue()
 		);
+	}
+
+	/**
+	 * @param array<int, array<string, mixed>> $rows
+	 */
+	private function fake_queue( array $rows = array(), int $removed = 0, int $redacted = 0 ): EventQueue {
+		return new class( $rows, $removed, $redacted ) extends EventQueue {
+			/** @var array<int, array<string, mixed>> */
+			private array $rows;
+			private int $removed;
+			private int $redacted;
+
+			/** @var array<int, string> */
+			public array $lookup_calls = array();
+
+			/** @var array<int, string> */
+			public array $erase_calls = array();
+
+			/**
+			 * @param array<int, array<string, mixed>> $rows
+			 */
+			public function __construct( array $rows, int $removed, int $redacted ) {
+				$this->rows     = $rows;
+				$this->removed  = $removed;
+				$this->redacted = $redacted;
+			}
+
+			public function rows_for_privacy_request( string $email ): array {
+				$this->lookup_calls[] = $email;
+				return $this->rows;
+			}
+
+			public function erase_for_privacy_request( string $email ): array {
+				$this->erase_calls[] = $email;
+				return array(
+					'removed'  => $this->removed,
+					'redacted' => $this->redacted,
+				);
+			}
+		};
 	}
 
 	/**
