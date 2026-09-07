@@ -26,7 +26,41 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**3.11.3 is bumped and gated locally, ready for the
+_Last updated: 2026-09-07 (**PRO-2363 — 3.11.3 is gated on WordPress 7.1 and
+the last Plugin Check ERROR is gone; it is ready for the orchestrator to
+publish.** The 3.11.3 gate had stopped on one PCP ERROR,
+`outdated_tested_upto_header` (`Tested up to: 7.0 < 7.1`), and Erkki chose
+decision A: run the suite against 7.1 and raise the declared version honestly,
+rather than edit the number. `.wp-env.json` now pins
+`https://wordpress.org/wordpress-7.1.zip` (`9be5611`) and both wp-env sites
+report **WP 7.1** (WooCommerce unchanged at **10.7.0**, PHP 8.3). On that
+env: `npm run ci:strict` **exit=0** (PHPCS 0 errors, PHPStan `[OK] No errors`,
+PHPUnit unit **770/770 · 2 162 assertions**, vitest **306/306 across 41
+files**) and `sg docker -c "composer run test:integration"` **OK 270 tests /
+1 574 assertions, 1 pre-existing skip** (`BackwardCompatTest`, unchanged) —
+**no 7.1 incompatibility surfaced**, and the sandbox tenant "Smaily Connect
+test" was restored by the wrapper. Both Gutenberg blocks were smoke-checked in
+the real WP 7.1 block editor as an Administrator: both registered at Block API
+v3, both editor scripts (`blocks/landingpage/build/index.js`,
+`blocks/newsletter-signup/build/index.js`) enqueued on the loaded editor page,
+both blocks render server-side (iframe + form) and survive a `parse_blocks`
+round trip, `/smaily/v1/configuration` and `/smaily/v1/autoresponders` both
+200 for the admin, and the editor page carries no PHP notice, warning or
+fatal; the drive post was deleted afterwards. `Tested up to: 7.1` is now
+declared in `readme.txt` (plus one merchant changelog bullet), the
+`docs/INSTALL.md` requirements table and the merchant docs site's requirements
+table in **both languages** (`dd48079`); the **`Requires at least: 6.6` floor is
+unchanged**, and CLAUDE.md's baseline note now says 7.1. Re-verified: the ZIP
+was rebuilt the way CI builds it and `bin/verify-release-zip.sh
+smaily-connect.zip 3.11.3` **exits 0** (894 913 B, clean non-dirty build-hash
+`dd48079`), and **PCP against the BUILT ZIP is 0 ERRORS, 5 WARNINGS** — the 3
+long-accepted ones plus the 2 of the same accepted class from PRO-2326
+(`EventsEndpoint.php:568` `DirectQuery` + `NoCaching`). The register row in
+`docs/audits/INDEX.md` is updated to the passing result (`de5bec1`). **Nothing
+was pushed, tagged or released — that is the orchestrator's step.**)
+(handoff refreshed 2026-09-07)_
+
+Prior: 2026-09-07 (**3.11.3 is bumped and gated locally, ready for the
 orchestrator to publish — with ONE finding that needs Erkki's call first.** The
 41-commit delta since the `3.11.2` tag is bumped in all eight places the runbook
 lists plus `package-lock.json` and the `docs/INSTALL.md` current-release line
@@ -740,20 +774,17 @@ Docs-only; no code, so no gates run.)_
   checkout <tag>`, so never run it in this working tree). The fork
   `erkkimarkus/smaily-wordpress-plugin` is archived read-only; local `main` IS
   official `main` and a direct push works.
-- **3.11.3 is BUMPED AND GATED LOCALLY, NOT PUBLISHED.** Commits `b608264`
-  (bump), `b1b727e` (i18n restamp) and `c55ddb8` (register row) are on local
-  `main` and **unpushed**. `ci:strict` exit=0; the ZIP reproduces and
-  `bin/verify-release-zip.sh smaily-connect.zip 3.11.3` exits 0. **One thing
-  needs Erkki before it goes out:** PCP against the built ZIP returns the ERROR
-  `outdated_tested_upto_header` (`Tested up to: 7.0 < 7.1`) — WordPress 7.1
-  shipped after the 3.11.1 gate and `readme.txt` + `.wp-env.json` still pin 7.0.
-  Either run a WP 7.1 integration pass and raise both pins (then re-verify and
-  re-run PCP), or accept the finding and publish on 7.0 knowing wordpress.org
-  will mark the plugin untested against 7.1. Once decided: push `main` → `gh
-  release create 3.11.3 --repo sendsmaily/smaily-wordpress-plugin --target main`
-  (**plain tag, no `v`, no local ZIP argument**) → wait for `release.yml` to
-  build and attach the ZIP → **Erkki** runs `./release.sh -u sendsmaily` →
-  publish the merchant docs site.
+- **3.11.3 is FULLY GATED ON WORDPRESS 7.1, NOT PUBLISHED — nothing blocks it
+  any more.** Commits `b608264` (bump), `b1b727e` (i18n restamp), `c55ddb8` +
+  `de5bec1` (register row), `9be5611` (wp-env → WP 7.1) and `dd48079` (`Tested
+  up to: 7.1` in readme/INSTALL/docs site) are on local `main` and **unpushed**.
+  On WP 7.1: `ci:strict` exit=0, integration **OK 270 / 1 574**, both blocks
+  smoke-checked in the 7.1 editor, `bin/verify-release-zip.sh
+  smaily-connect.zip 3.11.3` exit=0, **PCP on the built ZIP 0 ERRORS / 5
+  accepted WARNINGS**. Next: push `main` → `gh release create 3.11.3 --repo
+  sendsmaily/smaily-wordpress-plugin --target main` (**plain tag, no `v`, no
+  local ZIP argument**) → wait for `release.yml` to build and attach the ZIP →
+  **Erkki** runs `./release.sh -u sendsmaily` → publish the merchant docs site.
 - **Done 2026-09-07, all pushed to official `main`:** PRO-2346 (landing-page
   block usable by Editors **and**, reopened, rendered on the server so its embed
   survives saving), PRO-2349 + PRO-2318 merchant-docs drift (published
