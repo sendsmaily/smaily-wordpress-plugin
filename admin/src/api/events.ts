@@ -27,6 +27,14 @@ export interface EventRow {
    * and the Event Log can't drift apart.
    */
   retry_refusal_message: string;
+  /**
+   * Whether this row may be sent to the customer a SECOND time on purpose
+   * (PRO-2324) — true only for an order/shipping confirmation Smaily itself
+   * sent, on an order that still exists. The server owns the rule
+   * (TransactionalRetryGuard::resendable), so the button and the route can't
+   * drift apart.
+   */
+  can_send_again: boolean;
 }
 
 export interface EventsListResponse {
@@ -110,6 +118,31 @@ export function retryEvents(
   return apiRequest<RetryResponse>('/events/retry', {
     method: 'POST',
     body: args,
+    signal,
+  });
+}
+
+export interface ResendResponse {
+  /** Always 1 — the new queue row this action created. */
+  queued: number;
+  /** That row's id in the Smaily queue. */
+  id: number | null;
+}
+
+/**
+ * Send an already-sent confirmation to the customer a second time, on explicit
+ * merchant request (PRO-2324). It does not touch the row named here: a NEW row
+ * is queued for the same order, rebuilt from the order as it is now, and goes
+ * out at the next scheduled pass — within about a minute.
+ */
+export function resendEvent(
+  source: EventSource,
+  id: number,
+  signal?: AbortSignal,
+): Promise<ResendResponse> {
+  return apiRequest<ResendResponse>('/events/resend', {
+    method: 'POST',
+    body: { source, id },
     signal,
   });
 }

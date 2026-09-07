@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   getEventDetail,
   listEvents,
+  resendEvent,
   retryEvents,
   type EventDetailResponse,
   type EventRow,
@@ -44,6 +45,7 @@ export function EventLog(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<EventDetailResponse | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [resending, setResending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(
@@ -113,6 +115,37 @@ export function EventLog(): React.JSX.Element {
         setError(e instanceof Error ? e.message : __('Retry failed.', 'smaily-connect'));
       } finally {
         setRetrying(false);
+      }
+    },
+    [load],
+  );
+
+  /**
+   * A deliberate second confirmation for one order (PRO-2324) — not a retry:
+   * the row stays as it is and a new one is queued. The customer receives
+   * another email, so it asks first.
+   */
+  const handleSendAgain = useCallback(
+    async (row: EventRow): Promise<void> => {
+      if (!window.confirm(__('This sends the customer a second confirmation.', 'smaily-connect'))) {
+        return;
+      }
+      setResending(true);
+      setError(null);
+      setNotice(null);
+      try {
+        await resendEvent(row.source, row.id);
+        setNotice(
+          __(
+            'A second confirmation is queued — it will be sent at the next scheduled pass, within about a minute.',
+            'smaily-connect',
+          ),
+        );
+        await load();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : __('Sending again failed.', 'smaily-connect'));
+      } finally {
+        setResending(false);
       }
     },
     [load],
@@ -298,6 +331,20 @@ export function EventLog(): React.JSX.Element {
                           onClick={() => void handleRetry({ source: row.source, id: row.id })}
                         >
                           {__('Retry', 'smaily-connect')}
+                        </Button>
+                      )}
+                      {/* A confirmation Smaily itself sent can be sent a
+                          second time on purpose — a corrected tracking
+                          number, say (PRO-2324). The status path stays
+                          once-per-order. */}
+                      {row.can_send_again && (
+                        <Button
+                          variant="secondary"
+                          type="button"
+                          disabled={resending}
+                          onClick={() => void handleSendAgain(row)}
+                        >
+                          {__('Send again', 'smaily-connect')}
                         </Button>
                       )}
                       <Button variant="ghost" type="button" onClick={() => void openDetail(row)}>
