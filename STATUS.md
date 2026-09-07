@@ -26,7 +26,32 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2383 — the WordPress personal-data eraser
+_Last updated: 2026-09-07 (**PRO-2379 + PRO-2364 — two doc corrections, no
+code.** PRO-2379: the merchant docs site's Event Log section promised that a
+failed order or shipping confirmation "keeps Retry". Most do not —
+`TransactionalRetryGuard` refuses a retry whenever the shopper already has a
+confirmation, which is a failed ORDER confirmation (WooCommerce's own email went
+out in its place, PRO-1733) and, since PRO-2368, a failed RE-SEND (the first
+confirmation stands); only a shipping confirmation on a merchant-defined shipped
+status stays retryable, which the paragraph above already stated correctly. The
+false parenthetical is gone and the failed re-send is named in the "Send again"
+paragraph, in BOTH languages. PRO-2364: `docs/MIGRATION.md` named 3.11.2 as the
+upgrade target in fourteen places, so every release left it stale — it is now
+written as `2.0.0 → the current 3.x release`, pointing at the directory page /
+`INSTALL.md` for the number, with historical version facts (2.0.0, the
+2.1.0-beta.1 credential format) untouched and the upgrade steps unchanged;
+`docs/INDEX.md`'s scope sentence follows. `grep '3\.11' docs/MIGRATION.md` is
+empty. The rollback section also gained one sentence from the PRO-2295
+rehearsal: restoring the plugin files from a pre-upgrade backup cannot undo the
+re-encrypted password in the database, so it lands in the same silent
+half-connected 2.0.0 and takes the same fix. Docs-only, no gates run.
+**Unreleased on main** (docs, no readme changelog line). **Release state
+unchanged: 3.12.0 is LIVE on wordpress.org**; the docs site now carries TWO
+proofread-pending Estonian changes — the PRO-2383 privacy paragraph (already
+approved by Erkki) and this PRO-2379 sentence — to publish over FTPS with the
+next release.)_
+
+Prior: 2026-09-07 (**PRO-2383 — the WordPress personal-data eraser
 now covers the Smaily event queue.** It covered the rec-engine, the plugin's
 `_smaily_*` markers and the abandoned-cart tracker, but not the queue — the
 third local store holding a contact's address, and the only one holding a copy

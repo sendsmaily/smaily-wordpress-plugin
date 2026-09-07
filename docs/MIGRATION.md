@@ -1,27 +1,29 @@
-# MIGRATION.md — Upgrading Smaily Connect from 2.0.0 to 3.11.2
+# MIGRATION.md — Upgrading Smaily Connect from 2.0.0 to the current 3.x release
 
 This guide is for sites currently running **Smaily Connect 2.0.0** from
 wordpress.org — the last release of the plugin's 1.x line. It describes the
-upgrade to **Smaily Connect 3.11.2**, the first wordpress.org release of the
-new (3.x) version. If you're installing the plugin fresh on a clean WordPress
-site, see `INSTALL.md` instead.
+upgrade to **the current 3.x release** — whichever version wordpress.org
+offers you today; the exact number is on the plugin's directory page and in
+`INSTALL.md`. If you're installing the plugin fresh on a clean WordPress site,
+see `INSTALL.md` instead.
 
-**Which versions this covers.** `2.0.0 → 3.11.2`, delivered by WordPress's own
-plugin updater on the same `smaily-connect` slug. It is the same plugin, in the
-same folder, updated in place. (The new version line was numbered "2.0" while it
-was in development; it is released as 3.x because the 1.x line already occupies
-`2.0.0` on wordpress.org.)
+**Which versions this covers.** `2.0.0 → the current 3.x release`, delivered by
+WordPress's own plugin updater on the same `smaily-connect` slug. It is the same
+plugin, in the same folder, updated in place. Every 3.x release upgrades from
+2.0.0 the same way, so nothing below depends on which one you land on. (The new
+version line was numbered "2.0" while it was in development; it is released as
+3.x because the 1.x line already occupies `2.0.0` on wordpress.org.)
 
 **Read this document fully before starting the upgrade.** The upgrade is designed
-to be safe and reversible, but a few specifics about how 3.11.2 coexists with
-your existing 2.0.0 settings are important to understand in advance.
+to be safe and reversible, but a few specifics about how the 3.x code coexists
+with your existing 2.0.0 settings are important to understand in advance.
 
 ---
 
 ## TL;DR — what to expect
 
 - **It's an in-place update.** Same plugin slug, same folder, same file. WordPress
-  replaces 2.0.0 with 3.11.2 like any other plugin update.
+  replaces 2.0.0 with the 3.x release like any other plugin update.
 - **Your existing data and credentials persist.** Smaily account, subscriber
   sync settings, WooCommerce integration — all continue working.
 - **Live contact sync continues uninterrupted** during the upgrade: a customer
@@ -83,7 +85,7 @@ This document, in full. Take 10 minutes.
 
 ### Recommended: the WordPress plugin updater
 
-Once 3.11.2 is published, WordPress offers it like any other plugin update:
+WordPress offers the 3.x release like any other plugin update:
 
 1. Go to `Dashboard → Updates`, or `Plugins → Installed Plugins`
 2. Find **Smaily Connect** and click `Update now`
@@ -91,7 +93,7 @@ Once 3.11.2 is published, WordPress offers it like any other plugin update:
 4. The plugin remains active. You should see the standard "Plugin updated
    successfully" message.
 
-If you have auto-updates enabled for this plugin, WordPress installs 3.11.2 on
+If you have auto-updates enabled for this plugin, WordPress installs it on
 its own — nothing to do, but still walk through the first-hour checks below when
 you next open WP-admin.
 
@@ -108,7 +110,7 @@ wp plugin update smaily-connect
 If you're testing on a staging copy before the directory update reaches
 production, or your environment installs plugins from a ZIP:
 
-1. `Plugins → Add New Plugin → Upload Plugin` → choose the 3.11.2 ZIP
+1. `Plugins → Add New Plugin → Upload Plugin` → choose the 3.x ZIP
 2. When asked "Replace current with uploaded?", click **Replace**
 3. The plugin stays active
 
@@ -130,7 +132,7 @@ deactivate-activate runs it immediately and is cleaner.
 
 ## What happens during the upgrade
 
-3.11.2 contains both the 2.0.0 code (`Smaily_Connect\*` namespace) and the new
+The 3.x plugin contains both the 2.0.0 code (`Smaily_Connect\*` namespace) and the new
 code (`Smaily\Connect\*` namespace) in the same plugin. They run side by side
 until you finish the new setup wizard. Here's what changes immediately:
 
@@ -296,9 +298,9 @@ old sync path for a few days while you familiarize yourself with the new UI cost
 you little — but plan to complete the wizard within a week or two so the daily
 catch-up resumes and you can take advantage of the new features.
 
-### Don't reinstall 2.0.0 on top of 3.11.2
+### Don't reinstall 2.0.0 on top of a 3.x install
 
-If for any reason you upload the 2.0.0 ZIP **on top of** an installed 3.11.2,
+If for any reason you upload the 2.0.0 ZIP **on top of** an installed 3.x,
 the resulting state is undefined — the new plugin is overwritten by the old one
 while the new database tables and settings remain. If you need to go back, use
 the rollback procedure below instead.
@@ -378,6 +380,11 @@ reconnect. Nothing is deleted while that is the case.
 
 Everything else resumes at that point; no other setting has to be entered again.
 
+**Restoring the plugin files from a pre-upgrade backup lands you in the same
+place:** the password was re-encrypted in the database, which no file restore
+undoes, so 2.0.0 comes back in exactly the silent half-connected state above and
+needs the same three steps.
+
 ### What stays behind after rollback
 
 The new database tables (`smly_plus_*`, `smly_rec_*`) remain. They don't
@@ -406,7 +413,7 @@ complete and verified.
   while we investigate
 - You need to revert to a known-good state before a high-traffic event
 
-Rollback is **not** a permanent solution. If you hit an issue with 3.11.2,
+Rollback is **not** a permanent solution. If you hit an issue with the 3.x release,
 please report it (see Support below) so it can be fixed; rollback is a temporary
 safety net, not the recommended end state.
 
@@ -427,7 +434,7 @@ window.
 
 If it persists across hard reloads and private windows, the plugin's admin-menu
 hook may have failed to register. Check `Plugins → Installed Plugins` to confirm
-Smaily Connect is active and shows version 3.11.2, and look at the debug log
+Smaily Connect is active and shows a 3.x version, and look at the debug log
 (`wp-content/debug.log` if enabled) for PHP errors.
 
 ### Activation hook didn't fire (new tables missing)
@@ -449,7 +456,7 @@ wp plugin activate smaily-connect
 Within the first hour, before completing the wizard:
 
 1. Check that the plugin is running. Open the WP-admin Plugins page and verify
-   `Smaily Connect` shows version **3.11.2** and is **Active**.
+   `Smaily Connect` shows a **3.x** version and is **Active**.
 2. Look at `Tools → Scheduled Actions` for any failed actions related to
    `smaily_connect_*` or `smly_plus_contact_sync`.
 3. Check `wp-content/debug.log` (if `WP_DEBUG_LOG` is enabled) for PHP errors.
@@ -483,7 +490,7 @@ This usually indicates leftover files from a previous plugin version. The fix:
 2. SSH or FTP into the site
 3. Navigate to `wp-content/plugins/smaily-connect/`
 4. Confirm only the new version's files are present (the `Version:` header
-   in `smaily-connect.php` should show `3.11.2` or later)
+   in `smaily-connect.php` should show a 3.x version)
 5. If there are unexpected `.php` files from older versions, delete the entire
    `smaily-connect` directory and reinstall the plugin cleanly
 
