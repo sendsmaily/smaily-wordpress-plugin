@@ -1101,44 +1101,44 @@ Docs-only; no code, so no gates run.)_
 
 **Next session opens with:**
 
-- **3.11.3 is live on wordpress.org** (version 3.11.3, tested up to WordPress
-  7.1) and the merchant docs site was published to
-  `https://smaily.com/connect-woo/` at 12:37 UTC. Since that publish
-  `docs/site/index.html` has gained TWO proofread-and-approved paragraphs — the
-  PRO-2324 "Send again" paragraph and the PRO-1723 abandoned-cart purchase
-  marker — so the live site is again behind the file. Publish it over FTPS with
-  the next release (recipe in CLAUDE.md; credentials live in
-  `~/.local/state/smaily-connect/`).
-- **Unreleased on `main` since 3.11.3** — the candidates for **3.12.0**, a MINOR
-  bump rather than a patch (new merchant-visible behaviour plus a schema
-  migration 011): PRO-2323 (honest next-pass wording + the Event Log retry
-  banner), PRO-2324 (the "Send again" action), PRO-1723 (the
-  `abandoned_cart_purchased_at` marker plus the queue's `contact_key` column and
-  index, migration 011), PRO-2318 (the wordpress.org listing copy and six
-  screenshots), and the Event Log polish set PRO-2372 (the cancelled label),
-  PRO-2368 (the failed re-send's own sentence), PRO-2369 (refusals reach the
-  banner as words) and PRO-2367 (comment-only next-scheduled-pass wording). The
-  **3.12.0 pre-release re-audit is DONE** (2026-09-07): 1 Low + 5 Info, no
-  Blocking/Critical/High/Medium, PCP 0 ERRORS / 7 warnings against the 3.11.3
-  baseline's 0/5 (no new class) — see the register row and
-  `docs/audits/SECURITY_DELTA_AUDIT_2026-09-07_3.12.0.md`.
-- **PRO-2318 can also go live ahead of 3.12.0** by Erkki's manual SVN commit of
-  `readme.txt` + `assets/` — that commit must `svn rm screenshot-7.png` and
-  `screenshot-8.png`.
+- **3.12.0 is LIVE on wordpress.org.** `release.sh` ran ~17:00 UTC 2026-09-07:
+  SVN `tags/3.12.0` present, trunk Stable tag 3.12.0, six screenshots in
+  `assets/`. The tag `3.12.0` sits on the bump commit `a348b10`, CI release run
+  `34144379264` built the asset, and the downloaded asset passed
+  `bin/verify-release-zip.sh` (build-hash `a348b10`). The public
+  `api.wordpress.org` payload can lag a few minutes behind the SVN commit — the
+  remaining human check is a 3.11.3 store actually being offered the update.
+- **The listing banner was replaced too** — marketing's 2026 banner, a PNG pair
+  replacing the JPG pair (repo `c0ad316`, SVN `assets/` r3685306).
+- **The merchant docs site was published twice today after the release**, last
+  ~16:47 UTC, byte-identical to `docs/site/index.html` at `6a5d247`. Since that
+  publish the file has gained TWO proofread-and-APPROVED changes — the PRO-2383
+  privacy paragraph and the PRO-2379 Event Log sentence — so the live site is
+  again behind the file. Publish it over FTPS with the next release (recipe in
+  CLAUDE.md; credentials live in `~/.local/state/smaily-connect/`).
+- **Unreleased on `main` since 3.12.0** — the candidates for **3.12.1**:
+  PRO-2383 (the WP personal-data eraser now deletes pending / redacts sent
+  Smaily queue rows and the exporter lists them, including the simplification
+  pass `e536124`), PRO-2295 (the rollback rehearsal — `docs/MIGRATION.md` now
+  states that the API password is lost), PRO-2379 + PRO-2364 (docs) and the
+  banner.
+- **Before the next bump:** run `bash bin/build-i18n.sh` — PRO-2383 added two
+  `_n()` strings whose Estonian is still unwritten in the `.po` — and expect the
+  delta audit to fire again, since PRO-2383 touches the GDPR surface (repo
+  re-audit policy).
+- **Decisions waiting on Erkki:** PRO-2384 (Medium — the rec-engine ingest
+  queue's stored sent objects hold email addresses; how should rows be matched
+  for erasure), PRO-2381 (Low — the purchase marker is keyed on the checkout
+  billing email), and the design proposals PRO-1721 and PRO-1722.
 - **Human checks outstanding:** Jane's answer on PRO-2346 (is her test store a
-  multisite, does it run a security plugin — she has already confirmed the
-  canonical landing-page URL and version 3.11.2); confirmation from a store that
-  has updated that the sign-up block's Autoresponder dropdown lists real
-  automations (PRO-2347); and Erkki's manual SVN readme/assets commit if the
-  listing should go live before 3.12.0.
-- **Queue, in order:** PRO-2361 is DONE (the 3.11.2 gate now has its register
-  row); next PRO-2358 (subdomain case-sensitivity in the landing-page block — cheap),
-  then the Low tail: PRO-2321, PRO-2320, PRO-2317, PRO-2348, PRO-2356, PRO-2351,
-  PRO-2352, PRO-2355, PRO-2359, PRO-2360, PRO-2362, PRO-2364 and PRO-2370
-  (PRO-2367, PRO-2368, PRO-2369 and PRO-2372 are done — see the entry at the
-  top). The remaining design proposals
-  PRO-1721 and PRO-1722 await Erkki's direction.
-- **Engine team:** PRO-1878 and PRO-2319 are still open on their side.
+  multisite, does it run a security plugin); confirmation from a store that has
+  updated that the sign-up block's Autoresponder dropdown lists real automations
+  (PRO-2347); and the engine team's answer on PRO-1878, open since 2026-08-10.
+- **Queue, in order:** PRO-2358 (subdomain case-sensitivity in the landing-page
+  block — cheap), then PRO-2385 ("Send again" on an erased row), PRO-2377,
+  PRO-2378, PRO-2382, then the Low tail: PRO-2321, PRO-2320, PRO-2317, PRO-2348,
+  PRO-2356, PRO-2351, PRO-2352, PRO-2355, PRO-2359, PRO-2360, PRO-2362 and
+  PRO-2370.
 - **For the next orchestrator:** worker commits may arrive carrying
   `Co-Authored-By: Claude …` / `Claude-Session:` trailers injected by the
   harness. Strip them from the unpushed range before every push (Erkki's
