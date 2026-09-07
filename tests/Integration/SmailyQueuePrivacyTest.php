@@ -12,15 +12,14 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Activation;
-use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Privacy\GdprHandler;
-use Smaily\Connect\REST\EventsEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Client;
-use Smaily\Connect\Smaily\TransactionalResend;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\EventsEndpointFactory;
+use Smaily\Connect\Tests\Integration\Support\QueueRowFixture;
 use WP_REST_Request;
 
 /**
@@ -63,10 +62,9 @@ final class SmailyQueuePrivacyTest extends TestCase {
 		self::assertTrue( $result['items_removed'] );
 		self::assertNull( $this->row( $pending ), 'A message still queued for the subject is gone.' );
 		self::assertNull( $this->row( $failed ), 'So is a failed one — the Event Log Retry could still send it.' );
-		self::assertContains(
-			'Removed 2 Smaily messages that were still queued for this address.',
-			$result['messages']
-		);
+		// The wording is pinned in GdprHandlerTest; here only that the requester
+		// is told about the deletion at all.
+		self::assertCount( 1, $result['messages'] );
 	}
 
 	public function test_a_sent_row_survives_the_erasure_carrying_nothing_personal(): void {
@@ -117,10 +115,9 @@ final class SmailyQueuePrivacyTest extends TestCase {
 		// The exchange's own routing scalars stay, so the row still renders as
 		// the delivered reminder it was.
 		self::assertStringContainsString( '"outcome":"sent"', (string) $row['last_response'] );
-		self::assertContains(
-			'Anonymised 1 already-sent Smaily record in the event log.',
-			$result['messages']
-		);
+		// The wording is pinned in GdprHandlerTest; here only that the
+		// anonymisation is reported back as its own outcome.
+		self::assertCount( 1, $result['messages'] );
 	}
 
 	public function test_a_redacted_row_still_lists_in_the_event_log(): void {
@@ -131,7 +128,7 @@ final class SmailyQueuePrivacyTest extends TestCase {
 
 		$req = new WP_REST_Request( 'GET', '/smaily-connect/v1/events' );
 		$req->set_param( 'source', 'smaily' );
-		$data = $this->events_endpoint()->list_events( $req )->get_data();
+		$data = EventsEndpointFactory::create()->list_events( $req )->get_data();
 
 		$ids = array_column( $data['events'], 'id' );
 		self::assertContains( $id, $ids, 'The Event Log still shows the anonymised row.' );
@@ -139,7 +136,7 @@ final class SmailyQueuePrivacyTest extends TestCase {
 		$detail = new WP_REST_Request( 'GET', '/smaily-connect/v1/events/detail' );
 		$detail->set_param( 'source', 'smaily' );
 		$detail->set_param( 'id', $id );
-		$body = $this->events_endpoint()->detail( $detail )->get_data();
+		$body = EventsEndpointFactory::create()->detail( $detail )->get_data();
 
 		self::assertSame( 'contact.sync', $body['event']['event_type'] );
 		self::assertStringNotContainsString( self::SUBJECT, (string) $body['payload'] );
@@ -271,14 +268,6 @@ final class SmailyQueuePrivacyTest extends TestCase {
 		);
 	}
 
-	private function events_endpoint(): EventsEndpoint {
-		return new EventsEndpoint(
-			static function (): TransactionalResend {
-				return Bootstrap::instance()->transactional_resend();
-			}
-		);
-	}
-
 	/**
 	 * @param array<string, mixed> $extra Merged into the enqueued payload.
 	 */
@@ -298,10 +287,8 @@ final class SmailyQueuePrivacyTest extends TestCase {
 	 * what a pre-migration-011 row and every transactional row look like.
 	 */
 	private function insert_raw( string $event_type, string $payload, string $status ): int {
-		global $wpdb;
-
-		$wpdb->insert(
-			$this->table(),
+		return QueueRowFixture::insert(
+			EventQueue::TABLE_SUFFIX,
 			array(
 				'event_type' => $event_type,
 				'entity_id'  => 'privacy-test',
@@ -310,8 +297,6 @@ final class SmailyQueuePrivacyTest extends TestCase {
 				'status'     => $status,
 			)
 		);
-
-		return (int) $wpdb->insert_id;
 	}
 
 	private function set_status( int $id, string $status ): void {
@@ -327,17 +312,10 @@ final class SmailyQueuePrivacyTest extends TestCase {
 	 * @return array<string, mixed>|null
 	 */
 	private function row( int $id ): ?array {
-		global $wpdb;
-		$table = $this->table();
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ), ARRAY_A );
-
-		return is_array( $row ) ? $row : null;
+		return QueueRowFixture::row( EventQueue::TABLE_SUFFIX, $id );
 	}
 
 	private function table(): string {
-		global $wpdb;
-		return $wpdb->prefix . EventQueue::TABLE_SUFFIX;
+		return QueueRowFixture::table( EventQueue::TABLE_SUFFIX );
 	}
 }

@@ -6268,10 +6268,13 @@ Smaily. Both only cleared when the QueueJanitor's retention window came round
 - **A row that could still send is DELETED.** Not sending is the point of the
   erasure, so nothing survives that a flusher — or a merchant's Event Log
   Retry — could still put on the wire. The split is stated in the queue's own
-  vocabulary as "not `STATUS_SENT`", which puts `failed` on the delete side
-  deliberately: `reset_failed()` revives a failed row to `pending`, so it is
-  sendable, not history. A future status lands there too, which is the safe
-  default.
+  vocabulary as `EventQueue::STATUSES_SENDABLE` — the statuses a row can still
+  send from — which puts `failed` on the delete side deliberately:
+  `reset_failed()` revives a failed row to `pending`, so it is sendable, not
+  history. Naming the set beats negating `sent` (the shape this shipped as, and
+  the same rows today, the queue having exactly those three statuses): a status
+  added later has to be placed on one side or the other on purpose, rather than
+  silently inheriting the delete side.
 - **A row that already sent is REDACTED in place.** Deleting it would erase the
   merchant's own record that they emailed this person — the Event Log's
   history, and (PRO-1723) the evidence a reminder was delivered. So the row

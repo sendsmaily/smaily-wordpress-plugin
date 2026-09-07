@@ -16,6 +16,7 @@ use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\QueueRowFixture;
 
 /**
  * What FABLE_AUDIT §5/§7#9 risk this guards against:
@@ -43,7 +44,6 @@ final class QueueJanitorTest extends TestCase {
 	 * Insert a row with a controlled age into one of the two queue tables.
 	 */
 	private function seed_row( string $table_suffix, string $status, int $age_days ): int {
-		global $wpdb;
 		$row = array(
 			'event_type' => 'janitor.test',
 			'entity_id'  => 'e-' . $status . '-' . $age_days,
@@ -54,17 +54,11 @@ final class QueueJanitorTest extends TestCase {
 		if ( IngestQueue::TABLE_SUFFIX === $table_suffix ) {
 			$row['event_uuid'] = wp_generate_uuid4();
 		}
-		$wpdb->insert( $wpdb->prefix . $table_suffix, $row );
-
-		return (int) $wpdb->insert_id;
+		return QueueRowFixture::insert( $table_suffix, $row );
 	}
 
 	private function row_exists( string $table_suffix, int $id ): bool {
-		global $wpdb;
-		$table = $wpdb->prefix . $table_suffix;
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE id = %d", $id ) );
+		return QueueRowFixture::exists( $table_suffix, $id );
 	}
 
 	public function test_prunes_expired_terminal_rows_and_keeps_everything_else(): void {

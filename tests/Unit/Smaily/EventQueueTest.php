@@ -328,6 +328,54 @@ final class EventQueueTest extends TestCase {
 		self::assertStringContainsString( 'next_retry_at = NULL', $wpdb->prepare_calls[0]['sql'] );
 	}
 
+	public function test_erasure_deletes_the_sendable_rows_and_redacts_only_the_sent_one(): void {
+		// PRO-2383: the asymmetric pair, pinned where it lives. A row that can
+		// still SEND is deleted — `sent` is the only status the delete must
+		// never reach, because those rows are the Event Log's history and are
+		// redacted in place instead.
+		$wpdb            = $this->fake_wpdb_full();
+		$GLOBALS['wpdb'] = $wpdb;
+
+		$wpdb->next_results = array(
+			array(
+				'id'            => 9,
+				'payload'       => '{"email":"erase-me@example.test"}',
+				'sent_payload'  => '{"addresses":[{"email":"erase-me@example.test"}]}',
+				'last_response' => '{"http":200,"outcome":"sent"}',
+			),
+		);
+
+		$result = ( new EventQueue() )->erase_for_privacy_request( 'erase-me@example.test' );
+
+		$delete = $wpdb->prepare_calls[0];
+		self::assertStringContainsString( 'DELETE FROM wp_smly_plus_event_queue', $delete['sql'] );
+		self::assertStringContainsString( 'status IN ( %s, %s )', $delete['sql'] );
+		self::assertSame( EventQueue::STATUSES_SENDABLE, array_slice( $delete['args'][0], 0, 2 ) );
+		self::assertNotContains( EventQueue::STATUS_SENT, $delete['args'][0], 'A delivered row is never deleted.' );
+
+		$select = $wpdb->prepare_calls[1];
+		self::assertStringContainsString( 'WHERE status = %s', $select['sql'] );
+		self::assertSame( EventQueue::STATUS_SENT, $select['args'][0][0], 'Redaction is for the sent rows only.' );
+
+		self::assertSame(
+			array(
+				'removed'  => 1,
+				'redacted' => 1,
+			),
+			$result
+		);
+		self::assertCount( 1, $wpdb->updates );
+		self::assertSame( array( 'id' => 9 ), $wpdb->updates[0]['where'] );
+		self::assertNull( $wpdb->updates[0]['data']['contact_key'], 'The row can no longer be found by this contact.' );
+		foreach ( array( 'payload', 'sent_payload', 'last_response' ) as $column ) {
+			self::assertStringNotContainsString(
+				'erase-me@example.test',
+				(string) $wpdb->updates[0]['data'][ $column ],
+				$column . ' carries no address.'
+			);
+		}
+	}
+
 	public function test_redaction_keeps_the_shape_and_drops_every_personal_value(): void {
 		// PRO-2383: an erased contact's already-sent row stays in the Event Log,
 		// so the KEYS survive (the merchant can still see what shape went out)
@@ -448,6 +496,10 @@ final class EventQueueTest extends TestCase {
 			public function prepare( string $sql, ...$args ): string {
 				$this->prepare_calls[] = compact( 'sql', 'args' );
 				return $sql;
+			}
+
+			public function esc_like( string $text ): string {
+				return addcslashes( $text, '_%\\' );
 			}
 
 			public function get_results( string $sql, string $output = ARRAY_A ) {

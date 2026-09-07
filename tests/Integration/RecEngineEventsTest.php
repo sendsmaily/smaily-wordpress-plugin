@@ -12,12 +12,11 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
-use Smaily\Connect\Bootstrap;
 use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\REST\EventsEndpoint;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
-use Smaily\Connect\Smaily\TransactionalResend;
+use Smaily\Connect\Tests\Integration\Support\EventsEndpointFactory;
 use WP_REST_Request;
 
 final class RecEngineEventsTest extends TestCase {
@@ -99,16 +98,8 @@ final class RecEngineEventsTest extends TestCase {
 		);
 	}
 
-	/**
-	 * The endpoint as the registry builds it — its write half now carries the
-	 * "Send again" service (PRO-2324), which these read tests never exercise.
-	 */
 	private function endpoint(): EventsEndpoint {
-		return new EventsEndpoint(
-			static function (): TransactionalResend {
-				return Bootstrap::instance()->transactional_resend();
-			}
-		);
+		return EventsEndpointFactory::create();
 	}
 
 	private function list( array $params = array() ): array {

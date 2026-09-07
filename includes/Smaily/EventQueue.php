@@ -50,6 +50,15 @@ class EventQueue {
 	public const STATUS_SENT    = 'sent';
 	public const STATUS_FAILED  = 'failed';
 
+	/**
+	 * The statuses a row can still SEND from: pending, plus failed — which the
+	 * Event Log's Retry revives. Only `sent` is truly over, and that is the
+	 * line the Art 17 erasure's delete/redact split turns on (PRO-2383).
+	 *
+	 * @var string[]
+	 */
+	public const STATUSES_SENDABLE = array( self::STATUS_PENDING, self::STATUS_FAILED );
+
 	public const FLUSH_HOOK = 'smly_plus_flush_event_queue';
 	public const AS_GROUP   = 'smaily-connect';
 
@@ -285,7 +294,7 @@ class EventQueue {
 	 * never the stored payload: the queue row is a record that the plugin
 	 * queued a message for this address, and that is the subject-access fact.
 	 *
-	 * @return array<int, array<string, mixed>> id, event_type, status, created_at.
+	 * @return array<int, array<string, mixed>> id, event_type, created_at.
 	 */
 	public function rows_for_privacy_request( string $email ): array {
 		global $wpdb;
@@ -300,7 +309,7 @@ class EventQueue {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, event_type, status, created_at FROM {$table} WHERE {$where[0]} ORDER BY created_at ASC, id ASC",
+				"SELECT id, event_type, created_at FROM {$table} WHERE {$where[0]} ORDER BY created_at ASC, id ASC",
 				$where[1]
 			),
 			ARRAY_A
@@ -343,16 +352,18 @@ class EventQueue {
 			return $result;
 		}
 
-		$table = $this->table_name();
+		$table    = $this->table_name();
+		$sendable = implode( ', ', array_fill( 0, count( self::STATUSES_SENDABLE ), '%s' ) );
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$result['removed'] = (int) $wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$table} WHERE status != %s AND {$where[0]}",
-				array_merge( array( self::STATUS_SENT ), $where[1] )
+				"DELETE FROM {$table} WHERE status IN ( {$sendable} ) AND {$where[0]}",
+				array_merge( self::STATUSES_SENDABLE, $where[1] )
 			)
 		);
 
+		/** @var array<int, array{id: int|string, payload: ?string, sent_payload: ?string, last_response: ?string}>|null $rows */
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT id, payload, sent_payload, last_response FROM {$table} WHERE status = %s AND {$where[0]}",
@@ -366,9 +377,9 @@ class EventQueue {
 			$wpdb->update(
 				$table,
 				array(
-					'payload'       => (string) self::redact_json( (string) ( $row['payload'] ?? '' ) ),
-					'sent_payload'  => self::redact_json( $row['sent_payload'] === null ? null : (string) $row['sent_payload'] ),
-					'last_response' => self::redact_json( $row['last_response'] === null ? null : (string) $row['last_response'] ),
+					'payload'       => (string) self::redact_json( $row['payload'] ),
+					'sent_payload'  => self::redact_json( $row['sent_payload'] ),
+					'last_response' => self::redact_json( $row['last_response'] ),
 					'contact_key'   => null,
 				),
 				array( 'id' => (int) $row['id'] ),
@@ -416,7 +427,7 @@ class EventQueue {
 				$out[ $key ] = self::redact_value( $item );
 				continue;
 			}
-			$out[ $key ] = in_array( (string) $key, self::REDACTION_KEEP_KEYS, true )
+			$out[ $key ] = in_array( $key, self::REDACTION_KEEP_KEYS, true )
 				? $item
 				: self::ERASED_PLACEHOLDER;
 		}

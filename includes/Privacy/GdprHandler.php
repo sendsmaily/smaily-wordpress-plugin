@@ -141,16 +141,12 @@ class GdprHandler {
 	 * @return array{data: array<int, array<string, mixed>>, done: bool}
 	 */
 	public function export( string $email, int $page = 1 ): array {
-		$items = $this->engine_export_items( $email );
-		foreach ( $this->plugin_meta_export_items( $email ) as $item ) {
-			$items[] = $item;
-		}
-		foreach ( $this->cart_session_export_items( $email ) as $item ) {
-			$items[] = $item;
-		}
-		foreach ( $this->event_queue_export_items( $email ) as $item ) {
-			$items[] = $item;
-		}
+		$items = array_merge(
+			$this->engine_export_items( $email ),
+			$this->plugin_meta_export_items( $email ),
+			$this->cart_session_export_items( $email ),
+			$this->event_queue_export_items( $email )
+		);
 
 		return array(
 			'data' => $items,
@@ -174,9 +170,7 @@ class GdprHandler {
 
 		$queue    = $this->event_queue->erase_for_privacy_request( $email );
 		$messages = $this->event_queue_messages( $queue );
-		if ( $queue['removed'] > 0 || $queue['redacted'] > 0 ) {
-			$removed = true;
-		}
+		$removed  = $removed || $messages !== array();
 
 		return array(
 			'items_removed'  => $removed,
@@ -310,10 +304,10 @@ class GdprHandler {
 		foreach ( $this->event_queue->rows_for_privacy_request( $email ) as $row ) {
 			$items[] = $this->group_item(
 				'Queued Smaily message',
-				'event-queue-' . ( $row['id'] ?? '' ),
+				'event-queue-' . $row['id'],
 				array(
-					'event_type' => (string) ( $row['event_type'] ?? '' ),
-					'created_at' => (string) ( $row['created_at'] ?? '' ),
+					'event_type' => $row['event_type'],
+					'created_at' => $row['created_at'],
 				)
 			);
 		}
