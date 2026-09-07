@@ -613,7 +613,7 @@ td code{white-space:nowrap}
         <li><strong>Update credentials</strong> changes the API user.</li>
         <li><strong>Disconnect</strong> stops contact sync until you reconnect.</li>
       </ul>
-      <p>If your store sells in more than one language, this tab also offers a <strong>multilingual mode</strong> (a separate Smaily account or workflow per language). Languages are detected automatically from <strong>WPML</strong> or <strong>Polylang</strong> if you run one of them — see <a href="#set-consent">multilingual routing</a>.</p>
+      <p>If your store sells in more than one language, this tab also offers a <strong>multilingual mode</strong> (a separate Smaily account or workflow per language). Languages are detected automatically from <strong>WPML</strong>, <strong>Polylang</strong> or <strong>TranslatePress</strong> if you run one of them — see <a href="#set-consent">multilingual routing</a>.</p>
       <p>The recommendation‑engine connection is shown here too, with its own <strong>Test</strong> and <strong>Disconnect</strong>.</p>
       <p>An optional <strong>transactional emails</strong> account — a second, separate Smaily account used only for order/shipping confirmations — is configured here too, below the main connection; see <a href="#set-transactional">Transactional emails</a>.</p>
     </div>
@@ -624,7 +624,7 @@ td code{white-space:nowrap}
         <li><strong>Update credentials</strong> vahetab API‑kasutaja.</li>
         <li><strong>Disconnect</strong> peatab kontakti‑sünkimise kuni taasühendamiseni.</li>
       </ul>
-      <p>Kui su pood müüb mitmes keeles, pakub see vahekaart ka <strong>mitmekeelset režiimi</strong> (eraldi Smaily konto või töövoog keele kohta). Keeled tuvastatakse automaatselt <strong>WPML‑ist</strong> või <strong>Polylangist</strong>, kui üks neist on kasutusel — vt <a href="#set-consent">mitmekeelne suunamine</a>.</p>
+      <p>Kui su pood müüb mitmes keeles, pakub see vahekaart ka <strong>mitmekeelset režiimi</strong> (eraldi Smaily konto või töövoog keele kohta). Keeled tuvastatakse automaatselt <strong>WPML‑ist</strong>, <strong>Polylangist</strong> või <strong>TranslatePressist</strong>, kui üks neist on kasutusel — vt <a href="#set-consent">mitmekeelne suunamine</a>.</p>
       <p>Siin kuvatakse ka soovitusmootori ühendus koos oma <strong>Test</strong> ja <strong>Disconnect</strong> nuppudega.</p>
       <p>Ka vabatahtlik <strong>tehingu‑e‑kirjade</strong> konto — teine, eraldi Smaily konto, mida kasutatakse ainult tellimuse/saatmise kinnituste jaoks — seadistatakse siin, põhiühenduse all; vt <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
     </div>
@@ -668,13 +668,13 @@ td code{white-space:nowrap}
       <p>In <strong>Subscribers only (consent)</strong> mode, a customer is synced to Smaily only when your store records them as subscribed to email marketing. Your store's own marketing‑consent record is the evidence — the plugin never assumes consent, it mirrors what your store captured.</p>
       <p>Consent is captured by your store — the checkout marketing checkbox, the Smaily newsletter block (submitting the form is the opt‑in), or the customer's account. The record carries the marketing state, the opt‑in level, and a timestamp.</p>
       <h3>Language routing</h3>
-      <p>The <strong>language</strong> sent with each contact is resolved from the customer's preferred language, then their most recent order's language, then the site's multilingual default (WPML / Polylang) — never from the request context. This keeps a scheduled sync and a live request giving the same answer, so a store with an English WordPress locale but Estonian content doesn't get its contacts mislabelled.</p>
+      <p>The <strong>language</strong> sent with each contact is resolved from the customer's preferred language, then their most recent order's language, then the site's multilingual default (WPML / Polylang / TranslatePress) — never from the request context. This keeps a scheduled sync and a live request giving the same answer, so a store with an English WordPress locale but Estonian content doesn't get its contacts mislabelled.</p>
     </div>
     <div data-lang="et">
       <p><strong>Subscribers only (consent)</strong> režiimis sünkroonitakse klient Smailysse ainult siis, kui su pood on ta märkinud turundusele tellijaks. Su poe enda turundusnõusoleku‑kirje on tõend — plugin ei eelda kunagi nõusolekut, vaid peegeldab seda, mille su pood salvestas.</p>
       <p>Nõusoleku salvestab su pood — kassa turunduse‑märkeruut, Smaily uudiskirja plokk (vormi esitamine ongi nõusolek) või kliendi konto. Kirje kannab turundusseisundit, nõusoleku‑taset ja ajatemplit.</p>
       <h3>Keele suunamine</h3>
-      <p>Iga kontaktiga saadetav <strong>keel</strong> tuletatakse kliendi eelistatud keelest, siis ta viimasest tellimusest, siis saidi mitmekeelsest vaikekeelest (WPML / Polylang) — mitte kunagi päringu kontekstist. Nii annavad ajastatud sünk ja reaalajas päring sama tulemuse, ja inglise WordPressi‑lokaadiga aga eesti sisuga pood ei saa oma kontakte valesti märgitud.</p>
+      <p>Iga kontaktiga saadetav <strong>keel</strong> tuletatakse kliendi eelistatud keelest, siis ta viimasest tellimusest, siis saidi mitmekeelsest vaikekeelest (WPML / Polylang / TranslatePress) — mitte kunagi päringu kontekstist. Nii annavad ajastatud sünk ja reaalajas päring sama tulemuse, ja inglise WordPressi‑lokaadiga aga eesti sisuga pood ei saa oma kontakte valesti märgitud.</p>
     </div>
   </div>
 
@@ -1020,7 +1020,7 @@ td code{white-space:nowrap}
       <p>Two optional features rely on other free plugins being present. If a feature seems to do nothing, this is usually why.</p>
       <ul>
         <li><strong>Browse tracking collects nothing</strong> — browse events are gated on the <strong>WP Consent API</strong>. If your store has no consent framework, <code>wp_has_consent()</code> is undefined and the plugin fails closed (zero events, no error). Install the free <strong>WP Consent API</strong> plugin; most consent banners register into it — <strong>CookieYes</strong>, <strong>Complianz</strong> and <strong>Real Cookie Banner</strong> all do (map their marketing/advertising category to the WP Consent API <code>marketing</code> category). Smaily Connect shows an admin notice when browse tracking is on and connected but no consent signal is available.</li>
-        <li><strong>Multilingual routing</strong> — per‑language contact routing reads languages from <strong>WPML</strong> or <strong>Polylang</strong>. Without either, the site locale is used.</li>
+        <li><strong>Multilingual routing</strong> — per‑language contact routing reads languages from <strong>WPML</strong>, <strong>Polylang</strong> or <strong>TranslatePress</strong>. Without one of them, the site locale is used.</li>
       </ul>
       <div class="note">
         <span class="k">WordPress, not app permissions</span>
@@ -1031,7 +1031,7 @@ td code{white-space:nowrap}
       <p>Kaks valikulist funktsiooni sõltuvad teiste tasuta pluginate olemasolust. Kui mõni funktsioon näib mitte midagi tegevat, on tavaliselt põhjus siin.</p>
       <ul>
         <li><strong>Sirvimise jälgimine ei kogu midagi</strong> — sirvimissündmused on <strong>WP Consent API</strong> väraval. Kui su poel pole nõusoleku‑raamistikku, on <code>wp_has_consent()</code> defineerimata ja plugin jääb fail‑closed (null sündmust, viga ei kuva). Paigalda tasuta <strong>WP Consent API</strong> plugin; enamik nõusoleku‑bännereid registreerib sinna — <strong>CookieYes</strong>, <strong>Complianz</strong> ja <strong>Real Cookie Banner</strong> kõik teevad (seo nende turunduse/reklaami kategooria WP Consent API <code>marketing</code>‑kategooriaga). Smaily Connect näitab haldusteadet, kui sirvimise jälgimine on sees ja ühendatud, aga nõusoleku‑signaali pole.</li>
-        <li><strong>Mitmekeelne suunamine</strong> — keelepõhine kontakti‑suunamine loeb keeled <strong>WPML‑ist</strong> või <strong>Polylangist</strong>. Kummagita kasutatakse saidi lokaati.</li>
+        <li><strong>Mitmekeelne suunamine</strong> — keelepõhine kontakti‑suunamine loeb keeled <strong>WPML‑ist</strong>, <strong>Polylangist</strong> või <strong>TranslatePressist</strong>. Kui ühtki neist pole, kasutatakse saidi lokaati.</li>
       </ul>
       <div class="note">
         <span class="k">WordPress, mitte äpi‑õigused</span>
