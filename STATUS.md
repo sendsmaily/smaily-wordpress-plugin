@@ -52,7 +52,10 @@ captions verified against the images one by one); `screenshot-7.png` and
 errors found"; `ci:strict` does not read `readme.txt` or `assets/`, so it was
 not re-run. This reaches merchants with the next release, or earlier if Erkki
 commits `readme.txt` + `assets/` to SVN by hand — updating the listing does not
-require a new ZIP.)
+require a new ZIP. **Two later corrections from the marketing lead:** the
+`= Contribute =` subsection is restored at the end of `== Description ==`, and
+screenshot caption 6 now reads "Campaign Intelligence connection — manage the
+engine connection and import existing products, customers and orders.")
 
 Prior: 2026-09-07 (**PRO-2324 — the Event Log can send a confirmation
 again, on purpose.** A merchant who wants the customer to get a second order or

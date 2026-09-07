@@ -110,6 +110,10 @@ Privacy Policy: [Smaily Privacy Policy](https://smaily.com/privacy-policy/)
 
 Terms of Service: [Smaily Terms of Service](https://smaily.com/terms-of-service/)
 
+= Contribute =
+
+Contribute to the development through [GitHub](https://github.com/sendsmaily/smaily-wordpress-plugin). We welcome new issues and pull requests.
+
 == Installation ==
 
 1. Install Smaily Connect through Plugins → Add New Plugin in WordPress, or upload the plugin ZIP.
@@ -401,4 +405,4 @@ Translation update: the admin interface is now fully translatable and ships a co
 3. WooCommerce automations — connect welcome, first-order and abandoned-cart events to Smaily workflows.
 4. Transactional emails — send order and shipping confirmations through a separate Smaily Transactional account.
 5. Product RSS feed — configure which WooCommerce products are loaded into Smaily email templates.
-6. Campaign Intelligence — connect the optional paid add-on and import existing products, customers and orders.
+6. Campaign Intelligence connection — manage the engine connection and import existing products, customers and orders.
