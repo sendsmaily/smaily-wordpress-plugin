@@ -688,7 +688,61 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 
 		self::assertSame( 409, $response->get_status() );
 		self::assertSame( 'resend_not_available', $response->get_data()['error'] );
+		// PRO-2369: the refusal has to reach the merchant as a sentence — the
+		// admin banner has nothing else to show but this.
+		self::assertStringContainsString( 'can no longer be sent again', (string) $response->get_data()['message'] );
 		self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION ), 'Nothing was queued.' );
+	}
+
+	public function test_send_again_after_the_feature_was_switched_off_says_why_in_words(): void {
+		// PRO-2369, the reported case: the confirmation went out, then the
+		// merchant switched transactional emails off. "Send again" is refused
+		// — and the banner must read as a reason, not "POST … → 409".
+		$this->configure( array( 'order_confirmation' => '4242' ) );
+
+		$product  = $this->make_product( 'Switched Off Product', 12.00 );
+		$order_id = $this->make_order( 'switchedoff@example.test', $product );
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$this->fire_checkout_order_processed( $order_id );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION );
+		self::assertSame( 'sent', $row['status'] );
+
+		$off = RestRequestHelper::post(
+			'/settings',
+			array(
+				'tab'  => 'woocommerce',
+				'data' => array(
+					'orderConfirmationEnabled'    => false,
+					'shippingConfirmationEnabled' => false,
+					'automationMappings'          => array(),
+				),
+			)
+		);
+		self::assertSame( 200, $off->get_status() );
+
+		$response = RestRequestHelper::post(
+			'/events/resend',
+			array(
+				'source' => 'smaily',
+				'id'     => (int) $row['id'],
+			)
+		);
+
+		self::assertSame( 409, $response->get_status() );
+		$data = $response->get_data();
+		self::assertSame( 'transactional_sending_disabled', $data['error'] );
+		self::assertStringContainsString( 'switched off', (string) $data['message'] );
+		self::assertStringNotContainsString( '409', (string) $data['message'] );
+		self::assertStringNotContainsString( '/events', (string) $data['message'] );
+		self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION ), 'A refusal queues nothing.' );
 	}
 
 	public function test_a_failed_second_confirmation_says_the_first_one_still_stands(): void {

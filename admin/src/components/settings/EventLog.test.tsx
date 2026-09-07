@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '../../api/client';
 import * as eventsApi from '../../api/events';
 import { EventLog } from './EventLog';
 
@@ -312,6 +313,85 @@ describe('EventLog', () => {
 
     expect(await screen.findByText('cancelled')).toBeInTheDocument();
     expect(screen.queryByText('sent')).not.toBeInTheDocument();
+  });
+
+  it('explains a refused Retry in plain words instead of the request line (PRO-2369)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [{ ...TRANSACTIONAL_REFUSED_ROW, retry_refusal: '', retry_refusal_message: '' }],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 1,
+    });
+    // The 409 the retry route really answers with.
+    vi.spyOn(eventsApi, 'retryEvents').mockRejectedValue(
+      new ApiError('POST /events/retry → 409', 409, {
+        error: 'transactional_retry_refused',
+        reason: 'wc_email_sent',
+        message:
+          'This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent.',
+      }),
+    );
+
+    render(<EventLog />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+    expect(
+      await screen.findByText(
+        'This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/events\/retry/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/409/)).not.toBeInTheDocument();
+  });
+
+  it('explains a refused Send again the same way (PRO-2369)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [SENT_CONFIRMATION_ROW],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+    vi.spyOn(eventsApi, 'resendEvent').mockRejectedValue(
+      new ApiError('POST /events/resend → 409', 409, {
+        error: 'transactional_sending_disabled',
+        message:
+          'Transactional emails are switched off for this confirmation, or its Smaily workflow is no longer mapped — so nothing can be sent.',
+      }),
+    );
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<EventLog />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Send again' }));
+
+    expect(
+      await screen.findByText(
+        'Transactional emails are switched off for this confirmation, or its Smaily workflow is no longer mapped — so nothing can be sent.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/events\/resend/)).not.toBeInTheDocument();
+  });
+
+  it('falls back to its own sentence when a failure carries no reason (PRO-2369)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [ROW],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 1,
+    });
+    vi.spyOn(eventsApi, 'retryEvents').mockRejectedValue(
+      new ApiError('POST /events/retry → 500', 500, null),
+    );
+
+    render(<EventLog />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+
+    expect(await screen.findByText('Retry failed.')).toBeInTheDocument();
   });
 
   it('shows a reachable Retry all failed control for aged failures with no 24h banner (PRO-1539)', async () => {
