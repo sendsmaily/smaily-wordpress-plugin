@@ -26,7 +26,31 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-1723 — a purchase is marked on the contact, so
+_Last updated: 2026-09-07 (**Four Event Log polish items — PRO-2372, PRO-2368,
+PRO-2369, PRO-2367.** (1) **PRO-2372:** a reminder withdrawn because the shopper
+bought first (PRO-1723) is marked terminal through the flushers' own skip pair,
+so the queue row is `sent` and the LIST showed it exactly like a delivered
+reminder — only Details revealed it. The list now reads the stored outcome and
+says **cancelled** on the row; no new queue status, and a flusher's ordinary
+terminal skip (`skipped`) is deliberately NOT relabelled. (2) **PRO-2368:** a
+failed "Send again" row (PRO-2324) was shown PRO-1733's sentence — "already sent
+as the standard WooCommerce email" — although a re-send never fails open and
+nothing was sent; it now says the second confirmation could not be sent and the
+first one stands (`resend_failed`). Which rows keep a Retry is unchanged,
+including the merchant-status shipping confirmation that must stay retryable.
+(3) **PRO-2369:** a refused Retry or Send again reached the merchant as
+"POST /events/retry → 409". Every refusal now answers with a server-worded
+`message` (the resend route gained one for all three of its codes) and the admin
+client shows that sentence, falling back to its own rather than ever leaking the
+request line. (4) **PRO-2367:** comment-only — the queues' enqueue/schedule
+helpers said the flush fires "ASAP"; they now say the next scheduled pass
+(PRO-2323 wording). Gates: `ci:strict` exit=0 (unit OK 787 tests, vitest 312);
+integration OK (277 tests, full suite green). DECISIONS: PRO-2372 and a joint
+PRO-2368/PRO-2369 entry. Merchant docs site updated in both languages (the
+cancelled row + refusals explain themselves) — **the Estonian additions need
+Erkki's proofread before the site is published**.)
+
+Prior: 2026-09-07 (**PRO-1723 — a purchase is marked on the contact, so
 the abandoned-cart follow-ups can stop.** Recorded first, as the issue asked:
 today a purchase already deletes the tracker row on both checkouts and the
 thank-you page, so no LATER reminder can be swept for that cart — but a reminder
@@ -933,8 +957,10 @@ Docs-only; no code, so no gates run.)_
   migration 011): PRO-2323 (honest next-pass wording + the Event Log retry
   banner), PRO-2324 (the "Send again" action), PRO-1723 (the
   `abandoned_cart_purchased_at` marker plus the queue's `contact_key` column and
-  index, migration 011), and PRO-2318 (the wordpress.org listing copy and six
-  screenshots).
+  index, migration 011), PRO-2318 (the wordpress.org listing copy and six
+  screenshots), and the Event Log polish set PRO-2372 (the cancelled label),
+  PRO-2368 (the failed re-send's own sentence), PRO-2369 (refusals reach the
+  banner as words) and PRO-2367 (comment-only next-scheduled-pass wording).
 - **PRO-2318 can also go live ahead of 3.12.0** by Erkki's manual SVN commit of
   `readme.txt` + `assets/` — that commit must `svn rm screenshot-7.png` and
   `screenshot-8.png`.
@@ -947,8 +973,9 @@ Docs-only; no code, so no gates run.)_
 - **Queue, in order:** PRO-2361 (the audit register row for the 3.11.2 gate),
   then PRO-2358 (subdomain case-sensitivity in the landing-page block — cheap),
   then the Low tail: PRO-2321, PRO-2320, PRO-2317, PRO-2348, PRO-2356, PRO-2351,
-  PRO-2352, PRO-2355, PRO-2359, PRO-2360, PRO-2362, PRO-2364, PRO-2367,
-  PRO-2368, PRO-2369, PRO-2370, PRO-2372. The remaining design proposals
+  PRO-2352, PRO-2355, PRO-2359, PRO-2360, PRO-2362, PRO-2364 and PRO-2370
+  (PRO-2367, PRO-2368, PRO-2369 and PRO-2372 are done — see the entry at the
+  top). The remaining design proposals
   PRO-1721 and PRO-1722 await Erkki's direction.
 - **Engine team:** PRO-1878 and PRO-2319 are still open on their side.
 - **For the next orchestrator:** worker commits may arrive carrying

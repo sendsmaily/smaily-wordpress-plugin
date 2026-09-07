@@ -6120,6 +6120,76 @@ here); PRO-1678 (automations are not gated by the contact-sync switch); F3-44
 Automations section now names the field and gives the workflow recipe, in both
 languages.
 
+### PRO-2372 — A withdrawn reminder is labelled from what it already stored, not from a new status (2026-09-07)
+
+**Context:** a reminder the shopper's purchase overtook is withdrawn
+(PRO-1723) through the flushers' own terminal-skip pair: `mark_sent()` plus a
+`cancelled` exchange. So the queue row is `sent` — correct, it is terminal and
+must never be retried — and the Event Log list showed it exactly like a
+delivered reminder. Only Details revealed the cancellation.
+
+**Decision (2026-09-07):** the list says `cancelled` on the row, derived from
+the stored outcome. No new queue status: a status is what the flushers read to
+decide what to send, and inventing a fourth one would put the label into the
+retry/pending logic of two queues and their janitor for a display concern.
+`EventQueue::is_cancelled_response()` owns the shape `cancel()` writes, the
+list projection carries the `last_response` of SENT rows only (a withdrawal is
+always one; a failed row's response is the big one nobody needs here), and the
+read model turns it into a `cancelled` boolean beside `retry_refusal` — the
+PRO-1733 precedent for "computed per row, never stored".
+
+**Rationale / what it deliberately does not catch:** only a withdrawal writes
+`cancelled`. The flushers' other terminal skips (no workflow mapped, no
+recipient) record `skipped` and keep reading as sent — they are ordinary
+"nothing to send" rows, not something the merchant asked for and lost.
+
+**Relationships:** PRO-1723 (the withdrawal this makes visible), PRO-1733 (the
+computed-not-stored read model), F3-44 (the stored exchange it reads).
+Merchant docs site: the Event Log section names the cancelled row, both
+languages.
+
+
+### PRO-2368 / PRO-2369 — Every Event Log refusal is worded by the server, and a failed re-send gets its own sentence (2026-09-07)
+
+**Context:** two halves of the same gap. (a) A deliberate second confirmation
+(PRO-2324) never fails open — the customer already has one — but when the
+re-send row itself failed, PRO-1733's guard gave it the standard refusal:
+"already sent as the standard WooCommerce email", describing something that
+never happened. (b) When either route refused, the admin banner showed
+`ApiError`'s own text — "POST /events/retry → 409" — because the retry route's
+`message` was ignored by the client and the resend route sent no message at
+all.
+
+**Decision (2026-09-07):**
+- `TransactionalRetryGuard::REASON_RESEND_FAILED` replaces `wc_email_sent`
+  **only where that answer was already the verdict** and the payload carries
+  `TransactionalFlusher::PAYLOAD_KEY_RESEND`. Which rows keep a Retry does not
+  move — in particular a merchant-status shipping confirmation stays
+  retryable, re-send or not, because it is still the shopper's only route to a
+  confirmation. Only the sentence changes: the second confirmation could not
+  be sent, the first one stands.
+- Every refusal answers with a merchant-readable `message`
+  (`EventsEndpoint::resend_refused()` for the three re-send codes, the guard
+  for the retry ones), and the admin client reads it: `actionFailureMessage()`
+  prefers the body's sentence and otherwise falls back to the caller's own,
+  so a request path or status code can never reach the banner.
+
+**Rationale:** a refusal is the plugin explaining itself, not a transport
+failure — the distinction the old banner erased. The wording lives server-side
+for the same reason PRO-1733 put it there: the Details panel, the 409 body and
+the banner then cannot drift apart.
+
+**Alternatives:** letting a failed re-send be retried (it is arguably safe —
+the merchant asked for the send) — rejected as a behaviour change this issue
+did not ask for; a client-side map of error codes to sentences — rejected, it
+would duplicate wording the server already owns.
+
+**Relationships:** PRO-2324 (the re-send that can fail), PRO-1733 (the refusal
+model and its wording rule), PRO-1686 (report the cause the other side gave).
+Merchant docs site: the Event Log section says a refused action explains
+itself, both languages.
+
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
