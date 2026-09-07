@@ -99,7 +99,7 @@ class Blocks {
 		register_block_type(
 			SMAILY_CONNECT_PLUGIN_PATH . '/blocks/landingpage/build',
 			array(
-				'render_callback' => array( 'Smaily_Connect\\Blocks\\Landing_Page\\Integration', 'render' ),
+				'render_callback' => array( 'Smaily_Connect\Blocks\Landing_Page\Integration', 'render' ),
 			)
 		);
 		wp_set_script_translations(

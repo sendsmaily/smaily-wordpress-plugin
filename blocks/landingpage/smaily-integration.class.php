@@ -19,22 +19,16 @@ class Integration {
 	/**
 	 * Renders the landing page block.
 	 *
-	 * Rendered on the server on purpose (PRO-2346). The block used to emit the
-	 * <iframe> from its JavaScript `save`, which put the tag into post_content —
-	 * where WordPress's KSES strips it for any author without `unfiltered_html`
-	 * (a multisite site admin, a host that defines DISALLOW_UNFILTERED_HTML, a
-	 * security plugin). The landing page then vanished from the published page
-	 * and the block came back "unexpected or invalid content" in the editor,
-	 * with nothing said about why. Post content now carries the block's
-	 * attributes only, and the embed is built here at render time.
+	 * Server-rendered on purpose: post_content must stay iframe-free.
+	 * See docs/DECISIONS.md, PRO-2346 (reopened).
 	 *
 	 * @param array  $attributes Block attributes.
 	 * @param string $content    Block content.
 	 * @return string
 	 */
 	public static function render( $attributes, $content ) {
-		$subdomain = isset( $attributes['subdomain'] ) ? (string) $attributes['subdomain'] : '';
-		$pk        = isset( $attributes['landingpagePK'] ) ? (string) $attributes['landingpagePK'] : '';
+		$subdomain = $attributes['subdomain'];
+		$pk        = $attributes['landingpagePK'];
 
 		// No landing page picked yet, or an address the block never accepted —
 		// embed nothing rather than leak the editor's setup instructions to
@@ -43,8 +37,8 @@ class Integration {
 			return '';
 		}
 
-		$height = isset( $attributes['height'] ) ? absint( $attributes['height'] ) : 450;
-		$width  = isset( $attributes['width'] ) ? absint( $attributes['width'] ) : 500;
+		$height = absint( $attributes['height'] );
+		$width  = absint( $attributes['width'] );
 
 		$wrapper_attributes = get_block_wrapper_attributes(
 			array(

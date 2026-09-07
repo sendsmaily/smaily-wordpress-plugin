@@ -1,21 +1,8 @@
 <?php
 /**
- * Integration: a saved landing-page block survives the content filtering
- * WordPress applies to authors without `unfiltered_html` (PRO-2346, reopened).
- *
- * The block used to emit its <iframe> from the JavaScript `save`, which put
- * the tag into post_content. WordPress strips <iframe> from post_content for
- * every author who lacks `unfiltered_html` — a multisite site administrator,
- * a host that defines DISALLOW_UNFILTERED_HTML, a security plugin that drops
- * the capability. An administrator on such a store saw exactly what marketing
- * reported: the landing page appears while you paste the URL, then the
- * published page shows nothing and the block comes back "unexpected or
- * invalid content" on the next edit.
- *
- * The block is server-rendered now, so post_content carries the attributes
- * only and there is no tag for the filter to remove. These cases pin that:
- * the block markup survives a save by an author with no `unfiltered_html`,
- * and the embed is rebuilt at render time.
+ * Integration: the landing-page block renders server-side, so post_content
+ * stays iframe-free and survives a save by an author without
+ * `unfiltered_html`. See docs/DECISIONS.md, PRO-2346 (reopened).
  *
  * @package Smaily\Connect\Tests\Integration
  */
