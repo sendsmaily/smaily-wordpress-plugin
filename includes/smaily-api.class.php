@@ -57,7 +57,25 @@ class API {
 	 */
 	public function register_endpoints() {
 		$this->register_endpoint( 'v1', '/autoresponders', 'GET', 'list_autoresponders' );
-		$this->register_endpoint( 'v1', '/configuration', 'GET', 'get_configuration' );
+		// The landing-page block reads the account subdomain from here on every
+		// mount, so anyone who may edit content must be able to call it — an
+		// Editor (the usual marketing role) has no `manage_options` and the
+		// block failed silently for them: the fetch 403'd, the subdomain stayed
+		// empty and the block showed "Please configure the plugin first" with no
+		// URL field, on a perfectly connected store (PRO-2346). The response
+		// carries no secret — the subdomain is already public in the signup
+		// form's action URL — so `edit_posts` is the honest gate.
+		$this->register_endpoint(
+			'v1',
+			'/configuration',
+			'GET',
+			'get_configuration',
+			array(
+				'permission_callback' => function () {
+					return current_user_can( 'edit_posts' );
+				},
+			)
+		);
 	}
 
 	/**
