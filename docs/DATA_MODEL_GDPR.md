@@ -128,6 +128,46 @@ nothing to do with the engine. The ~24h auto-purge (below) remains the
 retention backstop; the exporter/eraser now additionally cover the window
 before that purge runs.
 
+
+### Plugin-held — Smaily event queue (non-rec-engine, PRO-2383)
+
+The third local store that holds a contact's address, and the only one that
+holds a copy of what the store actually SENT them. Rows in
+`{prefix}smly_plus_event_queue` (migration 001) carry the queued Smaily
+payload, and since F3-44 also the send-time exchange: `sent_payload` is the
+literal body POSTed to Smaily, `last_response` its reply summary.
+
+| Element | Where | What it is | Export (Art 15) | Erase (Art 17) |
+|---|---|---|---|---|
+| `smly_plus_event_queue` row | Merchant's own WordPress DB table | One queued Smaily message: `event_type`, `entity_id`, `payload` (the address plus, per type, the shopper's name, the abandoned-cart product matrix, or an order's billing name + number), `contact_key` (a sha256 of the address, migration 011), `status`, timestamps, `sent_payload` + `last_response` (F3-44) | **Yes**, narrowly — `event_type` + `created_at` per row: what the store queued for this address and when | **Yes** — a row that could still send is DELETED; a row already `sent` is REDACTED in place (see below) |
+
+**Retention (code-derived — `QueueJanitor`):** terminal rows are pruned on the
+daily tick — `sent` after 30 days, `failed` after 90; `pending` rows are never
+pruned at any age. Before PRO-2383 that window was the ONLY thing that
+eventually removed an erased contact's address from this table.
+
+**What erasure does here (PRO-2383).** `EventQueue::erase_for_privacy_request()`,
+called by `GdprHandler`'s eraser:
+- **Deletes** every row that is not `sent` — a queued message must not go out
+  to an address the subject asked us to forget, and a `failed` row is revivable
+  by the Event Log's Retry, so it counts as sendable.
+- **Redacts** every `sent` row in place, keeping the merchant's record that the
+  message was sent: `event_type`, `created_at`, `status` and the row id stay;
+  `payload`, `sent_payload` and `last_response` are rewritten so every value
+  becomes `[erased]` (keys and structure kept, so the Event Log still renders),
+  and `contact_key` is set NULL. Only routing/diagnostic scalars survive —
+  `http`, `outcome`, `note`, `workflow_id`, `account_key`, `to_status`.
+- **Finds the rows** by `contact_key` where there is one, and by a payload
+  match on `"email"` / `"to"` where there is not (rows enqueued before
+  migration 011, and every transactional row — its recipient rides `to`).
+
+**Still open (its own decision, not covered here).** The rec-engine queue
+`smly_rec_event_queue` has the same F3-44 exposure: its rows enqueue an empty
+`payload`, but `sent_payload` stores the customer/order object that was sent,
+which carries the email and an order's billing fields. It has no `contact_key`,
+the engine-side §9 DELETE does not reach the merchant's own table, and the
+janitor's retention is again the only thing that clears it.
+
 ---
 
 ## Consent model — granular, not one switch
@@ -167,7 +207,9 @@ Profiling consent OFF therefore produces **two actions**:
 Returns the shopper's **rec-engine personal data**, and nothing more:
 
 - Included: engine browse_events, visitor_tokens, recommendations, email_events,
-  engine customer record; plugin rec-meta (the `_smaily_*` markers).
+  engine customer record; plugin rec-meta (the `_smaily_*` markers); the local
+  abandoned-cart tracker rows (PRO-1343) and, narrowly, the Smaily event
+  queue's rows — `event_type` + `created_at` only (PRO-2383).
 - **Not included:** `rec_attribution` (decision logic / trade secret — omitted,
   not flagged as "request separately", because it is not a subject-access right);
   the rec-engine's decision logic / weights (trade secret, as Google/Meta also
@@ -185,7 +227,11 @@ Full deletion, asymmetric to export (export is conservative, erase is complete):
 - Retained after erase: a `gdpr_audit_log` row (proof the deletion happened) and
   `lift_metrics_daily` in anonymised form (aggregate, no PII).
 - Plugin side: the `_smaily_*` order-meta and user-meta markers are removed, so
-  no rec-specific traces are left behind in WordPress.
+  no rec-specific traces are left behind in WordPress; the abandoned-cart
+  tracker rows are deleted (PRO-1343); and in the Smaily event queue every
+  still-sendable row is deleted while every already-`sent` row is anonymised in
+  place, so the Event Log keeps the fact of the send and none of the person
+  (PRO-2383).
 
 ### Art 21 — Opt-out (profiling objection)
 

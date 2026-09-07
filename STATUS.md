@@ -26,7 +26,45 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2295 — the rollback direction was
+_Last updated: 2026-09-07 (**PRO-2383 — the WordPress personal-data eraser
+now covers the Smaily event queue.** It covered the rec-engine, the plugin's
+`_smaily_*` markers and the abandoned-cart tracker, but not the queue — the
+third local store holding a contact's address, and the only one holding a copy
+of what the store SENT them (F3-44's `sent_payload` is the literal body POSTed
+to Smaily). So a row still `pending` for an erased address was a message the
+store would go on to send, and every `sent` row kept the address until the
+QueueJanitor's 30/90-day retention came round. Erkki's split, implemented as
+`EventQueue::erase_for_privacy_request()`: **a row that could still send is
+DELETED** — stated as "not `STATUS_SENT`", so `failed` is on the delete side
+deliberately (the Event Log's Retry revives it) — and **a row that already sent
+is REDACTED in place**, keeping `event_type` / `created_at` / `status` / id so
+the Event Log keeps the merchant's record of the send, while `payload`,
+`sent_payload` and `last_response` are rewritten and `contact_key` set NULL.
+Redaction is an **allowlist**: every scalar becomes `[erased]`, keys and
+structure kept, and only `http` / `outcome` / `note` / `workflow_id` /
+`account_key` / `to_status` survive — so a payload field added later is
+redacted by default rather than leaking. Rows are found by PRO-1723's
+`contact_key`, falling back to a payload match on `"email"` / `"to"` for the
+two key-less classes: rows enqueued before migration 011, and **every
+transactional row** (its recipient rides `to`, and `enqueue()` keys only on
+`email`) — the same search PRO-1723 rightly refused on the checkout path, which
+is fine for an admin-triggered one-off. The exporter lists the same rows,
+`event_type` + `created_at` only, and the eraser reports the deleted and the
+anonymised counts as two separate messages. Gates: `ci:strict` **exit=0** (unit
+OK 792 tests / 2 251 assertions, vitest 312); integration **OK (284 tests /
+1 721 assertions)**, sandbox tenant "Smaily Connect test" restored (not
+MiuMjau). New `tests/Integration/SmailyQueuePrivacyTest.php` (7 tests) drives
+the real callbacks off `wp_privacy_personal_data_erasers` / `…_exporters`.
+DECISIONS PRO-2383; `docs/DATA_MODEL_GDPR.md` gained the queue's inventory row +
+erasure rules; merchant docs site updated in BOTH languages — **the Estonian
+paragraph needs Erkki's proofread before the site is published**. **Unreleased
+on main:** this change (no readme changelog line yet — it belongs to the next
+version bump, along with a `bin/build-i18n.sh` pass for the two new plural
+strings, whose Estonian still needs writing). **Release state unchanged: 3.12.0
+is LIVE on wordpress.org**; the docs-site edits in this commit and in PRO-2295
+are both newer than what is live.)_
+
+Prior: 2026-09-07 (**PRO-2295 — the rollback direction was
 rehearsed, and the migration guide now states what actually happens.**
 PRO-2285 walked 2.0.0 → v3 only, so `docs/MIGRATION.md` hedged the other way
 ("if 2.0.0 reports a credential error, re-enter the password"). Rehearsed on a

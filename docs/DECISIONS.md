@@ -6252,6 +6252,103 @@ note now says the older plugin asks for the API password again, both languages
 (the Estonian sentence is new and needs Erkki's proofread).
 
 
+### PRO-2383 — An erasure request empties the Smaily queue and anonymises what it already sent (2026-09-07)
+
+**Context:** the plugin's WP Privacy eraser covered the rec-engine (F3-28), the
+plugin's own `_smaily_*` markers, and the abandoned-cart tracker (PRO-1343) —
+but not the Smaily event queue, which is the third local store holding a
+contact's address. Two different leaks: a row still `pending` for that address
+was a message the store would go on to SEND after the shopper asked to be
+forgotten, and every already-`sent` row kept the address inside its stored
+`payload` and — since F3-44 — inside `sent_payload`, the literal body POSTed to
+Smaily. Both only cleared when the QueueJanitor's retention window came round
+(30 days for `sent`, 90 for `failed`).
+
+**Decision (Erkki, 2026-09-07):** an asymmetric pair, not one rule.
+- **A row that could still send is DELETED.** Not sending is the point of the
+  erasure, so nothing survives that a flusher — or a merchant's Event Log
+  Retry — could still put on the wire. The split is stated in the queue's own
+  vocabulary as "not `STATUS_SENT`", which puts `failed` on the delete side
+  deliberately: `reset_failed()` revives a failed row to `pending`, so it is
+  sendable, not history. A future status lands there too, which is the safe
+  default.
+- **A row that already sent is REDACTED in place.** Deleting it would erase the
+  merchant's own record that they emailed this person — the Event Log's
+  history, and (PRO-1723) the evidence a reminder was delivered. So the row
+  keeps `event_type`, `created_at`, `status` and its id, and loses everything
+  else: `payload`, `sent_payload` and `last_response` are rewritten and
+  `contact_key` is set NULL.
+- **The placeholder is a fixed non-address string** (`EventQueue::
+  ERASED_PLACEHOLDER` = `[erased]`), so nothing downstream can read a recipient
+  back out of a redacted row and no code path can accidentally treat it as a
+  deliverable address.
+- **Redaction is an allowlist, not a denylist.** `EventQueue::redact_json()`
+  walks the decoded JSON and replaces EVERY scalar with the placeholder,
+  keeping the keys and the structure; only `REDACTION_KEEP_KEYS` survive —
+  `http` / `outcome` / `note` (the Event Log labels a cancelled row from them,
+  PRO-2372) and `workflow_id` / `account_key` / `to_status` (config ids and a
+  WC status slug the "Send again" guard reads back). A denylist of "personal"
+  keys would have to be extended by every future payload field; this way a new
+  field is redacted by default. Nothing in the queue's payloads is safe by
+  category — the abandoned-cart reminder alone carries the name and the
+  PRO-1680 product matrix, and a transactional row carries the billing name and
+  order number. An undecodable blob is replaced wholesale.
+- **Where the lookup keys.** `contact_key` (migration 011, PRO-1723) first —
+  the indexed hash of the normalised address. It only exists for rows whose
+  payload carries an `email`, so TWO classes of row have none: rows enqueued
+  before that migration, and EVERY transactional row (its recipient rides `to`,
+  and `enqueue()` keys only on `email`). Those fall back to a payload text
+  match on `"email":"…"` / `"to":"…"`, case-insensitive via the column's
+  collation. PRO-1723 rejected exactly this search — correctly, for the
+  CHECKOUT path, where it is unindexable and runs on every order. An erasure
+  request is an admin-triggered one-off where completeness beats speed, so the
+  same search is the right answer here. Redaction is idempotent by
+  construction: a redacted row carries neither the key nor the address, so a
+  second run finds nothing.
+- **The exporter lists the same rows** — `event_type` and `created_at` only.
+  The queue row's subject-access fact is that the store queued a message for
+  this address and when; the payload itself is the store's message, built from
+  data WooCommerce and Smaily already own and export.
+- **`items_retained` stays false.** What survives is anonymised, so no personal
+  data is retained; the counts are reported as two eraser `messages` instead —
+  "removed" and "anonymised" are different outcomes and the requester is
+  entitled to see them apart.
+
+**Alternatives rejected:** deleting everything (loses the Event Log's record
+that the store emailed this person, and PRO-1723's delivery evidence);
+redacting everything (a pending row would still be SENT, to a redacted
+recipient — the one outcome the erasure exists to prevent); a denylist of
+personal field names (fragile — the next payload field leaks by default);
+leaving it to the QueueJanitor (a 30/90-day wait is not an Art 17 answer);
+touching the rec-engine `IngestQueue` in the same change (its `sent_payload`
+has the same exposure but a different mechanism — see below).
+
+**Out of scope, recorded:** the rec-engine queue `smly_rec_event_queue` has the
+SAME F3-44 exposure — its rows enqueue an empty `payload`, but the flusher
+stores the sent customer/order object in `sent_payload`, which carries the
+email (and, for an order, the billing fields). It has no `contact_key`, and the
+engine-side erasure (§9 DELETE) does not reach the merchant's own table. Left
+untouched here on purpose: it needs its own decision about how rows are matched
+without a key.
+
+**Demonstration:** `tests/Integration/SmailyQueuePrivacyTest.php` runs the real
+callbacks off `wp_privacy_personal_data_erasers` /
+`…_exporters` against the real table — pending and failed rows deleted with the
+count reported, a sent reminder surviving with no address, no name and no cart
+detail in any of the three stored blobs and a NULL `contact_key`, the redacted
+row still listing in `/events` and rendering in its detail drill-down, both
+key-less classes (pre-011 and transactional) matched on their payload, another
+contact's rows byte-identical afterwards, and the exporter listing only the
+subject's rows. `EventQueueTest` pins the redaction rules themselves.
+
+**Relationships:** F3-28 (the exporter/eraser this extends), PRO-1343 (the
+cart tracker, the previous addition to the same pair), F3-44 (`sent_payload` /
+`last_response`, the exposure that made this urgent), PRO-1723 (`contact_key`
+and why the checkout path may not search the payload), PRO-2372 (`outcome`,
+which is why it survives redaction), PRO-1680 (the product matrix a reminder
+carries). Merchant docs site: the Deletion & GDPR section now says what an
+erasure does to queued and sent messages, in both languages.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
