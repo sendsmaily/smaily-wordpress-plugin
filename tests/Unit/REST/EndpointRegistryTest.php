@@ -41,6 +41,9 @@ final class EndpointRegistryTest extends TestCase {
 		self::assertContains( 'GET /events/detail', $paths );
 		self::assertContains( 'POST /events/retry', $paths );
 
+		// PRO-2324 — the deliberate second confirmation.
+		self::assertContains( 'POST /events/resend', $paths );
+
 		// Sub-PR 3.1 — rec-engine connect/health/disconnect.
 		self::assertContains( 'POST /rec-engine/setup-exchange', $paths );
 		self::assertContains( 'POST /rec-engine/ping', $paths );
@@ -57,7 +60,7 @@ final class EndpointRegistryTest extends TestCase {
 		// Pin the TOTAL so a route can't silently drop out of the list
 		// (PRO-1258: the /events triple was missing for months and nothing
 		// failed). A new endpoint bumps this number on purpose.
-		self::assertCount( 16, $paths );
+		self::assertCount( 17, $paths );
 		self::assertSame( $paths, array_unique( $paths ), 'Duplicate method+path pair in expected_routes()' );
 	}
 
