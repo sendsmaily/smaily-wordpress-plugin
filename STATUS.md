@@ -26,7 +26,37 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2363 — 3.11.3 is gated on WordPress 7.1 and
+_Last updated: 2026-09-07 (**PRO-2323 — a Retry no longer implies an
+immediate send: the code and the Event Log now say "next scheduled pass".**
+Erkki's decision: promptness does not matter, so the behaviour is unchanged —
+the "run now" one-off both the abandoned-cart sweeper (PRO-1195) and the
+transactional retry path (PRO-1733) ask for is deduplicated against whatever is
+already scheduled on that hook, and the flusher's recurring action always is, so
+the send happens on the flusher's next scheduled pass, within about a minute.
+Only the words moved: `CartAbandonmentSweeper::kick_cart_flush()` →
+`ensure_cart_flush_scheduled()` and `EventsEndpoint::kick_flush()` →
+`ensure_flush_scheduled()` (both private, one call site each), and the docblocks
+on those two plus `TransactionalFlusher::revive()`, `EventsEndpoint::retry()`,
+`EventQueue::schedule_flush()` and `retryEvents()` in `admin/src/api/events.ts`
+now state the next-scheduled-pass truth instead of "promptly"/"ASAP". The Event
+Log gained the one merchant-facing sentence it was missing: after a successful
+Retry it shows an info banner — *"N record(s) are back in the queue — they will
+be sent at the next scheduled pass, within about a minute."* (new plural string,
+ET translated, catalogs rebuilt with `bin/build-i18n.sh`; **the Estonian needs
+Erkki's proofread**, though the docs site was NOT touched — its Retry paragraph
+already says "then sent within about a minute" in both languages, which is
+true). Tests pin the behaviour: the new EN sentence is asserted in
+`EventLog.test.tsx`'s PRO-1733 retry test, and two new unit tests prove the
+one-off is a no-op when a pass is already scheduled
+(`CartAbandonmentSweeperTest`, `TransactionalFlusherTest::
+test_revive_leaves_the_send_to_the_next_scheduled_pass`). Gates: `npm run
+ci:strict` **exit=0** (PHPUnit unit **772/772 · 2 166 assertions**, vitest
+**306/306 across 41 files**) and `sg docker -c "bash bin/run-integration-tests.sh
+--filter 'RecEngineEventsTest|TransactionalEmailsPipelineTest'"` **OK 23 tests /
+129 assertions**, sandbox tenant "Smaily Connect test" restored. Not pushed.)
+(handoff refreshed 2026-09-07)_
+
+Prior: 2026-09-07 (**PRO-2363 — 3.11.3 is gated on WordPress 7.1 and
 the last Plugin Check ERROR is gone; it is ready for the orchestrator to
 publish.** The 3.11.3 gate had stopped on one PCP ERROR,
 `outdated_tested_upto_header` (`Tested up to: 7.0 < 7.1`), and Erkki chose
@@ -57,8 +87,7 @@ smaily-connect.zip 3.11.3` **exits 0** (894 913 B, clean non-dirty build-hash
 long-accepted ones plus the 2 of the same accepted class from PRO-2326
 (`EventsEndpoint.php:568` `DirectQuery` + `NoCaching`). The register row in
 `docs/audits/INDEX.md` is updated to the passing result (`de5bec1`). **Nothing
-was pushed, tagged or released — that is the orchestrator's step.**)
-(handoff refreshed 2026-09-07)_
+was pushed, tagged or released — that is the orchestrator's step.**)_
 
 Prior: 2026-09-07 (**3.11.3 is bumped and gated locally, ready for the
 orchestrator to publish — with ONE finding that needs Erkki's call first.** The
@@ -807,7 +836,11 @@ Docs-only; no code, so no gates run.)_
   the access matrix exercised on the running wp-env. Report
   `docs/audits/2026-09-07-SECURITY_PASS_REST_PERMISSION_WIDENING_PRO2350.md`;
   register row in `docs/audits/INDEX.md`.
-- **Queue after the release ships:** the Low items — PRO-2323, PRO-2324,
+- **PRO-2323 is DONE and unpushed** (2026-09-07) — Retry and the abandoned-cart
+  sweeper now say "next scheduled pass" instead of implying an immediate send;
+  behaviour unchanged by decision. The new Event Log banner's **Estonian needs
+  Erkki's proofread** (it ships in the admin catalog, not the docs site).
+- **Queue after the release ships:** the Low items — PRO-2324,
   PRO-2321, PRO-2320, PRO-2317, PRO-2348, PRO-2356, PRO-2351, PRO-2352,
   PRO-2355.
 - **Human checks outstanding:** on Jane's own test store, whether the
