@@ -33,7 +33,7 @@ if ( ! defined( 'SMAILY_CONNECT_PLUGIN_PATH' ) ) {
 	define( 'SMAILY_CONNECT_PLUGIN_PATH', __DIR__ . '/../' );
 }
 if ( ! defined( 'SMAILY_CONNECT_VERSION' ) ) {
-	define( 'SMAILY_CONNECT_VERSION', '3.11.2' );
+	define( 'SMAILY_CONNECT_VERSION', '3.11.3' );
 }
 
 // wpdb output-format constants used by $wpdb->get_row / get_results.

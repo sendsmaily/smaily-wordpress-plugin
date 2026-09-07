@@ -1,6 +1,6 @@
 {
   "name": "smaily-connect-admin",
-  "version": "3.11.2",
+  "version": "3.11.3",
   "description": "Admin UI bundle + RecEngineClient stub for the Smaily Connect WordPress plugin.",
   "private": true,
   "license": "GPL-3.0-or-later",

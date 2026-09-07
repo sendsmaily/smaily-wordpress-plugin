@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.0
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.11.2
+Stable tag: 3.11.3
 License: GPLv3 or later
 
 Email marketing, automations and personalized product recommendations for WordPress, WooCommerce, Contact Form 7 and Elementor — powered by Smaily.
@@ -90,6 +90,15 @@ Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-
 == Changelog ==
 
 Only releases from 3.0.0 onward are listed here. The complete version history, including the 1.x and 2.x releases, is published at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
+
+= 3.11.3 =
+* Fixed: the Smaily landing page block now keeps the landing page on the page after you save it. On sites where WordPress strips embedded frames from post content, the published page came out empty and the block reported "unexpected or invalid content" the next time it was opened.
+* Fixed: the Smaily landing page block now works for editors, not only administrators. It used to say "Please configure the plugin first" and show no URL field on a fully connected store.
+* Fixed: the newsletter sign-up block's automation list now loads for editors. The block used to sit on a loading spinner with no automation to choose and no error shown.
+* Fixed: the Event Log's Retry no longer disappears for a failed shipping confirmation on an order parked on a merchant-defined status whose plugin has since been deactivated. The order was reported as gone, even though it is still there.
+* Improved: the Event Log now offers Retry on a failed order or shipping confirmation only where the shopper never received one, and that retry now really re-sends it. Where WooCommerce already sent its own email instead of Smaily's, the Retry is gone and the row's details say why, so a retry can no longer deliver a second confirmation.
+* Improved: when your Smaily Campaign Intelligence account has been deactivated, the store now stops sending to it instead of retrying forever, and the admin notice says plainly that the account was deactivated and to contact Smaily. Queued events are kept and resume once the account is active again.
+* Improved: the plugin's WordPress.org description now describes what is new in version 3; it still described the change as "version 2.0".
 
 = 3.11.2 =
 * Fixed: on a store where Smaily Campaign Intelligence uses its own attribution cookie names, orders now carry their recommendation attribution again — the checkout was looking those cookies up under the default names only, so no order recorded which recommendation it came from.
@@ -227,6 +236,9 @@ First general-availability release, graduating the 2.1.0-beta line. Existing set
 * Hardening: WordPress.org Plugin Check pass (sanitization, escaping, prefixing, ABSPATH guards); editor blocks updated to Block API v3 for the WordPress 7.0 iframe editor; diagnostics gated behind WP_DEBUG.
 
 == Upgrade Notice ==
+
+= 3.11.3 =
+Fixes only. The landing page and newsletter sign-up blocks now work for editors and keep their content after saving; the Event Log retries order and shipping confirmations correctly; a deactivated Campaign Intelligence account now stops sending and says so. Safe update.
 
 = 3.11.2 =
 This is the major version 3 rewrite. After updating, open Smaily Connect in the admin menu and confirm your settings in the setup wizard. Live contact syncing keeps working meanwhile; the daily catch-up sync resumes once the wizard is confirmed. See the migration guide for the full upgrade path.
