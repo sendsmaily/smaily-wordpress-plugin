@@ -227,7 +227,8 @@ final class Bootstrap {
 			static function () use ( $gdpr_bootstrap ): RecEngineClient {
 				return $gdpr_bootstrap->rec_client();
 			},
-			$this->cart_session_store()
+			$this->cart_session_store(),
+			$this->event_queue()
 		) )->register();
 
 		// Proactive health notifications (3.10.2) — a recurring health-check sets

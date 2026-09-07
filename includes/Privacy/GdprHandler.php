@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
+use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
 
@@ -37,6 +38,11 @@ use Smaily\Connect\Smaily\RecEngine\Client;
  *     (`smly_plus_cart_session`, PRO-1195) — not rec-engine data, but the
  *     plugin's only other local PII store (PRO-1343), so it rides the same
  *     exporter/eraser. Independent of the rec-engine connection.
+ *   - And the Smaily event queue (`smly_plus_event_queue`, PRO-2383) — the
+ *     other local store that holds a contact's address, inside the queued
+ *     payload and the F3-44 send-time exchange. Export lists what was queued
+ *     and when; erase deletes what could still send and redacts what already
+ *     did (EventQueue::erase_for_privacy_request()).
  *
  * The engine call is injected via a closure so tests stand up a mock engine.
  */
@@ -83,6 +89,7 @@ class GdprHandler {
 
 	private RecEngineSettings $settings;
 	private CartSessionStore $cart_store;
+	private EventQueue $event_queue;
 
 	/** @var callable(): Client */
 	private $client_factory;
@@ -90,10 +97,11 @@ class GdprHandler {
 	/**
 	 * @param callable(): Client $client_factory
 	 */
-	public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store ) {
+	public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue ) {
 		$this->settings       = $settings;
 		$this->client_factory = $client_factory;
 		$this->cart_store     = $cart_store;
+		$this->event_queue    = $event_queue;
 	}
 
 	public function register(): void {
@@ -140,6 +148,9 @@ class GdprHandler {
 		foreach ( $this->cart_session_export_items( $email ) as $item ) {
 			$items[] = $item;
 		}
+		foreach ( $this->event_queue_export_items( $email ) as $item ) {
+			$items[] = $item;
+		}
 
 		return array(
 			'data' => $items,
@@ -161,10 +172,17 @@ class GdprHandler {
 			$removed = true;
 		}
 
+		$queue    = $this->event_queue->erase_for_privacy_request( $email );
+		$messages = $this->event_queue_messages( $queue );
+		if ( $queue['removed'] > 0 || $queue['redacted'] > 0 ) {
+			$removed = true;
+		}
+
 		return array(
 			'items_removed'  => $removed,
+			// Nothing personal is kept back: the rows that stay are anonymised.
 			'items_retained' => false,
-			'messages'       => array(),
+			'messages'       => $messages,
 			'done'           => true,
 		);
 	}
@@ -278,6 +296,31 @@ class GdprHandler {
 		return $items;
 	}
 
+	/**
+	 * The Smaily queue rows queued for this address (PRO-2383). What the plugin
+	 * queued and when — never the payload: it is the store's own message body,
+	 * built from data WooCommerce and Smaily already own, and the row is here
+	 * as a delivery record.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function event_queue_export_items( string $email ): array {
+		$items = array();
+
+		foreach ( $this->event_queue->rows_for_privacy_request( $email ) as $row ) {
+			$items[] = $this->group_item(
+				'Queued Smaily message',
+				'event-queue-' . ( $row['id'] ?? '' ),
+				array(
+					'event_type' => (string) ( $row['event_type'] ?? '' ),
+					'created_at' => (string) ( $row['created_at'] ?? '' ),
+				)
+			);
+		}
+
+		return $items;
+	}
+
 	// --- erase internals ---------------------------------------------------
 
 	private function erase_engine( string $email ): bool {
@@ -330,6 +373,47 @@ class GdprHandler {
 
 	private function erase_cart_sessions( string $email ): bool {
 		return $this->cart_store->delete_rows_for_privacy_request( $email, $this->user_id_for( $email ) ) > 0;
+	}
+
+	/**
+	 * Say what happened to the Smaily queue rows — WordPress shows an eraser's
+	 * messages next to its result, and "removed" and "anonymised" are two
+	 * different outcomes the requester is entitled to be told apart.
+	 *
+	 * @param array{removed: int, redacted: int} $queue
+	 *
+	 * @return array<int, string>
+	 */
+	private function event_queue_messages( array $queue ): array {
+		$messages = array();
+
+		if ( $queue['removed'] > 0 ) {
+			$messages[] = sprintf(
+				/* translators: %d: number of queued Smaily messages deleted. */
+				_n(
+					'Removed %d Smaily message that was still queued for this address.',
+					'Removed %d Smaily messages that were still queued for this address.',
+					$queue['removed'],
+					'smaily-connect'
+				),
+				$queue['removed']
+			);
+		}
+
+		if ( $queue['redacted'] > 0 ) {
+			$messages[] = sprintf(
+				/* translators: %d: number of already-sent Smaily event-log records anonymised. */
+				_n(
+					'Anonymised %d already-sent Smaily record in the event log.',
+					'Anonymised %d already-sent Smaily records in the event log.',
+					$queue['redacted'],
+					'smaily-connect'
+				),
+				$queue['redacted']
+			);
+		}
+
+		return $messages;
 	}
 
 	// --- helpers -----------------------------------------------------------

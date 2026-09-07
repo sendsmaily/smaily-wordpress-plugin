@@ -68,6 +68,34 @@ class EventQueue {
 	private const NOTE_CANCELLED = 'the shopper completed a purchase before the reminder was sent';
 
 	/**
+	 * What a redacted field carries after an Art 17 erasure (PRO-2383). A
+	 * fixed non-address string, so nothing downstream can read a recipient
+	 * back out of a row the subject asked us to forget.
+	 */
+	public const ERASED_PLACEHOLDER = '[erased]';
+
+	/**
+	 * Keys whose values survive redaction: routing/diagnostic scalars that
+	 * describe the SEND, never the person — the stored exchange's `http` /
+	 * `outcome` / `note` (the Event Log labels a cancelled row from them,
+	 * PRO-2372), and a transactional row's `workflow_id` / `account_key` /
+	 * `to_status` (config ids and a WC status slug, which the "Send again"
+	 * guard reads back). Everything else in the JSON is redacted, whatever
+	 * its key — an allowlist, so a payload field added later cannot leak by
+	 * simply not being on a denylist.
+	 *
+	 * @var string[]
+	 */
+	private const REDACTION_KEEP_KEYS = array(
+		'http',
+		'outcome',
+		'note',
+		'workflow_id',
+		'account_key',
+		'to_status',
+	);
+
+	/**
 	 * Persist an event and ensure a flush is scheduled.
 	 *
 	 * @param string               $event_type e.g. "contact.sync", "automation.welcome".
@@ -249,6 +277,184 @@ class EventQueue {
 	 */
 	public static function contact_key( string $email ): string {
 		return hash( 'sha256', strtolower( trim( $email ) ) );
+	}
+
+	/**
+	 * This contact's queue rows, for the WP Privacy exporter (Art 15,
+	 * PRO-2383). Projection is deliberately narrow — what happened and when,
+	 * never the stored payload: the queue row is a record that the plugin
+	 * queued a message for this address, and that is the subject-access fact.
+	 *
+	 * @return array<int, array<string, mixed>> id, event_type, status, created_at.
+	 */
+	public function rows_for_privacy_request( string $email ): array {
+		global $wpdb;
+
+		$where = $this->privacy_request_where( $email );
+		if ( $where === null ) {
+			return array();
+		}
+
+		$table = $this->table_name();
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, event_type, status, created_at FROM {$table} WHERE {$where[0]} ORDER BY created_at ASC, id ASC",
+				$where[1]
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/**
+	 * Erase this contact from the queue (Art 17, PRO-2383) — the asymmetric
+	 * pair Erkki chose: a row that could still SEND is deleted, a row that is
+	 * already `sent` is redacted in place.
+	 *
+	 * Deleting the sendable rows is the point of the erasure — a queued
+	 * message must never leave for an address the subject asked us to forget,
+	 * and a `failed` row is revivable by the Event Log's Retry, so it counts
+	 * as sendable too (only `sent` is truly over). Redacting rather than
+	 * deleting the rest keeps the Event Log's history of what the store did:
+	 * the row keeps its event_type, timestamps and status, and loses its
+	 * payload values, its stored exchange (F3-44 — `sent_payload` is the
+	 * literal body POSTed to Smaily, address included) and its contact_key.
+	 *
+	 * Redaction is idempotent-by-construction: a redacted row no longer
+	 * carries the key or the address it was matched on, so a second run
+	 * finds nothing.
+	 *
+	 * @return array{removed: int, redacted: int}
+	 */
+	public function erase_for_privacy_request( string $email ): array {
+		global $wpdb;
+
+		$result = array(
+			'removed'  => 0,
+			'redacted' => 0,
+		);
+
+		$where = $this->privacy_request_where( $email );
+		if ( $where === null ) {
+			return $result;
+		}
+
+		$table = $this->table_name();
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$result['removed'] = (int) $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$table} WHERE status != %s AND {$where[0]}",
+				array_merge( array( self::STATUS_SENT ), $where[1] )
+			)
+		);
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, payload, sent_payload, last_response FROM {$table} WHERE status = %s AND {$where[0]}",
+				array_merge( array( self::STATUS_SENT ), $where[1] )
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$wpdb->update(
+				$table,
+				array(
+					'payload'       => (string) self::redact_json( (string) ( $row['payload'] ?? '' ) ),
+					'sent_payload'  => self::redact_json( $row['sent_payload'] === null ? null : (string) $row['sent_payload'] ),
+					'last_response' => self::redact_json( $row['last_response'] === null ? null : (string) $row['last_response'] ),
+					'contact_key'   => null,
+				),
+				array( 'id' => (int) $row['id'] ),
+				array( '%s', '%s', '%s', '%s' ),
+				array( '%d' )
+			);
+			++$result['redacted'];
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Replace every value in a stored JSON blob with ERASED_PLACEHOLDER,
+	 * keeping the KEYS and the structure (so the Event Log still shows the
+	 * shape of what went out) and the REDACTION_KEEP_KEYS scalars.
+	 *
+	 * A blob that isn't decodable JSON is replaced wholesale — it may be
+	 * anything, so nothing in it can be assumed impersonal.
+	 */
+	public static function redact_json( ?string $json ): ?string {
+		if ( $json === null || $json === '' ) {
+			return $json;
+		}
+
+		$decoded = json_decode( $json, true );
+		if ( ! is_array( $decoded ) ) {
+			return self::ERASED_PLACEHOLDER;
+		}
+
+		$encoded = wp_json_encode( self::redact_value( $decoded ) );
+
+		return $encoded === false ? self::ERASED_PLACEHOLDER : $encoded;
+	}
+
+	/**
+	 * @param array<array-key, mixed> $value
+	 *
+	 * @return array<array-key, mixed>
+	 */
+	private static function redact_value( array $value ): array {
+		$out = array();
+		foreach ( $value as $key => $item ) {
+			if ( is_array( $item ) ) {
+				$out[ $key ] = self::redact_value( $item );
+				continue;
+			}
+			$out[ $key ] = in_array( (string) $key, self::REDACTION_KEEP_KEYS, true )
+				? $item
+				: self::ERASED_PLACEHOLDER;
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The match condition both privacy-request methods share, so the export
+	 * and the erasure can never disagree on what counts as this subject's
+	 * rows (same discipline as CartSessionStore::privacy_request_where()).
+	 *
+	 * `contact_key` (migration 011) is the indexed answer, but it only exists
+	 * for rows whose payload carries an `email` — rows enqueued before that
+	 * migration have none, and a transactional row never does (its recipient
+	 * is `to`). Those fall back to a payload text match on the two recipient
+	 * keys, case-insensitively via the column's collation — unindexable, and
+	 * that is why the checkout path refuses it (PRO-1723), but an erasure
+	 * request is an admin-triggered one-off where completeness beats speed.
+	 *
+	 * @return array{0: string, 1: array<int, string>}|null
+	 */
+	private function privacy_request_where( string $email ): ?array {
+		global $wpdb;
+
+		$email = trim( $email );
+		if ( $email === '' ) {
+			return null;
+		}
+
+		return array(
+			'( contact_key = %s OR ( contact_key IS NULL AND ( payload LIKE %s OR payload LIKE %s ) ) )',
+			array(
+				self::contact_key( $email ),
+				'%' . $wpdb->esc_like( '"email":"' . $email . '"' ) . '%',
+				'%' . $wpdb->esc_like( '"to":"' . $email . '"' ) . '%',
+			),
+		);
 	}
 
 	/**
