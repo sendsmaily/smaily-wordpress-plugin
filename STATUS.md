@@ -26,7 +26,36 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2350 — the two block-editor routes widened to
+_Last updated: 2026-09-07 (**3.11.3 is bumped and gated locally, ready for the
+orchestrator to publish — with ONE finding that needs Erkki's call first.** The
+41-commit delta since the `3.11.2` tag is bumped in all eight places the runbook
+lists plus `package-lock.json` and the `docs/INSTALL.md` current-release line
+(`b608264`), the catalogs are restamped with `bin/build-i18n.sh` — `admin/src`
+and `languages/` both moved, and the ET catalog gained no new untranslated
+string (`b1b727e`) — and the register row is in `docs/audits/INDEX.md`
+(`c55ddb8`). `readme.txt` carries seven merchant-language changelog bullets
+(both PRO-2346 landing-page fixes, PRO-2347, PRO-2326, PRO-1733, PRO-1893, the
+"What's new in version 3" wording) and a 270-byte Upgrade Notice, under PCP's
+300-byte ceiling. **Gates:** `npm run ci:strict` **exit=0** (PHPCS 0 errors,
+PHPStan `[OK] No errors`, PHPUnit unit 770/770 · 2 162 assertions, vitest
+306/306 across 41 files); the ZIP was reproduced the way CI builds it and
+`bin/verify-release-zip.sh smaily-connect.zip 3.11.3` **exits 0** (894 890 B,
+clean non-dirty build-hash `b1b727e`). The integration suite was not re-run —
+this pass changed only version strings and i18n line references. **PCP against
+the BUILT ZIP: 1 ERROR, 5 WARNINGS.** The ERROR is `outdated_tested_upto_header`
+— `Tested up to: 7.0 < 7.1`. It is environmental, not a code defect: WordPress
+7.1 shipped after the 3.11.1 gate, and `readme.txt` + `.wp-env.json` both still
+pin 7.0. Raising the header is a **compatibility claim**, so it wants a real WP
+7.1 integration pass behind it, not a one-line edit — **Erkki's call, and the
+reason publication is held.** The warnings are the 3 known accepted ones plus 2
+of the same accepted class (`EventsEndpoint.php:568` `DirectQuery` +
+`NoCaching`, the PRO-2326 status-blind legacy-order read — a deliberate
+`$wpdb->prepare()`d lookup on the table shape `OrderBackfillJob::table_spec()`
+already owns); no new finding class. **Nothing was pushed, tagged or released —
+that is the orchestrator's step.**)
+(handoff refreshed 2026-09-07)_
+
+Prior: 2026-09-07 (**PRO-2350 — the two block-editor routes widened to
 `edit_posts` today have their security pass and their register row.** A
 capability change on a REST route triggers the re-audit policy no matter how
 few lines it is, and nothing recorded what `/smaily/v1/configuration`
@@ -711,15 +740,20 @@ Docs-only; no code, so no gates run.)_
   checkout <tag>`, so never run it in this working tree). The fork
   `erkkimarkus/smaily-wordpress-plugin` is archived read-only; local `main` IS
   official `main` and a direct push works.
-- **The next release is NOT yet cut.** Everything landed on official `main`
-  after the `3.11.2` tag ships in it: PRO-1709 (the CI coverage gate), PRO-1893
-  + its simplification pass, PRO-1733 + its simplification pass, the readme
-  "What's new in version 3" fix (`11527fd`), PRO-2346 (the landing-page block
-  works for Editors **and** keeps its embed after saving), PRO-2326 (the
-  legacy-storage retry existence check) and
-  PRO-2347 (the sign-up block works for Editors). Cut it whenever Erkki decides,
-  per the CLAUDE.md release runbook; `readme.txt` and the merchant docs are
-  content-current.
+- **3.11.3 is BUMPED AND GATED LOCALLY, NOT PUBLISHED.** Commits `b608264`
+  (bump), `b1b727e` (i18n restamp) and `c55ddb8` (register row) are on local
+  `main` and **unpushed**. `ci:strict` exit=0; the ZIP reproduces and
+  `bin/verify-release-zip.sh smaily-connect.zip 3.11.3` exits 0. **One thing
+  needs Erkki before it goes out:** PCP against the built ZIP returns the ERROR
+  `outdated_tested_upto_header` (`Tested up to: 7.0 < 7.1`) — WordPress 7.1
+  shipped after the 3.11.1 gate and `readme.txt` + `.wp-env.json` still pin 7.0.
+  Either run a WP 7.1 integration pass and raise both pins (then re-verify and
+  re-run PCP), or accept the finding and publish on 7.0 knowing wordpress.org
+  will mark the plugin untested against 7.1. Once decided: push `main` → `gh
+  release create 3.11.3 --repo sendsmaily/smaily-wordpress-plugin --target main`
+  (**plain tag, no `v`, no local ZIP argument**) → wait for `release.yml` to
+  build and attach the ZIP → **Erkki** runs `./release.sh -u sendsmaily` →
+  publish the merchant docs site.
 - **Done 2026-09-07, all pushed to official `main`:** PRO-2346 (landing-page
   block usable by Editors **and**, reopened, rendered on the server so its embed
   survives saving), PRO-2349 + PRO-2318 merchant-docs drift (published
@@ -742,7 +776,7 @@ Docs-only; no code, so no gates run.)_
   the access matrix exercised on the running wp-env. Report
   `docs/audits/2026-09-07-SECURITY_PASS_REST_PERMISSION_WIDENING_PRO2350.md`;
   register row in `docs/audits/INDEX.md`.
-- **Queue, in order — start here:** the Low items — PRO-2323, PRO-2324,
+- **Queue after the release ships:** the Low items — PRO-2323, PRO-2324,
   PRO-2321, PRO-2320, PRO-2317, PRO-2348, PRO-2356, PRO-2351, PRO-2352,
   PRO-2355.
 - **Human checks outstanding:** on Jane's own test store, whether the
