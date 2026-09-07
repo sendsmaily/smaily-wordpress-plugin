@@ -61,6 +61,9 @@ class EventQueue {
 	 */
 	public const OUTCOME_CANCELLED = 'cancelled';
 
+	/** The outcome a flusher records for an ordinary "nothing to send" terminal skip. */
+	public const OUTCOME_SKIPPED = 'skipped';
+
 	/** Why a row was withdrawn — the note the Event Log shows on a cancelled row. */
 	private const NOTE_CANCELLED = 'the shopper completed a purchase before the reminder was sent';
 
@@ -274,10 +277,6 @@ class EventQueue {
 	 * Event Log's read model doesn't have to.
 	 */
 	public static function is_cancelled_response( string $last_response ): bool {
-		if ( $last_response === '' ) {
-			return false;
-		}
-
 		$decoded = json_decode( $last_response, true );
 
 		return is_array( $decoded ) && ( $decoded['outcome'] ?? '' ) === self::OUTCOME_CANCELLED;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { errorMessage } from '../../api/client';
 import {
-  actionFailureMessage,
   getEventDetail,
   listEvents,
   resendEvent,
@@ -104,7 +104,7 @@ export function EventLog(): React.JSX.Element {
       } catch (e) {
         // A refusal is the server explaining itself, not a transport
         // failure — show its sentence, never the request line (PRO-2369).
-        setError(actionFailureMessage(e, failureMessage));
+        setError(errorMessage(e, failureMessage));
       } finally {
         setBusy(false);
       }

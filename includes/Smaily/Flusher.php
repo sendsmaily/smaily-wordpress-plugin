@@ -260,7 +260,7 @@ final class Flusher {
 				null,
 				(string) wp_json_encode(
 					array(
-						'outcome' => 'skipped',
+						'outcome' => EventQueue::OUTCOME_SKIPPED,
 						'note'    => 'no API call (missing email, no workflow mapped, or payload decode failure) — nothing was sent',
 					)
 				)

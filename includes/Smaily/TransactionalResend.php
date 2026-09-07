@@ -77,4 +77,24 @@ class TransactionalResend {
 			'error' => $id === null ? self::ERROR_ENQUEUE_FAILED : '',
 		);
 	}
+
+	/**
+	 * The merchant-readable reason a "Send again" was turned down (PRO-2369),
+	 * worded here beside the ERROR_* codes it maps — the same way
+	 * TransactionalRetryGuard keeps the retry refusal's wording beside its
+	 * reasons. The admin banner has nothing else to show: without a sentence
+	 * it falls back to the raw transport failure ("POST … → 409"), which says
+	 * nothing about why the plugin turned the request down.
+	 */
+	public static function message( string $error ): string {
+		if ( $error === self::ERROR_SENDING_DISABLED ) {
+			return __( 'Transactional emails are switched off for this confirmation, or its Smaily workflow is no longer mapped — so nothing can be sent.', 'smaily-connect' );
+		}
+
+		if ( $error === self::ERROR_ENQUEUE_FAILED ) {
+			return __( 'The second confirmation could not be queued. Please try again.', 'smaily-connect' );
+		}
+
+		return __( 'This confirmation can no longer be sent again. Refresh the event log to see the row as it is now.', 'smaily-connect' );
+	}
 }

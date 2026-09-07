@@ -356,32 +356,19 @@ class EventsEndpoint {
 	}
 
 	/**
-	 * A refused "Send again", worded for the merchant (PRO-2369). The admin
-	 * banner has nothing else to show: without a `message` it falls back to
-	 * the raw transport failure ("POST … → 409"), which says nothing about
-	 * why the plugin turned the request down. The retry route's refusal is
-	 * worded by TransactionalRetryGuard for the same reason.
+	 * A refused "Send again", worded for the merchant (PRO-2369). The wording
+	 * belongs to TransactionalResend, beside the ERROR_* codes it maps — the
+	 * retry route's refusal is worded by TransactionalRetryGuard for the same
+	 * reason.
 	 */
 	private function resend_refused( string $error ): WP_REST_Response {
 		return new WP_REST_Response(
 			array(
 				'error'   => $error,
-				'message' => $this->resend_refusal_message( $error ),
+				'message' => TransactionalResend::message( $error ),
 			),
 			409
 		);
-	}
-
-	private function resend_refusal_message( string $error ): string {
-		if ( $error === TransactionalResend::ERROR_SENDING_DISABLED ) {
-			return __( 'Transactional emails are switched off for this confirmation, or its Smaily workflow is no longer mapped — so nothing can be sent.', 'smaily-connect' );
-		}
-
-		if ( $error === TransactionalResend::ERROR_ENQUEUE_FAILED ) {
-			return __( 'The second confirmation could not be queued. Please try again.', 'smaily-connect' );
-		}
-
-		return __( 'This confirmation can no longer be sent again. Refresh the event log to see the row as it is now.', 'smaily-connect' );
 	}
 
 	/**
@@ -525,8 +512,13 @@ class EventsEndpoint {
 			'SELECT id, %s AS source, event_type, entity_id, status, attempts, %s AS max_attempts, last_error, created_at, %s AS retry_payload, %s AS last_response FROM %s%s',
 			$this->quote( $source ),
 			$max_attempts_expr,
-			$this->retry_payload_expr( $source ),
-			$this->last_response_expr( $source ),
+			$this->conditional_column_expr(
+				$source,
+				'payload',
+				EventQueue::STATUS_FAILED,
+				' AND event_type IN ( ' . implode( ', ', array_map( array( $this, 'quote' ), TransactionalFlusher::EVENT_TYPES ) ) . ' )'
+			),
+			$this->conditional_column_expr( $source, 'last_response', EventQueue::STATUS_SENT ),
 			$table,
 			$where_sql
 		);
@@ -766,38 +758,31 @@ class EventsEndpoint {
 	}
 
 	/**
-	 * The list projection needs a transactional row's payload to tell a
-	 * re-fired-native-email failure from one the shopper never got
-	 * (PRO-1733) — but only for FAILED transactional rows, so a page of
-	 * ordinary events doesn't drag every payload out of the database.
+	 * One heavy column carried only for the rows that actually need it, the
+	 * empty literal for the rest — so a page of ordinary events doesn't drag
+	 * it out of the database. The rec queue needs neither of them, so it gets
+	 * the literal outright.
+	 *
+	 * `payload` is carried for FAILED transactional rows: the list reads it
+	 * to tell a re-fired-native-email failure from one the shopper never got
+	 * (PRO-1733). `last_response` is carried for SENT rows, where a withdrawn
+	 * abandoned-cart reminder records `cancelled` (PRO-1723) and the list must
+	 * label it as such (PRO-2372); a failed row's response is the big one
+	 * nobody needs here.
+	 *
+	 * @param string $extra_condition Already-quoted SQL appended to the status
+	 *                                test, or '' for none.
 	 */
-	private function retry_payload_expr( string $source ): string {
+	private function conditional_column_expr( string $source, string $column, string $status, string $extra_condition = '' ): string {
 		if ( $source !== self::SOURCE_SMAILY ) {
 			return "''";
 		}
 
 		return sprintf(
-			"CASE WHEN status = %s AND event_type IN ( %s ) THEN payload ELSE '' END",
-			$this->quote( EventQueue::STATUS_FAILED ),
-			implode( ', ', array_map( array( $this, 'quote' ), TransactionalFlusher::EVENT_TYPES ) )
-		);
-	}
-
-	/**
-	 * A withdrawn abandoned-cart reminder is a `sent` row whose stored
-	 * response says `cancelled` (PRO-1723), and the list must label it as
-	 * such (PRO-2372) — so the projection carries the response of SENT rows
-	 * only: a withdrawal is always one, and a failed row's response is the
-	 * big one nobody needs here. The rec queue has no withdrawal path.
-	 */
-	private function last_response_expr( string $source ): string {
-		if ( $source !== self::SOURCE_SMAILY ) {
-			return "''";
-		}
-
-		return sprintf(
-			"CASE WHEN status = %s THEN last_response ELSE '' END",
-			$this->quote( EventQueue::STATUS_SENT )
+			"CASE WHEN status = %s%s THEN %s ELSE '' END",
+			$this->quote( $status ),
+			$extra_condition,
+			$column
 		);
 	}
 

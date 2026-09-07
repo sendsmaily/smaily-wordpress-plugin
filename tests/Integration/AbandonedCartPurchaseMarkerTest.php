@@ -243,12 +243,9 @@ final class AbandonedCartPurchaseMarkerTest extends TestCase {
 		// the Event Log is the merchant's screen.
 		RestRequestHelper::login_as_admin();
 
-		$response = RestRequestHelper::get( '/events', array( 'source' => 'smaily' ) );
-		self::assertSame( 200, $response->get_status() );
-
 		$cancelled = array();
-		foreach ( $response->get_data()['events'] as $listed ) {
-			$cancelled[ (int) $listed['id'] ] = (bool) $listed['cancelled'];
+		foreach ( RestRequestHelper::listed_smaily_events() as $id => $listed ) {
+			$cancelled[ $id ] = (bool) $listed['cancelled'];
 		}
 
 		return $cancelled;

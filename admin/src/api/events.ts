@@ -1,4 +1,4 @@
-import { apiRequest, ApiError } from './client';
+import { apiRequest } from './client';
 
 /** Which durable queue a row came from. Mirrors the PHP `source` literal. */
 export type EventSource = 'rec_engine' | 'smaily';
@@ -128,24 +128,6 @@ export function retryEvents(
     body: args,
     signal,
   });
-}
-
-/**
- * The sentence to show when a row action is turned down (PRO-2369). Both
- * refusal routes answer a 409 with a `message` the server worded — the
- * plugin refusing on purpose is not a transport failure, and `ApiError`'s
- * own text ("POST /events/retry → 409") tells the merchant nothing. Anything
- * without such a message (a network failure, an HTML error page) falls back
- * to the caller's own sentence rather than leaking the request line.
- */
-export function actionFailureMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) {
-    const body = err.body as { message?: string } | null;
-    if (typeof body?.message === 'string' && body.message !== '') {
-      return body.message;
-    }
-  }
-  return fallback;
 }
 
 export interface ResendResponse {

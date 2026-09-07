@@ -75,8 +75,10 @@ final class TransactionalRetryGuard {
 			return self::REASON_ORDER_MISSING;
 		}
 
+		$payload = TransactionalFlusher::read_payload( $payload_json );
+
 		if ( $event_type !== TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION ) {
-			return self::resend_aware( self::REASON_WC_EMAIL_SENT, $payload_json );
+			return self::wc_email_reason( $payload );
 		}
 
 		// A shipping confirmation into `completed` replaced — and, on
@@ -85,28 +87,26 @@ final class TransactionalRetryGuard {
 		// nothing reached the shopper. An absent to_status (a row from
 		// before it was stored, or an undecodable payload) is treated as the
 		// `completed` case: never risk a second confirmation.
-		$to_status = self::to_status( $payload_json );
-		$reason    = ( $to_status !== '' && $to_status !== 'completed' ) ? '' : self::REASON_WC_EMAIL_SENT;
+		$to_status = self::to_status_of( $payload );
 
-		return self::resend_aware( $reason, $payload_json );
+		return ( $to_status !== '' && $to_status !== 'completed' ) ? '' : self::wc_email_reason( $payload );
 	}
 
 	/**
-	 * A re-send row that failed sent nothing at all (PRO-2368): fail-open is
-	 * deliberately off for it, so the reason it would otherwise be refused
-	 * with — "WooCommerce sent its own email instead" — never happened. The
-	 * refusal itself is unchanged, and so is the case where a retry is the
-	 * shopper's only route to a confirmation; only the sentence differs.
+	 * Which "the shopper already has a confirmation" sentence a refused row
+	 * gets. A re-send row that failed sent nothing at all (PRO-2368):
+	 * fail-open is deliberately off for it, so the reason it would otherwise
+	 * be refused with — "WooCommerce sent its own email instead" — never
+	 * happened. The refusal itself is unchanged, and so is the case where a
+	 * retry is the shopper's only route to a confirmation; only the sentence
+	 * differs.
+	 *
+	 * @param array<string, mixed>|null $payload The row's decoded payload,
+	 *                                           null when it doesn't decode.
 	 */
-	private static function resend_aware( string $reason, string $payload_json ): string {
-		if ( $reason !== self::REASON_WC_EMAIL_SENT ) {
-			return $reason;
-		}
-
-		$payload = TransactionalFlusher::read_payload( $payload_json );
-
+	private static function wc_email_reason( ?array $payload ): string {
 		return empty( $payload[ TransactionalFlusher::PAYLOAD_KEY_RESEND ] )
-			? $reason
+			? self::REASON_WC_EMAIL_SENT
 			: self::REASON_RESEND_FAILED;
 	}
 
@@ -154,8 +154,16 @@ final class TransactionalRetryGuard {
 	 * predates the field or its JSON doesn't decode.
 	 */
 	public static function to_status( string $payload_json ): string {
-		$payload = TransactionalFlusher::read_payload( $payload_json );
+		return self::to_status_of( TransactionalFlusher::read_payload( $payload_json ) );
+	}
 
+	/**
+	 * The same answer for a payload already decoded — refusal_reason() reads
+	 * the payload once and asks both questions of it.
+	 *
+	 * @param array<string, mixed>|null $payload
+	 */
+	private static function to_status_of( ?array $payload ): string {
 		return isset( $payload['to_status'] ) ? (string) $payload['to_status'] : '';
 	}
 }

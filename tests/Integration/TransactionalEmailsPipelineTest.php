@@ -698,22 +698,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		// PRO-2369, the reported case: the confirmation went out, then the
 		// merchant switched transactional emails off. "Send again" is refused
 		// — and the banner must read as a reason, not "POST … → 409".
-		$this->configure( array( 'order_confirmation' => '4242' ) );
-
-		$product  = $this->make_product( 'Switched Off Product', 12.00 );
-		$order_id = $this->make_order( 'switchedoff@example.test', $product );
-
-		$captured = array();
-		$fake     = $this->fake_transport( $captured );
-		add_filter( 'pre_http_request', $fake, 10, 3 );
-		try {
-			$this->fire_checkout_order_processed( $order_id );
-		} finally {
-			remove_filter( 'pre_http_request', $fake, 10 );
-		}
-
-		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION );
-		self::assertSame( 'sent', $row['status'] );
+		$row = $this->send_first_confirmation( 'switchedoff@example.test' );
 
 		$off = RestRequestHelper::post(
 			'/settings',
@@ -749,22 +734,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		// PRO-2368: a re-send deliberately does NOT fail open — the customer
 		// already has a confirmation. So when the re-send itself fails, the
 		// Event Log must not tell the merchant WooCommerce covered it.
-		$this->configure( array( 'order_confirmation' => '4242' ) );
-
-		$product  = $this->make_product( 'Failed Resend Product', 9.00 );
-		$order_id = $this->make_order( 'failedresend@example.test', $product );
-
-		$captured = array();
-		$fake     = $this->fake_transport( $captured );
-		add_filter( 'pre_http_request', $fake, 10, 3 );
-		try {
-			$this->fire_checkout_order_processed( $order_id );
-		} finally {
-			remove_filter( 'pre_http_request', $fake, 10 );
-		}
-
-		$first = $this->queue_row( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION );
-		self::assertSame( 'sent', $first['status'], 'The first confirmation must really have gone out.' );
+		$first = $this->send_first_confirmation( 'failedresend@example.test' );
 
 		self::assertSame(
 			200,
@@ -959,27 +929,48 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 	}
 
 	/**
+	 * A first order confirmation that really went out — where both "Send
+	 * again" cases start: the feature mapped, an order placed, and Smaily
+	 * accepting the send.
+	 *
+	 * @return array<string, mixed> The `sent` queue row.
+	 */
+	private function send_first_confirmation( string $email ): array {
+		$this->configure( array( 'order_confirmation' => '4242' ) );
+
+		$product  = $this->make_product( 'First Confirmation Product', 12.00 );
+		$order_id = $this->make_order( $email, $product );
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$this->fire_checkout_order_processed( $order_id );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION );
+		self::assertNotNull( $row );
+		self::assertSame( 'sent', $row['status'], 'The first confirmation must really have gone out.' );
+
+		return $row;
+	}
+
+	/**
 	 * One row as the Event Log list renders it (PRO-1733 — retry_refusal is
 	 * computed by the read model, not stored).
 	 *
 	 * @return array<string, mixed>
 	 */
 	private function listed_row( int $id, string $status = 'failed' ): array {
-		$response = RestRequestHelper::get(
-			'/events',
-			array(
-				'source' => 'smaily',
-				'status' => $status,
-			)
-		);
+		$rows = RestRequestHelper::listed_smaily_events( $status );
 
-		foreach ( $response->get_data()['events'] as $row ) {
-			if ( (int) $row['id'] === $id ) {
-				return $row;
-			}
+		if ( ! isset( $rows[ $id ] ) ) {
+			self::fail( sprintf( 'Row %d not in the event list.', $id ) );
 		}
 
-		self::fail( sprintf( 'Row %d not in the event list.', $id ) );
+		return $rows[ $id ];
 	}
 
 	/** PRO-1519 test-only: push a queue row's created_at back by $seconds without sleeping. */

@@ -600,7 +600,7 @@ class TransactionalFlusher {
 				null,
 				(string) wp_json_encode(
 					array(
-						'outcome' => 'skipped',
+						'outcome' => EventQueue::OUTCOME_SKIPPED,
 						'note'    => 'no API call (payload missing recipient/workflow id, or payload decode failure) — nothing was sent',
 					)
 				)

@@ -12,6 +12,7 @@ namespace Smaily\Connect\Tests\Integration\Support;
 
 defined( 'ABSPATH' ) || exit;
 
+use PHPUnit\Framework\Assert;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -99,6 +100,33 @@ final class RestRequestHelper {
 			$req->set_param( $key, $value );
 		}
 		return rest_get_server()->dispatch( $req );
+	}
+
+	/**
+	 * The Smaily queue as the Event Log list renders it, keyed by row id.
+	 * The fields the pipeline tests read there — retry_refusal, its sentence,
+	 * can_send_again, cancelled — are computed by the read model and stored
+	 * nowhere, so the route is the only place to see them.
+	 *
+	 * @param string $status Restrict to one status, '' for every row.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function listed_smaily_events( string $status = '' ): array {
+		$query = array( 'source' => 'smaily' );
+		if ( $status !== '' ) {
+			$query['status'] = $status;
+		}
+
+		$response = self::get( '/events', $query );
+		Assert::assertSame( 200, $response->get_status(), 'The Event Log list must answer 200.' );
+
+		$rows = array();
+		foreach ( $response->get_data()['events'] as $row ) {
+			$rows[ (int) $row['id'] ] = $row;
+		}
+
+		return $rows;
 	}
 
 	private function __construct() {

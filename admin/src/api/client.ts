@@ -44,6 +44,19 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The sentence to show when a request fails. A server that turned the request
+ * down on purpose answers with a `message` it worded itself, and that is what
+ * the merchant needs to read — `ApiError`'s own text ("POST /events/retry →
+ * 409") tells them nothing. Anything without such a message (a network
+ * failure, an HTML error page) falls back to the caller's own sentence rather
+ * than leaking the request line.
+ */
+export function errorMessage(err: unknown, fallback: string): string {
+  const message = err instanceof ApiError ? (err.body as { message?: string } | null)?.message : undefined;
+  return message || fallback;
+}
+
 interface ApiRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: unknown;

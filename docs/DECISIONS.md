@@ -6168,11 +6168,12 @@ all.
   retryable, re-send or not, because it is still the shopper's only route to a
   confirmation. Only the sentence changes: the second confirmation could not
   be sent, the first one stands.
-- Every refusal answers with a merchant-readable `message`
-  (`EventsEndpoint::resend_refused()` for the three re-send codes, the guard
-  for the retry ones), and the admin client reads it: `actionFailureMessage()`
-  prefers the body's sentence and otherwise falls back to the caller's own,
-  so a request path or status code can never reach the banner.
+- Every refusal answers with a merchant-readable `message`, worded beside the
+  codes it maps (`TransactionalResend::message()` for the three re-send codes,
+  `TransactionalRetryGuard::message()` for the retry ones), and the admin
+  client reads it: `errorMessage()` (admin/src/api/client.ts) prefers the
+  body's sentence and otherwise falls back to the caller's own, so a request
+  path or status code can never reach the banner.
 
 **Rationale:** a refusal is the plugin explaining itself, not a transport
 failure — the distinction the old banner erased. The wording lives server-side
