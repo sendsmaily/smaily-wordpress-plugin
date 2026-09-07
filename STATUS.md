@@ -26,7 +26,50 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2296 — the install guide names the
+_Last updated: 2026-09-07 (**PRO-2346 reopened — the landing page stays on the
+page after it is saved.** Jane confirmed her recording was made **as an
+administrator**, so the `edit_posts` fix earlier today closed only the Editor's
+half of the report. The administrator half is a second, independent defect,
+reproduced in the WP 7.0 editor: the block wrote its `<iframe>` into
+`post_content` from the JavaScript `save`, and WordPress strips `<iframe>` from
+post content for **every author who lacks `unfiltered_html`** — an administrator
+on a multisite, on a host or `wp-config` that defines
+`DISALLOW_UNFILTERED_HTML`, or behind a hardening plugin. The result is Jane's
+words exactly: the landing page renders while you paste the URL, the published
+page is then an empty box, and reopening the post says "Block contains
+unexpected or invalid content". The block is **rendered on the server** now —
+`save` returns `null`, post content carries the attributes only, and
+`Smaily_Connect\Blocks\Landing_Page\Integration::render()` builds the embed at
+render time from a subdomain that must be a DNS label and a key that must be a
+UUID. This is the pattern the sign-up block always used, which is why it never
+had the defect. One `deprecated` entry keeps blocks saved by the old version
+valid; they re-serialize into the new shape on the next save. A block whose
+content was **already** stripped cannot self-heal — the merchant re-adds it
+once. Also user-visible: a block with no landing page chosen used to publish the
+editor's setup instructions to visitors, and now publishes nothing.
+**Demonstrated in a running store**, not only by tests: driven in the WP 7.0
+block editor as an Administrator with `unfiltered_html` denied by a temporary
+mu-plugin — before the fix the published page was empty and the reopened post
+was invalid; after it the post reopens valid and the published page carries the
+iframe. A post saved with the OLD markup was reopened after the fix and is still
+valid. The dev site was restored as found (probe mu-plugin removed, drive posts
+deleted, `unfiltered_html` back). Gates: `npm run ci:strict` **exit=0** (PHPUnit
+unit **770 tests / 2162 assertions**, vitest **306**, PHPCS 0 errors, PHPStan
+`[OK] No errors`; block jest **8**, block eslint clean) and `sg docker -c
+"composer run test:integration"` **270 tests / 1574 assertions, 1 pre-existing
+skip**, dev sandbox tenant "Smaily Connect test" restored. New pin:
+`tests/Integration/LandingPageBlockRenderTest` (red before the fix on the two
+render cases, green after). DECISIONS "PRO-2346 (reopened)". Merchant docs site
+updated in BOTH languages — the landing-page block's notice paragraph now names
+this symptom and says updating the plugin fixes it; **the Estonian needs Erkki's
+proofread before the site is published**. **No version bump** — lands with the
+next release. Checked and ruled out along the way: the released 3.11.2 ZIP does
+ship a current landing-page block build (its `index.js` is byte-identical to the
+local one), and the canonical URL shapes — with and without the trailing
+`/html/` — are both accepted.)
+(handoff refreshed 2026-09-07 at the close of the session)_
+
+Prior: 2026-09-07 (**PRO-2296 — the install guide names the
 wordpress.org install path.** Found while closing PRO-2291: the migration guide
 sends fresh installs to `docs/INSTALL.md`, which had not been read in that pass.
 It carried no pre-3.x instruction and its requirements table already matched
@@ -43,8 +86,7 @@ the live URL `https://smaily.com/connect-woo/`, not only the local file. Left
 alone: the merchant docs site's own install step still says "download the latest
 release ZIP from the releases page" in BOTH languages — a real pre-wordpress.org
 instruction, but a bilingual change gated on the Estonian proofread, so it is
-reported rather than made here (filed as PRO-2357). Docs-only; no gates run.)
-(handoff refreshed 2026-09-07 at the close of the session)_
+reported rather than made here (filed as PRO-2357). Docs-only; no gates run.)_
 
 Prior: 2026-09-07 (**PRO-2347 — the Smaily sign-up block works for
 the people who build pages.** The sibling of PRO-2346, in the other Gutenberg
@@ -621,12 +663,14 @@ Docs-only; no code, so no gates run.)_
   after the `3.11.2` tag ships in it: PRO-1709 (the CI coverage gate), PRO-1893
   + its simplification pass, PRO-1733 + its simplification pass, the readme
   "What's new in version 3" fix (`11527fd`), PRO-2346 (the landing-page block
-  works for Editors), PRO-2326 (the legacy-storage retry existence check) and
+  works for Editors **and** keeps its embed after saving), PRO-2326 (the
+  legacy-storage retry existence check) and
   PRO-2347 (the sign-up block works for Editors). Cut it whenever Erkki decides,
   per the CLAUDE.md release runbook; `readme.txt` and the merchant docs are
   content-current.
 - **Done 2026-09-07, all pushed to official `main`:** PRO-2346 (landing-page
-  block usable by Editors), PRO-2349 + PRO-2318 merchant-docs drift (published
+  block usable by Editors **and**, reopened, rendered on the server so its embed
+  survives saving), PRO-2349 + PRO-2318 merchant-docs drift (published
   live), PRO-2326 (the Event Log's legacy-storage retry existence check),
   PRO-2347 (the sign-up block's automation list for Editors) and PRO-2296 (the
   install guide names the wordpress.org path).
@@ -634,8 +678,10 @@ Docs-only; no code, so no gates run.)_
   PRO-1679, PRO-1504, PRO-1681, PRO-1683, PRO-1684, PRO-1430.
 - **Merchant docs site is PUBLISHED LIVE** at `https://smaily.com/connect-woo/`
   (2026-09-07, after Erkki's Estonian proofread) — **including** the PRO-2347
-  "Gutenberg block" wording; the live copy's md5 matches `docs/site/index.html`
-  at `f23fb75`. Nothing in the file is newer than the live page.
+  "Gutenberg block" wording. It is now ONE change behind: the reopened PRO-2346
+  added a sentence to the landing-page block's notice paragraph in BOTH
+  languages. **The Estonian needs Erkki's proofread before publishing**, and the
+  publish should ride along with PRO-2357's.
 - **Queue, in order — start here:** PRO-2357 (Medium) — the docs site's install
   step still tells merchants to "download the latest release ZIP from the
   releases page"; fix it in BOTH languages, get the Estonian proofread, publish.
@@ -644,8 +690,11 @@ Docs-only; no code, so no gates run.)_
   `/smaily/v1/autoresponders` (PRO-2347), now on `edit_posts`.
 - **Then Low, in order:** PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317,
   PRO-2348, PRO-2356, PRO-2351, PRO-2352, PRO-2355.
-- **Human checks outstanding:** Jane's role on PRO-2346 (does she in fact hold
-  Editor, which is what the fix assumes); and, on a real store after the next
+- **Human checks outstanding:** on Jane's own test store, whether the
+  administrator there actually lacks `unfiltered_html` (multisite, a
+  `DISALLOW_UNFILTERED_HTML` host, or a hardening plugin) — that is the trigger
+  the reopened PRO-2346 reproduces, and confirming it closes the report rather
+  than only making the block robust. Also, on a real store after the next
   release, that the sign-up block's Autoresponder dropdown lists the account's
   real automations (PRO-2347 — the dev site's placeholder credentials cannot
   reach Smaily, so that step was met at route level only).

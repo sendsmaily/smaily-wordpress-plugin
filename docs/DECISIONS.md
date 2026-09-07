@@ -5842,6 +5842,62 @@ half of PRO-2346. Both legacy `smaily/v1` routes are now on `edit_posts`; the
 `register_endpoint()` default stays `manage_options` so a future route is not
 widened by accident. The new `smaily-connect/v1` routes are untouched.
 
+### PRO-2346 (reopened) — The landing-page block is rendered on the server (2026-09-07)
+
+**Context:** the `edit_posts` fix above closed the Editor's half of the report.
+Marketing then confirmed the recording was made **as an administrator**, so the
+"nothing happens" they described was a second, independent defect. Reproduced in
+the WP 7.0 block editor: the block emitted its `<iframe>` from the JavaScript
+`save`, which put the tag into `post_content` — and WordPress strips `<iframe>`
+from post content for **every author who lacks `unfiltered_html`**. An
+administrator lacks it on a multisite (only a network administrator has it), on
+a host or `wp-config` that defines `DISALLOW_UNFILTERED_HTML`, and wherever a
+hardening plugin drops the capability. The result is exactly the report: the
+landing page appears while you paste the URL, the published page then shows an
+empty box, and reopening the post shows "Block contains unexpected or invalid
+content" — because the stored markup no longer matches what `save` produces.
+Nothing anywhere says why.
+
+**Decision:** render the block on the server. `save` returns `null`, so post
+content carries the block's attributes and nothing else — there is no tag for
+the content filter to remove and no markup that can fall out of sync. The embed
+is built at render time by
+`Smaily_Connect\Blocks\Landing_Page\Integration::render()`, registered as the
+block's `render_callback`, from the stored `subdomain` + `landingpagePK`. This
+is the pattern the sign-up block has always used, which is why that block never
+had the defect.
+
+**Rationale:** the alternative — widening KSES so `<iframe>` survives in post
+content — buys one block's embed at the price of allowing framed content
+site-wide for authors an administrator deliberately restricted. Server rendering
+also makes the URL unspoofable from stored content: the renderer accepts a
+subdomain that is a DNS label and a key that is a UUID, and builds the address
+itself, rather than echoing whatever an editor saved.
+
+**Consequences:** a block saved by the old version keeps its `<div><iframe>`
+markup, so the JS carries one `deprecated` entry with the previous `save` — such
+posts stay valid, render through the server callback, and re-serialize into the
+new shape on the next save. A block whose content was **already** stripped
+cannot be recovered automatically: neither the current nor the deprecated save
+matches an empty div, so the merchant re-adds the block once. Also user-visible:
+a block with no landing page chosen used to publish the editor's setup
+instructions to visitors; it now publishes nothing.
+
+**Tests:** integration — `LandingPageBlockRenderTest` (the block renders the
+embed; it embeds nothing without a landing page; and the embed survives a save
+by an author whose `unfiltered_html` has been taken away). Red on the last two
+before the fix. **Demonstrated in a running store**, not only by tests: driven in
+the WP 7.0 block editor as an Administrator with `unfiltered_html` denied by an
+mu-plugin — before the fix the published page was empty and the reopened post
+said "unexpected or invalid content"; after it the post reopens valid and the
+published page carries the iframe. A post saved with the old markup was reopened
+after the fix and is still valid (the deprecation), and its front end renders
+through the new callback.
+
+**Relationships:** supersedes nothing in the `edit_posts` entry above — both
+defects were real and both are fixed; that one was role-scoped, this one is
+capability-scoped. PRO-2347's sign-up block already renders on the server.
+
 ### PRO-2326 — Order existence for the Event Log's Retry is resolved status-blind on legacy storage too (2026-09-07)
 
 **Context:** PRO-1733 keeps Retry on exactly one kind of failed transactional
