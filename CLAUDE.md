@@ -936,9 +936,12 @@ snapshot without running the suite (non-secret output only; exit 3 when no
 usable snapshot exists — then a fresh SANDBOX setup token is the fix).
 (LESSONS §2.17.)
 
-### Integration baseline is WP 7.0; the pilot stack needs an override to reproduce
-Since 2026-06-11 `.wp-env.json` pins `core: WordPress/WordPress#7.0` (Erkki's
-call: new work targets 7.0; the earlier WP 6.9.4 baseline was an interim step).
+### Integration baseline is WP 7.1; the pilot stack needs an override to reproduce
+Since 2026-09-07 `.wp-env.json` pins `core:
+https://wordpress.org/wordpress-7.1.zip` (PRO-2363: WordPress 7.1 shipped after
+the 3.11.1 gate and Plugin Check fails an out-of-date `Tested up to`, so the
+suite moved to 7.1 and `readme.txt` declares it — earlier baselines were 7.0,
+and 6.9.4 before that).
 The PILOT still runs the OLD stack — WC 6.9.4, legacy order storage, older WP —
 so a pilot bug may NOT reproduce on the default env. To stand up a
 pilot-faithful env, drop in a `.wp-env.override.json` (gitignored-by-use,
