@@ -58,6 +58,19 @@ final class AutomationMarker {
 	);
 
 	/**
+	 * The contact field recording that a shopper the plugin sent an
+	 * abandoned-cart reminder to has since completed a purchase (PRO-1723).
+	 *
+	 * It is not a trigger marker — no automation runs — so it lives outside
+	 * FIELDS: the merchant's Smaily workflow reads it as the EXIT condition
+	 * of the reminder series ("`abandoned_cart_purchased_at` is later than
+	 * `abandoned_cart_automation_at`"), which is why it carries the same
+	 * format as the markers above and must sort against them. Merchant-visible
+	 * and permanent, exactly like them.
+	 */
+	public const FIELD_ABANDONED_CART_PURCHASED = 'abandoned_cart_purchased_at';
+
+	/**
 	 * The contact field a trigger marks, or '' for a trigger that has none
 	 * (the transactional triggers deliberately don't — they're a receipt for
 	 * an order, not an enrolment into marketing).
@@ -80,5 +93,16 @@ final class AutomationMarker {
 		}
 
 		return array( $field => gmdate( 'Y-m-d H:i:s' ) );
+	}
+
+	/**
+	 * The purchase marker, stamped now — the moment the order was placed, in
+	 * the same UTC `Y-m-d H:i:s` shape as the trigger markers so a Smaily
+	 * workflow can compare the two.
+	 *
+	 * @return array<string, string>
+	 */
+	public static function purchase_stamp(): array {
+		return array( self::FIELD_ABANDONED_CART_PURCHASED => gmdate( 'Y-m-d H:i:s' ) );
 	}
 }

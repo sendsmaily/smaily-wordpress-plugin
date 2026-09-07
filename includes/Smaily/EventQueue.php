@@ -160,6 +160,106 @@ class EventQueue {
 		return is_array( $rows ) ? $rows : array();
 	}
 
+	/**
+	 * True when a row of this event type was actually DELIVERED to this
+	 * address (PRO-1723). "Delivered" is stricter than `sent`: the terminal
+	 * skips (no workflow mapped, missing email) also end as `sent`, and they
+	 * POSTed nothing — they are told apart by `sent_payload`, which the
+	 * flushers write only for a row that really reached Smaily (F3-44).
+	 *
+	 * The address is matched inside the stored payload: the queue has no
+	 * email column, and the enqueued JSON carries the contact as
+	 * `"email":"…"`. Leading the scan with event_type + status keeps it to
+	 * the few rows of that type (migration 011's idx_type_status).
+	 *
+	 * Bounded by the QueueJanitor's retention, deliberately: as long as the
+	 * row that proves the send is still here, the shopper counts as reminded.
+	 */
+	public function has_delivered_to( string $event_type, string $email ): bool {
+		global $wpdb;
+
+		if ( $email === '' ) {
+			return false;
+		}
+
+		$table = $this->table_name();
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$found = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table}
+				 WHERE event_type = %s
+				   AND status = %s
+				   AND sent_payload IS NOT NULL
+				   AND sent_payload != ''
+				   AND payload LIKE %s
+				 LIMIT 1",
+				$event_type,
+				self::STATUS_SENT,
+				$this->payload_email_like( $email )
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+
+		return $found !== null;
+	}
+
+	/**
+	 * Cancel every still-pending row of this event type addressed to this
+	 * email (PRO-1723) — the shopper's abandoned-cart reminder must not go
+	 * out behind a purchase they already completed.
+	 *
+	 * The row takes the same terminal shape a flusher's skip does: `sent`
+	 * with a `last_response` marker and no `sent_payload`, so the Event Log
+	 * shows what happened, nothing is retried, and has_delivered_to() above
+	 * still reads it as "never actually sent".
+	 *
+	 * @return int Rows cancelled.
+	 */
+	public function cancel_pending_for( string $event_type, string $email, string $note ): int {
+		global $wpdb;
+
+		if ( $email === '' ) {
+			return 0;
+		}
+
+		$table    = $this->table_name();
+		$response = (string) wp_json_encode(
+			array(
+				'outcome' => 'cancelled',
+				'note'    => $note,
+			)
+		);
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		return (int) $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table}
+					SET status = %s, last_response = %s, next_retry_at = NULL
+					WHERE event_type = %s AND status = %s AND payload LIKE %s",
+				self::STATUS_SENT,
+				$response,
+				$event_type,
+				self::STATUS_PENDING,
+				$this->payload_email_like( $email )
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
+	 * LIKE needle matching one contact inside a stored payload. The payload is
+	 * wp_json_encode()d with no spacing, so the address is always the exact
+	 * substring `"email":"<address>"`. Case-insensitivity comes from the
+	 * column's collation, which is what a shopper typing a differently-cased
+	 * address at checkout needs.
+	 */
+	private function payload_email_like( string $email ): string {
+		global $wpdb;
+
+		return '%' . $wpdb->esc_like( '"email":"' . $email . '"' ) . '%';
+	}
+
 	public function mark_sent( int $id ): void {
 		global $wpdb;
 		$wpdb->update(
