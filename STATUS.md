@@ -26,7 +26,32 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**3.12.0 pre-release security-delta audit + PCP, and
+_Last updated: 2026-09-07 (**3.12.0 bump on main at `a348b10` — gates green,
+awaiting Erkki's tag + `release.sh`.** Four commits on top of the pre-release
+audit: `5da620f` restored the two `DirectDatabaseQuery` suppressions
+`EventsEndpoint::fetch_row()` lost when it was extracted in d302050 (the audit's
+Info finding — PCP is back to the 3.11.3 baseline of **0 ERRORS / 5 WARNINGS**);
+`8d42f1e` re-ran `bin/build-i18n.sh`, bringing the `.pot` up to the delta's five
+new msgids — **all five already carry Estonian translations** in the committed
+`-et.po`, so the audit's "still need writing" note was pessimistic, but **Erkki's
+proofread of the new Estonian sentences is still outstanding**, as is the
+merchant docs-site publish; `a348b10` bumped all eight version files to **3.12.0**
+with the readme changelog + Upgrade Notice (258 B) covering PRO-1723, PRO-2324,
+PRO-2323, PRO-2372/2368/2369 and PRO-2318 — the merchant docs site states no
+version number, so it needed no edit. Built and verified per CLAUDE.md steps 2-6:
+`bin/verify-release-zip.sh smaily-connect.zip 3.12.0` **exit=0** (907 386 B, clean
+non-dirty build-hash `a348b10`, both storefront bundles + all three
+`blocks/*/build/*` + the ET `.mo` + the admin-bundle JSON present, no
+`sourceMappingURL` trailer). `ci:strict` **exit=0** (PHPCS 0 errors, PHPStan `[OK]
+No errors`, unit 787 / 2 231 assertions, vitest 312); integration **OK 277 tests /
+1 667 assertions**, sandbox tenant "Smaily Connect test" restored (not MiuMjau).
+Register: a **3.12.0 release gate** row in `docs/audits/INDEX.md`. Local-packaging
+gotcha recorded there: `composer install --no-dev` leaves an EMPTY `vendor/bin/`
+that rsync ships and the verifier rightly fails on — `rmdir vendor/bin` before
+`composer run package`; CI builds into a fresh tree and never hits it. **Not
+pushed, not tagged, no GH release — those are the orchestrator's and Erkki's.**)_
+
+Prior: 2026-09-07 (**3.12.0 pre-release security-delta audit + PCP, and
 the audit register's missing 3.11.2 row.** The re-audit policy fires on the
 `3.11.3..HEAD` delta by point 2 — it adds an admin REST route (`POST
 /events/resend`), custom-table SQL (migration 011's `contact_key` +
