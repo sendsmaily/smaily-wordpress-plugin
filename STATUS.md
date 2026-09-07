@@ -26,7 +26,42 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**3.12.0 bump on main at `a348b10` — gates green,
+_Last updated: 2026-09-07 (**PRO-2295 — the rollback direction was
+rehearsed, and the migration guide now states what actually happens.**
+PRO-2285 walked 2.0.0 → v3 only, so `docs/MIGRATION.md` hedged the other way
+("if 2.0.0 reports a credential error, re-enter the password"). Rehearsed on a
+throwaway wp-env — WP 7.1 / WC 11.1 / PHP 8.1, ports 8977/8978, the repo NOT
+mapped in, destroyed afterwards: the real wordpress.org 2.0.0 package,
+credentials written in 2.0.0's own `Cypher::encrypt()` format (fake account),
+then `wp plugin install --force` onto the **3.12.0 CI release ZIP**, then
+`--force` back onto the 2.0.0 ZIP. **Outcome: the password must be re-entered,
+and 2.0.0 says nothing.** The upgrade rewrites the blob to the `smy2:` GCM
+format (F3-35) — 3.12.0 hydrates `smailyHasStoredPassword: true` — and 2.0.0's
+CBC-only `decrypt()` then returns `''` with **no exception, no PHP warning and
+not one new line in `debug.log`**. `has_credentials()` goes false while
+subdomain and username survive, so the legacy settings page shows them filled
+and disabled, **hides the API Password field entirely** (its partial is inside
+`if ( ! $connected )`), flips the button to "Make a connection", drops the
+Getting started / Subscriber Synchronization / Abandoned Cart tabs, and raises
+no notice (`are_credentials_valid()` short-circuits true when
+`has_credentials()` is false). Submitting that form was rehearsed too: the
+surviving hidden `enabled=1` makes "Make a connection" perform a **disconnect**
+("API credentials disconnected!"), which clears the three fields and brings the
+password input back — that is the documented one-click fix, followed by
+retyping subdomain + username + password. `docs/MIGRATION.md`'s rollback
+section and its summary bullet now say this outright; `docs/site/index.html`'s
+"Upgrading from an older Smaily plugin?" note gained the same fact in BOTH
+languages (**the Estonian clause is new and needs Erkki's proofread before the
+site is re-published**). No plugin code — the 2.0.0 line is frozen and teaching
+v3 to write the old format back would undo the fix `smy2:` exists for.
+DECISIONS PRO-2295. Docs-only, no gates run. **Release state: 3.12.0 is LIVE on
+wordpress.org** (tagged on `a348b10`, CI asset verified, `release.sh` ran
+~17:00 UTC 2026-09-07 — SVN `tags/3.12.0` present, trunk Stable tag 3.12.0, six
+screenshots in `assets/`) **and the merchant docs site was published over FTPS
+~16:47 UTC** (live copy byte-identical to `docs/site/index.html` at `6a3b328`)
+— so the docs-site edit in THIS commit is newer than what is live.)_
+
+Prior: 2026-09-07 (**3.12.0 bump on main at `a348b10` — gates green,
 awaiting Erkki's tag + `release.sh`.** Four commits on top of the pre-release
 audit: `5da620f` restored the two `DirectDatabaseQuery` suppressions
 `EventsEndpoint::fetch_row()` lost when it was extracted in d302050 (the audit's

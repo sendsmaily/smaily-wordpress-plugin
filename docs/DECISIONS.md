@@ -6191,6 +6191,67 @@ Merchant docs site: the Event Log section says a refused action explains
 itself, both languages.
 
 
+### PRO-2295 — The rollback to 2.0.0 costs the API password, and the guide says so (2026-09-07)
+
+**Context:** PRO-2285 rehearsed the upgrade direction only. The migration
+guide's rollback section therefore hedged — "if 2.0.0 reports a credential or
+connection error, re-enter the Smaily API password" — because nobody had
+looked. The v3 upgrade re-encrypts the stored password from the legacy CBC blob
+into the versioned `smy2:` GCM format (F3-35 / `Activation::
+reencrypt_legacy_secrets()`), and the 2.0.0 `Cypher::decrypt()` predates that
+format entirely.
+
+**Rehearsed (2026-09-07), throwaway wp-env, WP 7.1 / WC 11.1 / PHP 8.1, own
+ports, the repo not mapped in:** real wordpress.org `smaily-connect` 2.0.0 →
+credentials written in 2.0.0's own format through its `Cypher::encrypt()`
+(synthetic account, its live-validation `pre_update_option` filter removed for
+the seed) → `wp plugin install <3.12.0 CI ZIP> --force` → back to the 2.0.0 ZIP
+with `--force`. Observed: the blob is silently rewritten `smy2:`-prefixed on
+upgrade and 3.12.0 hydrates `smailyHasStoredPassword: true`; after the
+rollback, 2.0.0's `Cypher::decrypt()` returns `''` — no exception, no PHP
+warning, **not one new line in `debug.log`**. `Options::has_credentials()`
+therefore goes false while subdomain and username survive, and the legacy
+settings page renders the worst possible combination: subdomain and username
+filled and disabled, the API Password field **not rendered at all** (its
+partial is inside `if ( ! $connected )`, and `$connected` is subdomain &&
+username), the submit button back to "Make a connection", and only the
+Connection tab left — Getting started / Subscriber Synchronization / Abandoned
+Cart are gated on `has_credentials()`. No notice fires: the page's own stale-
+credentials check (`are_credentials_valid()`) short-circuits to *true* when
+`has_credentials()` is false. Submitting that form was rehearsed too: the
+hidden `enabled=1` (still set from the surviving subdomain/username) makes
+"Make a connection" perform a **disconnect** — "API credentials disconnected!"
+— which clears all three fields and brings the password input back so the
+merchant can retype the set.
+
+**Decision:** state the outcome as fact in `docs/MIGRATION.md` — the password
+**must** be re-entered, the page gives no error, the feature tabs disappear,
+and the fix is the three-step "click Make a connection (it disconnects), then
+retype subdomain + username + password". The docs site's one-clause rollback
+promise gains the same fact in both languages. No plugin code changes: the
+2.0.0 line is frozen, and teaching v3 to write the old format back on
+downgrade would undo the security fix that motivated `smy2:` in the first
+place.
+
+**Alternatives considered:** (a) keep the hedge and let merchants discover it —
+rejected, the failure is *silent*, so the merchant's most likely reading of
+that page is "it is still connected" while syncing has stopped; (b) have v3
+leave a plaintext or legacy-format copy of the password for a possible
+rollback — rejected outright, it re-creates the leak `smy2:` closed for a case
+the guide can handle in one paragraph; (c) add a v3 uninstall/downgrade hook
+that wipes the credential option so 2.0.0 shows a clean "not connected" form —
+rejected as out of scope and worse: it would also wipe the subdomain and
+username on a merchant who never rolls back (WordPress runs no hook on a
+`--force` overwrite anyway).
+
+**Relationships:** F3-35 (the `smy2:` GCM format and the re-encryption pass),
+PRO-2285 (the upgrade-direction rehearsal this completes), PRO-2286 (why v3
+itself does not need the password retyped), PRO-2291 (the guide that carried
+the hedge). Merchant docs site: the "Upgrading from an older Smaily plugin?"
+note now says the older plugin asks for the API password again, both languages
+(the Estonian sentence is new and needs Erkki's proofread).
+
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
