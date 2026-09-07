@@ -313,9 +313,11 @@ class IngestQueue {
 	}
 
 	/**
-	 * Schedule this queue's recurring flush hooks immediately so a reset row
-	 * re-sends promptly instead of waiting for the next 60s tick. Public so the
-	 * /events/retry endpoint can kick a re-drive right after reset_failed().
+	 * Make sure this queue's flush hooks have a pass queued after a re-drive.
+	 * Public so the /events/retry endpoint can call it right after
+	 * reset_failed(); the revived rows go out at the next scheduled pass
+	 * (PRO-2323), since the deduplication below finds the recurring action
+	 * already there.
 	 *
 	 * @param array<int, array{0: string, 1: string}> $hook_groups [hook, group] pairs.
 	 */
@@ -326,10 +328,13 @@ class IngestQueue {
 	}
 
 	/**
-	 * Ensure an async flush is queued for the given endpoint hook. Deduplicated
-	 * so multiple enqueues in one request collapse to a single AS row. The hook
-	 * + group are passed in because the shared queue serves several endpoints
-	 * (catalog, customers, …), each drained by its own flusher on its own hook.
+	 * Ensure a flush pass is queued for the given endpoint hook. Deduplicated
+	 * so multiple enqueues in one request collapse to a single AS row — and
+	 * against the flusher's own recurring action, which is always scheduled,
+	 * so the rows go out at the next scheduled pass rather than on a run-now
+	 * kick (PRO-2323). The hook + group are passed in because the shared queue
+	 * serves several endpoints (catalog, customers, …), each drained by its
+	 * own flusher on its own hook.
 	 */
 	private function maybe_schedule_flush( string $flush_hook, string $flush_group ): void {
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {

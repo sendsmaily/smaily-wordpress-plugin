@@ -24,12 +24,14 @@ defined( 'ABSPATH' ) || exit;
  * RetryPolicy). A retry parks the row with next_retry_at in the future;
  * pending() skips rows that aren't due yet (PRO-1685).
  *
- * Dispatch: enqueue() persists the row immediately and asks Action
- * Scheduler to fire smly_plus_flush_event_queue ASAP, deduplicated via
- * as_next_scheduled_action so multiple enqueues within one PHP request
- * collapse into a single flush job. The flush hook itself (which reads
- * pending rows, calls the appropriate API method, and updates status)
- * is registered by sub-PR 5 once the WC hook layer lands.
+ * Dispatch: enqueue() persists the row immediately and makes sure a
+ * smly_plus_flush_event_queue pass is queued, deduplicated via
+ * as_next_scheduled_action against whatever is already scheduled on that
+ * hook — and the flusher's recurring action always is, so the row goes out
+ * on the NEXT SCHEDULED PASS (PRO-2323 wording), not on an enqueue-time
+ * run-now. The flush hook itself (which reads pending rows, calls the
+ * appropriate API method, and updates status) is registered by sub-PR 5
+ * once the WC hook layer lands.
  *
  * This class deliberately does NOT call the Smaily API itself. That keeps
  * enqueue() cheap (it's invoked from hot paths like user_register and
@@ -464,8 +466,12 @@ class EventQueue {
 	}
 
 	/**
-	 * Ensure an async flush is queued. Deduplicated so multiple enqueues
-	 * in one request collapse to a single AS row.
+	 * Ensure a flush pass is queued. Deduplicated so multiple enqueues in one
+	 * request collapse to a single AS row — and because the flusher's
+	 * recurring action is always scheduled, in practice this is a no-op and
+	 * the rows go out at the next scheduled pass (PRO-2323). It is the safety
+	 * net for a store whose recurring action has gone missing, not a run-now
+	 * kick.
 	 */
 	private function maybe_schedule_flush(): void {
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
