@@ -43,7 +43,8 @@ the live URL `https://smaily.com/connect-woo/`, not only the local file. Left
 alone: the merchant docs site's own install step still says "download the latest
 release ZIP from the releases page" in BOTH languages — a real pre-wordpress.org
 instruction, but a bilingual change gated on the Estonian proofread, so it is
-reported rather than made here. Docs-only; no gates run.)_
+reported rather than made here (filed as PRO-2357). Docs-only; no gates run.)
+(handoff refreshed 2026-09-07 at the close of the session)_
 
 Prior: 2026-09-07 (**PRO-2347 — the Smaily sign-up block works for
 the people who build pages.** The sibling of PRO-2346, in the other Gutenberg
@@ -79,7 +80,8 @@ test:integration"` **OK 267 tests / 1567 assertions**, dev sandbox tenant
 green after). DECISIONS PRO-2347. Merchant docs site updated in BOTH languages —
 the "Gutenberg block" section now says the dropdown lists the account's
 automations and that the Editor role and above can use the block, mirroring the
-landing-page block's wording; **not yet published live** (needs the Estonian
+landing-page block's wording, and it **IS published live** at
+`https://smaily.com/connect-woo/` (2026-09-07, after Erkki's Estonian
 proofread). **No version bump** — lands with the next release.)_
 
 Prior: 2026-09-07 (**PRO-2326 — the Event Log no longer refuses a
@@ -615,41 +617,42 @@ Docs-only; no code, so no gates run.)_
   checkout <tag>`, so never run it in this working tree). The fork
   `erkkimarkus/smaily-wordpress-plugin` is archived read-only; local `main` IS
   official `main` and a direct push works.
-- Also done today: `ENGINE_CONTRACT_READ_TOKEN` was added to the official repo
-  and the **contract-staleness workflow is GREEN**; both pilot stores (MiuMjau,
-  Prike) were updated to 3.11.2 by hand; the merchant docs site was published
-  live — including the PRO-1893 and PRO-1733 entries, ahead of the release that
-  ships them (Erkki's decision).
-- **Landed on official `main` AFTER the 3.11.2 tag** (so all of it ships in the
-  NEXT release): PRO-1709 (the CI coverage gate), PRO-1893 + its simplification
-  pass, PRO-1733 + its simplification pass, the readme "What's new in
-  version 3" fix (`11527fd`), PRO-2346 (the landing-page block works for
-  Editors), PRO-2326 (the legacy-storage retry refusal) and PRO-2347 (the
-  sign-up block works for Editors).
-- **Erkki's hand, in order:** PRO-1770 = **one** fresh contact import on **Prike
-  only**, then close it; then the first-48-hours observation on PRO-2283, then
-  close PRO-2283.
-- **Engine team:** PRO-2319 — a deactivated throwaway tenant, so the PRO-1893
-  403 can be checked against the live engine (the sandbox tenant cannot be
-  deactivated, so this is the only route).
-- **Marketing:** PRO-2318 (Tanel) — wordpress.org listing copy + screenshots;
-  the "What's new" section is already fixed.
-- **Merchant docs site:** `docs/site/index.html`'s changes (TranslatePress,
-  PRO-2318; the landing-page block, PRO-2349) are **published live** at
-  `https://smaily.com/connect-woo/` — 2026-09-07, after Erkki's Estonian
-  proofread; the live copy's md5 matches the file at `547b213`. **Newer than the
-  live copy:** the PRO-2347 sentence in the "Gutenberg block" section (EN + ET),
-  awaiting the Estonian proofread before the next publish.
-- **Next release:** cut whenever Erkki decides — bump per the CLAUDE.md release
-  runbook; `readme.txt` and the merchant docs are content-current.
-- **Queue:** PRO-2296 is done. Next: the PRO-2350 audit row covering both
-  widened routes, then PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317.
-- **Queue:** done this session = PRO-2346 (landing-page block, editor role fix,
-  awaiting Jane's role confirmation + next release), PRO-2349 + PRO-2318 docs
-  drift (published), PRO-2326 (legacy-storage retry refusal), PRO-2347 (sign-up
-  block, the same editor role fix on `/autoresponders`); next = PRO-2296, then
-  a PRO-2350 audit row covering BOTH widened routes, PRO-2323, PRO-2324,
-  PRO-2321, PRO-2320, PRO-2317.
+- **The next release is NOT yet cut.** Everything landed on official `main`
+  after the `3.11.2` tag ships in it: PRO-1709 (the CI coverage gate), PRO-1893
+  + its simplification pass, PRO-1733 + its simplification pass, the readme
+  "What's new in version 3" fix (`11527fd`), PRO-2346 (the landing-page block
+  works for Editors), PRO-2326 (the legacy-storage retry existence check) and
+  PRO-2347 (the sign-up block works for Editors). Cut it whenever Erkki decides,
+  per the CLAUDE.md release runbook; `readme.txt` and the merchant docs are
+  content-current.
+- **Done 2026-09-07, all pushed to official `main`:** PRO-2346 (landing-page
+  block usable by Editors), PRO-2349 + PRO-2318 merchant-docs drift (published
+  live), PRO-2326 (the Event Log's legacy-storage retry existence check),
+  PRO-2347 (the sign-up block's automation list for Editors) and PRO-2296 (the
+  install guide names the wordpress.org path).
+- **Closed on Erkki's human acceptance (same session):** PRO-2283, PRO-1770,
+  PRO-1679, PRO-1504, PRO-1681, PRO-1683, PRO-1684, PRO-1430.
+- **Merchant docs site is PUBLISHED LIVE** at `https://smaily.com/connect-woo/`
+  (2026-09-07, after Erkki's Estonian proofread) — **including** the PRO-2347
+  "Gutenberg block" wording; the live copy's md5 matches `docs/site/index.html`
+  at `f23fb75`. Nothing in the file is newer than the live page.
+- **Queue, in order — start here:** PRO-2357 (Medium) — the docs site's install
+  step still tells merchants to "download the latest release ZIP from the
+  releases page"; fix it in BOTH languages, get the Estonian proofread, publish.
+- **Then PRO-2350** — the audit-register row plus a short security pass covering
+  **BOTH** widened routes: `/smaily/v1/configuration` (PRO-2346) and
+  `/smaily/v1/autoresponders` (PRO-2347), now on `edit_posts`.
+- **Then Low, in order:** PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317,
+  PRO-2348, PRO-2356, PRO-2351, PRO-2352, PRO-2355.
+- **Human checks outstanding:** Jane's role on PRO-2346 (does she in fact hold
+  Editor, which is what the fix assumes); and, on a real store after the next
+  release, that the sign-up block's Autoresponder dropdown lists the account's
+  real automations (PRO-2347 — the dev site's placeholder credentials cannot
+  reach Smaily, so that step was met at route level only).
+- **Engine team:** PRO-2319 is still open — a deactivated throwaway tenant, so
+  the PRO-1893 403 can be checked against the live engine (the sandbox tenant
+  cannot be deactivated, so this is the only route). PRO-1878 still awaits the
+  engine team's answer.
 - **CI on official `main`:** the PHP jobs are red as documented (PRO-1708 — no
   WooCommerce in the runner); the Admin bundle job is green; contract staleness
   is green.
