@@ -970,8 +970,8 @@ Docs-only; no code, so no gates run.)_
   has updated that the sign-up block's Autoresponder dropdown lists real
   automations (PRO-2347); and Erkki's manual SVN readme/assets commit if the
   listing should go live before 3.12.0.
-- **Queue, in order:** PRO-2361 (the audit register row for the 3.11.2 gate),
-  then PRO-2358 (subdomain case-sensitivity in the landing-page block — cheap),
+- **Queue, in order:** PRO-2361 is DONE (the 3.11.2 gate now has its register
+  row); next PRO-2358 (subdomain case-sensitivity in the landing-page block — cheap),
   then the Low tail: PRO-2321, PRO-2320, PRO-2317, PRO-2348, PRO-2356, PRO-2351,
   PRO-2352, PRO-2355, PRO-2359, PRO-2360, PRO-2362, PRO-2364 and PRO-2370
   (PRO-2367, PRO-2368, PRO-2369 and PRO-2372 are done — see the entry at the
