@@ -53,7 +53,8 @@ final class LandingPageBlockConfigRouteTest extends TestCase {
 			wp_delete_user( $user_id );
 		}
 		$this->created_users = array();
-		delete_option( 'smaily_connect_api_credentials' );
+		// The credentials this test writes are left for EnvScrub::reset() to
+		// clear, like every sibling — it owns that option key.
 		parent::tearDown();
 	}
 
