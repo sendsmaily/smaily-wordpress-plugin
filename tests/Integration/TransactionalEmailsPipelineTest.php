@@ -691,6 +691,70 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION ), 'Nothing was queued.' );
 	}
 
+	public function test_a_failed_second_confirmation_says_the_first_one_still_stands(): void {
+		// PRO-2368: a re-send deliberately does NOT fail open — the customer
+		// already has a confirmation. So when the re-send itself fails, the
+		// Event Log must not tell the merchant WooCommerce covered it.
+		$this->configure( array( 'order_confirmation' => '4242' ) );
+
+		$product  = $this->make_product( 'Failed Resend Product', 9.00 );
+		$order_id = $this->make_order( 'failedresend@example.test', $product );
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$this->fire_checkout_order_processed( $order_id );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		$first = $this->queue_row( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION );
+		self::assertSame( 'sent', $first['status'], 'The first confirmation must really have gone out.' );
+
+		self::assertSame(
+			200,
+			RestRequestHelper::post(
+				'/events/resend',
+				array(
+					'source' => 'smaily',
+					'id'     => (int) $first['id'],
+				)
+			)->get_status()
+		);
+
+		// Smaily refuses the second one outright.
+		$reject = $this->fake_transport_with_code( 203 );
+		add_filter( 'pre_http_request', $reject, 10, 3 );
+		try {
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $reject, 10 );
+		}
+
+		$resent = $this->queue_row( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION );
+		self::assertNotSame( (int) $first['id'], (int) $resent['id'] );
+		self::assertSame( 'failed', $resent['status'] );
+
+		$listed = $this->listed_row( (int) $resent['id'] );
+		self::assertSame( 'resend_failed', $listed['retry_refusal'] );
+		self::assertStringContainsString( 'second confirmation could not be sent', (string) $listed['retry_refusal_message'] );
+		self::assertStringContainsString( 'still stands', (string) $listed['retry_refusal_message'] );
+		self::assertStringNotContainsString( 'WooCommerce', (string) $listed['retry_refusal_message'] );
+
+		// The retry route says the same thing — one wording, both surfaces.
+		$refused = RestRequestHelper::post(
+			'/events/retry',
+			array(
+				'source' => 'smaily',
+				'id'     => (int) $resent['id'],
+			)
+		);
+		self::assertSame( 409, $refused->get_status() );
+		self::assertSame( 'resend_failed', $refused->get_data()['reason'] );
+		self::assertStringNotContainsString( 'WooCommerce', (string) $refused->get_data()['message'] );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**

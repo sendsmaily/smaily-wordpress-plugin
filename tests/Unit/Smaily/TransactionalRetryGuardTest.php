@@ -153,6 +153,45 @@ final class TransactionalRetryGuardTest extends TestCase {
 		);
 	}
 
+	public function test_a_failed_second_confirmation_says_so_instead_of_blaming_the_wc_email(): void {
+		// PRO-2368: a re-send never fails open, so no WooCommerce email went
+		// out for it — the shopper simply keeps the confirmation they already
+		// had. Both types take the same answer.
+		foreach ( TransactionalFlusher::EVENT_TYPES as $event_type ) {
+			self::assertSame(
+				TransactionalRetryGuard::REASON_RESEND_FAILED,
+				TransactionalRetryGuard::refusal_reason(
+					$event_type,
+					'{"to_status":"completed","' . TransactionalFlusher::PAYLOAD_KEY_RESEND . '":true}',
+					true
+				)
+			);
+		}
+
+		// The one row that keeps its retry keeps it: a merchant-status
+		// shipping confirmation is the shopper's only route to a
+		// confirmation, re-send or not.
+		self::assertSame(
+			'',
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+				'{"to_status":"shipped","' . TransactionalFlusher::PAYLOAD_KEY_RESEND . '":true}',
+				true
+			)
+		);
+
+		// A row whose order is gone still says that first — the re-send has
+		// nothing to rebuild from either.
+		self::assertSame(
+			TransactionalRetryGuard::REASON_ORDER_MISSING,
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
+				'{"to_status":"","' . TransactionalFlusher::PAYLOAD_KEY_RESEND . '":true}',
+				false
+			)
+		);
+	}
+
 	public function test_each_refusal_carries_its_own_merchant_message(): void {
 		self::assertStringContainsString(
 			'standard WooCommerce email',
@@ -162,5 +201,10 @@ final class TransactionalRetryGuardTest extends TestCase {
 			'no longer exists',
 			TransactionalRetryGuard::message( TransactionalRetryGuard::REASON_ORDER_MISSING )
 		);
+
+		$resend = TransactionalRetryGuard::message( TransactionalRetryGuard::REASON_RESEND_FAILED );
+		self::assertStringContainsString( 'second confirmation could not be sent', $resend );
+		self::assertStringContainsString( 'still stands', $resend );
+		self::assertStringNotContainsString( 'WooCommerce', $resend, 'Nothing was sent for a re-send — the WooCommerce email never entered it.' );
 	}
 }
