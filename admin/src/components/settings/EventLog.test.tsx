@@ -17,6 +17,7 @@ const ROW = {
   retry_refusal: '',
   retry_refusal_message: '',
   can_send_again: false,
+  cancelled: false,
 };
 
 /**
@@ -284,6 +285,33 @@ describe('EventLog', () => {
 
     await screen.findByText('contact.sync');
     expect(screen.queryByRole('button', { name: 'Send again' })).not.toBeInTheDocument();
+  });
+
+  it('reads a withdrawn abandoned-cart reminder as cancelled, not sent (PRO-2372)', async () => {
+    // The row is stored `sent` — terminal, never retried — but nothing went
+    // out, and the merchant must see that without opening Details.
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [
+        {
+          ...ROW,
+          id: 51,
+          source: 'smaily' as const,
+          event_type: 'automation.abandoned_cart',
+          status: 'sent',
+          last_error: '',
+          cancelled: true,
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+
+    render(<EventLog />);
+
+    expect(await screen.findByText('cancelled')).toBeInTheDocument();
+    expect(screen.queryByText('sent')).not.toBeInTheDocument();
   });
 
   it('shows a reachable Retry all failed control for aged failures with no 24h banner (PRO-1539)', async () => {

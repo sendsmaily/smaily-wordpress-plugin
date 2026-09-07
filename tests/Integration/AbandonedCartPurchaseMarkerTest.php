@@ -138,6 +138,20 @@ final class AbandonedCartPurchaseMarkerTest extends TestCase {
 			$this->marker_row( PipelineFixture::flush( EventQueue::FLUSH_HOOK ) ),
 			'No reminder ever reached this shopper, so there is nothing to mark.'
 		);
+
+		// PRO-2372: the merchant must read the withdrawal on the row itself.
+		// The Event Log stores it as `sent` (terminal, never retried), so
+		// without this the list showed it exactly like a delivered reminder.
+		$listed = $this->listed_rows();
+		self::assertTrue(
+			$listed[ (int) $row['id'] ],
+			'The withdrawn reminder must read as cancelled in the Event Log list.'
+		);
+		foreach ( $listed as $id => $cancelled ) {
+			if ( $id !== (int) $row['id'] ) {
+				self::assertFalse( $cancelled, 'Only a withdrawn row reads as cancelled — an ordinary send or skip does not.' );
+			}
+		}
 	}
 
 	// --- helpers -------------------------------------------------------------
@@ -205,7 +219,7 @@ final class AbandonedCartPurchaseMarkerTest extends TestCase {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT status, sent_payload, last_response FROM {$wpdb->prefix}smly_plus_event_queue WHERE event_type = %s AND contact_key = %s ORDER BY id DESC LIMIT 1",
+				"SELECT id, status, sent_payload, last_response FROM {$wpdb->prefix}smly_plus_event_queue WHERE event_type = %s AND contact_key = %s ORDER BY id DESC LIMIT 1",
 				CartFlusher::EVENT_TYPE,
 				EventQueue::contact_key( $email )
 			),
@@ -215,6 +229,29 @@ final class AbandonedCartPurchaseMarkerTest extends TestCase {
 		self::assertIsArray( $row, 'The sweeper must have enqueued a reminder row keyed to this shopper.' );
 
 		return $row;
+	}
+
+	/**
+	 * The Smaily queue as the Event Log list renders it: row id => whether the
+	 * list says the row was cancelled (PRO-2372 — computed by the read model,
+	 * not stored as a status).
+	 *
+	 * @return array<int, bool>
+	 */
+	private function listed_rows(): array {
+		// The shopper is still the current user from the cart tracking above;
+		// the Event Log is the merchant's screen.
+		RestRequestHelper::login_as_admin();
+
+		$response = RestRequestHelper::get( '/events', array( 'source' => 'smaily' ) );
+		self::assertSame( 200, $response->get_status() );
+
+		$cancelled = array();
+		foreach ( $response->get_data()['events'] as $listed ) {
+			$cancelled[ (int) $listed['id'] ] = (bool) $listed['cancelled'];
+		}
+
+		return $cancelled;
 	}
 
 	/** Abandoned cart on, mapped to a workflow, with a 10-minute cutoff. */
