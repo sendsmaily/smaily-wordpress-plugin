@@ -151,7 +151,7 @@ class CartAbandonmentSweeper {
 		}
 
 		if ( $stats['enqueued'] > 0 ) {
-			$this->kick_cart_flush();
+			$this->ensure_cart_flush_scheduled();
 		}
 
 		return $stats;
@@ -178,10 +178,15 @@ class CartAbandonmentSweeper {
 	}
 
 	/**
-	 * Ask AS to drain the just-enqueued rows promptly instead of waiting for
-	 * the CartFlusher's next 60s recurring tick. Deduplicated.
+	 * Make sure a CartFlusher pass is on the Action Scheduler queue for the
+	 * rows just enqueued. This is NOT a run-now kick (PRO-2323): the flusher's
+	 * own recurring action is always scheduled, so the dedup guard below
+	 * always wins and the rows go out on the CartFlusher's next scheduled
+	 * pass — within about a minute. Promptness is not required here; the
+	 * one-off is only the safety net for a store whose recurring action has
+	 * gone missing.
 	 */
-	private function kick_cart_flush(): void {
+	private function ensure_cart_flush_scheduled(): void {
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
 			return;
 		}
