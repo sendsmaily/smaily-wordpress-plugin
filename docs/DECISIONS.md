@@ -5771,7 +5771,10 @@ no URL field at all. Silent, and indistinguishable from an unconfigured plugin.
 **Decision:** gate that one route on `current_user_can( 'edit_posts' )` — the
 capability that means "may use the block editor". `/smaily/v1/autoresponders`,
 which performs an authenticated Smaily API call, keeps `manage_options`; only
-the read-only configuration route moves.
+the read-only configuration route moves. **Superseded in part by PRO-2347**
+(2026-09-07): `/autoresponders` moved to `edit_posts` too, once the same defect
+was found in the newsletter-signup block. What that route actually returns is
+automation names and ids, not credentials — see that entry.
 
 **Rationale:** the response carries no secret. The subdomain is already public
 — it is the host in the signup form's `action` URL rendered on the storefront —
@@ -5784,7 +5787,8 @@ from "not configured" — a nicer message for a person who still cannot use the
 block; the block would still be useless to every non-admin editor. (b) Widen the
 whole legacy `smaily/v1` namespace — rejected: `/autoresponders` reaches the
 Smaily API with the store's credentials and lists campaign names, which is
-administrator business.
+administrator business. (b) is what PRO-2347 revisited, and the "administrator
+business" reading did not survive contact with the response body.
 
 **Tests:** integration — `LandingPageBlockConfigRouteTest` (an Editor reads the
 subdomain; a Subscriber is still refused 403). Demonstrated in the WP 7.0 block
@@ -5794,6 +5798,49 @@ page and the published post renders it.
 **Relationships:** none of the new `smaily-connect/v1` routes change — they stay
 on their own permission checks; this is the legacy `smaily/v1` namespace the
 Gutenberg blocks read.
+
+### PRO-2347 — The sign-up block's automation list is gated on `edit_posts` (2026-09-07)
+
+**Context:** the sibling of PRO-2346, in the other Gutenberg block. The
+newsletter-signup block fetches `GET /smaily/v1/autoresponders` on every mount
+to fill its **Autoresponder** dropdown, and renders a spinner until that list
+resolves. The route was gated on `manage_options`, so for an Editor the fetch
+403'd, the `Promise.all` rejected with nobody listening, and the block sat on
+its loading spinner forever — an empty box in the editor, no dropdown, no error.
+Reproduced in the WP 7.0 editor before the fix: two `403 /smaily/v1/
+autoresponders` in the network log, an empty block canvas, the spinner still up.
+
+**Decision:** gate it on `current_user_can( 'edit_posts' )`, the same capability
+PRO-2346 settled on for `/configuration`. No cache layer, no new capability, and
+the Smaily API call still runs server-side with the store's stored credentials.
+
+**Rationale:** PRO-2346 kept this route on `manage_options` on the reading that
+it "reaches the Smaily API with the store's credentials", which is true of the
+call but not of the response. What crosses the wire is
+`[{ value: <workflow id>, label: <workflow title> }]` — the names and ids of the
+automations the merchant already picks from a dropdown, filtered to the enabled
+ones (PRO-1277). No credentials, no account secrets, nothing about contacts.
+Withholding it from the role that builds pages makes the block decoration, which
+is exactly the defect.
+
+**Alternatives:** (a) leave the gate and show a "you need an administrator"
+message instead of the spinner — honest, but the Editor still cannot configure
+the block, which is the whole job. (b) Cache the list in an option an Editor may
+read — a stale second copy of Smaily's workflow list, and a new invalidation
+problem, to avoid widening a gate that carries no secret.
+
+**Tests:** integration — `NewsletterBlockAutorespondersRouteTest` (an Editor
+gets the list and only names/ids come back; a Subscriber is still refused 403);
+red before the fix, green after. Demonstrated in the WP 7.0 block editor as an
+Editor: insert the block → the dropdown lists the account's automations → pick
+one → publish → the storefront form carries
+`<input type="hidden" name="autoresponder" value="…">`. The same drive as an
+Administrator produces the identical result.
+
+**Relationships:** supersedes the "`/autoresponders` keeps `manage_options`"
+half of PRO-2346. Both legacy `smaily/v1` routes are now on `edit_posts`; the
+`register_endpoint()` default stays `manage_options` so a future route is not
+widened by accident. The new `smaily-connect/v1` routes are untouched.
 
 ### PRO-2326 — Order existence for the Event Log's Retry is resolved status-blind on legacy storage too (2026-09-07)
 

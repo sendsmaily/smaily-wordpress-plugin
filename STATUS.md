@@ -26,7 +26,44 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2326 — the Event Log no longer refuses a
+_Last updated: 2026-09-07 (**PRO-2347 — the Smaily sign-up block works for
+the people who build pages.** The sibling of PRO-2346, in the other Gutenberg
+block. The newsletter-signup block fills its **Autoresponder** dropdown from
+`GET /smaily/v1/autoresponders` on every mount and shows nothing but a loading
+spinner until that list arrives — and the route was gated on `manage_options`.
+An **Editor**, the usual marketing role, does not have it, so the fetch 403'd,
+the `Promise.all` rejected with nobody listening, and the block sat on its
+spinner forever: an empty box in the editor, no dropdown, no error. Reproduced
+in the WP 7.0 editor before the fix (two `403 /smaily/v1/autoresponders` in the
+network log, empty block canvas, spinner still up). The route is now gated on
+`edit_posts`, the same capability PRO-2346 settled on for `/configuration` — the
+response carries the automations' **names and ids only** (`[{value, label}]`,
+enabled ones per PRO-1277); the store's Smaily credentials stay server-side and
+the API call still runs there. No cache layer, no new capability. This
+supersedes the "`/autoresponders` keeps `manage_options`" half of PRO-2346:
+that reading was true of the call, not of the response body. **Demonstrated in a
+running store**, not only by tests: driven in the WP 7.0 block editor as an
+Editor — insert the block, the dropdown lists the account's automations, pick
+one, publish, and the storefront form carries `<input type="hidden"
+name="autoresponder" value="…">`; the same drive as an Administrator produces the
+identical result. The dev site's placeholder credentials cannot reach Smaily, so
+the workflow list came from a temporary `pre_http_request` stub installed as an
+mu-plugin for the drive and removed afterwards — that "the list is the store's
+real automations" step is met at route level plus human acceptance on a real
+store. The dev site was restored as found (demo Editor, demo posts, auto-drafts
+and the stub removed; the credentials fixture back). Gates: `npm run ci:strict`
+**exit=0** (PHPUnit unit **770 tests / 2162 assertions**, vitest **306**, PHPCS
+0 errors, PHPStan `[OK] No errors`) and `sg docker -c "composer run
+test:integration"` **OK 267 tests / 1567 assertions**, dev sandbox tenant
+"Smaily Connect test" restored. New pin:
+`tests/Integration/NewsletterBlockAutorespondersRouteTest` (red before the fix,
+green after). DECISIONS PRO-2347. Merchant docs site updated in BOTH languages —
+the "Gutenberg block" section now says the dropdown lists the account's
+automations and that the Editor role and above can use the block, mirroring the
+landing-page block's wording; **not yet published live** (needs the Estonian
+proofread). **No version bump** — lands with the next release.)_
+
+Prior: 2026-09-07 (**PRO-2326 — the Event Log no longer refuses a
 retry as "order no longer exists" on legacy order storage.** PRO-1733 keeps
 Retry on exactly one kind of failed transactional row: a shipping confirmation
 on a merchant-defined shipped status, which WooCommerce has no email for, so
@@ -568,7 +605,8 @@ Docs-only; no code, so no gates run.)_
   NEXT release): PRO-1709 (the CI coverage gate), PRO-1893 + its simplification
   pass, PRO-1733 + its simplification pass, the readme "What's new in
   version 3" fix (`11527fd`), PRO-2346 (the landing-page block works for
-  Editors) and PRO-2326 (the legacy-storage retry refusal).
+  Editors), PRO-2326 (the legacy-storage retry refusal) and PRO-2347 (the
+  sign-up block works for Editors).
 - **Erkki's hand, in order:** PRO-1770 = **one** fresh contact import on **Prike
   only**, then close it; then the first-48-hours observation on PRO-2283, then
   close PRO-2283.
@@ -580,14 +618,17 @@ Docs-only; no code, so no gates run.)_
 - **Merchant docs site:** `docs/site/index.html`'s changes (TranslatePress,
   PRO-2318; the landing-page block, PRO-2349) are **published live** at
   `https://smaily.com/connect-woo/` — 2026-09-07, after Erkki's Estonian
-  proofread; the live copy's md5 matches the file at `547b213`.
+  proofread; the live copy's md5 matches the file at `547b213`. **Newer than the
+  live copy:** the PRO-2347 sentence in the "Gutenberg block" section (EN + ET),
+  awaiting the Estonian proofread before the next publish.
 - **Next release:** cut whenever Erkki decides — bump per the CLAUDE.md release
   runbook; `readme.txt` and the merchant docs are content-current.
 - **Queue:** done this session = PRO-2346 (landing-page block, editor role fix,
   awaiting Jane's role confirmation + next release), PRO-2349 + PRO-2318 docs
-  drift (published), PRO-2326 (legacy-storage retry refusal); next = backlog by
-  value (PRO-2347 newsletter block editor permission decision, PRO-2296,
-  PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317).
+  drift (published), PRO-2326 (legacy-storage retry refusal), PRO-2347 (sign-up
+  block, the same editor role fix on `/autoresponders`); next = PRO-2296, then
+  a PRO-2350 audit row covering BOTH widened routes, PRO-2323, PRO-2324,
+  PRO-2321, PRO-2320, PRO-2317.
 - **CI on official `main`:** the PHP jobs are red as documented (PRO-1708 — no
   WooCommerce in the runner); the Admin bundle job is green; contract staleness
   is green.
