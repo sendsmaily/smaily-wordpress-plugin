@@ -41,8 +41,8 @@ anyone who may edit content (Editor and above, since `0057ed6`) can use it, and
 what the two notices mean (`547b213`). Verified by rendering the file in headless
 Chrome in both languages — the ET toggle flips `data-lang`, each language's new
 text is visible and the other is hidden, and the HTML parses with no unbalanced
-tags. **The site is NOT published live** — publishing waits on Erkki's Estonian
-proofread of the new ET text.)_
+tags. **The site IS published live** at `https://smaily.com/connect-woo/`
+(2026-09-07, after Erkki's Estonian proofread of the new ET text).)_
 
 Prior: 2026-09-07 (**PRO-2346 — the Smaily landing-page block works for
 the people who build pages.** Marketing reported the block "does nothing": you
@@ -546,15 +546,17 @@ Docs-only; no code, so no gates run.)_
   deactivated, so this is the only route).
 - **Marketing:** PRO-2318 (Tanel) — wordpress.org listing copy + screenshots;
   the "What's new" section is already fixed.
-- **Merchant docs site:** `docs/site/index.html` carries unpublished changes
-  (TranslatePress, PRO-2318; the landing-page block, PRO-2349). Erkki's
-  Estonian proofread first, then publish over FTPS per the CLAUDE.md recipe.
+- **Merchant docs site:** `docs/site/index.html`'s changes (TranslatePress,
+  PRO-2318; the landing-page block, PRO-2349) are **published live** at
+  `https://smaily.com/connect-woo/` — 2026-09-07, after Erkki's Estonian
+  proofread; the live copy's md5 matches the file at `547b213`.
 - **Next release:** cut whenever Erkki decides — bump per the CLAUDE.md release
-  runbook; `readme.txt` and the merchant docs are content-current (the docs
-  site still needs its publish).
-- **Backlog candidates for the next session, by value:** PRO-2295 stays open as
-  a record only. Low: PRO-2296 (install guide), PRO-2323, PRO-2324, PRO-2326,
-  PRO-2321, PRO-2320, PRO-2317, PRO-2300, PRO-2282, PRO-2279, PRO-1708.
+  runbook; `readme.txt` and the merchant docs are content-current.
+- **Queue:** done this session = PRO-2346 (landing-page block, editor role fix,
+  awaiting Jane's role confirmation + next release), PRO-2349 + PRO-2318 docs
+  drift (published); next = PRO-2326 (legacy-storage retry refusal), then
+  backlog by value (PRO-2347 newsletter block editor permission decision,
+  PRO-2296, PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317).
 - **CI on official `main`:** the PHP jobs are red as documented (PRO-1708 — no
   WooCommerce in the runner); the Admin bundle job is green; contract staleness
   is green.
