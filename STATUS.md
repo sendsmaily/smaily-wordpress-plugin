@@ -26,7 +26,43 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2357 — the merchant docs site installs the
+_Last updated: 2026-09-07 (**PRO-2350 — the two block-editor routes widened to
+`edit_posts` today have their security pass and their register row.** A
+capability change on a REST route triggers the re-audit policy no matter how
+few lines it is, and nothing recorded what `/smaily/v1/configuration`
+(PRO-2346) and `/smaily/v1/autoresponders` (PRO-2347) actually hand back, or to
+whom. **Verdict: PASS — 0 Critical/High/Medium/Low, 1 Info.** `/configuration`
+returns exactly `subdomain` + `settings_url`: the handler builds a literal
+two-key array, so the decrypted password `Options::get_api_credentials()` hands
+it cannot leak through, and the subdomain is already public in the storefront's
+sign-up form `action` URL and the landing-page block's `<iframe src>`.
+`/autoresponders` returns exactly `{value, label}` per enabled automation — the
+upstream row is never spread, so nothing Smaily adds to `workflows.php` later
+rides along. Both GET-only with no state change; the Smaily call runs
+server-side with the stored credentials, the Basic `Authorization` header never
+leaves `Smaily_Client::request()`, nothing in the path logs, and BOTH error
+shapes (a `WP_Error` carrying a hostname-bearing cURL message, an upstream 401
+body naming the API username) surface as a bare `[]`. **Access matrix exercised
+on the running wp-env** (real dispatch on the tests site + `curl` on both
+sites): anonymous **401**, Subscriber **403**, Editor **200**, Administrator
+**200** on both routes — and a logged-in Editor cookie WITHOUT `X-WP-Nonce`
+also **401**, so no third-party page can ride an editor's session to read
+either. `show_in_index` left at its default; the anonymous route listing shows
+two paths, one `GET` each and an empty `args` map, nothing more. **Residual
+exposure, accepted and stated:** any content author can now learn the store's
+Smaily subdomain (already public in storefront markup) and the enabled
+automations' names (their ids are already public in a placed block's hidden
+`autoresponder` input; the titles are merchant-authored marketing labels, not
+customer data). 1 Info, no action: the route drives one uncached, unrate-limited
+upstream Smaily GET per call, now reachable by more authenticated users — a
+transient would be a responsiveness fix, not a security one. Probe users,
+credentials and scripts all cleaned up; no product code changed, so docs-only,
+no gates. Report
+`docs/audits/2026-09-07-SECURITY_PASS_REST_PERMISSION_WIDENING_PRO2350.md`,
+register row in `docs/audits/INDEX.md`.)
+(handoff refreshed 2026-09-07)_
+
+Prior: 2026-09-07 (**PRO-2357 — the merchant docs site installs the
 plugin from wordpress.org.** The site's install step still opened with
 "Download the latest release ZIP from the Smaily Connect releases page", which
 has not been the normal path since 3.11.2 went live on wordpress.org
@@ -41,7 +77,6 @@ instruction; the admin labels stay in English in the Estonian text, as
 everywhere else on the page. Docs-only, no gates. **The Estonian needs Erkki's
 proofread before the site is published** — and so does PRO-2346's landing-page
 sentence, so the two ride out in one publish.)
-(handoff refreshed 2026-09-07)_
 
 Prior: 2026-09-07 (**PRO-2346 reopened — the landing page stays on the
 page after it is saved.** Jane confirmed her recording was made **as an
@@ -701,12 +736,15 @@ Docs-only; no code, so no gates run.)_
   the install section (wordpress.org first, tagged ZIP demoted to the
   staging/manual alternative). **Erkki proofreads the Estonian, then the
   orchestrator publishes both in one FTPS upload.**
-- **Queue, in order — start here:** PRO-2350 — the audit-register row plus a
-  short security pass covering
-  **BOTH** widened routes: `/smaily/v1/configuration` (PRO-2346) and
-  `/smaily/v1/autoresponders` (PRO-2347), now on `edit_posts`.
-- **Then Low, in order:** PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317,
-  PRO-2348, PRO-2356, PRO-2351, PRO-2352, PRO-2355.
+- **PRO-2350 is DONE** (2026-09-07) — the security pass on the two widened
+  routes (`/smaily/v1/configuration`, `/smaily/v1/autoresponders`, both now on
+  `edit_posts`) came back **PASS, 0 Critical/High/Medium/Low, 1 Info**, with
+  the access matrix exercised on the running wp-env. Report
+  `docs/audits/2026-09-07-SECURITY_PASS_REST_PERMISSION_WIDENING_PRO2350.md`;
+  register row in `docs/audits/INDEX.md`.
+- **Queue, in order — start here:** the Low items — PRO-2323, PRO-2324,
+  PRO-2321, PRO-2320, PRO-2317, PRO-2348, PRO-2356, PRO-2351, PRO-2352,
+  PRO-2355.
 - **Human checks outstanding:** on Jane's own test store, whether the
   administrator there actually lacks `unfiltered_html` (multisite, a
   `DISALLOW_UNFILTERED_HTML` host, or a hardening plugin) — that is the trigger
