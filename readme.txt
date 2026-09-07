@@ -3,7 +3,7 @@ Contributors: sendsmaily, kaarel
 Tags: smaily, newsletter, email, mail, marketing
 Requires PHP: 8.0
 Requires at least: 6.6
-Tested up to: 7.0
+Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
 Stable tag: 3.11.3
@@ -99,6 +99,7 @@ Only releases from 3.0.0 onward are listed here. The complete version history, i
 * Improved: the Event Log now offers Retry on a failed order or shipping confirmation only where the shopper never received one, and that retry now really re-sends it. Where WooCommerce already sent its own email instead of Smaily's, the Retry is gone and the row's details say why, so a retry can no longer deliver a second confirmation.
 * Improved: when your Smaily Campaign Intelligence account has been deactivated, the store now stops sending to it instead of retrying forever, and the admin notice says plainly that the account was deactivated and to contact Smaily. Queued events are kept and resume once the account is active again.
 * Improved: the plugin's WordPress.org description now describes what is new in version 3; it still described the change as "version 2.0".
+* Compatibility: tested against WordPress 7.1.
 
 = 3.11.2 =
 * Fixed: on a store where Smaily Campaign Intelligence uses its own attribution cookie names, orders now carry their recommendation attribution again — the checkout was looking those cookies up under the default names only, so no order recorded which recommendation it came from.

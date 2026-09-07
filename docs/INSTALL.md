@@ -28,7 +28,7 @@ file. Then continue with the setup walkthrough in the merchant guide below.
 
 | Component | Minimum | Tested up to |
 |-----------|---------|--------------|
-| WordPress | 6.6 | 7.0 |
+| WordPress | 6.6 | 7.1 |
 | WooCommerce | 6.9 | 10.7 |
 | PHP | 8.0 | 8.3 |
 | HTTPS | required (Smaily + recommendations APIs are HTTPS-only) | — |
