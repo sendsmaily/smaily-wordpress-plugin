@@ -9,83 +9,164 @@ WC tested up to: 10.7
 Stable tag: 3.11.3
 License: GPLv3 or later
 
-Email marketing, automations and personalized product recommendations for WordPress, WooCommerce, Contact Form 7 and Elementor — powered by Smaily.
+Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
 
 == Description ==
 
-**Smaily Connect – The Only Email Marketing Plugin You Need!**
+= Smaily email marketing for WordPress and WooCommerce =
 
-Transform your **WordPress website, WooCommerce store, Contact Form 7 and Elementor** into an **email marketing powerhouse** with Smaily – the all-in-one plugin designed to **automate your marketing, grow your audience, and drive more sales effortlessly**.
+Connect your WordPress site or WooCommerce store to your Smaily account. Collect subscribers, synchronize contacts, trigger automated emails and bring store products into your campaigns from one plugin.
 
-**Why Smaily Connect?**
+Smaily Connect works with WordPress, WooCommerce, Contact Form 7 and Elementor. A Smaily account with API access is required.
 
-**Turn Visitors into Subscribers** – Capture leads from **every touchpoint** – your website, WooCommerce store, and contact forms – all in one seamless flow.
+= Collect subscribers where they convert =
 
-**Automate Like a Pro** – Send high-converting emails effortlessly: welcome emails and abandoned cart reminders – **without lifting a finger**.
+Add Smaily signup forms wherever they fit your site:
 
-**Smart Form Integration** – Sync your **Contact Form 7** submissions directly to your Smaily lists for a frictionless email collection experience.
+* Smaily Sign-Up Form block and classic widget
+* Smaily Landing Page block
+* Shortcode for flexible placement
+* Contact Form 7 integration
+* Elementor widget
+* WooCommerce registration and checkout opt-in
 
-**Elementor Integration** – Build beautiful newsletter sign-up forms right inside Elementor using our dedicated widget!
+New subscribers are sent to your Smaily account, where you can manage contacts and continue the communication.
 
-**Smarter Email Campaigns** – Segment your audience and send **relevant offers, tailored product updates, and engaging content** that keeps subscribers interested and active.
+= Keep contacts synchronized =
 
-**Personalized Product Recommendations** – Connect your WooCommerce store to Smaily Campaign Intelligence and use shopper-specific product suggestions in your email campaigns.
+Choose who is sent to Smaily and which customer fields are included. Consent-based synchronization is the default, and WooCommerce stores can also include guest checkout contacts where configured.
 
-**Easy, Fast & Code-Free Setup** – No tech skills needed! A **guided setup wizard** walks you through connecting your Smaily account and configuring every integration.
+Smaily Connect resolves each contact's language through WPML, Polylang or TranslatePress so contacts can reach the correct Smaily list and workflow in multilingual setups.
 
-= What's new in version 3 =
+= Automate key WooCommerce moments =
 
-Version 3 is a rewrite of the plugin that keeps the familiar 1.x and 2.0 feature set — subscriber synchronization, abandoned cart reminders, the product RSS feed and signup forms — carries your existing settings over through the setup wizard, and adds:
+Map WooCommerce events to workflows you have created in Smaily:
 
-* **Setup wizard** – a guided, step-by-step first-run experience: connect your Smaily account, configure subscriber sync, WooCommerce automations, and form integrations.
-* **Modern admin** – a redesigned, mobile-friendly settings interface.
-* **Campaign Intelligence (WooCommerce)** – optionally connect your store to Smaily Campaign Intelligence. The plugin syncs your product catalog, customers and orders so it can generate personalized product recommendations for your email campaigns.
-* **Browse tracking (opt-in)** – an optional storefront beacon records browsing activity (product views, searches, cart events) to improve recommendations. It is **off by default**, requires the site admin to enable it, and only runs for shoppers who have given marketing consent through the free WP Consent API plugin (CookieYes, Complianz and Real Cookie Banner all register their consent into it).
-* **Transactional emails (optional)** – send WooCommerce order confirmations and shipping notices through Smaily instead of WooCommerce's own mail, using a **separate Smaily account** kept apart from your marketing account. It is **off by default**; while it is on, the matching built-in WooCommerce email is suppressed so the customer never gets two, and if Smaily cannot be reached WooCommerce's own email is sent as a fallback.
-* **Privacy built in** – integrates with the WordPress Privacy tools (personal data export and erasure), and shoppers can opt out of recommendation profiling from their WooCommerce My Account page.
-* **Reliability you can see** – background work runs on durable queues (Action Scheduler); an Event Log shows every sync event, failed items can be retried from the UI, and health notices warn you proactively when a connected service is unreachable.
-* **Multilingual-aware** – language detection works with Polylang, WPML and TranslatePress for routing subscribers to the right lists and automations.
-* **Product RSS feed** – load store products straight into your Smaily email templates. The familiar 1.x feed is unchanged; its URL builder now lives on the Integrations tab, and existing feed URLs keep working.
+* Welcome a customer after account registration
+* Respond to a customer's first order
+* Remind a shopper about an abandoned cart after your chosen delay
 
-Existing installs upgrade in place — your settings, credentials and connections are preserved. If you have already completed the setup wizard, the new behaviour (including the cron-safe contact-language and consent sync) is active immediately on upgrade with no re-setup; an install that has never finished the wizard keeps its legacy live sync until it does.
+You can also use the product RSS feed to bring WooCommerce products directly into Smaily email templates.
 
-= Documentation & Support =
+= Optional personalized product recommendations =
 
-For documentation, feature requests, and support, visit our [Help Center](https://smaily.com/help/user-manuals/).
+Connect WooCommerce to Smaily Campaign Intelligence to add shopper-specific product recommendations and purchase-based automations to your email marketing.
+
+Once connected, products, customers and orders synchronize automatically. You can also import existing data so Campaign Intelligence has the history it needs to begin producing relevant recommendations. Optional browse tracking can add consent-based browsing signals.
+
+Campaign Intelligence is an optional paid Smaily add-on. It is not enabled by default and is billed separately by Smaily.
+
+= Optional transactional emails =
+
+Connect a separate Smaily Transactional account to send WooCommerce order and shipping confirmations through Smaily. If a Smaily send fails, the native WooCommerce email is used as a fallback.
+
+= See what is happening =
+
+The guided setup wizard takes you through the connection, contact synchronization, automations and optional services. After setup, manage your connections and enabled features under Smaily Connect Settings.
+
+The Event Log lets you inspect synchronization events, understand failures and retry failed items from the WordPress admin.
+
+= Privacy and control =
+
+* Choose the contact synchronization mode that matches your lawful basis.
+* Browse tracking is off by default and only sends events when it is enabled by the site administrator and the shopper has given the required consent.
+* Shoppers can opt out of recommendation profiling from their WooCommerce account.
+* Smaily Connect supports the WordPress personal-data export and erasure tools.
+
+= Documentation and support =
+
+Read the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setup instructions, feature details and troubleshooting.
+
+For support, visit the [Smaily Help Center](https://smaily.com/help/) or contact Smaily.
 
 = External services =
 
-This plugin uses [Smaily Public API](https://smaily.com/help/api/) to communicate with your Smaily account. This is needed to establish a connection and transfer information between your WordPress site and your Smaily account. The plugin uses the API for following functionality:
+Smaily Connect communicates with services operated by Sendsmaily OÜ. These connections are required only for the features that the site administrator configures.
 
-- validating Smaily account connection with API key
-- listing available automation workflows
-- triggering automation workflows on form submissions and during sending abandoned cart reminders
-- managing user subscription status during subscriber synchronization
-- updating user subscription status when unsubscribing from newsletters
-- reading and writing the shopper's recommendation-profiling consent preference
+**Smaily Public API**
 
-If you connect the optional **Smaily Campaign Intelligence** (a Smaily-operated service; the connection is established with a one-time setup token issued for your account), the plugin additionally sends the following WooCommerce data to it so it can compute personalized product recommendations:
+The plugin uses the [Smaily Public API](https://smaily.com/help/api/) to connect to your Smaily account. Depending on the enabled features, it is used to:
 
-- product catalog data (titles, prices, categories, stock status, product URLs)
-- customer records (email address, name, registration date)
-- order data (order status, totals, purchased items)
-- browsing events (product views, searches, cart and checkout events) — **only** when the site admin has enabled browse tracking **and** the shopper has given cookie consent; shoppers who have opted out of profiling are excluded
-- personal-data export, erasure and profiling opt-out requests, so WordPress Privacy tools and shopper preferences are honored on the engine side as well
+* validate Smaily account credentials;
+* list available Smaily automation workflows;
+* synchronize contacts and subscription status;
+* trigger workflows after form submissions and WooCommerce events;
+* send abandoned-cart data to the selected Smaily workflow; and
+* send order and shipping confirmations when Smaily Transactional is configured.
 
-You can manage how much information is shared between your WordPress site and Smaily account by configuring the plugin settings.
+**Smaily Campaign Intelligence — optional**
+
+If the site administrator connects Campaign Intelligence using a one-time setup link issued by Smaily, the plugin sends the following WooCommerce data to that service:
+
+* product catalog data, including titles, prices, categories, stock status and product URLs;
+* customer records, including email address, name and registration date;
+* order data, including order status, totals and purchased items;
+* browsing events, including product views, searches, cart events and checkout events, only when browse tracking is enabled and the shopper has given the required consent; and
+* personal-data export, erasure and profiling opt-out requests so the corresponding WordPress and shopper controls are honored by Campaign Intelligence.
+
+The site administrator controls the enabled features in the plugin settings.
 
 Privacy Policy: [Smaily Privacy Policy](https://smaily.com/privacy-policy/)
+
 Terms of Service: [Smaily Terms of Service](https://smaily.com/terms-of-service/)
-
-= Contribute =
-
-Contribute to the development via [GitHub](https://github.com/sendsmaily/smaily-wordpress-plugin). We welcome new issues and pull requests.
 
 == Installation ==
 
-1. Upload the plugin files to your site's `/wp-content/plugins/` directory, or install the plugin through the WordPress plugins screen directly.
-2. Activate the plugin through the 'Plugins' screen in WordPress.
-3. Open the Smaily Connect admin page and follow the setup wizard to connect your Smaily account and configure the integrations.
+1. Install Smaily Connect through Plugins → Add New Plugin in WordPress, or upload the plugin ZIP.
+2. Activate the plugin and open Smaily Connect from the WordPress admin menu.
+3. Follow the setup wizard and connect your Smaily account using the API credentials created under Settings → API in Smaily.
+4. Choose who is synchronized, select any additional customer fields and import existing contacts if needed.
+5. Map the WooCommerce events you want to use to existing Smaily automation workflows.
+6. Configure signup forms, checkout opt-in and the product RSS feed as needed.
+7. If you use Campaign Intelligence or Smaily Transactional, connect those optional services in the relevant setup step or later under Settings.
+
+== Frequently Asked Questions ==
+
+= Do I need a Smaily account? =
+
+Yes. Smaily Connect sends contacts and triggers to your own Smaily account. Your Smaily package must include API access. Create the required API user under Settings → API in Smaily.
+
+= Can I use Smaily Connect without WooCommerce? =
+
+Yes. On a WordPress site, you can collect subscribers using the Smaily blocks, classic widget, shortcode, Contact Form 7 integration or Elementor widget. WooCommerce is required only for store-specific features such as checkout opt-in, customer and order events, abandoned-cart emails, product feeds, transactional emails and Campaign Intelligence.
+
+= Which WooCommerce automations can I connect? =
+
+You can map welcome, first-order and abandoned-cart events to automation workflows created in Smaily. When Campaign Intelligence is connected, additional purchase-based automation options may also be available for your store.
+
+= What is Smaily Campaign Intelligence? =
+
+Campaign Intelligence is Smaily's optional recommendation add-on. It uses WooCommerce product, customer and order data to produce personalized product recommendations and purchase-based automation signals. Consent-based browsing data can also be included when browse tracking is enabled.
+
+Campaign Intelligence is a paid Smaily add-on, billed separately by Smaily. It is not required to use the other Smaily Connect features.
+
+= Is browsing activity collected automatically? =
+
+No. Browse tracking is off by default. Events are sent only when the site administrator enables the feature and the shopper has given the required consent through the WordPress Consent API. Shoppers who opt out of recommendation profiling are excluded.
+
+= Can Smaily Connect send order and shipping confirmations? =
+
+Yes. You can optionally connect a separate Smaily Transactional account and use it for WooCommerce order and shipping confirmations. If a Smaily send fails, the plugin falls back to the corresponding native WooCommerce email.
+
+= Does Smaily Connect support multilingual stores? =
+
+Yes. Smaily Connect resolves contact language through WPML, Polylang and TranslatePress and can route contacts and workflows by language.
+
+= Is it safe to import existing data again? =
+
+Yes. Imports run in the background and can be safely repeated. Synchronization events use stable identifiers so repeating an import does not create duplicate records.
+
+= What happens when I upgrade from an older version? =
+
+Existing settings, credentials and connections are preserved. If the setup wizard has already been completed, the v3 synchronization process becomes active after the upgrade. If setup was never completed, the existing live contact synchronization continues until the wizard is finished.
+
+= What happens when I uninstall the plugin? =
+
+Uninstalling removes the plugin settings and local queue data from the WordPress site. Contacts already stored in Smaily and data stored in Campaign Intelligence are not automatically deleted. See the Smaily Connect documentation and Smaily Privacy Policy for deletion options.
+
+= Where can I get help? =
+
+Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setup and troubleshooting. You can also visit the [Smaily Help Center](https://smaily.com/help/).
 
 == Changelog ==
 
@@ -242,7 +323,7 @@ First general-availability release, graduating the 2.1.0-beta line. Existing set
 Fixes only. The landing page and newsletter sign-up blocks now work for editors and keep their content after saving; the Event Log retries order and shipping confirmations correctly; a deactivated Campaign Intelligence account now stops sending and says so. Safe update.
 
 = 3.11.2 =
-This is the major version 3 rewrite. After updating, open Smaily Connect in the admin menu and confirm your settings in the setup wizard. Live contact syncing keeps working meanwhile; the daily catch-up sync resumes once the wizard is confirmed. See the migration guide for the full upgrade path.
+Smaily Connect v3 adds a guided setup, a new admin experience, reliable background synchronization, an Event Log and optional Campaign Intelligence. Existing settings, credentials and connections are preserved. Review the setup summary after updating.
 
 = 3.11.1 =
 Fixes only. The order-completion signal for Campaign Intelligence is now sent as soon as the order is confirmed, instead of depending on the shopper keeping the page open; email-link attribution values are validated before being stored; a retired setting leaves no row behind. Safe update.
@@ -315,11 +396,9 @@ Translation update: the admin interface is now fully translatable and ships a co
 
 == Screenshots ==
 
-1. Smaily Connect Admin View
-2. Getting Started
-3. Subscriber Synchronization
-4. Abandoned Cart Reminder Emails
-5. Import Products To Templates From RSS-Feed
-6. Opt-In Form Block
-7. Integrate With Contact Form 7
-8. Smaily Elementor Opt-In Form
+1. Contact synchronisation — choose which contacts and customer fields are sent to Smaily.
+2. Signup forms — collect subscribers through shortcode, Gutenberg, Elementor, the classic widget or Contact Form 7.
+3. WooCommerce automations — connect welcome, first-order and abandoned-cart events to Smaily workflows.
+4. Transactional emails — send order and shipping confirmations through a separate Smaily Transactional account.
+5. Product RSS feed — configure which WooCommerce products are loaded into Smaily email templates.
+6. Campaign Intelligence — connect the optional paid add-on and import existing products, customers and orders.
