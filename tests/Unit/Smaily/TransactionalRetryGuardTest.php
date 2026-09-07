@@ -1,7 +1,8 @@
 <?php
 /**
- * TransactionalRetryGuard tests (PRO-1733) — which failed transactional rows
- * the Event Log may re-drive, and why the rest are refused.
+ * TransactionalRetryGuard tests — which failed transactional rows the Event
+ * Log may re-drive and why the rest are refused (PRO-1733), and which sent
+ * ones it may deliberately send again (PRO-2324).
  *
  * @package Smaily\Connect\Tests
  */
@@ -28,6 +29,59 @@ final class TransactionalRetryGuardTest extends TestCase {
 	protected function tearDown(): void {
 		Monkey\tearDown();
 		parent::tearDown();
+	}
+
+	public function test_a_sent_confirmation_may_be_sent_again(): void {
+		// PRO-2324: `sent` is written only after Smaily replied {code:101},
+		// so this row IS the proof the shopper got a Smaily-sent email — the
+		// merchant may deliberately follow it with a second one.
+		self::assertTrue(
+			TransactionalRetryGuard::resendable(
+				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+				'sent',
+				true
+			)
+		);
+		self::assertTrue(
+			TransactionalRetryGuard::resendable(
+				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
+				'sent',
+				true
+			)
+		);
+	}
+
+	public function test_only_a_sent_transactional_row_on_a_live_order_may_be_sent_again(): void {
+		// A failed row never qualifies — including the fail-open case, where
+		// WooCommerce's own email is what went out; that row is `failed`, and
+		// whether it may be RE-driven is refusal_reason()'s question.
+		self::assertFalse(
+			TransactionalRetryGuard::resendable(
+				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
+				'failed',
+				true
+			),
+			'A failed confirmation keeps Retry; "Send again" is for one that reached the shopper.'
+		);
+		self::assertFalse(
+			TransactionalRetryGuard::resendable(
+				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
+				'pending',
+				true
+			)
+		);
+		self::assertFalse(
+			TransactionalRetryGuard::resendable(
+				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+				'sent',
+				false
+			),
+			'A deleted order has nothing to rebuild the email from.'
+		);
+		// Ingest / contact-sync / cart rows are not confirmations at all.
+		self::assertFalse( TransactionalRetryGuard::resendable( 'contact.sync', 'sent', true ) );
+		self::assertFalse( TransactionalRetryGuard::resendable( 'automation.abandoned_cart', 'sent', true ) );
+		self::assertFalse( TransactionalRetryGuard::resendable( 'order.upsert', 'sent', true ) );
 	}
 
 	public function test_a_marketing_row_is_never_refused(): void {

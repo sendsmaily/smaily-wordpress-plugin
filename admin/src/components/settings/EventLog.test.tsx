@@ -16,6 +16,7 @@ const ROW = {
   created_at: '2026-06-09 10:00:00',
   retry_refusal: '',
   retry_refusal_message: '',
+  can_send_again: false,
 };
 
 /**
@@ -32,6 +33,20 @@ const TRANSACTIONAL_REFUSED_ROW = {
   retry_refusal: 'wc_email_sent',
   retry_refusal_message:
     'This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent.',
+};
+
+/**
+ * PRO-2324: a shipping confirmation Smaily itself sent. The merchant may
+ * deliberately follow it with a second one (a corrected tracking number).
+ */
+const SENT_CONFIRMATION_ROW = {
+  ...ROW,
+  id: 21,
+  source: 'smaily' as const,
+  event_type: 'transactional.shipping_confirmation',
+  status: 'sent',
+  last_error: '',
+  can_send_again: true,
 };
 
 describe('EventLog', () => {
@@ -212,6 +227,63 @@ describe('EventLog', () => {
         '1 record is back in the queue — it will be sent at the next scheduled pass, within about a minute.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it('offers Send again on a confirmation Smaily sent, and only after a confirm (PRO-2324)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [SENT_CONFIRMATION_ROW],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+    const resendSpy = vi
+      .spyOn(eventsApi, 'resendEvent')
+      .mockResolvedValue({ queued: 1, id: 77 });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    render(<EventLog />);
+
+    const sendAgain = await screen.findByRole('button', { name: 'Send again' });
+
+    // Declined at the confirm step: nothing is sent.
+    fireEvent.click(sendAgain);
+    expect(confirmSpy).toHaveBeenCalledWith('This sends the customer a second confirmation.');
+    expect(resendSpy).not.toHaveBeenCalled();
+
+    confirmSpy.mockReturnValue(true);
+    fireEvent.click(sendAgain);
+
+    await waitFor(() => {
+      expect(resendSpy).toHaveBeenCalledWith('smaily', 21);
+    });
+
+    expect(
+      await screen.findByText(
+        'A second confirmation is queued — it will be sent at the next scheduled pass, within about a minute.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('offers no Send again on rows the server did not mark resendable (PRO-2324)', async () => {
+    // A failed confirmation (Retry is its action), an ingest row and a
+    // contact-sync row — none of them is a confirmation Smaily sent.
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [
+        TRANSACTIONAL_REFUSED_ROW,
+        { ...ROW, id: 31, status: 'sent' },
+        { ...ROW, id: 32, source: 'smaily' as const, event_type: 'contact.sync', status: 'sent' },
+      ],
+      total: 3,
+      page: 1,
+      per_page: 50,
+      failed_24h: 1,
+    });
+
+    render(<EventLog />);
+
+    await screen.findByText('contact.sync');
+    expect(screen.queryByRole('button', { name: 'Send again' })).not.toBeInTheDocument();
   });
 
   it('shows a reachable Retry all failed control for aged failures with no 24h banner (PRO-1539)', async () => {

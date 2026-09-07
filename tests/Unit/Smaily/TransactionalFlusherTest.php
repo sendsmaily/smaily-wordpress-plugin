@@ -411,6 +411,128 @@ final class TransactionalFlusherTest extends TestCase {
 	/**
 	 * @param array<int, array<string, mixed>> $events
 	 */
+	public function test_enqueue_resend_queues_a_second_confirmation_without_moving_the_meta_guard(): void {
+		// PRO-2324: the merchant asked for this one, so the once-per-order
+		// marker is neither consulted nor changed — it still reads 'sent',
+		// which is what keeps a status transition from sending a third.
+		Functions\when( 'as_next_scheduled_action' )->justReturn( 4242 );
+
+		$order = $this->fake_order( 601, 'buyer@example.test' );
+		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ), TransactionalFlusher::META_STATUS_SENT );
+		$this->orders[601] = $order;
+
+		$queue   = $this->fake_queue( array() );
+		$flusher = new TransactionalFlusher(
+			$queue,
+			static function (): Client {
+				self::fail( 'enqueue_resend() only queues — the send belongs to the next scheduled pass.' );
+			}
+		);
+
+		$id = $flusher->enqueue_resend(
+			TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION,
+			$order,
+			new WorkflowMatch( 5151, 'transactional' ),
+			array( 'order_number' => '7' ),
+			'shipped'
+		);
+
+		self::assertSame( 1, $id );
+		self::assertCount( 1, $queue->enqueued );
+		self::assertSame( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, $queue->enqueued[0]['event_type'] );
+		self::assertSame( '601', $queue->enqueued[0]['entity_id'] );
+		self::assertTrue( $queue->enqueued[0]['payload'][ TransactionalFlusher::PAYLOAD_KEY_RESEND ] );
+		self::assertSame( array( 'order_number' => '7' ), $queue->enqueued[0]['payload']['context'] );
+		self::assertSame( 'shipped', $queue->enqueued[0]['payload']['to_status'] );
+		self::assertSame(
+			TransactionalFlusher::META_STATUS_SENT,
+			$order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ) ),
+			'The bypass is scoped to this enqueue — the marker the status path reads is untouched.'
+		);
+	}
+
+	public function test_a_failed_resend_neither_fails_open_nor_moves_the_meta_guard(): void {
+		// PRO-2324: fail-open exists so the shopper is never left without a
+		// confirmation. On a re-send they already have one, so a failure must
+		// not mail them WooCommerce's own copy on top — the mark_failed row
+		// is the whole record.
+		$order = $this->fake_order( 602, 'buyer@example.test' );
+		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ), TransactionalFlusher::META_STATUS_SENT );
+		$this->orders[602] = $order;
+
+		$queue = $this->fake_queue(
+			array(
+				array(
+					'id'         => 12,
+					'event_type' => TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
+					'entity_id'  => '602',
+					'payload'    => json_encode(
+						array(
+							'to'          => 'buyer@example.test',
+							'workflow_id' => 1,
+							'account_key' => 'transactional',
+							'context'     => array(),
+							TransactionalFlusher::PAYLOAD_KEY_RESEND => true,
+						)
+					),
+				),
+			)
+		);
+		$client = $this->createMock( Client::class );
+		$client->method( 'send_message' )->willReturn( array( 'code' => 203 ) );
+		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
+
+		$fired = $this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
+
+		( new TransactionalFlusher( $queue, static fn () => $client ) )->flush();
+
+		self::assertSame( 12, $queue->marked_failed[0]['id'], 'The failure is still recorded.' );
+		self::assertSame( array(), $fired->calls, 'A re-send failure must not mail the native WooCommerce email.' );
+		self::assertSame(
+			TransactionalFlusher::META_STATUS_SENT,
+			$order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) )
+		);
+	}
+
+	public function test_a_successful_resend_writes_nothing_to_the_meta_guard(): void {
+		// Seeded with a value a normal send would overwrite with 'sent', so
+		// the assertion below can tell "left alone" from "written again".
+		$order = $this->fake_order( 603, 'buyer@example.test' );
+		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ), TransactionalFlusher::META_STATUS_QUEUED );
+		$this->orders[603] = $order;
+
+		$queue = $this->fake_queue(
+			array(
+				array(
+					'id'         => 13,
+					'event_type' => TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
+					'entity_id'  => '603',
+					'payload'    => json_encode(
+						array(
+							'to'          => 'buyer@example.test',
+							'workflow_id' => 1,
+							'account_key' => 'transactional',
+							'context'     => array(),
+							TransactionalFlusher::PAYLOAD_KEY_RESEND => true,
+						)
+					),
+				),
+			)
+		);
+		$client = $this->createMock( Client::class );
+		$client->method( 'send_message' )->willReturn( array( 'code' => 101 ) );
+		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
+
+		( new TransactionalFlusher( $queue, static fn () => $client ) )->flush();
+
+		self::assertSame( array( 13 ), $queue->marked_sent );
+		self::assertSame(
+			TransactionalFlusher::META_STATUS_QUEUED,
+			$order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) ),
+			'A re-send repeats a confirmation the marker already records — it must not write it again.'
+		);
+	}
+
 	public function test_revive_leaves_the_send_to_the_next_scheduled_pass(): void {
 		// PRO-2323: revive() never asks for a run-now flush. This flusher's
 		// recurring action is always scheduled, so the dedup guard always wins

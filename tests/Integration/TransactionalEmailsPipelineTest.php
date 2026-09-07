@@ -582,6 +582,115 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertSame( 'order_missing', $refused->get_data()['reason'] );
 	}
 
+	public function test_send_again_queues_a_second_confirmation_the_status_path_would_never_send(): void {
+		// PRO-2324 end to end: a shipping confirmation Smaily sent, then the
+		// merchant's explicit "Send again" — a NEW row, a SECOND POST, and
+		// the once-per-order guard untouched throughout.
+		$this->configure( array( 'shipping_confirmation' => '5151' ) );
+
+		$product = $this->make_product( 'Send Again Product', 25.00 );
+		$order   = wc_get_order( $this->make_order( 'again@example.test', $product ) );
+		$order->set_status( 'processing' );
+		$order->save();
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+
+			// The guard the action deliberately steps around, pinned: moving
+			// the order out of and back into the shipped status sends nothing.
+			$order->update_status( 'on-hold' );
+			$order->update_status( 'completed' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertCount( 1, $captured, 'Status transitions stay once-per-order.' );
+
+		$first = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+		self::assertNotNull( $first );
+		self::assertSame( 'sent', $first['status'] );
+		self::assertTrue(
+			$this->listed_row( (int) $first['id'], 'sent' )['can_send_again'],
+			'A confirmation Smaily sent must offer the action in the Event Log.'
+		);
+
+		$response = RestRequestHelper::post(
+			'/events/resend',
+			array(
+				'source' => 'smaily',
+				'id'     => (int) $first['id'],
+			)
+		);
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( 1, $response->get_data()['queued'] );
+
+		self::assertSame( 2, $this->queue_count( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION ), 'The log shows both sends.' );
+		$second = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+		self::assertNotSame( (int) $first['id'], (int) $second['id'] );
+		self::assertSame( 'pending', $second['status'], 'It goes out on the flusher\'s next scheduled pass, not now.' );
+		self::assertTrue(
+			(bool) ( json_decode( (string) $second['payload'], true )[ TransactionalFlusher::PAYLOAD_KEY_RESEND ] ?? false ),
+			'The new row records that a merchant asked for it.'
+		);
+
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertCount( 2, $captured, 'The second confirmation really reaches Smaily.' );
+		self::assertSame( 5151, $captured[1]['body']['autoresponder_id'] );
+		self::assertSame( array( 'again@example.test' ), $captured[1]['body']['to'] );
+		self::assertSame( 'sent', $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION )['status'] );
+
+		$order = wc_get_order( $order->get_id() );
+		self::assertSame(
+			TransactionalFlusher::META_STATUS_SENT,
+			$order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ) ),
+			'The once-per-order marker is where it was — the bypass was scoped to that one enqueue.'
+		);
+	}
+
+	public function test_send_again_is_refused_for_a_row_smaily_never_sent(): void {
+		// PRO-2324: the action is offered on — and accepted for — nothing but
+		// a confirmation Smaily itself sent. A failed one keeps Retry.
+		$this->configure( array( 'order_confirmation' => '4242' ) );
+
+		$product  = $this->make_product( 'No Send Again Product', 6.00 );
+		$order_id = $this->make_order( 'nosendagain@example.test', $product );
+
+		$fake = $this->fake_transport_with_code( 203 );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$this->fire_checkout_order_processed( $order_id );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION );
+		self::assertNotNull( $row );
+		self::assertSame( 'failed', $row['status'] );
+		self::assertFalse( $this->listed_row( (int) $row['id'] )['can_send_again'] );
+
+		$response = RestRequestHelper::post(
+			'/events/resend',
+			array(
+				'source' => 'smaily',
+				'id'     => (int) $row['id'],
+			)
+		);
+
+		self::assertSame( 409, $response->get_status() );
+		self::assertSame( 'resend_not_available', $response->get_data()['error'] );
+		self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION ), 'Nothing was queued.' );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**
@@ -737,12 +846,12 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 	 *
 	 * @return array<string, mixed>
 	 */
-	private function listed_row( int $id ): array {
+	private function listed_row( int $id, string $status = 'failed' ): array {
 		$response = RestRequestHelper::get(
 			'/events',
 			array(
 				'source' => 'smaily',
-				'status' => 'failed',
+				'status' => $status,
 			)
 		);
 
