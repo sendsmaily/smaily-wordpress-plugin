@@ -26,7 +26,26 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2347 — the Smaily sign-up block works for
+_Last updated: 2026-09-07 (**PRO-2296 — the install guide names the
+wordpress.org install path.** Found while closing PRO-2291: the migration guide
+sends fresh installs to `docs/INSTALL.md`, which had not been read in that pass.
+It carried no pre-3.x instruction and its requirements table already matched
+`readme.txt` (WP 6.6/7.0, WC 6.9/10.7, PHP 8.0) — but it never said where the
+plugin comes from, so a fresh installer arriving from `MIGRATION.md` was handed
+straight on to the merchant docs site. It now names the normal path first
+(wordpress.org, slug `smaily-connect`, current release **3.11.2**, with the
+WP-CLI one-liner) and the tagged ZIP in `sendsmaily/smaily-wordpress-plugin` as
+the same package for staging installs; the "where to look" row for `MIGRATION.md`
+says "upgrading an existing site from 2.0.0 (the previous plugin line)" instead
+of "the legacy 1.x plugin", which is the name the migration guide itself uses and
+the version a merchant sees in their plugin list; and the docs-site pointer names
+the live URL `https://smaily.com/connect-woo/`, not only the local file. Left
+alone: the merchant docs site's own install step still says "download the latest
+release ZIP from the releases page" in BOTH languages — a real pre-wordpress.org
+instruction, but a bilingual change gated on the Estonian proofread, so it is
+reported rather than made here. Docs-only; no gates run.)_
+
+Prior: 2026-09-07 (**PRO-2347 — the Smaily sign-up block works for
 the people who build pages.** The sibling of PRO-2346, in the other Gutenberg
 block. The newsletter-signup block fills its **Autoresponder** dropdown from
 `GET /smaily/v1/autoresponders` on every mount and shows nothing but a loading
@@ -623,6 +642,8 @@ Docs-only; no code, so no gates run.)_
   awaiting the Estonian proofread before the next publish.
 - **Next release:** cut whenever Erkki decides — bump per the CLAUDE.md release
   runbook; `readme.txt` and the merchant docs are content-current.
+- **Queue:** PRO-2296 is done. Next: the PRO-2350 audit row covering both
+  widened routes, then PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317.
 - **Queue:** done this session = PRO-2346 (landing-page block, editor role fix,
   awaiting Jane's role confirmation + next release), PRO-2349 + PRO-2318 docs
   drift (published), PRO-2326 (legacy-storage retry refusal), PRO-2347 (sign-up
