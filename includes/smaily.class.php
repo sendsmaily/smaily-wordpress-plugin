@@ -205,6 +205,7 @@ class Smaily_Connect {
 	private function load_dependencies() {
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'admin/smaily-admin-notices.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'blocks/newsletter-signup/smaily-integration.class.php';
+		require_once SMAILY_CONNECT_PLUGIN_PATH . 'blocks/landingpage/smaily-integration.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-api.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-blocks.class.php';
 		require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-client.class.php';

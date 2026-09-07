@@ -96,7 +96,12 @@ class Blocks {
 	 * @return void
 	 */
 	public function register_landingpage_block() {
-		register_block_type( SMAILY_CONNECT_PLUGIN_PATH . '/blocks/landingpage/build' );
+		register_block_type(
+			SMAILY_CONNECT_PLUGIN_PATH . '/blocks/landingpage/build',
+			array(
+				'render_callback' => array( 'Smaily_Connect\\Blocks\\Landing_Page\\Integration', 'render' ),
+			)
+		);
 		wp_set_script_translations(
 			'smaily-landingpage-block-editor-script',
 			'smaily-connect',

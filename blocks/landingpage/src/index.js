@@ -26,7 +26,19 @@ const smailyIcon = (
 
 registerBlockType( metadata.name, {
 	edit: Edit,
-	save: Save,
+	// Rendered on the server (PRO-2346). Emitting the <iframe> from `save`
+	// put it into post_content, where KSES strips it for any author without
+	// `unfiltered_html` — the landing page then disappeared from the
+	// published page and the block came back "unexpected or invalid
+	// content" in the editor. The deprecation below keeps blocks that were
+	// saved with the old markup readable; they migrate on the next save.
+	save: () => null,
+	deprecated: [
+		{
+			attributes: metadata.attributes,
+			save: Save,
+		},
+	],
 	icon: smailyIcon,
 	category: 'widgets',
 	title: __( 'Smaily Landing Page', 'smaily-connect' ),
