@@ -24,6 +24,7 @@ use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\TransactionalFlusher;
+use Smaily\Connect\Smaily\TransactionalResend;
 use Smaily\Connect\Smaily\TransactionalRetryGuard;
 use WP_Error;
 use WP_REST_Request;
@@ -39,7 +40,8 @@ use WP_REST_Response;
  *                        → { ...row, payload }   (the full payload for drill-down)
  *
  * This is the visibility half of the 3.10 pilot-hardening work (Layer 1), plus
- * the 3.10.1 recovery write route (`POST /events/retry`) over the same rows.
+ * the 3.10.1 recovery write route (`POST /events/retry`) and the deliberate
+ * second confirmation (`POST /events/resend`, PRO-2324) over the same rows.
  * The data is a
  * UNION over `smly_rec_event_queue` (source=rec_engine) and
  * `smly_plus_event_queue` (source=smaily); both already carry every column the
@@ -59,6 +61,12 @@ class EventsEndpoint {
 	/** Sources the UNION exposes; the value doubles as the wire `source`. */
 	private const SOURCE_REC    = 'rec_engine';
 	private const SOURCE_SMAILY = 'smaily';
+
+	private TransactionalResend $resend_service;
+
+	public function __construct( TransactionalResend $resend_service ) {
+		$this->resend_service = $resend_service;
+	}
 
 	public function register(): void {
 		register_rest_route(
@@ -89,6 +97,19 @@ class EventsEndpoint {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'retry' ),
+				'permission_callback' => array( $this, 'permission_check' ),
+			)
+		);
+
+		// A deliberate second confirmation (PRO-2324). Same capability +
+		// nonce gate as Retry; it is a different question about a different
+		// row, so it is a different route.
+		register_rest_route(
+			Constants::REST_NAMESPACE,
+			self::ROUTE_PREFIX . '/resend',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'resend' ),
 				'permission_callback' => array( $this, 'permission_check' ),
 			)
 		);
@@ -273,6 +294,73 @@ class EventsEndpoint {
 	}
 
 	/**
+	 * Send one already-sent confirmation to the shopper a SECOND time, on
+	 * explicit merchant request (PRO-2324). Body: { source, id }.
+	 *
+	 * This is NOT a retry: the row named here stays exactly as it is, and a
+	 * NEW row is enqueued for the same order + type, so the Event Log shows
+	 * both sends. It goes out on the transactional flusher's next scheduled
+	 * pass, within about a minute.
+	 *
+	 * Which rows may be sent again is TransactionalRetryGuard's rule, the
+	 * same one the list projection answers with `can_send_again` — the
+	 * button and the route can't drift apart.
+	 */
+	public function resend( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+
+		$source = $this->sanitize_source( (string) $request->get_param( 'source' ) );
+		$id     = (int) $request->get_param( 'id' );
+
+		if ( $id <= 0 || $source !== self::SOURCE_SMAILY ) {
+			return new WP_REST_Response( array( 'error' => 'invalid_event_ref' ), 400 );
+		}
+
+		$table = $this->smaily_table();
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		$row = $wpdb->get_row(
+			$wpdb->prepare( "SELECT id, event_type, entity_id, status, payload FROM {$table} WHERE id = %d", $id ),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( ! is_array( $row ) ) {
+			return new WP_REST_Response( array( 'error' => 'not_found' ), 404 );
+		}
+
+		$event_type = (string) $row['event_type'];
+		$entity_id  = (string) $row['entity_id'];
+
+		if ( ! TransactionalRetryGuard::resendable(
+			$event_type,
+			(string) $row['status'],
+			$this->order_exists( $entity_id, $this->existing_orders( array( $entity_id ) ) )
+		) ) {
+			return new WP_REST_Response( array( 'error' => 'resend_not_available' ), 409 );
+		}
+
+		$payload = TransactionalFlusher::read_payload( (string) $row['payload'] );
+		$result  = $this->resend_service->resend(
+			(int) $entity_id,
+			$event_type,
+			isset( $payload['to_status'] ) ? (string) $payload['to_status'] : ''
+		);
+
+		if ( $result['error'] !== '' ) {
+			return new WP_REST_Response( array( 'error' => $result['error'] ), 409 );
+		}
+
+		return new WP_REST_Response(
+			array(
+				'queued' => 1,
+				'id'     => $result['id'],
+			),
+			200
+		);
+	}
+
+	/**
 	 * Split the failed transactional rows in the Smaily queue into the ones a
 	 * retry must refuse and the ones it may re-drive (PRO-1733).
 	 *
@@ -453,7 +541,10 @@ class EventsEndpoint {
 	private function shape_rows( array $rows ): array {
 		$entity_ids = array();
 		foreach ( $rows as $row ) {
-			if ( $this->is_failed_transactional( $row ) ) {
+			// Both transactional actions need to know whether the order is
+			// still there: Retry to refuse a row it can't rebuild (PRO-1733),
+			// "Send again" to offer itself at all (PRO-2324).
+			if ( $this->is_failed_transactional( $row ) || $this->is_sent_transactional( $row ) ) {
 				$entity_ids[] = (string) ( $row['entity_id'] ?? '' );
 			}
 		}
@@ -498,6 +589,14 @@ class EventsEndpoint {
 			'created_at'            => isset( $row['created_at'] ) ? (string) $row['created_at'] : '',
 			'retry_refusal'         => $refusal,
 			'retry_refusal_message' => $refusal === '' ? '' : TransactionalRetryGuard::message( $refusal ),
+			// PRO-2324: may the merchant deliberately send this confirmation
+			// a second time? Only a transactional row Smaily itself sent, on
+			// an order that still exists.
+			'can_send_again'        => TransactionalRetryGuard::resendable(
+				(string) ( $row['event_type'] ?? '' ),
+				(string) ( $row['status'] ?? '' ),
+				$this->order_exists( (string) ( $row['entity_id'] ?? '' ), $existing_orders )
+			),
 		);
 	}
 
@@ -506,6 +605,14 @@ class EventsEndpoint {
 	 */
 	private function is_failed_transactional( array $row ): bool {
 		return (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_FAILED
+			&& in_array( (string) ( $row['event_type'] ?? '' ), TransactionalFlusher::EVENT_TYPES, true );
+	}
+
+	/**
+	 * @param array<string, mixed> $row
+	 */
+	private function is_sent_transactional( array $row ): bool {
+		return (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_SENT
 			&& in_array( (string) ( $row['event_type'] ?? '' ), TransactionalFlusher::EVENT_TYPES, true );
 	}
 
