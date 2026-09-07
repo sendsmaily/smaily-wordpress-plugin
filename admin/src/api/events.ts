@@ -17,8 +17,9 @@ export interface EventRow {
   /**
    * Why this row's Retry is refused, '' when it may be retried (PRO-1733).
    * Only failed transactional-email rows are ever refused: fail-open already
-   * re-fired the native WooCommerce email (`wc_email_sent`), or the order is
-   * gone (`order_missing`).
+   * re-fired the native WooCommerce email (`wc_email_sent`), the order is
+   * gone (`order_missing`), or it was a deliberate second confirmation that
+   * failed and sent nothing (`resend_failed`, PRO-2368).
    */
   retry_refusal: string;
   /**

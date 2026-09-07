@@ -2614,7 +2614,11 @@ msgstr "Sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega sünk
 msgid "This order no longer exists, so this event cannot be re-sent."
 msgstr "Seda tellimust enam ei ole, seega seda sündmust ei saa uuesti saata."
 
-#: includes/Smaily/TransactionalRetryGuard.php:109
+#: includes/Smaily/TransactionalRetryGuard.php:141
+msgid "This second confirmation could not be sent. The confirmation the customer already received still stands."
+msgstr "Seda teist kinnitust ei õnnestunud saata. Kinnitus, mille klient juba sai, jääb kehtima."
+
+#: includes/Smaily/TransactionalRetryGuard.php:144
 msgid "This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent."
 msgstr "See kinnitus saadeti kliendile juba WooCommerce'i tavalise e-kirjana; seda ei saa uuesti saata."
 
