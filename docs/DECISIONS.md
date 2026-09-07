@@ -5756,6 +5756,45 @@ because the age clock restarted).
 the route it narrows; PRO-1195 (CartFlusher's own kick) is the precedent for
 kicking a second flusher from the retry route.
 
+### PRO-2346 — The landing-page block's configuration route is gated on `edit_posts` (2026-09-07)
+
+**Context:** marketing reported the Smaily landing-page block "does nothing":
+insert it, paste a landing-page URL, no page appears and nothing is saved. The
+block reads the account subdomain from the legacy `GET /smaily/v1/configuration`
+route on every mount and shows its URL field only once a subdomain comes back.
+That route was gated on `manage_options`. An Editor — the usual role for a
+marketing user — does not have it, so the fetch 403'd, the `await` rejected
+with nobody listening, the subdomain stayed empty, and the block rendered the
+"Please configure the plugin first" notice **on a fully connected store**, with
+no URL field at all. Silent, and indistinguishable from an unconfigured plugin.
+
+**Decision:** gate that one route on `current_user_can( 'edit_posts' )` — the
+capability that means "may use the block editor". `/smaily/v1/autoresponders`,
+which performs an authenticated Smaily API call, keeps `manage_options`; only
+the read-only configuration route moves.
+
+**Rationale:** the response carries no secret. The subdomain is already public
+— it is the host in the signup form's `action` URL rendered on the storefront —
+and `settings_url` is a static admin URL that an unprivileged user cannot open
+anyway. Anyone who can insert the block must be able to read what the block
+needs to function, or the block is decoration.
+
+**Alternatives:** (a) leave the gate and teach the block to distinguish "denied"
+from "not configured" — a nicer message for a person who still cannot use the
+block; the block would still be useless to every non-admin editor. (b) Widen the
+whole legacy `smaily/v1` namespace — rejected: `/autoresponders` reaches the
+Smaily API with the store's credentials and lists campaign names, which is
+administrator business.
+
+**Tests:** integration — `LandingPageBlockConfigRouteTest` (an Editor reads the
+subdomain; a Subscriber is still refused 403). Demonstrated in the WP 7.0 block
+editor with a real Smaily landing page: as an Editor the block now embeds the
+page and the published post renders it.
+
+**Relationships:** none of the new `smaily-connect/v1` routes change — they stay
+on their own permission checks; this is the legacy `smaily/v1` namespace the
+Gutenberg blocks read.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

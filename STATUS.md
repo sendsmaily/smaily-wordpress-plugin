@@ -26,7 +26,34 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-04 (**readme: the "What's new" section now says version
+_Last updated: 2026-09-07 (**PRO-2346 — the Smaily landing-page block works for
+the people who build pages.** Marketing reported the block "does nothing": you
+insert it, paste the landing-page URL, and no page appears or is saved. Root
+cause: the block reads the account subdomain from the legacy `GET
+/smaily/v1/configuration` route on every mount and only shows its URL field once
+a subdomain arrives — and that route was gated on `manage_options`. An **Editor**
+(the usual marketing role) does not have it, so the fetch 403'd silently, the
+subdomain stayed empty, and the block showed "Please configure the plugin first"
+**on a fully connected store**, with no URL field at all. That one read-only
+route is now gated on `edit_posts`; `/smaily/v1/autoresponders` (an authenticated
+Smaily API call) deliberately keeps `manage_options`. The response carries no
+secret — the subdomain is already public in the signup form's action URL.
+**Demonstrated in a running store**, not only by tests: driven in the WP 7.0
+block editor against a real Smaily landing page — as an Editor, insert block →
+paste URL → the landing page renders in the editor, publishes, and the published
+post shows the embed; an off-Smaily URL says "Invalid Landing Page URL!" and
+embeds nothing; with the subdomain cleared the block says "Please configure the
+plugin first". For an Administrator the whole flow already worked before the fix
+(also demonstrated) — the defect was role-scoped. Gates: `npm run ci:strict`
+**exit=0** (PHPUnit unit **770**, vitest **306**, PHPCS 0 errors, PHPStan `[OK]`)
+and `sg docker -c "composer run test:integration"` **OK 264 tests / 1548
+assertions**, dev sandbox tenant "Smaily Connect test" restored. New pin:
+`tests/Integration/LandingPageBlockConfigRouteTest`. DECISIONS PRO-2346. **No
+version bump** — lands with the next release. Found but NOT fixed (out of
+scope, see the report): the newsletter-signup block also calls
+`/smaily/v1/autoresponders`, so it stays administrator-only for now.)_
+
+Prior: 2026-09-04 (**readme: the "What's new" section now says version
 3, not 2.0.** The wordpress.org description still opened with `= What's new in
 2.0 =` and "Version 2.0 is a major update built alongside the proven 1.x
 feature set" — leftovers from the 2.1.0-beta era when this rewrite was still
@@ -490,8 +517,9 @@ Docs-only; no code, so no gates run.)_
   ships them (Erkki's decision).
 - **Landed on official `main` AFTER the 3.11.2 tag** (so all of it ships in the
   NEXT release): PRO-1709 (the CI coverage gate), PRO-1893 + its simplification
-  pass, PRO-1733 + its simplification pass, and the readme "What's new in
-  version 3" fix (`11527fd`).
+  pass, PRO-1733 + its simplification pass, the readme "What's new in
+  version 3" fix (`11527fd`), and PRO-2346 (the landing-page block works for
+  Editors).
 - **Erkki's hand, in order:** PRO-1770 = **one** fresh contact import on **Prike
   only**, then close it; then the first-48-hours observation on PRO-2283, then
   close PRO-2283.
