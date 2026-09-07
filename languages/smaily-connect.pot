@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-07T13:05:22+00:00\n"
+"POT-Creation-Date: 2026-09-07T16:30:47+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: smaily-connect\n"
@@ -34,8 +34,8 @@ msgstr ""
 #. Author of the plugin
 #: smaily-connect.php
 #: integrations/elementor/admin.class.php:29
-#: admin/src/components/settings/EventLog.tsx:193
-#: admin/src/components/settings/EventLog.tsx:245
+#: admin/src/components/settings/EventLog.tsx:188
+#: admin/src/components/settings/EventLog.tsx:240
 msgid "Smaily"
 msgstr ""
 
@@ -216,7 +216,7 @@ msgstr ""
 msgid "Unsupported job_type."
 msgstr ""
 
-#: includes/REST/EventsEndpoint.php:125
+#: includes/REST/EventsEndpoint.php:131
 msgid "You do not have permission to view the event log."
 msgstr ""
 
@@ -364,11 +364,27 @@ msgstr ""
 msgid "This workflow is disabled in Smaily (or no longer exists) — form submissions will not trigger anything until you enable it in Smaily or pick another workflow."
 msgstr ""
 
-#: includes/Smaily/TransactionalRetryGuard.php:106
+#: includes/Smaily/TransactionalResend.php:91
+msgid "Transactional emails are switched off for this confirmation, or its Smaily workflow is no longer mapped — so nothing can be sent."
+msgstr ""
+
+#: includes/Smaily/TransactionalResend.php:95
+msgid "The second confirmation could not be queued. Please try again."
+msgstr ""
+
+#: includes/Smaily/TransactionalResend.php:98
+msgid "This confirmation can no longer be sent again. Refresh the event log to see the row as it is now."
+msgstr ""
+
+#: includes/Smaily/TransactionalRetryGuard.php:137
 msgid "This order no longer exists, so this event cannot be re-sent."
 msgstr ""
 
-#: includes/Smaily/TransactionalRetryGuard.php:109
+#: includes/Smaily/TransactionalRetryGuard.php:141
+msgid "This second confirmation could not be sent. The confirmation the customer already received still stands."
+msgstr ""
+
+#: includes/Smaily/TransactionalRetryGuard.php:144
 msgid "This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent."
 msgstr ""
 
@@ -1108,203 +1124,207 @@ msgid "Failed to load the event log."
 msgstr ""
 
 #. translators: %d is the number of failed records put back in the queue.
-#: admin/src/components/settings/EventLog.tsx:83
+#: admin/src/components/settings/EventLog.tsx:96
 #, js-format
 msgid "%d record is back in the queue — it will be sent at the next scheduled pass, within about a minute."
 msgid_plural "%d records are back in the queue — they will be sent at the next scheduled pass, within about a minute."
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/src/components/settings/EventLog.tsx:95
+#: admin/src/components/settings/EventLog.tsx:104
 msgid "Retry failed."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:104
+#: admin/src/components/settings/EventLog.tsx:109
 msgid "This sends the customer a second confirmation."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:113
+#: admin/src/components/settings/EventLog.tsx:114
 msgid "A second confirmation is queued — it will be sent at the next scheduled pass, within about a minute."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:120
+#: admin/src/components/settings/EventLog.tsx:118
 msgid "Sending again failed."
 msgstr ""
 
 #. translators: %d is the number of failed events in the last 24 hours.
-#: admin/src/components/settings/EventLog.tsx:136
+#: admin/src/components/settings/EventLog.tsx:131
 #, js-format
 msgid "%d failed event in the last 24 hours"
 msgid_plural "%d failed events in the last 24 hours"
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/src/components/settings/EventLog.tsx:154
+#: admin/src/components/settings/EventLog.tsx:149
 msgid "View only failed"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:164
-#: admin/src/components/settings/EventLog.tsx:224
+#: admin/src/components/settings/EventLog.tsx:159
+#: admin/src/components/settings/EventLog.tsx:219
 msgid "Retry all failed"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:168
+#: admin/src/components/settings/EventLog.tsx:163
 msgid "Some records didn’t reach their destination. Review them below."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:174
+#: admin/src/components/settings/EventLog.tsx:169
 msgid "Event log"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:175
+#: admin/src/components/settings/EventLog.tsx:170
 msgid "Sync activity across the Smaily and recommendation-engine queues. Read-only — last 7 days of events."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:184
+#: admin/src/components/settings/EventLog.tsx:179
 msgid "Filter by source"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:191
+#: admin/src/components/settings/EventLog.tsx:186
 msgid "All sources"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:192
+#: admin/src/components/settings/EventLog.tsx:187
 msgid "Recommendations engine"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:200
+#: admin/src/components/settings/EventLog.tsx:195
 msgid "Filter by status"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:207
+#: admin/src/components/settings/EventLog.tsx:202
 msgid "All statuses"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:208
+#: admin/src/components/settings/EventLog.tsx:203
 msgid "Pending"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:209
+#: admin/src/components/settings/EventLog.tsx:204
 msgid "Sent"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:210
+#: admin/src/components/settings/EventLog.tsx:205
 msgid "Failed"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:211
+#: admin/src/components/settings/EventLog.tsx:206
 msgid "Blocked"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:215
+#: admin/src/components/settings/EventLog.tsx:210
 msgid "Refresh"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:232
+#: admin/src/components/settings/EventLog.tsx:227
 msgid "Time (UTC)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:233
-#: admin/src/components/settings/EventLog.tsx:366
+#: admin/src/components/settings/EventLog.tsx:228
+#: admin/src/components/settings/EventLog.tsx:361
 msgid "Source"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:234
+#: admin/src/components/settings/EventLog.tsx:229
 msgid "Event"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:235
-#: admin/src/components/settings/EventLog.tsx:374
+#: admin/src/components/settings/EventLog.tsx:230
+#: admin/src/components/settings/EventLog.tsx:369
 msgid "Entity"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:236
-#: admin/src/components/settings/EventLog.tsx:370
+#: admin/src/components/settings/EventLog.tsx:231
+#: admin/src/components/settings/EventLog.tsx:365
 msgid "Status"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:237
-#: admin/src/components/settings/EventLog.tsx:378
+#: admin/src/components/settings/EventLog.tsx:232
+#: admin/src/components/settings/EventLog.tsx:373
 msgid "Attempts"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:238
-#: admin/src/components/settings/EventLog.tsx:391
+#: admin/src/components/settings/EventLog.tsx:233
+#: admin/src/components/settings/EventLog.tsx:386
 msgid "Last error"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:242
+#: admin/src/components/settings/EventLog.tsx:237
 msgid "No events yet."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:245
+#: admin/src/components/settings/EventLog.tsx:240
 msgid "Rec"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:269
+#: admin/src/components/settings/EventLog.tsx:243
+msgid "cancelled"
+msgstr ""
+
+#: admin/src/components/settings/EventLog.tsx:264
 #: admin/src/components/steps/EngineAutomationsSection.tsx:178
 msgid "Retry"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:279
+#: admin/src/components/settings/EventLog.tsx:274
 msgid "Send again"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:282
+#: admin/src/components/settings/EventLog.tsx:277
 msgid "Details"
 msgstr ""
 
 #. translators: %d is the total number of events.
-#: admin/src/components/settings/EventLog.tsx:291
+#: admin/src/components/settings/EventLog.tsx:286
 #, js-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/src/components/settings/EventLog.tsx:294
+#: admin/src/components/settings/EventLog.tsx:289
 msgid " · loading…"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:304
+#: admin/src/components/settings/EventLog.tsx:299
 msgid "Previous"
 msgstr ""
 
 #. translators: %1$d is the current page number, %2$d is the total page count.
-#: admin/src/components/settings/EventLog.tsx:309
+#: admin/src/components/settings/EventLog.tsx:304
 #, js-format
 msgid "Page %1$d of %2$d"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:320
+#: admin/src/components/settings/EventLog.tsx:315
 msgid "Next"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:354
+#: admin/src/components/settings/EventLog.tsx:349
 msgid "Close details"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:362
+#: admin/src/components/settings/EventLog.tsx:357
 msgid "Close"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:385
+#: admin/src/components/settings/EventLog.tsx:380
 msgid "Created (UTC)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:395
+#: admin/src/components/settings/EventLog.tsx:390
 msgid "Request sent to the engine"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:396
+#: admin/src/components/settings/EventLog.tsx:391
 msgid "— nothing recorded (not sent, or the row predates this version)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:399
+#: admin/src/components/settings/EventLog.tsx:394
 msgid "Engine response"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:403
+#: admin/src/components/settings/EventLog.tsx:398
 msgid "Enqueued payload"
 msgstr ""
 
