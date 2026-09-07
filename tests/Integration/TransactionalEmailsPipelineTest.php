@@ -487,6 +487,101 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		}
 	}
 
+	public function test_a_shipped_status_whose_plugin_is_gone_still_counts_as_an_existing_order(): void {
+		// PRO-2326: on legacy order storage the Event Log used to resolve
+		// "does this order still exist?" through a status-filtered lookup, so
+		// an order left on a merchant-defined shipped status whose plugin has
+		// since been deactivated — the status is no longer registered — was
+		// reported as gone and its Retry refused. That is precisely the row
+		// PRO-1733 keeps Retry for: WooCommerce never had an email for that
+		// status, so the shopper has no confirmation at all.
+		$this->configure( array( 'shipping_confirmation' => '5151' ), array( 'shipped' ) );
+
+		$custom_status = static function ( array $statuses ): array {
+			$statuses['wc-shipped'] = 'Shipped';
+			return $statuses;
+		};
+		add_filter( 'wc_order_statuses', $custom_status );
+
+		$fake_5xx = $this->fake_transport_with_code( 500, 500 );
+		$gone_id  = 0;
+		$kept_row = 0;
+		$gone_row = 0;
+
+		try {
+			$product = $this->make_product( 'Deactivated Status Product', 31.00 );
+
+			foreach ( array( 'kept', 'gone' ) as $which ) {
+				$order = wc_get_order( $this->make_order( $which . '@example.test', $product ) );
+				$order->set_status( 'processing' );
+				$order->save();
+
+				add_filter( 'pre_http_request', $fake_5xx, 10, 3 );
+				try {
+					$order->update_status( 'shipped' );
+				} finally {
+					remove_filter( 'pre_http_request', $fake_5xx, 10 );
+				}
+
+				$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+				self::assertNotNull( $row );
+				$this->backdate_queue_row( (int) $row['id'], TransactionalFlusher::RETRY_CEILING_SECONDS + 60 );
+
+				if ( $which === 'kept' ) {
+					$kept_row = (int) $row['id'];
+				} else {
+					$gone_id  = $order->get_id();
+					$gone_row = (int) $row['id'];
+				}
+			}
+
+			// One tick past the ceiling terminal-fails both — the state a
+			// merchant finds in the Event Log.
+			add_filter( 'pre_http_request', $fake_5xx, 10, 3 );
+			try {
+				do_action( TransactionalFlusher::FLUSH_HOOK );
+			} finally {
+				remove_filter( 'pre_http_request', $fake_5xx, 10 );
+			}
+		} finally {
+			// The status plugin is deactivated: nothing registers `wc-shipped`
+			// any more, while both orders stay parked on it.
+			remove_filter( 'wc_order_statuses', $custom_status );
+		}
+
+		// ...and one of the two orders is genuinely deleted.
+		wc_get_order( $gone_id )->delete( true );
+
+		$kept = $this->listed_row( $kept_row );
+		self::assertSame( 'failed', $kept['status'] );
+		self::assertSame( '', $kept['retry_refusal'], 'An order on an unregistered status still exists — Retry stays offered.' );
+		self::assertSame( '', $kept['retry_refusal_message'] );
+
+		$gone = $this->listed_row( $gone_row );
+		self::assertSame( 'order_missing', $gone['retry_refusal'], 'A deleted order is still reported as gone.' );
+		self::assertStringContainsString( 'no longer exists', (string) $gone['retry_refusal_message'] );
+
+		$allowed = RestRequestHelper::post(
+			'/events/retry',
+			array(
+				'source' => 'smaily',
+				'id'     => $kept_row,
+			)
+		);
+		self::assertSame( 200, $allowed->get_status() );
+		self::assertSame( 1, $allowed->get_data()['reset'] );
+
+		$refused = RestRequestHelper::post(
+			'/events/retry',
+			array(
+				'source' => 'smaily',
+				'id'     => $gone_row,
+			)
+		);
+		self::assertSame( 409, $refused->get_status() );
+		self::assertSame( 'order_missing', $refused->get_data()['reason'] );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**
