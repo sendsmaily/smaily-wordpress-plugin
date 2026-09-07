@@ -44,8 +44,7 @@ export function EventLog(): React.JSX.Element {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<EventDetailResponse | null>(null);
-  const [retrying, setRetrying] = useState(false);
-  const [resending, setResending] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(
@@ -85,20 +84,41 @@ export function EventLog(): React.JSX.Element {
     }
   }, []);
 
-  const handleRetry = useCallback(
-    async (args: { source?: EventSource; id?: number }): Promise<void> => {
-      setRetrying(true);
+  /**
+   * The shape every row action shares: one busy flag, a cleared banner pair,
+   * the call, its own notice (null = say nothing), a reload, and the message
+   * to show when it throws.
+   */
+  const runAction = useCallback(
+    async (action: () => Promise<string | null>, failureMessage: string): Promise<void> => {
+      setBusy(true);
       setError(null);
       setNotice(null);
       try {
+        const message = await action();
+        if (message !== null) {
+          setNotice(message);
+        }
+        await load();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : failureMessage);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [load],
+  );
+
+  const handleRetry = useCallback(
+    (args: { source?: EventSource; id?: number }): Promise<void> =>
+      runAction(async () => {
         const { reset } = await retryEvents(args);
         // Retry does not send anything itself: it flips the rows back to
         // pending and they go out on their flusher's next scheduled pass
         // (PRO-2323). Say that, so nobody reads the reloaded "pending" row
         // as a stuck retry.
-        if (reset > 0) {
-          setNotice(
-            sprintf(
+        return reset > 0
+          ? sprintf(
               // translators: %d is the number of failed records put back in the queue.
               _n(
                 '%d record is back in the queue — it will be sent at the next scheduled pass, within about a minute.',
@@ -107,48 +127,31 @@ export function EventLog(): React.JSX.Element {
                 'smaily-connect',
               ),
               reset,
-            ),
-          );
-        }
-        await load();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : __('Retry failed.', 'smaily-connect'));
-      } finally {
-        setRetrying(false);
-      }
-    },
-    [load],
+            )
+          : null;
+      }, __('Retry failed.', 'smaily-connect')),
+    [runAction],
   );
 
   /**
    * A deliberate second confirmation for one order (PRO-2324) — not a retry:
    * the row stays as it is and a new one is queued. The customer receives
-   * another email, so it asks first.
+   * another email, so it asks first — before anything else moves.
    */
   const handleSendAgain = useCallback(
-    async (row: EventRow): Promise<void> => {
+    async (args: { id: number }): Promise<void> => {
       if (!window.confirm(__('This sends the customer a second confirmation.', 'smaily-connect'))) {
         return;
       }
-      setResending(true);
-      setError(null);
-      setNotice(null);
-      try {
-        await resendEvent(row.source, row.id);
-        setNotice(
-          __(
-            'A second confirmation is queued — it will be sent at the next scheduled pass, within about a minute.',
-            'smaily-connect',
-          ),
+      await runAction(async () => {
+        await resendEvent(args.id);
+        return __(
+          'A second confirmation is queued — it will be sent at the next scheduled pass, within about a minute.',
+          'smaily-connect',
         );
-        await load();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : __('Sending again failed.', 'smaily-connect'));
-      } finally {
-        setResending(false);
-      }
+      }, __('Sending again failed.', 'smaily-connect'));
     },
-    [load],
+    [runAction],
   );
 
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
@@ -186,7 +189,7 @@ export function EventLog(): React.JSX.Element {
               <Button
                 variant="primary"
                 type="button"
-                loading={retrying}
+                loading={busy}
                 onClick={() => void handleRetry({})}
               >
                 {__('Retry all failed', 'smaily-connect')}
@@ -244,7 +247,7 @@ export function EventLog(): React.JSX.Element {
               variant="secondary"
               type="button"
               className="ml-auto"
-              loading={retrying}
+              loading={busy}
               onClick={() => void handleRetry({})}
             >
               {__('Retry all failed', 'smaily-connect')}
@@ -327,7 +330,7 @@ export function EventLog(): React.JSX.Element {
                         <Button
                           variant="secondary"
                           type="button"
-                          disabled={retrying}
+                          disabled={busy}
                           onClick={() => void handleRetry({ source: row.source, id: row.id })}
                         >
                           {__('Retry', 'smaily-connect')}
@@ -341,8 +344,8 @@ export function EventLog(): React.JSX.Element {
                         <Button
                           variant="secondary"
                           type="button"
-                          disabled={resending}
-                          onClick={() => void handleSendAgain(row)}
+                          disabled={busy}
+                          onClick={() => void handleSendAgain({ id: row.id })}
                         >
                           {__('Send again', 'smaily-connect')}
                         </Button>

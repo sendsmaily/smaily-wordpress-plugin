@@ -17,7 +17,6 @@ use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\REST\EventsEndpoint;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
-use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 use Smaily\Connect\Smaily\TransactionalResend;
 use WP_REST_Request;
 
@@ -105,14 +104,10 @@ final class RecEngineEventsTest extends TestCase {
 	 * "Send again" service (PRO-2324), which these read tests never exercise.
 	 */
 	private function endpoint(): EventsEndpoint {
-		$bootstrap = Bootstrap::instance();
-
 		return new EventsEndpoint(
-			new TransactionalResend(
-				$bootstrap->transactional_gate(),
-				new TransactionalPayloadBuilder(),
-				$bootstrap->transactional_flusher()
-			)
+			static function (): TransactionalResend {
+				return Bootstrap::instance()->transactional_resend();
+			}
 		);
 	}
 

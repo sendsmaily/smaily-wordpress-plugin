@@ -113,7 +113,12 @@ final class TransactionalRetryGuard {
 		return in_array( $event_type, TransactionalFlusher::EVENT_TYPES, true );
 	}
 
-	private static function to_status( string $payload_json ): string {
+	/**
+	 * The order status a transactional row was enqueued for, read out of the
+	 * stored payload this class already owns the shape of. '' when the row
+	 * predates the field or its JSON doesn't decode.
+	 */
+	public static function to_status( string $payload_json ): string {
 		$payload = TransactionalFlusher::read_payload( $payload_json );
 
 		return isset( $payload['to_status'] ) ? (string) $payload['to_status'] : '';

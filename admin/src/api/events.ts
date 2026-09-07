@@ -135,14 +135,12 @@ export interface ResendResponse {
  * is queued for the same order, rebuilt from the order as it is now, and goes
  * out at the next scheduled pass — within about a minute.
  */
-export function resendEvent(
-  source: EventSource,
-  id: number,
-  signal?: AbortSignal,
-): Promise<ResendResponse> {
+export function resendEvent(id: number, signal?: AbortSignal): Promise<ResendResponse> {
   return apiRequest<ResendResponse>('/events/resend', {
     method: 'POST',
-    body: { source, id },
+    // Only Smaily's own transactional rows can be sent again, so the route
+    // takes no other source and the caller has no choice to make.
+    body: { source: 'smaily', id },
     signal,
   });
 }

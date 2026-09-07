@@ -62,10 +62,16 @@ class EventsEndpoint {
 	private const SOURCE_REC    = 'rec_engine';
 	private const SOURCE_SMAILY = 'smaily';
 
-	private TransactionalResend $resend_service;
+	/** @var callable(): TransactionalResend */
+	private $resend_factory;
 
-	public function __construct( TransactionalResend $resend_service ) {
-		$this->resend_service = $resend_service;
+	/**
+	 * @param callable(): TransactionalResend $resend_factory Built on demand —
+	 *                                                        only `resend()`
+	 *                                                        needs it.
+	 */
+	public function __construct( callable $resend_factory ) {
+		$this->resend_factory = $resend_factory;
 	}
 
 	public function register(): void {
@@ -183,8 +189,6 @@ class EventsEndpoint {
 	 * Full payload for a single row (drill-down). Source + id select the table.
 	 */
 	public function detail( WP_REST_Request $request ): WP_REST_Response {
-		global $wpdb;
-
 		$source = $this->sanitize_source( (string) $request->get_param( 'source' ) );
 		$id     = (int) $request->get_param( 'id' );
 
@@ -193,15 +197,9 @@ class EventsEndpoint {
 		}
 
 		$table = $source === self::SOURCE_REC ? $this->rec_table() : $this->smaily_table();
+		$row   = $this->fetch_row( $table, $id );
 
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		$row = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ),
-			ARRAY_A
-		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-
-		if ( ! is_array( $row ) ) {
+		if ( $row === null ) {
 			return new WP_REST_Response( array( 'error' => 'not_found' ), 404 );
 		}
 
@@ -209,7 +207,10 @@ class EventsEndpoint {
 
 		return new WP_REST_Response(
 			array(
-				'event'         => $this->shape_rows( array( $row ) )[0],
+				// A drill-down never renders the "Send again" button, so it
+				// skips that answer rather than paying for the order lookup
+				// behind it (the retry refusal it DOES render still costs one).
+				'event'         => $this->shape_rows( array( $row ), false )[0],
 				'payload'       => isset( $row['payload'] ) ? (string) $row['payload'] : '',
 				// The send-time exchange (F3-44): exactly what was POSTed + the
 				// engine reply. Empty for rows enqueued before this shipped, or
@@ -307,45 +308,39 @@ class EventsEndpoint {
 	 * button and the route can't drift apart.
 	 */
 	public function resend( WP_REST_Request $request ): WP_REST_Response {
-		global $wpdb;
+		$id = (int) $request->get_param( 'id' );
 
-		$source = $this->sanitize_source( (string) $request->get_param( 'source' ) );
-		$id     = (int) $request->get_param( 'id' );
-
-		if ( $id <= 0 || $source !== self::SOURCE_SMAILY ) {
+		if ( $id <= 0 || (string) $request->get_param( 'source' ) !== self::SOURCE_SMAILY ) {
 			return new WP_REST_Response( array( 'error' => 'invalid_event_ref' ), 400 );
 		}
 
-		$table = $this->smaily_table();
+		$row = $this->fetch_row( $this->smaily_table(), $id );
 
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		$row = $wpdb->get_row(
-			$wpdb->prepare( "SELECT id, event_type, entity_id, status, payload FROM {$table} WHERE id = %d", $id ),
-			ARRAY_A
-		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-
-		if ( ! is_array( $row ) ) {
+		if ( $row === null ) {
 			return new WP_REST_Response( array( 'error' => 'not_found' ), 404 );
 		}
 
 		$event_type = (string) $row['event_type'];
-		$entity_id  = (string) $row['entity_id'];
 
-		if ( ! TransactionalRetryGuard::resendable(
-			$event_type,
-			(string) $row['status'],
-			$this->order_exists( $entity_id, $this->existing_orders( array( $entity_id ) ) )
-		) ) {
+		// Whether the order still exists is the service's answer, not this
+		// route's: it loads the order anyway and says so with
+		// ERROR_ORDER_MISSING, which lands on the same refusal below.
+		if ( ! TransactionalRetryGuard::resendable( $event_type, (string) $row['status'], true ) ) {
 			return new WP_REST_Response( array( 'error' => 'resend_not_available' ), 409 );
 		}
 
-		$payload = TransactionalFlusher::read_payload( (string) $row['payload'] );
-		$result  = $this->resend_service->resend(
-			(int) $entity_id,
+		$resend = ( $this->resend_factory )();
+		$result = $resend->resend(
+			(int) $row['entity_id'],
 			$event_type,
-			isset( $payload['to_status'] ) ? (string) $payload['to_status'] : ''
+			TransactionalRetryGuard::to_status( (string) $row['payload'] )
 		);
+
+		if ( $result['error'] === TransactionalResend::ERROR_ORDER_MISSING ) {
+			// A row whose order is gone is simply not resendable — the same
+			// answer the list projection gives it.
+			return new WP_REST_Response( array( 'error' => 'resend_not_available' ), 409 );
+		}
 
 		if ( $result['error'] !== '' ) {
 			return new WP_REST_Response( array( 'error' => $result['error'] ), 409 );
@@ -531,20 +526,30 @@ class EventsEndpoint {
 
 	/**
 	 * Shape a set of rows for the wire, resolving order existence for the
-	 * failed transactional rows among them in ONE batched lookup (PRO-1733)
-	 * — the guard takes existence as an input and does no I/O itself.
+	 * transactional rows among them in ONE batched lookup (PRO-1733) — the
+	 * guard takes existence as an input and does no I/O itself.
 	 *
 	 * @param array<int, array<string, mixed>> $rows
+	 * @param bool                             $with_send_again Whether
+	 *        `can_send_again` needs a real answer. False for a single-row
+	 *        drill-down, which renders no such button: a sent row then
+	 *        reports false without an order lookup.
 	 *
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function shape_rows( array $rows ): array {
+	private function shape_rows( array $rows, bool $with_send_again = true ): array {
 		$entity_ids = array();
 		foreach ( $rows as $row ) {
+			if ( ! $this->is_transactional( $row ) ) {
+				continue;
+			}
 			// Both transactional actions need to know whether the order is
 			// still there: Retry to refuse a row it can't rebuild (PRO-1733),
 			// "Send again" to offer itself at all (PRO-2324).
-			if ( $this->is_failed_transactional( $row ) || $this->is_sent_transactional( $row ) ) {
+			$status = (string) ( $row['status'] ?? '' );
+			if ( $status === EventQueue::STATUS_FAILED
+				|| ( $with_send_again && $status === EventQueue::STATUS_SENT )
+			) {
 				$entity_ids[] = (string) ( $row['entity_id'] ?? '' );
 			}
 		}
@@ -569,7 +574,7 @@ class EventsEndpoint {
 		// the sentence the Details panel shows. Only a FAILED transactional
 		// row can be refused, and only for those does the list query carry a
 		// payload (retry_payload); detail() reads the row's own payload.
-		$refusal = $this->is_failed_transactional( $row )
+		$refusal = $this->is_transactional( $row ) && (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_FAILED
 			? TransactionalRetryGuard::refusal_reason(
 				(string) ( $row['event_type'] ?? '' ),
 				(string) ( $row['retry_payload'] ?? $row['payload'] ?? '' ),
@@ -601,19 +606,32 @@ class EventsEndpoint {
 	}
 
 	/**
+	 * Whether the row is one of the two transactional-email types — the only
+	 * rows either Event Log action applies to. Which action, and to which
+	 * status, is the caller's own compare.
+	 *
 	 * @param array<string, mixed> $row
 	 */
-	private function is_failed_transactional( array $row ): bool {
-		return (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_FAILED
-			&& in_array( (string) ( $row['event_type'] ?? '' ), TransactionalFlusher::EVENT_TYPES, true );
+	private function is_transactional( array $row ): bool {
+		return in_array( (string) ( $row['event_type'] ?? '' ), TransactionalFlusher::EVENT_TYPES, true );
 	}
 
 	/**
-	 * @param array<string, mixed> $row
+	 * One row of either queue by id, or null when there is none.
+	 *
+	 * @return array<string, mixed>|null
 	 */
-	private function is_sent_transactional( array $row ): bool {
-		return (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_SENT
-			&& in_array( (string) ( $row['event_type'] ?? '' ), TransactionalFlusher::EVENT_TYPES, true );
+	private function fetch_row( string $table, int $id ): ?array {
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$row = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		return is_array( $row ) ? $row : null;
 	}
 
 	/**

@@ -255,7 +255,7 @@ describe('EventLog', () => {
     fireEvent.click(sendAgain);
 
     await waitFor(() => {
-      expect(resendSpy).toHaveBeenCalledWith('smaily', 21);
+      expect(resendSpy).toHaveBeenCalledWith(21);
     });
 
     expect(

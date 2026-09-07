@@ -17,7 +17,6 @@ use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
 use Smaily\Connect\Smaily\RecEngine\SetupExchange;
-use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 use Smaily\Connect\Smaily\TransactionalResend;
 
 /**
@@ -81,13 +80,12 @@ final class EndpointRegistry {
 			new SettingsEndpoint(),
 			new EventsEndpoint(
 				// "Send again" (PRO-2324) runs the same gate + payload
-				// builder a first confirmation does, so the Event Log's
-				// write half is wired with them here.
-				new TransactionalResend(
-					$bootstrap->transactional_gate(),
-					new TransactionalPayloadBuilder(),
-					$bootstrap->transactional_flusher()
-				)
+				// builder a first confirmation does. Built on demand: the
+				// Event Log's read routes are the common case and must not
+				// pay for the transactional graph on every rest_api_init.
+				static function () use ( $bootstrap ): TransactionalResend {
+					return $bootstrap->transactional_resend();
+				}
 			),
 			new RecEngineEndpoint(
 				new RecEngineSettings(),

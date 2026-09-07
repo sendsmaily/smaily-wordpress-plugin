@@ -64,6 +64,7 @@ use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
+use Smaily\Connect\Smaily\TransactionalResend;
 use Smaily\Connect\Smaily\TransactionalSuppression;
 use Smaily\Connect\Smaily\WorkflowResolverInterface;
 
@@ -120,6 +121,7 @@ final class Bootstrap {
 	private ?TransactionalGate $transactional_gate               = null;
 	private ?TransactionalSuppression $transactional_suppression = null;
 	private ?TransactionalFlusher $transactional_flusher         = null;
+	private ?TransactionalResend $transactional_resend           = null;
 
 	/** @var array<string, Client> */
 	private array $smaily_clients = array();
@@ -1091,6 +1093,23 @@ final class Bootstrap {
 		}
 
 		return $this->transactional_flusher;
+	}
+
+	/**
+	 * The Event Log's "Send again" service (PRO-2324) — the same gate,
+	 * payload builder and flusher a FIRST confirmation goes through, so the
+	 * REST route never has to rebuild that triple itself.
+	 */
+	public function transactional_resend(): TransactionalResend {
+		if ( $this->transactional_resend === null ) {
+			$this->transactional_resend = new TransactionalResend(
+				$this->transactional_gate(),
+				new TransactionalPayloadBuilder(),
+				$this->transactional_flusher()
+			);
+		}
+
+		return $this->transactional_resend;
 	}
 
 	// ---------------------------------------------------------------

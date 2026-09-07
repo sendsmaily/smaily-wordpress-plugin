@@ -99,9 +99,19 @@ class TransactionalFlusher {
 	 * Payload flag marking a row the merchant asked for explicitly —
 	 * the Event Log's "Send again" (PRO-2324). It changes nothing about
 	 * the send itself; it tells this class that the once-per-order story
-	 * is already over for this order+type, so the row must neither move
-	 * the order-meta guard nor fail open (the shopper HAS a confirmation
-	 * — the row this one repeats is the proof).
+	 * is already over for this order+type, so a flagged row:
+	 *
+	 *  - must NOT move the once-per-order-per-type meta guard. That guard
+	 *    stops a status transition from sending twice by accident
+	 *    (TransactionalEmailHookHandler::attempt()), and that rule is
+	 *    untouched — a merchant flipping the order out of and back into a
+	 *    shipped status still sends nothing. This is the one way past it,
+	 *    and only because a human asked.
+	 *  - must NOT fail open. Fail-open exists so the shopper is never left
+	 *    without a confirmation; here they already have one (the row this
+	 *    one repeats is the proof), so a failure costs them nothing and
+	 *    must not mail them WooCommerce's own copy on top. The mark_failed
+	 *    row is still the record.
 	 */
 	public const PAYLOAD_KEY_RESEND = 'resend';
 
@@ -167,8 +177,8 @@ class TransactionalFlusher {
 	 *                                          to re-fire; '' for order_confirmation).
 	 */
 	public function send_now( string $trigger_type, \WC_Order $order, WorkflowMatch $match, array $context, string $to_status = '' ): void {
-		$to = trim( (string) $order->get_billing_email() );
-		if ( $to === '' ) {
+		$payload = self::build_payload( $order, $match, $context, $to_status );
+		if ( $payload === null ) {
 			// No recipient — nothing to send or retry; leave no trace (a
 			// future hook fire with a since-added email can try again).
 			return;
@@ -176,13 +186,6 @@ class TransactionalFlusher {
 
 		$order_id   = $order->get_id();
 		$event_type = self::event_type_for( $trigger_type );
-		$payload    = array(
-			'to'          => $to,
-			'workflow_id' => $match->workflow_id,
-			'account_key' => $match->account_key,
-			'context'     => $context,
-			'to_status'   => $to_status,
-		);
 
 		$id = $this->queue->enqueue( $event_type, (string) $order_id, $payload );
 		if ( $id === null ) {
@@ -212,12 +215,8 @@ class TransactionalFlusher {
 	 * send_now() this only queues: the row goes out on this flusher's
 	 * next scheduled pass, within about a minute (PRO-2323 wording).
 	 *
-	 * The once-per-order-per-type meta guard is deliberately NOT consulted
-	 * and NOT written here. It exists to stop a status transition from
-	 * sending twice by accident (TransactionalEmailHookHandler::attempt()),
-	 * and that rule is untouched — a merchant flipping the order out of and
-	 * back into a shipped status still sends nothing. This path is the one
-	 * way past it, and it is past it only because a human asked.
+	 * The row carries PAYLOAD_KEY_RESEND — see that constant for what the
+	 * flag buys it (the meta guard and fail-open both step aside).
 	 *
 	 * @param array<string, mixed> $context   The merge-tag payload, rebuilt
 	 *                                        from the order as it is NOW (the
@@ -230,22 +229,17 @@ class TransactionalFlusher {
 	 * @return int|null The new row's id, or null when the insert failed.
 	 */
 	public function enqueue_resend( string $trigger_type, \WC_Order $order, WorkflowMatch $match, array $context, string $to_status = '' ): ?int {
-		$to = trim( (string) $order->get_billing_email() );
-		if ( $to === '' ) {
+		$payload = self::build_payload( $order, $match, $context, $to_status );
+		if ( $payload === null ) {
 			return null;
 		}
+
+		$payload[ self::PAYLOAD_KEY_RESEND ] = true;
 
 		$id = $this->queue->enqueue(
 			self::event_type_for( $trigger_type ),
 			(string) $order->get_id(),
-			array(
-				'to'                     => $to,
-				'workflow_id'            => $match->workflow_id,
-				'account_key'            => $match->account_key,
-				'context'                => $context,
-				'to_status'              => $to_status,
-				self::PAYLOAD_KEY_RESEND => true,
-			)
+			$payload
 		);
 
 		if ( $id === null ) {
@@ -352,9 +346,7 @@ class TransactionalFlusher {
 
 			$this->queue->mark_sent( $id );
 			if ( ! self::is_resend( $payload ) ) {
-				// A merchant-initiated re-send repeats a confirmation the
-				// guard already records as sent — it must not touch that
-				// marker (PRO-2324).
+				// A re-send must not move the marker — see PAYLOAD_KEY_RESEND.
 				$this->set_meta( $order_id_str, $event_type, self::META_STATUS_SENT, $order );
 			}
 			$outcome = 'sent';
@@ -462,11 +454,7 @@ class TransactionalFlusher {
 	 */
 	private function fail_open( string $order_id_str, string $event_type, array $payload, ?\WC_Order $order = null ): void {
 		if ( self::is_resend( $payload ) ) {
-			// Fail-open exists so the shopper is never left without a
-			// confirmation. On a merchant-initiated re-send they already
-			// have one, so a failure here costs them nothing and must not
-			// mail them WooCommerce's own copy on top (PRO-2324). The
-			// mark_failed row is still the record.
+			// A re-send must not fail open — see PAYLOAD_KEY_RESEND.
 			return;
 		}
 
@@ -532,6 +520,30 @@ class TransactionalFlusher {
 
 		$order->update_meta_data( self::meta_key_for( self::trigger_type_for( $event_type ) ), $value );
 		$order->save();
+	}
+
+	/**
+	 * The five keys every transactional queue row carries, built once for
+	 * both producers (send_now() and enqueue_resend()).
+	 *
+	 * @param array<string, mixed> $context
+	 *
+	 * @return array<string, mixed>|null null when the order has no recipient
+	 *                                   address — there is nothing to send.
+	 */
+	private static function build_payload( \WC_Order $order, WorkflowMatch $match, array $context, string $to_status ): ?array {
+		$to = trim( (string) $order->get_billing_email() );
+		if ( $to === '' ) {
+			return null;
+		}
+
+		return array(
+			'to'          => $to,
+			'workflow_id' => $match->workflow_id,
+			'account_key' => $match->account_key,
+			'context'     => $context,
+			'to_status'   => $to_status,
+		);
 	}
 
 	/**
