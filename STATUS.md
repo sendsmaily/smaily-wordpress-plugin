@@ -26,7 +26,25 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2346 — the Smaily landing-page block works for
+_Last updated: 2026-09-07 (**Merchant docs site: TranslatePress named, and the
+landing-page block documented.** Two documentation-only items, no plugin code
+touched. (1) PRO-2318 drift — the plugin resolves a contact's language through
+WPML, Polylang **or TranslatePress** (`Multilingual\DetectorFactory`), and
+`readme.txt` has said so for a while, but `docs/site/index.html` named only the
+first two in all three places it lists multilingual support. All three now name
+TranslatePress, EN and ET (`9e67f8e`). (2) PRO-2349 — the Smaily **landing-page
+block** was not documented at all. Settings -> Integrations now carries a
+"Landing page block" section next to the Gutenberg sign-up block, in both
+languages: what it embeds, where it sits in the inserter, that it needs a
+connected Smaily account and accepts only that account's landing pages, that
+anyone who may edit content (Editor and above, since `0057ed6`) can use it, and
+what the two notices mean (`547b213`). Verified by rendering the file in headless
+Chrome in both languages — the ET toggle flips `data-lang`, each language's new
+text is visible and the other is hidden, and the HTML parses with no unbalanced
+tags. **The site is NOT published live** — publishing waits on Erkki's Estonian
+proofread of the new ET text.)_
+
+Prior: 2026-09-07 (**PRO-2346 — the Smaily landing-page block works for
 the people who build pages.** Marketing reported the block "does nothing": you
 insert it, paste the landing-page URL, and no page appears or is saved. Root
 cause: the block reads the account subdomain from the legacy `GET
@@ -528,8 +546,12 @@ Docs-only; no code, so no gates run.)_
   deactivated, so this is the only route).
 - **Marketing:** PRO-2318 (Tanel) — wordpress.org listing copy + screenshots;
   the "What's new" section is already fixed.
+- **Merchant docs site:** `docs/site/index.html` carries unpublished changes
+  (TranslatePress, PRO-2318; the landing-page block, PRO-2349). Erkki's
+  Estonian proofread first, then publish over FTPS per the CLAUDE.md recipe.
 - **Next release:** cut whenever Erkki decides — bump per the CLAUDE.md release
-  runbook; `readme.txt` and the merchant docs are already current.
+  runbook; `readme.txt` and the merchant docs are content-current (the docs
+  site still needs its publish).
 - **Backlog candidates for the next session, by value:** PRO-2295 stays open as
   a record only. Low: PRO-2296 (install guide), PRO-2323, PRO-2324, PRO-2326,
   PRO-2321, PRO-2320, PRO-2317, PRO-2300, PRO-2282, PRO-2279, PRO-1708.
