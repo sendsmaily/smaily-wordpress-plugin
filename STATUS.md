@@ -61,7 +61,7 @@ reminded row is pruned once the cart is 24h stale, so a purchase on day 3 of a
 series would find nothing. Gates: `ci:strict` exit=0; integration OK (full suite
 green, 275 tests). DECISIONS PRO-1723. Merchant docs site updated in both
 languages — **the Estonian paragraph needs Erkki's proofread before the site is
-published**.)
+published**. Session closed 2026-09-07 ~14:10 UTC; handoff below refreshed.)
 
 Prior: 2026-09-07 (**PRO-2318 — the wordpress.org listing now carries
 marketing's copy and marketing's six screenshots.** The listing text had grown
@@ -920,39 +920,42 @@ Docs-only; no code, so no gates run.)_
 
 **Next session opens with:**
 
-- **Unshipped on `main`:** PRO-1723 (the abandoned-cart purchase marker),
-  PRO-2324 ("Send again"), the PRO-2323 Event Log
-  wording, and the PRO-2318 listing copy (`readme.txt` + `assets/`). The listing
-  can go live ahead of a release if Erkki commits it to the wordpress.org SVN by
-  hand — and that commit must `svn rm` `assets/screenshot-7.png` and
-  `screenshot-8.png`, which `release.sh` will never remove on its own. 3.11.3
-  is live on wordpress.org (version 3.11.3, tested 7.1,
-  2026-09-07 12:36 GMT); the merchant docs site at
-  `https://smaily.com/connect-woo/` is now BEHIND `docs/site/index.html` by the
-  PRO-2324 Event Log paragraph and the PRO-1723 abandoned-cart-purchase
-  paragraph, which publish after the Estonian proofread.
-- **First: the Low queue, in this order:** PRO-2321, PRO-2320, PRO-2317,
-  PRO-2348, PRO-2356, PRO-2351, PRO-2352, PRO-2355, PRO-2358, PRO-2359,
-  PRO-2360, PRO-2361, PRO-2362, PRO-2364, PRO-2367.
-- **Waiting on Jane (PRO-2346):** is her test store a multisite, and does it run
-  a security plugin? She has already confirmed the canonical landing-page URL
-  and version 3.11.2, so the URL shape is ruled out — those two are what is
-  left to explain the report.
-- **Waiting on Erkki:** the Estonian proofread of the PRO-2323 Event Log string
-  ("%d kirje on tagasi järjekorras — see saadetakse järgmisel plaanipärasel
-  saatmisringil, umbes minuti jooksul." / plural "%d kirjet … need saadetakse
-  …") AND the four PRO-2324 strings ("Saada uuesti", "See saadab kliendile teise
-  kinnituse.", "Teine kinnitus on järjekorras — see saadetakse järgmisel
-  plaanipärasel saatmisringil, umbes minuti jooksul.", "Uuesti saatmine
-  ebaõnnestus.") plus the docs-site paragraph — and now also the PRO-1723
-  docs-site paragraph ("Lõpeta pooleli jäänud korvi järelkirjad, kui ostleja
-  ostab" and the three sentences under it; no new UI strings, so nothing to
-  translate in the plugin itself). All of it is on `main` and ships
-  with the NEXT release — none of it is in 3.11.3.
-- **Waiting on a real store:** after updating to 3.11.3, that the sign-up
-  block's Autoresponder dropdown lists the account's real automations
-  (PRO-2347).
+- **3.11.3 is live on wordpress.org** (version 3.11.3, tested up to WordPress
+  7.1) and the merchant docs site was published to
+  `https://smaily.com/connect-woo/` at 12:37 UTC. Since that publish
+  `docs/site/index.html` has gained TWO proofread-and-approved paragraphs — the
+  PRO-2324 "Send again" paragraph and the PRO-1723 abandoned-cart purchase
+  marker — so the live site is again behind the file. Publish it over FTPS with
+  the next release (recipe in CLAUDE.md; credentials live in
+  `~/.local/state/smaily-connect/`).
+- **Unreleased on `main` since 3.11.3** — the candidates for **3.12.0**, a MINOR
+  bump rather than a patch (new merchant-visible behaviour plus a schema
+  migration 011): PRO-2323 (honest next-pass wording + the Event Log retry
+  banner), PRO-2324 (the "Send again" action), PRO-1723 (the
+  `abandoned_cart_purchased_at` marker plus the queue's `contact_key` column and
+  index, migration 011), and PRO-2318 (the wordpress.org listing copy and six
+  screenshots).
+- **PRO-2318 can also go live ahead of 3.12.0** by Erkki's manual SVN commit of
+  `readme.txt` + `assets/` — that commit must `svn rm screenshot-7.png` and
+  `screenshot-8.png`.
+- **Human checks outstanding:** Jane's answer on PRO-2346 (is her test store a
+  multisite, does it run a security plugin — she has already confirmed the
+  canonical landing-page URL and version 3.11.2); confirmation from a store that
+  has updated that the sign-up block's Autoresponder dropdown lists real
+  automations (PRO-2347); and Erkki's manual SVN readme/assets commit if the
+  listing should go live before 3.12.0.
+- **Queue, in order:** PRO-2361 (the audit register row for the 3.11.2 gate),
+  then PRO-2358 (subdomain case-sensitivity in the landing-page block — cheap),
+  then the Low tail: PRO-2321, PRO-2320, PRO-2317, PRO-2348, PRO-2356, PRO-2351,
+  PRO-2352, PRO-2355, PRO-2359, PRO-2360, PRO-2362, PRO-2364, PRO-2367,
+  PRO-2368, PRO-2369, PRO-2370, PRO-2372. The remaining design proposals
+  PRO-1721 and PRO-1722 await Erkki's direction.
 - **Engine team:** PRO-1878 and PRO-2319 are still open on their side.
+- **For the next orchestrator:** worker commits may arrive carrying
+  `Co-Authored-By: Claude …` / `Claude-Session:` trailers injected by the
+  harness. Strip them from the unpushed range before every push (Erkki's
+  standing no-attribution preference); the 15 such commits from 2026-09-07 stay
+  in history by his decision.
 
 Prior: 2026-09-03 (**PRO-2280 — pre-merge tidy ahead of PR #135.**
 Three things go stale the moment the upstream merge lands, fixed now. (1)
