@@ -44,6 +44,7 @@ export function EventLog(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<EventDetailResponse | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(
     async (signal?: AbortSignal): Promise<void> => {
@@ -86,8 +87,27 @@ export function EventLog(): React.JSX.Element {
     async (args: { source?: EventSource; id?: number }): Promise<void> => {
       setRetrying(true);
       setError(null);
+      setNotice(null);
       try {
-        await retryEvents(args);
+        const { reset } = await retryEvents(args);
+        // Retry does not send anything itself: it flips the rows back to
+        // pending and they go out on their flusher's next scheduled pass
+        // (PRO-2323). Say that, so nobody reads the reloaded "pending" row
+        // as a stuck retry.
+        if (reset > 0) {
+          setNotice(
+            sprintf(
+              // translators: %d is the number of failed records put back in the queue.
+              _n(
+                '%d record is back in the queue — it will be sent at the next scheduled pass, within about a minute.',
+                '%d records are back in the queue — they will be sent at the next scheduled pass, within about a minute.',
+                reset,
+                'smaily-connect',
+              ),
+              reset,
+            ),
+          );
+        }
         await load();
       } catch (e) {
         setError(e instanceof Error ? e.message : __('Retry failed.', 'smaily-connect'));
@@ -202,6 +222,12 @@ export function EventLog(): React.JSX.Element {
         {error !== null && (
           <Banner tone="danger" className="mt-4">
             {error}
+          </Banner>
+        )}
+
+        {notice !== null && (
+          <Banner tone="info" className="mt-4">
+            {notice}
           </Banner>
         )}
 

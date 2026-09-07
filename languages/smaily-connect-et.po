@@ -27,8 +27,8 @@ msgstr "Ühenda oma WooCommerce'i pood Smailyga e-posti turunduse, automatiseeri
 #. Author of the plugin
 #: smaily-connect.php
 #: integrations/elementor/admin.class.php:29
-#: admin/src/components/settings/EventLog.tsx:150
-#: admin/src/components/settings/EventLog.tsx:201
+#: admin/src/components/settings/EventLog.tsx:166
+#: admin/src/components/settings/EventLog.tsx:218
 msgid "Smaily"
 msgstr "Smaily"
 
@@ -1072,184 +1072,184 @@ msgstr "Olekut ei õnnestunud kontrollida: %s"
 msgid "(optional)"
 msgstr "(valikuline)"
 
-#: admin/src/components/settings/EventLog.tsx:50
+#: admin/src/components/settings/EventLog.tsx:51
 msgid "Failed to load the event log."
 msgstr "Sündmuste logi laadimine ebaõnnestus."
 
-#: admin/src/components/settings/EventLog.tsx:77
+#: admin/src/components/settings/EventLog.tsx:93
 msgid "Retry failed."
 msgstr "Uuesti proovimine ebaõnnestus."
 
 #. translators: %d is the number of failed events in the last 24 hours.
-#: admin/src/components/settings/EventLog.tsx:93
+#: admin/src/components/settings/EventLog.tsx:109
 #, js-format
 msgid "%d failed event in the last 24 hours"
 msgid_plural "%d failed events in the last 24 hours"
 msgstr[0] "%d ebaõnnestunud sündmus viimase 24 tunni jooksul"
 msgstr[1] "%d ebaõnnestunud sündmust viimase 24 tunni jooksul"
 
-#: admin/src/components/settings/EventLog.tsx:111
+#: admin/src/components/settings/EventLog.tsx:127
 msgid "View only failed"
 msgstr "Näita ainult ebaõnnestunuid"
 
-#: admin/src/components/settings/EventLog.tsx:121
-#: admin/src/components/settings/EventLog.tsx:181
+#: admin/src/components/settings/EventLog.tsx:137
+#: admin/src/components/settings/EventLog.tsx:197
 msgid "Retry all failed"
 msgstr "Proovi kõiki ebaõnnestunuid uuesti"
 
-#: admin/src/components/settings/EventLog.tsx:125
+#: admin/src/components/settings/EventLog.tsx:141
 msgid "Some records didn’t reach their destination. Review them below."
 msgstr "Mõned kirjed ei jõudnud sihtkohta. Vaata need allpool üle."
 
-#: admin/src/components/settings/EventLog.tsx:131
+#: admin/src/components/settings/EventLog.tsx:147
 msgid "Event log"
 msgstr "Sündmuste logi"
 
-#: admin/src/components/settings/EventLog.tsx:132
+#: admin/src/components/settings/EventLog.tsx:148
 msgid "Sync activity across the Smaily and recommendation-engine queues. Read-only — last 7 days of events."
 msgstr "Sünkroonimistegevus Smaily ja soovitusmootori järjekordades. Ainult lugemiseks — viimase 7 päeva sündmused."
 
-#: admin/src/components/settings/EventLog.tsx:141
+#: admin/src/components/settings/EventLog.tsx:157
 msgid "Filter by source"
 msgstr "Filtreeri allika järgi"
 
-#: admin/src/components/settings/EventLog.tsx:148
+#: admin/src/components/settings/EventLog.tsx:164
 msgid "All sources"
 msgstr "Kõik allikad"
 
-#: admin/src/components/settings/EventLog.tsx:149
+#: admin/src/components/settings/EventLog.tsx:165
 msgid "Recommendations engine"
 msgstr "Soovitusmootor"
 
-#: admin/src/components/settings/EventLog.tsx:157
+#: admin/src/components/settings/EventLog.tsx:173
 msgid "Filter by status"
 msgstr "Filtreeri oleku järgi"
 
-#: admin/src/components/settings/EventLog.tsx:164
+#: admin/src/components/settings/EventLog.tsx:180
 msgid "All statuses"
 msgstr "Kõik olekud"
 
-#: admin/src/components/settings/EventLog.tsx:165
+#: admin/src/components/settings/EventLog.tsx:181
 msgid "Pending"
 msgstr "Ootel"
 
-#: admin/src/components/settings/EventLog.tsx:166
+#: admin/src/components/settings/EventLog.tsx:182
 msgid "Sent"
 msgstr "Saadetud"
 
-#: admin/src/components/settings/EventLog.tsx:167
+#: admin/src/components/settings/EventLog.tsx:183
 msgid "Failed"
 msgstr "Ebaõnnestunud"
 
-#: admin/src/components/settings/EventLog.tsx:168
+#: admin/src/components/settings/EventLog.tsx:184
 msgid "Blocked"
 msgstr "Blokeeritud"
 
-#: admin/src/components/settings/EventLog.tsx:172
+#: admin/src/components/settings/EventLog.tsx:188
 msgid "Refresh"
 msgstr "Värskenda"
 
-#: admin/src/components/settings/EventLog.tsx:188
+#: admin/src/components/settings/EventLog.tsx:205
 msgid "Time (UTC)"
 msgstr "Aeg (UTC)"
 
-#: admin/src/components/settings/EventLog.tsx:189
-#: admin/src/components/settings/EventLog.tsx:312
+#: admin/src/components/settings/EventLog.tsx:206
+#: admin/src/components/settings/EventLog.tsx:329
 msgid "Source"
 msgstr "Allikas"
 
-#: admin/src/components/settings/EventLog.tsx:190
+#: admin/src/components/settings/EventLog.tsx:207
 msgid "Event"
 msgstr "Sündmus"
 
-#: admin/src/components/settings/EventLog.tsx:191
-#: admin/src/components/settings/EventLog.tsx:320
+#: admin/src/components/settings/EventLog.tsx:208
+#: admin/src/components/settings/EventLog.tsx:337
 msgid "Entity"
 msgstr "Olem"
 
-#: admin/src/components/settings/EventLog.tsx:192
-#: admin/src/components/settings/EventLog.tsx:316
+#: admin/src/components/settings/EventLog.tsx:209
+#: admin/src/components/settings/EventLog.tsx:333
 msgid "Status"
 msgstr "Olek"
 
-#: admin/src/components/settings/EventLog.tsx:193
-#: admin/src/components/settings/EventLog.tsx:324
+#: admin/src/components/settings/EventLog.tsx:210
+#: admin/src/components/settings/EventLog.tsx:341
 msgid "Attempts"
 msgstr "Katsed"
 
-#: admin/src/components/settings/EventLog.tsx:194
-#: admin/src/components/settings/EventLog.tsx:337
+#: admin/src/components/settings/EventLog.tsx:211
+#: admin/src/components/settings/EventLog.tsx:354
 msgid "Last error"
 msgstr "Viimane viga"
 
-#: admin/src/components/settings/EventLog.tsx:198
+#: admin/src/components/settings/EventLog.tsx:215
 msgid "No events yet."
 msgstr "Sündmusi veel pole."
 
-#: admin/src/components/settings/EventLog.tsx:201
+#: admin/src/components/settings/EventLog.tsx:218
 msgid "Rec"
 msgstr "Mootor"
 
-#: admin/src/components/settings/EventLog.tsx:225
+#: admin/src/components/settings/EventLog.tsx:242
 #: admin/src/components/steps/EngineAutomationsSection.tsx:178
 msgid "Retry"
 msgstr "Proovi uuesti"
 
-#: admin/src/components/settings/EventLog.tsx:228
+#: admin/src/components/settings/EventLog.tsx:245
 msgid "Details"
 msgstr "Üksikasjad"
 
 #. translators: %d is the total number of events.
-#: admin/src/components/settings/EventLog.tsx:237
+#: admin/src/components/settings/EventLog.tsx:254
 #, js-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d sündmus"
 msgstr[1] "%d sündmust"
 
-#: admin/src/components/settings/EventLog.tsx:240
+#: admin/src/components/settings/EventLog.tsx:257
 msgid " · loading…"
 msgstr " · laadimine…"
 
-#: admin/src/components/settings/EventLog.tsx:250
+#: admin/src/components/settings/EventLog.tsx:267
 msgid "Previous"
 msgstr "Eelmine"
 
 #. translators: %1$d is the current page number, %2$d is the total page count.
-#: admin/src/components/settings/EventLog.tsx:255
+#: admin/src/components/settings/EventLog.tsx:272
 #, js-format
 msgid "Page %1$d of %2$d"
 msgstr "Lehekülg %1$d / %2$d"
 
-#: admin/src/components/settings/EventLog.tsx:266
+#: admin/src/components/settings/EventLog.tsx:283
 msgid "Next"
 msgstr "Järgmine"
 
-#: admin/src/components/settings/EventLog.tsx:300
+#: admin/src/components/settings/EventLog.tsx:317
 msgid "Close details"
 msgstr "Sulge üksikasjad"
 
-#: admin/src/components/settings/EventLog.tsx:308
+#: admin/src/components/settings/EventLog.tsx:325
 msgid "Close"
 msgstr "Sule"
 
-#: admin/src/components/settings/EventLog.tsx:331
+#: admin/src/components/settings/EventLog.tsx:348
 msgid "Created (UTC)"
 msgstr "Loodud (UTC)"
 
-#: admin/src/components/settings/EventLog.tsx:341
+#: admin/src/components/settings/EventLog.tsx:358
 msgid "Request sent to the engine"
 msgstr "Mootorisse saadetud päring"
 
-#: admin/src/components/settings/EventLog.tsx:342
+#: admin/src/components/settings/EventLog.tsx:359
 msgid "— nothing recorded (not sent, or the row predates this version)"
 msgstr "— midagi pole salvestatud (ei saadetud või rida on sellest versioonist vanem)"
 
-#: admin/src/components/settings/EventLog.tsx:345
+#: admin/src/components/settings/EventLog.tsx:362
 msgid "Engine response"
 msgstr "Mootori vastus"
 
-#: admin/src/components/settings/EventLog.tsx:349
+#: admin/src/components/settings/EventLog.tsx:366
 msgid "Enqueued payload"
 msgstr "Järjekorda pandud sisu"
 
@@ -2613,3 +2613,11 @@ msgstr "Seda tellimust enam ei ole, seega seda sündmust ei saa uuesti saata."
 #: includes/Smaily/TransactionalRetryGuard.php:83
 msgid "This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent."
 msgstr "See kinnitus saadeti kliendile juba WooCommerce'i tavalise e-kirjana; seda ei saa uuesti saata."
+
+#. translators: %d is the number of failed records put back in the queue.
+#: admin/src/components/settings/EventLog.tsx:81
+#, js-format
+msgid "%d record is back in the queue — it will be sent at the next scheduled pass, within about a minute."
+msgid_plural "%d records are back in the queue — they will be sent at the next scheduled pass, within about a minute."
+msgstr[0] "%d kirje on tagasi järjekorras — see saadetakse järgmisel plaanipärasel saatmisringil, umbes minuti jooksul."
+msgstr[1] "%d kirjet on tagasi järjekorras — need saadetakse järgmisel plaanipärasel saatmisringil, umbes minuti jooksul."

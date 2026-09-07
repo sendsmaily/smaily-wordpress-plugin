@@ -224,8 +224,13 @@ class TransactionalFlusher {
 	 * the PRO-1519 ceiling runs from created_at, so a row revived after an
 	 * hour would terminal-fail on the very next tick unless its age starts
 	 * over; and these rows are drained by THIS flusher's own hook, which no
-	 * other reset path kicks. Deduplicated the same way EventQueue's own
-	 * kick is, so several revives in one request collapse to one AS row.
+	 * other reset path schedules.
+	 *
+	 * The send is NOT immediate (PRO-2323). The one-off below is deduplicated
+	 * against anything already scheduled on this hook, and the flusher's
+	 * recurring action always is — so a revived row goes out on this
+	 * flusher's next scheduled pass, within about a minute. That is the
+	 * documented behaviour, not a degradation: nothing is lost by waiting.
 	 *
 	 * @param int[] $ids Row ids in the Smaily queue.
 	 */

@@ -99,8 +99,9 @@ export interface RetryResponse {
 /**
  * Re-drive failed rows (3.10.1 recovery). `{ source, id }` retries one row;
  * `{ source }` retries all failed in that queue; `{}` retries all failed in
- * both. Flips FAILED→PENDING server-side and kicks the flushers so the rows
- * re-send promptly (manual-only — auto-retry would loop on a deterministic 4xx).
+ * both. Flips FAILED→PENDING server-side; the rows then go out on their
+ * flusher's next scheduled pass, within about a minute — not immediately
+ * (PRO-2323). Manual-only — auto-retry would loop on a deterministic 4xx.
  */
 export function retryEvents(
   args: { source?: EventSource; id?: number } = {},

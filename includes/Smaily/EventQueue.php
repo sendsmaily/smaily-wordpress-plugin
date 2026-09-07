@@ -333,7 +333,11 @@ class EventQueue {
 		return array_values( array_filter( array_map( 'intval', $ids ), static fn ( int $i ): bool => $i > 0 ) );
 	}
 
-	/** Public kick so /events/retry can re-drive promptly after reset_failed(). */
+	/**
+	 * Public entry point so /events/retry can make sure a flush pass is queued
+	 * after reset_failed(). Deduplicated like every other caller, so the rows
+	 * go out on the flusher's next scheduled pass (PRO-2323).
+	 */
 	public function schedule_flush(): void {
 		$this->maybe_schedule_flush();
 	}

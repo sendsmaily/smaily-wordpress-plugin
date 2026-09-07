@@ -207,8 +207,11 @@ class EventsEndpoint {
 	 *   - id + source        → revive that single failed row in that queue.
 	 *   - source (no id)      → revive ALL failed rows in that queue.
 	 *   - neither             → revive ALL failed rows in BOTH queues.
-	 * reset_failed() flips FAILED→PENDING; this then kicks the recurring flushes
-	 * so the rows re-send promptly instead of waiting for the next 60s tick.
+	 * reset_failed() flips FAILED→PENDING; this then makes sure a flush pass is
+	 * scheduled for every hook that drains them. The re-send is NOT immediate
+	 * (PRO-2323): the one-offs dedupe against the flushers' recurring actions,
+	 * which are always scheduled, so a revived row goes out on its flusher's
+	 * next scheduled pass — within about a minute.
 	 *
 	 * Which failed transactional rows may be revived at all is not this
 	 * route's rule to state — see TransactionalRetryGuard (PRO-1733).
@@ -257,9 +260,10 @@ class EventsEndpoint {
 			if ( $n > 0 ) {
 				$plus->schedule_flush();
 				// A revived automation.abandoned_cart row is drained by the
-				// CartFlusher, not the main flush hook — kick it too so cart
-				// retries re-send promptly (PRO-1195).
-				$this->kick_flush( CartFlusher::FLUSH_HOOK, CartFlusher::AS_GROUP );
+				// CartFlusher, not the main flush hook — so its hook is
+				// covered separately (PRO-1195). Same next-scheduled-pass
+				// timing as every other revived row.
+				$this->ensure_flush_scheduled( CartFlusher::FLUSH_HOOK, CartFlusher::AS_GROUP );
 			}
 			TransactionalFlusher::revive( $plus, $retryable_transactional );
 			$reset += $n;
@@ -323,9 +327,13 @@ class EventsEndpoint {
 	}
 
 	/**
-	 * Deduplicated async kick for a single flush hook.
+	 * Make sure a flush pass is queued for a single hook. Deduplicated against
+	 * whatever is already scheduled on it — and the flusher's recurring action
+	 * always is, so in practice this is a no-op and the rows go out on the next
+	 * scheduled pass (PRO-2323). It is the safety net for a store whose
+	 * recurring action has gone missing, not a run-now kick.
 	 */
-	private function kick_flush( string $hook, string $group ): void {
+	private function ensure_flush_scheduled( string $hook, string $group ): void {
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
 			return;
 		}
@@ -339,7 +347,8 @@ class EventsEndpoint {
 
 	/**
 	 * The rec queue is drained by four flushers, each on its own hook/group;
-	 * kick all so a reset row of any event type re-sends promptly.
+	 * cover all four so a reset row of any event type is picked up by its own
+	 * flusher's next scheduled pass.
 	 *
 	 * @return array<int, array{0: string, 1: string}>
 	 */
