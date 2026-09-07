@@ -26,7 +26,24 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2346 reopened — the landing page stays on the
+_Last updated: 2026-09-07 (**PRO-2357 — the merchant docs site installs the
+plugin from wordpress.org.** The site's install step still opened with
+"Download the latest release ZIP from the Smaily Connect releases page", which
+has not been the normal path since 3.11.2 went live on wordpress.org
+(2026-09-04). The section now opens with the ordinary path in BOTH languages —
+`Plugins → Add New Plugin`, search **Smaily Connect**, `Install Now`,
+`Activate`, and a sentence saying later versions arrive as ordinary WordPress
+plugin updates — and the tagged `smaily-connect.zip` is demoted to a closing
+note for a staging site or any environment that installs from a file (upload via
+`Plugins → Add New Plugin → Upload Plugin`), consistent with `docs/INSTALL.md`
+as corrected in PRO-2296. It is the only place on the site that carried that
+instruction; the admin labels stay in English in the Estonian text, as
+everywhere else on the page. Docs-only, no gates. **The Estonian needs Erkki's
+proofread before the site is published** — and so does PRO-2346's landing-page
+sentence, so the two ride out in one publish.)
+(handoff refreshed 2026-09-07)_
+
+Prior: 2026-09-07 (**PRO-2346 reopened — the landing page stays on the
 page after it is saved.** Jane confirmed her recording was made **as an
 administrator**, so the `edit_posts` fix earlier today closed only the Editor's
 half of the report. The administrator half is a second, independent defect,
@@ -678,14 +695,14 @@ Docs-only; no code, so no gates run.)_
   PRO-1679, PRO-1504, PRO-1681, PRO-1683, PRO-1684, PRO-1430.
 - **Merchant docs site is PUBLISHED LIVE** at `https://smaily.com/connect-woo/`
   (2026-09-07, after Erkki's Estonian proofread) — **including** the PRO-2347
-  "Gutenberg block" wording. It is now ONE change behind: the reopened PRO-2346
-  added a sentence to the landing-page block's notice paragraph in BOTH
-  languages. **The Estonian needs Erkki's proofread before publishing**, and the
-  publish should ride along with PRO-2357's.
-- **Queue, in order — start here:** PRO-2357 (Medium) — the docs site's install
-  step still tells merchants to "download the latest release ZIP from the
-  releases page"; fix it in BOTH languages, get the Estonian proofread, publish.
-- **Then PRO-2350** — the audit-register row plus a short security pass covering
+  "Gutenberg block" wording. It is now TWO changes behind, both awaiting the
+  SAME Estonian proofread and one publish: the reopened PRO-2346 added a
+  sentence to the landing-page block's notice paragraph, and PRO-2357 rewrote
+  the install section (wordpress.org first, tagged ZIP demoted to the
+  staging/manual alternative). **Erkki proofreads the Estonian, then the
+  orchestrator publishes both in one FTPS upload.**
+- **Queue, in order — start here:** PRO-2350 — the audit-register row plus a
+  short security pass covering
   **BOTH** widened routes: `/smaily/v1/configuration` (PRO-2346) and
   `/smaily/v1/autoresponders` (PRO-2347), now on `edit_posts`.
 - **Then Low, in order:** PRO-2323, PRO-2324, PRO-2321, PRO-2320, PRO-2317,
