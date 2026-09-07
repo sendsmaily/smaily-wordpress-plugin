@@ -26,7 +26,38 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2323 — a Retry no longer implies an
+_Last updated: 2026-09-07 (**3.11.3 is RELEASED and the merchant docs site is
+published live — the release chain ran end to end.** The GitHub release
+[`3.11.3`](https://github.com/sendsmaily/smaily-wordpress-plugin/releases/tag/3.11.3)
+was created from official `main` at `82dc053`; `release.yml` run
+[`34121548108`](https://github.com/sendsmaily/smaily-wordpress-plugin/actions/runs/34121548108)
+built and verified the ZIP, and the downloaded asset passed `bash
+bin/verify-release-zip.sh smaily-connect.zip 3.11.3` locally as well. Erkki then
+ran `./release.sh -u sendsmaily`, and
+`https://api.wordpress.org/plugins/info/1.0/smaily-connect.json` now reports
+**version 3.11.3, tested 7.1, last_updated 2026-09-07 12:36 GMT** — it is live
+for every install. Immediately after, the **merchant docs site was published
+live** at `https://smaily.com/connect-woo/`: the live copy's md5
+(`b96785b1d4119e398b7a20a3194b1189`) equals `docs/site/index.html` at `82dc053`,
+which is byte-identical to the file at the current HEAD — so the live page
+carries the PRO-2357 install rewrite, the PRO-2346 landing-page FAQ sentence and
+the WP 7.1 requirements number, and **nothing in the repo is newer than what is
+live**. Done and on `main` this session: PRO-1680 (closed on human acceptance),
+PRO-2346 (admin-half fix + a simplification pass), PRO-2357, PRO-2350 (security
+pass + register row), PRO-2363 (the 3.11.3 release itself, including the WP 7.1
+pass) and PRO-2323. New Low issues filed: PRO-2358, PRO-2359, PRO-2360 (block
+follow-ups), PRO-2361 (no 3.11.2 register row), PRO-2362 (autoresponders cache),
+PRO-2364 (`MIGRATION.md` version-neutral), PRO-2367 (enqueue-path "ASAP"
+wording). Two design decisions are recorded on Linear with the build queued:
+**PRO-1723** — the plugin writes an `abandoned_cart_purchased_at` timestamp
+marker on purchase; **PRO-2324** — an explicit "Send again" action in the Event
+Log. Two runbook lessons from the release were folded into CLAUDE.md: the
+`release.sh` clone needs `git remote -v` + `git fetch origin --tags` before it
+can `git checkout <tag>`, and the version bump touches EIGHT files, not the
+"four" the runbook claimed. Docs-only commit; no code changed, so no gates run.)
+(handoff refreshed 2026-09-07)_
+
+Prior: 2026-09-07 (**PRO-2323 — a Retry no longer implies an
 immediate send: the code and the Event Log now say "next scheduled pass".**
 Erkki's decision: promptness does not matter, so the behaviour is unchanged —
 the "run now" one-off both the abandoned-cart sweeper (PRO-1195) and the
@@ -53,8 +84,8 @@ test_revive_leaves_the_send_to_the_next_scheduled_pass`). Gates: `npm run
 ci:strict` **exit=0** (PHPUnit unit **772/772 · 2 166 assertions**, vitest
 **306/306 across 41 files**) and `sg docker -c "bash bin/run-integration-tests.sh
 --filter 'RecEngineEventsTest|TransactionalEmailsPipelineTest'"` **OK 23 tests /
-129 assertions**, sandbox tenant "Smaily Connect test" restored. Not pushed.)
-(handoff refreshed 2026-09-07)_
+129 assertions**, sandbox tenant "Smaily Connect test" restored. Pushed to
+official `main`.)_
 
 Prior: 2026-09-07 (**PRO-2363 — 3.11.3 is gated on WordPress 7.1 and
 the last Plugin Check ERROR is gone; it is ready for the orchestrator to
@@ -795,69 +826,32 @@ Docs-only; no code, so no gates run.)_
 
 **Next session opens with:**
 
-- **3.11.2 is RELEASED and live on wordpress.org.** PR #135 was squash-merged as
-  `be00bb6`, the `3.11.2` release was created in
-  `sendsmaily/smaily-wordpress-plugin`, CI built the ZIP and
-  `verify-release-zip.sh` verified it, and `release.sh -u sendsmaily` published
-  it from a **separate clone checked out at the tag** (it does its own `git
-  checkout <tag>`, so never run it in this working tree). The fork
-  `erkkimarkus/smaily-wordpress-plugin` is archived read-only; local `main` IS
-  official `main` and a direct push works.
-- **3.11.3 is FULLY GATED ON WORDPRESS 7.1, NOT PUBLISHED — nothing blocks it
-  any more.** Commits `b608264` (bump), `b1b727e` (i18n restamp), `c55ddb8` +
-  `de5bec1` (register row), `9be5611` (wp-env → WP 7.1) and `dd48079` (`Tested
-  up to: 7.1` in readme/INSTALL/docs site) are on local `main` and **unpushed**.
-  On WP 7.1: `ci:strict` exit=0, integration **OK 270 / 1 574**, both blocks
-  smoke-checked in the 7.1 editor, `bin/verify-release-zip.sh
-  smaily-connect.zip 3.11.3` exit=0, **PCP on the built ZIP 0 ERRORS / 5
-  accepted WARNINGS**. Next: push `main` → `gh release create 3.11.3 --repo
-  sendsmaily/smaily-wordpress-plugin --target main` (**plain tag, no `v`, no
-  local ZIP argument**) → wait for `release.yml` to build and attach the ZIP →
-  **Erkki** runs `./release.sh -u sendsmaily` → publish the merchant docs site.
-- **Done 2026-09-07, all pushed to official `main`:** PRO-2346 (landing-page
-  block usable by Editors **and**, reopened, rendered on the server so its embed
-  survives saving), PRO-2349 + PRO-2318 merchant-docs drift (published
-  live), PRO-2326 (the Event Log's legacy-storage retry existence check),
-  PRO-2347 (the sign-up block's automation list for Editors) and PRO-2296 (the
-  install guide names the wordpress.org path).
-- **Closed on Erkki's human acceptance (same session):** PRO-2283, PRO-1770,
-  PRO-1679, PRO-1504, PRO-1681, PRO-1683, PRO-1684, PRO-1430.
-- **Merchant docs site is PUBLISHED LIVE** at `https://smaily.com/connect-woo/`
-  (2026-09-07, after Erkki's Estonian proofread) — **including** the PRO-2347
-  "Gutenberg block" wording. It is now TWO changes behind, both awaiting the
-  SAME Estonian proofread and one publish: the reopened PRO-2346 added a
-  sentence to the landing-page block's notice paragraph, and PRO-2357 rewrote
-  the install section (wordpress.org first, tagged ZIP demoted to the
-  staging/manual alternative). **Erkki proofreads the Estonian, then the
-  orchestrator publishes both in one FTPS upload.**
-- **PRO-2350 is DONE** (2026-09-07) — the security pass on the two widened
-  routes (`/smaily/v1/configuration`, `/smaily/v1/autoresponders`, both now on
-  `edit_posts`) came back **PASS, 0 Critical/High/Medium/Low, 1 Info**, with
-  the access matrix exercised on the running wp-env. Report
-  `docs/audits/2026-09-07-SECURITY_PASS_REST_PERMISSION_WIDENING_PRO2350.md`;
-  register row in `docs/audits/INDEX.md`.
-- **PRO-2323 is DONE and unpushed** (2026-09-07) — Retry and the abandoned-cart
-  sweeper now say "next scheduled pass" instead of implying an immediate send;
-  behaviour unchanged by decision. The new Event Log banner's **Estonian needs
-  Erkki's proofread** (it ships in the admin catalog, not the docs site).
-- **Queue after the release ships:** the Low items — PRO-2324,
-  PRO-2321, PRO-2320, PRO-2317, PRO-2348, PRO-2356, PRO-2351, PRO-2352,
-  PRO-2355.
-- **Human checks outstanding:** on Jane's own test store, whether the
-  administrator there actually lacks `unfiltered_html` (multisite, a
-  `DISALLOW_UNFILTERED_HTML` host, or a hardening plugin) — that is the trigger
-  the reopened PRO-2346 reproduces, and confirming it closes the report rather
-  than only making the block robust. Also, on a real store after the next
-  release, that the sign-up block's Autoresponder dropdown lists the account's
-  real automations (PRO-2347 — the dev site's placeholder credentials cannot
-  reach Smaily, so that step was met at route level only).
-- **Engine team:** PRO-2319 is still open — a deactivated throwaway tenant, so
-  the PRO-1893 403 can be checked against the live engine (the sandbox tenant
-  cannot be deactivated, so this is the only route). PRO-1878 still awaits the
-  engine team's answer.
-- **CI on official `main`:** the PHP jobs are red as documented (PRO-1708 — no
-  WooCommerce in the runner); the Admin bundle job is green; contract staleness
-  is green.
+- **Nothing is unshipped.** 3.11.3 is live on wordpress.org (version 3.11.3,
+  tested 7.1, 2026-09-07 12:36 GMT) and the merchant docs site at
+  `https://smaily.com/connect-woo/` matches `docs/site/index.html` at HEAD
+  byte-for-byte. Local `main` is official `main`, clean and pushed.
+- **First: PRO-2324 — an explicit "Send again" action in the Event Log.** NEW
+  functionality; Erkki has given the design nod, but the acceptance criteria
+  still have to be backfilled on the issue before code starts.
+- **Then: PRO-1723 — the plugin writes an `abandoned_cart_purchased_at`
+  timestamp marker on purchase.** Agreed; the new field NAME is a wire
+  commitment, so lock it deliberately (contract/Smaily-side) before building.
+- **Then the Low queue, in this order:** PRO-2321, PRO-2320, PRO-2317,
+  PRO-2348, PRO-2356, PRO-2351, PRO-2352, PRO-2355, PRO-2358, PRO-2359,
+  PRO-2360, PRO-2361, PRO-2362, PRO-2364, PRO-2367.
+- **Waiting on Jane (PRO-2346):** is her test store a multisite, and does it run
+  a security plugin? She has already confirmed the canonical landing-page URL
+  and version 3.11.2, so the URL shape is ruled out — those two are what is
+  left to explain the report.
+- **Waiting on Erkki:** the Estonian proofread of the PRO-2323 Event Log string
+  ("%d kirje on tagasi järjekorras — see saadetakse järgmisel plaanipärasel
+  saatmisringil, umbes minuti jooksul." / plural "%d kirjet … need saadetakse
+  …"). It is in the admin catalog and ships with the NEXT release — it is NOT
+  in 3.11.3.
+- **Waiting on a real store:** after updating to 3.11.3, that the sign-up
+  block's Autoresponder dropdown lists the account's real automations
+  (PRO-2347).
+- **Engine team:** PRO-1878 and PRO-2319 are still open on their side.
 
 Prior: 2026-09-03 (**PRO-2280 — pre-merge tidy ahead of PR #135.**
 Three things go stale the moment the upstream merge lands, fixed now. (1)

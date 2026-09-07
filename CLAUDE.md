@@ -581,9 +581,12 @@ stay documented because they are how you REPRODUCE or COMPARE a ZIP locally (a
 packaging bug, a PCP run against the built ZIP, a pre-flight before tagging) —
 they are no longer how the released asset is produced. Full sequence (verified
 2026-06-14, v2.1.0-beta.3-rc.1):
-1. Bump version in FOUR places: `smaily-connect.php` (Version header +
-   `SMAILY_CONNECT_VERSION` + `SMAILY_CONNECT_PLUGIN_VERSION`), `package.json`,
-   `readme.txt` (Stable tag + Changelog + Upgrade Notice). Also the test pins:
+1. Bump the version in EIGHT files (the 3.11.3 bump, 2026-09-07 — an older note
+   here said "four", which under-counted): `smaily-connect.php` (three spots —
+   Version header + `SMAILY_CONNECT_VERSION` + `SMAILY_CONNECT_PLUGIN_VERSION`),
+   `package.json`, `package-lock.json` (**two** spots — the root `version` and
+   the `packages[""]` one), `readme.txt` (Stable tag + Changelog + Upgrade
+   Notice), `docs/INSTALL.md`'s "current release" line, and the three test pins
    `tests/Unit/ConstantsTest.php`, `tests/bootstrap.php`,
    `tests/phpstan-bootstrap.php` (else ConstantsTest fails). Commit FIRST so
    `package:hash` stamps a clean (non-`-dirty`) build-hash.
@@ -637,6 +640,18 @@ they are no longer how the released asset is produced. Full sequence (verified
       `bash bin/verify-release-zip.sh smaily-connect.zip <version>`.
    d. `./release.sh -u sendsmaily` — pushes that asset to the wordpress.org SVN.
       **One-way door:** it reaches every install; it is Erkki's to run.
+      It runs in a SEPARATE clone (never this working tree) and does a
+      `git checkout <tag>` in the clone the script itself lives in
+      (`GIT_REPO_PATH` = its own dir) **without fetching first**. So in that
+      clone, before running it: `git remote -v` (must be
+      `sendsmaily/smaily-wordpress-plugin` — the archived fork is a stale
+      leftover there; `git remote set-url origin …` if it is) and
+      `git fetch origin --tags`. Skip that and it dies with
+      `pathspec '<tag>' did not match`, which is harmless — it stops before
+      copying anything into SVN, so a re-run after the fetch is safe.
+      Confirm the publish afterwards via
+      `https://api.wordpress.org/plugins/info/1.0/smaily-connect.json` →
+      `version`.
    To dry-run the builder without touching a release:
    `gh workflow run release.yml --repo sendsmaily/smaily-wordpress-plugin --ref
    main` — on `workflow_dispatch` the verified ZIP is uploaded as a workflow
