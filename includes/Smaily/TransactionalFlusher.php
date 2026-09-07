@@ -95,6 +95,16 @@ class TransactionalFlusher {
 	 */
 	public const RETRY_CEILING_SECONDS = HOUR_IN_SECONDS;
 
+	/**
+	 * Payload flag marking a row the merchant asked for explicitly —
+	 * the Event Log's "Send again" (PRO-2324). It changes nothing about
+	 * the send itself; it tells this class that the once-per-order story
+	 * is already over for this order+type, so the row must neither move
+	 * the order-meta guard nor fail open (the shopper HAS a confirmation
+	 * — the row this one repeats is the proof).
+	 */
+	public const PAYLOAD_KEY_RESEND = 'resend';
+
 	/** Order-meta guard values (once-per-order-per-type). */
 	public const META_STATUS_QUEUED      = 'queued';
 	public const META_STATUS_SENT        = 'sent';
@@ -197,6 +207,57 @@ class TransactionalFlusher {
 	}
 
 	/**
+	 * Enqueue a DELIBERATE second confirmation for an order that already
+	 * got one — the Event Log's "Send again" (PRO-2324). Unlike
+	 * send_now() this only queues: the row goes out on this flusher's
+	 * next scheduled pass, within about a minute (PRO-2323 wording).
+	 *
+	 * The once-per-order-per-type meta guard is deliberately NOT consulted
+	 * and NOT written here. It exists to stop a status transition from
+	 * sending twice by accident (TransactionalEmailHookHandler::attempt()),
+	 * and that rule is untouched — a merchant flipping the order out of and
+	 * back into a shipped status still sends nothing. This path is the one
+	 * way past it, and it is past it only because a human asked.
+	 *
+	 * @param array<string, mixed> $context   The merge-tag payload, rebuilt
+	 *                                        from the order as it is NOW (the
+	 *                                        point of a re-send: a corrected
+	 *                                        tracking number reaches the shopper).
+	 * @param string               $to_status Carried over from the row being
+	 *                                        repeated, so the new row keeps the
+	 *                                        same shape.
+	 *
+	 * @return int|null The new row's id, or null when the insert failed.
+	 */
+	public function enqueue_resend( string $trigger_type, \WC_Order $order, WorkflowMatch $match, array $context, string $to_status = '' ): ?int {
+		$to = trim( (string) $order->get_billing_email() );
+		if ( $to === '' ) {
+			return null;
+		}
+
+		$id = $this->queue->enqueue(
+			self::event_type_for( $trigger_type ),
+			(string) $order->get_id(),
+			array(
+				'to'                     => $to,
+				'workflow_id'            => $match->workflow_id,
+				'account_key'            => $match->account_key,
+				'context'                => $context,
+				'to_status'              => $to_status,
+				self::PAYLOAD_KEY_RESEND => true,
+			)
+		);
+
+		if ( $id === null ) {
+			return null;
+		}
+
+		self::ensure_flush_scheduled();
+
+		return $id;
+	}
+
+	/**
 	 * AS callback for FLUSH_HOOK — retries rows a prior sync attempt left
 	 * `pending` (transient failure).
 	 *
@@ -241,6 +302,19 @@ class TransactionalFlusher {
 
 		$queue->restart_age( $ids );
 
+		self::ensure_flush_scheduled();
+	}
+
+	/**
+	 * Make sure a pass over this flusher's own hook is queued — the one no
+	 * other reset/enqueue path schedules (EventQueue::enqueue() schedules the
+	 * MAIN flush hook, which excludes these event types). Deduplicated
+	 * against whatever is already scheduled, and the recurring action always
+	 * is, so in practice this is a no-op and the row goes out on the next
+	 * scheduled pass (PRO-2323). It is the safety net for a store whose
+	 * recurring action has gone missing, not a run-now kick.
+	 */
+	private static function ensure_flush_scheduled(): void {
 		if ( ! function_exists( 'as_enqueue_async_action' ) ) {
 			return;
 		}
@@ -277,7 +351,12 @@ class TransactionalFlusher {
 			$this->dispatch( $payload );
 
 			$this->queue->mark_sent( $id );
-			$this->set_meta( $order_id_str, $event_type, self::META_STATUS_SENT, $order );
+			if ( ! self::is_resend( $payload ) ) {
+				// A merchant-initiated re-send repeats a confirmation the
+				// guard already records as sent — it must not touch that
+				// marker (PRO-2324).
+				$this->set_meta( $order_id_str, $event_type, self::META_STATUS_SENT, $order );
+			}
 			$outcome = 'sent';
 		} catch ( TerminalDispatchException $e ) {
 			$this->queue->mark_failed( $id, $e->getMessage() );
@@ -382,6 +461,15 @@ class TransactionalFlusher {
 	 *                                     redundant wc_get_order() when set.
 	 */
 	private function fail_open( string $order_id_str, string $event_type, array $payload, ?\WC_Order $order = null ): void {
+		if ( self::is_resend( $payload ) ) {
+			// Fail-open exists so the shopper is never left without a
+			// confirmation. On a merchant-initiated re-send they already
+			// have one, so a failure here costs them nothing and must not
+			// mail them WooCommerce's own copy on top (PRO-2324). The
+			// mark_failed row is still the record.
+			return;
+		}
+
 		$order_id = (int) $order_id_str;
 
 		if ( $order === null ) {
@@ -444,6 +532,16 @@ class TransactionalFlusher {
 
 		$order->update_meta_data( self::meta_key_for( self::trigger_type_for( $event_type ) ), $value );
 		$order->save();
+	}
+
+	/**
+	 * Whether this row is a merchant-initiated second confirmation
+	 * (enqueue_resend()) rather than the order's first one.
+	 *
+	 * @param array<string, mixed> $payload
+	 */
+	private static function is_resend( array $payload ): bool {
+		return ! empty( $payload[ self::PAYLOAD_KEY_RESEND ] );
 	}
 
 	/**

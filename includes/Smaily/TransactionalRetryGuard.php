@@ -1,6 +1,7 @@
 <?php
 /**
- * Decides whether a failed transactional-email row may be retried (PRO-1733).
+ * Decides which Event Log actions a transactional-email row offers
+ * (PRO-1733 retry, PRO-2324 send-again).
  *
  * @package Smaily\Connect\Smaily
  */
@@ -34,6 +35,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * A transactional row whose order can no longer be loaded is refused too:
  * a retry would rebuild nothing and fail-open has no order to fall back on.
+ *
+ * The same class also answers the opposite question — may a row Smaily
+ * already sent be sent AGAIN, deliberately (resendable(), PRO-2324) — so
+ * both Event Log actions read one set of rules about the same rows.
  */
 final class TransactionalRetryGuard {
 
@@ -72,6 +77,27 @@ final class TransactionalRetryGuard {
 		$to_status = self::to_status( $payload_json );
 
 		return ( $to_status !== '' && $to_status !== 'completed' ) ? '' : self::REASON_WC_EMAIL_SENT;
+	}
+
+	/**
+	 * Whether a row may be sent to the shopper a SECOND time on explicit
+	 * merchant request — the Event Log's "Send again" action (PRO-2324).
+	 *
+	 * Only a transactional row Smaily itself sent qualifies. `sent` is
+	 * written by TransactionalFlusher only after Smaily replied
+	 * {code:101}, so the "WooCommerce sent its own email instead" case
+	 * (fail-open) can never reach it: that row is `failed`, and which of
+	 * those may be RE-driven is refusal_reason()'s question, not this one.
+	 * The order must still exist — a re-send rebuilds its content from the
+	 * live order.
+	 *
+	 * @param bool $order_exists Resolved by the caller, never here — same
+	 *                           batched lookup refusal_reason() takes.
+	 */
+	public static function resendable( string $event_type, string $status, bool $order_exists ): bool {
+		return self::is_transactional( $event_type )
+			&& $status === EventQueue::STATUS_SENT
+			&& $order_exists;
 	}
 
 	/** The merchant-readable reason a retry was refused. */
