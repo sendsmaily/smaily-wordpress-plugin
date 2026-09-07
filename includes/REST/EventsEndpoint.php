@@ -18,6 +18,7 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
@@ -500,16 +501,19 @@ class EventsEndpoint {
 	}
 
 	/**
-	 * The order ids among $entity_ids that still exist, in ONE query against
+	 * The order ids among $entity_ids that still exist, in ONE lookup against
 	 * whichever order storage is active (HPOS or the legacy posts table).
-	 * Two arg choices that look arbitrary and are not: `post__in` is the id
-	 * filter both stores honour (`include` is silently ignored and would
-	 * report every order as present), and HPOS is asked for status `all` —
-	 * its status filter otherwise hides an order whose merchant-defined
-	 * status was never registered as a post status (stored raw, `shipped`
-	 * rather than `wc-shipped`), which is exactly the PRO-1733 retry case.
-	 * WP_Query has no `all` literal, so the legacy store keeps its own
-	 * default status list (which stores every status `wc-`-prefixed anyway).
+	 * Either way the lookup must be status-blind, because an order on a
+	 * merchant-defined shipped status whose plugin has since been deactivated
+	 * is no longer on a registered status — and that is exactly the PRO-1733
+	 * retry case, so reporting it missing would refuse the one retry that
+	 * should be allowed.
+	 *
+	 * HPOS gets that from `wc_get_orders()` asked for status `all` (`post__in`
+	 * is the id filter it honours — `include` is silently ignored and would
+	 * report every order as present). WP_Query has no `all` literal, so the
+	 * legacy store is read directly instead (PRO-2326), on the same
+	 * table/column shape the order backfill already uses for that path.
 	 *
 	 * @param array<int, mixed> $entity_ids
 	 *
@@ -522,18 +526,21 @@ class EventsEndpoint {
 			return array();
 		}
 
-		$args = array(
-			'post__in' => array_values( array_unique( $ids ) ),
-			'limit'    => -1,
-			'return'   => 'ids',
-		);
+		$ids = array_values( array_unique( $ids ) );
 
 		if ( class_exists( OrderUtil::class ) && OrderUtil::custom_orders_table_usage_is_enabled() ) {
-			$args['status'] = 'all';
+			/** @var int[] $found `return => ids` yields ids — the stub types wc_get_orders() as WC_Order[]. */
+			$found = wc_get_orders(
+				array(
+					'post__in' => $ids,
+					'limit'    => -1,
+					'return'   => 'ids',
+					'status'   => 'all',
+				)
+			);
+		} else {
+			$found = $this->existing_legacy_order_ids( $ids );
 		}
-
-		/** @var int[] $found `return => ids` yields ids — the stub types wc_get_orders() as WC_Order[]. */
-		$found = wc_get_orders( $args );
 
 		$existing = array();
 		foreach ( $found as $found_id ) {
@@ -541,6 +548,32 @@ class EventsEndpoint {
 		}
 
 		return $existing;
+	}
+
+	/**
+	 * The ids that are still order posts, read straight from the legacy orders
+	 * table so no status filter can hide one (PRO-2326).
+	 *
+	 * @param int[] $ids
+	 *
+	 * @return int[]
+	 */
+	private function existing_legacy_order_ids( array $ids ): array {
+		global $wpdb;
+
+		$spec         = OrderBackfillJob::table_spec( false, $wpdb->prefix );
+		$placeholders = implode( ', ', array_fill( 0, count( $ids ), '%d' ) );
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		$found = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT {$spec['id_col']} FROM {$spec['table']} WHERE {$spec['type_col']} = %s AND {$spec['id_col']} IN ( {$placeholders} )",
+				array_merge( array( 'shop_order' ), $ids )
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		return array_map( 'intval', $found );
 	}
 
 	/**
