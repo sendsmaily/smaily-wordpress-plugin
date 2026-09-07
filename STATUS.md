@@ -43,20 +43,23 @@ through the same queue + flusher as every other Smaily write. The merchant's
 workflow reads it as the exit condition of the follow-up steps
 (`abandoned_cart_purchased_at` later than `abandoned_cart_automation_at`), which
 is why it carries the PRO-1681 marker format. **Scope guard = the reminder
-itself:** `EventQueue::has_delivered_to()` writes the marker only when the queue
-still proves a reminder was actually DELIVERED to that address (`sent` AND a
-`sent_payload` — a terminal skip is `sent` too and POSTed nothing), so an
-ordinary purchase writes nothing and this feature can never create a contact;
-the contact-sync switch and the audience modes are deliberately not consulted
-(PRO-1678, as with the PRO-1681 markers). `EventQueue::cancel_pending_for()`
-withdraws a reminder still pending for that shopper, terminally, in the
-flushers' own skip shape so the Event Log shows it as cancelled. Both lookups
-match the address inside the stored payload (the queue has no email column);
-**migration 011** adds `idx_type_status (event_type, status)` so the read stays
-cheap on the checkout path. The tracker was rejected as the evidence source — a
+itself:** the marker is written only when the queue still proves a reminder was
+actually DELIVERED to that address (`sent` AND a `sent_payload` — a terminal
+skip is `sent` too and POSTed nothing), so an ordinary purchase writes nothing
+and this feature can never create a contact; the contact-sync switch and the
+audience modes are deliberately not consulted (PRO-1678, as with the PRO-1681
+markers). `EventQueue::withdraw_pending_for()` answers that and withdraws a
+reminder still pending for the shopper in ONE keyed read, marking the withdrawn
+row terminal through the flushers' own skip pair so the Event Log shows it as
+cancelled. **After review** the lookup no longer searches the payload text:
+**migration 011** (unreleased, rewritten in place) adds `contact_key CHAR(64)`
+— a sha256 of the normalised address, stamped at enqueue, never the address
+itself — indexed as `idx_type_contact_status (event_type, contact_key, status)`;
+rows enqueued before the upgrade have a NULL key, so a reminder sent before it
+is not detectable (accepted). The tracker was rejected as the evidence source — a
 reminded row is pruned once the cart is 24h stale, so a purchase on day 3 of a
 series would find nothing. Gates: `ci:strict` exit=0; integration OK (full suite
-green, +3 new). DECISIONS PRO-1723. Merchant docs site updated in both
+green, 275 tests). DECISIONS PRO-1723. Merchant docs site updated in both
 languages — **the Estonian paragraph needs Erkki's proofread before the site is
 published**.)
 

@@ -29,7 +29,7 @@ final class HookHandlerTest extends TestCase {
 	/** @var array<int, string> "{event_type}|{email}" pairs the fake queue reports as delivered. */
 	private array $delivered = array();
 
-	/** @var array<int, array{type: string, email: string, note: string}> cancel_pending_for() calls. */
+	/** @var array<int, array{type: string, email: string}> withdraw_pending_for() calls. */
 	private array $cancelled = array();
 
 	private EventQueue $queue;
@@ -48,8 +48,8 @@ final class HookHandlerTest extends TestCase {
 		$this->cancelled = array();
 
 		// Fake EventQueue that records enqueue() calls in the local array
-		// instead of touching $wpdb / Action Scheduler. The two PRO-1723
-		// lookups are recorded/answered the same way — they are SQL reads.
+		// instead of touching $wpdb / Action Scheduler. The PRO-1723 lookup
+		// is recorded/answered the same way — it is one SQL read.
 		$enqueued    = &$this->enqueued;
 		$delivered   = &$this->delivered;
 		$cancelled   = &$this->cancelled;
@@ -73,17 +73,13 @@ final class HookHandlerTest extends TestCase {
 				return count( $this->sink );
 			}
 
-			public function has_delivered_to( string $event_type, string $email ): bool {
-				return in_array( $event_type . '|' . $email, $this->delivered, true );
-			}
-
-			public function cancel_pending_for( string $event_type, string $email, string $note ): int {
+			public function withdraw_pending_for( string $event_type, string $email ): bool {
 				$this->cancelled[] = array(
 					'type'  => $event_type,
 					'email' => $email,
-					'note'  => $note,
 				);
-				return 0;
+
+				return in_array( $event_type . '|' . $email, $this->delivered, true );
 			}
 		};
 
@@ -716,13 +712,7 @@ final class HookHandlerTest extends TestCase {
 					'email' => 'guest@example.test',
 				),
 			),
-			array_map(
-				static fn ( array $row ): array => array(
-					'type'  => $row['type'],
-					'email' => $row['email'],
-				),
-				$this->cancelled
-			)
+			$this->cancelled
 		);
 	}
 

@@ -60,6 +60,88 @@ final class EventQueueTest extends TestCase {
 		self::assertSame( EventQueue::AS_GROUP, $enqueued[0]['group'] );
 	}
 
+	public function test_enqueue_keys_the_row_to_its_contact_as_a_hash(): void {
+		// PRO-1723: the row carries a HASH of the address, never the address —
+		// it is what the checkout path looks the contact's rows up by, and it
+		// is normalised so a differently-cased checkout address still finds
+		// the row a reminder was queued under.
+		$wpdb            = $this->fake_wpdb_with_successful_insert( 1 );
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'as_enqueue_async_action' )->justReturn( 1 );
+
+		$queue = new EventQueue();
+		$queue->enqueue( 'automation.abandoned_cart', '42', array( 'email' => '  Shopper@Example.TEST ' ) );
+		$queue->enqueue( 'contact.sync', '43', array( 'fields' => array() ) );
+
+		self::assertSame(
+			hash( 'sha256', 'shopper@example.test' ),
+			$wpdb->inserts[0]['data']['contact_key']
+		);
+		self::assertNull(
+			$wpdb->inserts[1]['data']['contact_key'],
+			'A row with no address carries no key.'
+		);
+	}
+
+	public function test_withdraw_pending_for_answers_both_questions_from_one_keyed_read(): void {
+		// The checkout path asks "was a reminder delivered?" and "is one still
+		// pending?" about the same shopper — one SELECT by contact_key, no
+		// search of the stored payload text (PRO-1723).
+		$wpdb            = $this->fake_wpdb_full();
+		$GLOBALS['wpdb'] = $wpdb;
+
+		$wpdb->next_results = array(
+			array(
+				'id'           => 5,
+				'status'       => EventQueue::STATUS_SENT,
+				'sent_payload' => '{"addresses":[]}',
+			),
+			array(
+				'id'           => 6,
+				'status'       => EventQueue::STATUS_PENDING,
+				'sent_payload' => null,
+			),
+		);
+
+		$delivered = ( new EventQueue() )->withdraw_pending_for( 'automation.abandoned_cart', 'Shopper@example.test' );
+
+		self::assertTrue( $delivered );
+		self::assertCount( 1, $wpdb->prepare_calls, 'Both answers come from one read.' );
+		self::assertStringContainsString( 'WHERE event_type = %s AND contact_key = %s', $wpdb->prepare_calls[0]['sql'] );
+		self::assertStringNotContainsString( 'LIKE', $wpdb->prepare_calls[0]['sql'], 'The queue no longer searches its own payload text.' );
+		self::assertSame(
+			array( 'automation.abandoned_cart', EventQueue::contact_key( 'shopper@example.test' ) ),
+			$wpdb->prepare_calls[0]['args']
+		);
+
+		// Only the pending row is withdrawn, through the terminal-skip pair
+		// (mark_sent + a skip exchange), by primary key.
+		self::assertCount( 2, $wpdb->updates );
+		self::assertSame( array( 'id' => 6 ), $wpdb->updates[0]['where'] );
+		self::assertSame( array( 'status' => EventQueue::STATUS_SENT ), $wpdb->updates[0]['data'] );
+		self::assertSame( array( 'id' => 6 ), $wpdb->updates[1]['where'] );
+		self::assertNull( $wpdb->updates[1]['data']['sent_payload'], 'Nothing was POSTed.' );
+		self::assertStringContainsString( '"outcome":"cancelled"', (string) $wpdb->updates[1]['data']['last_response'] );
+	}
+
+	public function test_a_row_that_posted_nothing_does_not_count_as_delivered(): void {
+		// A terminal skip (no workflow mapped) also ends as `sent` — only
+		// sent_payload tells the two apart, and nothing may be withdrawn.
+		$wpdb            = $this->fake_wpdb_full();
+		$GLOBALS['wpdb'] = $wpdb;
+
+		$wpdb->next_results = array(
+			array(
+				'id'           => 5,
+				'status'       => EventQueue::STATUS_SENT,
+				'sent_payload' => null,
+			),
+		);
+
+		self::assertFalse( ( new EventQueue() )->withdraw_pending_for( 'automation.abandoned_cart', 'shopper@example.test' ) );
+		self::assertSame( array(), $wpdb->updates );
+	}
+
 	public function test_enqueue_returns_null_when_insert_fails(): void {
 		$wpdb           = $this->fake_wpdb_with_failed_insert();
 		$GLOBALS['wpdb'] = $wpdb;

@@ -6040,8 +6040,8 @@ pinned literally in `AutomationMarkerTest`.
 
 - **Scope guard = the reminder itself.** The marker is written ONLY when the
   Smaily queue still holds proof that a reminder was actually DELIVERED to that
-  address — `EventQueue::has_delivered_to()`: an `automation.abandoned_cart`
-  row that reached `sent` AND carries a `sent_payload`. The second half matters:
+  address — an `automation.abandoned_cart` row that reached `sent` AND carries
+  a `sent_payload`. The second half matters:
   a terminal skip (no workflow mapped) also ends as `sent` and POSTed nothing,
   and marking a shopper the store never emailed would create a contact out of an
   ordinary purchase. The contact-sync switch and the audience modes are
@@ -6050,17 +6050,30 @@ pinned literally in `AutomationMarkerTest`.
   contact the store has already emailed. The window is the QueueJanitor's own
   retention (30 days for `sent`): as long as the proof row is there, the shopper
   counts as reminded, which is what a multi-day follow-up series needs.
-- **Where the lookup keys.** The queue has no email column, so both queries
-  match `"email":"…"` inside the stored payload; migration 011 adds
-  `idx_type_status (event_type, status)` so the scan is over the handful of
-  abandoned-cart rows and never over every `sent` contact sync. The tracker was
-  rejected as the source: `prune_notified()` deletes a reminded row once the
-  cart is 24h stale, so a purchase on day 3 of the series would find nothing.
-- **(b) is closed here.** `EventQueue::cancel_pending_for()` terminally marks a
-  still-pending reminder for that address at the order-placed moment, taking the
-  flushers' own skip shape (`sent`, a `last_response` marker, no `sent_payload`)
-  so the Event Log shows it as cancelled, nothing retries it, and the delivery
-  check above still reads it as never sent.
+- **Where the lookup keys (revised at review).** The queue had no email column,
+  so the first cut matched `"email":"…"` inside the stored payload — unindexable
+  on a checkout path, and it put knowledge of the payload's JSON shape inside the
+  queue. Migration 011 (unreleased, rewritten in place) instead adds
+  `contact_key CHAR(64)` — sha256 of the trimmed, lowercased address
+  (`EventQueue::contact_key()`), stamped at enqueue for every row that carries
+  one, NULL for the rest — with `idx_type_contact_status (event_type,
+  contact_key, status)`, so one shopper's rows of one type are found directly
+  and the delivered/pending split is answered from the index. It is a HASH,
+  never the address: the queue keeps no second copy of a contact's email beyond
+  the payload it already stores, and normalising first is what the old payload
+  search got for free from the column's collation. **Rows enqueued before the
+  upgrade carry a NULL key**, so a reminder sent before it is not detectable —
+  accepted, the window is one reminder series. The tracker was rejected as the
+  source: `prune_notified()` deletes a reminded row once the cart is 24h stale,
+  so a purchase on day 3 of the series would find nothing.
+- **(b) is closed here.** `EventQueue::withdraw_pending_for()` is the single
+  keyed read — the checkout path asks both questions about one shopper, so the
+  delivered answer and the still-pending rows come from one SELECT. A pending
+  row is terminally withdrawn by primary key at the order-placed moment through
+  the established terminal-skip pair (`mark_sent()` + `store_exchange()`, the
+  same shape a flusher's skip records: `sent`, a `cancelled` `last_response`, no
+  `sent_payload`), so the Event Log shows it as cancelled, nothing retries it,
+  and the delivery check still reads it as never sent.
 - **One contact update, nothing else.** The row is a plain `contact.sync`
   (entity id `order:{id}:cart-purchase`, distinct from the order's own sync row
   so the per-request dedupe can't swallow either) carrying the email and the

@@ -27,6 +27,7 @@ use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\PipelineFixture;
 use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
 
 final class AutomationMarkerPipelineTest extends TestCase {
@@ -34,14 +35,7 @@ final class AutomationMarkerPipelineTest extends TestCase {
 	/** UTC `Y-m-d H:i:s` — the shape every marker must reach the wire in. */
 	private const MARKER_FORMAT = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
 
-	/** @var array<int, int> */
-	private array $created_users = array();
-
-	/** @var array<int, int> */
-	private array $created_orders = array();
-
-	/** @var array<int, int> */
-	private array $created_products = array();
+	private PipelineFixture $store;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -55,41 +49,15 @@ final class AutomationMarkerPipelineTest extends TestCase {
 
 		// Wizard finished — the master gate the whole live-sync path hangs on.
 		update_option( 'smly_plus_setup_completed', true );
-		$this->seed_credentials();
+		PipelineFixture::seed_credentials();
+		$this->store = new PipelineFixture();
 	}
 
 	protected function tearDown(): void {
 		if ( function_exists( 'WC' ) && WC()->cart instanceof \WC_Cart ) {
 			WC()->cart->empty_cart();
 		}
-		foreach ( $this->created_orders as $order_id ) {
-			// NOT wp_delete_post: under HPOS orders live in wc_orders.
-			$order = wc_get_order( $order_id );
-			if ( $order instanceof \WC_Order ) {
-				$order->delete( true );
-			}
-		}
-		// wp_delete_user() lives in wp-admin/includes/user.php, which nothing in
-		// a front-end request loads — this class used to reach it only because
-		// some earlier test in the run happened to pull it in (directly, or via
-		// dbDelta's upgrade.php). Suite order is filesystem order, so that made
-		// the cleanup — and with it all three cases — fail whenever an edit
-		// reshuffled the files. Load it explicitly, like every sibling does.
-		if ( ! function_exists( 'wp_delete_user' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/user.php';
-		}
-		foreach ( $this->created_users as $user_id ) {
-			wp_delete_user( $user_id );
-		}
-		foreach ( $this->created_products as $product_id ) {
-			$product = wc_get_product( $product_id );
-			if ( $product ) {
-				$product->delete( true );
-			}
-		}
-		$this->created_orders   = array();
-		$this->created_users    = array();
-		$this->created_products = array();
+		$this->store->clean_up();
 
 		HookHandler::reset_seen();
 		wp_set_current_user( 0 );
@@ -109,7 +77,7 @@ final class AutomationMarkerPipelineTest extends TestCase {
 		// Real WooCommerce account creation → the registrar's
 		// woocommerce_created_customer callback (PRO-1682: a bare user_register
 		// is no longer a welcome trigger).
-		$user_id = $this->make_customer( 'welcome' );
+		$user_id = $this->store->make_customer( 'welcome' );
 		// Opting the new customer in produces a REAL contact sync (consent
 		// change), and editing their profile another one — neither is an
 		// automation run, so neither may carry a marker.
@@ -122,11 +90,11 @@ final class AutomationMarkerPipelineTest extends TestCase {
 			)
 		);
 
-		$bodies = $this->flush( EventQueue::FLUSH_HOOK );
+		$bodies = PipelineFixture::flush( EventQueue::FLUSH_HOOK );
 
 		$address = $this->automation_address( $bodies, '4242' );
 		self::assertMatchesRegularExpression( self::MARKER_FORMAT, $address['welcome_automation_at'] );
-		self::assertSame( $this->email_of( $user_id ), $address['email'] );
+		self::assertSame( PipelineFixture::email_of( $user_id ), $address['email'] );
 
 		$contacts = $this->contact_rows( $bodies );
 		self::assertNotSame( array(), $contacts, 'The contact syncs must have reached the transport too.' );
@@ -144,12 +112,12 @@ final class AutomationMarkerPipelineTest extends TestCase {
 	public function test_first_order_marks_the_contact_alongside_the_order_fields(): void {
 		$this->configure_triggers( array( 'firstOrderEnabled' => true ), 'first_order', '5252' );
 
-		$user_id  = $this->make_user( 'first-order' );
-		$order_id = $this->make_order( $user_id );
+		$user_id  = $this->store->make_user( 'first-order' );
+		$order_id = $this->store->make_order( $user_id );
 
 		do_action( 'woocommerce_store_api_checkout_order_processed', wc_get_order( $order_id ) );
 
-		$address = $this->automation_address( $this->flush( EventQueue::FLUSH_HOOK ), '5252' );
+		$address = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '5252' );
 
 		self::assertMatchesRegularExpression( self::MARKER_FORMAT, $address['first_order_automation_at'] );
 		self::assertSame( (string) $order_id, $address['order_id'], 'The existing order fields are unchanged.' );
@@ -166,10 +134,10 @@ final class AutomationMarkerPipelineTest extends TestCase {
 			'6262'
 		);
 
-		$user_id = $this->make_user( 'cart' );
+		$user_id = $this->store->make_user( 'cart' );
 		wp_set_current_user( $user_id );
 
-		$product_id = $this->make_product( 'Marker Cart Product' );
+		$product_id = $this->store->make_product( 'Marker Cart Product' );
 		$this->boot_wc_cart();
 		WC()->cart->add_to_cart( $product_id, 1 );
 
@@ -177,10 +145,10 @@ final class AutomationMarkerPipelineTest extends TestCase {
 		CartHookHandler::reset_request_guard();
 		$handler->on_cart_updated();
 
-		$this->rewind_tracker_row( 30 * MINUTE_IN_SECONDS );
+		PipelineFixture::rewind_tracker_row( 30 * MINUTE_IN_SECONDS );
 		do_action( 'smly_plus_abandoned_cart' );
 
-		$address = $this->automation_address( $this->flush( CartFlusher::FLUSH_HOOK ), '6262' );
+		$address = $this->automation_address( PipelineFixture::flush( CartFlusher::FLUSH_HOOK ), '6262' );
 
 		self::assertMatchesRegularExpression( self::MARKER_FORMAT, $address['abandoned_cart_automation_at'] );
 		self::assertSame( 'true', $address['is_abandoned_cart'], 'The legacy template flag keeps its exact name and meaning.' );
@@ -225,18 +193,6 @@ final class AutomationMarkerPipelineTest extends TestCase {
 		self::assertSame( 200, $response->get_status() );
 	}
 
-	/** LEGACY_OPTION_KEY / "default" account credentials — mirrors CartPipelineTest. */
-	private function seed_credentials(): void {
-		update_option(
-			'smaily_connect_api_credentials',
-			array(
-				'subdomain' => 'testsub',
-				'username'  => 'tester',
-				'password'  => \Smaily_Connect\Includes\Cypher::encrypt( 'test-password' ),
-			)
-		);
-	}
-
 	/**
 	 * The single automation POST's address row, asserted to be the mapped workflow.
 	 *
@@ -275,116 +231,11 @@ final class AutomationMarkerPipelineTest extends TestCase {
 		return $rows;
 	}
 
-	/**
-	 * Drain a queue through a mocked Smaily transport, collecting EVERY POST
-	 * body (one flush can send several rows).
-	 *
-	 * @return array<int, mixed>
-	 */
-	private function flush( string $hook ): array {
-		$bodies = array();
-		$fake   = static function ( $pre, $args ) use ( &$bodies ) {
-			$bodies[] = isset( $args['body'] ) ? $args['body'] : null;
-			return array(
-				'headers'  => array(),
-				'body'     => wp_json_encode(
-					array(
-						'code'    => 101,
-						'message' => 'OK',
-					)
-				),
-				'response' => array(
-					'code'    => 200,
-					'message' => 'OK',
-				),
-				'cookies'  => array(),
-				'filename' => '',
-			);
-		};
-
-		add_filter( 'pre_http_request', $fake, 10, 2 );
-		try {
-			do_action( $hook );
-		} finally {
-			remove_filter( 'pre_http_request', $fake, 10 );
-		}
-
-		return $bodies;
-	}
-
 	private function boot_wc_cart(): void {
 		if ( ! WC()->cart instanceof \WC_Cart || WC()->session === null ) {
 			wc_load_cart();
 		}
 		WC()->cart->empty_cart();
 		CartHookHandler::reset_request_guard();
-	}
-
-	private function rewind_tracker_row( int $seconds ): void {
-		global $wpdb;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$wpdb->prefix}smly_plus_cart_session SET cart_updated = %s",
-				gmdate( 'Y-m-d H:i:s', time() - $seconds )
-			)
-		);
-	}
-
-	private function make_user( string $slug ): int {
-		$user_id = wp_insert_user(
-			array(
-				'user_login' => 'smly_marker_' . $slug . '_' . wp_generate_password( 6, false ),
-				'user_email' => $slug . '-' . wp_generate_password( 6, false ) . '@example.test',
-				'user_pass'  => wp_generate_password( 20 ),
-			)
-		);
-		self::assertIsInt( $user_id );
-		$this->created_users[] = $user_id;
-		return $user_id;
-	}
-
-	/** A shopper account the way WooCommerce creates one (checkout / My Account). */
-	private function make_customer( string $slug ): int {
-		add_filter( 'woocommerce_email_enabled_customer_new_account', '__return_false' );
-		try {
-			$user_id = wc_create_new_customer( $slug . '-' . wp_generate_password( 6, false ) . '@example.test' );
-		} finally {
-			remove_filter( 'woocommerce_email_enabled_customer_new_account', '__return_false' );
-		}
-
-		self::assertIsInt( $user_id );
-		$this->created_users[] = $user_id;
-		return $user_id;
-	}
-
-	private function email_of( int $user_id ): string {
-		return (string) get_userdata( $user_id )->user_email;
-	}
-
-	private function make_product( string $name ): int {
-		$product = new \WC_Product_Simple();
-		$product->set_name( $name );
-		$product->set_regular_price( '12.00' );
-		$product->set_status( 'publish' );
-		$product_id = (int) $product->save();
-		self::assertGreaterThan( 0, $product_id );
-		$this->created_products[] = $product_id;
-		return $product_id;
-	}
-
-	private function make_order( int $customer_id ): int {
-		$product_id = $this->make_product( 'Marker Order Product' );
-
-		$order = wc_create_order();
-		$order->set_customer_id( $customer_id );
-		$order->set_billing_email( $this->email_of( $customer_id ) );
-		$order->add_product( wc_get_product( $product_id ), 1 );
-		$order->calculate_totals();
-		$order->set_status( 'pending' );
-		$order_id = (int) $order->save();
-
-		$this->created_orders[] = $order_id;
-		return $order_id;
 	}
 }

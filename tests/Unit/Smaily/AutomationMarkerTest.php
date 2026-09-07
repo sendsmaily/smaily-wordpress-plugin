@@ -25,13 +25,23 @@ final class AutomationMarkerTest extends TestCase {
 		self::assertSame( 'abandoned_cart_automation_at', AutomationMarker::field( 'abandoned_cart' ) );
 	}
 
-	public function test_the_stamp_is_a_utc_datetime_in_the_contact_wire_shape(): void {
+	/**
+	 * Both markers are a wire commitment: the merchant's workflow exits the
+	 * reminder series on `abandoned_cart_purchased_at` compared against
+	 * `abandoned_cart_automation_at` (PRO-1723), so the two names and the one
+	 * shared format have to hold.
+	 *
+	 * @dataProvider markers
+	 *
+	 * @param callable(): array<string, string> $make_stamp
+	 */
+	public function test_a_marker_is_its_field_stamped_as_a_utc_datetime( callable $make_stamp, string $field ): void {
 		$before = gmdate( 'Y-m-d H:i:s' );
-		$stamp  = AutomationMarker::stamp( 'welcome' );
+		$stamp  = $make_stamp();
 		$after  = gmdate( 'Y-m-d H:i:s' );
 
-		self::assertSame( array( 'welcome_automation_at' ), array_keys( $stamp ) );
-		$value = $stamp['welcome_automation_at'];
+		self::assertSame( array( $field ), array_keys( $stamp ) );
+		$value = $stamp[ $field ];
 		self::assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value );
 		// UTC, not site time: the value must sit inside the UTC window the
 		// call was made in.
@@ -40,21 +50,19 @@ final class AutomationMarkerTest extends TestCase {
 	}
 
 	/**
-	 * Same rule for the purchase marker (PRO-1723): the merchant's workflow
-	 * exits the reminder series on this exact name, compared against
-	 * `abandoned_cart_automation_at`, so both the name and the format are a
-	 * wire commitment.
+	 * @return array<string, array{0: callable(): array<string, string>, 1: string}>
 	 */
-	public function test_the_purchase_marker_keeps_its_name_and_the_marker_format(): void {
-		$before = gmdate( 'Y-m-d H:i:s' );
-		$stamp  = AutomationMarker::purchase_stamp();
-		$after  = gmdate( 'Y-m-d H:i:s' );
-
-		self::assertSame( array( 'abandoned_cart_purchased_at' ), array_keys( $stamp ) );
-		$value = $stamp['abandoned_cart_purchased_at'];
-		self::assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value );
-		self::assertGreaterThanOrEqual( $before, $value );
-		self::assertLessThanOrEqual( $after, $value );
+	public static function markers(): array {
+		return array(
+			'a trigger marker' => array(
+				static fn (): array => AutomationMarker::stamp( 'welcome' ),
+				'welcome_automation_at',
+			),
+			'the purchase marker' => array(
+				static fn (): array => AutomationMarker::purchase_stamp(),
+				'abandoned_cart_purchased_at',
+			),
+		);
 	}
 
 	public function test_a_trigger_with_no_marker_stamps_nothing(): void {

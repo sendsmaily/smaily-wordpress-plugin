@@ -88,11 +88,8 @@ final class AutomationMarker {
 	 */
 	public static function stamp( string $trigger ): array {
 		$field = self::field( $trigger );
-		if ( $field === '' ) {
-			return array();
-		}
 
-		return array( $field => gmdate( 'Y-m-d H:i:s' ) );
+		return $field === '' ? array() : self::stamped( $field );
 	}
 
 	/**
@@ -103,6 +100,15 @@ final class AutomationMarker {
 	 * @return array<string, string>
 	 */
 	public static function purchase_stamp(): array {
-		return array( self::FIELD_ABANDONED_CART_PURCHASED => gmdate( 'Y-m-d H:i:s' ) );
+		return self::stamped( self::FIELD_ABANDONED_CART_PURCHASED );
+	}
+
+	/**
+	 * One field, stamped now in the marker format every marker shares.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function stamped( string $field ): array {
+		return array( $field => gmdate( 'Y-m-d H:i:s' ) );
 	}
 }

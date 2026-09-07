@@ -336,49 +336,23 @@ class HookHandler {
 	}
 
 	/**
-	 * A shopper the plugin sent an abandoned-cart reminder to has bought
-	 * (PRO-1723) — stop the reminder series and record the purchase on their
-	 * Smaily contact.
-	 *
-	 * Two things happen, both keyed on the buyer's address:
-	 *
-	 *   1. A reminder still sitting in the queue is CANCELLED. The sweeper
-	 *      enqueues a reminder up to a minute before the CartFlusher drains
-	 *      it, and nothing used to withdraw it — so a shopper who bought
-	 *      inside that window was reminded about a cart they had just paid
-	 *      for. (The tracker row itself is deleted by CartHookHandler, which
-	 *      already stops any LATER reminder.)
-	 *   2. `abandoned_cart_purchased_at` is written to the contact, which is
-	 *      what lets the merchant's Smaily workflow exit the follow-up letters
-	 *      ("purchased later than the reminder ran"). It is a plain contact
-	 *      update — no automation is triggered — so it goes out as a
-	 *      contact.sync row through the same queue, retried and logged like
-	 *      every other Smaily write. Nothing else rides along: the reminder's
-	 *      product fields belong to the reminder send (PRO-1680) and must not
-	 *      be rewritten here.
-	 *
-	 * The scope guard is the reminder itself: the marker is written ONLY when
-	 * the queue still holds proof that a reminder was actually delivered to
-	 * this address, so an ordinary purchase writes nothing and can never
-	 * create a contact. The contact-sync switch and audience modes are
-	 * deliberately NOT consulted — automations run on the legitimate-interest
-	 * basis (PRO-1678), exactly like the PRO-1681 markers, and this only ever
-	 * touches a contact the store has already emailed.
+	 * A shopper the plugin reminded about their cart has bought (PRO-1723):
+	 * a reminder still sitting in the queue is withdrawn, and the purchase is
+	 * written to their Smaily contact as `abandoned_cart_purchased_at`, which
+	 * is what lets the merchant's workflow exit the follow-up letters. The
+	 * marker is written ONLY for an address the queue still proves a reminder
+	 * was delivered to — see docs/DECISIONS.md, PRO-1723.
 	 */
 	private function maybe_mark_abandoned_cart_purchase( \WC_Order $order ): void {
 		if ( $this->gate_closed() ) {
 			return;
 		}
 
+		// Every address the buyer could have been reminded at is withdrawn
+		// from; the marker goes to the first one a reminder reached.
 		$reminded = '';
 		foreach ( $this->buyer_emails( $order ) as $email ) {
-			$this->queue->cancel_pending_for(
-				CartFlusher::EVENT_TYPE,
-				$email,
-				'the shopper completed a purchase before the reminder was sent'
-			);
-
-			if ( $reminded === '' && $this->queue->has_delivered_to( CartFlusher::EVENT_TYPE, $email ) ) {
+			if ( $this->queue->withdraw_pending_for( CartFlusher::EVENT_TYPE, $email ) && $reminded === '' ) {
 				$reminded = $email;
 			}
 		}
@@ -407,21 +381,10 @@ class HookHandler {
 	 * @return array<int, string>
 	 */
 	private function buyer_emails( \WC_Order $order ): array {
-		$emails  = array();
-		$billing = (string) $order->get_billing_email();
-		if ( $billing !== '' ) {
-			$emails[] = $billing;
-		}
+		$user          = get_userdata( (int) $order->get_customer_id() );
+		$account_email = $user instanceof \WP_User ? (string) $user->user_email : '';
 
-		$customer_id = (int) $order->get_customer_id();
-		if ( $customer_id > 0 ) {
-			$user = get_userdata( $customer_id );
-			if ( $user instanceof \WP_User && (string) $user->user_email !== '' && ! in_array( (string) $user->user_email, $emails, true ) ) {
-				$emails[] = (string) $user->user_email;
-			}
-		}
-
-		return $emails;
+		return array_values( array_unique( array_filter( array( (string) $order->get_billing_email(), $account_email ) ) ) );
 	}
 
 	/**

@@ -51,13 +51,18 @@ class EventQueue {
 	public const FLUSH_HOOK = 'smly_plus_flush_event_queue';
 	public const AS_GROUP   = 'smaily-connect';
 
+	/** Why a row was withdrawn — the note the Event Log shows on a cancelled row. */
+	private const NOTE_CANCELLED = 'the shopper completed a purchase before the reminder was sent';
+
 	/**
 	 * Persist an event and ensure a flush is scheduled.
 	 *
 	 * @param string               $event_type e.g. "contact.sync", "automation.welcome".
 	 * @param string               $entity_id  Free-form identifier (user_id, order_id, email).
 	 * @param array<string, mixed> $payload    JSON-serialisable data the flush job will
-	 *                                         hand off to the right API method.
+	 *                                         hand off to the right API method. Its
+	 *                                         `email`, when it has one, is stamped
+	 *                                         onto the row as contact_key().
 	 *
 	 * @return int|null Inserted row id on success, or null if the insert failed.
 	 *                  Insert failures are intentionally silent — the caller is
@@ -72,17 +77,20 @@ class EventQueue {
 			return null;
 		}
 
+		$email = isset( $payload['email'] ) && is_string( $payload['email'] ) ? $payload['email'] : '';
+
 		$inserted = $wpdb->insert(
 			$this->table_name(),
 			array(
-				'event_type' => $event_type,
-				'entity_id'  => $entity_id,
-				'payload'    => $json,
-				'created_at' => current_time( 'mysql', true ),
-				'attempts'   => 0,
-				'status'     => self::STATUS_PENDING,
+				'event_type'  => $event_type,
+				'entity_id'   => $entity_id,
+				'payload'     => $json,
+				'contact_key' => $email === '' ? null : self::contact_key( $email ),
+				'created_at'  => current_time( 'mysql', true ),
+				'attempts'    => 0,
+				'status'      => self::STATUS_PENDING,
 			),
-			array( '%s', '%s', '%s', '%s', '%d', '%s' )
+			array( '%s', '%s', '%s', '%s', '%s', '%d', '%s' )
 		);
 
 		if ( $inserted !== 1 ) {
@@ -161,103 +169,93 @@ class EventQueue {
 	}
 
 	/**
-	 * True when a row of this event type was actually DELIVERED to this
-	 * address (PRO-1723). "Delivered" is stricter than `sent`: the terminal
-	 * skips (no workflow mapped, missing email) also end as `sent`, and they
-	 * POSTed nothing — they are told apart by `sent_payload`, which the
-	 * flushers write only for a row that really reached Smaily (F3-44).
+	 * Withdraw every still-pending row of this event type addressed to this
+	 * contact, and report whether one of their rows was ever actually
+	 * DELIVERED (PRO-1723). The checkout path asks both questions about the
+	 * same shopper, so they are one read of that contact's rows: a reminder
+	 * must not go out behind a purchase already completed, and the purchase
+	 * is marked on the contact only when a reminder really did go out.
 	 *
-	 * The address is matched inside the stored payload: the queue has no
-	 * email column, and the enqueued JSON carries the contact as
-	 * `"email":"…"`. Leading the scan with event_type + status keeps it to
-	 * the few rows of that type (migration 011's idx_type_status).
+	 * "Delivered" is stricter than `sent`: the terminal skips (no workflow
+	 * mapped, missing email) also end as `sent`, and they POSTed nothing —
+	 * they are told apart by `sent_payload`, which the flushers write only
+	 * for a row that really reached Smaily (F3-44). A row withdrawn here
+	 * takes that same skip shape, so it never reads as delivered.
+	 *
+	 * Rows are found by contact_key(), the indexed hash of the address
+	 * (migration 011) — the queue does not search its own payload text and
+	 * knows nothing about the JSON's shape. Rows enqueued before migration
+	 * 011 carry no key and are invisible here.
 	 *
 	 * Bounded by the QueueJanitor's retention, deliberately: as long as the
 	 * row that proves the send is still here, the shopper counts as reminded.
+	 *
+	 * @return bool True when a row of this type was delivered to this contact.
 	 */
-	public function has_delivered_to( string $event_type, string $email ): bool {
+	public function withdraw_pending_for( string $event_type, string $email ): bool {
 		global $wpdb;
-
-		if ( $email === '' ) {
-			return false;
-		}
 
 		$table = $this->table_name();
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-		$found = $wpdb->get_var(
+		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id FROM {$table}
-				 WHERE event_type = %s
-				   AND status = %s
-				   AND sent_payload IS NOT NULL
-				   AND sent_payload != ''
-				   AND payload LIKE %s
-				 LIMIT 1",
+				"SELECT id, status, sent_payload FROM {$table} WHERE event_type = %s AND contact_key = %s",
 				$event_type,
-				self::STATUS_SENT,
-				$this->payload_email_like( $email )
-			)
+				self::contact_key( $email )
+			),
+			ARRAY_A
 		);
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 
-		return $found !== null;
-	}
+		$delivered = false;
 
-	/**
-	 * Cancel every still-pending row of this event type addressed to this
-	 * email (PRO-1723) — the shopper's abandoned-cart reminder must not go
-	 * out behind a purchase they already completed.
-	 *
-	 * The row takes the same terminal shape a flusher's skip does: `sent`
-	 * with a `last_response` marker and no `sent_payload`, so the Event Log
-	 * shows what happened, nothing is retried, and has_delivered_to() above
-	 * still reads it as "never actually sent".
-	 *
-	 * @return int Rows cancelled.
-	 */
-	public function cancel_pending_for( string $event_type, string $email, string $note ): int {
-		global $wpdb;
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$status = (string) ( $row['status'] ?? '' );
 
-		if ( $email === '' ) {
-			return 0;
+			if ( $status === self::STATUS_SENT ) {
+				$delivered = $delivered || (string) ( $row['sent_payload'] ?? '' ) !== '';
+				continue;
+			}
+
+			if ( $status === self::STATUS_PENDING ) {
+				$this->cancel( (int) $row['id'] );
+			}
 		}
 
-		$table    = $this->table_name();
-		$response = (string) wp_json_encode(
-			array(
-				'outcome' => 'cancelled',
-				'note'    => $note,
-			)
-		);
-
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-		return (int) $wpdb->query(
-			$wpdb->prepare(
-				"UPDATE {$table}
-					SET status = %s, last_response = %s, next_retry_at = NULL
-					WHERE event_type = %s AND status = %s AND payload LIKE %s",
-				self::STATUS_SENT,
-				$response,
-				$event_type,
-				self::STATUS_PENDING,
-				$this->payload_email_like( $email )
-			)
-		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		return $delivered;
 	}
 
 	/**
-	 * LIKE needle matching one contact inside a stored payload. The payload is
-	 * wp_json_encode()d with no spacing, so the address is always the exact
-	 * substring `"email":"<address>"`. Case-insensitivity comes from the
-	 * column's collation, which is what a shopper typing a differently-cased
-	 * address at checkout needs.
+	 * The row key for a contact: a sha256 of the normalised address. A HASH,
+	 * never the address itself — the queue keeps no second copy of a contact's
+	 * email beyond the payload it already stores, and this is what the
+	 * checkout path looks rows up by. Trimmed + lowercased so an address typed
+	 * differently at checkout still finds the row it was queued under, which
+	 * is what the old payload search got from the column's collation.
 	 */
-	private function payload_email_like( string $email ): string {
-		global $wpdb;
+	public static function contact_key( string $email ): string {
+		return hash( 'sha256', strtolower( trim( $email ) ) );
+	}
 
-		return '%' . $wpdb->esc_like( '"email":"' . $email . '"' ) . '%';
+	/**
+	 * Terminally withdraw one row, through the established terminal-skip pair
+	 * (mark_sent + a skip exchange, exactly as a flusher records one): the
+	 * Event Log shows the `cancelled` outcome, nothing is retried, and with
+	 * no sent_payload the row never counts as delivered.
+	 */
+	private function cancel( int $id ): void {
+		$this->mark_sent( $id );
+		$this->store_exchange(
+			$id,
+			null,
+			(string) wp_json_encode(
+				array(
+					'outcome' => 'cancelled',
+					'note'    => self::NOTE_CANCELLED,
+				)
+			)
+		);
 	}
 
 	public function mark_sent( int $id ): void {
