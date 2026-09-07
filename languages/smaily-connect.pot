@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smaily Connect 3.11.2\n"
+"Project-Id-Version: Smaily Connect 3.11.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-connect\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-04T10:45:07+00:00\n"
+"POT-Creation-Date: 2026-09-07T12:03:22+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: smaily-connect\n"
@@ -55,7 +55,7 @@ msgstr ""
 
 #: admin/wizard.php:61
 #: admin/wizard.php:62
-#: includes/smaily.class.php:269
+#: includes/smaily.class.php:270
 #: blocks/landingpage/src/edit.js:89
 msgid "Settings"
 msgstr ""
@@ -66,8 +66,8 @@ msgid "You do not have permission to view this page."
 msgstr ""
 
 #: admin/wizard.php:134
-#: includes/smaily.class.php:273
-#: includes/smaily.class.php:289
+#: includes/smaily.class.php:274
+#: includes/smaily.class.php:290
 msgid "Documentation"
 msgstr ""
 
@@ -82,6 +82,13 @@ msgstr ""
 #: blocks/checkout-optin/smaily-integration.class.php:61
 #: integrations/woocommerce/profile-settings.class.php:410
 msgid "Subscribe to newsletter"
+msgstr ""
+
+#: blocks/landingpage/smaily-integration.class.php:56
+#: blocks/landingpage/src/edit.js:80
+#: blocks/landingpage/src/edit.js:182
+#: blocks/landingpage/src/index.js:41
+msgid "Smaily Landing Page"
 msgstr ""
 
 #: includes/Notifications/NotificationManager.php:384
@@ -209,7 +216,7 @@ msgstr ""
 msgid "Unsupported job_type."
 msgstr ""
 
-#: includes/REST/EventsEndpoint.php:103
+#: includes/REST/EventsEndpoint.php:104
 msgid "You do not have permission to view the event log."
 msgstr ""
 
@@ -436,13 +443,13 @@ msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:77
 #: blocks/checkout-optin/src/index.js:35
-#: blocks/landingpage/src/index.js:39
+#: blocks/landingpage/src/index.js:48
 #: blocks/newsletter-signup/src/index.js:37
 msgid "newsletter"
 msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:78
-#: blocks/landingpage/src/index.js:38
+#: blocks/landingpage/src/index.js:47
 #: blocks/newsletter-signup/src/index.js:36
 msgid "email"
 msgstr ""
@@ -858,12 +865,6 @@ msgstr ""
 msgid "Please configure the plugin first."
 msgstr ""
 
-#: blocks/landingpage/src/edit.js:80
-#: blocks/landingpage/src/edit.js:182
-#: blocks/landingpage/src/index.js:32
-msgid "Smaily Landing Page"
-msgstr ""
-
 #: blocks/landingpage/src/edit.js:92
 msgid "URL"
 msgstr ""
@@ -912,11 +913,11 @@ msgstr ""
 msgid "Please check the entered URL. It is invalid!"
 msgstr ""
 
-#: blocks/landingpage/src/index.js:33
+#: blocks/landingpage/src/index.js:42
 msgid "Use Smaily Landing page for collecting subscribers."
 msgstr ""
 
-#: blocks/landingpage/src/index.js:41
+#: blocks/landingpage/src/index.js:50
 msgid "landing page"
 msgstr ""
 

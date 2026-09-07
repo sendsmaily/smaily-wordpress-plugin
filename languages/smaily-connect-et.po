@@ -71,7 +71,7 @@ msgstr "Nimi"
 
 #: admin/wizard.php:61
 #: admin/wizard.php:62
-#: includes/smaily.class.php:269
+#: includes/smaily.class.php:270
 #: blocks/landingpage/src/edit.js:89
 msgid "Settings"
 msgstr "Seaded"
@@ -198,7 +198,7 @@ msgstr "See ühendus on veel seadistamata. Lõpeta kõigepealt seadistamine."
 msgid "Unsupported job_type."
 msgstr "Toetamata töötüüp (job_type)."
 
-#: includes/REST/EventsEndpoint.php:103
+#: includes/REST/EventsEndpoint.php:104
 msgid "You do not have permission to view the event log."
 msgstr "Sul ei ole õigust sündmuste logi vaadata."
 
@@ -414,13 +414,13 @@ msgstr "Smaily Liitumisvorm"
 
 #: integrations/elementor/newsletter-widget.class.php:77
 #: blocks/checkout-optin/src/index.js:35
-#: blocks/landingpage/src/index.js:39
+#: blocks/landingpage/src/index.js:48
 #: blocks/newsletter-signup/src/index.js:37
 msgid "newsletter"
 msgstr "uudiskiri"
 
 #: integrations/elementor/newsletter-widget.class.php:78
-#: blocks/landingpage/src/index.js:38
+#: blocks/landingpage/src/index.js:47
 #: blocks/newsletter-signup/src/index.js:36
 msgid "email"
 msgstr "email"
@@ -845,9 +845,10 @@ msgstr "kassa"
 msgid "Please configure the plugin first."
 msgstr "Palun seadista esmalt plugin."
 
+#: blocks/landingpage/smaily-integration.class.php:56
 #: blocks/landingpage/src/edit.js:80
 #: blocks/landingpage/src/edit.js:182
-#: blocks/landingpage/src/index.js:32
+#: blocks/landingpage/src/index.js:41
 msgid "Smaily Landing Page"
 msgstr "Smaily maandumisleht"
 
@@ -899,11 +900,11 @@ msgstr "Vigane maandumislehe URL!"
 msgid "Please check the entered URL. It is invalid!"
 msgstr "Palun kontrolli sisestatud URL-i. See on vigane!"
 
-#: blocks/landingpage/src/index.js:33
+#: blocks/landingpage/src/index.js:42
 msgid "Use Smaily Landing page for collecting subscribers."
 msgstr "Kasuta Smaily maandumislehte tellijate kogumiseks."
 
-#: blocks/landingpage/src/index.js:41
+#: blocks/landingpage/src/index.js:50
 msgid "landing page"
 msgstr "maandumisleht"
 
@@ -2248,8 +2249,8 @@ msgid "Based on your contact sync mode, about %d of them will be synced to Smail
 msgstr "Valitud kontaktide sünkroniseerimise valimi järgi sünkroniseeritakse Smailysse ligikaudu %d kontakti."
 
 #: admin/wizard.php:134
-#: includes/smaily.class.php:273
-#: includes/smaily.class.php:289
+#: includes/smaily.class.php:274
+#: includes/smaily.class.php:290
 msgid "Documentation"
 msgstr "Dokumentatsioon"
 
