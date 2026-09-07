@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
+  actionFailureMessage,
   getEventDetail,
   listEvents,
   resendEvent,
@@ -101,7 +102,9 @@ export function EventLog(): React.JSX.Element {
         }
         await load();
       } catch (e) {
-        setError(e instanceof Error ? e.message : failureMessage);
+        // A refusal is the server explaining itself, not a transport
+        // failure — show its sentence, never the request line (PRO-2369).
+        setError(actionFailureMessage(e, failureMessage));
       } finally {
         setBusy(false);
       }

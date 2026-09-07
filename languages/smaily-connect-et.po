@@ -202,6 +202,18 @@ msgstr "Toetamata töötüüp (job_type)."
 msgid "You do not have permission to view the event log."
 msgstr "Sul ei ole õigust sündmuste logi vaadata."
 
+#: includes/REST/EventsEndpoint.php:377
+msgid "Transactional emails are switched off for this confirmation, or its Smaily workflow is no longer mapped — so nothing can be sent."
+msgstr "Selle kinnituse tehingukirjad on välja lülitatud või selle Smaily automatsioon ei ole enam seotud — seega ei ole midagi saata."
+
+#: includes/REST/EventsEndpoint.php:381
+msgid "The second confirmation could not be queued. Please try again."
+msgstr "Teist kinnitust ei õnnestunud järjekorda panna. Palun proovi uuesti."
+
+#: includes/REST/EventsEndpoint.php:384
+msgid "This confirmation can no longer be sent again. Refresh the event log to see the row as it is now."
+msgstr "Seda kinnitust ei saa enam uuesti saata. Värskenda sündmuste logi, et näha rea praegust seisu."
+
 #: includes/REST/AutomationsEndpoint.php:128
 #: includes/REST/RecEngineEndpoint.php:121
 msgid "You do not have permission to manage Campaign Intelligence."

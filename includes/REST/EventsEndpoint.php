@@ -326,7 +326,7 @@ class EventsEndpoint {
 		// route's: it loads the order anyway and says so with
 		// ERROR_ORDER_MISSING, which lands on the same refusal below.
 		if ( ! TransactionalRetryGuard::resendable( $event_type, (string) $row['status'], true ) ) {
-			return new WP_REST_Response( array( 'error' => 'resend_not_available' ), 409 );
+			return $this->resend_refused( 'resend_not_available' );
 		}
 
 		$resend = ( $this->resend_factory )();
@@ -339,11 +339,11 @@ class EventsEndpoint {
 		if ( $result['error'] === TransactionalResend::ERROR_ORDER_MISSING ) {
 			// A row whose order is gone is simply not resendable — the same
 			// answer the list projection gives it.
-			return new WP_REST_Response( array( 'error' => 'resend_not_available' ), 409 );
+			return $this->resend_refused( 'resend_not_available' );
 		}
 
 		if ( $result['error'] !== '' ) {
-			return new WP_REST_Response( array( 'error' => $result['error'] ), 409 );
+			return $this->resend_refused( $result['error'] );
 		}
 
 		return new WP_REST_Response(
@@ -353,6 +353,35 @@ class EventsEndpoint {
 			),
 			200
 		);
+	}
+
+	/**
+	 * A refused "Send again", worded for the merchant (PRO-2369). The admin
+	 * banner has nothing else to show: without a `message` it falls back to
+	 * the raw transport failure ("POST … → 409"), which says nothing about
+	 * why the plugin turned the request down. The retry route's refusal is
+	 * worded by TransactionalRetryGuard for the same reason.
+	 */
+	private function resend_refused( string $error ): WP_REST_Response {
+		return new WP_REST_Response(
+			array(
+				'error'   => $error,
+				'message' => $this->resend_refusal_message( $error ),
+			),
+			409
+		);
+	}
+
+	private function resend_refusal_message( string $error ): string {
+		if ( $error === TransactionalResend::ERROR_SENDING_DISABLED ) {
+			return __( 'Transactional emails are switched off for this confirmation, or its Smaily workflow is no longer mapped — so nothing can be sent.', 'smaily-connect' );
+		}
+
+		if ( $error === TransactionalResend::ERROR_ENQUEUE_FAILED ) {
+			return __( 'The second confirmation could not be queued. Please try again.', 'smaily-connect' );
+		}
+
+		return __( 'This confirmation can no longer be sent again. Refresh the event log to see the row as it is now.', 'smaily-connect' );
 	}
 
 	/**
