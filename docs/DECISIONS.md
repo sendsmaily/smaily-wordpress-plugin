@@ -6007,6 +6007,106 @@ the Event Log section now states the once-per-order fact and the action, in both
 languages.
 
 
+### PRO-1723 — A purchase is marked on the contact so the abandoned-cart follow-ups can stop (2026-09-07)
+
+**What happened before this (recorded first, per the issue).** A shopper who
+bought mid-series was handled only on the cart side, and only partly:
+(a) the tracker row IS cleared at the order-placed moment —
+`CartHookHandler::clear_for_order()` runs ungated on
+`woocommerce_checkout_order_processed`, the Store-API twin and
+`woocommerce_thankyou`, deleting every row for the session token, the customer
+id and the billing email, so the sweeper can never enqueue a LATER reminder for
+that cart; (b) a reminder ALREADY enqueued could still go out — the sweeper
+stamps `reminder_enqueued_at` and leaves an `automation.abandoned_cart` row in
+the Smaily queue that `CartFlusher` drains up to a minute later, and nothing
+withdrew it, so a shopper who bought inside that window was reminded about a
+cart they had just paid for; (c) nothing about the purchase reached the Smaily
+contact at all — the order may enqueue a `contact.sync` and (registered, first
+order, toggle on) `automation.first_order`, neither of which says anything
+about the reminder. So the merchant's follow-up letters ran to the end
+regardless of the purchase.
+
+**Decision (Erkki, 2026-09-07):** the lever is a plugin signal, not a
+Smaily-only condition — a Smaily-side "has ordered since" rule cannot see a
+repeat buyer's history the way the store can. When a shopper the plugin sent an
+abandoned-cart reminder to completes a purchase, the plugin writes
+`abandoned_cart_purchased_at` (UTC `Y-m-d H:i:s`, from
+`AutomationMarker::purchase_stamp()`) onto their Smaily contact. The merchant's
+workflow uses it as the exit condition of the follow-up steps
+("`abandoned_cart_purchased_at` later than `abandoned_cart_automation_at`"),
+which is why it carries the PRO-1681 marker format: the two values must sort
+against each other. The name is a wire commitment, confirmed on the issue and
+pinned literally in `AutomationMarkerTest`.
+
+- **Scope guard = the reminder itself.** The marker is written ONLY when the
+  Smaily queue still holds proof that a reminder was actually DELIVERED to that
+  address — `EventQueue::has_delivered_to()`: an `automation.abandoned_cart`
+  row that reached `sent` AND carries a `sent_payload`. The second half matters:
+  a terminal skip (no workflow mapped) also ends as `sent` and POSTed nothing,
+  and marking a shopper the store never emailed would create a contact out of an
+  ordinary purchase. The contact-sync switch and the audience modes are
+  deliberately NOT consulted — automations run on the legitimate-interest basis
+  (PRO-1678) exactly like the PRO-1681 markers, and this only ever touches a
+  contact the store has already emailed. The window is the QueueJanitor's own
+  retention (30 days for `sent`): as long as the proof row is there, the shopper
+  counts as reminded, which is what a multi-day follow-up series needs.
+- **Where the lookup keys.** The queue has no email column, so both queries
+  match `"email":"…"` inside the stored payload; migration 011 adds
+  `idx_type_status (event_type, status)` so the scan is over the handful of
+  abandoned-cart rows and never over every `sent` contact sync. The tracker was
+  rejected as the source: `prune_notified()` deletes a reminded row once the
+  cart is 24h stale, so a purchase on day 3 of the series would find nothing.
+- **(b) is closed here.** `EventQueue::cancel_pending_for()` terminally marks a
+  still-pending reminder for that address at the order-placed moment, taking the
+  flushers' own skip shape (`sent`, a `last_response` marker, no `sent_payload`)
+  so the Event Log shows it as cancelled, nothing retries it, and the delivery
+  check above still reads it as never sent.
+- **One contact update, nothing else.** The row is a plain `contact.sync`
+  (entity id `order:{id}:cart-purchase`, distinct from the order's own sync row
+  so the per-request dedupe can't swallow either) carrying the email and the
+  marker only — no automation is triggered, and the reminder's product matrix is
+  NOT rewritten: PRO-1680's always-overwrite belongs to the reminder send. It
+  rides the same queue + flusher as every other Smaily write, so it is retried
+  and visible in the Event Log; nothing is called inline on checkout.
+- **Trigger** is the order-placed moment the first-order automation uses — both
+  `on_checkout_order_processed` and `on_block_checkout_order_processed`, guests
+  and registered alike, with no wait for payment status (a reminder must stop as
+  soon as the shopper buys). Deliberately NOT `woocommerce_thankyou`, which
+  CartHookHandler also listens on: that is a separate request and would enqueue
+  the marker a second time.
+- **Which address.** The order's billing address first, then — for a registered
+  customer whose account address differs — the account address, which is what
+  the cart tracker records for a logged-in shopper. The marker goes to the
+  address the reminder actually went to; queued reminders are cancelled for
+  both.
+
+**Alternatives rejected:** a Smaily-only "has ordered since" condition (blind to
+repeat buyers — the owner's reason for choosing the marker); marking the tracker
+row purchased instead (the row is gone within the backlog window, so the
+evidence outlives it only in the queue); a new event type for the marker (a
+`contact.sync` IS what this is — a new type would need a Flusher case, an Event
+Log label and its own retry story for no behavioural difference); deleting the
+cancelled queue row (the Event Log would lose the fact that a reminder was
+withdrawn).
+
+**Demonstration:** `tests/Integration/AbandonedCartPurchaseMarkerTest.php`
+drives the REAL pipeline on the running store — cart tracker → sweeper →
+CartFlusher reminder → order hook → Flusher — with only the Smaily transport
+faked: the marker reaches the contact with the right name, format and address
+and no product fields, a re-sweep afterwards sends no further reminder, an
+unreminded shopper's purchase writes nothing, and a reminder still queued is
+withdrawn (terminal, `cancelled`, nothing POSTed). Confirmed to pin the change
+by removing the two call sites (2/3 integration, 4/6 unit fail).
+
+**Relationships:** PRO-1681 (the marker format and the sibling
+`abandoned_cart_automation_at` this is compared against); PRO-1195 (the pipeline
+whose reminder it stops, and whose order-clearing already covered case (a));
+PRO-1680/PRO-1729 (the reminder's own always-send fields, deliberately untouched
+here); PRO-1678 (automations are not gated by the contact-sync switch); F3-44
+(the exchange fields the delivery check reads). Merchant docs site: the
+Automations section now names the field and gives the workflow recipe, in both
+languages.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

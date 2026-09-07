@@ -26,7 +26,41 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2318 — the wordpress.org listing now carries
+_Last updated: 2026-09-07 (**PRO-1723 — a purchase is marked on the contact, so
+the abandoned-cart follow-ups can stop.** Recorded first, as the issue asked:
+today a purchase already deletes the tracker row on both checkouts and the
+thank-you page, so no LATER reminder can be swept for that cart — but a reminder
+already sitting in the queue still went out (the CartFlusher drains up to a
+minute after the sweep), and nothing about the purchase reached the Smaily
+contact, so the merchant's follow-up letters ran to the end regardless. Both are
+closed. The plugin now writes `abandoned_cart_purchased_at` (UTC `Y-m-d H:i:s`,
+`AutomationMarker::purchase_stamp()`) onto the contact at the order-placed
+moment used by the first-order automation — classic and block checkout, guest
+and registered, no wait for payment status — as a plain `contact.sync` row
+carrying the email and that field ONLY (no automation triggered; the reminder's
+PRO-1680 product matrix is left exactly as the reminder wrote it), enqueued
+through the same queue + flusher as every other Smaily write. The merchant's
+workflow reads it as the exit condition of the follow-up steps
+(`abandoned_cart_purchased_at` later than `abandoned_cart_automation_at`), which
+is why it carries the PRO-1681 marker format. **Scope guard = the reminder
+itself:** `EventQueue::has_delivered_to()` writes the marker only when the queue
+still proves a reminder was actually DELIVERED to that address (`sent` AND a
+`sent_payload` — a terminal skip is `sent` too and POSTed nothing), so an
+ordinary purchase writes nothing and this feature can never create a contact;
+the contact-sync switch and the audience modes are deliberately not consulted
+(PRO-1678, as with the PRO-1681 markers). `EventQueue::cancel_pending_for()`
+withdraws a reminder still pending for that shopper, terminally, in the
+flushers' own skip shape so the Event Log shows it as cancelled. Both lookups
+match the address inside the stored payload (the queue has no email column);
+**migration 011** adds `idx_type_status (event_type, status)` so the read stays
+cheap on the checkout path. The tracker was rejected as the evidence source — a
+reminded row is pruned once the cart is 24h stale, so a purchase on day 3 of a
+series would find nothing. Gates: `ci:strict` exit=0; integration OK (full suite
+green, +3 new). DECISIONS PRO-1723. Merchant docs site updated in both
+languages — **the Estonian paragraph needs Erkki's proofread before the site is
+published**.)
+
+Prior: 2026-09-07 (**PRO-2318 — the wordpress.org listing now carries
 marketing's copy and marketing's six screenshots.** The listing text had grown
 out of the v3 release notes: the short description and `== Description ==` sold
 the plugin in engineering's wording, `== Installation ==` opened with the manual
@@ -883,7 +917,8 @@ Docs-only; no code, so no gates run.)_
 
 **Next session opens with:**
 
-- **Unshipped on `main`:** PRO-2324 ("Send again"), the PRO-2323 Event Log
+- **Unshipped on `main`:** PRO-1723 (the abandoned-cart purchase marker),
+  PRO-2324 ("Send again"), the PRO-2323 Event Log
   wording, and the PRO-2318 listing copy (`readme.txt` + `assets/`). The listing
   can go live ahead of a release if Erkki commits it to the wordpress.org SVN by
   hand — and that commit must `svn rm` `assets/screenshot-7.png` and
@@ -891,11 +926,9 @@ Docs-only; no code, so no gates run.)_
   is live on wordpress.org (version 3.11.3, tested 7.1,
   2026-09-07 12:36 GMT); the merchant docs site at
   `https://smaily.com/connect-woo/` is now BEHIND `docs/site/index.html` by the
-  PRO-2324 Event Log paragraph, which publishes after the Estonian proofread.
-- **First: PRO-1723 — the plugin writes an `abandoned_cart_purchased_at`
-  timestamp marker on purchase.** Agreed; the new field NAME is a wire
-  commitment, so lock it deliberately (contract/Smaily-side) before building.
-- **Then the Low queue, in this order:** PRO-2321, PRO-2320, PRO-2317,
+  PRO-2324 Event Log paragraph and the PRO-1723 abandoned-cart-purchase
+  paragraph, which publish after the Estonian proofread.
+- **First: the Low queue, in this order:** PRO-2321, PRO-2320, PRO-2317,
   PRO-2348, PRO-2356, PRO-2351, PRO-2352, PRO-2355, PRO-2358, PRO-2359,
   PRO-2360, PRO-2361, PRO-2362, PRO-2364, PRO-2367.
 - **Waiting on Jane (PRO-2346):** is her test store a multisite, and does it run
@@ -908,7 +941,10 @@ Docs-only; no code, so no gates run.)_
   …") AND the four PRO-2324 strings ("Saada uuesti", "See saadab kliendile teise
   kinnituse.", "Teine kinnitus on järjekorras — see saadetakse järgmisel
   plaanipärasel saatmisringil, umbes minuti jooksul.", "Uuesti saatmine
-  ebaõnnestus.") plus the docs-site paragraph. All of it is on `main` and ships
+  ebaõnnestus.") plus the docs-site paragraph — and now also the PRO-1723
+  docs-site paragraph ("Lõpeta pooleli jäänud korvi järelkirjad, kui ostleja
+  ostab" and the three sentences under it; no new UI strings, so nothing to
+  translate in the plugin itself). All of it is on `main` and ships
   with the NEXT release — none of it is in 3.11.3.
 - **Waiting on a real store:** after updating to 3.11.3, that the sign-up
   block's Autoresponder dropdown lists the account's real automations

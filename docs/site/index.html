@@ -712,6 +712,15 @@ td code{white-space:nowrap}
         </ul>
         <p>The value is the <strong>last</strong> run's date and time in UTC (<code>2026-08-04 14:30:00</code>) — it's overwritten on each run, and a trigger that has never fired for a contact leaves its field untouched. Use these in Smaily to include or exclude automation‑touched contacts. The abandoned‑cart template field <code>is_abandoned_cart</code> is unchanged and still sent alongside.</p>
       </div>
+      <div class="note">
+        <span class="k">Stop the abandoned‑cart follow‑ups once the shopper buys</span>
+        <p>When a shopper you sent an abandoned‑cart reminder to completes an order, the plugin writes one more field onto their contact:</p>
+        <ul>
+          <li><code>abandoned_cart_purchased_at</code> — the date and time of the purchase, in UTC, in the same format as the fields above.</li>
+        </ul>
+        <p>Use it as the <strong>exit condition</strong> on every follow‑up step of your abandoned‑cart workflow: continue only while <code>abandoned_cart_purchased_at</code> is <strong>earlier than</strong> <code>abandoned_cart_automation_at</code> (or empty) — the shopper has bought when the purchase time is the later of the two. Both checkouts (classic and block) and both guests and logged‑in shoppers are covered, and the purchase counts as soon as the order is placed, without waiting for payment status.</p>
+        <p>It is written <strong>only</strong> for a shopper the plugin actually sent a reminder to — an ordinary purchase writes nothing and creates no contact. The reminder's cart and product fields are left exactly as the reminder wrote them. If the shopper buys before the reminder has gone out, the reminder is dropped instead: the Event Log row shows it as cancelled.</p>
+      </div>
       <h3>Engine‑run recommendation automations</h3>
       <p>These are triggered by Campaign Intelligence, not by a store event — the engine enrols each contact into the Smaily workflow you pick at the moment it predicts (a replenishment running out, a customer at risk of churning). Per automation you set:</p>
       <ul>
@@ -747,6 +756,15 @@ td code{white-space:nowrap}
           <li><code>abandoned_cart_automation_at</code></li>
         </ul>
         <p>Väärtus on <strong>viimase</strong> käivituse kuupäev ja kellaaeg UTC‑s (<code>2026-08-04 14:30:00</code>) — see kirjutatakse igal käivitusel üle ja päästik, mis pole selle kontakti jaoks kunagi käivitunud, jätab oma välja puutumata. Kasuta neid Smailys automaatikaga puudutatud kontaktide kaasamiseks või välistamiseks. Pooleli jäänud korvi malli‑väli <code>is_abandoned_cart</code> on muutmata ja saadetakse endiselt kõrvuti.</p>
+      </div>
+      <div class="note">
+        <span class="k">Lõpeta pooleli jäänud korvi järelkirjad, kui ostleja ostab</span>
+        <p>Kui ostleja, kellele saatsid pooleli jäänud korvi meeldetuletuse, vormistab tellimuse, kirjutab plugin tema kontaktile veel ühe välja:</p>
+        <ul>
+          <li><code>abandoned_cart_purchased_at</code> — ostu kuupäev ja kellaaeg UTC‑s, samas vormingus nagu eespool olevad väljad.</li>
+        </ul>
+        <p>Kasuta seda pooleli jäänud korvi töövoo iga järelkirja <strong>väljumistingimusena</strong>: jätka ainult siis, kui <code>abandoned_cart_purchased_at</code> on <strong>varasem kui</strong> <code>abandoned_cart_automation_at</code> (või tühi) — ostleja on ostnud siis, kui ostu aeg on neist kahest hilisem. Kaetud on mõlemad kassad (klassikaline ja plokk‑kassa) ning nii külalised kui sisse logitud ostlejad, ja ost loeb kohe tellimuse vormistamisel, ootamata makse staatust.</p>
+        <p>See kirjutatakse <strong>ainult</strong> sellele ostlejale, kellele plugin päriselt meeldetuletuse saatis — tavaline ost ei kirjuta midagi ega loo kontakti. Meeldetuletuse korvi‑ ja tooteväljad jäävad täpselt sellisteks, nagu meeldetuletus need kirjutas. Kui ostleja ostab enne, kui meeldetuletus on välja läinud, jäetakse meeldetuletus hoopis ära: sündmuste logi rida näitab seda tühistatuna.</p>
       </div>
       <h3>Mootori‑käivitatavad soovitus‑automaatikad</h3>
       <p>Neid käivitab Campaign Intelligence, mitte poe sündmus — mootor lisab iga kontakti sinu valitud Smaily töövoogu hetkel, mil ta ennustab (varu saab otsa, klient ohus lahkuda). Automaatika kohta sead:</p>
