@@ -26,7 +26,35 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2324 — the Event Log can send a confirmation
+_Last updated: 2026-09-07 (**PRO-2318 — the wordpress.org listing now carries
+marketing's copy and marketing's six screenshots.** The listing text had grown
+out of the v3 release notes: the short description and `== Description ==` sold
+the plugin in engineering's wording, `== Installation ==` opened with the manual
+`/wp-content/plugins/` upload, there was no `== Frequently Asked Questions ==`
+section at all, and `== Screenshots ==` captioned the eight July images. The
+marketing lead's final package replaces the short description (138 chars) and
+the Description / Installation / Screenshots sections verbatim, and adds the
+eleven-question FAQ after Installation. The Description now names WPML, Polylang
+and TranslatePress as the multilingual sources and says Campaign Intelligence is
+an optional paid add-on billed separately by Smaily, with **no fixed price** —
+marketing's explicit requirement, so the listing stays true when pricing moves.
+The header block, the compatibility fields and the whole `== Changelog ==` are
+untouched. **Upgrade Notice:** marketing supplied ONE per-version entry keyed
+`= 3.11.2 =`, not generic prose, so all 25 existing per-version entries stay and
+its text replaced the body of the existing 3.11.2 entry rather than being added
+above it (a second `= 3.11.2 =` heading would be a duplicate key); every entry
+is under 300 chars. `assets/screenshot-1..6.png` are marketing's six (1278×910,
+captions verified against the images one by one); `screenshot-7.png` and
+`screenshot-8.png` are `git rm`-ed because the new caption list has six entries.
+**The wordpress.org SVN side still holds screenshot-7/8** — `release.sh` copies
+`assets/` but never deletes, so Erkki's assets commit needs an explicit
+`svn rm`. Gate: PCP `--checks=plugin_readme` against the working tree = "No
+errors found"; `ci:strict` does not read `readme.txt` or `assets/`, so it was
+not re-run. This reaches merchants with the next release, or earlier if Erkki
+commits `readme.txt` + `assets/` to SVN by hand — updating the listing does not
+require a new ZIP.)
+
+Prior: 2026-09-07 (**PRO-2324 — the Event Log can send a confirmation
 again, on purpose.** A merchant who wants the customer to get a second order or
 shipping confirmation (a corrected tracking number is the real case) had no way
 to ask: the once-per-order-per-type marker silently ignores a status flip out of
@@ -852,8 +880,12 @@ Docs-only; no code, so no gates run.)_
 
 **Next session opens with:**
 
-- **Unshipped on `main`:** PRO-2324 ("Send again") and the PRO-2323 Event Log
-  wording. 3.11.3 is live on wordpress.org (version 3.11.3, tested 7.1,
+- **Unshipped on `main`:** PRO-2324 ("Send again"), the PRO-2323 Event Log
+  wording, and the PRO-2318 listing copy (`readme.txt` + `assets/`). The listing
+  can go live ahead of a release if Erkki commits it to the wordpress.org SVN by
+  hand — and that commit must `svn rm` `assets/screenshot-7.png` and
+  `screenshot-8.png`, which `release.sh` will never remove on its own. 3.11.3
+  is live on wordpress.org (version 3.11.3, tested 7.1,
   2026-09-07 12:36 GMT); the merchant docs site at
   `https://smaily.com/connect-woo/` is now BEHIND `docs/site/index.html` by the
   PRO-2324 Event Log paragraph, which publishes after the Estonian proofread.
