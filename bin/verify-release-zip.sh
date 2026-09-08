@@ -7,7 +7,8 @@
 # vendor tree) whose steps are easy to forget one at a time — each omission
 # produces a ZIP that installs but is silently broken. This script is the gate:
 # it asserts the required build outputs are present, the development-only
-# material is absent, no shipped bundle points at a stripped source map, and the
+# material is absent, no shipped bundle points at a stripped source map, every
+# shipped bundle is an IIFE that leaks no globals (PRO-2391), and the
 # version is consistent (and matches an expected one when given).
 #
 # Usage:  bash bin/verify-release-zip.sh smaily-connect.zip [expected-version]
@@ -122,6 +123,33 @@ for bundle in dist/admin/admin.js dist/public/js/sc-runtime.js dist/public/js/sc
 		fi
 	fi
 done
+
+# --- 4b. Every bundle is an IIFE and leaks no globals (PRO-2391) -----------
+# The 3.12.0 storefront bundle's top-level `const _` shadowed Underscore for
+# wp-util and killed WooCommerce's variation form on a real store; this is the
+# same check `npm run build:admin` runs, applied to what is actually in the ZIP.
+if [ -f "$( dirname "$0" )/check-bundle-scope.sh" ]; then
+	SCOPE_DIR="$( mktemp -d )"
+	trap 'rm -f "$LIST"; rm -rf "$SCOPE_DIR"' EXIT
+	scope_files=()
+	for bundle in dist/admin/admin.js dist/public/js/sc-runtime.js dist/public/js/sc-landing.js; do
+		if grep -qx "${ROOT}/${bundle}" "$LIST"; then
+			mkdir -p "${SCOPE_DIR}/$( dirname "$bundle" )"
+			unzip -p "$ZIP" "${ROOT}/${bundle}" > "${SCOPE_DIR}/${bundle}"
+			scope_files+=( "${SCOPE_DIR}/${bundle}" )
+		fi
+	done
+	if [ "${#scope_files[@]}" -gt 0 ]; then
+		if bash "$( dirname "$0" )/check-bundle-scope.sh" "${scope_files[@]}" > "${SCOPE_DIR}/report.txt" 2>&1; then
+			pass "bundles are IIFEs and leak no globals ($( grep -c '^ok' "${SCOPE_DIR}/report.txt" ) checks)"
+		else
+			grep '^FAIL' "${SCOPE_DIR}/report.txt" | sed "s#${SCOPE_DIR}/##"
+			fail "a shipped bundle is not an IIFE or leaks globals (see above)"
+		fi
+	fi
+else
+	fail "bin/check-bundle-scope.sh is missing next to this script"
+fi
 
 # --- 5. Version consistency ------------------------------------------------
 header_version="$( unzip -p "$ZIP" "${ROOT}/smaily-connect.php" 2>/dev/null \

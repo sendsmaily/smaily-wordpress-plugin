@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.12.0
+Stable tag: 3.12.1
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -176,6 +176,9 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 Only releases from 3.0.0 onward are listed here. The complete version history, including the 1.x and 2.x releases, is published at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.12.1 =
+* Fixed: on stores with browse tracking on, variable products could not be bought — the colour/size choices stayed disabled and "Add to cart" never lit up, while simple products worked. The plugin's storefront script leaked a variable named `_` into the page, which broke the WordPress helper WooCommerce's variation form relies on. All three of the plugin's scripts are now self-contained and leave nothing behind on the page. If you switched browse tracking off to work around this, it is safe to switch it back on after updating.
+
 = 3.12.0 =
 * Improved: abandoned-cart follow-ups now stop once the shopper buys. A reminder still waiting to go out is withdrawn, and the purchase is recorded on the shopper's Smaily contact, so a multi-step follow-up workflow can end there instead of running to the last letter.
 * Improved: the Event Log can now send an order or shipping confirmation a second time. "Send again" appears on a confirmation Smaily itself sent, on an order that still exists, for merchants who need to re-send one on request.
@@ -330,6 +333,9 @@ First general-availability release, graduating the 2.1.0-beta line. Existing set
 * Hardening: WordPress.org Plugin Check pass (sanitization, escaping, prefixing, ABSPATH guards); editor blocks updated to Block API v3 for the WordPress 7.0 iframe editor; diagnostics gated behind WP_DEBUG.
 
 == Upgrade Notice ==
+
+= 3.12.1 =
+Fixes variable products that could not be added to the cart on stores with browse tracking on. Safe update; if you switched browse tracking off as a workaround, switch it back on afterwards.
 
 = 3.12.0 =
 Abandoned-cart follow-ups now stop once the shopper buys, and the purchase is recorded on their Smaily contact. Adds "Send again" for order and shipping confirmations, and the Event Log now says when a retry really sends and why one was refused. Safe update.

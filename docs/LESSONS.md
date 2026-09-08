@@ -908,6 +908,49 @@ state it did not arrange itself.
    like the five sibling tests do — and read "works on my run" as unproven until
    the class passes both alone and inside the suite.**
 
+### 2.26 A classic `<script>` built as an ES module leaks its top-level bindings into EVERY later script — and the break lands in someone else's code (PRO-2391 MiuMjau variable products, 2026-09-08)
+
+**What happened.** The browse runtime `sc-runtime.js` was Vite `es`-format
+output (the admin and runtime entries shared one pass, and a multi-entry build
+can only emit `es`), enqueued as a classic `<script>`. Its minified first line
+`const m=…,_=/^vt_…/` created global LEXICAL bindings. On MiuMjau the footer
+order was `sc-runtime.js` → `underscore.min.js` → `wp-util.min.js`: Underscore
+set `window._`, but `wp-util`'s bare `_` resolved to our RegExp
+(`_.memoize is not a function`), WooCommerce's variation form depends on
+`wp-util`, and every variable product became unsellable. The error surfaced in
+WordPress core's file, with our plugin nowhere in the stack — the only clue was
+"deactivating Smaily Connect fixes it". The bundle had been byte-identical for
+four releases; the store simply hadn't had the right neighbour (a variable
+product page with `wp-util` in the footer after our script) until now.
+
+**The lesson.**
+1. **`const`/`let`/`class` at the top level of a classic script are GLOBAL
+   for every script that follows** — and they SHADOW `window` properties of the
+   same name rather than replacing them, so `window._` still looks right in
+   devtools while bare `_` is wrong. A `var` there becomes a `window` property
+   and CLOBBERS instead. Neither is acceptable for a bundle loaded next to
+   jQuery, Underscore, `wp.*` and `wc.*`. The only safe shape is an IIFE (or a
+   real `type="module"`, which WordPress's enqueue does not give you).
+2. **A bundler's output format is a runtime contract, not a build detail.**
+   "It has no top-level `export`, so it loads" (the reasoning in the old
+   vite.config comment) was true and beside the point — `es` output still has
+   top-level declarations. Ask what the FIRST STATEMENT of the built file is,
+   not just whether it parses.
+3. **A minifier's variable names are one release away from any collision.**
+   `_`, `$`, `wp`, `wc` were all leaked at one point or another. Do not reason
+   "it's only single letters, nothing uses those" — Underscore is `_`.
+4. **Prove it from the artifact, mechanically.** `bin/check-bundle-scope.sh`
+   loads the built file in a jsdom window and asks a SECOND script what it can
+   see — the same test the victim script performs. It runs after every build
+   and against the bundles inside the release ZIP. A static "starts with
+   `(function(`" check alone would have missed a future `banner`-wrapped
+   shared chunk.
+5. **Diagnosis order that worked:** symptom → console → page source (script
+   ORDER and the first bytes of our file) → diff the shipped bundles across
+   releases (rules out "the update did it") → reproduce the mechanism in
+   `node:vm` → then fix. The page source settled in ten minutes what an
+   hour of hypothesising about WC Blocks editor scripts did not.
+
 ## 3. The non-technical lesson: spec errors vs bugs
 
 Several of the biggest fixes **weren't bugs** — they were **spec errors** (ambiguity

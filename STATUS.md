@@ -26,7 +26,24 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-07 (**PRO-2379 + PRO-2364 — two doc corrections, no
+_Last updated: 2026-09-08 (**PRO-2391 — hotfix 3.12.1: every shipped bundle
+is an IIFE.** MiuMjau reported variable products unsellable with the plugin
+active: `sc-runtime.js` was `es`-format output loaded as a classic script, its
+top-level `const … _=/^vt_…/` shadowed Underscore for `wp-util`
+(`_.memoize is not a function`), and WooCommerce's variation form died. The
+bundle was byte-identical 3.11.1→3.12.0 (release ZIPs diffed); it surfaces on
+any store with browse tracking on + a variable-product page. Fix: one Vite pass
+per entry with `output.format: 'iife'` (+ `cssCodeSplit: false` so
+`admin.css` stays a real file), and `bin/check-bundle-scope.sh` — a jsdom
+"second script" probe that runs after every `build:admin` and inside
+`bin/verify-release-zip.sh` (fails the 3.12.0 ZIP, passes the rebuilt one).
+Mitigation on MiuMjau until the update: browse tracking OFF (applied, working).
+Gates: see the release note below. Details: DECISIONS PRO-2391, LESSONS §2.26,
+CLAUDE.md "Every shipped bundle is an IIFE". **Release state: 3.12.1 bump on
+main; CI release + `release.sh` (Erkki) pending — after it lands, MiuMjau
+switches browse tracking back ON.**)_
+
+Prior: 2026-09-07 (**PRO-2379 + PRO-2364 — two doc corrections, no
 code.** PRO-2379: the merchant docs site's Event Log section promised that a
 failed order or shipping confirmation "keeps Retry". Most do not —
 `TransactionalRetryGuard` refuses a retry whenever the shopper already has a

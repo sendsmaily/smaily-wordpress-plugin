@@ -6352,6 +6352,63 @@ which is why it survives redaction), PRO-1680 (the product matrix a reminder
 carries). Merchant docs site: the Deletion & GDPR section now says what an
 erasure does to queued and sent messages, in both languages.
 
+### PRO-2391 — Every shipped bundle is an IIFE, one Vite pass per entry (2026-09-08)
+
+**Context:** MiuMjau (the production pilot) reported that variable products
+could no longer be bought or displayed, and that deactivating the plugin fixed
+it. The console showed `Uncaught TypeError: _.memoize is not a function` at
+`wp-util.min.js:112`; WooCommerce's variation form (`wc-add-to-cart-variation`)
+depends on `wp-util`, so the colour/size selects stayed disabled and
+"Add to cart" never enabled. The page source gave the mechanism: the admin and
+browse-runtime entries shared ONE Vite pass, and a multi-entry Rollup build can
+only emit the `es` format — output with NO wrapper. Loaded as a classic
+`<script>`, its minified first line `const m=…,_=/^vt_…/` created GLOBAL
+LEXICAL bindings, and a top-level `const` in a classic script shadows the
+same-named `window` property for every script that loads after it. MiuMjau's
+footer order is `sc-runtime.js` → `underscore.min.js` → `wp-util.min.js`:
+Underscore still set `window._`, but the bare `_` wp-util reads resolved to our
+RegExp. The bundle was byte-identical from 3.11.1 through 3.12.0 (the release
+ZIPs were diffed), so 3.12.0 did not introduce it — it surfaces on any store
+with the browse runtime loaded (engine connected + browse tracking on) on a
+variable-product page. Same class, other bundles: `sc-landing.js` leaked
+`u, m, f, w`; `admin.js` started with `var wc={exports:{}}` and leaked lexical
+`wp`, `wc` and `$` — one collision away from a SyntaxError against any other
+classic script's top-level `let`/`const`, and a clobber of WooCommerce admin's
+`window.wc` namespace.
+
+**Decision (Erkki go-ahead, 2026-09-08):**
+- **Every bundle is an IIFE.** `vite.config.ts` builds ONE entry per pass
+  (`--mode admin` default, `--mode runtime`, `--mode landing`) with
+  `output.format: 'iife'` — Rollup allows `iife` only for a single-entry build,
+  hence one pass per entry. `preserveEntrySignatures: false` keeps the IIFE
+  export-free so it needs no global `name`. `cssCodeSplit: false` keeps
+  `dist/admin/admin.css` a real emitted stylesheet: with a non-ES format Vite
+  would otherwise inject the CSS from JS, and `admin/wizard.php` enqueues the
+  file.
+- **The proof runs after every build and inside the release gate.**
+  `bin/check-bundle-scope.sh` (a) asserts the first statement is an IIFE and
+  there is no top-level `import`/`export`, and (b) evaluates the bundle in a
+  fresh jsdom window, then asks a SECOND script in the same context for
+  `typeof _` (plus `$`, `jQuery`, `wp`, `wc`, `lodash` and every single-letter
+  name) and diffs the window's own properties — the exact way wp-util saw our
+  `_`. `npm run build:admin` chains it (`check:bundle-scope`), and
+  `bin/verify-release-zip.sh` runs it against the bundles extracted from the
+  ZIP, so CI's release run fails before an asset is uploaded. Verified against
+  the 3.12.0 ZIP: all three bundles fail it; the rebuilt ones pass, and a jsdom
+  boot with the real boot blob writes the same cookies and strips the same URL
+  params as the old bundle.
+- **Shipped as hotfix 3.12.1.** Merchant-facing mitigation until then: browse
+  tracking OFF (the runtime bundle then does not load; the attribution-only
+  bundle carries no `_`). MiuMjau applied it the same afternoon and variable
+  products worked again; after the update it is safe to switch back on.
+
+**Why not `banner`/`footer` wrapping or a manual IIFE in the source:** a
+wrapper string around `es` output is a hack Rollup cannot reason about (a
+shared chunk or a top-level `await` would still leak past it), and source-level
+wrapping does nothing about what the MINIFIER hoists. The format flag is the
+mechanism designed for this; the scope check is the guard that outlives the
+next config change.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

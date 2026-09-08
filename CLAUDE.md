@@ -591,11 +591,13 @@ they are no longer how the released asset is produced. Full sequence (verified
    `tests/phpstan-bootstrap.php` (else ConstantsTest fails). Commit FIRST so
    `package:hash` stamps a clean (non-`-dirty`) build-hash.
 2. `npm run build:admin` → `dist/admin/*`,
-   `dist/public/js/sc-runtime.js` + `dist/public/js/sc-landing.js` (the second
-   storefront bundle is built by a chained `build:landing` pass — see the beacon
-   note below; if it's missing from `dist/`, the landing pass didn't run).
-   ONE command builds all three: the old `build:client` was a duplicate of
-   `build:admin` (there is no `client` vite mode) and was removed in PRO-1949.
+   `dist/public/js/sc-runtime.js` + `dist/public/js/sc-landing.js` — THREE
+   chained single-entry IIFE passes (`admin` → `runtime` → `landing`, PRO-2391)
+   followed by `check:bundle-scope`, which fails the build if any bundle is not
+   an IIFE or leaks a global (see "Every shipped bundle is an IIFE" above). If a
+   bundle is missing from `dist/`, its pass didn't run. ONE command builds all
+   three: the old `build:client` was a duplicate of `build:admin` (there is no
+   `client` vite mode) and was removed in PRO-1949.
 3. `composer run install-block-modules && composer run build` → `blocks/*/build/*`
    (the first installs `blocks/node_modules`; without it `wp-scripts` is missing).
 4. Translations: run **`bash bin/build-i18n.sh`** (uses the wp-env container by
@@ -704,16 +706,50 @@ writer at all: the cached response never runs PHP, so `LandingCapture` is blind.
 Two facts that must stay true when you touch it:
 - **Both bundles import `public/js/lib/attribution.ts`** (the one capture
   implementation, incl. the PRO-1710 UUID check) — so they are built in
-  **SEPARATE vite passes** (`vite build --mode landing`, chained from every
-  `build*` npm script). In ONE pass Rollup hoists the shared module into
+  **SEPARATE vite passes** (`--mode runtime` / `--mode landing`, chained from
+  every `build*` npm script). In ONE pass Rollup hoists the shared module into
   `dist/shared/attribution-<hash>.js` and BOTH bundles get a top-level `import`
   — neither then loads as the classic `<script>` `StorefrontBeacon` enqueues
-  (verified 2026-08-05; that would silently break browse tracking too). If you
-  add a third storefront entry, give it its own pass.
+  (verified 2026-08-05; that would silently break browse tracking too). Since
+  PRO-2391 EVERY entry has its own pass anyway (IIFE output needs it — see
+  "Every shipped bundle is an IIFE" above); a new storefront entry gets its
+  own `--mode`.
 - **The tiny bundle stays tiny** (~1.2 kB): URL params → cookies → strip. No
   transport, no consent surface, no session cookie, no `/relay` URL in its boot
   blob (`window.smailyConnectLanding` carries cookie names / param names / TTLs
   and nothing else) — that minimalism is why it can load consent-independently.
+
+### Every shipped bundle is an IIFE — never `es` output for a classic `<script>` (PRO-2391)
+`admin.js`, `sc-runtime.js` and `sc-landing.js` are all enqueued as CLASSIC
+scripts, so each is built in its OWN Vite pass (`--mode admin` default,
+`--mode runtime`, `--mode landing`; `npm run build:admin` chains all three)
+with `output.format: 'iife'` — Rollup allows `iife` only for a single-entry
+build. The scar (MiuMjau, 2026-09-08): the admin + runtime entries shared one
+pass, which forces `es` output = NO wrapper, so the minified top-level
+`const m=…,_=/^vt_…/` in `sc-runtime.js` became global LEXICAL bindings. A
+top-level `const` in a classic script SHADOWS the same-named `window` property
+for every script loaded after it — Underscore still set `window._`, but the
+bare `_` that `wp-util` reads resolved to our RegExp (`_.memoize is not a
+function`), WooCommerce's variation form depends on wp-util, and every variable
+product became unsellable; deactivating the plugin "fixed" it. The bundle had
+been byte-identical since 3.11.1 — the bug waits for the right neighbour
+(browse tracking on + a variable-product page), so "nothing changed in the
+bundle" is not evidence it isn't ours. Rules:
+- **Do not put a second entry into an existing pass** — a new bundle gets its
+  own `--mode` and its own line in `build:admin` + `check:bundle-scope`.
+- **`cssCodeSplit: false` stays** — with a non-ES format Vite would otherwise
+  inject the admin CSS from JS instead of emitting `dist/admin/admin.css`,
+  which `admin/wizard.php` enqueues as a file.
+- **The proof is `bin/check-bundle-scope.sh`** (runs after every build and
+  inside `bin/verify-release-zip.sh`): it loads the built file in a jsdom
+  window and asks a SECOND script in that context for `typeof _` (+ `$`,
+  `jQuery`, `wp`, `wc`, `lodash`, every single-letter name) and diffs the
+  window's own properties. Don't weaken it to a static "starts with
+  `(function(`" check; a wrapper string round `es` output still leaks a shared
+  chunk. If it fails, the config regressed — fix the build, never the check.
+- **Merchant-side mitigation** while a broken build is live: browse tracking
+  OFF (the runtime bundle then doesn't load; the attribution-only bundle keeps
+  attribution working).
 
 ### Browse consent is fail-closed on the WP Consent API — needs the `wp-consent-api` plugin, NOT vendor code (F3-50)
 The beacon sends browse events ONLY when `window.wp_has_consent(category) === true`
