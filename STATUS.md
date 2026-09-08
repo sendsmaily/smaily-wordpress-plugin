@@ -39,9 +39,11 @@ per entry with `output.format: 'iife'` (+ `cssCodeSplit: false` so
 `bin/verify-release-zip.sh` (fails the 3.12.0 ZIP, passes the rebuilt one).
 Mitigation on MiuMjau until the update: browse tracking OFF (applied, working).
 Gates: see the release note below. Details: DECISIONS PRO-2391, LESSONS §2.26,
-CLAUDE.md "Every shipped bundle is an IIFE". **Release state: 3.12.1 bump on
-main; CI release + `release.sh` (Erkki) pending — after it lands, MiuMjau
-switches browse tracking back ON.**)_
+CLAUDE.md "Every shipped bundle is an IIFE". **Release state: 3.12.1 is LIVE
+on wordpress.org (2026-09-08) — GH release `3.12.1` on `8143764`, CI asset
+896 251 B re-verified locally (exit=0, 9 scope checks), `release.sh` run by
+Erkki; MiuMjau updated, browse tracking switched back ON, variable products
+confirmed working with the runtime loaded.**)_
 
 Prior: 2026-09-07 (**PRO-2379 + PRO-2364 — two doc corrections, no
 code.** PRO-2379: the merchant docs site's Event Log section promised that a
