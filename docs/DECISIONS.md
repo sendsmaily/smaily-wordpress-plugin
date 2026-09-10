@@ -6595,6 +6595,19 @@ history on the store.
 production of new rows) and PRO-2437 (the same table, read side); this closes
 the growth side.
 
+### PRO-2394 — `CHANGELOG.md` is retired in favour of readme.txt and GitHub releases (2026-09-10)
+
+**Context:** the repo carried two changelogs. `CHANGELOG.md` was the "fuller
+repo-side log", but it stopped at 3.5.0 while `readme.txt` kept being updated
+with every bump — so the file that promised more detail was the one that lied.
+**Decision:** `readme.txt`'s `== Changelog ==` is the single changelog, with the
+GitHub release notes carrying the same text per tag. `CHANGELOG.md` keeps
+existing (old links resolve) but holds only a pointer to those two.
+**Rationale:** one changelog can be kept true as part of the release recipe;
+two cannot, and the second one going stale is worse than not having it. Both
+survivors are already mandatory release steps (the readme bump, the GH release),
+so nothing new has to be remembered.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
