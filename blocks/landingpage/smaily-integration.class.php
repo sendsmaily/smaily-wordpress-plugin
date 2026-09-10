@@ -14,13 +14,18 @@ class Integration {
 	const SUBDOMAIN_PATTERN = '/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/';
 
 	/**
-	 * Landing page keys are UUIDs, as the block's own URL parser requires.
+	 * Landing page keys are UUIDs, as the block's own URL parser requires —
+	 * checked on their own, and read out of an address as the segment that
+	 * follows /landing-pages/ and either ends the path or is followed by more.
 	 */
-	const PK_PATTERN = '/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/';
+	private const PK_SHAPE        = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
+	const PK_PATTERN              = '/^' . self::PK_SHAPE . '$/';
+	private const PK_PATH_PATTERN = '#/landing-pages/(' . self::PK_SHAPE . ')(?:/|$)#';
 
 	/**
 	 * The embed size the block.json defaults describe, reused by the shortcode
-	 * and the Elementor widget so all three surfaces look the same.
+	 * and the Elementor widget so all three surfaces look the same. The copy
+	 * is pinned to block.json by tests/Unit/Blocks/LandingPageDefaultSizeTest.php.
 	 */
 	const DEFAULT_HEIGHT = 450;
 	const DEFAULT_WIDTH  = 500;
@@ -139,11 +144,9 @@ class Integration {
 	 * @return string The key, or an empty string when the address is refused.
 	 */
 	public static function landing_page_key( $url, $subdomain ) {
-		if ( ! is_string( $url ) || ! is_string( $subdomain ) ) {
-			return '';
-		}
+		$url       = trim( (string) $url );
+		$subdomain = trim( (string) $subdomain );
 
-		$url = trim( $url );
 		if ( '' === $url || ! preg_match( self::SUBDOMAIN_PATTERN, $subdomain ) ) {
 			return '';
 		}
@@ -161,15 +164,7 @@ class Integration {
 			return '';
 		}
 
-		$path = isset( $parts['path'] ) ? $parts['path'] : '';
-		if ( strpos( $path, '/landing-pages/' ) === false ) {
-			return '';
-		}
-
-		$after = explode( '/landing-pages/', $path, 2 );
-		$key   = explode( '/', $after[1] )[0];
-
-		return preg_match( self::PK_PATTERN, $key ) ? $key : '';
+		return preg_match( self::PK_PATH_PATTERN, $parts['path'] ?? '', $matches ) ? $matches[1] : '';
 	}
 
 	/**

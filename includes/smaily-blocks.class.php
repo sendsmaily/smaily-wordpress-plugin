@@ -16,7 +16,6 @@ class Blocks {
 	public function register_hooks() {
 		add_action( 'init', array( $this, 'register_newsletter_signup_block' ) );
 		add_action( 'init', array( $this, 'register_landingpage_block' ) );
-		add_action( 'init', array( $this, 'register_landingpage_shortcode' ) );
 
 		if ( Helper::is_woocommerce_active() ) {
 			add_action( 'init', array( $this, 'register_checkout_optin_block' ) );
@@ -113,17 +112,10 @@ class Blocks {
 			'smaily-connect',
 			SMAILY_CONNECT_PLUGIN_PATH . 'languages'
 		);
-	}
 
-	/**
-	 * Register the landing page shortcode.
-	 *
-	 * Registered here rather than with the newsletter shortcode so both
-	 * landing-page surfaces stay on one render path (PRO-2440).
-	 *
-	 * @return void
-	 */
-	public function register_landingpage_shortcode() {
+		// The shortcode is the landing page's other surface, kept beside the
+		// block it mirrors (PRO-2440). Its render path is a static call, so it
+		// does not depend on where add_shortcode() runs.
 		add_shortcode(
 			'smaily_landing_page',
 			array( 'Smaily_Connect\\Blocks\\Landing_Page\\Integration', 'render_shortcode' )

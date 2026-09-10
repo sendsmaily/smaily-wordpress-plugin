@@ -14,8 +14,7 @@ class Admin {
 		add_action( 'elementor/elements/categories_registered', array( $this, 'add_elementor_category' ) );
 		add_action( 'elementor/frontend/after_register_styles', array( $this, 'register_frontend_styles' ) );
 		add_action( 'elementor/frontend/after_enqueue_styles', array( $this, 'enqueue_frontend_styles' ) );
-		add_action( 'elementor/widgets/register', array( $this, 'register_newsletter_widget' ) );
-		add_action( 'elementor/widgets/register', array( $this, 'register_landingpage_widget' ) );
+		add_action( 'elementor/widgets/register', array( $this, 'register_widgets' ) );
 	}
 
 	/**
@@ -34,32 +33,19 @@ class Admin {
 	}
 
 	/**
-	 * Register the newsletter widget with Elementor.
+	 * Register the Smaily widgets with Elementor.
 	 *
 	 * @param \Elementor\Widgets_Manager $widgets_manager The Elementor widget manager instance.
 	 */
-	public function register_newsletter_widget( $widgets_manager ) {
+	public function register_widgets( $widgets_manager ) {
 		if ( ! class_exists( 'Elementor\Widget_Base' ) ) {
 			return;
 		}
 
 		require_once __DIR__ . '/newsletter-widget.class.php';
-
-		$widgets_manager->register( new Newsletter_Widget() );
-	}
-
-	/**
-	 * Register the landing page widget with Elementor.
-	 *
-	 * @param \Elementor\Widgets_Manager $widgets_manager The Elementor widget manager instance.
-	 */
-	public function register_landingpage_widget( $widgets_manager ) {
-		if ( ! class_exists( 'Elementor\Widget_Base' ) ) {
-			return;
-		}
-
 		require_once __DIR__ . '/landingpage-widget.class.php';
 
+		$widgets_manager->register( new Newsletter_Widget() );
 		$widgets_manager->register( new Landingpage_Widget() );
 	}
 
@@ -80,9 +66,5 @@ class Admin {
 	 */
 	public function enqueue_frontend_styles() {
 		wp_enqueue_style( 'smaily-connect-elementor-newsletter-widget' );
-		// The landing page widget renders the block's markup, so it needs the
-		// block's stylesheet; Elementor has already rendered by the time the
-		// widget itself could ask for it.
-		wp_enqueue_style( 'smaily-landingpage-block-style' );
 	}
 }

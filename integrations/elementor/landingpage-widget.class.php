@@ -63,6 +63,20 @@ class Landingpage_Widget extends Widget_Base {
 	}
 
 	/**
+	 * Get the stylesheets the widget needs.
+	 *
+	 * The widget renders the landing-page block's markup, so it needs the
+	 * block's stylesheet; naming it here lets Elementor load it only on pages
+	 * that actually carry the widget. The handle is registered on `init` by
+	 * register_block_type(), well before Elementor resolves widget deps.
+	 *
+	 * @return array The style handles of the widget.
+	 */
+	public function get_style_depends() {
+		return array( 'smaily-landingpage-block-style' );
+	}
+
+	/**
 	 * Whether the element returns dynamic content.
 	 * Set to determine whether to cache the element output or not.
 	 *

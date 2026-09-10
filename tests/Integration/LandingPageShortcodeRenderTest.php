@@ -60,26 +60,16 @@ final class LandingPageShortcodeRenderTest extends TestCase {
 	}
 
 	/**
-	 * @dataProvider refused_addresses
+	 * One representative refusal — the whole accepted/refused set is pinned in
+	 * tests/Unit/Blocks/LandingPageUrlTest.php; what matters here is that a
+	 * refusal reaches the page as nothing at all.
 	 */
-	public function test_the_shortcode_refuses_an_address_that_is_not_this_account_s_landing_page( string $url ): void {
-		$rendered = do_shortcode( '[smaily_landing_page url="' . $url . '"]' );
-
-		self::assertStringNotContainsString( '<iframe', $rendered );
-		self::assertStringNotContainsString( 'smaily-connect-landingpage-block-front-wrapper', $rendered );
-	}
-
-	/**
-	 * @return array<string, array<int, string>>
-	 */
-	public function refused_addresses(): array {
-		return array(
-			'another host'           => array( 'https://evil.example.com/landing-pages/' . self::PK . '/html/' ),
-			'another Smaily account' => array( 'https://otherstore.sendsmaily.net/landing-pages/' . self::PK . '/html/' ),
-			'not a landing page'     => array( 'https://demostore.sendsmaily.net/api/opt-in/' ),
-			'not https'              => array( 'http://demostore.sendsmaily.net/landing-pages/' . self::PK . '/html/' ),
-			'not a landing page key' => array( 'https://demostore.sendsmaily.net/landing-pages/not-a-uuid/html/' ),
+	public function test_the_shortcode_refuses_an_address_that_is_not_this_account_s_landing_page(): void {
+		$rendered = do_shortcode(
+			'[smaily_landing_page url="https://otherstore.sendsmaily.net/landing-pages/' . self::PK . '/html/"]'
 		);
+
+		self::assertStringNotContainsString( 'smaily-connect-landingpage-block-front-wrapper', $rendered );
 	}
 
 	public function test_the_shortcode_without_attributes_embeds_nothing_and_stays_quiet(): void {

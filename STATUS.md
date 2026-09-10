@@ -40,18 +40,24 @@ parser) and then call the block's own renderer, so escaping, wrapper markup
 and the constructed URL cannot drift; a refused address renders nothing.
 Sizes now also accept a percentage, which is how a builder column is filled.
 The widget is loaded only behind `Helper::is_elementor_active()`. Gates:
-`ci:strict` exit=0 (unit 806 tests / PHPCS / PHPStan / vitest 312);
-integration **OK (300 tests / 1 763 assertions)**, sandbox tenant "Smaily
+`ci:strict` exit=0 (unit 807 tests / PHPCS / PHPStan / vitest 312);
+integration **OK (295 tests / 1 753 assertions)**, sandbox tenant "Smaily
 Connect test" restored. New tests: `tests/Integration/
 LandingPageShortcodeRenderTest.php`, `…/LandingPageElementorWidgetTest.php`,
-`tests/Unit/Blocks/LandingPageUrlTest.php`. **Human acceptance outstanding:**
+`tests/Unit/Blocks/LandingPageUrlTest.php`,
+`…/LandingPageDefaultSizeTest.php`. **Human acceptance outstanding:**
 there is no Elementor in wp-env, so the widget's editor and published-page
 behaviour is a human check on a real store. Also fixed on the way: the
 integration bootstrap now binds `$shortcode_tags`, because PHPUnit's file
 loader was overwriting the real global with the empty local WordPress leaves
 behind — no shortcode at all existed by the time a test ran (CLAUDE.md has
 the note). The Estonian docs-site paragraphs need Erkki's proofread before
-the site is published. DECISIONS PRO-2440. **Unreleased on main** (readme
+the site is published. A simplification pass then tightened the same work: the
+Elementor widget asks for the block stylesheet itself (so it loads only where
+the widget is), the two widget registrations became one, the shortcode is
+registered beside the block it mirrors, the address check is a single pattern
+match, and a new unit test pins the embed-size defaults to `block.json`.
+DECISIONS PRO-2440. **Unreleased on main** (readme
 changelog lines belong to the next bump). **Release state unchanged: 3.12.1
 is LIVE on wordpress.org.**)_
 

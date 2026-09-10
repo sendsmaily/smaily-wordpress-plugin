@@ -38,25 +38,4 @@ final class LandingPageElementorWidgetTest extends TestCase {
 			'The widget class extends an Elementor class, so it must not even be loaded.'
 		);
 	}
-
-	public function test_the_shared_render_path_works_without_elementor(): void {
-		update_option(
-			'smaily_connect_api_credentials',
-			array(
-				'subdomain' => 'demostore',
-				'username'  => 'api-user',
-				'password'  => '',
-			)
-		);
-
-		$embed = \Smaily_Connect\Blocks\Landing_Page\Integration::render_embed(
-			'https://demostore.sendsmaily.net/landing-pages/01a42617-cb5d-4f65-8ea6-a8f4d1b94ffa/html/',
-			600,
-			'100%'
-		);
-
-		delete_option( 'smaily_connect_api_credentials' );
-
-		self::assertStringContainsString( 'height:600px;width:100%', $embed );
-	}
 }

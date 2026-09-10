@@ -81,23 +81,13 @@ after — PRO-1256), or recover afterwards with
 connection from the durable snapshot without running the suite).
 
 ### A WP global assigned at file scope is EMPTY in the integration suite unless the bootstrap binds it
-PHPUnit includes `tests/Integration/bootstrap.php` from inside a method and
-then copies every local that file defined into `$GLOBALS`
-(`PHPUnit\Util\FileLoader`). A WordPress global created by a bare file-scope
-assignment rather than a `global` statement — `$shortcode_tags` is
-`$shortcode_tags = array();` in `wp-includes/shortcodes.php` — is therefore a
-LOCAL of that method: it stays empty while `add_shortcode()` fills the real
-global, and then OVERWRITES it the moment the bootstrap returns. Symptom:
-`did_action( 'init' )` is 1, block styles are registered, and yet
-`do_shortcode()` returns its input verbatim and `shortcode_exists()` is false
-for WooCommerce's and WordPress's OWN shortcodes too — while an ordinary
-`wp eval` in the same container shows them all. Cost ~an hour to find (2026-09-10,
-PRO-2440). The fix is one line at the top of the bootstrap, BEFORE `require
-$wp_load`: `global $shortcode_tags;` — the assignment then writes straight to
-the global and the copy-back is a no-op. `backupGlobals="false"` and
-`@backupGlobals disabled` do NOT help; this is not the global-state snapshot.
-If a future test finds another WP global mysteriously empty, bind it the same
-way rather than re-registering things in `setUp()`.
+Symptom: shortcodes are silently absent in the integration suite — ours,
+WooCommerce's and core's — while an ordinary `wp eval` in the same container
+shows them all (2026-09-10, PRO-2440). The rule: `global $shortcode_tags;` at
+the top of `tests/Integration/bootstrap.php`, BEFORE requiring wp-load — and
+the same for any other WP global created by a bare file-scope assignment. Why
+that one line is the fix is explained in the comment beside it in the
+bootstrap.
 
 ### Live-walk needs a fresh setup-token — from the SANDBOX tenant, never MiuMjau
 **MiuMjau IS the pilot's PRODUCTION tenant** (engine-side correction,
