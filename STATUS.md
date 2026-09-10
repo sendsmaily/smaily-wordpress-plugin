@@ -26,7 +26,36 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-10 (**PRO-2433 / PRO-2434 / PRO-2435 / PRO-2436 —
+_Last updated: 2026-09-10 (**PRO-2440 — the landing page reaches
+page-builder pages.** The landing-page block is delivered only through
+`the_content` → `do_blocks()`, and every page builder replaces that string
+first — Elementor swaps the whole content on any page it owns — so merchants
+on a builder place the block, see it in the editor and publish an empty page.
+Two new surfaces, one render path: a `[smaily_landing_page url="…"
+height="…" width="…"]` shortcode, and a native Elementor widget "Smaily
+Landing Page" in the existing Smaily category. Both validate the pasted
+address SERVER-side against the store's own Smaily account
+(`Integration::landing_page_key()`, the twin of the block editor's URL
+parser) and then call the block's own renderer, so escaping, wrapper markup
+and the constructed URL cannot drift; a refused address renders nothing.
+Sizes now also accept a percentage, which is how a builder column is filled.
+The widget is loaded only behind `Helper::is_elementor_active()`. Gates:
+`ci:strict` exit=0 (unit 806 tests / PHPCS / PHPStan / vitest 312);
+integration **OK (300 tests / 1 763 assertions)**, sandbox tenant "Smaily
+Connect test" restored. New tests: `tests/Integration/
+LandingPageShortcodeRenderTest.php`, `…/LandingPageElementorWidgetTest.php`,
+`tests/Unit/Blocks/LandingPageUrlTest.php`. **Human acceptance outstanding:**
+there is no Elementor in wp-env, so the widget's editor and published-page
+behaviour is a human check on a real store. Also fixed on the way: the
+integration bootstrap now binds `$shortcode_tags`, because PHPUnit's file
+loader was overwriting the real global with the empty local WordPress leaves
+behind — no shortcode at all existed by the time a test ran (CLAUDE.md has
+the note). The Estonian docs-site paragraphs need Erkki's proofread before
+the site is published. DECISIONS PRO-2440. **Unreleased on main** (readme
+changelog lines belong to the next bump). **Release state unchanged: 3.12.1
+is LIVE on wordpress.org.**)_
+
+Prior: 2026-09-10 (**PRO-2433 / PRO-2434 / PRO-2435 / PRO-2436 —
 four residues from the MiuMjau "deactivated, still slow" investigation.**
 The store reported slowness + intermittent 500 after 3.12.1 and deactivated
 the plugin; outside curl timings put the uncached baseline at 1.5–2.3 s TTFB
