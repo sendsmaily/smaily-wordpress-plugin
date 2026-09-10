@@ -131,6 +131,10 @@ final class EnvScrub {
 			// marker is autoload=false, so a cached value would make the init
 			// registration skip its checks in a test that just swept it.
 			\Smaily\Connect\Bootstrap::OPTION_AS_JOBS_VERIFIED,
+			// Same class again (PRO-2434): the upgrade runner's lock is
+			// autoload=false, so a cached value would let a swept lock still
+			// block the next test's upgrade run.
+			\Smaily\Connect\Support\UpgradeLock::OPTION,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

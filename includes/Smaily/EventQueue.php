@@ -355,7 +355,7 @@ class EventQueue {
 		$table    = $this->table_name();
 		$sendable = implode( ', ', array_fill( 0, count( self::STATUSES_SENDABLE ), '%s' ) );
 
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 		$result['removed'] = (int) $wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$table} WHERE status IN ( {$sendable} ) AND {$where[0]}",
@@ -371,7 +371,7 @@ class EventQueue {
 			),
 			ARRAY_A
 		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
 			$wpdb->update(

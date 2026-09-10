@@ -624,7 +624,8 @@ final class Bootstrap {
 
 		try {
 			if ( function_exists( 'set_time_limit' ) ) {
-				set_time_limit( 300 ); // What core's WP_Upgrader allows itself.
+				// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- What core's WP_Upgrader allows itself.
+				set_time_limit( 300 );
 			}
 			Activation::run();
 		} finally {
