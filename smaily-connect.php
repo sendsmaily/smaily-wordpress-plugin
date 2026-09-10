@@ -2,7 +2,7 @@
 /*
  * Author URI:           https://smaily.com
  * Author:               Smaily
- * Description:          Connect your WooCommerce shop to Smaily for email marketing, automation, and personalised recommendations. (BETA: extended e-commerce sync and Smaily Campaign Intelligence integration.)
+ * Description:          Connect your WooCommerce shop to Smaily for email marketing, automation, and personalised recommendations.
  * Domain Path:          /languages
  * License URI:          https://www.gnu.org/licenses/gpl-3.0.en.html
  * License:              GPL-3.0+

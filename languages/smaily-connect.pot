@@ -28,7 +28,7 @@ msgstr ""
 
 #. Description of the plugin
 #: smaily-connect.php
-msgid "Connect your WooCommerce shop to Smaily for email marketing, automation, and personalised recommendations. (BETA: extended e-commerce sync and Smaily Campaign Intelligence integration.)"
+msgid "Connect your WooCommerce shop to Smaily for email marketing, automation, and personalised recommendations."
 msgstr ""
 
 #. Author of the plugin

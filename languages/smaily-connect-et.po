@@ -21,8 +21,8 @@ msgstr "https://smaily.com/help/user-manual/smaily-connect-for-wordpress/"
 
 #. Description of the plugin
 #: smaily-connect.php
-msgid "Connect your WooCommerce shop to Smaily for email marketing, automation, and personalised recommendations. (BETA: extended e-commerce sync and Smaily Campaign Intelligence integration.)"
-msgstr "Ühenda oma WooCommerce'i pood Smailyga e-posti turunduse, automatiseerimise ja personaalsete soovituste jaoks. (BETA: laiendatud e-poe sünkroonimine ja Smaily Campaign Intelligence integratsioon.)"
+msgid "Connect your WooCommerce shop to Smaily for email marketing, automation, and personalised recommendations."
+msgstr "Ühenda oma WooCommerce'i pood Smailyga e-posti turunduse, automatiseerimise ja personaalsete soovituste jaoks."
 
 #. Author of the plugin
 #: smaily-connect.php

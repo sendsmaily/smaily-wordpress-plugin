@@ -55,7 +55,11 @@ GH release `3.13.0` on `fbb3608`; CI run 34465806559 green; the attached asset
 3.13.0` exit=0, build-hash `fbb3608`; `./release.sh -u sendsmaily` run by Erkki;
 the wordpress.org API and the SVN tag both confirm **3.13.0**. The merchant docs
 site was published over FTPS at 09:58 UTC — the live copy at
-`https://smaily.com/connect-woo/` is byte-identical to `docs/site/index.html`.)_
+`https://smaily.com/connect-woo/` is byte-identical to `docs/site/index.html`.
+**Unreleased on main after 3.13.0:** PRO-2449 — the plugin header
+`Description:` no longer carries the `(BETA: extended e-commerce sync …)`
+parenthetical (the `.pot`/`.po` msgid + Estonian msgstr updated with it); ships
+with the next bump.)_
 
 Prior: 2026-09-10 (**PRO-2438 — the daily janitor now clears the
 plugin's own finished background jobs.** Action Scheduler's own cleaner purges
