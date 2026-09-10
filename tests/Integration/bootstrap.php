@@ -54,6 +54,17 @@ $_SERVER['SCRIPT_FILENAME'] = $wp_load;
 $_SERVER['HTTP_HOST']       = 'localhost';
 $_SERVER['REQUEST_URI']     = '/';
 
+// PHPUnit includes this bootstrap from inside a method and afterwards copies
+// every local it defined into $GLOBALS (PHPUnit\Util\FileLoader). A WordPress
+// global that is created by a bare file-scope assignment rather than a
+// `global` statement — $shortcode_tags is `$shortcode_tags = array();` in
+// wp-includes/shortcodes.php — is therefore a LOCAL here, stays empty while
+// add_shortcode() fills the real global, and then overwrites it the moment
+// this file returns: every shortcode registered on `init` is gone before the
+// first test runs. Binding the name makes the assignment write straight to
+// the global, so the copy-back is a no-op.
+global $shortcode_tags;
+
 require_once $wp_load;
 
 // Activate the plugin if WP hasn't done so yet. Idempotent — WP's

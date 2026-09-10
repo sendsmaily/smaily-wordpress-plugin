@@ -6474,6 +6474,35 @@ on it is what a merchant screenshots.
 'group', 1 )` right after registration. No block.json change: WordPress has no
 footer flag for `editorScript`.
 
+### PRO-2440 — The landing page reaches page-builder pages through a shortcode, on the block's own render path (2026-09-10)
+
+**Context:** the landing-page block is delivered only through `the_content` →
+`do_blocks()`. Every page builder replaces that string first — Elementor's
+`apply_builder_in_content()` swaps the whole content on any page it owns — so
+the block's HTML is discarded and the merchant sees nothing. Elementor's Text
+Editor widget runs shortcodes but not blocks, and its HTML widget strips
+iframes from anyone without `unfiltered_html`.
+**Decision:** a `[smaily_landing_page url="…" height="…" width="…"]` shortcode,
+registered next to the block registration, whose only job is to turn the pasted
+address into the block's own attributes and call the block's renderer. The
+address is parsed SERVER-side by `Integration::landing_page_key()` — https, the
+store's OWN Smaily account, a landing-page path, a UUID key — the server-side
+twin of the editor's URL parser; a refused address renders nothing at all.
+Nothing is ever built from the raw input: the embed URL is still composed from
+the validated parts, so escaping, wrapper markup and validation cannot drift
+between the two surfaces.
+**Rationale:** the failure mode we are fixing is silence — the merchant places
+the block, sees it in the editor, and the published page is empty. A second
+renderer would be a second place for the escaping rules to rot, which is what
+PRO-2346 already cost us once.
+**Alternatives:** pointing `add_shortcode` straight at `render()` (rejected — a
+shortcode written without attributes receives `''`, not an array, and `render()`
+reads its keys unguarded, so it would warn); telling merchants to use a raw HTML
+element (rejected — it is exactly the iframe-stripping path PRO-2346 closed).
+**Relationships:** PRO-2346 (server-side block rendering, the same render path);
+sizes now also accept a percentage, which is how a builder column is filled —
+the block itself still stores numbers and renders identically.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
