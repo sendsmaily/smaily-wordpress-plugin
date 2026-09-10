@@ -47,7 +47,15 @@ stops at its ceiling and the next takes the remainder; missing tables are a
 no-op). DECISIONS PRO-2438, CLAUDE.md "Deactivation cancels our AS groups",
 ARCHITECTURE recurring-jobs table.
 **Unreleased on main** (readme changelog lines belong to the next bump).
-**Release state unchanged: 3.12.1 is LIVE on wordpress.org.**)_
+**Release state unchanged: 3.12.1 is LIVE on wordpress.org.**
+**3.13.0 release gate RAN (2026-09-10, pre-bump):** the delta audit over
+`a348b10..f5f865c` came back **0 Blocking / 0 Critical / 0 High / 0 Medium,
+2 Low, 7 Info — 3.13.0 may proceed**, and Plugin Check against the built ZIP is
+**0 ERRORS, 9 WARNINGS** (0/5 at the 3.12.0 baseline; no new ERROR, one new
+warning class — the deliberate `set_time_limit( 300 )` — the rest suppression
+hygiene), with `bin/verify-release-zip.sh … 3.12.1` exit=0 and `ci:strict`
+exit=0. Report: `docs/audits/2026-09-10-delta-audit-3.13.0.md`, register row in
+`docs/audits/INDEX.md`.)_
 
 **Next session opens with (2026-09-10 session close):**
 
