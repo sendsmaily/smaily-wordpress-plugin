@@ -54,20 +54,16 @@ export function Step4Recommendations({
           <h2 className="mt-1 text-2xl font-semibold text-text-primary">
             {__('Campaign Intelligence', 'smaily-connect')}
           </h2>
-          <p className="mt-2 text-sm text-text-secondary">
-            {__(
-              'Campaign Intelligence uses your store’s product, customer and order data to create personalised product recommendations for Smaily campaigns and automations. This helps you send more relevant emails with less manual work.',
-              'smaily-connect',
-            )}
-          </p>
-          <p className="mt-2 text-sm text-text-secondary">
-            {__(
-              'Campaign Intelligence is an optional paid add-on (€250/month), added to your regular Smaily monthly payment. Contact Smaily to activate it, or set it up later.',
-              'smaily-connect',
-            )}
-          </p>
+          <div className="mt-2">
+            <IntroCopy />
+          </div>
         </div>
       )}
+
+      {/* Settings tab (PRO-1725): the same introduction the wizard step
+          carries, shown only while the engine is not connected — once it
+          is, the tab is a management screen, not a pitch. */}
+      {inSettings && !isConnected && <IntroCopy />}
 
       {/* Wizard-only pointer back to Step 3 (T2.2): the engine-run
           automations section lives under the WooCommerce automations,
@@ -101,6 +97,32 @@ export function Step4Recommendations({
       ) : (
         <SetupCard dispatch={dispatch} />
       )}
+    </div>
+  );
+}
+
+/**
+ * The Campaign Intelligence introduction (PRO-2298 marketing copy).
+ *
+ * One source for both surfaces that show it — the wizard step header and
+ * the Settings tab (PRO-1725) — so the text and its translation cannot
+ * drift apart.
+ */
+function IntroCopy(): React.JSX.Element {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-text-secondary">
+        {__(
+          'Campaign Intelligence uses your store’s product, customer and order data to create personalised product recommendations for Smaily campaigns and automations. This helps you send more relevant emails with less manual work.',
+          'smaily-connect',
+        )}
+      </p>
+      <p className="text-sm text-text-secondary">
+        {__(
+          'Campaign Intelligence is an optional paid add-on (€250/month), added to your regular Smaily monthly payment. Contact Smaily to activate it, or set it up later.',
+          'smaily-connect',
+        )}
+      </p>
     </div>
   );
 }

@@ -23,12 +23,28 @@ describe('Step4Recommendations — the wizard header introduces Campaign Intelli
     expect(screen.queryByText(/Sync product, customer and order data/)).not.toBeInTheDocument();
   });
 
-  it('omits the header block in Settings', () => {
+  it('omits the wizard step heading in Settings but keeps the introduction (PRO-1725)', () => {
     render(<Step4Recommendations state={wizardInitialState} dispatch={vi.fn()} inSettings />);
 
-    expect(screen.queryByText(INTRO)).not.toBeInTheDocument();
-    expect(screen.queryByText(PRICING)).not.toBeInTheDocument();
     expect(screen.queryByText('Step 4 of 6')).not.toBeInTheDocument();
+    expect(screen.getByText(INTRO)).toBeInTheDocument();
+    expect(screen.getByText(PRICING)).toBeInTheDocument();
+  });
+
+  it('renders the very same paragraphs in the wizard and in Settings (PRO-1725)', () => {
+    const wizard = render(
+      <Step4Recommendations state={wizardInitialState} dispatch={vi.fn()} />,
+    );
+    const wizardText = [screen.getByText(INTRO), screen.getByText(PRICING)].map(
+      (node) => node.textContent,
+    );
+    wizard.unmount();
+
+    render(<Step4Recommendations state={wizardInitialState} dispatch={vi.fn()} inSettings />);
+
+    expect([screen.getByText(INTRO), screen.getByText(PRICING)].map((n) => n.textContent)).toEqual(
+      wizardText,
+    );
   });
 });
 

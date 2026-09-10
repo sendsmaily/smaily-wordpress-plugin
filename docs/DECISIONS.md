@@ -6513,6 +6513,32 @@ and no Elementor class is loaded.
 sizes now also accept a percentage, which is how a builder column is filled —
 the block itself still stores numbers and renders identically.
 
+### PRO-1725 — The Campaign Intelligence tab carries the wizard's introduction, until it is connected (2026-09-10)
+
+**Context:** the two-paragraph Campaign Intelligence introduction (what it does,
+and that it is an optional paid add-on at €250/month) has been marketing's final
+copy in the setup wizard since 3.11.2 (PRO-2298). A merchant who finished the
+wizard without connecting the engine never sees it again: the Settings tab
+opened straight onto a setup field asking for a link they have no reason to
+have, with no statement of what the feature is or that it must be bought.
+**Decision:** the same two paragraphs render at the top of the Settings →
+Campaign Intelligence tab, above the connection controls, and ONLY while the
+engine is not connected. Once connected the tab is a management screen — the
+pitch is gone and the connection, imports and toggles stay where they were.
+**Rationale:** the tab is where a merchant goes to find out whether the feature
+is for them; a price is part of the answer. Repeating it to a store that already
+pays for it is noise.
+**One source:** the copy lives once, in `IntroCopy` inside
+`Step4Recommendations.tsx`, rendered by both the wizard header and the Settings
+tab. No second string, so no second `.po` entry that can drift out of step with
+the English — the Estonian translation already in the catalog serves both
+surfaces (proved by a test that renders the tab through the catalog's own
+`msgstr`).
+**Human acceptance:** the copy and its placement on the tab are Jane's call
+(marketing owns the text); the code change is what makes the same words appear
+in both places.
+**Relationships:** PRO-2298 (the copy itself, wizard step 4).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

@@ -26,7 +26,25 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-10 (**PRO-2440 — the landing page reaches
+_Last updated: 2026-09-10 (**PRO-1725 — the Campaign Intelligence Settings tab
+states what the feature is, and its price.** A merchant who finished the wizard
+without connecting the engine never saw the introduction again: the tab opened
+straight onto a setup field. The same two paragraphs the wizard step has carried
+since 3.11.2 (PRO-2298) now render at the top of Settings → Campaign
+Intelligence, above the connection controls, and only while the engine is NOT
+connected — once it is, the tab is a management screen. One source (`IntroCopy`
+in `Step4Recommendations.tsx`, used by both surfaces), so there is no second
+string and no second translation to drift; the Estonian already in the catalog
+serves both. Gates: `ci:strict` exit=0 (unit / PHPCS / PHPStan / vitest 316).
+No PHP touched, so no integration run. New tests: `admin/src/components/
+settings/Settings.campaignIntelligenceIntro.test.tsx` (shown when not
+connected, in Estonian through the shipped catalog, gone when connected) plus
+two cases in `Step4Recommendations.test.tsx`. **Human acceptance outstanding:**
+copy and placement are Jane's approval. DECISIONS PRO-1725. **Unreleased on
+main** (readme changelog lines belong to the next bump). **Release state
+unchanged: 3.12.1 is LIVE on wordpress.org.**)_
+
+Prior: 2026-09-10 (**PRO-2440 — the landing page reaches
 page-builder pages.** The landing-page block is delivered only through
 `the_content` → `do_blocks()`, and every page builder replaces that string
 first — Elementor swaps the whole content on any page it owns — so merchants
