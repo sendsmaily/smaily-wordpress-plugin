@@ -26,7 +26,35 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-08 (**PRO-2391 — hotfix 3.12.1: every shipped bundle
+_Last updated: 2026-09-10 (**PRO-2433 / PRO-2434 / PRO-2435 / PRO-2436 —
+four residues from the MiuMjau "deactivated, still slow" investigation.**
+The store reported slowness + intermittent 500 after 3.12.1 and deactivated
+the plugin; outside curl timings put the uncached baseline at 1.5–2.3 s TTFB
+with the plugin off AND on (a 15.7 MB page, slow static images, WC's own
+`get_customer_location`), so the plugin was not the driver of that — but the
+request-path audit found what it leaves behind. (1) `Deactivation::run()`
+now cancels every action in the plugin's Action Scheduler groups: AS re-arms
+recurring actions regardless of listeners, so the deactivated store kept
+running ~10k empty actions/day (466 148 rows on the Scheduled Actions
+screen). (2) `Bootstrap::maybe_run_upgrade` runs behind `Support\UpgradeLock`
+(`add_option`-atomic, 15-min stale takeover, `set_time_limit( 300 )`, stamp
+still LAST) so migration 011's `ALTER TABLE` cannot be started N times in
+parallel by admin-ajax. (3) ProfilingConsent's stale cache was a no-expiry
+transient = one autoloaded option per contact forever; now `YEAR_IN_SECONDS`,
+and `Activation` purges the old rows on upgrade. (4) The checkout opt-in
+block's editor script is marked a footer script, ending the WC "registered
+to load in the header" console warning. Gates: `ci:strict` exit=0 (unit + PHPCS + PHPStan + vitest 312);
+integration **OK (289 tests / 1 741 assertions)**, sandbox tenant "Smaily
+Connect test" restored. New
+tests: `tests/Unit/Support/UpgradeLockTest.php`, `tests/Integration/
+DeactivationTest.php`, `…/CheckoutOptinBlockScriptTest.php`, three cases in
+`BackwardCompatTest`. Follow-ups filed: PRO-2437 (cache the per-request AS
+checks), PRO-2438 (janitor prunes our own old AS rows). DECISIONS
+PRO-2433..2436, LESSONS §2.27, CLAUDE.md "Deactivation cancels our AS
+groups". **Unreleased on main** (readme changelog lines belong to the next
+bump). **Release state unchanged: 3.12.1 is LIVE on wordpress.org.**)_
+
+Prior: 2026-09-08 (**PRO-2391 — hotfix 3.12.1: every shipped bundle
 is an IIFE.** MiuMjau reported variable products unsellable with the plugin
 active: `sc-runtime.js` was `es`-format output loaded as a classic script, its
 top-level `const … _=/^vt_…/` shadowed Underscore for `wp-util`

@@ -64,6 +64,9 @@ if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
 if ( ! defined( 'DAY_IN_SECONDS' ) ) {
 	define( 'DAY_IN_SECONDS', 86400 );
 }
+if ( ! defined( 'YEAR_IN_SECONDS' ) ) {
+	define( 'YEAR_IN_SECONDS', 365 * 86400 );
+}
 
 // WP REST infrastructure stubs — the unit suite tests endpoint handlers
 // in isolation without standing up wp-includes/rest-api.php. The shims

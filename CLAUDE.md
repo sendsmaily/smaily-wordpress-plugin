@@ -424,6 +424,33 @@ clamp just locks it. Contact sync is gated by `setup_completed` (email wizard),
 independent of the rec-engine — so this can ship to a non-engine store. The corrective mass re-sync of an already-
 drifted store is the backfill running the SAME resolver (SP-B), not a one-off.
 
+### Deactivation cancels our AS groups; the upgrade runs behind UpgradeLock; never `set_transient( …, 0 )` per entity (PRO-2433..2436)
+Three residues found on MiuMjau (2026-09-10, "deactivated the plugin, still
+slow"):
+- **`Deactivation::run()` cancels every action in `Deactivation::AS_GROUPS`**
+  (`as_unschedule_all_actions( '', [], $group )`). AS re-arms a recurring
+  action whether or not the hook has a listener, so the old "deliberately
+  stay queued" left ~10k empty actions/day running on a deactivated store.
+  A new AS group MUST be added to that list. Queue rows are untouched;
+  `register_action_scheduler_jobs` (init) re-arms on re-activation — a test
+  that cancels actions must call it again in tearDown (`DeactivationTest`).
+- **`Bootstrap::maybe_run_upgrade` takes `Support\UpgradeLock` first** —
+  `admin_init` also fires for every admin-ajax request, so an unlocked long
+  migration (011's `ALTER TABLE`) is started N times in parallel. The lock
+  is `add_option()`-atomic, 15-min stale takeover, released in `finally`;
+  the version stamp stays LAST. A test that pre-seeds the lock must delete
+  it in `finally` or every later upgrade-detect test silently no-ops.
+- **A no-expiry transient (`set_transient( …, 0 )`) is an AUTOLOADED
+  option, forever.** One per contact = `alloptions` grows with the customer
+  base. Per-entity caches get a finite TTL (autoload=off, self-expiring);
+  the unit test pins every ProfilingConsent cache write to a TTL > 0.
+- Cosmetic but merchant-visible: a `block.json` `editorScript` registers in
+  the header; if it depends on `wc-settings`, WooCommerce moves it and logs a
+  console warning naming us — `wp_script_add_data( handle, 'group', 1 )`.
+Follow-ups filed, not done: PRO-2437 (cache the 11 per-request
+`as_has_scheduled_action` checks), PRO-2438 (janitor prunes our own old AS
+rows — AS never purges `failed`).
+
 ### Build / test / walk commands
 - `npm run ci:strict` — PHPCS + PHPStan + PHPUnit unit + JS (eslint/tsc/vitest).
   Must be `exit=0`.

@@ -6409,6 +6409,71 @@ wrapping does nothing about what the MINIFIER hoists. The format flag is the
 mechanism designed for this; the scope check is the guard that outlives the
 next config change.
 
+### PRO-2433 — Deactivation cancels the plugin's Action Scheduler groups (2026-09-10)
+
+**Context:** MiuMjau deactivated the plugin over site slowness and the site
+stayed slow. `Deactivation::run()` was empty by design ("AS jobs deliberately
+stay queued so pending events resume on re-activation"). But Action Scheduler
+re-arms a recurring action after every run whether or not the hook has a
+listener, so the seven 60-second flushers kept executing ~10 000 empty actions
+a day on the deactivated store, forever — the Scheduled Actions screen showed
+466 148 rows. The pending EVENTS were never in AS: they are rows in the
+plugin's own tables.
+**Decision:** deactivation calls `as_unschedule_all_actions( '', [], $group )`
+for every group the plugin schedules into (`Deactivation::AS_GROUPS`).
+Re-activation recreates the recurring set (`Bootstrap::
+register_action_scheduler_jobs` on init + `Activation::run`) and the flushers
+drain the untouched queue rows. Supersedes the "stay queued" rule.
+**Accepted loss:** a backfill tick in flight at deactivation is cancelled; it
+was lost anyway (its reschedule happens inside our callback, which no longer
+runs). The merchant restarts the import.
+**Relationships:** PRO-2437 (cache the per-request re-arm check) and PRO-2438
+(prune our own old AS rows — AS never purges `failed`) are the follow-ups.
+
+### PRO-2434 — The inline upgrade runs behind a lock, one request at a time (2026-09-10)
+
+**Context:** `Bootstrap::maybe_run_upgrade` (admin_init — which every
+admin-ajax request also fires) runs `Activation::run()` inline whenever the
+stored version trails the code, and stamps the version only at the END.
+Migration 011 (3.12.0) adds a column + composite index to the event queue;
+on a large store that `ALTER TABLE` can outlive `max_execution_time`, the
+request dies unstamped, and every admin request arriving meanwhile starts the
+same DDL again — concurrently, each holding metadata locks on the table every
+flusher waits on. Plausible for MiuMjau's "slow + intermittent 500 after the
+update"; not confirmed (no server log).
+**Decision:** `Support\UpgradeLock` — `add_option()` (INSERT IGNORE on the
+unique option_name) as the atomic primitive, a 15-minute stale-lock takeover
+for a holder that died mid-DDL, released in `finally`. The runner also raises
+`set_time_limit( 300 )`, what core's `WP_Upgrader` allows itself. The version
+stamp stays LAST: a failed migration must re-run, never be marked done.
+**Alternatives rejected:** stamp-first (hides a failed migration forever);
+moving migrations to an AS job (the very next request needs the schema).
+
+### PRO-2435 — The ProfilingConsent stale cache gets a finite TTL; the autoloaded rows are purged on upgrade (2026-09-10)
+
+**Context:** `remember()` wrote the stale fallback with `set_transient( …, 0 )`.
+WordPress stores a no-expiry transient as an AUTOLOADED option — one
+permanent `alloptions` row per contact whose consent was ever resolved,
+loaded into memory on every request, never cleaned up.
+**Decision:** `STALE_CACHE_TTL = YEAR_IN_SECONDS` (a timed transient is
+autoload=off and self-expiring; a year outlives any outage it serves), and
+`Activation::purge_autoloaded_profiling_cache()` drops every
+`_transient_smly_profiling_stale_*` row on upgrade — cheap to lose (it only
+serves a read error; the durable opt-out registry is untouched).
+**Rule:** never `set_transient( …, 0 )` for a per-entity key. Zero expiry is
+for a handful of site-wide values, not for anything keyed by user/contact.
+
+### PRO-2436 — The checkout opt-in block's editor script is marked a footer script (2026-09-10)
+
+**Context:** `register_block_type()` registers `block.json`'s `editorScript`
+in the header; its `wc-settings`/`wc-blocks-checkout` dependencies must load
+in the footer, so WooCommerce moved the handle itself and printed a console
+warning naming us on every storefront. Cosmetic, but a warning with our name
+on it is what a merchant screenshots.
+**Decision:** `wp_script_add_data( 'smaily-checkout-optin-editor-script',
+'group', 1 )` right after registration. No block.json change: WordPress has no
+footer flag for `editorScript`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

@@ -54,6 +54,7 @@ final class Activation {
 		self::run_migrations();
 		self::drain_legacy_abandoned_carts();
 		self::cleanup_retired_options();
+		self::purge_autoloaded_profiling_cache();
 		self::reencrypt_legacy_secrets();
 		self::migrate_wp_cron_to_action_scheduler();
 		self::schedule_recurring_action_scheduler_jobs();
@@ -180,6 +181,28 @@ final class Activation {
 		foreach ( $dead_keys as $key ) {
 			delete_option( $key );
 		}
+	}
+
+	/**
+	 * Before PRO-2435 the ProfilingConsent stale cache was written as a
+	 * no-expiry transient — an AUTOLOADED wp_options row per contact that
+	 * nothing ever removed (`alloptions` grew with the customer base). Drop
+	 * every stale-cache row on upgrade so an affected store recovers; the
+	 * rows the fixed code writes are cheap to lose (they only serve a read
+	 * error, and the durable opt-out registry is untouched).
+	 */
+	private static function purge_autoloaded_profiling_cache(): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-time prefix sweep on upgrade; per-row delete_transient() would need the full list first.
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+				$wpdb->esc_like( '_transient_smly_profiling_stale_' ) . '%',
+				$wpdb->esc_like( '_transient_timeout_smly_profiling_stale_' ) . '%'
+			)
+		);
+		wp_cache_delete( 'alloptions', 'options' );
 	}
 
 	/**

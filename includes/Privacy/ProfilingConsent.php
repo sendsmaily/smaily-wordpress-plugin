@@ -46,6 +46,13 @@ class ProfilingConsent {
 	private const STALE_CACHE_PREFIX = 'smly_profiling_stale_';
 	private const OPTION_OPTOUTS     = 'smly_profiling_optouts';
 	private const CACHE_TTL          = DAY_IN_SECONDS;
+	/**
+	 * The stale fallback cache used to be a NO-expiry transient (PRO-1194) —
+	 * which WordPress stores as an AUTOLOADED option, one per contact,
+	 * forever (PRO-2435). A finite TTL makes it a regular non-autoloaded,
+	 * self-expiring row; a year outlives any Smaily outage it is there for.
+	 */
+	private const STALE_CACHE_TTL    = YEAR_IN_SECONDS;
 
 	private RecEngineSettings $settings;
 
@@ -226,7 +233,7 @@ class ProfilingConsent {
 	 */
 	private function remember( string $email, bool $allowed ): void {
 		$this->cache( $email, $allowed );
-		set_transient( self::stale_cache_key( $email ), $allowed ? '1' : '0', 0 );
+		set_transient( self::stale_cache_key( $email ), $allowed ? '1' : '0', self::STALE_CACHE_TTL );
 		$this->remember_optout( $email, $allowed );
 	}
 

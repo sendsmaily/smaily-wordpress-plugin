@@ -968,6 +968,38 @@ Examples:
 checks — both are needed. **A staging walkthrough with a domain expert catches spec
 errors that technical tests don't catch.**
 
+
+### 2.27 What a plugin leaves RUNNING after deactivation is still yours — and "deactivated, still slow" is the tell (PRO-2433..2438, MiuMjau, 2026-09-10)
+
+A merchant deactivates the plugin over slowness; the site stays slow; the
+merchant concludes it was never the plugin. Maybe — but a WordPress plugin's
+footprint is not only its PHP on the request path:
+
+1. **Recurring background jobs outlive deactivation.** Action Scheduler
+   re-arms a recurring action after every run regardless of listeners, so
+   our seven 60-second flushers kept producing ~10 000 empty actions a day
+   on the deactivated store. `Deactivation::run()` said "deliberately stay
+   queued" — the reasoning confused the QUEUE ROWS (ours, in our tables, safe)
+   with the AS ACTIONS (not ours to leave running). Cancel by group.
+2. **Per-request checks scale with tables you bloat yourself.** Eleven
+   `as_has_scheduled_action()` queries on every `init` are cheap on a
+   1 000-row table and not on a 466 000-row one — and the rows were mostly
+   ours. AS never purges `failed` actions; 6 880 of ours from a June bug were
+   still there in September (PRO-2438).
+3. **A no-expiry transient is a permanent autoloaded option.** `set_transient(
+   $per_contact_key, …, 0 )` grows `alloptions` with the customer base.
+   Any zero-expiry transient keyed by an entity is a bug.
+4. **An inline upgrade on `admin_init` is a concurrent upgrade.** admin_init
+   fires for every admin-ajax request; a DDL that outlives
+   `max_execution_time` dies unstamped and is restarted by the next N
+   requests in parallel. Lock it (`UpgradeLock`), and keep the version
+   stamp LAST.
+5. **Measure from outside before blaming or absolving.** Three curl
+   timings with the plugin off and on (same URLs, cache bypassed) put the
+   baseline at 1.5–2.3 s TTFB either way — the plugin was not the driver
+   of THAT slowness — while the audit still found the four residues above.
+   Both statements are true; report both.
+
 ---
 
 ## 4. Concrete checklist for the start of a new project

@@ -38,6 +38,7 @@ use Smaily\Connect\REST\EndpointRegistry;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
+use Smaily\Connect\Support\UpgradeLock;
 use Smaily\Connect\Smaily\AutomationRouter;
 use Smaily\Connect\Smaily\CartAbandonmentSweeper;
 use Smaily\Connect\Smaily\CartFlusher;
@@ -598,7 +599,22 @@ final class Bootstrap {
 			return;
 		}
 
-		Activation::run();
+		// PRO-2434: one runner at a time — admin_init fires for every
+		// admin-ajax request too, and a long migration must not be started
+		// N times in parallel by the requests that arrive while it runs.
+		$lock = new UpgradeLock();
+		if ( ! $lock->acquire() ) {
+			return;
+		}
+
+		try {
+			if ( function_exists( 'set_time_limit' ) ) {
+				set_time_limit( 300 ); // What core's WP_Upgrader allows itself.
+			}
+			Activation::run();
+		} finally {
+			$lock->release();
+		}
 	}
 
 	/**

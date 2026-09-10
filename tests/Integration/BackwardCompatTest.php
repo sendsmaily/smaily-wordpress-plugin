@@ -18,6 +18,7 @@ use Smaily\Connect\Integrations\WooCommerce\LegacyHookBridge;
 use Smaily\Connect\Settings\CredentialSet;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Support\UpgradeLock;
 
 /**
  * The BETA fork loads the legacy Smaily_Connect plugin verbatim alongside
@@ -92,6 +93,51 @@ final class BackwardCompatTest extends TestCase {
 			$wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ),
 			'The new rec-engine table must exist after an upgrade-detect run.'
 		);
+	}
+
+	public function test_upgrade_trigger_yields_while_another_request_holds_the_lock(): void {
+		// PRO-2434: admin_init fires for every admin-ajax request; while one
+		// request is inside a long migration the others must not start it too.
+		update_option( Activation::OPTION_PLUGIN_VERSION, '0.0.0-pre' );
+		add_option( UpgradeLock::OPTION, (string) time(), '', false );
+
+		try {
+			Bootstrap::instance()->maybe_run_upgrade();
+
+			self::assertSame(
+				'0.0.0-pre',
+				(string) get_option( Activation::OPTION_PLUGIN_VERSION ),
+				'A concurrent caller must leave the upgrade to the lock holder.'
+			);
+		} finally {
+			delete_option( UpgradeLock::OPTION );
+		}
+	}
+
+	public function test_upgrade_trigger_takes_over_an_abandoned_lock_and_releases_it(): void {
+		update_option( Activation::OPTION_PLUGIN_VERSION, '0.0.0-pre' );
+		add_option( UpgradeLock::OPTION, (string) ( time() - UpgradeLock::TTL - 1 ), '', false );
+
+		Bootstrap::instance()->maybe_run_upgrade();
+
+		self::assertSame( (string) SMAILY_CONNECT_VERSION, (string) get_option( Activation::OPTION_PLUGIN_VERSION ) );
+		self::assertFalse( get_option( UpgradeLock::OPTION ), 'The lock is released after the run.' );
+	}
+
+	public function test_upgrade_purges_the_autoloaded_profiling_stale_cache(): void {
+		global $wpdb;
+		// The pre-PRO-2435 shape: a no-expiry transient = an autoloaded option.
+		set_transient( 'smly_profiling_stale_' . md5( 'a@example.com' ), '1', 0 );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+		$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( '_transient_smly_profiling_stale_' ) . '%' ) );
+		self::assertSame( 1, $before );
+
+		Activation::run();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery
+		$after = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( '_transient_smly_profiling_stale_' ) . '%' ) );
+		self::assertSame( 0, $after, 'Every stale-cache row is dropped on upgrade.' );
+		self::assertFalse( get_transient( 'smly_profiling_stale_' . md5( 'a@example.com' ) ), 'The object cache is flushed with it.' );
 	}
 
 	public function test_upgrade_trigger_is_noop_when_version_matches(): void {

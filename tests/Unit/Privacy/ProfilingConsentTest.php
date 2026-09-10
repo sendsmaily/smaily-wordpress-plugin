@@ -84,9 +84,11 @@ final class ProfilingConsentTest extends TestCase {
 		Functions\when( 'get_transient' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( array() );
 		$cached = null;
+		$ttls   = array();
 		Functions\when( 'set_transient' )->alias(
-			static function ( string $k, $v ) use ( &$cached ): bool {
-				$cached = $v;
+			static function ( string $k, $v, int $ttl = 0 ) use ( &$cached, &$ttls ): bool {
+				$cached       = $v;
+				$ttls[ $k ] = $ttl;
 				return true;
 			}
 		);
@@ -98,6 +100,13 @@ final class ProfilingConsentTest extends TestCase {
 
 		self::assertTrue( $this->resolver( $smaily )->may_profile( 'a@example.com' ) );
 		self::assertSame( '1', $cached );
+		// PRO-2435: a transient with NO expiry is an autoloaded option forever —
+		// one per contact. Every cache write, the stale one included, must
+		// carry a finite TTL.
+		self::assertCount( 2, $ttls, 'Both the fresh and the stale cache are written on a read-back.' );
+		foreach ( $ttls as $key => $ttl ) {
+			self::assertGreaterThan( 0, $ttl, "Cache key {$key} must not be a no-expiry (autoloaded) transient." );
+		}
 	}
 
 	public function test_readback_opt_out_caches_false_and_engine_opts_out(): void {
