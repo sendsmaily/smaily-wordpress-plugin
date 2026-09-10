@@ -985,7 +985,8 @@ footprint is not only its PHP on the request path:
    `as_has_scheduled_action()` queries on every `init` are cheap on a
    1 000-row table and not on a 466 000-row one — and the rows were mostly
    ours. AS never purges `failed` actions; 6 880 of ours from a June bug were
-   still there in September (PRO-2438).
+   still there in September — the daily janitor now prunes our own finished
+   actions (and their logs) after seven days (PRO-2438).
 3. **A no-expiry transient is a permanent autoloaded option.** `set_transient(
    $per_contact_key, …, 0 )` grows `alloptions` with the customer base.
    Any zero-expiry transient keyed by an entity is a bug.

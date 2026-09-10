@@ -199,7 +199,7 @@ All recurring work runs on Action Scheduler (bundled via
 | `smly_rec_flush_customers` | 60 s | customer ingest flush |
 | `smly_rec_flush_orders` | 60 s | order ingest flush |
 | `smly_plus_health_check` | 15 min | `NotificationManager` health sweep |
-| `smly_plus_queue_janitor` | daily | prune old sent/failed queue rows |
+| `smly_plus_queue_janitor` | daily | prune old sent/failed queue rows + our own finished Action Scheduler rows past 7 days, with their logs (PRO-2438) |
 | `smly_plus_contact_sync` | daily | contact-sync tick (F3-48 mode engine) |
 | `smly_plus_abandoned_cart` | 15 min | abandonment sweep (`CartAbandonmentSweeper`, PRO-1195 — cutoff + backlog guard + enqueue) |
 | `smly_plus_flush_cart_events` | 60 s | abandoned-cart event flush (`CartFlusher`) |

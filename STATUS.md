@@ -26,7 +26,30 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-10 (**PRO-2437 — the recurring background jobs are
+_Last updated: 2026-09-10 (**PRO-2438 — the daily janitor now clears the
+plugin's own finished background jobs.** Action Scheduler's own cleaner purges
+only completed and cancelled actions; failed ones are kept forever, with their
+log rows. On the pilot store that left 6 880 failed abandoned-cart actions from
+June inside a 466 148-row table, and with seven recurring jobs on a 60-second
+cadence the plugin is that store's heaviest producer of those rows. The daily
+janitor tick gained a second pass: actions on our own hooks (`smly_plus_%` /
+`smly_rec_%`) in complete/failed/cancelled state, scheduled more than seven days
+ago, are deleted together with their `actionscheduler_logs` rows, in the same
+bounded batches (1 000 rows per statement, 20 statements per run) the queue
+prune already uses — the remainder waits for the next tick. Pending and
+in-progress actions are never touched, another plugin's hooks are never touched,
+and a store without the scheduler tables is a silent no-op. Gates: `ci:strict`
+exit=0 (unit / PHPCS / PHPStan / vitest 316); integration **OK (300 tests /
+1 781 assertions, 1 pre-existing skip)**, sandbox tenant "Smaily Connect test"
+restored. New test: `tests/Integration/SchedulerHistoryJanitorTest.php` (the
+prune with its logs; pending / in-progress / recent / foreign rows kept; a run
+stops at its ceiling and the next takes the remainder; missing tables are a
+no-op). DECISIONS PRO-2438, CLAUDE.md "Deactivation cancels our AS groups",
+ARCHITECTURE recurring-jobs table.
+**Unreleased on main** (readme changelog lines belong to the next bump).
+**Release state unchanged: 3.12.1 is LIVE on wordpress.org.**)_
+
+Prior: 2026-09-10 (**PRO-2437 — the recurring background jobs are
 verified once an hour, not once a request.** The `init` registration that keeps
 the plugin's eleven recurring Action Scheduler jobs armed asked Action Scheduler
 eleven times per request whether each one exists — eleven SELECTs with a group

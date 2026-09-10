@@ -32,6 +32,9 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
  * table can't produce one giant table-locking DELETE; the daily tick drains
  * any remainder on subsequent runs. The `idx_created_at` index (migration
  * 006) keeps the cutoff scan cheap on both tables.
+ *
+ * The same tick also prunes the plugin's OWN finished Action Scheduler rows
+ * (PRO-2438) — see `prune_scheduler_history()`.
  */
 class QueueJanitor {
 
@@ -43,6 +46,18 @@ class QueueJanitor {
 
 	public const DEFAULT_SENT_RETENTION_DAYS   = 30;
 	public const DEFAULT_FAILED_RETENTION_DAYS = 90;
+
+	/**
+	 * Days a finished Action Scheduler row of ours is kept (PRO-2438).
+	 */
+	public const ACTION_RETENTION_DAYS = 7;
+
+	/**
+	 * Action Scheduler's own tables + the hook prefixes that are ours.
+	 */
+	public const AS_ACTIONS_TABLE   = 'actionscheduler_actions';
+	public const AS_LOGS_TABLE      = 'actionscheduler_logs';
+	private const OUR_HOOK_PREFIXES = array( 'smly_plus_', 'smly_rec_' );
 
 	/**
 	 * Rows per DELETE statement / max statements per status per run.
@@ -63,12 +78,15 @@ class QueueJanitor {
 	 */
 	public function on_tick(): void {
 		$this->run();
+		$this->prune_scheduler_history();
 	}
 
 	/**
-	 * One janitor pass over both queues.
+	 * One janitor pass over both queues. The Action Scheduler pass keeps its
+	 * own entry point + count (`prune_scheduler_history()`) so a queue-row
+	 * count can't drift with scheduler rows the run happens to find.
 	 *
-	 * @return int Total rows deleted (for tests / logging).
+	 * @return int Total queue rows deleted (for tests / logging).
 	 */
 	public function run(): int {
 		$deleted  = $this->prune_table( EventQueue::TABLE_SUFFIX );
@@ -89,6 +107,120 @@ class QueueJanitor {
 	 */
 	public function failed_retention_days(): int {
 		return max( 1, (int) apply_filters( 'smaily_connect_janitor_failed_retention_days', self::DEFAULT_FAILED_RETENTION_DAYS ) );
+	}
+
+	/**
+	 * Prune the plugin's OWN finished Action Scheduler rows, with their logs.
+	 *
+	 * Action Scheduler's own cleaner only purges `complete` and `canceled`
+	 * actions — `failed` ones are kept forever. With seven recurring actions
+	 * on a 60-second cadence this plugin is typically the store's heaviest
+	 * scheduler producer, so the residue is ours to clear: the pilot store
+	 * carried 466 148 action rows, thousands of them failed abandoned-cart
+	 * actions from three months earlier, each with its own log rows.
+	 *
+	 * Scope, deliberately narrow: only hooks starting `smly_plus_` /
+	 * `smly_rec_`, only the terminal statuses, only rows whose
+	 * `scheduled_date_gmt` (the column Action Scheduler's own cleaner and its
+	 * `hook_status_scheduled_date_gmt` index use) is past the retention
+	 * window. `pending` and `in-progress` are never touched, and neither is
+	 * any other plugin's hook.
+	 *
+	 * Raw SQL because the scheduler's store API has no bulk delete by hook +
+	 * age: it can only fetch ids page by page and delete one action at a
+	 * time, which is exactly the per-row load this is meant to avoid.
+	 *
+	 * @return int Action rows deleted (for tests / logging).
+	 */
+	public function prune_scheduler_history(): int {
+		global $wpdb;
+
+		$actions = $this->scheduler_table( self::AS_ACTIONS_TABLE );
+		$logs    = $this->scheduler_table( self::AS_LOGS_TABLE );
+
+		// A store that has never run Action Scheduler has no tables: no-op.
+		if ( ! $this->table_exists( $actions ) ) {
+			return 0;
+		}
+		$prune_logs = $this->table_exists( $logs );
+
+		$cutoff     = gmdate( 'Y-m-d H:i:s', time() - ( self::ACTION_RETENTION_DAYS * DAY_IN_SECONDS ) );
+		$hook_where = implode( ' OR ', array_fill( 0, count( self::OUR_HOOK_PREFIXES ), 'hook LIKE %s' ) );
+		$hook_likes = array();
+		foreach ( self::OUR_HOOK_PREFIXES as $prefix ) {
+			$hook_likes[] = $wpdb->esc_like( $prefix ) . '%';
+		}
+
+		$batch_size = $this->scheduler_batch_size();
+		$deleted    = 0;
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, PluginCheck.Security.DirectDB.UnescapedDBParameter -- the hook LIKE list and the action_id IN() list build their own placeholder strings; every value is passed through $wpdb->prepare().
+		for ( $batch = 0; $batch < $this->scheduler_max_batches(); $batch++ ) {
+			$ids = $wpdb->get_col(
+				$wpdb->prepare(
+					"SELECT action_id FROM {$actions}
+					WHERE ( {$hook_where} )
+					AND status IN ( 'complete', 'failed', 'canceled' )
+					AND scheduled_date_gmt < %s
+					LIMIT %d",
+					array_merge( $hook_likes, array( $cutoff, $batch_size ) )
+				)
+			);
+			$ids = array_map( 'intval', (array) $ids );
+			if ( empty( $ids ) ) {
+				break;
+			}
+
+			$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			if ( $prune_logs ) {
+				$wpdb->query(
+					$wpdb->prepare( "DELETE FROM {$logs} WHERE action_id IN ( {$placeholders} )", $ids )
+				);
+			}
+			$rows = $wpdb->query(
+				$wpdb->prepare( "DELETE FROM {$actions} WHERE action_id IN ( {$placeholders} )", $ids )
+			);
+
+			$deleted += is_numeric( $rows ) ? (int) $rows : 0;
+			if ( count( $ids ) < $batch_size ) {
+				break;
+			}
+		}
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+
+		return $deleted;
+	}
+
+	/**
+	 * Prefixed name of an Action Scheduler table (test seam: a subclass
+	 * points it at a table that doesn't exist to exercise the guard).
+	 */
+	protected function scheduler_table( string $table ): string {
+		global $wpdb;
+		return $wpdb->prefix . $table;
+	}
+
+	/**
+	 * Action rows per statement (test seam — see `scheduler_max_batches()`).
+	 */
+	protected function scheduler_batch_size(): int {
+		return self::BATCH_SIZE;
+	}
+
+	/**
+	 * Statements per run: the per-run ceiling is this times the batch size,
+	 * and the next daily tick takes the remainder (test seam — a subclass
+	 * shrinks both so the ceiling is reachable with a small fixture).
+	 */
+	protected function scheduler_max_batches(): int {
+		return self::MAX_BATCHES_PER_RUN;
+	}
+
+	private function table_exists( string $table ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) === $table;
 	}
 
 	private function prune_table( string $table_suffix ): int {

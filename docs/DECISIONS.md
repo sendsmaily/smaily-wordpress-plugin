@@ -6564,6 +6564,37 @@ over a minute because a minute leaves most of the cost in place.
 deactivation must clear the marker); PRO-2438 (the janitor pruning our own old
 Action Scheduler rows) is a separate reduction of the same table.
 
+### PRO-2438 — The janitor prunes the plugin's own finished Action Scheduler rows (2026-09-10)
+
+**Context:** Action Scheduler's own cleaner only purges `complete` and
+`canceled` actions past its retention window; `failed` actions are kept
+forever, with their log rows. The pilot store carried 466 148 action rows,
+6 880 of them failed abandoned-cart actions from three months earlier. With
+seven recurring actions on a 60-second cadence this plugin is that store's
+heaviest scheduler producer, so the residue is ours to clear.
+**Decision:** the existing daily janitor tick gained a second pass that deletes
+actions on OUR hooks (`smly_plus_%` / `smly_rec_%`) in `complete`, `failed` or
+`canceled` whose scheduled date is more than seven days old, together with
+their log rows — ids selected first in bounded batches, logs deleted for those
+ids, then the actions, mirroring the batch size and per-run ceiling the queue
+prune already uses.
+**Rationale:** seven days, because a finished action is diagnostic evidence
+only while someone is still looking at the incident that produced it — the
+queue rows behind it keep their own 30/90-day window and are what the Event Log
+actually reads. Only our hooks, because another plugin's scheduler history is
+not ours to decide about. `pending` and `in-progress` are never touched: they
+are work, not history — the same rule the queue prune follows.
+**Alternatives:** Action Scheduler's store API. Rejected: it has no bulk delete
+by hook and age — it can only page through ids and delete one action at a time,
+which is exactly the per-row load this is meant to avoid; hence raw `$wpdb`
+SQL, on the column (`scheduled_date_gmt`) that the scheduler's own cleaner and
+its `hook_status_scheduled_date_gmt` index use. Also rejected: shortening
+Action Scheduler's global retention, which would change every other plugin's
+history on the store.
+**Relationships:** PRO-2433 (deactivation cancels our groups — stops the
+production of new rows) and PRO-2437 (the same table, read side); this closes
+the growth side.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

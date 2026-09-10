@@ -466,8 +466,17 @@ slow"):
   the hour on an already-running store — which is fine, because the release
   that adds it runs Activation first; a test that cancels an action and expects
   the registration to bring it back must clear or backdate the marker.
-Follow-up filed, not done: PRO-2438 (janitor prunes our own old AS
-rows — AS never purges `failed`).
+- **The daily janitor prunes our OWN finished AS rows** (PRO-2438):
+  `QueueJanitor::prune_scheduler_history()` deletes actions on `smly_plus_%` /
+  `smly_rec_%` in `complete`/`failed`/`canceled` older than 7 days
+  (`scheduled_date_gmt`, the column AS's own cleaner and its
+  `hook_status_scheduled_date_gmt` index use) plus their
+  `actionscheduler_logs` rows, in the same bounded batches as the queue prune.
+  AS's own cleaner never purges `failed` — that is the residue this exists for.
+  It NEVER touches `pending`/`in-progress`, and never another plugin's hook;
+  a missing AS table is a no-op. Raw `$wpdb` because the AS store API has no
+  bulk delete by hook+age. The batch/ceiling/table-name seams are `protected`
+  for the integration test — don't inline them back.
 
 ### Build / test / walk commands
 - `npm run ci:strict` — PHPCS + PHPStan + PHPUnit unit + JS (eslint/tsc/vitest).
