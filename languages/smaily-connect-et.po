@@ -26,7 +26,7 @@ msgstr "Ühenda oma WooCommerce'i pood Smailyga e-posti turunduse, automatiseeri
 
 #. Author of the plugin
 #: smaily-connect.php
-#: integrations/elementor/admin.class.php:29
+#: integrations/elementor/admin.class.php:30
 #: admin/src/components/settings/EventLog.tsx:188
 #: admin/src/components/settings/EventLog.tsx:240
 msgid "Smaily"
@@ -160,8 +160,8 @@ msgstr "Vaata sündmuste logi"
 msgid "Dismiss"
 msgstr "Peida"
 
-#: includes/Privacy/GdprHandler.php:111
-#: includes/Privacy/GdprHandler.php:124
+#: includes/Privacy/GdprHandler.php:119
+#: includes/Privacy/GdprHandler.php:132
 msgid "Smaily Connect data"
 msgstr "Smaily Connect andmed"
 
@@ -445,6 +445,7 @@ msgstr "uudiskiri"
 msgid "form"
 msgstr "vorm"
 
+#: integrations/elementor/landingpage-widget.class.php:61
 #: integrations/elementor/newsletter-widget.class.php:81
 msgid "smaily"
 msgstr "smaily"
@@ -718,6 +719,7 @@ msgstr "Sisestusväljad"
 msgid "Normal"
 msgstr "Tavaline"
 
+#: integrations/elementor/landingpage-widget.class.php:103
 #: integrations/elementor/newsletter-widget.class.php:794
 #: integrations/elementor/newsletter-widget.class.php:1051
 #: blocks/landingpage/src/edit.js:133
@@ -857,7 +859,8 @@ msgstr "kassa"
 msgid "Please configure the plugin first."
 msgstr "Palun seadista esmalt plugin."
 
-#: blocks/landingpage/smaily-integration.class.php:56
+#: blocks/landingpage/smaily-integration.class.php:65
+#: integrations/elementor/landingpage-widget.class.php:28
 #: blocks/landingpage/src/edit.js:80
 #: blocks/landingpage/src/edit.js:182
 #: blocks/landingpage/src/index.js:41
@@ -884,6 +887,7 @@ msgstr "Vigane maandumislehe URL!"
 msgid "Need a custom thank you page?"
 msgstr "Vajad kohandatud tänulehte?"
 
+#: integrations/elementor/landingpage-widget.class.php:113
 #: blocks/landingpage/src/edit.js:145
 msgid "Width"
 msgstr "Laius"
@@ -916,6 +920,7 @@ msgstr "Palun kontrolli sisestatud URL-i. See on vigane!"
 msgid "Use Smaily Landing page for collecting subscribers."
 msgstr "Kasuta Smaily maandumislehte tellijate kogumiseks."
 
+#: integrations/elementor/landingpage-widget.class.php:59
 #: blocks/landingpage/src/index.js:50
 msgid "landing page"
 msgstr "maandumisleht"
@@ -2657,3 +2662,47 @@ msgstr "Uuesti saatmine ebaõnnestus."
 #: admin/src/components/settings/EventLog.tsx:274
 msgid "Send again"
 msgstr "Saada uuesti"
+
+#. translators: %d: number of queued Smaily messages deleted.
+#: includes/Privacy/GdprHandler.php:387
+#, php-format
+msgid "Removed %d Smaily message that was still queued for this address."
+msgid_plural "Removed %d Smaily messages that were still queued for this address."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of already-sent Smaily event-log records anonymised.
+#: includes/Privacy/GdprHandler.php:400
+#, php-format
+msgid "Anonymised %d already-sent Smaily record in the event log."
+msgid_plural "Anonymised %d already-sent Smaily records in the event log."
+msgstr[0] ""
+msgstr[1] ""
+
+#: integrations/elementor/landingpage-widget.class.php:60
+msgid "embed"
+msgstr "manustus"
+
+#: integrations/elementor/landingpage-widget.class.php:84
+msgid "Landing Page"
+msgstr "Maandumisleht"
+
+#: integrations/elementor/landingpage-widget.class.php:92
+msgid "Landing Page URL"
+msgstr "Maandumislehe URL"
+
+#: integrations/elementor/landingpage-widget.class.php:95
+msgid "Copy the address of a landing page of your own Smaily account. Any other address shows nothing."
+msgstr "Kopeeri oma Smaily konto maandumislehe aadress. Muud aadressi ei kuvata."
+
+#: integrations/elementor/landingpage-widget.class.php:106
+msgid "In pixels, or as a percentage — for example 600 or 100%."
+msgstr "Pikslites või protsentides — näiteks 600 või 100%."
+
+#: integrations/elementor/landingpage-widget.class.php:116
+msgid "In pixels, or as a percentage — for example 500 or 100%."
+msgstr "Pikslites või protsentides — näiteks 500 või 100%."
+
+#: integrations/elementor/landingpage-widget.class.php:146
+msgid "Add the address of a landing page of your connected Smaily account."
+msgstr "Lisa ühendatud Smaily konto maandumislehe aadress."

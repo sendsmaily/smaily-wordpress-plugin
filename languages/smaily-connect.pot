@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smaily Connect 3.11.3\n"
+"Project-Id-Version: Smaily Connect 3.12.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-connect\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-07T16:30:47+00:00\n"
+"POT-Creation-Date: 2026-09-10T08:48:30+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: smaily-connect\n"
@@ -33,7 +33,7 @@ msgstr ""
 
 #. Author of the plugin
 #: smaily-connect.php
-#: integrations/elementor/admin.class.php:29
+#: integrations/elementor/admin.class.php:30
 #: admin/src/components/settings/EventLog.tsx:188
 #: admin/src/components/settings/EventLog.tsx:240
 msgid "Smaily"
@@ -84,7 +84,8 @@ msgstr ""
 msgid "Subscribe to newsletter"
 msgstr ""
 
-#: blocks/landingpage/smaily-integration.class.php:56
+#: blocks/landingpage/smaily-integration.class.php:65
+#: integrations/elementor/landingpage-widget.class.php:28
 #: blocks/landingpage/src/edit.js:80
 #: blocks/landingpage/src/edit.js:182
 #: blocks/landingpage/src/index.js:41
@@ -151,10 +152,26 @@ msgstr ""
 msgid "Dismiss"
 msgstr ""
 
-#: includes/Privacy/GdprHandler.php:111
-#: includes/Privacy/GdprHandler.php:124
+#: includes/Privacy/GdprHandler.php:119
+#: includes/Privacy/GdprHandler.php:132
 msgid "Smaily Connect data"
 msgstr ""
+
+#. translators: %d: number of queued Smaily messages deleted.
+#: includes/Privacy/GdprHandler.php:387
+#, php-format
+msgid "Removed %d Smaily message that was still queued for this address."
+msgid_plural "Removed %d Smaily messages that were still queued for this address."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of already-sent Smaily event-log records anonymised.
+#: includes/Privacy/GdprHandler.php:400
+#, php-format
+msgid "Anonymised %d already-sent Smaily record in the event log."
+msgid_plural "Anonymised %d already-sent Smaily records in the event log."
+msgstr[0] ""
+msgstr[1] ""
 
 #: includes/Privacy/ProfilingConsentAccount.php:78
 msgid "Your recommendation preferences have been saved."
@@ -452,6 +469,56 @@ msgstr ""
 msgid "Setup integration"
 msgstr ""
 
+#: integrations/elementor/landingpage-widget.class.php:59
+#: blocks/landingpage/src/index.js:50
+msgid "landing page"
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:60
+msgid "embed"
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:61
+#: integrations/elementor/newsletter-widget.class.php:81
+msgid "smaily"
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:84
+msgid "Landing Page"
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:92
+msgid "Landing Page URL"
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:95
+msgid "Copy the address of a landing page of your own Smaily account. Any other address shows nothing."
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:103
+#: integrations/elementor/newsletter-widget.class.php:794
+#: integrations/elementor/newsletter-widget.class.php:1051
+#: blocks/landingpage/src/edit.js:133
+msgid "Height"
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:106
+msgid "In pixels, or as a percentage — for example 600 or 100%."
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:113
+#: blocks/landingpage/src/edit.js:145
+msgid "Width"
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:116
+msgid "In pixels, or as a percentage — for example 500 or 100%."
+msgstr ""
+
+#: integrations/elementor/landingpage-widget.class.php:146
+msgid "Add the address of a landing page of your connected Smaily account."
+msgstr ""
+
 #: integrations/elementor/newsletter-widget.class.php:46
 #: blocks/newsletter-signup/src/index.js:30
 msgid "Smaily Opt-In Form"
@@ -476,10 +543,6 @@ msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:80
 msgid "form"
-msgstr ""
-
-#: integrations/elementor/newsletter-widget.class.php:81
-msgid "smaily"
 msgstr ""
 
 #: integrations/elementor/newsletter-widget.class.php:118
@@ -773,12 +836,6 @@ msgstr ""
 msgid "Normal"
 msgstr ""
 
-#: integrations/elementor/newsletter-widget.class.php:794
-#: integrations/elementor/newsletter-widget.class.php:1051
-#: blocks/landingpage/src/edit.js:133
-msgid "Height"
-msgstr ""
-
 #: integrations/elementor/newsletter-widget.class.php:900
 #: integrations/elementor/newsletter-widget.class.php:1170
 msgid "Hover"
@@ -901,10 +958,6 @@ msgstr ""
 msgid "Need a custom thank you page?"
 msgstr ""
 
-#: blocks/landingpage/src/edit.js:145
-msgid "Width"
-msgstr ""
-
 #: blocks/landingpage/src/edit.js:193
 msgid "Smaily Connect Landing Page"
 msgstr ""
@@ -931,10 +984,6 @@ msgstr ""
 
 #: blocks/landingpage/src/index.js:42
 msgid "Use Smaily Landing page for collecting subscribers."
-msgstr ""
-
-#: blocks/landingpage/src/index.js:50
-msgid "landing page"
 msgstr ""
 
 #: blocks/newsletter-signup/src/edit.js:113

@@ -6499,6 +6499,16 @@ PRO-2346 already cost us once.
 shortcode written without attributes receives `''`, not an array, and `render()`
 reads its keys unguarded, so it would warn); telling merchants to use a raw HTML
 element (rejected — it is exactly the iframe-stripping path PRO-2346 closed).
+**Also:** a native Elementor widget ("Smaily Landing Page", in the existing
+Smaily category) with the same three fields, because a merchant who builds in
+Elementor expects a widget in the panel, not a shortcode pasted into a text
+element. It is a third caller of the same `render_embed()`, and it is loaded —
+class, category, registration — only behind `Helper::is_elementor_active()`, so
+a store without Elementor references no Elementor class at all.
+**Human acceptance:** there is no Elementor in wp-env, so the widget's editor
+and published-page behaviour is a human check. What is automated is the half
+that protects every other store: with Elementor absent, nothing is registered
+and no Elementor class is loaded.
 **Relationships:** PRO-2346 (server-side block rendering, the same render path);
 sizes now also accept a percentage, which is how a builder column is filled —
 the block itself still stores numbers and renders identically.
