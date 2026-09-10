@@ -26,8 +26,8 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-10 (**3.13.0 version bump — release pre-flight done on
-`main`, GH release pending.** Version bumped to **3.13.0** in the eight places
+_Last updated: 2026-09-10 (**3.13.0 is LIVE on wordpress.org** — released
+2026-09-10, 10:26 GMT. Version bumped to **3.13.0** in the eight places
 CLAUDE.md lists (`smaily-connect.php` ×3, `package.json`, `package-lock.json`
 ×2, `readme.txt` Stable tag + Changelog + Upgrade Notice, `docs/INSTALL.md`,
 and the three test pins `ConstantsTest` / `tests/bootstrap.php` /
@@ -49,9 +49,13 @@ DECISIONS PRO-2394, `docs/INDEX.md` row updated). i18n catalogs rebuilt for
 3.13.0 with `bin/build-i18n.sh`. Local pre-flight on a clean tree:
 `bin/verify-release-zip.sh smaily-connect.zip 3.13.0` **exit=0** with a clean
 (non-`-dirty`) `build-hash.txt` in the ZIP, and `ci:strict` **exit=0**.
-**Release state: 3.13.0 bump on main, GH release pending** (push, tag and the
-GitHub release are the orchestrator's / Erkki's; 3.12.1 remains the version
-live on wordpress.org until then).)_
+**Release state: 3.13.0 is LIVE on wordpress.org (2026-09-10, 10:26 GMT).**
+GH release `3.13.0` on `fbb3608`; CI run 34465806559 green; the attached asset
+(895 134 B) re-verified locally — `bin/verify-release-zip.sh smaily-connect.zip
+3.13.0` exit=0, build-hash `fbb3608`; `./release.sh -u sendsmaily` run by Erkki;
+the wordpress.org API and the SVN tag both confirm **3.13.0**. The merchant docs
+site was published over FTPS at 09:58 UTC — the live copy at
+`https://smaily.com/connect-woo/` is byte-identical to `docs/site/index.html`.)_
 
 Prior: 2026-09-10 (**PRO-2438 — the daily janitor now clears the
 plugin's own finished background jobs.** Action Scheduler's own cleaner purges
@@ -86,27 +90,27 @@ exit=0. Report: `docs/audits/2026-09-10-delta-audit-3.13.0.md`, register row in
 
 **Next session opens with (2026-09-10 session close):**
 
-- **Shipped to main today, all UNRELEASED** (the readme changelog lines belong
-  to the next bump, which should be **3.13.0**): PRO-2433/2434/2435/2436
+- **Shipped to main today, all RELEASED in 3.13.0** (live on wordpress.org since
+  2026-09-10, 10:26 GMT): PRO-2433/2434/2435/2436
   (deactivation cancels our AS groups; `UpgradeLock` on the inline upgrade;
   `ProfilingConsent` stale-cache TTL + purge; the checkout opt-in block's footer
   script — a duplicate of PRO-2395), PRO-2440 (landing-page shortcode +
   Elementor widget, simplified in 79b656c), PRO-1725 (Campaign Intelligence copy
   on the Settings tab until connected), PRO-2437 (hourly AS re-arm marker),
   PRO-2438 (the janitor prunes our own AS rows — 7 days, 20k rows per run).
-- **Awaiting humans.** Jane: the Elementor widget + shortcode on Woocakes after
-  the release (PRO-2440 criterion 6, PRO-2346), and the Settings-tab copy
-  placement (PRO-1725). Erkki: the Estonian proofread of the docs site before
-  the FTPS publish — the PRO-2383 privacy paragraph, the PRO-2379 sentence, the
-  PRO-2440 landing-page paragraphs.
-- **Queue for next session, in order:** ~~PRO-2394~~ (done with the 3.13.0
-  bump — `CHANGELOG.md` is a pointer now), PRO-2384 (personal-data eraser for
-  the rec-engine ingest queue — privacy, design nod first), PRO-2393 (Dependabot
+- **Awaiting humans.** Jane: the Elementor widget + shortcode on Woocakes —
+  unblocked now that 3.13.0 is out (PRO-2440 criterion 6, PRO-2346) — and the
+  Settings-tab copy placement (PRO-1725). MiuMjau: the update to 3.13.0, after
+  which its Action Scheduler table drains at 20 000 rows/day.
+- **Queue for next session, in order:** PRO-2384 (personal-data eraser for the
+  rec-engine ingest queue — privacy, design nod first), PRO-2393 (Dependabot
   alerts in `blocks/package-lock.json`), PRO-2441 (the two ET translations for
   the PRO-2383 strings — still untranslated in the 3.13.0 catalogs), PRO-2442
-  (the flaky `useBackfillProgress` test). The **3.13.0 release gate** has run
-  (delta audit + PCP against the built ZIP, readme changelog written); what is
-  left is the push, the tag and the GitHub release.
+  (the flaky `useBackfillProgress` test), PRO-2447 and PRO-2448 (the two Low
+  findings from the 3.13.0 delta audit: `UpgradeLock` stale-takeover atomicity;
+  the non-ASCII address match in the erasure). The **3.13.0 release gate is
+  DONE** — delta audit, PCP against the built ZIP, readme changelog, push, tag,
+  CI ZIP and the wordpress.org publish all completed.
 - **Decisions today.** Event Log retention stays 30 days sent / 90 days failed
   (Erkki, 2026-09-10; filterable). The pushed commit `81521bf` keeps its
   AI-attribution trailers (Erkki: history is not rewritten); no trailers on any
