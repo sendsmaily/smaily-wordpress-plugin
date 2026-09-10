@@ -103,6 +103,44 @@ final class BootstrapTest extends TestCase {
 		$this->addToAssertionCount( 1 );
 	}
 
+	public function test_recurring_job_registration_is_skipped_while_the_marker_is_fresh(): void {
+		// PRO-2437: each existence check is a SELECT with a group JOIN on a
+		// table that reached 466k rows on a real store, and `init` runs on
+		// every request. A fresh marker must short-circuit before the first.
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = null ) {
+				return $key === Bootstrap::OPTION_AS_JOBS_VERIFIED ? time() - 60 : $default;
+			}
+		);
+		Functions\expect( 'as_has_scheduled_action' )->never();
+		Functions\expect( 'as_schedule_recurring_action' )->never();
+		Functions\expect( 'update_option' )->never();
+
+		Bootstrap::instance()->register_action_scheduler_jobs();
+
+		$this->addToAssertionCount( 1 );
+	}
+
+	public function test_a_stale_marker_re_verifies_every_job_and_stamps_the_marker(): void {
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = null ) {
+				return $key === Bootstrap::OPTION_AS_JOBS_VERIFIED
+					? time() - Bootstrap::AS_JOBS_VERIFIED_TTL - 1
+					: $default;
+			}
+		);
+		// Every recurring job is checked, and the missing ones re-armed.
+		Functions\expect( 'as_has_scheduled_action' )->times( 11 )->andReturn( false );
+		Functions\expect( 'as_schedule_recurring_action' )->times( 11 );
+		Functions\expect( 'update_option' )
+			->once()
+			->with( Bootstrap::OPTION_AS_JOBS_VERIFIED, \Mockery::type( 'int' ), false );
+
+		Bootstrap::instance()->register_action_scheduler_jobs();
+
+		$this->addToAssertionCount( 1 );
+	}
+
 	public function test_smaily_client_throws_when_credentials_missing(): void {
 		$creds = $this->createMock( Credentials::class );
 		$creds->method( 'get' )->willReturn( null );

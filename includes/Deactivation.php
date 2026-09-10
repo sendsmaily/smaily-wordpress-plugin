@@ -54,6 +54,10 @@ final class Deactivation {
 
 	public static function run(): void {
 		self::cancel_action_scheduler_jobs();
+		// The recurring set is gone, so the "verified" marker is a lie —
+		// drop it so a re-activation re-arms on the next `init` instead of
+		// waiting out the hour it is trusted for (PRO-2437).
+		delete_option( Bootstrap::OPTION_AS_JOBS_VERIFIED );
 	}
 
 	private static function cancel_action_scheduler_jobs(): void {

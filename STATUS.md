@@ -26,7 +26,26 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-10 (**PRO-1725 — the Campaign Intelligence Settings tab
+_Last updated: 2026-09-10 (**PRO-2437 — the recurring background jobs are
+verified once an hour, not once a request.** The `init` registration that keeps
+the plugin's eleven recurring Action Scheduler jobs armed asked Action Scheduler
+eleven times per request whether each one exists — eleven SELECTs with a group
+JOIN on a table holding 466 148 rows on the pilot store, on every page view,
+admin screen and admin-ajax call. The answer is now cached in a timestamp option
+(`smly_plus_as_jobs_verified`, autoload=false, one hour); while it is fresh the
+registration returns before the first query. Activation — which is also the
+upgrade path — and deactivation delete the marker, so a set that actually
+changed is re-armed on the very next request, and a job cancelled by anything
+else heals within the hour. Gates: `ci:strict` exit=0 (unit 809 tests / PHPCS /
+PHPStan / vitest 316); integration **OK (297 tests / 1 762 assertions)**,
+sandbox tenant "Smaily Connect test" restored. New
+tests: `tests/Integration/ActionSchedulerJobMarkerTest.php` plus two cases in
+`tests/Unit/BootstrapTest.php` (a fresh marker makes no Action Scheduler call at
+all; a stale one re-verifies all eleven and re-stamps). DECISIONS PRO-2437.
+**Unreleased on main** (readme changelog lines belong to the next bump).
+**Release state unchanged: 3.12.1 is LIVE on wordpress.org.**)_
+
+Prior: 2026-09-10 (**PRO-1725 — the Campaign Intelligence Settings tab
 states what the feature is, and its price.** A merchant who finished the wizard
 without connecting the engine never saw the introduction again: the tab opened
 straight onto a setup field. The same two paragraphs the wizard step has carried
@@ -42,7 +61,7 @@ connected, in Estonian through the shipped catalog, gone when connected) plus
 two cases in `Step4Recommendations.test.tsx`. **Human acceptance outstanding:**
 copy and placement are Jane's approval. DECISIONS PRO-1725. **Unreleased on
 main** (readme changelog lines belong to the next bump). **Release state
-unchanged: 3.12.1 is LIVE on wordpress.org.**)_
+unchanged: 3.12.1 is LIVE on wordpress.org.**)
 
 Prior: 2026-09-10 (**PRO-2440 — the landing page reaches
 page-builder pages.** The landing-page block is delivered only through

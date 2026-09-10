@@ -456,8 +456,17 @@ slow"):
 - Cosmetic but merchant-visible: a `block.json` `editorScript` registers in
   the header; if it depends on `wc-settings`, WooCommerce moves it and logs a
   console warning naming us — `wp_script_add_data( handle, 'group', 1 )`.
-Follow-ups filed, not done: PRO-2437 (cache the 11 per-request
-`as_has_scheduled_action` checks), PRO-2438 (janitor prunes our own old AS
+- **The recurring set is verified at most once an hour** (PRO-2437):
+  `register_action_scheduler_jobs` returns before its first
+  `as_has_scheduled_action()` while `smly_plus_as_jobs_verified`
+  (`Bootstrap::OPTION_AS_JOBS_VERIFIED`, autoload=false) is fresher than
+  `Bootstrap::AS_JOBS_VERIFIED_TTL`. `Activation::run()` (= the upgrade path)
+  and `Deactivation::run()` delete it, so those re-arm on the next `init`.
+  A NEW recurring job added to that method is therefore only picked up within
+  the hour on an already-running store — which is fine, because the release
+  that adds it runs Activation first; a test that cancels an action and expects
+  the registration to bring it back must clear or backdate the marker.
+Follow-up filed, not done: PRO-2438 (janitor prunes our own old AS
 rows — AS never purges `failed`).
 
 ### Build / test / walk commands

@@ -204,6 +204,10 @@ All recurring work runs on Action Scheduler (bundled via
 | `smly_plus_abandoned_cart` | 15 min | abandonment sweep (`CartAbandonmentSweeper`, PRO-1195 — cutoff + backlog guard + enqueue) |
 | `smly_plus_flush_cart_events` | 60 s | abandoned-cart event flush (`CartFlusher`) |
 
+The registration runs on `init` but verifies the set at most once an hour
+(`smly_plus_as_jobs_verified`, PRO-2437); activation, upgrade and deactivation
+clear that marker, so a set that actually changed re-arms on the next request.
+
 Backfills use chained `as_schedule_single_action` ticks
 (`BackfillEndpoint::TICK_HOOK`) rather than a recurring action.
 

@@ -58,6 +58,7 @@ final class Activation {
 		self::reencrypt_legacy_secrets();
 		self::migrate_wp_cron_to_action_scheduler();
 		self::schedule_recurring_action_scheduler_jobs();
+		self::clear_action_scheduler_verification();
 		self::stamp_plugin_version();
 	}
 
@@ -270,10 +271,10 @@ final class Activation {
 	 *   smly_plus_abandoned_cart — 15 min, bridges to the two abandoned_cart_* legacy hooks
 	 *
 	 * smly_plus_flush_event_queue + smly_plus_retry_failed_events are
-	 * scheduled by Bootstrap::register_action_scheduler_jobs on init for
-	 * every request; the activation hook only seeds the two cart/sync
-	 * recurring rows because those need the daily / 15-min cadence rather
-	 * than the queue's tight 60s flush loop.
+	 * scheduled by Bootstrap::register_action_scheduler_jobs on init; the
+	 * activation hook only seeds the two cart/sync recurring rows because
+	 * those need the daily / 15-min cadence rather than the queue's tight
+	 * 60s flush loop.
 	 */
 	private static function schedule_recurring_action_scheduler_jobs(): void {
 		if ( ! function_exists( 'as_has_scheduled_action' ) || ! function_exists( 'as_schedule_recurring_action' ) ) {
@@ -299,6 +300,16 @@ final class Activation {
 				EventQueue::AS_GROUP
 			);
 		}
+	}
+
+	/**
+	 * Drop the "recurring jobs verified" marker so the next `init` re-checks
+	 * the whole recurring set instead of trusting an up-to-an-hour-old
+	 * verification (PRO-2437). Activation is also the upgrade path, so a
+	 * release that adds a recurring job arms it on the very next request.
+	 */
+	private static function clear_action_scheduler_verification(): void {
+		delete_option( Bootstrap::OPTION_AS_JOBS_VERIFIED );
 	}
 
 	private function __construct() {

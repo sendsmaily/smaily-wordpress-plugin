@@ -6539,6 +6539,31 @@ surfaces (proved by a test that renders the tab through the catalog's own
 in both places.
 **Relationships:** PRO-2298 (the copy itself, wizard step 4).
 
+### PRO-2437 — The recurring Action Scheduler set is verified once an hour, not once a request (2026-09-10)
+
+**Context:** the `init` registration that keeps the recurring jobs armed ran on
+every single request and asked Action Scheduler eleven times whether a job
+exists. Each question is a SELECT with a group JOIN on `actionscheduler_actions`,
+which on the pilot store holds 466 148 rows — eleven of them on the front page,
+every admin screen, every admin-ajax call.
+**Decision:** the answer is cached in a timestamp option written after a
+successful verification pass; while it is under an hour old the registration
+returns before the first Action Scheduler call. Activation (which is also the
+upgrade path) and deactivation delete the marker, so the set is re-armed on the
+very next request whenever it actually changed.
+**Rationale:** the recurring set only changes at those three moments. Anything
+else that removes a job — a merchant clearing the Action Scheduler tables, a
+crashed run — is rare and not urgent, and heals within the hour.
+**Alternatives:** a transient. Rejected: a transient with an expiry is an option
+row too, so it saves nothing, and its lifetime is owned by WordPress rather than
+by us — activation and deactivation need to invalidate the marker
+deterministically, which is a plain `delete_option()` on a plain option. An hour
+was chosen over a day because a lost job should not stay lost for a day, and
+over a minute because a minute leaves most of the cost in place.
+**Relationships:** PRO-2433 (deactivation cancels the groups — the reason
+deactivation must clear the marker); PRO-2438 (the janitor pruning our own old
+Action Scheduler rows) is a separate reduction of the same table.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

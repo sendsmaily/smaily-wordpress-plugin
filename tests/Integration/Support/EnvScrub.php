@@ -127,6 +127,10 @@ final class EnvScrub {
 			\Smaily\Connect\Notifications\NotificationManager::OPTION_DOWN_SINCE,
 			\Smaily\Connect\Notifications\NotificationManager::OPTION_SMAILY_DOWN_SINCE,
 			\Smaily\Connect\Notifications\NotificationManager::OPTION_DISMISSED,
+			// Same class again (PRO-2437): the "recurring AS jobs verified"
+			// marker is autoload=false, so a cached value would make the init
+			// registration skip its checks in a test that just swept it.
+			\Smaily\Connect\Bootstrap::OPTION_AS_JOBS_VERIFIED,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );
