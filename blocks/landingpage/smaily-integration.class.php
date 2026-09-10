@@ -186,7 +186,7 @@ class Integration {
 	private static function size_css( $value, $fallback ) {
 		$value = trim( (string) $value );
 
-		if ( preg_match( '/^[0-9]+$/', $value ) ) {
+		if ( is_numeric( $value ) ) {
 			return absint( $value ) . 'px';
 		}
 
