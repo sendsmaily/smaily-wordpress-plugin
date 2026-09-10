@@ -26,7 +26,7 @@ msgstr "Ühenda oma WooCommerce'i pood Smailyga e-posti turunduse, automatiseeri
 
 #. Author of the plugin
 #: smaily-connect.php
-#: integrations/elementor/admin.class.php:30
+#: integrations/elementor/admin.class.php:29
 #: admin/src/components/settings/EventLog.tsx:188
 #: admin/src/components/settings/EventLog.tsx:240
 msgid "Smaily"
@@ -170,7 +170,7 @@ msgid "Your recommendation preferences have been saved."
 msgstr "Sinu soovituste eelistused on salvestatud."
 
 #: includes/Privacy/ProfilingConsentAccount.php:97
-#: admin/src/components/steps/Step4Recommendations.tsx:142
+#: admin/src/components/steps/Step4Recommendations.tsx:148
 msgid "Smaily Campaign Intelligence"
 msgstr "Smaily Campaign Intelligence"
 
@@ -719,7 +719,7 @@ msgstr "Sisestusväljad"
 msgid "Normal"
 msgstr "Tavaline"
 
-#: integrations/elementor/landingpage-widget.class.php:103
+#: integrations/elementor/landingpage-widget.class.php:117
 #: integrations/elementor/newsletter-widget.class.php:794
 #: integrations/elementor/newsletter-widget.class.php:1051
 #: blocks/landingpage/src/edit.js:133
@@ -859,7 +859,7 @@ msgstr "kassa"
 msgid "Please configure the plugin first."
 msgstr "Palun seadista esmalt plugin."
 
-#: blocks/landingpage/smaily-integration.class.php:65
+#: blocks/landingpage/smaily-integration.class.php:70
 #: integrations/elementor/landingpage-widget.class.php:28
 #: blocks/landingpage/src/edit.js:80
 #: blocks/landingpage/src/edit.js:182
@@ -887,7 +887,7 @@ msgstr "Vigane maandumislehe URL!"
 msgid "Need a custom thank you page?"
 msgstr "Vajad kohandatud tänulehte?"
 
-#: integrations/elementor/landingpage-widget.class.php:113
+#: integrations/elementor/landingpage-widget.class.php:127
 #: blocks/landingpage/src/edit.js:145
 msgid "Width"
 msgstr "Laius"
@@ -1422,7 +1422,7 @@ msgid "✓ Connected"
 msgstr "✓ Ühendatud"
 
 #: admin/src/components/steps/CredentialBlock.tsx:53
-#: admin/src/components/steps/Step4Recommendations.tsx:210
+#: admin/src/components/steps/Step4Recommendations.tsx:216
 msgid "as"
 msgstr "kasutajaga"
 
@@ -1447,7 +1447,7 @@ msgid "API password"
 msgstr "API parool"
 
 #: admin/src/components/steps/CredentialBlock.tsx:120
-#: admin/src/components/steps/Step4Recommendations.tsx:222
+#: admin/src/components/steps/Step4Recommendations.tsx:228
 msgid "Test connection"
 msgstr "Testi ühendust"
 
@@ -1646,128 +1646,128 @@ msgstr "Ooteaeg"
 msgid "Step 4 of 6"
 msgstr "4. samm 6-st"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:84
+#: admin/src/components/steps/Step4Recommendations.tsx:90
 msgid "Connect Smaily Campaign Intelligence"
 msgstr "Ühenda Smaily Campaign Intelligence"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:90
+#: admin/src/components/steps/Step4Recommendations.tsx:96
 msgid "Setup URL"
 msgstr "Seadistus-URL"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:116
+#: admin/src/components/steps/Step4Recommendations.tsx:122
 msgid "Connect"
 msgstr "Ühenda"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:130
+#: admin/src/components/steps/Step4Recommendations.tsx:136
 msgid "Regenerate the link"
 msgstr "Loo link uuesti"
 
 #. translators: 1: engine version, 2: tenant status.
-#: admin/src/components/steps/Step4Recommendations.tsx:154
+#: admin/src/components/steps/Step4Recommendations.tsx:160
 #, js-format
 msgid "Engine v%1$s responded — tenant status: %2$s."
 msgstr "Mootor v%1$s vastas — rentniku olek: %2$s."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:156
+#: admin/src/components/steps/Step4Recommendations.tsx:162
 msgid "active"
 msgstr "aktiivne"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:166
+#: admin/src/components/steps/Step4Recommendations.tsx:172
 msgid "Disconnect Smaily Campaign Intelligence? The plugin will stop syncing data; existing campaigns on the engine side continue to work until you remove them there."
 msgstr "Kas katkestada Smaily Campaign Intelligence'i ühendus? Plugin lõpetab andmete sünkroonimise; mootori-poolsed olemasolevad kampaaniad töötavad edasi, kuni need sealt eemaldad."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:177
+#: admin/src/components/steps/Step4Recommendations.tsx:183
 msgid "Disconnected."
 msgstr "Ühendus katkestatud."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:187
+#: admin/src/components/steps/Step4Recommendations.tsx:193
 msgid "Engine connection"
 msgstr "Mootori ühendus"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:207
+#: admin/src/components/steps/Step4Recommendations.tsx:213
 msgid "Connected"
 msgstr "Ühendatud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:225
+#: admin/src/components/steps/Step4Recommendations.tsx:231
 msgid "Disconnect"
 msgstr "Katkesta ühendus"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:240
+#: admin/src/components/steps/Step4Recommendations.tsx:246
 msgid "Data synchronisation"
 msgstr "Andmete sünkroonimine"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:241
+#: admin/src/components/steps/Step4Recommendations.tsx:247
 msgid "While connected, the engine learns from your joined order, customer, and product data — all three sync automatically."
 msgstr "Ühenduse ajal õpib mootor sinu seotud tellimus-, kliendi- ja tooteandmetest — kõik kolm sünkroonitakse automaatselt."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:246
+#: admin/src/components/steps/Step4Recommendations.tsx:252
 msgid "Syncing starts as soon as you connect and runs in the background — there's nothing to switch on per data type. Use"
 msgstr "Sünkroonimine algab kohe pärast ühendamist ja töötab taustal — andmetüübi kaupa pole midagi sisse lülitada. Kasuta"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:251
-#: admin/src/components/steps/Step4Recommendations.tsx:263
+#: admin/src/components/steps/Step4Recommendations.tsx:257
+#: admin/src/components/steps/Step4Recommendations.tsx:269
 msgid "Import existing data"
 msgstr "Impordi olemasolevad andmed"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:253
+#: admin/src/components/steps/Step4Recommendations.tsx:259
 msgid "below to seed history into the engine; future changes sync on their own. Browsing telemetry is the one exception — it's opt-in and configured separately below."
 msgstr "allpool, et täita mootor ajalooga; tulevased muudatused sünkroonitakse ise. Sirvimistelemeetria on ainus erand — see on valitav ja seadistatakse eraldi allpool."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:264
+#: admin/src/components/steps/Step4Recommendations.tsx:270
 msgid "The toggles above sync future changes. Import your existing catalog, customers, and orders into the engine once so recommendations have history to learn from. Runs in the background in batches."
 msgstr "Ülaltoodud lülitid sünkroonivad tulevased muudatused. Impordi oma olemasolev kataloog, kliendid ja tellimused korra mootorisse, et soovitustel oleks ajalugu, millest õppida. Töötab taustal pakkidena."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:273
+#: admin/src/components/steps/Step4Recommendations.tsx:279
 msgid "Products"
 msgstr "Tooted"
 
 #. translators: %d: number of detected languages.
-#: admin/src/components/steps/Step4Recommendations.tsx:277
+#: admin/src/components/steps/Step4Recommendations.tsx:283
 #, js-format
 msgid "Counts one entry per language (%d detected). Translations are merged into a single product during import, so the synced total will be lower."
 msgstr "Loendab ühe kirje keele kohta (%d tuvastatud). Tõlked liidetakse importimisel üheks tooteks, seega sünkroonitud koguarv on väiksem."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:289
+#: admin/src/components/steps/Step4Recommendations.tsx:295
 msgid "Customers"
 msgstr "Kliendid"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:297
+#: admin/src/components/steps/Step4Recommendations.tsx:303
 msgid "Orders"
 msgstr "Tellimused"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:307
+#: admin/src/components/steps/Step4Recommendations.tsx:313
 msgid "Browsing telemetry"
 msgstr "Sirvimistelemeetria"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:308
+#: admin/src/components/steps/Step4Recommendations.tsx:314
 msgid "Tracks product / category views to power 'similar products' recommendations."
 msgstr "Jälgib toote- ja kategooriavaatamisi, et toita 'sarnaste toodete' soovitusi."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:319
+#: admin/src/components/steps/Step4Recommendations.tsx:325
 msgid "Track browsing behaviour"
 msgstr "Jälgi sirvimiskäitumist"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:320
+#: admin/src/components/steps/Step4Recommendations.tsx:326
 msgid "Requires marketing consent (WP Consent API / Cookiebot / Complianz / CookieYes)."
 msgstr "Nõuab turundusnõusolekut (WP Consent API / Cookiebot / Complianz / CookieYes)."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:326
+#: admin/src/components/steps/Step4Recommendations.tsx:332
 msgid "Browsing telemetry only fires when the visitor has granted marketing consent. If your site doesn't have a consent banner installed, the beacon won't collect events."
 msgstr "Sirvimistelemeetria käivitub ainult siis, kui külastaja on andnud turundusnõusoleku. Kui sinu saidil pole nõusolekuriba paigaldatud, ei kogu majakas sündmusi."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:338
+#: admin/src/components/steps/Step4Recommendations.tsx:344
 msgid "Setup URL not recognised"
 msgstr "Seadistus-URL-i ei tuvastatud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:340
+#: admin/src/components/steps/Step4Recommendations.tsx:346
 msgid "Setup link already used"
 msgstr "Seadistuslink on juba kasutatud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:342
+#: admin/src/components/steps/Step4Recommendations.tsx:348
 msgid "Setup link not found"
 msgstr "Seadistuslinki ei leitud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:345
+#: admin/src/components/steps/Step4Recommendations.tsx:351
 msgid "Engine unreachable"
 msgstr "Mootor pole kättesaadav"
 
@@ -2205,7 +2205,7 @@ msgstr "Komadega eraldatult, kuni 50 aadressi."
 msgid "Activate for real…"
 msgstr "Aktiveeri päriselt…"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:42
+#: admin/src/components/steps/Step4Recommendations.tsx:36
 msgid "Back to Step 3"
 msgstr "Tagasi sammu 3"
 
@@ -2486,23 +2486,23 @@ msgstr "Käivitub, kui ostukorv on olnud hüljatud kauem kui määratud ooteaeg.
 msgid "Minimum 10 minutes. Abandoned carts older than the set period are checked."
 msgstr "Minimaalselt 10 minutit. Kontrollitakse määratud ooteajast vanemaid hüljatud ostukorve."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:21
+#: admin/src/components/steps/Step4Recommendations.tsx:50
 msgid "Campaign Intelligence uses your store’s product, customer and order data to create personalised product recommendations for Smaily campaigns and automations. This helps you send more relevant emails with less manual work."
 msgstr "Campaign Intelligence kasutab sinu poe toote-, kliendi- ja tellimuseandmeid, et luua Smaily kampaaniate ja automaatikate jaoks personaalseid tootesoovitusi. Nii saad saata asjakohasemaid kirju vähema käsitööga."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:25
+#: admin/src/components/steps/Step4Recommendations.tsx:54
 msgid "Campaign Intelligence is an optional paid add-on (€250/month), added to your regular Smaily monthly payment. Contact Smaily to activate it, or set it up later."
 msgstr "Campaign Intelligence on valikuline tasuline lisateenus (250 €/kuus), mis lisandub sinu tavapärasele Smaily kuumaksele. Aktiveerimiseks võta Smailyga ühendust või seadista see hiljem."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:34
+#: admin/src/components/steps/Step4Recommendations.tsx:28
 msgid "Engine connected — now wire up the Campaign Intelligence automation workflows"
 msgstr "Mootor ühendatud — nüüd seo Campaign Intelligence’i automaatikad"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:45
+#: admin/src/components/steps/Step4Recommendations.tsx:39
 msgid "Replenishment and win-back automations are configured in Step 3 (Automated letters), below the store-run triggers."
 msgstr "Taastäite- ja tagasivõitmise automaatikad seadistatakse 3. sammus („Automaatikad“), poe-poolsete päästikute all."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:85
+#: admin/src/components/steps/Step4Recommendations.tsx:91
 msgid "Copy the Campaign Intelligence connection URL in the following field and click on Connect to activate the connection."
 msgstr "Kleebi Smaily Campaign Intelligence’i ühenduse URL allolevasse lahtrisse ja kliki Ühenda nupule."
 
@@ -2619,11 +2619,11 @@ msgstr "Smaily Connect: sinu Smaily Campaign Intelligence'i konto on deaktiveeri
 msgid "Your Smaily Campaign Intelligence account has been deactivated, so its automations cannot be read or saved. Contact Smaily to reactivate it."
 msgstr "Sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega selle automatsioone ei saa lugeda ega salvestada. Konto taasaktiveerimiseks võta ühendust Smailyga."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:197
+#: admin/src/components/steps/Step4Recommendations.tsx:203
 msgid "Account deactivated"
 msgstr "Konto on deaktiveeritud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:199
+#: admin/src/components/steps/Step4Recommendations.tsx:205
 msgid "Your Smaily Campaign Intelligence account has been deactivated, so syncing has stopped. Contact Smaily to reactivate it. Once it is active again, disconnect here and connect it with a new setup link."
 msgstr "Sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega sünkroonimine on peatunud. Konto taasaktiveerimiseks võta ühendust Smailyga. Kui konto on jälle aktiivne, katkesta siin ühendus ja ühenda konto uue seadistuslingiga."
 
@@ -2683,26 +2683,26 @@ msgstr[1] ""
 msgid "embed"
 msgstr "manustus"
 
-#: integrations/elementor/landingpage-widget.class.php:84
+#: integrations/elementor/landingpage-widget.class.php:98
 msgid "Landing Page"
 msgstr "Maandumisleht"
 
-#: integrations/elementor/landingpage-widget.class.php:92
+#: integrations/elementor/landingpage-widget.class.php:106
 msgid "Landing Page URL"
 msgstr "Maandumislehe URL"
 
-#: integrations/elementor/landingpage-widget.class.php:95
+#: integrations/elementor/landingpage-widget.class.php:109
 msgid "Copy the address of a landing page of your own Smaily account. Any other address shows nothing."
 msgstr "Kopeeri oma Smaily konto maandumislehe aadress. Muud aadressi ei kuvata."
 
-#: integrations/elementor/landingpage-widget.class.php:106
+#: integrations/elementor/landingpage-widget.class.php:120
 msgid "In pixels, or as a percentage — for example 600 or 100%."
 msgstr "Pikslites või protsentides — näiteks 600 või 100%."
 
-#: integrations/elementor/landingpage-widget.class.php:116
+#: integrations/elementor/landingpage-widget.class.php:130
 msgid "In pixels, or as a percentage — for example 500 or 100%."
 msgstr "Pikslites või protsentides — näiteks 500 või 100%."
 
-#: integrations/elementor/landingpage-widget.class.php:146
+#: integrations/elementor/landingpage-widget.class.php:160
 msgid "Add the address of a landing page of your connected Smaily account."
 msgstr "Lisa ühendatud Smaily konto maandumislehe aadress."
