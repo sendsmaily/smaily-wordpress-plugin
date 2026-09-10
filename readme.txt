@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.12.1
+Stable tag: 3.13.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -176,6 +176,17 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 Only releases from 3.0.0 onward are listed here. The complete version history, including the 1.x and 2.x releases, is published at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.13.0 =
+* New: the Smaily landing page can now be placed on pages built with Elementor or another page builder. A `[smaily_landing_page url="..."]` shortcode works in any builder's text or shortcode element, and Elementor also gets a "Smaily Landing Page" widget in its Smaily category. Both show exactly what the landing page block shows, and the height and width can be given in pixels or as a percentage.
+* Improved: the Settings screen's Campaign Intelligence tab now explains what Campaign Intelligence is and what it costs, until the store is connected to it.
+* Fixed: deactivating the plugin now stops its background jobs. They used to keep running every minute on a deactivated store.
+* Fixed: on a store with a large sending history, updating the plugin could start the same database change several times at once and slow the site down. The update now runs once, with more time to finish.
+* Fixed: a per-customer cache no longer grows the site's always-loaded settings with every customer who logged in. The leftover entries are cleaned up on update.
+* Improved: the plugin checks its background schedule once an hour instead of on every page view, and cleans up its own finished background jobs after seven days, so the WooCommerce scheduled-actions table stops growing.
+* Improved: the WordPress personal-data eraser now also removes queued Smaily messages and anonymises already-sent ones for the erased address.
+* Fixed: the checkout newsletter opt-in block no longer triggers a WooCommerce console warning about a header script.
+* Improved: the migration guide now describes the rollback to 2.0.0 truthfully (the API password must be re-entered) and no longer names a fixed target version.
+
 = 3.12.1 =
 * Fixed: on stores with browse tracking on, variable products could not be bought — the colour/size choices stayed disabled and "Add to cart" never lit up, while simple products worked. The plugin's storefront script leaked a variable named `_` into the page, which broke the WordPress helper WooCommerce's variation form relies on. All three of the plugin's scripts are now self-contained and leave nothing behind on the page. If you switched browse tracking off to work around this, it is safe to switch it back on after updating.
 
@@ -333,6 +344,9 @@ First general-availability release, graduating the 2.1.0-beta line. Existing set
 * Hardening: WordPress.org Plugin Check pass (sanitization, escaping, prefixing, ABSPATH guards); editor blocks updated to Block API v3 for the WordPress 7.0 iframe editor; diagnostics gated behind WP_DEBUG.
 
 == Upgrade Notice ==
+
+= 3.13.0 =
+Performance and housekeeping fixes for large stores, landing pages on Elementor pages, and Campaign Intelligence information on the Settings tab.
 
 = 3.12.1 =
 Fixes variable products that could not be added to the cart on stores with browse tracking on. Safe update; if you switched browse tracking off as a workaround, switch it back on afterwards.

@@ -26,7 +26,34 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-10 (**PRO-2438 — the daily janitor now clears the
+_Last updated: 2026-09-10 (**3.13.0 version bump — release pre-flight done on
+`main`, GH release pending.** Version bumped to **3.13.0** in the eight places
+CLAUDE.md lists (`smaily-connect.php` ×3, `package.json`, `package-lock.json`
+×2, `readme.txt` Stable tag + Changelog + Upgrade Notice, `docs/INSTALL.md`,
+and the three test pins `ConstantsTest` / `tests/bootstrap.php` /
+`tests/phpstan-bootstrap.php`); the readme changelog now carries the nine
+merchant-facing 3.13.0 lines (page-builder landing page, the Campaign
+Intelligence tab copy, deactivation stopping the background jobs, the single
+locked upgrade run, the autoloaded profiling-cache purge, the hourly schedule
+check + AS history prune, the queue erasure, the checkout-block console
+warning, the migration guide). Riding the bump: the three PCP suppressions the
+gate audit named (`QueueJanitor::table_exists()` wrapped in
+`phpcs:disable`/`enable` — PCP does not honour the line-level ignore there;
+`UnfinishedPrepare` added to the erasure DELETE's disable list in
+`Smaily\EventQueue`; `set_time_limit( 300 )` annotated with
+`Squiz.PHP.DiscouragedFunctions.Discouraged` + its reason), `UpgradeLock::
+OPTION` added to `EnvScrub`'s `$keys_to_flush` (the autoload=false object-cache
+trap), and **`CHANGELOG.md` retired to a pointer** at `readme.txt` + the GitHub
+releases (PRO-2394; it had stopped at 3.5.0 while readme.txt kept moving —
+DECISIONS PRO-2394, `docs/INDEX.md` row updated). i18n catalogs rebuilt for
+3.13.0 with `bin/build-i18n.sh`. Local pre-flight on a clean tree:
+`bin/verify-release-zip.sh smaily-connect.zip 3.13.0` **exit=0** with a clean
+(non-`-dirty`) `build-hash.txt` in the ZIP, and `ci:strict` **exit=0**.
+**Release state: 3.13.0 bump on main, GH release pending** (push, tag and the
+GitHub release are the orchestrator's / Erkki's; 3.12.1 remains the version
+live on wordpress.org until then).)_
+
+Prior: 2026-09-10 (**PRO-2438 — the daily janitor now clears the
 plugin's own finished background jobs.** Action Scheduler's own cleaner purges
 only completed and cancelled actions; failed ones are kept forever, with their
 log rows. On the pilot store that left 6 880 failed abandoned-cart actions from
@@ -55,7 +82,7 @@ ARCHITECTURE recurring-jobs table.
 warning class — the deliberate `set_time_limit( 300 )` — the rest suppression
 hygiene), with `bin/verify-release-zip.sh … 3.12.1` exit=0 and `ci:strict`
 exit=0. Report: `docs/audits/2026-09-10-delta-audit-3.13.0.md`, register row in
-`docs/audits/INDEX.md`.)_
+`docs/audits/INDEX.md`.)
 
 **Next session opens with (2026-09-10 session close):**
 
@@ -72,14 +99,14 @@ exit=0. Report: `docs/audits/2026-09-10-delta-audit-3.13.0.md`, register row in
   placement (PRO-1725). Erkki: the Estonian proofread of the docs site before
   the FTPS publish — the PRO-2383 privacy paragraph, the PRO-2379 sentence, the
   PRO-2440 landing-page paragraphs.
-- **Queue for next session, in order:** PRO-2394 (retire `CHANGELOG.md` to a
-  pointer — decision recorded on the issue), PRO-2384 (personal-data eraser for
+- **Queue for next session, in order:** ~~PRO-2394~~ (done with the 3.13.0
+  bump — `CHANGELOG.md` is a pointer now), PRO-2384 (personal-data eraser for
   the rec-engine ingest queue — privacy, design nod first), PRO-2393 (Dependabot
   alerts in `blocks/package-lock.json`), PRO-2441 (the two ET translations for
-  the PRO-2383 strings — `bin/build-i18n.sh` before packaging), PRO-2442 (the
-  flaky `useBackfillProgress` test). Then the **3.13.0 release gate**: delta
-  audit + PCP against the built ZIP per CLAUDE.md, readme changelog for
-  everything above.
+  the PRO-2383 strings — still untranslated in the 3.13.0 catalogs), PRO-2442
+  (the flaky `useBackfillProgress` test). The **3.13.0 release gate** has run
+  (delta audit + PCP against the built ZIP, readme changelog written); what is
+  left is the push, the tag and the GitHub release.
 - **Decisions today.** Event Log retention stays 30 days sent / 90 days failed
   (Erkki, 2026-09-10; filterable). The pushed commit `81521bf` keeps its
   AI-attribution trailers (Erkki: history is not rewritten); no trailers on any
