@@ -49,6 +49,39 @@ ARCHITECTURE recurring-jobs table.
 **Unreleased on main** (readme changelog lines belong to the next bump).
 **Release state unchanged: 3.12.1 is LIVE on wordpress.org.**)_
 
+**Next session opens with (2026-09-10 session close):**
+
+- **Shipped to main today, all UNRELEASED** (the readme changelog lines belong
+  to the next bump, which should be **3.13.0**): PRO-2433/2434/2435/2436
+  (deactivation cancels our AS groups; `UpgradeLock` on the inline upgrade;
+  `ProfilingConsent` stale-cache TTL + purge; the checkout opt-in block's footer
+  script — a duplicate of PRO-2395), PRO-2440 (landing-page shortcode +
+  Elementor widget, simplified in 79b656c), PRO-1725 (Campaign Intelligence copy
+  on the Settings tab until connected), PRO-2437 (hourly AS re-arm marker),
+  PRO-2438 (the janitor prunes our own AS rows — 7 days, 20k rows per run).
+- **Awaiting humans.** Jane: the Elementor widget + shortcode on Woocakes after
+  the release (PRO-2440 criterion 6, PRO-2346), and the Settings-tab copy
+  placement (PRO-1725). Erkki: the Estonian proofread of the docs site before
+  the FTPS publish — the PRO-2383 privacy paragraph, the PRO-2379 sentence, the
+  PRO-2440 landing-page paragraphs.
+- **Queue for next session, in order:** PRO-2394 (retire `CHANGELOG.md` to a
+  pointer — decision recorded on the issue), PRO-2384 (personal-data eraser for
+  the rec-engine ingest queue — privacy, design nod first), PRO-2393 (Dependabot
+  alerts in `blocks/package-lock.json`), PRO-2441 (the two ET translations for
+  the PRO-2383 strings — `bin/build-i18n.sh` before packaging), PRO-2442 (the
+  flaky `useBackfillProgress` test). Then the **3.13.0 release gate**: delta
+  audit + PCP against the built ZIP per CLAUDE.md, readme changelog for
+  everything above.
+- **Decisions today.** Event Log retention stays 30 days sent / 90 days failed
+  (Erkki, 2026-09-10; filterable). The pushed commit `81521bf` keeps its
+  AI-attribution trailers (Erkki: history is not rewritten); no trailers on any
+  later commit.
+- **MiuMjau.** The store's baseline slowness (1.5–2.3 s uncached TTFB with the
+  plugin off *and* on; 15.7 MB pages, slow static images) is not the plugin's;
+  the 500s remain unexplained without the host's error log. Its 466k-row Action
+  Scheduler table drains at 20k rows/day once 3.13.0 is installed (2–3 weeks)
+  unless a one-off manual purge is chosen.
+
 Prior: 2026-09-10 (**PRO-2437 — the recurring background jobs are
 verified once an hour, not once a request.** The `init` registration that keeps
 the plugin's eleven recurring Action Scheduler jobs armed asked Action Scheduler
