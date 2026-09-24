@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
+use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\WorkflowMatch;
 use Smaily\Connect\Smaily\WorkflowResolverInterface;
 
@@ -55,6 +56,10 @@ final class Router implements WorkflowResolverInterface {
 	public const LANGUAGE_DEFAULT = 'default';
 
 	public function resolve_workflow( string $trigger_type, ?string $language ): ?WorkflowMatch {
+		if ( isset( TransactionalGate::TRIGGERS[ $trigger_type ] ) ) {
+			return $this->resolve_transactional( $trigger_type, $language );
+		}
+
 		$mode  = $this->current_mode();
 		$lang  = $this->effective_language( $mode, $language );
 		$match = $this->find_mapping( $trigger_type, $lang );
@@ -65,6 +70,24 @@ final class Router implements WorkflowResolverInterface {
 
 		// No exact match — try the row marked as default fallback for the trigger.
 		return $this->find_fallback_mapping( $trigger_type );
+	}
+
+	/**
+	 * Transactional triggers (PRO-3187) are per-language whenever the store
+	 * has more than one language, REGARDLESS of mode: their Smaily workflow
+	 * must be single-section, so Mode C's in-Smaily branching can't apply.
+	 * The caller (TransactionalGate) passes null on a one-language store.
+	 *
+	 * Exact language → default-fallback row → the language='default' row.
+	 * The last step keeps a store that mapped the single pre-PRO-3187 row
+	 * sending after it gains per-language rows it hasn't filled in yet.
+	 */
+	private function resolve_transactional( string $trigger_type, ?string $language ): ?WorkflowMatch {
+		$lang = $language !== null && $language !== '' ? $language : self::LANGUAGE_DEFAULT;
+
+		return $this->find_mapping( $trigger_type, $lang )
+			?? $this->find_fallback_mapping( $trigger_type )
+			?? $this->find_mapping( $trigger_type, self::LANGUAGE_DEFAULT );
 	}
 
 	/**

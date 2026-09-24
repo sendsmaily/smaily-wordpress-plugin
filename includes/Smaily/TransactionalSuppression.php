@@ -46,38 +46,50 @@ class TransactionalSuppression {
 	}
 
 	public function register(): void {
-		add_filter( 'woocommerce_email_enabled_customer_processing_order', array( $this, 'filter_processing_order' ), 10, 1 );
-		add_filter( 'woocommerce_email_enabled_customer_completed_order', array( $this, 'filter_completed_order' ), 10, 1 );
+		add_filter( 'woocommerce_email_enabled_customer_processing_order', array( $this, 'filter_processing_order' ), 10, 2 );
+		add_filter( 'woocommerce_email_enabled_customer_completed_order', array( $this, 'filter_completed_order' ), 10, 2 );
 	}
 
 	/**
+	 * The order arg lets the gate pick the order's language workflow
+	 * (PRO-3187), so suppression matches the send decision for THAT order.
+	 * WC also calls is_enabled() with no object (e.g. its settings screen)
+	 * — then the check is language-less.
+	 *
 	 * @param mixed $enabled
+	 * @param mixed $order
 	 *
 	 * @return mixed
 	 */
-	public function filter_processing_order( $enabled ) {
+	public function filter_processing_order( $enabled, $order = null ) {
 		if ( self::$bypass ) {
 			return $enabled;
 		}
 
-		return $this->gate->resolve_if_open( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) !== null ? false : $enabled;
+		return $this->gate->resolve_if_open( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, self::as_order( $order ) ) !== null ? false : $enabled;
 	}
 
 	/**
 	 * @param mixed $enabled
+	 * @param mixed $order
 	 *
 	 * @return mixed
 	 */
-	public function filter_completed_order( $enabled ) {
+	public function filter_completed_order( $enabled, $order = null ) {
 		if ( self::$bypass ) {
 			return $enabled;
 		}
 
-		if ( $this->gate->resolve_if_open( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ) === null ) {
+		if ( $this->gate->resolve_if_open( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, self::as_order( $order ) ) === null ) {
 			return $enabled;
 		}
 
 		return in_array( 'completed', TransactionalGate::shipped_statuses(), true ) ? false : $enabled;
+	}
+
+	/** @param mixed $order */
+	private static function as_order( $order ): ?\WC_Order {
+		return $order instanceof \WC_Order ? $order : null;
 	}
 
 	/**

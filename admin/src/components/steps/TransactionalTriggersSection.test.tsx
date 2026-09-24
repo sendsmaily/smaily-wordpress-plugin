@@ -30,8 +30,15 @@ function connectedState(): WizardState {
   return { ...baseState(), transactionalConnection: { kind: 'success' } };
 }
 
-function Harness({ initial }: { initial: WizardState }): React.JSX.Element {
+function Harness({
+  initial,
+  onState,
+}: {
+  initial: WizardState;
+  onState?: (state: WizardState) => void;
+}): React.JSX.Element {
   const [state, dispatch] = useReducer(wizardReducer, initial);
+  onState?.(state);
   return <TransactionalTriggersSection state={state} dispatch={dispatch} />;
 }
 
@@ -86,5 +93,48 @@ describe('TransactionalTriggersSection', () => {
     fireEvent.click(completed);
     expect(completed).toBeChecked();
     expect(shipped).not.toBeChecked();
+  });
+
+  it('shows one row per language on a multilingual store, whatever the multilingual mode, all on the transactional account', async () => {
+    // PRO-3187: Mode C (branching inside Smaily) can't apply to a
+    // single-section transactional workflow, so the rows show anyway.
+    const initial: WizardState = {
+      ...connectedState(),
+      multilingualMode: 'C',
+      env: { ...connectedState().env, detectedLanguages: ['et', 'en'] },
+    };
+    let latest = initial;
+    render(<Harness initial={initial} onState={(s) => { latest = s; }} />);
+
+    await screen.findAllByRole('option', { name: 'Order confirmed' });
+    // Two triggers × two languages.
+    expect(screen.getAllByRole('combobox')).toHaveLength(4);
+    expect(screen.getAllByRole('radio', { name: 'Mark en as default fallback' })).toHaveLength(2);
+
+    const [, orderEn] = screen.getAllByRole('combobox');
+    fireEvent.change(orderEn!, { target: { value: '77' } });
+
+    expect(latest.automationMappings).toContainEqual(
+      expect.objectContaining({
+        triggerType: 'order_confirmation',
+        language: 'en',
+        accountKey: 'transactional',
+        workflowId: '77',
+      }),
+    );
+    expect(workflowsMock).not.toHaveBeenCalledWith('account_en');
+  });
+
+  it('keeps a single row on a one-language store', async () => {
+    const initial: WizardState = {
+      ...connectedState(),
+      multilingualMode: 'B',
+      env: { ...connectedState().env, detectedLanguages: ['et'] },
+    };
+    render(<Harness initial={initial} />);
+
+    await screen.findAllByRole('option', { name: 'Order confirmed' });
+    expect(screen.getAllByRole('combobox')).toHaveLength(2);
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   });
 });

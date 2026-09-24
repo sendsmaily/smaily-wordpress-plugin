@@ -26,7 +26,36 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-10 (**3.13.0 is LIVE on wordpress.org** — released
+_Last updated: 2026-09-24 (**PRO-3187 — transactional emails pick their
+Smaily workflow by the order's language on a multilingual store.** Until now
+the order and shipping confirmations always went through one workflow: the gate
+asked for the workflow with no language, and Settings showed one row per
+trigger. A transactional workflow must be single-section, so routing by
+language inside Smaily was never an option either. Now, whenever the store has
+more than one detected language, both transactional sections show one workflow
+row per language (all on the transactional account), whatever the multilingual
+mode — Mode C's in-Smaily branching can't apply here. `TransactionalGate::
+resolve_if_open()` takes the order and resolves its language through
+`ContactLanguageResolver::for_order()`. The Router resolves transactional
+triggers without the mode collapse: exact language → default-fallback row →
+the `default` row, so a store's existing single row keeps sending after the
+upgrade. The native-WC-email suppression filters now take the email's order
+(2nd filter arg), so suppression always matches the send decision for that
+order; the Event Log "Send again" path passes the order too. The merchant docs
+gained the per-language note in Transactional emails and a new **Merge tags**
+section (`#set-merge-tags`, EN+ET) that lists every field the Welcome / First
+order / Abandoned cart / Order confirmation / Shipping confirmation emails
+carry. Known limits (not in scope): `for_order` reads only WPML's
+`wpml_language` order meta, so on Polylang a guest order resolves to the
+default language; TranslatePress / site-locale codes (`et_EE`) vs the
+resolver's short codes mismatch the same way they already do for the A/B
+automations. Gates: `ci:strict` exit=0 (vitest 318); integration **OK (300 tests /
+1 781 assertions, 1 pre-existing skip)**, sandbox tenant "Smaily Connect test"
+restored. DECISIONS PRO-3187.
+**Unreleased on main after 3.13.0:** PRO-2449 (header description) and
+PRO-3187 — both ship with the next bump.)_
+
+Prior: 2026-09-10 (**3.13.0 is LIVE on wordpress.org** — released
 2026-09-10, 10:26 GMT. Version bumped to **3.13.0** in the eight places
 CLAUDE.md lists (`smaily-connect.php` ×3, `package.json`, `package-lock.json`
 ×2, `readme.txt` Stable tag + Changelog + Upgrade Notice, `docs/INSTALL.md`,
@@ -59,7 +88,7 @@ site was published over FTPS at 09:58 UTC — the live copy at
 **Unreleased on main after 3.13.0:** PRO-2449 — the plugin header
 `Description:` no longer carries the `(BETA: extended e-commerce sync …)`
 parenthetical (the `.pot`/`.po` msgid + Estonian msgstr updated with it); ships
-with the next bump.)_
+with the next bump.)
 
 Prior: 2026-09-10 (**PRO-2438 — the daily janitor now clears the
 plugin's own finished background jobs.** Action Scheduler's own cleaner purges

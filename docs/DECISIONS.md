@@ -6608,6 +6608,34 @@ two cannot, and the second one going stale is worse than not having it. Both
 survivors are already mandatory release steps (the readme bump, the GH release),
 so nothing new has to be remembered.
 
+### PRO-3187 — Transactional emails pick their workflow by the order's language (2026-09-24)
+
+**Context:** order and shipping confirmations always went through one Smaily
+workflow: `TransactionalGate` asked the resolver with no language, and Settings
+showed a single row per transactional trigger. The send payload carries no
+language, and a transactional workflow must be single-section, so a merchant
+with a multilingual store could not route by language inside Smaily either.
+**Decision (Erkki):** on a store with more than one detected language, each
+transactional trigger gets one workflow row per language, **independent of
+the multilingual mode**, all on the one `transactional` account. The gate
+resolves the order's language (`ContactLanguageResolver::for_order`) and the
+Router looks up exact language → default-fallback row → the `default` row. No
+`{{ language }}` merge tag.
+**Rationale:** Mode C means "one workflow, branch inside Smaily", which a
+single-section transactional workflow can't do, so the mode can't be what
+decides. The trailing `default`-row step keeps a store's existing single
+mapping sending after the upgrade, before its per-language rows are filled
+in. The suppression filters resolve with the email's order, so the WC
+native email is suppressed exactly when the Smaily send for that order will
+happen, never on the strength of another language's mapping.
+**Rejected:** adding a `language` merge tag, which gives content switching
+inside one template but no routing; following the site mode, which would
+leave Mode C stores with no way to route.
+**Limits:** `for_order` reads only WPML's `wpml_language` order meta (Polylang
+guest orders resolve to the default language); non-short language codes
+(TranslatePress / site locale) mismatch as they already do for A/B
+automations.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

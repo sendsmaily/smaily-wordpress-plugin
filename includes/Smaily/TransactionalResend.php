@@ -62,7 +62,7 @@ class TransactionalResend {
 		}
 
 		$trigger_type = TransactionalGate::trigger_type_for_event( $event_type );
-		$match        = $this->gate->resolve_if_open( $trigger_type );
+		$match        = $this->gate->resolve_if_open( $trigger_type, $order );
 		if ( $match === null ) {
 			return array(
 				'id'    => null,

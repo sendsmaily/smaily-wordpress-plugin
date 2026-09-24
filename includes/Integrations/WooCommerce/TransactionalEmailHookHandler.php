@@ -119,7 +119,7 @@ class TransactionalEmailHookHandler {
 			return;
 		}
 
-		$match = $this->gate->resolve_if_open( $trigger_type );
+		$match = $this->gate->resolve_if_open( $trigger_type, $order );
 		if ( $match === null ) {
 			// Gate closed (toggle off, no mapping, or credentials incomplete)
 			// — zero behavior change, nothing enqueued, no meta written.

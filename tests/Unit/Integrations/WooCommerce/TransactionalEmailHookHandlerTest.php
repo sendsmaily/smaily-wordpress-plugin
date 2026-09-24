@@ -240,7 +240,7 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 			public function __construct( string $open_trigger_type ) {
 				$this->open_trigger_type = $open_trigger_type;
 			}
-			public function resolve_if_open( string $trigger_type ): ?WorkflowMatch {
+			public function resolve_if_open( string $trigger_type, ?\WC_Order $order = null ): ?WorkflowMatch {
 				return $trigger_type === $this->open_trigger_type ? new WorkflowMatch( 1, 'transactional' ) : null;
 			}
 		};

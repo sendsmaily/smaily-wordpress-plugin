@@ -253,6 +253,7 @@ td code{white-space:nowrap}
         <li><a href="#set-consent" data-lang="en">How consent is recorded</a><a href="#set-consent" data-lang="et">Kuidas nõusolek salvestatakse</a></li>
         <li><a href="#set-automations" data-lang="en">Automations</a><a href="#set-automations" data-lang="et">Automaatikad</a></li>
         <li><a href="#set-transactional" data-lang="en">Transactional emails</a><a href="#set-transactional" data-lang="et">Tehingu‑e‑kirjad</a></li>
+        <li><a href="#set-merge-tags" data-lang="en">Merge tags</a><a href="#set-merge-tags" data-lang="et">Kirjapõhja märgendid</a></li>
         <li><a href="#set-ci" data-lang="en">Campaign Intelligence</a><a href="#set-ci" data-lang="et">Campaign Intelligence</a></li>
         <li><a href="#set-integrations" data-lang="en">Integrations</a><a href="#set-integrations" data-lang="et">Integratsioonid</a></li>
       </ul>
@@ -701,7 +702,7 @@ td code{white-space:nowrap}
         </ul>
       </div>
       <h3>Store‑run triggers</h3>
-      <p>Map a store event to a Smaily workflow: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome fires when a shopper creates an account in your store (checkout or the My Account registration form) — not for accounts added in WordPress admin or created by another plugin. Abandoned cart has a delay (minutes of inactivity before a cart counts as abandoned). If no workflows appear, none were found on your Smaily account (or Smaily couldn't be reached) — create them in Smaily first.</p>
+      <p>Map a store event to a Smaily workflow: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome fires when a shopper creates an account in your store (checkout or the My Account registration form) — not for accounts added in WordPress admin or created by another plugin. Abandoned cart has a delay (minutes of inactivity before a cart counts as abandoned). If no workflows appear, none were found on your Smaily account (or Smaily couldn't be reached) — create them in Smaily first. The fields each email carries for your template are listed under <a href="#set-merge-tags">Merge tags</a>.</p>
       <div class="note">
         <span class="k">Each trigger marks the contact — build segments on it</span>
         <p>Every time one of these fires, it writes the moment it ran onto the contact in Smaily, so you can tell an automation‑enrolled contact from someone who subscribed themselves:</p>
@@ -746,7 +747,7 @@ td code{white-space:nowrap}
         </ul>
       </div>
       <h3>Poe‑käivitatavad</h3>
-      <p>Seo poe sündmus Smaily töövooga: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome käivitub, kui ostleja loob su poes konto (kassas või „Minu konto“ registreerimisvormil) — mitte kontode puhul, mille lisad WordPressi haldusliideses või mille loob mõni muu plugin. Pooleli jäänud korval on viivitus (tegevusetuse minutid, enne kui korv loetakse hüljatuks). Kui ühtegi töövoogu ei kuva, ei leitud su Smaily kontolt ühtegi (või Smailyni ei jõutud) — loo need enne Smailys.</p>
+      <p>Seo poe sündmus Smaily töövooga: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome käivitub, kui ostleja loob su poes konto (kassas või „Minu konto“ registreerimisvormil) — mitte kontode puhul, mille lisad WordPressi haldusliideses või mille loob mõni muu plugin. Pooleli jäänud korval on viivitus (tegevusetuse minutid, enne kui korv loetakse hüljatuks). Kui ühtegi töövoogu ei kuva, ei leitud su Smaily kontolt ühtegi (või Smailyni ei jõutud) — loo need enne Smailys. Kirjapõhjas kasutatavad väljad leiad jaotisest <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</p>
       <div class="note">
         <span class="k">Iga päästik märgistab kontakti — ehita selle peale segmente</span>
         <p>Iga kord, kui mõni neist käivitub, kirjutab see kontaktile Smailys käivitumise hetke, nii et eristad automaatika kaudu lisatud kontakti sellest, kes ise tellijaks hakkas:</p>
@@ -792,7 +793,8 @@ td code{white-space:nowrap}
       </div>
       <p>On the Connection tab, <strong>Use transactional emails</strong> is the master switch for the account itself; each of the two triggers on the WooCommerce tab has its own switch too, so you can turn on order confirmations without shipping notices, or vice‑versa.</p>
       <h3>Order confirmation</h3>
-      <p>Sent once, the moment a customer places an order. Map it to a Smaily workflow the same way as the automations above.</p>
+      <p>Sent once, the moment a customer places an order. Map it to a Smaily workflow the same way as the automations above. The fields both emails carry are listed under <a href="#set-merge-tags">Merge tags</a>.</p>
+      <p><strong>Multilingual store:</strong> when your site has more than one language, both sections show one workflow row per language, whichever multilingual mode you picked. Each order is sent through the workflow for the language it was placed in, so you can build one single‑section workflow per language on the transactional account. An order in a language with no workflow mapped goes to the row marked <strong>Default fallback</strong>.</p>
       <h3>Shipping confirmation</h3>
       <p>Sent once, when an order first reaches a status you've marked as <strong>"Counts as shipped"</strong> — pick any number of your store's order statuses (built‑in or custom, e.g. a shipping plugin's "Shipped" status). A later flip back into a shipped status for the same order never sends a second notice.</p>
       <p>While either toggle is on, Smaily Connect quietly takes over WooCommerce's matching built‑in customer email (Processing order / Completed order) so the customer never gets two emails for the same event. Completed‑order suppression only applies when <strong>"completed"</strong> is itself one of your chosen shipped statuses — a custom status (like "Shipped") has no built‑in WooCommerce email to replace.</p>
@@ -813,7 +815,8 @@ td code{white-space:nowrap}
       </div>
       <p>Connection vahekaardil on <strong>Use transactional emails</strong> pealüliti konto enda jaoks; mõlemal WooCommerce vahekaardi päästikul on ka oma lüliti, nii saad sisse lülitada tellimuskinnitused ilma saatmisteadeteta või vastupidi.</p>
       <h3>Tellimuse kinnitus</h3>
-      <p>Saadetakse üks kord, hetkel kui klient tellimuse esitab. Seo see Smaily töövooga samamoodi nagu ülal olevad automaatikad.</p>
+      <p>Saadetakse üks kord, hetkel kui klient tellimuse esitab. Seo see Smaily töövooga samamoodi nagu ülal olevad automaatikad. Mõlema kirja väljad leiad jaotisest <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</p>
+      <p><strong>Mitmekeelne pood:</strong> kui su saidil on rohkem kui üks keel, näitavad mõlemad jaotised iga keele jaoks eraldi töövoo rida, sõltumata valitud mitmekeelsuse režiimist. Iga tellimus saadetakse selle keele töövooga, milles tellimus tehti, nii et tehingukontole saad teha iga keele jaoks oma ühe sektsiooniga töövoo. Kui tellimuse keelele pole töövoogu määratud, kasutatakse rida, mis on märgitud kui <strong>Vaikimisi varuvalik</strong>.</p>
       <h3>Saatmisteade</h3>
       <p>Saadetakse üks kord, kui tellimus jõuab esimest korda staatusesse, mille oled märkinud kui <strong>"Loetakse saadetuks"</strong> — vali suvaline arv oma poe staatuseid (sisseehitatud või kohandatud, nt saatmis‑pluginate "Shipped" staatus). Hilisem tagasipöördumine samasse saadetud‑staatusesse sama tellimuse puhul teist teadet enam ei saada.</p>
       <p>Kui kumbki lüliti on sees, võtab Smaily Connect vaikselt üle WooCommerce'i vastava sisseehitatud kliendi‑e‑kirja (Processing order / Completed order), et klient ei saaks sama sündmuse kohta kaht e‑kirja. Completed‑order e‑kirja mahasurumine kehtib ainult siis, kui <strong>"completed"</strong> ise on üks su valitud saadetud‑staatustest — kohandatud staatusel (nt "Shipped") pole asendatavat sisseehitatud WooCommerce'i e‑kirja.</p>
@@ -825,6 +828,134 @@ td code{white-space:nowrap}
           <li>Tellimuse kohta muutuv teemarida (nt tellimuse numbriga) peab olema <strong>töövoo malli sees liitmärgend (merge tag)</strong> — WordPressist teemarea ülekirjutamist saadetise kohta pole.</li>
         </ul>
       </div>
+    </div>
+  </div>
+
+  <div class="sub" id="set-merge-tags">
+    <h2><span data-lang="en">Merge tags in your email templates</span><span data-lang="et">Kirjapõhja märgendid</span></h2>
+    <div data-lang="en">
+      <p>These are the fields each email the plugin triggers carries. Use them in the Smaily template as merge tags, e.g. <code>{{ first_name }}</code> or <code>{{ product_name_1 }}</code>. A field whose value the plugin doesn't know is usually <strong>left out</strong>, not sent empty — a template should expect it may be missing.</p>
+      <h3>Welcome</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Merge tag</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><code>store</code></td><td>Your store's address (site URL).</td></tr>
+            <tr><td><code>first_name</code>, <code>last_name</code>, <code>nickname</code>, <code>user_phone</code>, <code>user_gender</code>, <code>birthday</code>, <code>customer_id</code>, <code>customer_group</code>, <code>first_registered</code>, <code>site_title</code></td><td>Only the fields ticked under <a href="#set-subscribers">Contacts → Fields to sync</a>, and only when the customer has a value.</td></tr>
+            <tr><td><code>welcome_automation_at</code></td><td>When this trigger fired (UTC, <code>2026-08-04 14:30:00</code>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>First order</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Merge tag</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><code>order_id</code></td><td>WooCommerce's internal order ID.</td></tr>
+            <tr><td><code>order_total</code></td><td>Order total as a plain number, tax included (<code>24.90</code>).</td></tr>
+            <tr><td><code>order_currency</code></td><td>Currency code (<code>EUR</code>).</td></tr>
+            <tr><td><code>first_order_automation_at</code></td><td>When this trigger fired (UTC).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Abandoned cart</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Merge tag</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><code>first_name</code>, <code>last_name</code></td><td>The shopper's name, when known.</td></tr>
+            <tr><td><code>store</code></td><td>Your store's address (site URL).</td></tr>
+            <tr><td><code>language</code></td><td>The shopper's language code (<code>et</code>, <code>en</code>…), when resolved.</td></tr>
+            <tr><td><code>is_abandoned_cart</code></td><td>Always <code>true</code>.</td></tr>
+            <tr><td><code>abandoned_cart_automation_at</code></td><td>When this trigger fired (UTC).</td></tr>
+            <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>One set per cart product, <code>N</code> = 1…10. Unused slots are sent empty.</td></tr>
+            <tr><td><code>product_price_N</code></td><td>The product's current price, formatted with currency (the sale price while on sale).</td></tr>
+            <tr><td><code>product_base_price_N</code></td><td>The product's regular price, formatted with currency.</td></tr>
+            <tr><td><code>over_10_products</code></td><td><code>true</code> only when the cart holds more than 10 products.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Order confirmation and Shipping confirmation</h3>
+      <p>Both <a href="#set-transactional">transactional emails</a> carry the same fields.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Merge tag</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><code>order_number</code></td><td>The order number the customer sees.</td></tr>
+            <tr><td><code>order_total</code></td><td>Order total as charged, tax included, formatted with currency (<code>24,90 €</code>).</td></tr>
+            <tr><td><code>currency</code></td><td>Currency code (<code>EUR</code>).</td></tr>
+            <tr><td><code>payment_method</code>, <code>shipping_method</code></td><td>The payment and shipping method names.</td></tr>
+            <tr><td><code>first_name</code>, <code>last_name</code></td><td>The billing name.</td></tr>
+            <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>One set per ordered product, <code>N</code> = 1…10. Unused slots are sent empty.</td></tr>
+            <tr><td><code>product_price_N</code></td><td>The unit price the customer paid, after discounts, tax included.</td></tr>
+            <tr><td><code>product_base_price_N</code></td><td>The unit price before discounts, tax included.</td></tr>
+            <tr><td><code>over_10_products</code></td><td><code>true</code> only when the order has more than 10 products.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The transactional emails carry <strong>no language field</strong>. On a multilingual store, map a separate workflow per language instead (see <a href="#set-transactional">Transactional emails</a>).</p>
+    </div>
+    <div data-lang="et">
+      <p>Siin on väljad, mis iga pluginast käivitatud e‑kirjaga kaasa lähevad. Kasuta neid Smaily kirjapõhjas märgenditena, nt <code>{{ first_name }}</code> või <code>{{ product_name_1 }}</code>. Välja, mille väärtust plugin ei tea, üldjuhul <strong>ei saadeta</strong> (mitte ei saadeta tühjana), nii et kirjapõhi peaks arvestama, et see võib puududa.</p>
+      <h3>Welcome</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Märgend</th><th>Väärtus</th></tr></thead>
+          <tbody>
+            <tr><td><code>store</code></td><td>Su poe aadress (saidi URL).</td></tr>
+            <tr><td><code>first_name</code>, <code>last_name</code>, <code>nickname</code>, <code>user_phone</code>, <code>user_gender</code>, <code>birthday</code>, <code>customer_id</code>, <code>customer_group</code>, <code>first_registered</code>, <code>site_title</code></td><td>Ainult väljad, mis on märgitud jaotises <a href="#set-subscribers">Kontaktid → Sünkroonitavad väljad</a>, ja ainult siis, kui kliendil on väärtus olemas.</td></tr>
+            <tr><td><code>welcome_automation_at</code></td><td>Päästiku käivitumise aeg (UTC, <code>2026-08-04 14:30:00</code>).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>First order</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Märgend</th><th>Väärtus</th></tr></thead>
+          <tbody>
+            <tr><td><code>order_id</code></td><td>WooCommerce'i sisemine tellimuse ID.</td></tr>
+            <tr><td><code>order_total</code></td><td>Tellimuse kogusumma lihtsa arvuna, koos maksuga (<code>24.90</code>).</td></tr>
+            <tr><td><code>order_currency</code></td><td>Valuutakood (<code>EUR</code>).</td></tr>
+            <tr><td><code>first_order_automation_at</code></td><td>Päästiku käivitumise aeg (UTC).</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Abandoned cart</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Märgend</th><th>Väärtus</th></tr></thead>
+          <tbody>
+            <tr><td><code>first_name</code>, <code>last_name</code></td><td>Ostleja nimi, kui see on teada.</td></tr>
+            <tr><td><code>store</code></td><td>Su poe aadress (saidi URL).</td></tr>
+            <tr><td><code>language</code></td><td>Ostleja keelekood (<code>et</code>, <code>en</code>…), kui see õnnestus tuvastada.</td></tr>
+            <tr><td><code>is_abandoned_cart</code></td><td>Alati <code>true</code>.</td></tr>
+            <tr><td><code>abandoned_cart_automation_at</code></td><td>Päästiku käivitumise aeg (UTC).</td></tr>
+            <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>Üks komplekt iga korvis oleva toote kohta, <code>N</code> = 1…10. Kasutamata kohad saadetakse tühjana.</td></tr>
+            <tr><td><code>product_price_N</code></td><td>Toote praegune hind koos valuutaga (soodushinna ajal soodushind).</td></tr>
+            <tr><td><code>product_base_price_N</code></td><td>Toote tavahind koos valuutaga.</td></tr>
+            <tr><td><code>over_10_products</code></td><td><code>true</code> ainult siis, kui korvis on üle 10 toote.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Tellimuse kinnitus ja saatmisteade</h3>
+      <p>Mõlemal <a href="#set-transactional">tehingu‑e‑kirjal</a> on samad väljad.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Märgend</th><th>Väärtus</th></tr></thead>
+          <tbody>
+            <tr><td><code>order_number</code></td><td>Tellimuse number, mida klient näeb.</td></tr>
+            <tr><td><code>order_total</code></td><td>Tasutud kogusumma koos maksuga ja valuutaga (<code>24,90 €</code>).</td></tr>
+            <tr><td><code>currency</code></td><td>Valuutakood (<code>EUR</code>).</td></tr>
+            <tr><td><code>payment_method</code>, <code>shipping_method</code></td><td>Makse‑ ja tarneviisi nimi.</td></tr>
+            <tr><td><code>first_name</code>, <code>last_name</code></td><td>Arveldusaadressi nimi.</td></tr>
+            <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>Üks komplekt iga tellitud toote kohta, <code>N</code> = 1…10. Kasutamata kohad saadetakse tühjana.</td></tr>
+            <tr><td><code>product_price_N</code></td><td>Kliendi makstud ühikuhind pärast allahindlust, koos maksuga.</td></tr>
+            <tr><td><code>product_base_price_N</code></td><td>Ühikuhind enne allahindlust, koos maksuga.</td></tr>
+            <tr><td><code>over_10_products</code></td><td><code>true</code> ainult siis, kui tellimuses on üle 10 toote.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Tehingu‑e‑kirjadel <strong>keelevälja pole</strong>. Mitmekeelses poes määra selle asemel iga keele jaoks eraldi töövoog (vt <a href="#set-transactional">Tehingu‑e‑kirjad</a>).</p>
     </div>
   </div>
 

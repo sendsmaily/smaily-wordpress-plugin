@@ -184,6 +184,85 @@ final class RouterTest extends TestCase {
 		self::assertNull( ( new Router() )->resolve_workflow( 'welcome', 'et' ) );
 	}
 
+	public function test_transactional_trigger_uses_the_callers_language_even_in_single_mode(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_SINGLE );
+
+		$wpdb->next_get_row = array(
+			'workflow_id' => '31',
+			'account_key' => 'transactional',
+			'language'    => 'en',
+		);
+
+		$match = ( new Router() )->resolve_workflow( 'order_confirmation', 'en' );
+
+		self::assertNotNull( $match );
+		self::assertSame( 31, $match->workflow_id );
+		self::assertSame( array( 'order_confirmation', 'en' ), $wpdb->all_args[0], 'Transactional workflows cannot branch in Smaily, so no mode collapses their language.' );
+	}
+
+	public function test_transactional_trigger_prefers_the_fallback_row_over_the_default_row(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_C );
+
+		$wpdb->row_queue = array(
+			null,
+			array(
+				'workflow_id' => '32',
+				'account_key' => 'transactional',
+				'language'    => 'et',
+			),
+		);
+
+		$match = ( new Router() )->resolve_workflow( 'shipping_confirmation', 'lt' );
+
+		self::assertNotNull( $match );
+		self::assertSame( 32, $match->workflow_id );
+		self::assertSame( 2, $wpdb->get_row_calls, 'The default row is not consulted once a fallback row answers.' );
+	}
+
+	public function test_transactional_trigger_falls_back_to_the_single_pre_per_language_row(): void {
+		// A store that mapped the one language='default' row before it had
+		// per-language rows, without that row being flagged as fallback.
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_B );
+
+		$wpdb->row_queue = array(
+			null,
+			null,
+			array(
+				'workflow_id' => '33',
+				'account_key' => 'transactional',
+				'language'    => 'default',
+			),
+		);
+
+		$match = ( new Router() )->resolve_workflow( 'order_confirmation', 'en' );
+
+		self::assertNotNull( $match );
+		self::assertSame( 33, $match->workflow_id );
+		self::assertSame( array( 'order_confirmation', 'default' ), $wpdb->all_args[2] );
+	}
+
+	public function test_transactional_trigger_with_null_language_looks_up_the_default_row(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_B );
+
+		$wpdb->next_get_row = array(
+			'workflow_id' => '34',
+			'account_key' => 'transactional',
+			'language'    => 'default',
+		);
+
+		( new Router() )->resolve_workflow( 'order_confirmation', null );
+
+		self::assertSame( array( 'order_confirmation', 'default' ), $wpdb->all_args[0] );
+	}
+
 	/**
 	 * Builds a fake $wpdb whose prepare() returns its SQL with the args
 	 * inlined (good enough for our get_row branching) and whose get_row()
@@ -196,14 +275,22 @@ final class RouterTest extends TestCase {
 			public ?array $next_get_row        = null;
 			public ?array $next_fallback_get_row = null;
 			public int $get_row_calls          = 0;
+			/** When set, get_row() answers from this queue (one entry per call) instead. */
+			public ?array $row_queue           = null;
+			/** prepare() args of every lookup, in call order. */
+			public array $all_args             = array();
 
 			public function prepare( string $sql, ...$args ): string {
 				$this->captured_args = $args;
+				$this->all_args[]    = $args;
 				return $sql;
 			}
 
 			public function get_row( string $sql, string $output = ARRAY_A ): ?array {
 				++$this->get_row_calls;
+				if ( $this->row_queue !== null ) {
+					return array_shift( $this->row_queue );
+				}
 				if ( $this->get_row_calls === 1 ) {
 					return $this->next_get_row;
 				}

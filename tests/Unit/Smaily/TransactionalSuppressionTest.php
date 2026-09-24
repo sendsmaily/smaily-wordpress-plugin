@@ -76,6 +76,22 @@ final class TransactionalSuppressionTest extends TestCase {
 		self::assertTrue( $suppression->filter_completed_order( true ) );
 	}
 
+	public function test_the_filters_hand_the_emails_order_to_the_gate(): void {
+		// PRO-3187: the gate picks the workflow by the order's language, so
+		// suppression must ask about THIS order — else it could suppress an
+		// email whose language has no workflow (or keep one that does).
+		$this->options['smly_plus_shipped_order_statuses'] = array( 'completed' );
+		$gate        = $this->gate_recording_orders();
+		$suppression = new TransactionalSuppression( $gate );
+		$order       = $this->createMock( \WC_Order::class );
+
+		$suppression->filter_processing_order( true, $order );
+		$suppression->filter_completed_order( true, $order );
+		$suppression->filter_processing_order( true, 'not-an-order' );
+
+		self::assertSame( array( $order, $order, null ), $gate->orders );
+	}
+
 	public function test_everything_off_is_zero_behavior_change(): void {
 		// The invariant the acceptance criteria calls out explicitly: with
 		// both triggers gated closed, neither filter ever forces false.
@@ -130,13 +146,25 @@ final class TransactionalSuppressionTest extends TestCase {
 
 	// --- helpers -------------------------------------------------------------
 
+	private function gate_recording_orders(): TransactionalGate {
+		return new class() extends TransactionalGate {
+			/** @var array<int, ?\WC_Order> */
+			public array $orders = array();
+			public function __construct() {}
+			public function resolve_if_open( string $trigger_type, ?\WC_Order $order = null ): ?WorkflowMatch {
+				$this->orders[] = $order;
+				return null;
+			}
+		};
+	}
+
 	private function gate_open_for( string $open_trigger_type ): TransactionalGate {
 		return new class( $open_trigger_type ) extends TransactionalGate {
 			private string $open_trigger_type;
 			public function __construct( string $open_trigger_type ) {
 				$this->open_trigger_type = $open_trigger_type;
 			}
-			public function resolve_if_open( string $trigger_type ): ?WorkflowMatch {
+			public function resolve_if_open( string $trigger_type, ?\WC_Order $order = null ): ?WorkflowMatch {
 				return $trigger_type === $this->open_trigger_type ? new WorkflowMatch( 1, 'transactional' ) : null;
 			}
 		};

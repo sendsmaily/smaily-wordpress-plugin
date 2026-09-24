@@ -24,10 +24,11 @@ export interface AutomationSectionProps {
   /**
    * Fixes the mapping row(s) to a specific Smaily account instead of the
    * multilingual-mode-derived one — used by triggers bound to a separate
-   * Smaily account (transactional-email triggers, PRO-1504). When set,
-   * the section always renders a single row (language='default')
-   * regardless of the site's multilingual mode; the override account has
-   * no per-language variants in stage 1.
+   * Smaily account (transactional-email triggers, PRO-1504). When set, the
+   * section renders one row per detected language whenever the site has
+   * more than one, REGARDLESS of multilingual mode (PRO-3187: these
+   * workflows are single-section, so Mode C's in-Smaily branching can't
+   * apply), every row on this one account; else a single row.
    */
   accountKeyOverride?: string;
 }
@@ -64,7 +65,9 @@ export function AutomationSection({
 }: AutomationSectionProps): React.JSX.Element {
   const isModeA = state.multilingualMode === 'A' && state.env.detectedLanguages.length > 1;
   const isModeB = state.multilingualMode === 'B' && state.env.detectedLanguages.length > 1;
-  const isMultiRow = accountKeyOverride === undefined && (isModeA || isModeB);
+  const isMultiRow = accountKeyOverride === undefined
+    ? isModeA || isModeB
+    : state.env.detectedLanguages.length > 1;
 
   const rows = computeRows(state, trigger);
 
@@ -95,6 +98,7 @@ export function AutomationSection({
             trigger={trigger}
             rows={rows}
             isModeA={isModeA}
+            accountKey={accountKeyOverride}
           />
         ) : (
           <SingleRow
@@ -119,6 +123,8 @@ interface RowsProps {
 
 interface MultiLanguageRowsProps extends RowsProps {
   isModeA: boolean;
+  /** Every row on this account — see AutomationSectionProps.accountKeyOverride. */
+  accountKey?: string;
 }
 
 function MultiLanguageRows({
@@ -127,6 +133,7 @@ function MultiLanguageRows({
   trigger,
   rows,
   isModeA,
+  accountKey: fixedAccountKey,
 }: MultiLanguageRowsProps): React.JSX.Element {
   return (
     <table className="w-full text-sm">
@@ -139,7 +146,7 @@ function MultiLanguageRows({
       </thead>
       <tbody className="divide-y divide-border-subtle">
         {state.env.detectedLanguages.map((language) => {
-          const accountKey = isModeA ? `account_${language}` : 'default';
+          const accountKey = fixedAccountKey ?? (isModeA ? `account_${language}` : 'default');
           const mapping = rows.find(
             (r) => r.language === language && r.accountKey === accountKey,
           );

@@ -11,7 +11,10 @@ namespace Smaily\Connect\Smaily;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Multilingual\DetectorFactory;
+use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Settings\Credentials;
+use Smaily\Connect\Support\ContactLanguageResolver;
 
 /**
  * Single source of truth for "is a transactional send allowed to happen for
@@ -27,8 +30,9 @@ use Smaily\Connect\Settings\Credentials;
  * All four conditions must hold:
  *   1. the transactional-emails enablement toggle is on;
  *   2. that trigger's own toggle is on;
- *   3. a mapping row exists for the trigger (account_key='transactional',
- *      language='default' — this account has no per-language variant);
+ *   3. a mapping row exists for the trigger (account_key='transactional').
+ *      On a store with more than one language the row is picked by the
+ *      order's language (PRO-3187) — see resolve_if_open();
  *   4. the mapped account's credentials resolve (subdomain+username+password
  *      all set).
  *
@@ -76,18 +80,30 @@ class TransactionalGate {
 
 	private Credentials $credentials;
 	private WorkflowResolverInterface $resolver;
+	private ?DetectorInterface $detector;
+	private ?ContactLanguageResolver $languages;
 
-	public function __construct( Credentials $credentials, WorkflowResolverInterface $resolver ) {
+	/**
+	 * @param DetectorInterface|null       $detector  Multilingual detector; defaults to the active one (built lazily, only when an order is passed).
+	 * @param ContactLanguageResolver|null $languages Order-language source; defaults to one over $detector.
+	 */
+	public function __construct( Credentials $credentials, WorkflowResolverInterface $resolver, ?DetectorInterface $detector = null, ?ContactLanguageResolver $languages = null ) {
 		$this->credentials = $credentials;
 		$this->resolver    = $resolver;
+		$this->detector    = $detector;
+		$this->languages   = $languages;
 	}
 
 	/**
 	 * Returns the matched workflow when every gate condition holds for
 	 * $trigger_type, or null when any one of them doesn't — the caller
 	 * treats null as "do nothing" (no send, no suppression).
+	 *
+	 * Pass the order whenever there is one: on a store with more than one
+	 * language it picks that language's workflow (PRO-3187). Without an
+	 * order (or on a one-language store) the lookup is language-less.
 	 */
-	public function resolve_if_open( string $trigger_type ): ?WorkflowMatch {
+	public function resolve_if_open( string $trigger_type, ?\WC_Order $order = null ): ?WorkflowMatch {
 		if ( ! (bool) get_option( self::OPTION_ENABLED, false ) ) {
 			return null;
 		}
@@ -96,7 +112,7 @@ class TransactionalGate {
 			return null;
 		}
 
-		$match = $this->resolver->resolve_workflow( $trigger_type, null );
+		$match = $this->resolver->resolve_workflow( $trigger_type, $this->order_language( $order ) );
 		if ( $match === null ) {
 			return null;
 		}
@@ -107,6 +123,26 @@ class TransactionalGate {
 		}
 
 		return $match;
+	}
+
+	/**
+	 * The order's language when the store has more than one — the same
+	 * condition under which Settings shows per-language rows — else null.
+	 */
+	private function order_language( ?\WC_Order $order ): ?string {
+		if ( $order === null ) {
+			return null;
+		}
+
+		$this->detector ??= DetectorFactory::create();
+		if ( count( $this->detector->get_detected_languages() ) < 2 ) {
+			return null;
+		}
+
+		$this->languages ??= new ContactLanguageResolver( $this->detector );
+		$language          = $this->languages->for_order( $order );
+
+		return $language !== '' ? $language : null;
 	}
 
 	/** The wire event_type $trigger_type's queue rows dispatch under. */
