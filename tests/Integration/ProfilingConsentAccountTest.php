@@ -3,7 +3,8 @@
  * Integration: the My Account "Smaily Campaign Intelligence" section shows
  * only where Campaign Intelligence is live (PRO-2513) — whether or not the
  * email setup wizard is finished — and its "couldn't load" state offers an
- * opt-out button that works without a Smaily client (PRO-3189).
+ * opt-out button that works without a Smaily client (PRO-3189) — and that
+ * opt-out survives a later read of a contact with no preference (PRO-3191).
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -141,6 +142,90 @@ final class ProfilingConsentAccountTest extends TestCase {
 		self::assertStringContainsString( 'type="checkbox"', $html );
 		self::assertStringNotContainsString( "checked='checked'", $html );
 		self::assertStringNotContainsString( ProfilingConsentAccount::OPT_OUT_FIELD, $html );
+	}
+
+	/**
+	 * The lapse PRO-3191 closes, end to end: the shopper opts out while the
+	 * store has no Smaily client (the write is skipped), the merchant then
+	 * finishes the email setup, and the shopper's Smaily contact carries no
+	 * profiling preference. Once the daily cache expires, the fresh read
+	 * SUCCEEDS — and must not lift the opt-out; the opt-out is written to
+	 * the contact instead. Smaily is faked at the pre_http_request seam
+	 * (the established one, see CartPipelineTest).
+	 */
+	public function test_opt_out_survives_a_later_read_of_a_contact_without_a_preference(): void {
+		EnvSeed::connect();
+		if ( WC()->session === null ) {
+			wc_load_cart();
+		}
+		$smaily_calls = array();
+		$fake_http    = static function ( $pre, array $args, string $url ) use ( &$smaily_calls ) {
+			$body = array( 'ok' => true, 'opt_out_status' => true ); // the engine's reply.
+			if ( strpos( $url, '.sendsmaily.net/api/contact.php' ) !== false ) {
+				$smaily_calls[] = array( $args['method'] ?? '', $args['body'] ?? null );
+				$body           = ( $args['method'] ?? '' ) === 'GET'
+					? array( 'email' => 'pro2513@example.test', 'is_unsubscribed' => '0' ) // no smaily_rec_profiling.
+					: array( 'code' => 101, 'message' => 'OK' );
+			}
+			return array(
+				'headers'  => array(),
+				'body'     => wp_json_encode( $body ),
+				'response' => array( 'code' => 200, 'message' => 'OK' ),
+				'cookies'  => array(),
+			);
+		};
+		$stop_at_redirect = static function (): void {
+			throw new \RuntimeException( 'redirected' );
+		};
+		add_filter( 'pre_http_request', $fake_http, 10, 3 );
+		add_filter( 'wp_redirect', $stop_at_redirect );
+
+		try {
+			// 1. Opt out from My Account while the email wizard is unfinished.
+			self::assertFalse( SetupState::completed(), 'Precondition: no Smaily client yet.' );
+			$_POST['_wpnonce']                               = wp_create_nonce( ProfilingConsentAccount::ACTION );
+			$_POST[ ProfilingConsentAccount::OPT_OUT_FIELD ] = '1';
+			try {
+				( new ProfilingConsentAccount( Bootstrap::instance()->profiling_consent(), new RecEngineSettings() ) )->handle_post();
+			} catch ( \RuntimeException $e ) {
+				self::assertSame( 'redirected', $e->getMessage() );
+			}
+			self::assertSame( array(), $smaily_calls, 'No Smaily client → the opt-out never reached Smaily.' );
+
+			// 2. The merchant finishes the email setup; the daily cache expires.
+			update_option(
+				'smaily_connect_api_credentials',
+				array(
+					'subdomain' => 'testsub',
+					'username'  => 'tester',
+					'password'  => \Smaily_Connect\Includes\Cypher::encrypt( 'test-password' ),
+				)
+			);
+			update_option( SetupState::OPTION_SETUP_COMPLETED, true );
+			delete_transient( 'smly_profiling_' . md5( 'pro2513@example.test' ) );
+
+			// 3. The fresh read succeeds with no preference — still opted out.
+			$consent = Bootstrap::instance()->profiling_consent();
+			self::assertFalse( $consent->may_profile( 'pro2513@example.test' ) );
+			self::assertFalse( $consent->known_preference( 'pro2513@example.test' ) );
+			self::assertArrayHasKey( md5( 'pro2513@example.test' ), (array) get_option( 'smly_profiling_optouts', array() ) );
+
+			// … and the opt-out was carried to the contact that lacked it.
+			self::assertCount( 2, $smaily_calls, 'One read, one write-back.' );
+			self::assertSame( 'GET', $smaily_calls[0][0] );
+			self::assertSame( 'POST', $smaily_calls[1][0] );
+			self::assertSame( 'pro2513@example.test', $smaily_calls[1][1][0]['email'] );
+			self::assertSame( 0, $smaily_calls[1][1][0]['smaily_rec_profiling'] );
+			self::assertNotEmpty( $smaily_calls[1][1][0]['smaily_rec_profiling_ts'] );
+		} finally {
+			remove_filter( 'pre_http_request', $fake_http, 10 );
+			remove_filter( 'wp_redirect', $stop_at_redirect );
+			wc_clear_notices();
+			// Drop the Smaily client cached from the seeded credentials.
+			$prop = new \ReflectionProperty( Bootstrap::instance(), 'smaily_clients' );
+			$prop->setAccessible( true );
+			$prop->setValue( Bootstrap::instance(), array() );
+		}
 	}
 
 	public function test_no_section_when_the_engine_account_was_deactivated(): void {

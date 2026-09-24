@@ -6691,6 +6691,35 @@ opt-out still sticks locally (durable opt-out registry, so `may_profile()` and
 true); only the Smaily write is skipped. Unchanged: the consent wording, the
 default state, the storage model, and the rest of the reasoning above.
 
+### PRO-3191 — A durable store-side profiling opt-out holds until an explicit opt-in (2026-09-24)
+
+**Context:** `ProfilingConsent::refresh()` stored every successful Smaily
+read-back through `remember()`, and `is_allowed()` treats a contact with no
+`smaily_rec_profiling` value as "allowed" (default-on, F3-31) — so any
+successful read of such a contact REMOVED the email from the durable opt-out
+registry. A shopper who opted out while the Smaily write was impossible (no
+client before the email wizard's Finish — reachable since PRO-3189 shows the
+button there — or a failed write) had the opt-out silently wiped at the next
+read after the daily cache expired, and profiling resumed.
+**Decision (Erkki):** a durable opt-out holds until an EXPLICIT opt-in: a
+read-back of `smaily_rec_profiling = '1'`, or `opt_in()` from My Account. A
+successful read with the field absent/empty, or a not-found contact, resolves
+to "do not profile" and keeps the registry entry. When the read FOUND the
+contact and it lacks the field, the opt-out is written to it once per refresh
+through the existing `write()` (`smaily_rec_profiling = 0` + `_ts`, same
+upsert, failures logged). No write for a not-found contact. An explicit '0'
+or an unsubscribed contact behaves as before.
+**Rationale:** a missing field says only that Smaily never heard the answer,
+not that the shopper changed it. The write-back closes the gap at the source,
+so Smaily and its later read-backs agree with the store. The upsert omits
+`is_unsubscribed`, which preserves the contact's subscription status (the
+contact-sync convention), so it cannot subscribe anyone; restricting it to a
+found contact means it cannot create one.
+**Rejected:** clearing on any successful read (the bug); writing back to a
+not-found contact (the upsert would create a Smaily contact just to hold an
+opt-out); changing `is_allowed()` for everyone (would turn default-on into
+opt-in for contacts that never opted out anywhere — F3-31 is out of scope).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

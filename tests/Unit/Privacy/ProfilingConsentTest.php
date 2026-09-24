@@ -342,6 +342,121 @@ final class ProfilingConsentTest extends TestCase {
 		self::assertFalse( $resolver->known_preference( 'a@example.com' ) );
 	}
 
+	// --- a durable opt-out holds until an explicit opt-in (PRO-3191) -------
+
+	/**
+	 * An in-memory options store holding a durable opt-out for a@example.com.
+	 *
+	 * @return array<string, mixed> The live store (by reference).
+	 */
+	private function &opted_out_options(): array {
+		$options = array( 'smly_profiling_optouts' => array( md5( 'a@example.com' ) => true ) );
+		Functions\when( 'get_option' )->alias(
+			static function ( string $name, $fallback = false ) use ( &$options ) {
+				return $options[ $name ] ?? $fallback;
+			}
+		);
+		Functions\when( 'update_option' )->alias(
+			static function ( string $name, $value ) use ( &$options ): bool {
+				$options[ $name ] = $value;
+				return true;
+			}
+		);
+		return $options;
+	}
+
+	/**
+	 * @param array{found: bool, is_unsubscribed: ?string, smaily_rec_profiling: ?string} $consent
+	 */
+	private function smaily_reading( array $consent ): SmailyClient {
+		$smaily = $this->createMock( SmailyClient::class );
+		$smaily->method( 'get_contact_consent' )->willReturn( $consent );
+		return $smaily;
+	}
+
+	/**
+	 * @dataProvider no_preference_values
+	 */
+	public function test_durable_opt_out_holds_when_the_contact_carries_no_preference( ?string $profiling ): void {
+		$options  = &$this->opted_out_options();
+		$store    = &$this->transients();
+		$resolver = $this->resolver(
+			$this->smaily_reading( array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => $profiling ) )
+		);
+
+		// The daily cache has expired; the fresh read succeeds but says nothing.
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
+		self::assertFalse( $resolver->known_preference( 'a@example.com' ) );
+		self::assertArrayHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+
+		// Every cache gone again: the next successful read still doesn't lift it.
+		$store = array();
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
+	}
+
+	/**
+	 * @return array<string, array{0: ?string}>
+	 */
+	public static function no_preference_values(): array {
+		return array(
+			'field absent' => array( null ),
+			'field empty'  => array( '' ),
+		);
+	}
+
+	public function test_durable_opt_out_is_written_to_a_contact_that_lacks_the_field(): void {
+		$this->opted_out_options();
+		$this->transients();
+		$smaily = $this->smaily_reading( array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => null ) );
+		$smaily->expects( self::once() )
+			->method( 'write_profiling_consent' )
+			->with( 'a@example.com', false, self::isType( 'string' ) )
+			->willReturn( array( 'code' => 101 ) );
+
+		self::assertFalse( $this->resolver( $smaily )->refresh( 'a@example.com' ) );
+	}
+
+	public function test_contact_not_found_keeps_the_opt_out_and_writes_nothing(): void {
+		$options = &$this->opted_out_options();
+		$this->transients();
+		$smaily = $this->smaily_reading( array( 'found' => false, 'is_unsubscribed' => null, 'smaily_rec_profiling' => null ) );
+		// An upsert here would CREATE a Smaily contact just to hold the opt-out.
+		$smaily->expects( self::never() )->method( 'write_profiling_consent' );
+		$smaily->expects( self::never() )->method( 'upsert_subscribers' );
+
+		self::assertFalse( $this->resolver( $smaily )->refresh( 'a@example.com' ) );
+		self::assertArrayHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+	}
+
+	public function test_explicit_opt_in_on_the_contact_clears_the_durable_opt_out(): void {
+		$options = &$this->opted_out_options();
+		$this->transients();
+		$smaily = $this->smaily_reading( array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '1' ) );
+		$smaily->expects( self::never() )->method( 'write_profiling_consent' );
+
+		$resolver = $this->resolver( $smaily );
+
+		self::assertTrue( $resolver->refresh( 'a@example.com' ) );
+		self::assertArrayNotHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertTrue( $resolver->known_preference( 'a@example.com' ) );
+	}
+
+	public function test_opt_in_from_my_account_clears_the_durable_opt_out(): void {
+		$options = &$this->opted_out_options();
+		$this->transients();
+		$smaily = $this->smaily_reading( array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => null ) );
+		$smaily->expects( self::once() )
+			->method( 'write_profiling_consent' )
+			->with( 'a@example.com', true, self::isType( 'string' ) )
+			->willReturn( array( 'code' => 101 ) );
+
+		$resolver = $this->resolver( $smaily );
+		$resolver->opt_in( 'a@example.com' );
+
+		self::assertArrayNotHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertTrue( $resolver->may_profile( 'a@example.com' ) );
+	}
+
 	public function test_durable_opt_out_is_known_through_a_read_failure(): void {
 		Functions\when( 'get_option' )->justReturn( array( md5( 'a@example.com' ) => true ) );
 		$this->transients();

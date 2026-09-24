@@ -184,7 +184,7 @@ msgstr "Me ei saanud praegu sinu eelistust laadida. Palun proovi hiljem uuesti."
 
 #: includes/Privacy/ProfilingConsentAccount.php:146
 msgid "Opt out of personalised recommendations"
-msgstr "Loobu isikupärastatud soovitustest"
+msgstr "Loobu personaalsetest soovitustest"
 
 #: includes/Privacy/ProfilingConsentAccount.php:155
 msgid "Use my data for personalised recommendations"

@@ -26,13 +26,30 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-24 (**PRO-3189 — fixes the two Low findings of the
+_Last updated: 2026-09-24 (**PRO-3191 — a durable store-side profiling
+opt-out now holds until an EXPLICIT opt-in.** A successful Smaily read of a
+contact with no `smaily_rec_profiling` value (or no contact at all) used to
+clear the opt-out registry — so an opt-out made while the Smaily write was
+impossible (wizard unfinished, reachable since PRO-3189, or a failed write) was
+silently wiped at the next read after the daily cache expired, and profiling
+resumed. `ProfilingConsent::refresh()` now keeps the shopper opted out unless
+the contact carries `'1'` (or they opt back in from My Account, unchanged),
+and writes the opt-out (`smaily_rec_profiling` 0 + `_ts`, the existing upsert)
+to a FOUND contact that lacks the field; never to a not-found one (the upsert
+would create a contact). Explicit `'0'` / unsubscribed unchanged. Also unifies
+the ET label of the PRO-3189 button to "Loobu personaalsetest soovitustest".
+Merchant docs (EN+ET), `DATA_MODEL_GDPR.md` registry row and DECISIONS
+PRO-3191 updated. Gates: `ci:strict` exit=0 (PHPUnit unit 843, vitest 318);
+integration **OK (306 tests / 1 818 assertions)**, sandbox tenant "Smaily
+Connect test" restored. **The focused re-audit before the 3.14.0 bump must
+cover PRO-3189 + PRO-3191** (both consent surface).
+**PRO-3189 — fixes the two Low findings of the
 3.14.0 gate's delta security audit on the PRO-2513 section.** (1) The gate is
 now `RecEngineSettings::sending_allowed()` ALONE (render + POST) — the section
 shows whenever Campaign Intelligence is connected and active, wizard finished
 or not, because engine ingest doesn't wait for the wizard. (2) The "couldn't
 load" state keeps its notice and adds one "Opt out of personalised
-recommendations" button (ET "Loobu isikupärastatud soovitustest"; no checkbox,
+recommendations" button (ET "Loobu personaalsetest soovitustest" since PRO-3191; no checkbox,
 nothing pre-ticked) — same nonce + logged-in checks, a distinct
 `ProfilingConsentAccount::OPT_OUT_FIELD` the handler treats as opt-out only
 (a crafted checkbox field alongside cannot opt in). Without a Smaily client the
@@ -65,7 +82,7 @@ Gates: `ci:strict` exit=0 (PHPUnit unit 831, vitest 318); integration **OK (304
 tests / 1 793 assertions)**, sandbox tenant "Smaily Connect test" restored.
 DECISIONS PRO-2513.
 **Unreleased on main after 3.13.0:** PRO-2449 (header description), PRO-3187,
-PRO-2513 and PRO-3189 — all ship with the next bump.
+PRO-2513, PRO-3189 and PRO-3191 — all ship with the next bump.
 **3.14.0 release gate RAN (2026-09-24, pre-bump):** the delta security audit
 over `3.13.0..8c26eed` came back **0 Blocking / 0 Critical / 0 High / 0 Medium,
 2 Low, 6 Info — 3.14.0 may proceed** (both Lows are on the PRO-2513 opt-out
