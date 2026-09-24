@@ -228,4 +228,83 @@ final class ProfilingConsentTest extends TestCase {
 
 		$this->resolver( $smaily, $rec )->opt_out( 'a@example.com' );
 	}
+
+	// --- known_preference(): the display accessor (PRO-2513) ---------------
+
+	/**
+	 * An in-memory transient store, so a read can see what an earlier
+	 * write in the same call chain left behind.
+	 *
+	 * @param array<string, string> $seed
+	 * @return array<string, string> The live store (by reference).
+	 */
+	private function &transients( array $seed = array() ): array {
+		$store = $seed;
+		Functions\when( 'get_transient' )->alias(
+			static function ( string $key ) use ( &$store ) {
+				return $store[ $key ] ?? false;
+			}
+		);
+		Functions\when( 'set_transient' )->alias(
+			static function ( string $key, $value ) use ( &$store ): bool {
+				$store[ $key ] = (string) $value;
+				return true;
+			}
+		);
+		return $store;
+	}
+
+	private function failing_smaily(): SmailyClient {
+		$smaily = $this->createMock( SmailyClient::class );
+		$smaily->method( 'get_contact_consent' )->willThrowException( new \RuntimeException( 'network' ) );
+		return $smaily;
+	}
+
+	public function test_read_failure_leaves_may_profile_unchanged_but_the_preference_unknown(): void {
+		Functions\when( 'get_option' )->justReturn( array() );
+		$store = &$this->transients();
+		$fresh = 'smly_profiling_' . md5( 'a@example.com' );
+
+		// The gate still fails open and caches that for the day (PRO-1194 / F3-31) …
+		self::assertTrue( $this->resolver( $this->failing_smaily() )->may_profile( 'a@example.com' ) );
+		self::assertSame( '1', $store[ $fresh ] );
+
+		// … but for display nothing is known, and the fail-open daily cache
+		// written above does not count as knowledge.
+		self::assertNull( $this->resolver( $this->failing_smaily() )->known_preference( 'a@example.com' ) );
+		self::assertSame( '1', $store[ $fresh ], 'The display read leaves the gate cache as it was.' );
+	}
+
+	public function test_no_smaily_client_means_unknown_for_display(): void {
+		Functions\when( 'get_option' )->justReturn( array() );
+		$this->transients();
+
+		// Email setup not finished → the factory yields no client.
+		self::assertNull( $this->resolver( null )->known_preference( 'a@example.com' ) );
+	}
+
+	public function test_successful_read_is_known(): void {
+		Functions\when( 'get_option' )->justReturn( array() );
+		$this->transients();
+		$smaily = $this->createMock( SmailyClient::class );
+		$smaily->method( 'get_contact_consent' )->willReturn(
+			array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '1' )
+		);
+
+		self::assertTrue( $this->resolver( $smaily )->known_preference( 'a@example.com' ) );
+	}
+
+	public function test_previous_successful_read_is_known_through_a_read_failure(): void {
+		Functions\when( 'get_option' )->justReturn( array() );
+		$this->transients( array( 'smly_profiling_stale_' . md5( 'a@example.com' ) => '0' ) );
+
+		self::assertFalse( $this->resolver( $this->failing_smaily() )->known_preference( 'a@example.com' ) );
+	}
+
+	public function test_durable_opt_out_is_known_through_a_read_failure(): void {
+		Functions\when( 'get_option' )->justReturn( array( md5( 'a@example.com' ) => true ) );
+		$this->transients();
+
+		self::assertFalse( $this->resolver( $this->failing_smaily() )->known_preference( 'a@example.com' ) );
+	}
 }

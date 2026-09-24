@@ -550,7 +550,8 @@ td code{white-space:nowrap}
         <p>Turning the toggle <strong>on</strong> = <em>you</em> allow browse tracking. The shopper's cookie‑consent banner is the second gate — both must say yes before any browse event is sent. Consent is read through the <strong>WP Consent API</strong> (see <a href="#err-companion">Companion plugins</a>). Server‑side data (orders, customers, products) is unaffected — it always syncs.</p>
       </div>
       <h3>Shopper profiling opt‑out (automatic)</h3>
-      <p>Every logged‑in shopper gets a <strong>Personalised recommendations</strong> section on their <span class="path">My Account</span> dashboard with a checkbox — <em>"Use my data for personalised recommendations."</em> It is <strong>on by default</strong> (opt‑out model). Unticking it stops their data being used for profiling, tells the engine to stop profiling them, and is remembered in Smaily too. Shoppers who opt out still receive emails — just non‑personalised ones.</p>
+      <p>Every logged‑in shopper gets a <strong>Smaily Campaign Intelligence</strong> section on their <span class="path">My Account</span> dashboard with a checkbox — <em>"Use my data for personalised recommendations."</em> It is <strong>on by default</strong> (opt‑out model). Unticking it stops their data being used for profiling, tells the engine to stop profiling them, and is remembered in Smaily too. Shoppers who opt out still receive emails — just non‑personalised ones.</p>
+      <p>The section only appears on stores where Campaign Intelligence is <strong>connected and active</strong>. If you never connect it, disconnect it, or Smaily deactivates the account, shoppers don't see it — and any preference they already saved is kept for when it comes back. If a shopper's preference can't be loaded at that moment and none is known from before, the section shows a short notice asking them to try again later instead of the checkbox.</p>
       <div class="note warn">
         <span class="k">Your privacy policy must mention profiling</span>
         <p>Because personalisation is on by default, your store's privacy policy needs a sentence saying that browsing and purchase history is used to personalise recommendations and that customers can turn it off under <span class="path">My Account</span>.</p>
@@ -567,7 +568,8 @@ td code{white-space:nowrap}
         <p>Lüliti <strong>sisselülitamine</strong> = <em>sina</em> lubad sirvimise jälgimise. Külastaja küpsise‑nõusoleku bänner on teine värav — mõlemad peavad ütlema "jah", enne kui ükski sirvimissündmus saadetakse. Nõusolekut loetakse <strong>WP Consent API</strong> kaudu (vt <a href="#err-companion">Kaaslas‑pluginad</a>). Serveripoolseid andmeid (tellimused, kliendid, tooted) see ei mõjuta — need sünkivad alati.</p>
       </div>
       <h3>Kliendi profileerimisest loobumine (automaatne)</h3>
-      <p>Igal sisselogitud kliendil on oma <span class="path">My Account</span> töölaual sektsioon <strong>Personalised recommendations</strong> märkeruuduga — <em>"Kasuta mu andmeid personaalsete soovituste jaoks."</em> See on <strong>vaikimisi sees</strong> (opt‑out mudel). Selle eemaldamine peatab ta andmete kasutamise profileerimiseks, käsib mootoril ta profileerimise lõpetada ja jäetakse meelde ka Smailys. Loobunud kliendid saavad ikka e‑kirju — lihtsalt mitte‑personaalseid.</p>
+      <p>Igal sisselogitud kliendil on oma <span class="path">My Account</span> töölaual sektsioon <strong>Smaily Campaign Intelligence</strong> märkeruuduga — <em>"Kasuta minu andmeid personaalsete soovituste jaoks."</em> See on <strong>vaikimisi sees</strong> (opt‑out mudel). Selle eemaldamine peatab ta andmete kasutamise profileerimiseks, käsib mootoril ta profileerimise lõpetada ja jäetakse meelde ka Smailys. Loobunud kliendid saavad ikka e‑kirju — lihtsalt mitte‑personaalseid.</p>
+      <p>Sektsioon on nähtav ainult poodides, kus Campaign Intelligence on <strong>ühendatud ja aktiivne</strong>. Kui sa seda kunagi ei ühenda, ühenduse katkestad või Smaily konto deaktiveerib, siis kliendid sektsiooni ei näe — ja juba salvestatud eelistus jääb alles, kuni see tagasi tuleb. Kui kliendi eelistust ei õnnestu hetkel laadida ja varasemast pole seda teada, näitab sektsioon märkeruudu asemel lühikest teadet, et ta prooviks hiljem uuesti.</p>
       <div class="note warn">
         <span class="k">Su privaatsuspoliitika peab profileerimist mainima</span>
         <p>Kuna personaliseerimine on vaikimisi sees, vajab su poe privaatsuspoliitika lauset, et sirvimis‑ ja ostuajalugu kasutatakse soovituste personaliseerimiseks ja et kliendid saavad selle <span class="path">My Account</span> all välja lülitada.</p>
@@ -1360,7 +1362,7 @@ td code{white-space:nowrap}
         <li><strong>Erase</strong> — an erase request removes the customer from the plugin and asks Campaign Intelligence to delete them.</li>
       </ul>
       <p>The erase request also empties the plugin's <strong>Smaily send queue</strong> for that address: any message still waiting to go out is deleted, so nothing is sent to someone who has asked to be forgotten. Messages that were already sent stay in the <span class="path">Event log</span> as a record that they were sent, but are <strong>anonymised</strong> — the address, the name and the product details are replaced with <span class="path">[erased]</span>.</p>
-      <p>Shoppers also control profiling themselves: the opt‑out under <span class="path">My Account → Personalised recommendations</span> is honoured on the store and mirrored to Smaily. Per‑customer erasure is available on request at any time.</p>
+      <p>Shoppers also control profiling themselves: the opt‑out under <span class="path">My Account → Smaily Campaign Intelligence</span> (shown on stores with Campaign Intelligence connected) is honoured on the store and mirrored to Smaily. Per‑customer erasure is available on request at any time.</p>
     </div>
     <div data-lang="et">
       <p>Smaily Connect on lõimitud WordPressi sisseehitatud <strong>privaatsustööriistadega</strong> (<span class="path">Tools → Export Personal Data</span> ja <span class="path">Erase Personal Data</span>):</p>
@@ -1369,7 +1371,7 @@ td code{white-space:nowrap}
         <li><strong>Kustutamine</strong> — kustutuspäring eemaldab kliendi pluginast ja palub Campaign Intelligence'il ta kustutada.</li>
       </ul>
       <p>Kustutuspäring tühjendab ka plugina <strong>Smaily saatmisjärjekorra</strong> selle aadressi jaoks: kõik veel saatmata kirjad kustutatakse, nii et kustutamist palunud inimesele ei lähe midagi välja. Juba saadetud kirjad jäävad <span class="path">Sündmuste logi</span>sse tõendina, et need saadeti, kuid muudetakse <strong>anonüümseks</strong> — aadress, nimi ja tooteandmed asendatakse väärtusega <span class="path">[erased]</span>.</p>
-      <p>Kliendid juhivad profileerimist ka ise: loobumine <span class="path">My Account → Personalised recommendations</span> all austatakse poes ja peegeldatakse Smailysse. Kliendipõhine kustutamine on igal ajal soovi korral saadaval.</p>
+      <p>Kliendid juhivad profileerimist ka ise: loobumine <span class="path">My Account → Smaily Campaign Intelligence</span> all (nähtav poodides, kus Campaign Intelligence on ühendatud) austatakse poes ja peegeldatakse Smailysse. Kliendipõhine kustutamine on igal ajal soovi korral saadaval.</p>
     </div>
   </div>
 

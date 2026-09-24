@@ -26,7 +26,28 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-24 (**PRO-3187 — transactional emails pick their
+_Last updated: 2026-09-24 (**PRO-2513 — the My Account "Smaily Campaign
+Intelligence" section shows only where Campaign Intelligence is live.** It used
+to render on every store, even one that never connected the engine — an untrue
+data-processing claim to shoppers. `ProfilingConsentAccount::is_shown()` =
+`SetupState::completed() && RecEngineSettings::sending_allowed()` now gates both
+`render()` and `handle_post()` at call time (hooks stay registered, so connect
+/ disconnect take effect on the next page load; a hidden section keeps every
+stored preference and accepts no submit). When shown, the checkbox reflects the
+new display accessor `ProfilingConsent::known_preference()` (?bool: durable
+opt-out → last successful read → `null`); on `null` the section shows "We
+couldn't load your preference right now. Please try again later." (ET
+translated) and no form. `may_profile()` and its caches are unchanged —
+`fallback_on_error()` reads the same `stored_preference()`. Merchant docs (EN+ET)
+name the section as shoppers see it and say when it shows. **This touches a
+consent surface: the next release gate's delta security audit must cover it.**
+Gates: `ci:strict` exit=0 (PHPUnit unit 831, vitest 318); integration **OK (304
+tests / 1 793 assertions)**, sandbox tenant "Smaily Connect test" restored.
+DECISIONS PRO-2513.
+**Unreleased on main after 3.13.0:** PRO-2449 (header description), PRO-3187
+and PRO-2513 — all ship with the next bump.)_
+
+Prior: 2026-09-24 (**PRO-3187 — transactional emails pick their
 Smaily workflow by the order's language on a multilingual store.** Until now
 the order and shipping confirmations always went through one workflow: the gate
 asked for the workflow with no language, and Settings showed one row per
@@ -52,8 +73,7 @@ resolver's short codes mismatch the same way they already do for the A/B
 automations. Gates: `ci:strict` exit=0 (vitest 318); integration **OK (300 tests /
 1 781 assertions, 1 pre-existing skip)**, sandbox tenant "Smaily Connect test"
 restored. DECISIONS PRO-3187.
-**Unreleased on main after 3.13.0:** PRO-2449 (header description) and
-PRO-3187 — both ship with the next bump.)_
+**Unreleased on main after 3.13.0** at that point: PRO-2449 and PRO-3187.)
 
 Prior: 2026-09-10 (**3.13.0 is LIVE on wordpress.org** — released
 2026-09-10, 10:26 GMT. Version bumped to **3.13.0** in the eight places

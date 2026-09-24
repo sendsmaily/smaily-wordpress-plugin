@@ -268,7 +268,7 @@ final class Bootstrap {
 
 		// Shopper-facing profiling-consent opt-out ((a).2) — a My Account privacy
 		// toggle. The opt-out the opt-out model legally requires (DECISIONS F3-31).
-		( new ProfilingConsentAccount( $this->profiling_consent() ) )->register();
+		( new ProfilingConsentAccount( $this->profiling_consent(), $this->rec_engine_settings() ) )->register();
 
 		// Queue janitor (FABLE_AUDIT F6) — daily retention prune of terminal
 		// sent/failed rows in both durable queues, so the tables stay bounded

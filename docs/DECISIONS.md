@@ -6636,6 +6636,38 @@ guest orders resolve to the default language); non-short language codes
 (TranslatePress / site locale) mismatch as they already do for A/B
 automations.
 
+### PRO-2513 — The My Account "Smaily Campaign Intelligence" section shows only where Campaign Intelligence is live (2026-09-24)
+
+**Context:** `ProfilingConsentAccount` rendered its explanation + checkbox on
+every store's My Account dashboard, including stores that never connected the
+rec engine — telling shoppers their data is used for recommendations when it
+is not. Separately, the checkbox's state came from `may_profile()`, which on an
+unreadable preference (no Smaily client before `SetupState::completed()`, or a
+read error) fails open to `true` and caches that for a day — so the box showed
+"ticked" when nothing was actually known.
+**Decision (Erkki):** (1) one gate, `ProfilingConsentAccount::is_shown()` =
+`SetupState::completed() && RecEngineSettings::sending_allowed()`, checked at
+call time by BOTH `render()` and `handle_post()`; the hooks stay registered and
+nothing stored is touched when hidden. (2) When shown, the box reflects
+`ProfilingConsent::known_preference()` (?bool): the durable opt-out, else the
+last successful/WP-side state (the stale cache), else `null` → a short notice
+and no form. `fallback_on_error()` now reads the same `stored_preference()`
+(`?? true`), so the two can't drift.
+**Rationale:** `sending_allowed()` (connected AND not refused) is the existing
+"the engine is really in use" predicate (PRO-1893) — a deactivated account
+profiles nobody, so the claim would be just as untrue there. `completed()` is
+the precondition for the Smaily read-back the section is built on. The
+unknown-state fix is display-only because the gate's fail-open behaviour is
+F3-31/PRO-1194's accepted, separately reasoned trade-off; the defect here was
+only that the UI presented a guess as the shopper's answer. No form in the
+unknown state because submitting it without the box would read as an opt-out.
+**Rejected:** registering the hooks conditionally at boot (a connect/disconnect
+would need a re-register; the call-time gate takes effect on the next page
+load); gating on `is_connected()` (would keep the section on a deactivated
+account); changing `may_profile()`'s return or cache on read failure (out of
+scope — changes whether profiling happens); treating the daily cache as known
+(it can hold the fail-open value).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

@@ -145,6 +145,27 @@ class ProfilingConsent {
 	 * (DECISIONS F3-31 — the merchant's accepted residual risk).
 	 */
 	private function fallback_on_error( string $email ): bool {
+		return $this->stored_preference( $email ) ?? true;
+	}
+
+	/**
+	 * The preference as far as it is actually KNOWN — for display only (the
+	 * My Account section, PRO-2513). Null means nothing reliable is known:
+	 * exactly the case where `may_profile()` fails open, and where the daily
+	 * cache may hold that fail-open `true`, so the cache can't be trusted for
+	 * display. Calls `may_profile()` first so a cache miss still reads back
+	 * from Smaily as before; the gate's answer and its caches are unchanged.
+	 */
+	public function known_preference( string $email ): ?bool {
+		$this->may_profile( $email );
+		return $this->stored_preference( $email );
+	}
+
+	/**
+	 * What we durably know without a fresh read: a durable opt-out, else the
+	 * last successfully fetched (or WP-side set) state, else null.
+	 */
+	private function stored_preference( string $email ): ?bool {
 		if ( $this->is_durably_opted_out( $email ) ) {
 			return false;
 		}
@@ -154,7 +175,7 @@ class ProfilingConsent {
 			return $stale === '1';
 		}
 
-		return true;
+		return null;
 	}
 
 	/**

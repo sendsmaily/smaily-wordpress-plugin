@@ -16,11 +16,17 @@ namespace Smaily\Connect\Privacy;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Settings\SetupState;
+
 /**
  * Renders a privacy section on the My Account dashboard + handles its form POST.
  * The form is a single "use my data" checkbox: checked = opt-in (default-on),
  * unchecked = opt-out. The handler maps that to ProfilingConsent::opt_in/opt_out,
  * which write to Smaily + update the cache + opt the customer in/out of the engine.
+ *
+ * Shown only where Campaign Intelligence is actually live (PRO-2513) — see
+ * `is_shown()`. The hooks stay registered; the gate is read per request.
  */
 final class ProfilingConsentAccount {
 
@@ -29,8 +35,22 @@ final class ProfilingConsentAccount {
 
 	private ProfilingConsent $profiling;
 
-	public function __construct( ProfilingConsent $profiling ) {
+	private RecEngineSettings $settings;
+
+	public function __construct( ProfilingConsent $profiling, RecEngineSettings $settings ) {
 		$this->profiling = $profiling;
+		$this->settings  = $settings;
+	}
+
+	/**
+	 * The one gate for both the section and its form POST (PRO-2513): the
+	 * email setup is finished AND the rec engine may be sent to (connected,
+	 * not deactivated by Smaily). Anywhere else the section's claim that we
+	 * use shopper data for recommendations would be untrue. Hiding it leaves
+	 * every stored preference untouched.
+	 */
+	public function is_shown(): bool {
+		return SetupState::completed() && $this->settings->sending_allowed();
 	}
 
 	public function register(): void {
@@ -56,6 +76,9 @@ final class ProfilingConsentAccount {
 
 	public function handle_post(): void {
 		if ( ! isset( $_POST[ self::ACTION . '_submit' ] ) ) {
+			return;
+		}
+		if ( ! $this->is_shown() ) {
 			return;
 		}
 		if ( ! is_user_logged_in() ) {
@@ -84,13 +107,17 @@ final class ProfilingConsentAccount {
 	}
 
 	public function render(): void {
+		if ( ! $this->is_shown() ) {
+			return;
+		}
 		$email = $this->current_email();
 		if ( $email === '' ) {
 			return;
 		}
 
-		// Read-back-as-authority: reflect the true (Smaily) state, not local guesswork.
-		$use_my_data = $this->profiling->may_profile( $email );
+		// Read-back-as-authority: reflect the true (Smaily) state, not local
+		// guesswork. Null = not reliably known → no checkbox (PRO-2513).
+		$use_my_data = $this->profiling->known_preference( $email );
 
 		?>
 		<section class="smly-profiling-consent">
@@ -98,6 +125,9 @@ final class ProfilingConsentAccount {
 			<p>
 				<?php esc_html_e( 'We use your browsing and purchase history to personalise the product recommendations in our emails. You can turn this off at any time — you will still receive our emails.', 'smaily-connect' ); ?>
 			</p>
+			<?php if ( $use_my_data === null ) : ?>
+			<p><?php esc_html_e( "We couldn't load your preference right now. Please try again later.", 'smaily-connect' ); ?></p>
+			<?php else : ?>
 			<form method="post">
 				<?php wp_nonce_field( self::ACTION ); ?>
 				<label>
@@ -110,6 +140,7 @@ final class ProfilingConsentAccount {
 					</button>
 				</p>
 			</form>
+			<?php endif; ?>
 		</section>
 		<?php
 	}
