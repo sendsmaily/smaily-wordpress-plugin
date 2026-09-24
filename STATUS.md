@@ -40,12 +40,28 @@ couldn't load your preference right now. Please try again later." (ET
 translated) and no form. `may_profile()` and its caches are unchanged —
 `fallback_on_error()` reads the same `stored_preference()`. Merchant docs (EN+ET)
 name the section as shoppers see it and say when it shows. **This touches a
-consent surface: the next release gate's delta security audit must cover it.**
+consent surface — covered by the 3.14.0 gate's delta security audit below:
+no Medium or higher; 2 Low follow-ups on when the opt-out control is
+unavailable (engine connected before the wizard's Finish; the "couldn't load"
+state).**
 Gates: `ci:strict` exit=0 (PHPUnit unit 831, vitest 318); integration **OK (304
 tests / 1 793 assertions)**, sandbox tenant "Smaily Connect test" restored.
 DECISIONS PRO-2513.
 **Unreleased on main after 3.13.0:** PRO-2449 (header description), PRO-3187
-and PRO-2513 — all ship with the next bump.)_
+and PRO-2513 — all ship with the next bump.
+**3.14.0 release gate RAN (2026-09-24, pre-bump):** the delta security audit
+over `3.13.0..8c26eed` came back **0 Blocking / 0 Critical / 0 High / 0 Medium,
+2 Low, 6 Info — 3.14.0 may proceed** (both Lows are on the PRO-2513 opt-out
+control's availability: hidden while the engine is connected but the wizard is
+unfinished; withheld in the "couldn't load" state while the gate fails open).
+Plugin Check against the built ZIP is **0 ERRORS, 7 WARNINGS** (0/9 at the
+3.13.0 gate; no new ERROR and no new warning class — the −2 are the classes
+`f110dab` fixed at the 3.13.0 bump), with `bin/verify-release-zip.sh …
+3.13.0` exit=0 (pre-bump, clean build-hash), `ci:strict` exit=0 (PHPUnit unit
+831, vitest 318) and integration **OK (304 tests / 1 790 assertions, 1
+pre-existing skip)**, sandbox tenant "Smaily Connect test" restored. Report:
+`docs/audits/SECURITY_DELTA_AUDIT_2026-09-24_3.14.0.md`, register row in
+`docs/audits/INDEX.md`.)_
 
 Prior: 2026-09-24 (**PRO-3187 — transactional emails pick their
 Smaily workflow by the order's language on a multilingual store.** Until now
