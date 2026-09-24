@@ -246,3 +246,138 @@ suite, PCP against the BUILT ZIP and `bin/verify-release-zip.sh`.
 2. **Finding 2 (Low)** — consider an opt-out-only control in the
    "preference unknown" state, so a shopper can always say no while the gate
    fails open. No change made here.
+
+---
+
+## Addendum — re-audit of 3b0ede0..7cbdc75 (PRO-3189, PRO-3191)
+
+- **Date:** 2026-09-24 (same day, after the gate above)
+- **Delta:** `3b0ede0..7cbdc75` — **2 commits, 12 files, +598 / −41**; the
+  shipped plugin code alone is **2 files, +45 / −12**
+  (`includes/Privacy/ProfilingConsentAccount.php`,
+  `includes/Privacy/ProfilingConsent.php`). The rest is tests,
+  `languages/` (one new msgid + the ET label), `STATUS.md`,
+  `docs/DECISIONS.md`, `docs/DATA_MODEL_GDPR.md`, `docs/site/index.html`.
+  - **PRO-3189** (`d94bfbc`) — closes Lows 1 and 2 above: `is_shown()` =
+    `sending_allowed()` alone; the "couldn't load" state renders an
+    opt-out-only button (`OPT_OUT_FIELD`).
+  - **PRO-3191** (`7cbdc75`) — a durable store-side opt-out now holds until
+    an explicit opt-in; a found contact that lacks `smaily_rec_profiling`
+    gets the opt-out written back through the existing upsert.
+- **Auditor:** Claude (Opus 5.5)
+- **Trigger:** GDPR/consent surface (re-audit policy point 2) inside the
+  3.14.0 release window, before the bump.
+- **Scope:** both production files read in full (not only the hunks), plus
+  `Smaily\Client::get_contact_consent()`, `write_profiling_consent()`,
+  `upsert_subscribers()` and `request()` (what a failure message can carry),
+  and every caller of `may_profile()` / `known_preference()`
+  (`BeaconEndpoint`, `IdentityHookHandler`, `ProfilingConsentAccount`).
+  Tests, `.po`/`.pot` and docs skimmed for secrets (only the pre-existing
+  fake fixture `'test-password'`).
+
+### Verdict (addendum)
+
+**0 Blocking, 0 Critical, 0 High, 0 Medium, 0 Low. 5 Info.** Both Low
+findings of the gate above are **resolved**. **RESULT: 3.14.0 may proceed.**
+
+### A1. INFO — the opt-out button's POST can only ever opt out
+
+`handle_post()` enters on either the checkbox form's `_submit` field or
+`OPT_OUT_FIELD`, then runs the unchanged chain: `is_shown()` → `is_user_logged_in()`
+→ `wp_verify_nonce( _wpnonce, 'smly_profiling_consent' )` → the current
+user's own email (`wp_get_current_user()`, never a request value). The
+choice is `! $opt_out_button && isset( $_POST[ FIELD ] )`, so any request
+carrying `OPT_OUT_FIELD` resolves to opt-out whatever else it carries —
+a crafted post adding the checkbox field cannot opt in (unit-pinned:
+`test_a_crafted_opt_out_button_post_cannot_opt_in`). CSRF: the button's
+form carries `wp_nonce_field( ACTION )`, the same user-bound nonce the
+checkbox form uses; a cross-site POST without it returns before any state
+change (`test_opt_out_button_needs_a_valid_nonce`, `…_logged_in_shopper`).
+The handler accepts the button in any state, not only when it is rendered —
+harmless, since its only effect is the opt-out the checkbox form already
+allows. Output: the button name is `esc_attr()` of a class constant, the
+label `esc_html_e()` of a fixed msgid; no user data, email or response is
+echoed.
+
+### A2. INFO — the gate `sending_allowed()` alone widens where the section shows, nothing else
+
+The section (and its POST) now also appear on an engine-connected store whose
+email wizard is unfinished — exactly the state Low 1 flagged, where engine
+ingest already runs. There the Smaily client factory yields `null`, so
+`write()` is a no-op, `remember( false )` puts the email in the durable
+registry and `engine_opt_out()` still reaches the engine (gated on the same
+`sending_allowed()`); `known_preference()` then returns `false` and the
+checkbox renders unticked. An opt-in from that checkbox is an explicit act
+and clears the registry through `opt_in()` as before. A deactivated or
+disconnected engine still hides the section and refuses its POST. The
+section displays only the logged-in shopper's own preference, so showing it
+on more stores exposes no other contact's data.
+
+### A3. INFO — PRO-3191's write-back cannot create or subscribe a contact
+
+The write-back fires only when **all** of: the Smaily read succeeded;
+`is_allowed()` said yes (so `is_unsubscribed !== '1'` and the field is not
+`'0'`); the field is not `'1'`; the email is in the durable registry;
+`found === true`; and the field is `null`/`''`. So:
+- **No creation:** a not-found contact (`found === false`) is never written
+  (`test_contact_not_found_keeps_the_opt_out_and_writes_nothing`). The one
+  residual path is a contact deleted in Smaily between the GET and the POST
+  of the same refresh — a sub-second race needing a concurrent deletion;
+  noted, not actionable.
+- **No subscription change:** `write_profiling_consent()` posts only
+  `email`, `smaily_rec_profiling`, `smaily_rec_profiling_ts` — no
+  `is_unsubscribed` — and it is never reached for an unsubscribed contact
+  (that resolves to "not allowed" before the branch).
+- **No accidental opt-in:** the branch can only turn `allowed` from true to
+  false; the registry is cleared only by a read-back of exactly `'1'` or by
+  `opt_in()` (`test_explicit_opt_in_on_the_contact_clears_…`,
+  `test_opt_in_from_my_account_clears_…`). The pure `is_allowed()` rule and
+  F3-31's default-on for never-opted-out contacts are unchanged.
+
+### A4. INFO — failure handling and logging of the write-back
+
+`write()` catches every `Throwable` and logs only
+`'[smaily-connect profiling-consent] write failed: ' . $e->getMessage()`
+(pre-existing line). `Client::request()` builds its exception messages from
+the HTTP status, method, endpoint and Smaily code, or the WP transport error
+— the email travels in the POST body, not the URL, so it does not reach the
+log; the `Authorization` header is never part of a message. A failed write
+does not change the decision: `allowed` stays `false`, `remember( false )`
+keeps all three layers at opt-out and the engine opt-out fires, so the
+store-side answer is correct regardless and the write is retried at the
+next refresh (at most once per contact per daily cache expiry). One
+pre-existing gap, not introduced here: `write()` ignores the upsert's
+response body, so an HTTP-200 Smaily error envelope counts as success — the
+effect is only that the write-back repeats on a later refresh, the opt-out
+itself is unaffected.
+
+### A5. INFO — the write-back can add one Smaily call to a storefront request
+
+`may_profile()` is also called from `/relay` (`BeaconEndpoint`) and
+`IdentityHookHandler` on a daily-cache miss, so for a durably opted-out,
+found contact lacking the field the first refresh of the day does a GET plus
+one POST (30 s timeout, as every Smaily call). Bounded by the daily cache and
+by the opt-out count; performance note only, no security effect.
+
+### Morning Lows — status
+
+| Finding | Status | Evidence |
+|---|---|---|
+| Low 1 — section hidden on an engine-connected store before the wizard's Finish | **Resolved** (PRO-3189) | `is_shown()` = `sending_allowed()`; `test_section_is_shown_when_active` (both setup states), `test_opt_out_button_opts_out` (both), integration `test_section_shows_while_the_email_setup_is_not_finished` |
+| Low 2 — no opt-out in the "couldn't load" state | **Resolved** (PRO-3189) | opt-out-only button; `test_unknown_preference_renders_a_notice_and_an_opt_out_button`, integration `test_opt_out_button_round_trip_without_a_smaily_client` |
+| Follow-on — an opt-out made without a working Smaily write was wiped at the next read (surfaced by PRO-3189) | **Resolved** (PRO-3191) | durable-until-explicit-opt-in rule; integration `test_opt_out_survives_a_later_read_of_a_contact_without_a_preference` |
+
+### Confirmed clean (addendum)
+
+- Grep over the added production lines: no `register_rest_route`,
+  `permission_callback`, `current_user_can`, `wp_remote_*`, `$wpdb`,
+  `$_GET`/`$_REQUEST`, `error_log` or new `DebugLog::write` — zero hits.
+  The one new superglobal read is `isset( $_POST[ OPT_OUT_FIELD ] )` (value
+  never used).
+- No new option, transient, table or outbound destination; the write-back
+  reuses the existing profiling upsert to the same Smaily account.
+
+### Follow-ups this addendum leaves open
+
+None required. Optional: have `write()` treat a non-101 Smaily envelope as a
+failure (A4) so the log shows it — pre-existing, no privacy effect.
