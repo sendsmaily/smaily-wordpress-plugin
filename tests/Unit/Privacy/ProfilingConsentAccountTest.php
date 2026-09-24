@@ -2,7 +2,7 @@
 /**
  * Unit: ProfilingConsentAccount ((a).2) — the checkbox → opt-in/out mapping,
  * the "Campaign Intelligence is live" gate and the three display states
- * (PRO-2513).
+ * (PRO-2513), and the unknown state's opt-out button (PRO-3189).
  *
  * @package Smaily\Connect\Tests\Unit\Privacy
  */
@@ -27,7 +27,12 @@ final class ProfilingConsentAccountTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
-		unset( $_POST[ ProfilingConsentAccount::ACTION . '_submit' ] );
+		unset(
+			$_POST[ ProfilingConsentAccount::ACTION . '_submit' ],
+			$_POST[ ProfilingConsentAccount::OPT_OUT_FIELD ],
+			$_POST[ ProfilingConsentAccount::FIELD ],
+			$_POST['_wpnonce']
+		);
 		Monkey\tearDown();
 		parent::tearDown();
 	}
@@ -145,7 +150,6 @@ final class ProfilingConsentAccountTest extends TestCase {
 	 */
 	public static function hidden_stores(): array {
 		return array(
-			'email setup wizard not finished'     => array( false, true, 0 ),
 			'Campaign Intelligence not connected' => array( true, false, 0 ),
 			'engine account deactivated'          => array( true, true, 1757000000 ),
 		);
@@ -181,8 +185,25 @@ final class ProfilingConsentAccountTest extends TestCase {
 		self::assertSame( array(), $spy->calls, 'A hidden section must not accept a submit.' );
 	}
 
-	public function test_section_is_shown_when_set_up_and_active(): void {
-		$this->store( true, true, 0 );
+	/**
+	 * @return array<string, array{0: bool}>
+	 */
+	public static function setup_states(): array {
+		return array(
+			'email setup wizard finished'     => array( true ),
+			'email setup wizard not finished' => array( false ),
+		);
+	}
+
+	/**
+	 * Shown whenever Campaign Intelligence is connected and active — the
+	 * email wizard does not gate it (PRO-3189): engine ingest doesn't wait
+	 * for the wizard, so neither may the opt-out.
+	 *
+	 * @dataProvider setup_states
+	 */
+	public function test_section_is_shown_when_active( bool $setup_completed ): void {
+		$this->store( $setup_completed, true, 0 );
 		$this->logged_in_shopper();
 		$account = $this->account( $this->spy( true ) );
 
@@ -212,14 +233,112 @@ final class ProfilingConsentAccountTest extends TestCase {
 		self::assertStringNotContainsString( 'checked', $html );
 	}
 
-	public function test_unknown_preference_renders_a_notice_and_no_checkbox(): void {
+	public function test_unknown_preference_renders_a_notice_and_an_opt_out_button(): void {
 		$this->store( true, true, 0 );
 		$this->logged_in_shopper();
 		$html = $this->rendered( $this->account( $this->spy( null ) ) );
 
 		self::assertStringContainsString( "We couldn't load your preference right now. Please try again later.", html_entity_decode( $html, ENT_QUOTES ) );
-		self::assertStringNotContainsString( 'type="checkbox"', $html );
-		self::assertStringNotContainsString( '<form', $html, 'No form either — submitting it without the box would read as an opt-out.' );
+		self::assertStringContainsString( 'name="' . ProfilingConsentAccount::OPT_OUT_FIELD . '"', $html );
+		self::assertStringContainsString( 'Opt out of personalised recommendations', $html );
+		self::assertStringNotContainsString( 'type="checkbox"', $html, 'No box — nothing pre-ticked.' );
+		self::assertStringNotContainsString( 'checked', $html );
+		self::assertStringNotContainsString( 'name="' . ProfilingConsentAccount::FIELD . '"', $html );
+		self::assertStringNotContainsString( ProfilingConsentAccount::ACTION . '_submit', $html );
+	}
+
+	// --- the POST handler (PRO-3189) ----------------------------------------
+
+	/**
+	 * Drive handle_post() through its nonce + login checks; the redirect
+	 * throws so the handler's `exit` is never reached.
+	 *
+	 * @param array<string, string> $post The submitted fields besides the nonce.
+	 * @return bool Whether the handler got as far as its redirect.
+	 */
+	private function submit( ProfilingConsentAccount $account, array $post, bool $nonce_ok = true, bool $logged_in = true ): bool {
+		$this->logged_in_shopper();
+		Functions\when( 'is_user_logged_in' )->justReturn( $logged_in );
+		Functions\when( 'wp_unslash' )->returnArg();
+		Functions\when( 'sanitize_text_field' )->returnArg();
+		Functions\when( 'wp_verify_nonce' )->alias(
+			static fn ( string $nonce, string $action ): bool => $nonce_ok && $nonce === 'nonce-ok' && $action === ProfilingConsentAccount::ACTION
+		);
+		Functions\when( 'wc_add_notice' )->justReturn( null );
+		Functions\when( 'wc_get_account_endpoint_url' )->justReturn( 'https://shop.test/my-account/' );
+		Functions\when( 'wp_safe_redirect' )->alias(
+			static function (): void {
+				throw new \RuntimeException( 'redirected' );
+			}
+		);
+
+		$_POST = array_merge( array( '_wpnonce' => 'nonce-ok' ), $post );
+		try {
+			$account->handle_post();
+		} catch ( \RuntimeException $e ) {
+			self::assertSame( 'redirected', $e->getMessage() );
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * @dataProvider setup_states
+	 */
+	public function test_opt_out_button_opts_out( bool $setup_completed ): void {
+		$this->store( $setup_completed, true, 0 );
+		$spy = $this->spy( null );
+
+		self::assertTrue( $this->submit( $this->account( $spy ), array( ProfilingConsentAccount::OPT_OUT_FIELD => '1' ) ) );
+
+		self::assertSame( array( array( 'out', 'shopper@example.com' ) ), $spy->calls );
+	}
+
+	public function test_a_crafted_opt_out_button_post_cannot_opt_in(): void {
+		$this->store( true, true, 0 );
+		$spy = $this->spy( null );
+
+		$this->submit(
+			$this->account( $spy ),
+			array(
+				ProfilingConsentAccount::OPT_OUT_FIELD     => '1',
+				ProfilingConsentAccount::FIELD             => '1',
+				ProfilingConsentAccount::ACTION . '_submit' => '1',
+			)
+		);
+
+		self::assertSame( array( array( 'out', 'shopper@example.com' ) ), $spy->calls );
+	}
+
+	public function test_opt_out_button_needs_a_valid_nonce(): void {
+		$this->store( true, true, 0 );
+		$spy = $this->spy( null );
+
+		self::assertFalse( $this->submit( $this->account( $spy ), array( ProfilingConsentAccount::OPT_OUT_FIELD => '1' ), false ) );
+		self::assertSame( array(), $spy->calls );
+	}
+
+	public function test_opt_out_button_needs_a_logged_in_shopper(): void {
+		$this->store( true, true, 0 );
+		$spy = $this->spy( null );
+
+		self::assertFalse( $this->submit( $this->account( $spy ), array( ProfilingConsentAccount::OPT_OUT_FIELD => '1' ), true, false ) );
+		self::assertSame( array(), $spy->calls );
+	}
+
+	public function test_checkbox_form_still_opts_in_when_ticked(): void {
+		$this->store( true, true, 0 );
+		$spy = $this->spy( true );
+
+		$this->submit(
+			$this->account( $spy ),
+			array(
+				ProfilingConsentAccount::FIELD             => '1',
+				ProfilingConsentAccount::ACTION . '_submit' => '1',
+			)
+		);
+
+		self::assertSame( array( array( 'in', 'shopper@example.com' ) ), $spy->calls );
 	}
 }
 

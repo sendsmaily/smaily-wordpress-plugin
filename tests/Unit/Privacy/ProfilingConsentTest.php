@@ -301,6 +301,47 @@ final class ProfilingConsentTest extends TestCase {
 		self::assertFalse( $this->resolver( $this->failing_smaily() )->known_preference( 'a@example.com' ) );
 	}
 
+	/**
+	 * The My Account opt-out button (PRO-3189) is offered on a store whose
+	 * email wizard isn't finished — no Smaily client, so the Smaily write is
+	 * skipped. The opt-out must still stick: the durable registry records it
+	 * (it survives the transients going away), the engine is told, and both
+	 * the gate and the display read it back as "opted out".
+	 */
+	public function test_opt_out_without_a_smaily_client_is_durable_and_reaches_the_engine(): void {
+		$options = array();
+		Functions\when( 'get_option' )->alias(
+			static function ( string $name, $fallback = false ) use ( &$options ) {
+				return $options[ $name ] ?? $fallback;
+			}
+		);
+		Functions\when( 'update_option' )->alias(
+			static function ( string $name, $value ) use ( &$options ): bool {
+				$options[ $name ] = $value;
+				return true;
+			}
+		);
+		$store = &$this->transients();
+
+		$rec = $this->createMock( RecEngineClient::class );
+		$rec->expects( self::once() )
+			->method( 'customer_opt_out' )
+			->with( 'a@example.com', self::callback( static fn ( array $b ): bool => $b['opt_out'] === true ) )
+			->willReturn( array( 'ok' => true ) );
+		$resolver = $this->resolver( null, $rec );
+
+		$resolver->opt_out( 'a@example.com' );
+
+		self::assertArrayHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
+		self::assertFalse( $resolver->known_preference( 'a@example.com' ) );
+
+		// Even with every cache gone, the durable registry keeps the answer.
+		$store = array();
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
+		self::assertFalse( $resolver->known_preference( 'a@example.com' ) );
+	}
+
 	public function test_durable_opt_out_is_known_through_a_read_failure(): void {
 		Functions\when( 'get_option' )->justReturn( array( md5( 'a@example.com' ) => true ) );
 		$this->transients();

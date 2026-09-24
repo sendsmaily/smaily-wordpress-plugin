@@ -1,7 +1,9 @@
 <?php
 /**
  * Integration: the My Account "Smaily Campaign Intelligence" section shows
- * only where Campaign Intelligence is live (PRO-2513).
+ * only where Campaign Intelligence is live (PRO-2513) — whether or not the
+ * email setup wizard is finished — and its "couldn't load" state offers an
+ * opt-out button that works without a Smaily client (PRO-3189).
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -11,6 +13,8 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Bootstrap;
+use Smaily\Connect\Privacy\ProfilingConsentAccount;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
@@ -41,6 +45,7 @@ final class ProfilingConsentAccountTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		unset( $_POST['_wpnonce'], $_POST[ ProfilingConsentAccount::OPT_OUT_FIELD ] );
 		wp_set_current_user( 0 );
 		require_once ABSPATH . 'wp-admin/includes/user.php';
 		wp_delete_user( $this->user_id );
@@ -71,10 +76,71 @@ final class ProfilingConsentAccountTest extends TestCase {
 		self::assertStringNotContainsString( 'smly-profiling-consent', $this->dashboard() );
 	}
 
-	public function test_no_section_when_the_email_setup_is_not_finished(): void {
+	public function test_section_shows_while_the_email_setup_is_not_finished(): void {
 		EnvSeed::connect();
+		self::assertFalse( SetupState::completed(), 'Precondition: the email wizard is not finished.' );
 
-		self::assertStringNotContainsString( 'smly-profiling-consent', $this->dashboard() );
+		$html = $this->dashboard();
+
+		self::assertStringContainsString( 'Smaily Campaign Intelligence', $html );
+		// No Smaily client to read from, nothing stored → the unknown state.
+		self::assertStringContainsString( 'name="' . ProfilingConsentAccount::OPT_OUT_FIELD . '"', $html );
+		self::assertStringNotContainsString( 'type="checkbox"', $html );
+	}
+
+	/**
+	 * The unknown state's button, end to end on a store with no Smaily
+	 * client (wizard unfinished): the opt-out is recorded durably, the
+	 * engine is told, and the next load shows the box unticked.
+	 */
+	public function test_opt_out_button_round_trip_without_a_smaily_client(): void {
+		EnvSeed::connect();
+		self::assertStringContainsString( 'name="' . ProfilingConsentAccount::OPT_OUT_FIELD . '"', $this->dashboard() );
+
+		if ( WC()->session === null ) {
+			wc_load_cart();
+		}
+		$engine_calls = array();
+		$fake_engine  = static function ( $pre, array $args, string $url ) use ( &$engine_calls ) {
+			$engine_calls[] = array( $args['method'] ?? '', $url, (string) ( $args['body'] ?? '' ) );
+			return array(
+				'headers'  => array(),
+				'body'     => wp_json_encode( array( 'ok' => true, 'opt_out_status' => true ) ),
+				'response' => array( 'code' => 200, 'message' => 'OK' ),
+				'cookies'  => array(),
+			);
+		};
+		$stop_at_redirect = static function (): void {
+			throw new \RuntimeException( 'redirected' );
+		};
+		add_filter( 'pre_http_request', $fake_engine, 10, 3 );
+		add_filter( 'wp_redirect', $stop_at_redirect );
+
+		$_POST['_wpnonce']                             = wp_create_nonce( ProfilingConsentAccount::ACTION );
+		$_POST[ ProfilingConsentAccount::OPT_OUT_FIELD ] = '1';
+		$account = new ProfilingConsentAccount( Bootstrap::instance()->profiling_consent(), new RecEngineSettings() );
+		$redirected = false;
+		try {
+			$account->handle_post();
+		} catch ( \RuntimeException $e ) {
+			$redirected = $e->getMessage() === 'redirected';
+		} finally {
+			remove_filter( 'pre_http_request', $fake_engine, 10 );
+			remove_filter( 'wp_redirect', $stop_at_redirect );
+			wc_clear_notices();
+		}
+
+		self::assertTrue( $redirected, 'The handler accepted the submit and redirected.' );
+		self::assertCount( 1, $engine_calls, 'Exactly one engine call — no Smaily write without a client.' );
+		self::assertStringContainsString( '/opt-out', $engine_calls[0][1] );
+		self::assertStringContainsString( '"opt_out":true', $engine_calls[0][2] );
+		self::assertArrayHasKey( md5( 'pro2513@example.test' ), (array) get_option( 'smly_profiling_optouts', array() ) );
+		self::assertFalse( Bootstrap::instance()->profiling_consent()->may_profile( 'pro2513@example.test' ) );
+
+		$html = $this->dashboard();
+		self::assertStringContainsString( 'type="checkbox"', $html );
+		self::assertStringNotContainsString( "checked='checked'", $html );
+		self::assertStringNotContainsString( ProfilingConsentAccount::OPT_OUT_FIELD, $html );
 	}
 
 	public function test_no_section_when_the_engine_account_was_deactivated(): void {

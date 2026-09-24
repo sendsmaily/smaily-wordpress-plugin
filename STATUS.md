@@ -26,7 +26,24 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-24 (**PRO-2513 — the My Account "Smaily Campaign
+_Last updated: 2026-09-24 (**PRO-3189 — fixes the two Low findings of the
+3.14.0 gate's delta security audit on the PRO-2513 section.** (1) The gate is
+now `RecEngineSettings::sending_allowed()` ALONE (render + POST) — the section
+shows whenever Campaign Intelligence is connected and active, wizard finished
+or not, because engine ingest doesn't wait for the wizard. (2) The "couldn't
+load" state keeps its notice and adds one "Opt out of personalised
+recommendations" button (ET "Loobu isikupärastatud soovitustest"; no checkbox,
+nothing pre-ticked) — same nonce + logged-in checks, a distinct
+`ProfilingConsentAccount::OPT_OUT_FIELD` the handler treats as opt-out only
+(a crafted checkbox field alongside cannot opt in). Without a Smaily client the
+opt-out still lands in the durable registry (`may_profile()` /
+`known_preference()` → false, next load shows the box unticked) and reaches the
+engine. Merchant docs (EN+ET) updated; DECISIONS PRO-2513 amended ("Superseded
+in part by PRO-3189"). Gates: `ci:strict` exit=0 (PHPUnit unit 837, vitest
+318); integration **OK (305 tests / 1 806 assertions)**, sandbox tenant "Smaily
+Connect test" restored. **A focused re-audit of this delta follows before the
+3.14.0 bump** (consent surface).
+**PRO-2513 — the My Account "Smaily Campaign
 Intelligence" section shows only where Campaign Intelligence is live.** It used
 to render on every store, even one that never connected the engine — an untrue
 data-processing claim to shoppers. `ProfilingConsentAccount::is_shown()` =
@@ -47,8 +64,8 @@ state).**
 Gates: `ci:strict` exit=0 (PHPUnit unit 831, vitest 318); integration **OK (304
 tests / 1 793 assertions)**, sandbox tenant "Smaily Connect test" restored.
 DECISIONS PRO-2513.
-**Unreleased on main after 3.13.0:** PRO-2449 (header description), PRO-3187
-and PRO-2513 — all ship with the next bump.
+**Unreleased on main after 3.13.0:** PRO-2449 (header description), PRO-3187,
+PRO-2513 and PRO-3189 — all ship with the next bump.
 **3.14.0 release gate RAN (2026-09-24, pre-bump):** the delta security audit
 over `3.13.0..8c26eed` came back **0 Blocking / 0 Critical / 0 High / 0 Medium,
 2 Low, 6 Info — 3.14.0 may proceed** (both Lows are on the PRO-2513 opt-out

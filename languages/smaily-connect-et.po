@@ -165,28 +165,32 @@ msgstr "Peida"
 msgid "Smaily Connect data"
 msgstr "Smaily Connect andmed"
 
-#: includes/Privacy/ProfilingConsentAccount.php:101
+#: includes/Privacy/ProfilingConsentAccount.php:112
 msgid "Your recommendation preferences have been saved."
 msgstr "Sinu soovituste eelistused on salvestatud."
 
-#: includes/Privacy/ProfilingConsentAccount.php:124
+#: includes/Privacy/ProfilingConsentAccount.php:136
 #: admin/src/components/steps/Step4Recommendations.tsx:148
 msgid "Smaily Campaign Intelligence"
 msgstr "Smaily Campaign Intelligence"
 
-#: includes/Privacy/ProfilingConsentAccount.php:126
+#: includes/Privacy/ProfilingConsentAccount.php:138
 msgid "We use your browsing and purchase history to personalise the product recommendations in our emails. You can turn this off at any time — you will still receive our emails."
 msgstr "Kasutame sinu sirvimis- ja ostuajalugu, et muuta meie e-kirjades olevad tootesoovitused personaalseks. Saad selle igal ajal välja lülitada — e-kirju saad ka edaspidi."
 
-#: includes/Privacy/ProfilingConsentAccount.php:129
+#: includes/Privacy/ProfilingConsentAccount.php:141
 msgid "We couldn't load your preference right now. Please try again later."
 msgstr "Me ei saanud praegu sinu eelistust laadida. Palun proovi hiljem uuesti."
 
-#: includes/Privacy/ProfilingConsentAccount.php:135
+#: includes/Privacy/ProfilingConsentAccount.php:146
+msgid "Opt out of personalised recommendations"
+msgstr "Loobu isikupärastatud soovitustest"
+
+#: includes/Privacy/ProfilingConsentAccount.php:155
 msgid "Use my data for personalised recommendations"
 msgstr "Kasuta minu andmeid personaalsete soovituste jaoks"
 
-#: includes/Privacy/ProfilingConsentAccount.php:139
+#: includes/Privacy/ProfilingConsentAccount.php:159
 msgid "Save preferences"
 msgstr "Salvesta eelistused"
 

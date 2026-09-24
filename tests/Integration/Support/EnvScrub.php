@@ -135,6 +135,10 @@ final class EnvScrub {
 			// autoload=false, so a cached value would let a swept lock still
 			// block the next test's upgrade run.
 			\Smaily\Connect\Support\UpgradeLock::OPTION,
+			// Same class again (PRO-3189): the durable profiling opt-out
+			// registry (ProfilingConsent::OPTION_OPTOUTS, private) is
+			// autoload=false and asserted on by ProfilingConsentAccountTest.
+			'smly_profiling_optouts',
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

@@ -6667,6 +6667,29 @@ load); gating on `is_connected()` (would keep the section on a deactivated
 account); changing `may_profile()`'s return or cache on read failure (out of
 scope — changes whether profiling happens); treating the daily cache as known
 (it can hold the fail-open value).
+**Superseded in part by PRO-3189 (2026-09-24).** Two parts of the above are
+reversed after the 3.14.0 gate's delta security audit raised them as Low
+findings (`docs/audits/SECURITY_DELTA_AUDIT_2026-09-24_3.14.0.md`):
+(a) the gate is now `sending_allowed()` ALONE — `SetupState::completed()` is
+dropped from `is_shown()`, for both render and POST. Why: rec-engine ingest
+runs whenever the engine is connected, independent of the email wizard, so
+hiding the section until the wizard's Finish removed the shopper's opt-out
+while their data still flowed. The "precondition for the Smaily read-back"
+reasoning above no longer holds as a reason to hide: without a Smaily client
+the read-back yields the unknown state, which (b) now handles. (b) The unknown
+state keeps the notice AND gets a single "Opt out of personalised
+recommendations" button (no checkbox, nothing pre-ticked), in its own form
+with the same nonce + logged-in checks. It posts a distinct field
+(`ProfilingConsentAccount::OPT_OUT_FIELD`) the handler treats as opt-out only —
+any checkbox field sent alongside is ignored, so it can never read as an
+opt-in. Why: "no form because submitting it without the box would read as an
+opt-out" was correct about the checkbox form, but left the shopper with no way
+to say no while profiling fails open — a regression from before PRO-2513. An
+explicit opt-out button has no such ambiguity. With no Smaily client the
+opt-out still sticks locally (durable opt-out registry, so `may_profile()` and
+`known_preference()` read false) and reaches the engine (`sending_allowed()` is
+true); only the Smaily write is skipped. Unchanged: the consent wording, the
+default state, the storage model, and the rest of the reasoning above.
 
 ## How to keep this document going
 

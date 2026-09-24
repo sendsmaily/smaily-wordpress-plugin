@@ -17,7 +17,6 @@ namespace Smaily\Connect\Privacy;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Settings\RecEngineSettings;
-use Smaily\Connect\Settings\SetupState;
 
 /**
  * Renders a privacy section on the My Account dashboard + handles its form POST.
@@ -27,11 +26,19 @@ use Smaily\Connect\Settings\SetupState;
  *
  * Shown only where Campaign Intelligence is actually live (PRO-2513) — see
  * `is_shown()`. The hooks stay registered; the gate is read per request.
+ * When the preference can't be loaded there is no checkbox, only a button
+ * that opts out (PRO-3189) — see `OPT_OUT_FIELD`.
  */
 final class ProfilingConsentAccount {
 
 	public const FIELD  = 'smly_profiling_use_my_data';
 	public const ACTION = 'smly_profiling_consent';
+
+	/**
+	 * The "couldn't load" state's button (PRO-3189). Its submit can only
+	 * ever opt out — the handler ignores any checkbox field sent alongside.
+	 */
+	public const OPT_OUT_FIELD = 'smly_profiling_opt_out';
 
 	private ProfilingConsent $profiling;
 
@@ -44,13 +51,15 @@ final class ProfilingConsentAccount {
 
 	/**
 	 * The one gate for both the section and its form POST (PRO-2513): the
-	 * email setup is finished AND the rec engine may be sent to (connected,
-	 * not deactivated by Smaily). Anywhere else the section's claim that we
-	 * use shopper data for recommendations would be untrue. Hiding it leaves
-	 * every stored preference untouched.
+	 * rec engine may be sent to (connected, not deactivated by Smaily).
+	 * Anywhere else the section's claim that we use shopper data for
+	 * recommendations would be untrue. Hiding it leaves every stored
+	 * preference untouched. Not gated on the email setup wizard (PRO-3189):
+	 * rec-engine ingest runs whenever the engine is connected, so the
+	 * opt-out must be there too.
 	 */
 	public function is_shown(): bool {
-		return SetupState::completed() && $this->settings->sending_allowed();
+		return $this->settings->sending_allowed();
 	}
 
 	public function register(): void {
@@ -75,7 +84,8 @@ final class ProfilingConsentAccount {
 	}
 
 	public function handle_post(): void {
-		if ( ! isset( $_POST[ self::ACTION . '_submit' ] ) ) {
+		$opt_out_button = isset( $_POST[ self::OPT_OUT_FIELD ] );
+		if ( ! $opt_out_button && ! isset( $_POST[ self::ACTION . '_submit' ] ) ) {
 			return;
 		}
 		if ( ! $this->is_shown() ) {
@@ -94,8 +104,9 @@ final class ProfilingConsentAccount {
 			return;
 		}
 
-		// Checkbox present = opt-in (use my data); absent = opt-out.
-		$this->apply( $email, isset( $_POST[ self::FIELD ] ) );
+		// Checkbox present = opt-in (use my data); absent = opt-out. The
+		// opt-out button (PRO-3189) always opts out, whatever else is posted.
+		$this->apply( $email, ! $opt_out_button && isset( $_POST[ self::FIELD ] ) );
 
 		if ( function_exists( 'wc_add_notice' ) ) {
 			wc_add_notice( __( 'Your recommendation preferences have been saved.', 'smaily-connect' ), 'success' );
@@ -116,7 +127,8 @@ final class ProfilingConsentAccount {
 		}
 
 		// Read-back-as-authority: reflect the true (Smaily) state, not local
-		// guesswork. Null = not reliably known → no checkbox (PRO-2513).
+		// guesswork. Null = not reliably known → no checkbox (PRO-2513), only
+		// the opt-out button (PRO-3189).
 		$use_my_data = $this->profiling->known_preference( $email );
 
 		?>
@@ -127,6 +139,14 @@ final class ProfilingConsentAccount {
 			</p>
 			<?php if ( $use_my_data === null ) : ?>
 			<p><?php esc_html_e( "We couldn't load your preference right now. Please try again later.", 'smaily-connect' ); ?></p>
+			<form method="post">
+				<?php wp_nonce_field( self::ACTION ); ?>
+				<p>
+					<button type="submit" name="<?php echo esc_attr( self::OPT_OUT_FIELD ); ?>" value="1" class="button">
+						<?php esc_html_e( 'Opt out of personalised recommendations', 'smaily-connect' ); ?>
+					</button>
+				</p>
+			</form>
 			<?php else : ?>
 			<form method="post">
 				<?php wp_nonce_field( self::ACTION ); ?>
