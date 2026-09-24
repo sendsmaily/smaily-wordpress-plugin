@@ -26,7 +26,23 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-24 (**3.14.0 bumped + built locally — commit
+_Last updated: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published
+2026-09-24: bump commit `3d5643f` pushed to `sendsmaily/smaily-wordpress-plugin`
+main, GitHub release `3.14.0` targeting that full SHA, `release.yml` run
+35996975422 green; the CI asset re-verified locally with
+`bin/verify-release-zip.sh … 3.14.0` exit=0 (build-hash `3d5643f`; NB the
+script must run from the repo root — run elsewhere, its bundle-scope check
+can't find jsdom and reports a false FAIL); `./release.sh -u sendsmaily` run
+by Erkki (SVN r3711242); the wordpress.org API and the SVN trunk Stable tag
+both confirm **3.14.0**. A dedicated release clone now lives at
+`~/Allalaadimised/smaily-release`. The merchant docs site was published over
+FTPS twice today at Erkki's explicit request WITHOUT the usual ET proofread
+(PRO-1520 gate) — the live copy is byte-identical to `docs/site/index.html`
+at this commit. **Unreleased on main after 3.14.0:** nothing. Next up:
+PRO-3190 (order-confirmation fields for real templates, design playback
+first), PRO-3192 (newer-choice-wins opt-out timestamp).)_
+
+Prior: 2026-09-24 (**3.14.0 bumped + built locally — commit
 `3d5643f` (`release: 3.14.0`), NOT pushed; publication by the orchestrator.**
 First the focused re-audit of `3b0ede0..7cbdc75` (PRO-3189 + PRO-3191, the
 consent surface) — **0 Blocking / 0 Critical / 0 High / 0 Medium / 0 Low, 5
@@ -46,7 +62,7 @@ errors). The CI release ZIP is the shipped artifact; this local build is the
 reference.
 **Unreleased on main after 3.13.0:** PRO-2449, PRO-3187, PRO-2513, PRO-3189 and
 PRO-3191 — all in the 3.14.0 bump, which is committed locally but NOT yet
-pushed, tagged or published.)_
+pushed, tagged or published.)
 
 Prior: 2026-09-24 (**PRO-3191 — a durable store-side profiling
 opt-out now holds until an EXPLICIT opt-in.** A successful Smaily read of a
