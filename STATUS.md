@@ -26,7 +26,29 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-24 (**PRO-3191 — a durable store-side profiling
+_Last updated: 2026-09-24 (**3.14.0 bumped + built locally — commit
+`3d5643f` (`release: 3.14.0`), NOT pushed; publication by the orchestrator.**
+First the focused re-audit of `3b0ede0..7cbdc75` (PRO-3189 + PRO-3191, the
+consent surface) — **0 Blocking / 0 Critical / 0 High / 0 Medium / 0 Low, 5
+Info; both Lows of the morning gate RESOLVED; 3.14.0 may proceed** (commit
+`6edfa6c`, addendum in `docs/audits/SECURITY_DELTA_AUDIT_2026-09-24_3.14.0.md`,
+register row in `docs/audits/INDEX.md` extended). Then the bump in the eight
+places (header ×3, `package.json`, `package-lock.json` ×2, `readme.txt` Stable
+tag + `= 3.14.0 =` changelog + Upgrade Notice, `docs/INSTALL.md`, the three
+test pins) and `bin/build-i18n.sh` (`.pot` Project-Id-Version + line
+references only; the PRO-3189 button string already translated). Local build
+from the clean bump commit: **`bin/verify-release-zip.sh smaily-connect.zip
+3.14.0` exit=0** (build-hash `3d5643f`, 383 entries); **Plugin Check on the
+BUILT ZIP 0 ERRORS / 7 WARNINGS** — the same seven accepted warnings as the
+morning gate, nothing new; `ci:strict` exit=0 after the bump (PHPUnit unit
+**843 / 2 372 assertions**, vitest **318 / 42 files**, PHPStan OK, PHPCS 0
+errors). The CI release ZIP is the shipped artifact; this local build is the
+reference.
+**Unreleased on main after 3.13.0:** PRO-2449, PRO-3187, PRO-2513, PRO-3189 and
+PRO-3191 — all in the 3.14.0 bump, which is committed locally but NOT yet
+pushed, tagged or published.)_
+
+Prior: 2026-09-24 (**PRO-3191 — a durable store-side profiling
 opt-out now holds until an EXPLICIT opt-in.** A successful Smaily read of a
 contact with no `smaily_rec_profiling` value (or no contact at all) used to
 clear the opt-out registry — so an opt-out made while the Smaily write was
@@ -81,8 +103,8 @@ state).**
 Gates: `ci:strict` exit=0 (PHPUnit unit 831, vitest 318); integration **OK (304
 tests / 1 793 assertions)**, sandbox tenant "Smaily Connect test" restored.
 DECISIONS PRO-2513.
-**Unreleased on main after 3.13.0:** PRO-2449 (header description), PRO-3187,
-PRO-2513, PRO-3189 and PRO-3191 — all ship with the next bump.
+**Unreleased on main after 3.13.0** at that point: PRO-2449 (header
+description), PRO-3187, PRO-2513, PRO-3189 and PRO-3191.
 **3.14.0 release gate RAN (2026-09-24, pre-bump):** the delta security audit
 over `3.13.0..8c26eed` came back **0 Blocking / 0 Critical / 0 High / 0 Medium,
 2 Low, 6 Info — 3.14.0 may proceed** (both Lows are on the PRO-2513 opt-out
@@ -95,7 +117,7 @@ Plugin Check against the built ZIP is **0 ERRORS, 7 WARNINGS** (0/9 at the
 831, vitest 318) and integration **OK (304 tests / 1 790 assertions, 1
 pre-existing skip)**, sandbox tenant "Smaily Connect test" restored. Report:
 `docs/audits/SECURITY_DELTA_AUDIT_2026-09-24_3.14.0.md`, register row in
-`docs/audits/INDEX.md`.)_
+`docs/audits/INDEX.md`.)
 
 Prior: 2026-09-24 (**PRO-3187 — transactional emails pick their
 Smaily workflow by the order's language on a multilingual store.** Until now
