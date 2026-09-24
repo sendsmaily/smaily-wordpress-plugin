@@ -1369,53 +1369,53 @@ msgstr "Väljas"
 msgid "Enable %s"
 msgstr "Luba %s"
 
-#: admin/src/components/steps/AutomationSection.tsx:73
+#: admin/src/components/steps/AutomationSection.tsx:75
 #: admin/src/components/steps/EngineAutomationsSection.tsx:312
 msgid "Language"
 msgstr "Keel"
 
-#: admin/src/components/steps/AutomationSection.tsx:74
+#: admin/src/components/steps/AutomationSection.tsx:76
 #: admin/src/components/steps/EngineAutomationsSection.tsx:313
 msgid "Workflow"
 msgstr "Töövoog"
 
-#: admin/src/components/steps/AutomationSection.tsx:75
+#: admin/src/components/steps/AutomationSection.tsx:77
 #: admin/src/components/steps/EngineAutomationsSection.tsx:314
 msgid "Default fallback"
 msgstr "Vaikimisi varuvalik"
 
-#: admin/src/components/steps/AutomationSection.tsx:131
+#: admin/src/components/steps/AutomationSection.tsx:133
 #: admin/src/components/steps/EngineAutomationsSection.tsx:389
 msgid "inactive"
 msgstr "mitteaktiivne"
 
 #. translators: %s is the error message.
-#: admin/src/components/steps/AutomationSection.tsx:165
+#: admin/src/components/steps/AutomationSection.tsx:167
 #: admin/src/components/steps/EngineAutomationsSection.tsx:363
 #, js-format
 msgid "Couldn't load workflows: %s"
 msgstr "Töövooge ei õnnestunud laadida: %s"
 
-#: admin/src/components/steps/AutomationSection.tsx:171
-#: admin/src/components/steps/AutomationSection.tsx:188
+#: admin/src/components/steps/AutomationSection.tsx:173
+#: admin/src/components/steps/AutomationSection.tsx:190
 #: admin/src/components/steps/EngineAutomationsSection.tsx:397
 msgid "Loading workflows…"
 msgstr "Töövoogude laadimine…"
 
-#: admin/src/components/steps/AutomationSection.tsx:171
-#: admin/src/components/steps/AutomationSection.tsx:188
+#: admin/src/components/steps/AutomationSection.tsx:173
+#: admin/src/components/steps/AutomationSection.tsx:190
 #: admin/src/components/steps/EngineAutomationsSection.tsx:397
 msgid "— pick a workflow —"
 msgstr "— vali töövoog —"
 
 #. translators: %s is the error message.
-#: admin/src/components/steps/AutomationSection.tsx:182
+#: admin/src/components/steps/AutomationSection.tsx:184
 #, js-format
 msgid "Couldn't load: %s"
 msgstr "Ei õnnestunud laadida: %s"
 
 #. translators: %s is a locale code, e.g. en-US.
-#: admin/src/components/steps/AutomationSection.tsx:202
+#: admin/src/components/steps/AutomationSection.tsx:204
 #: admin/src/components/steps/EngineAutomationsSection.tsx:341
 #, js-format
 msgid "Mark %s as default fallback"

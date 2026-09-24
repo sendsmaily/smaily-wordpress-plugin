@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.13.0
+Stable tag: 3.14.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -176,6 +176,14 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 Only releases from 3.0.0 onward are listed here. The complete version history, including the 1.x and 2.x releases, is published at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.14.0 =
+* New: on a store with more than one language, order and shipping confirmations can use a separate Smaily workflow for each store language. Each order's confirmation goes out through the workflow for that order's language, falling back to your default workflow.
+* Improved: the "Smaily Campaign Intelligence" section in the shopper's My Account now appears only on stores where Campaign Intelligence is connected and active. It used to appear on every store.
+* Improved: shoppers can always opt out of personalised recommendations there, including when their preference can't be loaded at the moment.
+* Fixed: a shopper's opt-out now stays in force until they opt back in. Before, an opt-out that couldn't reach Smaily at the time could be undone at a later preference check.
+* Improved: the plugin description no longer calls the plugin a beta.
+* Improved: the documentation now has a "Merge tags" reference listing the fields each automation and confirmation email carries for your Smaily template.
+
 = 3.13.0 =
 * New: the Smaily landing page can now be placed on pages built with Elementor or another page builder. A `[smaily_landing_page url="..."]` shortcode works in any builder's text or shortcode element, and Elementor also gets a "Smaily Landing Page" widget in its Smaily category. Both show exactly what the landing page block shows, and the height and width can be given in pixels or as a percentage.
 * Improved: the Settings screen's Campaign Intelligence tab now explains what Campaign Intelligence is and what it costs, until the store is connected to it.
@@ -344,6 +352,9 @@ First general-availability release, graduating the 2.1.0-beta line. Existing set
 * Hardening: WordPress.org Plugin Check pass (sanitization, escaping, prefixing, ABSPATH guards); editor blocks updated to Block API v3 for the WordPress 7.0 iframe editor; diagnostics gated behind WP_DEBUG.
 
 == Upgrade Notice ==
+
+= 3.14.0 =
+Order and shipping confirmations can use a Smaily workflow per store language. The My Account Campaign Intelligence section shows only where it is live, shoppers can always opt out, and an opt-out now stays until they opt back in. Safe update.
 
 = 3.13.0 =
 Performance and housekeeping fixes for large stores, landing pages on Elementor pages, and Campaign Intelligence information on the Settings tab.
