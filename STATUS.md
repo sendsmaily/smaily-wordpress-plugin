@@ -27,7 +27,23 @@ If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
 _Last updated: 2026-09-29 (**Unreleased on main after 3.14.0: PRO-3335,
-PRO-3192, PRO-3410, PRO-3407** — first session on the MacBook, orchestrated.
+PRO-3192, PRO-3410, PRO-3407, PRO-3406** — first session on the MacBook, orchestrated.
+**PRO-3406** — in consent mode a registered buyer's newsletter tick now
+reaches Smaily: it is saved as the store's consent record `user_newsletter = 1`
+by one writer, `HookHandler::record_newsletter_optin()` (consent mode after the
+wizard only; only ever 1, never on an unticked box), and the existing
+meta-transition handler sends `is_unsubscribed = 0`. Fed by the classic
+checkout (`woocommerce_checkout_update_user_meta`, logged in or new account),
+My Account registration (`woocommerce_created_customer` + the
+`woocommerce-register` nonce) and the block checkout (order meta
+`_smaily_newsletter_optin` from the request hook → recorded on
+`…_checkout_order_processed`, when a new account's id exists; an unticked
+resubmission deletes the order meta). `ContactAudience` unchanged; merchant
+docs already promised this, so no site edit. DECISIONS PRO-3406. Unit-proven
+per flow in `HookHandlerTest`; `tests/Integration/CheckoutNewsletterOptinTest`
+written, NOT run; each flow on a running store is human acceptance. Consent
+surface → include in the next focused security re-audit. Readme changelog
+line belongs to the next bump.
 **PRO-3335** — new merge tag `product_url_1..10` beside the existing seven
 product fields, same name in order confirmation, shipping confirmation and the
 abandoned-cart reminder (`TransactionalPayloadBuilder`, `CartPayloadBuilder`,
@@ -52,7 +68,7 @@ awaits the PRO-3405 proofread. **Integration NOT run** for any of these (no
 Docker on the MacBook yet) — due before the next release, with a focused
 security re-audit if PRO-3190 joins it. Next session opens with: PRO-3190
 build (design approved 2026-09-29: full address/phone set behind a merchant
-toggle, default off), PRO-3406 fix (awaiting Erkki's go-ahead), CLIPRO-205
+toggle, default off), PRO-3406 human acceptance on a running store, CLIPRO-205
 live-store check by Erkki (due 02.10).)_
 
 Prior: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published

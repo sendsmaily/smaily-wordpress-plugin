@@ -20,6 +20,12 @@ use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\ContactReconciler;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily_Connect\Includes\Options;
+use Smaily_Connect\Integrations\WooCommerce\Profile_Settings;
+
+// The legacy tree is not autoloaded (smaily.class.php require_once's it).
+require_once __DIR__ . '/../../../../includes/smaily-options.class.php';
+require_once __DIR__ . '/../../../../integrations/woocommerce/profile-settings.class.php';
 
 final class HookHandlerTest extends TestCase {
 
@@ -34,6 +40,9 @@ final class HookHandlerTest extends TestCase {
 
 	private EventQueue $queue;
 
+	/** @var array<int, array<string, mixed>> user id => meta key => value, for the PRO-3406 cases. */
+	private array $user_meta = array();
+
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
@@ -46,6 +55,7 @@ final class HookHandlerTest extends TestCase {
 		$this->enqueued  = array();
 		$this->delivered = array();
 		$this->cancelled = array();
+		$this->user_meta = array();
 
 		// Fake EventQueue that records enqueue() calls in the local array
 		// instead of touching $wpdb / Action Scheduler. The PRO-1723 lookup
@@ -126,6 +136,7 @@ final class HookHandlerTest extends TestCase {
 		Monkey\tearDown();
 		parent::tearDown();
 		$_COOKIE = array();
+		$_POST   = array();
 	}
 
 	public function test_gate_closed_suppresses_callbacks_until_setup_completed(): void {
@@ -802,6 +813,325 @@ final class HookHandlerTest extends TestCase {
 		self::assertSame( 0, $contact['payload']['is_unsubscribed'], 'A checkout opt-in subscribes.' );
 	}
 
+	// ------------------------------------------------------------------
+	// PRO-3406: a registered buyer's newsletter tick becomes the store's
+	// consent record (user_newsletter = 1), and writing it sends the contact
+	// to Smaily subscribed. Each case drives Profile_Settings' real callbacks
+	// and HookHandler's real hooks in the order WooCommerce fires them, with
+	// the user-meta store wired to the real consent handler the way WordPress
+	// fires `add_user_meta` / `update_user_meta` (see wire_user_meta()).
+	// ------------------------------------------------------------------
+
+	public function test_consent_mode_logged_in_classic_checkout_tick_subscribes(): void {
+		$this->optin_options( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 42, 'shopper@example.test', 'Test', 'Shopper' ) );
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 100, 'shopper@example.test', 42, 1 ) );
+		$posted = array(
+			'billing_email'   => 'shopper@example.test',
+			'user_newsletter' => 1,
+		);
+
+		// WC_Checkout::process_customer() → woocommerce_checkout_update_user_meta( $customer_id, $data ),
+		// then woocommerce_checkout_order_processed( $order_id, $posted_data, $order ).
+		( new Profile_Settings() )->smaily_save_checkout_newsletter_optin( 42, $posted );
+		$handler->on_checkout_order_processed( 100, $posted );
+
+		self::assertSame( array( 42 => array( 'user_newsletter' => '1' ) ), $this->user_meta, 'The tick is saved as the store\'s consent record.' );
+		$this->assert_subscribed_once( '42:consent', 'shopper@example.test' );
+	}
+
+	public function test_consent_mode_classic_checkout_account_creation_tick_subscribes(): void {
+		$this->optin_options( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 43, 'new.shopper@example.test', '', '' ) );
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 101, 'new.shopper@example.test', 43, 1 ) );
+		// The checkout carries the checkout nonce, not the registration one.
+		$_POST    = array(
+			'woocommerce-process-checkout-nonce' => 'checkout-nonce',
+			'user_newsletter'                    => '1',
+		);
+		$posted   = array(
+			'billing_email'   => 'new.shopper@example.test',
+			'user_newsletter' => 1,
+		);
+		$settings = new Profile_Settings();
+
+		// wc_create_new_customer(): user_register, then woocommerce_created_customer;
+		// then process_customer() fires woocommerce_checkout_update_user_meta.
+		$handler->on_user_register( 43 );
+		$handler->on_woocommerce_created_customer( 43 );
+		$settings->smaily_save_registration_newsletter_optin( 43 );
+		self::assertSame( array(), $this->user_meta, 'The registration callback must not act on a checkout request.' );
+
+		$settings->smaily_save_checkout_newsletter_optin( 43, $posted );
+		$handler->on_checkout_order_processed( 101, $posted );
+
+		self::assertSame( array( 43 => array( 'user_newsletter' => '1' ) ), $this->user_meta );
+		$this->assert_subscribed_once( '43:consent', 'new.shopper@example.test' );
+	}
+
+	public function test_consent_mode_my_account_registration_tick_subscribes(): void {
+		$this->optin_options( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 44, 'registrant@example.test', '', '' ) );
+		$_POST = array(
+			'woocommerce-register-nonce' => 'register-nonce',
+			'register'                   => 'Register',
+			'email'                      => 'registrant@example.test',
+			'user_newsletter'            => '1',
+		);
+
+		// WC_Form_Handler::process_registration() → wc_create_new_customer().
+		$handler->on_user_register( 44 );
+		( new Profile_Settings() )->smaily_save_registration_newsletter_optin( 44 );
+		$handler->on_woocommerce_created_customer( 44 );
+
+		self::assertSame( array( 44 => array( 'user_newsletter' => '1' ) ), $this->user_meta );
+		$this->assert_subscribed_once( '44:consent', 'registrant@example.test' );
+	}
+
+	public function test_registration_tick_without_the_registration_nonce_writes_nothing(): void {
+		$this->optin_options( ContactSyncMode::MODE_CONSENT );
+		$this->wire_user_meta( new HookHandler( $this->queue ) );
+		$_POST = array(
+			'woocommerce-register-nonce' => 'forged',
+			'user_newsletter'            => '1',
+		);
+
+		( new Profile_Settings() )->smaily_save_registration_newsletter_optin( 44 );
+
+		self::assertSame( array(), $this->user_meta );
+		self::assertSame( array(), $this->enqueued );
+	}
+
+	public function test_consent_mode_logged_in_block_checkout_tick_subscribes(): void {
+		$this->optin_options( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 45, 'shopper@example.test', '', '' ) );
+		$order = $this->fake_order( 102, 'shopper@example.test', 45, 1 );
+
+		// Store API: update_order_from_request → …_update_order_from_request( $order, $request ),
+		// then …_checkout_order_processed( $order ).
+		$handler->on_checkout_block_optin( $order, $this->block_request( true ) );
+		$handler->on_block_checkout_order_processed( $order );
+
+		self::assertSame( '1', $order->get_meta( HookHandler::ORDER_META_NEWSLETTER_OPTIN ), 'The tick stays on the order as evidence.' );
+		self::assertSame( array( 45 => array( 'user_newsletter' => '1' ) ), $this->user_meta );
+		$this->assert_subscribed_once( '45:consent', 'shopper@example.test' );
+	}
+
+	public function test_consent_mode_block_checkout_account_creation_tick_subscribes(): void {
+		$this->optin_options( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 46, 'new.shopper@example.test', '', '' ) );
+		$order = $this->fake_order( 103, 'new.shopper@example.test', 0, 1 );
+
+		// The request hook runs while the order is still a guest's …
+		$handler->on_checkout_block_optin( $order, $this->block_request( true ) );
+		self::assertSame( array(), $this->user_meta );
+
+		// … process_customer() creates the account and sets the customer id …
+		$handler->on_user_register( 46 );
+		$handler->on_woocommerce_created_customer( 46 );
+		$order->set_customer_id( 46 );
+
+		// … and only then does the processed hook fire.
+		$handler->on_block_checkout_order_processed( $order );
+
+		self::assertSame( array( 46 => array( 'user_newsletter' => '1' ) ), $this->user_meta );
+		$this->assert_subscribed_once( '46:consent', 'new.shopper@example.test' );
+	}
+
+	public function test_an_unticked_box_records_nothing_and_subscribes_no_one(): void {
+		$this->optin_options( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 47, 'shopper@example.test', '', '' ) );
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 104, 'shopper@example.test', 47, 1 ) );
+		$settings = new Profile_Settings();
+
+		// Classic checkout: WooCommerce posts '' for an unticked checkbox.
+		$posted = array(
+			'billing_email'   => 'shopper@example.test',
+			'user_newsletter' => '',
+		);
+		$settings->smaily_save_checkout_newsletter_optin( 47, $posted );
+		$handler->on_checkout_order_processed( 104, $posted );
+
+		// My Account registration: an unticked box is simply absent.
+		$_POST = array( 'woocommerce-register-nonce' => 'register-nonce' );
+		$settings->smaily_save_registration_newsletter_optin( 47 );
+
+		// Block checkout.
+		$order = $this->fake_order( 105, 'shopper@example.test', 47, 1 );
+		$handler->on_checkout_block_optin( $order, $this->block_request( false ) );
+		$handler->on_block_checkout_order_processed( $order );
+
+		self::assertSame( array(), $this->user_meta, 'Nothing is recorded — and never a 0: an unticked box is not an opt-out.' );
+		self::assertSame( array(), $this->enqueued, 'No subscription (and no unsubscribe) is sent.' );
+		self::assertSame( '', $order->get_meta( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) );
+	}
+
+	public function test_an_unticked_resubmission_clears_an_earlier_tick_on_the_order(): void {
+		// A failed-payment retry updates the same order: only the final choice counts.
+		$this->optin_options( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$order = $this->fake_order( 106, 'shopper@example.test', 48, 1 );
+
+		$handler->on_checkout_block_optin( $order, $this->block_request( true ) );
+		$handler->on_checkout_block_optin( $order, $this->block_request( false ) );
+		$handler->on_block_checkout_order_processed( $order );
+
+		self::assertSame( '', $order->get_meta( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) );
+		self::assertSame( array(), $this->user_meta );
+	}
+
+	/**
+	 * @dataProvider provide_modes_without_a_consent_record
+	 */
+	public function test_other_modes_are_unaffected_by_the_tick( string $mode ): void {
+		$this->optin_options( $mode );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 49, 'shopper@example.test', '', '' ) );
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 107, 'shopper@example.test', 49, 1 ) );
+		$settings = new Profile_Settings();
+		$posted   = array(
+			'billing_email'   => 'shopper@example.test',
+			'user_newsletter' => 1,
+		);
+
+		$settings->smaily_save_checkout_newsletter_optin( 49, $posted );
+		$handler->on_checkout_order_processed( 107, $posted );
+
+		$_POST = array(
+			'woocommerce-register-nonce' => 'register-nonce',
+			'user_newsletter'            => '1',
+		);
+		$settings->smaily_save_registration_newsletter_optin( 49 );
+
+		$order = $this->fake_order( 108, 'shopper@example.test', 49, 1 );
+		$handler->on_checkout_block_optin( $order, $this->block_request( true ) );
+		$handler->on_block_checkout_order_processed( $order );
+
+		self::assertSame( array(), $this->user_meta, 'No consent record is written outside consent mode.' );
+		self::assertSame(
+			array(),
+			array_values( array_filter( array_column( $this->enqueued, 'entity_id' ), static fn ( string $id ): bool => str_ends_with( $id, ':consent' ) ) ),
+			'No consent event — the order path answers exactly as it did before PRO-3406.'
+		);
+	}
+
+	/**
+	 * @return array<string, array{string}>
+	 */
+	public static function provide_modes_without_a_consent_record(): array {
+		return array(
+			'legitimate interest' => array( ContactSyncMode::MODE_LEGITIMATE_INTEREST ),
+			'checkout only'       => array( ContactSyncMode::MODE_CHECKOUT_OPTIN ),
+		);
+	}
+
+	public function test_a_tick_before_the_wizard_is_finished_is_left_to_the_legacy_sync(): void {
+		$this->optin_options( ContactSyncMode::MODE_CONSENT, false );
+		$this->wire_user_meta( new HookHandler( $this->queue ) );
+
+		( new Profile_Settings() )->smaily_save_checkout_newsletter_optin( 50, array( 'user_newsletter' => 1 ) );
+
+		self::assertSame( array(), $this->user_meta );
+	}
+
+	public function test_profile_settings_binds_the_optin_callbacks_to_the_woocommerce_hooks(): void {
+		$settings = new Profile_Settings();
+
+		$settings->register_hooks();
+
+		self::assertSame( 10, has_action( 'woocommerce_checkout_update_user_meta', array( $settings, 'smaily_save_checkout_newsletter_optin' ) ) );
+		self::assertSame( 10, has_action( 'woocommerce_created_customer', array( $settings, 'smaily_save_registration_newsletter_optin' ) ) );
+	}
+
+	/**
+	 * Store settings for the PRO-3406 cases: the wizard finished, contact sync
+	 * on, the given mode, and the merchant's newsletter checkbox offered.
+	 */
+	private function optin_options( string $mode, bool $setup_completed = true ): void {
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = null ) use ( $mode, $setup_completed ) {
+				if ( $key === 'smly_plus_setup_completed' ) {
+					return $setup_completed;
+				}
+				if ( $key === ContactSyncMode::OPTION_SYNC_ENABLED ) {
+					return true;
+				}
+				if ( $key === ContactSyncMode::OPTION_MODE ) {
+					return $mode;
+				}
+				if ( $key === Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION ) {
+					return '1';
+				}
+				return $default;
+			}
+		);
+		Functions\stubTranslationFunctions();
+		Functions\when( 'sanitize_key' )->alias( 'strtolower' );
+		Functions\when( 'wp_verify_nonce' )->alias(
+			static fn ( $nonce, $action ) => ( $nonce === 'register-nonce' && $action === 'woocommerce-register' )
+				|| ( $nonce === 'checkout-nonce' && $action === 'woocommerce-process_checkout' ) ? 1 : false
+		);
+	}
+
+	/**
+	 * An in-memory user-meta store wired to the handler the way WordPress core
+	 * fires the meta actions Hooks::register() binds: `add_user_meta` for the
+	 * first write of a key, `update_user_meta` (old value still readable) for
+	 * a changed one, nothing for an unchanged one.
+	 */
+	private function wire_user_meta( HookHandler $handler ): void {
+		$meta = &$this->user_meta;
+		Functions\when( 'get_user_meta' )->alias(
+			static function ( int $user_id, string $key = '', bool $single = false ) use ( &$meta ) {
+				return $meta[ $user_id ][ $key ] ?? '';
+			}
+		);
+		Functions\when( 'update_user_meta' )->alias(
+			static function ( int $user_id, string $key, $value ) use ( &$meta, $handler ) {
+				if ( ! isset( $meta[ $user_id ][ $key ] ) ) {
+					$handler->on_user_newsletter_meta_add( $user_id, $key, $value );
+				} elseif ( $meta[ $user_id ][ $key ] !== $value ) {
+					$handler->on_user_newsletter_meta_update( 0, $user_id, $key, $value );
+				} else {
+					return false;
+				}
+				$meta[ $user_id ][ $key ] = $value;
+				return true;
+			}
+		);
+	}
+
+	/**
+	 * @return array<string, array<string, array<string, bool>>>
+	 */
+	private function block_request( bool $ticked ): array {
+		return array( 'extensions' => array( 'smaily-checkout-optin' => array( 'user_newsletter' => $ticked ) ) );
+	}
+
+	private function assert_subscribed_once( string $entity_id, string $email ): void {
+		$consent = array_values( array_filter( $this->enqueued, static fn ( array $row ): bool => array_key_exists( 'is_unsubscribed', $row['payload'] ) ) );
+
+		self::assertCount( 1, $consent, 'Exactly one consent change reaches Smaily.' );
+		self::assertSame( HookHandler::EVENT_CONTACT_SYNC, $consent[0]['type'] );
+		self::assertSame( $entity_id, $consent[0]['entity_id'] );
+		self::assertSame( $email, $consent[0]['payload']['email'] );
+		self::assertSame( 0, $consent[0]['payload']['is_unsubscribed'], 'Sent to Smaily as subscribed.' );
+	}
+
 	/** Wizard finished + subscriber sync + the welcome automation toggled on. */
 	private function enable_welcome(): void {
 		Functions\when( 'get_option' )->alias(
@@ -912,6 +1242,14 @@ final class HookHandlerTest extends TestCase {
 				return $this->meta[ $key ] ?? '';
 			}
 
+			public function delete_meta_data( $key ): void {
+				unset( $this->meta[ $key ] );
+			}
+
+			public function set_customer_id( $value ): void {
+				$this->customer_id = (int) $value;
+			}
+
 			public function save() {
 				return $this->id;
 			}
@@ -951,6 +1289,7 @@ class WC_Order {
 	public function get_date_created( $context = 'view' ) { return null; }
 	public function get_items( $types = 'line_item' ): array { return array(); }
 	public function update_meta_data( $key, $value, $unique_id = 0 ): void {}
+	public function delete_meta_data( $key ): void {}
 	public function get_meta( $key = '', $single = true, $context = 'view' ) { return ''; }
 	public function save() { return 0; }
 }

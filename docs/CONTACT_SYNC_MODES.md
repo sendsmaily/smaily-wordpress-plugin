@@ -76,7 +76,9 @@ lawful basis.
 ### Preset 2 — Subscribers only (consent) — DEFAULT
 - **Audience:** only customers with `user_newsletter=1` (set via the
   registration / account / checkout checkbox, persisted to user meta by
-  `profile-settings.class.php`).
+  `profile-settings.class.php`; a tick at registration or at the classic or
+  block checkout goes through `HookHandler::record_newsletter_optin()` —
+  PRO-3406).
 - **Live:** on opt-**in** → upsert + subscribe (`is_unsubscribed=0`). On opt-**out**
   (customer unticks in My Account) → send `is_unsubscribed=1` (bidirectional
   consent — Erkki).
