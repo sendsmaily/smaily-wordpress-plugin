@@ -44,6 +44,7 @@ class Profile_Settings {
 
 		// Save a ticked newsletter box as the customer's consent (PRO-3406).
 		add_action( 'woocommerce_checkout_update_user_meta', array( $this, 'smaily_save_checkout_newsletter_optin' ), 10, 2 ); // classic checkout.
+		add_action( 'woocommerce_created_customer', array( $this, 'smaily_save_registration_newsletter_optin' ), 10 ); // My Account registration.
 	}
 
 	/**
@@ -165,6 +166,32 @@ class Profile_Settings {
 	 */
 	public function smaily_save_checkout_newsletter_optin( $customer_id, $data ) {
 		if ( ! isset( $data['user_newsletter'] ) || (int) $data['user_newsletter'] !== 1 ) {
+			return;
+		}
+
+		HookHandler::record_newsletter_optin( (int) $customer_id );
+	}
+
+	/**
+	 * Save a ticked newsletter box on the My Account registration form as the
+	 * new customer's consent (PRO-3406). The form carries the registration
+	 * nonce, not the account-details one smaily_save_wc_account_fields() checks,
+	 * so that path never saw the tick. An unticked box writes nothing.
+	 *
+	 * @param int $customer_id New customer ID.
+	 * @return void
+	 */
+	public function smaily_save_registration_newsletter_optin( $customer_id ) {
+		$nonce_val = isset( $_POST['woocommerce-register-nonce'] ) ? sanitize_key( wp_unslash( $_POST['woocommerce-register-nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce_val, 'woocommerce-register' ) ) {
+			return;
+		}
+
+		if ( ! isset( $this->get_fields()['user_newsletter'] ) ) {
+			return;
+		}
+
+		if ( ! isset( $_POST['user_newsletter'] ) || (int) $_POST['user_newsletter'] !== 1 ) {
 			return;
 		}
 
