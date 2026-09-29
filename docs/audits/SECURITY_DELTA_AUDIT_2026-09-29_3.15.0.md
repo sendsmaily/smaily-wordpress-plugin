@@ -77,6 +77,22 @@ ZIP would have meant a full build plus a second wp-env stack started from a
 worktree path. The release gate runs PCP on the CI-built ZIP (CLAUDE.md
 "Running PCP").
 
+**Release-gate addendum (2026-09-29): PCP on the CI-built ZIP of the
+`release.yml` dry-run 36625836258 (on `8ca7678`, the 3.15.0 bump) — 0 ERRORS /
+9 WARNINGS.** Seven are the 3.14.0 accepted set (`QueueJanitor.php:225`
+`DirectQuery` + `NoCaching`, `EventsEndpoint.php:728` `DirectQuery` +
+`NoCaching`, `BackfillJob.php:513` `DirectQuery` + `NoCaching`,
+`HookHandler.php:266` `DynamicHooknameFound`, formerly `:258`); two are NEW,
+one `WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound` each
+in `includes/Smaily/TransactionalPayloadBuilder.php` (`:159` and `:230`,
+`apply_filters( self::FILTER_FIELDS … )` / `self::FILTER_PRODUCT_FIELDS`) —
+ACCEPTED as false positives by Erkki on 2026-09-29: PCP cannot resolve a class
+constant, and the constants are the prefixed
+`smaily_connect_transactional_email_fields` /
+`smaily_connect_transactional_email_product_fields`, the same class as the
+accepted `HookHandler` warning. The released asset (release.yml run
+36626797184) passed `bin/verify-release-zip.sh … 3.15.0` (exit 0).
+
 ---
 
 ## 1. LOW — a newsletter tick on a newly created account is a single opt-in for an unverified address, and it overrides a prior Smaily unsubscribe
@@ -395,7 +411,9 @@ tag, not SHA.
 Documentation-only pass. No code was changed, so `ci:strict`, the integration
 suite and PCP were not run here. **PCP skipped**, for the reason in the
 Verdict. The release gate (CI-built ZIP, `bin/verify-release-zip.sh`, PCP)
-covers them.
+covers them — it ran on 2026-09-29: PCP 0 ERRORS / 9 WARNINGS, the two new
+warnings accepted as false positives (see the addendum under the Verdict), and
+the release asset verified with exit 0.
 
 ## Follow-ups this audit leaves open
 
