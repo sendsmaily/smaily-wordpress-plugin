@@ -336,6 +336,25 @@ class HookHandler {
 	}
 
 	/**
+	 * Save a registered customer's explicit newsletter tick as the store's
+	 * consent record, `user_newsletter = 1` (PRO-3406). Writing the meta fires
+	 * handle_newsletter_change(), which sends the contact to Smaily subscribed.
+	 * Only ever writes 1 — an unticked box is not an opt-out — and only in
+	 * consent mode after the wizard: legitimate interest and checkout-only do
+	 * not use the record, and before the wizard the legacy sync owns the tick.
+	 */
+	public static function record_newsletter_optin( int $user_id ): void {
+		if ( $user_id <= 0 || ! SetupState::completed() ) {
+			return;
+		}
+		if ( ( new ContactSyncMode() )->mode() !== ContactSyncMode::MODE_CONSENT ) {
+			return;
+		}
+
+		update_user_meta( $user_id, ContactAudience::OPTIN_META, '1' );
+	}
+
+	/**
 	 * A shopper the plugin reminded about their cart has bought (PRO-1723):
 	 * a reminder still sitting in the queue is withdrawn, and the purchase is
 	 * written to their Smaily contact as `abandoned_cart_purchased_at`, which
