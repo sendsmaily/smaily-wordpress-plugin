@@ -6905,6 +6905,33 @@ new-account ticks through a Smaily double opt-in workflow.
 **Relationships:** PRO-3406 (the consent writer); the audit's Low 2 (PRO-3434,
 strict profiling-timestamp parsing) is fixed before 3.15.0 instead.
 
+### PRO-3434 — Only a strict, past profiling timestamp can lift a store opt-out (2026-09-29)
+
+**Context:** 3.15.0 security delta audit, Low 2. PRO-3192 compared the
+contact's `smaily_rec_profiling_ts` to the opt-out moment through a bare
+`strtotime()` with no upper bound, so "tomorrow", a far-future date or any
+other string PHP happens to understand counted as newer and lifted the
+shopper's newest choice.
+**Decision:** the timestamp counts only when it is (1) exactly the form the
+plugin writes, `Y-m-d\TH:i:s\Z` (`IsoDate::to_z()`), parsed by its strict
+inverse `IsoDate::parse_z()` (`createFromFormat` + round-trip, so no relative
+words, offsets, fractions, trailing data or rolled-over dates), and (2) not
+more than 5 minutes (`ProfilingConsent::CLOCK_SKEW_ALLOWANCE`) in the future.
+Anything else is read like an absent timestamp — older — so the opt-out holds
+and is written to the contact again (PRO-3192's rule, unchanged). A valid past
+timestamp newer than the opt-out is still respected.
+**Rationale:** the plugin is the only known writer of this field and always
+writes the Z form; the Smaily read-back returns the stored string as is
+(`ClientTest` fixture). Being strict fails toward the shopper's opt-out, and
+they can opt back in from My Account. The skew allowance only has to absorb
+drift between the servers of one store (the same clock stamps and compares;
+NTP keeps drift to seconds) — 5 minutes is generous for that and far too
+short to carry a fabricated "later" answer across a real opt-out.
+**Rejected:** any ISO-8601 variant (`+00:00`, fractions) — no writer produces
+them, and each extra form is another way to lift an opt-out; no allowance at
+all (a store behind a load balancer could see its own fresh opt-in a few
+seconds "ahead").
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

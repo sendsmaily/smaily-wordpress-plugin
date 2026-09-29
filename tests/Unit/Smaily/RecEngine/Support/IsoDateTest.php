@@ -36,4 +36,35 @@ final class IsoDateTest extends TestCase {
 
 		self::assertSame( '2026-06-01T10:00:00Z', IsoDate::to_z( $timestamp ) );
 	}
+
+	public function test_parse_z_is_the_inverse_of_to_z(): void {
+		$timestamp = (int) strtotime( '2026-05-19 10:15:23 UTC' );
+
+		self::assertSame( $timestamp, IsoDate::parse_z( IsoDate::to_z( $timestamp ) ) );
+	}
+
+	/**
+	 * PRO-3434: only the exact form `to_z()` writes parses.
+	 *
+	 * @dataProvider not_z_form
+	 */
+	public function test_parse_z_rejects_anything_else( string $value ): void {
+		self::assertNull( IsoDate::parse_z( $value ) );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function not_z_form(): array {
+		return array(
+			'empty'           => array( '' ),
+			'relative word'   => array( 'tomorrow' ),
+			'garbage'         => array( 'not-a-date' ),
+			'numeric offset'  => array( '2026-05-19T10:15:23+00:00' ),
+			'fraction'        => array( '2026-05-19T10:15:23.000Z' ),
+			'date only'       => array( '2026-05-19' ),
+			'rolled-over day' => array( '2026-02-30T10:15:23Z' ),
+			'trailing data'   => array( '2026-05-19T10:15:23Z ' ),
+		);
+	}
 }

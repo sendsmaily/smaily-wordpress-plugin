@@ -54,6 +54,14 @@ class ProfilingConsent {
 	 */
 	private const STALE_CACHE_TTL    = YEAR_IN_SECONDS;
 
+	/**
+	 * PRO-3434: how far in the future a contact's profiling timestamp may lie
+	 * and still count. The plugin stamps it with the same clock it compares
+	 * against, so this only absorbs drift between the servers of one store
+	 * (NTP keeps that to seconds); anything later is not a real moment.
+	 */
+	private const CLOCK_SKEW_ALLOWANCE = 300;
+
 	private RecEngineSettings $settings;
 
 	/** @var callable():?SmailyClient */
@@ -158,6 +166,9 @@ class ProfilingConsent {
 	 * durable opt-out? Only then does the read-back lift it. A '1' with no
 	 * (parseable) timestamp counts as older; so does any '1' against an entry
 	 * recorded before PRO-3192, whose moment is unknown (the safe reading).
+	 * PRO-3434: parseable means the exact Z form the plugin writes, and not
+	 * beyond the clock-skew allowance in the future — "tomorrow" or a
+	 * far-future date also counts as older.
 	 *
 	 * @param array{found: bool, is_unsubscribed: ?string, smaily_rec_profiling: ?string, smaily_rec_profiling_ts: ?string} $consent
 	 */
@@ -169,8 +180,8 @@ class ProfilingConsent {
 		if ( $moment === null ) {
 			return false;
 		}
-		$given = strtotime( $consent['smaily_rec_profiling_ts'] ?? '' );
-		return $given !== false && $given > $moment;
+		$given = IsoDate::parse_z( $consent['smaily_rec_profiling_ts'] ?? '' );
+		return $given !== null && $given <= time() + self::CLOCK_SKEW_ALLOWANCE && $given > $moment;
 	}
 
 	/**

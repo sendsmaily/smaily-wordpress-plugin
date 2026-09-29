@@ -16,6 +16,7 @@ use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
 use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
+use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
 
 final class ProfilingConsentTest extends TestCase {
 
@@ -570,6 +571,42 @@ final class ProfilingConsentTest extends TestCase {
 			'field absent' => array( null ),
 			'field empty'  => array( '' ),
 			'not a moment' => array( 'not-a-date' ),
+		);
+	}
+
+	/**
+	 * PRO-3434: only a real past moment in the exact Z form counts. A relative
+	 * word, another format or a date in the future (beyond the clock-skew
+	 * allowance) counts as older, so the opt-out holds and is written again.
+	 *
+	 * @dataProvider contact_timestamps
+	 */
+	public function test_contacts_allowed_counts_only_with_a_strict_past_timestamp( string $ts, bool $lifts ): void {
+		$options                           = &$this->options();
+		$options['smly_profiling_optouts'] = array( md5( 'shopper@example.test' ) => time() - 2 * DAY_IN_SECONDS );
+		$this->transients();
+		$writes   = array();
+		$resolver = $this->resolver( $this->smaily_contact( '1', $ts, $writes ) );
+
+		self::assertSame( $lifts, $resolver->may_profile( 'shopper@example.test' ) );
+		self::assertSame( ! $lifts, array_key_exists( md5( 'shopper@example.test' ), (array) $options['smly_profiling_optouts'] ) );
+		self::assertSame( $lifts ? array() : array( false ), array_column( $writes, 0 ), 'An opt-out that holds is written to the contact again.' );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: bool}>
+	 */
+	public static function contact_timestamps(): array {
+		$now = time();
+		return array(
+			'relative word'          => array( 'tomorrow', false ),
+			'one year ahead'         => array( IsoDate::to_z( $now + YEAR_IN_SECONDS ), false ),
+			'beyond the skew'        => array( IsoDate::to_z( $now + 600 ), false ),
+			'garbage'                => array( '2026-13-45T99:99:99Z', false ),
+			'offset instead of Z'    => array( gmdate( 'c', $now - DAY_IN_SECONDS ), false ),
+			'valid past, older'      => array( IsoDate::to_z( $now - 3 * DAY_IN_SECONDS ), false ),
+			'valid past, newer'      => array( IsoDate::to_z( $now - DAY_IN_SECONDS ), true ),
+			'within the skew, newer' => array( IsoDate::to_z( $now + 60 ), true ),
 		);
 	}
 
