@@ -6812,6 +6812,15 @@ characters, then escaped like every text field; at most 20 keys per filter.
 Anything else is dropped and written to the WP_DEBUG log (`DebugLog`); a
 throwing filter adds nothing, so a broken snippet cannot break checkout or
 the send.
+**GDPR erasure:** nothing to add — `EventQueue::redact_json()` keeps an
+allowlist of impersonal routing keys and blanks everything else, so the new
+personal-data keys are blanked in a stored row's `payload.context` and in its
+recorded request by construction (pinned by a unit test through the real
+builder).
+**Template guidance instead of code changes:** test an empty product slot
+with `!= ""` (or `{% if product_name_N %}`); `over_10_products` is absent at
+≤10 products, so test `== "true"`; formatted amounts already carry the
+currency sign — use the `_raw` fields to format your own.
 **Rejected:** sending addresses/phone by default (personal data a template may
 not need); renaming or reformatting existing fields to suit the pilot's
 template (would break every other merchant's template); a live product lookup

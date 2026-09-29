@@ -15,6 +15,7 @@ use Brain\Monkey;
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 
 final class TransactionalPayloadBuilderTest extends TestCase {
@@ -371,6 +372,53 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 		self::assertSame( '77', $context['order_number'] );
 		self::assertSame( 'A', $context['product_name_1'] );
 		self::assertSame( $this->builder()->build( $this->fake_order( array( 'order_number' => '77', 'items' => array( $this->fake_item( array( 'name' => 'A', 'qty' => 1, 'total' => 1.0 ) ) ) ) ) ), $context, 'Exactly the fields a store without the filters gets.' );
+	}
+
+	public function test_an_erasure_request_blanks_the_new_personal_data_in_the_stored_send_history(): void {
+		// PRO-3190 + PRO-2383: a transactional row stores its merge tags in
+		// `payload.context` and again in the exchange's sent body. Redaction
+		// keeps only routing keys, so every new personal-data value is
+		// blanked in both — the keys stay, so the row still reads as a
+		// confirmation.
+		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+		$this->options[ TransactionalPayloadBuilder::OPTION_PERSONAL_DATA ] = true;
+		$context = $this->builder()->build( $this->fake_order( $this->order_with_personal_data() ) );
+
+		$stored = array(
+			'payload'      => (string) wp_json_encode(
+				array(
+					'to'          => 'shopper@example.test',
+					'workflow_id' => 7,
+					'account_key' => 'transactional',
+					'context'     => $context,
+					'to_status'   => '',
+				)
+			),
+			// The request Client::request() records for message/send.
+			'sent_payload' => (string) wp_json_encode(
+				array(
+					'method'   => 'POST',
+					'endpoint' => 'message/send',
+					'body'     => array(
+						'autoresponder_id' => 7,
+						'to'               => array( 'shopper@example.test' ),
+						'context'          => $context,
+					),
+				)
+			),
+		);
+
+		foreach ( $stored as $column => $json ) {
+			$redacted = (string) EventQueue::redact_json( $json );
+			foreach ( array( 'Test Street', 'Apt 2', '00000', '11111', 'Testville', 'Othertown', 'Estonia', 'Delivery', 'Receiver', '+000', 'Leave at the door', 'shopper@example.test' ) as $value ) {
+				self::assertStringNotContainsString( $value, $redacted, $column . ' still holds ' . $value );
+			}
+			$decoded = json_decode( $redacted, true );
+			$fields  = 'payload' === $column ? $decoded['context'] : $decoded['body']['context'];
+			foreach ( TransactionalPayloadBuilder::PERSONAL_DATA_KEYS as $key ) {
+				self::assertSame( EventQueue::ERASED_PLACEHOLDER, $fields[ $key ], $column . '.' . $key );
+			}
+		}
 	}
 
 	public function test_order_level_text_fields_are_htmlspecialchars_escaped(): void {
