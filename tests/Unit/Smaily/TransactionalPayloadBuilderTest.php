@@ -47,6 +47,19 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 				return $names[ $status ] ?? $status;
 			}
 		);
+		Functions\when( 'WC' )->justReturn(
+			(object) array(
+				'countries' => new class() {
+					/** @return array<string, string> */
+					public function get_countries(): array {
+						return array(
+							'EE' => 'Estonia',
+							'FI' => 'Finland',
+						);
+					}
+				},
+			)
+		);
 	}
 
 	protected function tearDown(): void {
@@ -187,6 +200,58 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 		self::assertSame( 'display:5', $context['product_base_price_1'] );
 		self::assertSame( '', $context['product_name_2'], 'An unused slot is still sent empty.' );
 		self::assertArrayNotHasKey( 'over_10_products', $context, 'Still absent at 10 products or fewer.' );
+	}
+
+	public function test_by_default_no_address_phone_or_note_is_sent(): void {
+		// PRO-3190: the personal-data switch is off until the merchant opts in.
+		$context = $this->builder()->build( $this->fake_order( $this->order_with_personal_data() ) );
+
+		foreach ( self::PERSONAL_DATA_KEYS as $key ) {
+			self::assertArrayNotHasKey( $key, $context );
+		}
+		foreach ( $context as $value ) {
+			self::assertStringNotContainsString( 'Test Street', $value );
+			self::assertStringNotContainsString( '+000', $value );
+			self::assertStringNotContainsString( 'Leave at the door', $value );
+		}
+	}
+
+	public function test_with_the_switch_on_the_delivery_name_both_addresses_phone_and_note_are_sent(): void {
+		$this->options[ TransactionalPayloadBuilder::OPTION_PERSONAL_DATA ] = true;
+
+		$context = $this->builder()->build( $this->fake_order( $this->order_with_personal_data() ) );
+
+		self::assertSame( 'Delivery', $context['shipping_first_name'] );
+		self::assertSame( 'Receiver', $context['shipping_last_name'] );
+		self::assertSame( 'Test Street 1', $context['billing_address_1'] );
+		self::assertSame( 'Apt 2', $context['billing_address_2'] );
+		self::assertSame( '00000', $context['billing_postcode'] );
+		self::assertSame( 'Testville', $context['billing_city'] );
+		self::assertSame( 'Estonia', $context['billing_country'], 'The country as its shown name, not the code.' );
+		self::assertSame( 'Test Street 9 &amp; Co', $context['shipping_address_1'], 'Escaped like every other text field.' );
+		self::assertSame( '', $context['shipping_address_2'] );
+		self::assertSame( '11111', $context['shipping_postcode'] );
+		self::assertSame( 'Othertown', $context['shipping_city'] );
+		self::assertSame( 'XX', $context['shipping_country'], 'A code WooCommerce has no name for is sent as the code.' );
+		self::assertSame( '+000 0000000', $context['billing_phone'] );
+		self::assertSame( 'Leave at the door &lt;b&gt;please&lt;/b&gt;', $context['customer_note'], 'Free text, escaped.' );
+		self::assertSame( 'Test', $context['first_name'], 'The billing name stays in first_name/last_name.' );
+	}
+
+	public function test_with_the_switch_on_a_pickup_order_sends_the_delivery_fields_empty(): void {
+		$this->options[ TransactionalPayloadBuilder::OPTION_PERSONAL_DATA ] = true;
+		$order_data = $this->order_with_personal_data();
+		unset( $order_data['shipping'], $order_data['customer_note'] );
+
+		$context = $this->builder()->build( $this->fake_order( $order_data ) );
+
+		foreach ( self::PERSONAL_DATA_KEYS as $key ) {
+			self::assertArrayHasKey( $key, $context, 'Every personal-data key is present while the switch is on.' );
+		}
+		foreach ( array( 'shipping_first_name', 'shipping_last_name', 'shipping_address_1', 'shipping_address_2', 'shipping_postcode', 'shipping_city', 'shipping_country', 'customer_note' ) as $key ) {
+			self::assertSame( '', $context[ $key ] );
+		}
+		self::assertSame( 'Test Street 1', $context['billing_address_1'] );
 	}
 
 	public function test_order_level_text_fields_are_htmlspecialchars_escaped(): void {
@@ -359,6 +424,53 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 
 	// --- helpers -------------------------------------------------------------
 
+	/** The keys the personal-data switch governs (PRO-3190). */
+	private const PERSONAL_DATA_KEYS = array(
+		'shipping_first_name',
+		'shipping_last_name',
+		'billing_address_1',
+		'billing_address_2',
+		'billing_postcode',
+		'billing_city',
+		'billing_country',
+		'shipping_address_1',
+		'shipping_address_2',
+		'shipping_postcode',
+		'shipping_city',
+		'shipping_country',
+		'billing_phone',
+		'customer_note',
+	);
+
+	/**
+	 * Placeholder personal data only — nothing here resembles a real person.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function order_with_personal_data(): array {
+		return array(
+			'first_name'    => 'Test',
+			'last_name'     => 'Shopper',
+			'customer_note' => 'Leave at the door <b>please</b>',
+			'billing'       => array(
+				'address_1' => 'Test Street 1',
+				'address_2' => 'Apt 2',
+				'postcode'  => '00000',
+				'city'      => 'Testville',
+				'country'   => 'EE',
+				'phone'     => '+000 0000000',
+			),
+			'shipping'      => array(
+				'first_name' => 'Delivery',
+				'last_name'  => 'Receiver',
+				'address_1'  => 'Test Street 9 & Co',
+				'postcode'   => '11111',
+				'city'       => 'Othertown',
+				'country'    => 'XX',
+			),
+		);
+	}
+
 	/**
 	 * Builder with the WC-pricing/image seams stubbed (unit env has no WC
 	 * pricing stack) — mirrors CartPayloadBuilderTest's approach.
@@ -436,6 +548,62 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 
 			public function get_payment_method( $context = 'view' ) {
 				return (string) ( $this->p['payment_method_id'] ?? '' );
+			}
+
+			public function get_customer_note( $context = 'view' ) {
+				return (string) ( $this->p['customer_note'] ?? '' );
+			}
+
+			public function get_billing_phone( $context = 'view' ) {
+				return (string) ( $this->p['billing']['phone'] ?? '' );
+			}
+
+			public function get_billing_address_1( $context = 'view' ) {
+				return (string) ( $this->p['billing']['address_1'] ?? '' );
+			}
+
+			public function get_billing_address_2( $context = 'view' ) {
+				return (string) ( $this->p['billing']['address_2'] ?? '' );
+			}
+
+			public function get_billing_postcode( $context = 'view' ) {
+				return (string) ( $this->p['billing']['postcode'] ?? '' );
+			}
+
+			public function get_billing_city( $context = 'view' ) {
+				return (string) ( $this->p['billing']['city'] ?? '' );
+			}
+
+			public function get_billing_country( $context = 'view' ) {
+				return (string) ( $this->p['billing']['country'] ?? '' );
+			}
+
+			public function get_shipping_first_name( $context = 'view' ) {
+				return (string) ( $this->p['shipping']['first_name'] ?? '' );
+			}
+
+			public function get_shipping_last_name( $context = 'view' ) {
+				return (string) ( $this->p['shipping']['last_name'] ?? '' );
+			}
+
+			public function get_shipping_address_1( $context = 'view' ) {
+				return (string) ( $this->p['shipping']['address_1'] ?? '' );
+			}
+
+			public function get_shipping_address_2( $context = 'view' ) {
+				return (string) ( $this->p['shipping']['address_2'] ?? '' );
+			}
+
+			public function get_shipping_postcode( $context = 'view' ) {
+				return (string) ( $this->p['shipping']['postcode'] ?? '' );
+			}
+
+			public function get_shipping_city( $context = 'view' ) {
+				return (string) ( $this->p['shipping']['city'] ?? '' );
+			}
+
+			public function get_shipping_country( $context = 'view' ) {
+				return (string) ( $this->p['shipping']['country'] ?? '' );
 			}
 
 			public function get_shipping_methods() {

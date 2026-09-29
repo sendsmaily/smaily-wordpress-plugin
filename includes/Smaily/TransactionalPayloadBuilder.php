@@ -101,7 +101,48 @@ class TransactionalPayloadBuilder {
 			'shipping_method_id' => $this->escape( $this->shipping_method_ids( $order ) ),
 		);
 
+		if ( (bool) get_option( self::OPTION_PERSONAL_DATA, false ) ) {
+			$context += $this->personal_data_fields( $order );
+		}
+
 		return $context + $this->product_fields( $items );
+	}
+
+	/**
+	 * Addresses, phone, delivery name and the customer's order note — sent
+	 * only while the merchant's switch is on (PRO-3190). Every key is present
+	 * then, an unknown value as '' (e.g. no delivery address on a pickup
+	 * order), so a template can test it. The billing name is already
+	 * first_name/last_name.
+	 *
+	 * @return array<string, string>
+	 */
+	private function personal_data_fields( \WC_Order $order ): array {
+		return array(
+			'shipping_first_name' => $this->escape( (string) $order->get_shipping_first_name() ),
+			'shipping_last_name'  => $this->escape( (string) $order->get_shipping_last_name() ),
+			'billing_address_1'   => $this->escape( (string) $order->get_billing_address_1() ),
+			'billing_address_2'   => $this->escape( (string) $order->get_billing_address_2() ),
+			'billing_postcode'    => $this->escape( (string) $order->get_billing_postcode() ),
+			'billing_city'        => $this->escape( (string) $order->get_billing_city() ),
+			'billing_country'     => $this->escape( $this->country_name( (string) $order->get_billing_country() ) ),
+			'shipping_address_1'  => $this->escape( (string) $order->get_shipping_address_1() ),
+			'shipping_address_2'  => $this->escape( (string) $order->get_shipping_address_2() ),
+			'shipping_postcode'   => $this->escape( (string) $order->get_shipping_postcode() ),
+			'shipping_city'       => $this->escape( (string) $order->get_shipping_city() ),
+			'shipping_country'    => $this->escape( $this->country_name( (string) $order->get_shipping_country() ) ),
+			'billing_phone'       => $this->escape( (string) $order->get_billing_phone() ),
+			'customer_note'       => $this->escape( (string) $order->get_customer_note() ),
+		);
+	}
+
+	/** The country's name as WooCommerce shows it, else the code as stored. */
+	private function country_name( string $code ): string {
+		if ( $code === '' ) {
+			return '';
+		}
+		$countries = WC()->countries->get_countries();
+		return isset( $countries[ $code ] ) ? (string) $countries[ $code ] : $code;
 	}
 
 	/**

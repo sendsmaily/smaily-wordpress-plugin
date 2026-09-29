@@ -6770,6 +6770,36 @@ never made); treating pre-existing entries like mirrors (reopens the bug for
 them); a migration stamping all old entries with the upgrade time (more code
 for the same safe outcome).
 
+### PRO-3190 — Order confirmations carry what a real confirmation template shows (2026-09-29)
+
+**Context:** a pilot merchant moving its order-confirmation email from its own
+automation to Smaily Connect needs data the transactional `context` did not
+carry: subtotal/tax/shipping, the status, the method codes, the line discount,
+and the customer's addresses, phone and order note.
+**Decision (Erkki, 2026-09-29):** add fields only — no existing field changes
+name or format. For every confirmation: `order_subtotal` (product lines after
+discounts), `order_tax`, `order_shipping` (with its tax) formatted like
+`order_total`, gross; `_raw` copies of those four
+(`wc_format_decimal(x, wc_get_price_decimals())`, free shipping = `0.00`);
+`order_status` (shown name) + `order_status_id` (bare slug);
+`payment_method_id` + `shipping_method_id` (each shipping line's method id,
+joined with `", "` exactly like WooCommerce joins the titles into
+`shipping_method`, so the two list the lines in the same order).
+**Personal data behind a switch, OFF by default** (the WooCommerce tab's
+"Include addresses, phone and order note",
+`smly_plus_transactional_personal_data_enabled`, stored like the other
+default-off transactional flags): `shipping_first_name`/`_last_name`,
+`billing_`/`shipping_` `address_1`/`address_2`/`postcode`/`city`/`country`
+(the country's WooCommerce name, else the code), `billing_phone` — and
+**`customer_note` too**: it is free text a shopper types, so it can hold
+anything personal; it is sent only while the switch is on. While on, every
+key is present (`''` when unknown, e.g. no delivery address on a pickup
+order); while off, none is. Both confirmations share one builder, so the
+switch covers both.
+**Rejected:** sending addresses/phone by default (personal data a template may
+not need); renaming or reformatting existing fields to suit the pilot's
+template (would break every other merchant's template).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
