@@ -6804,6 +6804,26 @@ over an earlier Smaily unsubscribe follows the existing re-grant rule.
 order path (would bypass the store's consent record and the reconcile);
 writing 0 for an unticked box (an absent tick is not a withdrawal).
 
+### PRO-3426 — The block-checkout newsletter consent marker is exported and erased (2026-09-29)
+
+**Context:** PRO-3406 keeps order meta `_smaily_newsletter_optin = 1` on a
+block-checkout order whose buyer ticked the newsletter box — consent evidence,
+and personal data about that buyer. The WP Privacy exporter/eraser
+(`GdprHandler`) and `DATA_MODEL_GDPR.md` did not know it, so a subject-access
+or erasure request answered incompletely.
+**Decision (Erkki, 2026-09-29):** the marker is INCLUDED in the personal-data
+export — one item per marked order, in the plugin's existing export group,
+giving the order number and "Newsletter consent given at checkout: Yes" — and
+REMOVED from every order of the requester on an erasure request (the eraser
+reports it as removed; an order without it is not saved). Found through the
+same `wc_get_orders`-by-billing-email lookup as the rec markers, read and
+deleted through the order API (HPOS and legacy alike).
+**Rationale:** the Smaily contact keeps its own consent history, so the store
+does not need a WordPress copy of the evidence once the person has asked to be
+forgotten.
+**Rejected:** keeping the marker after erasure as proof of consent (that
+record lives in Smaily).
+
 ### PRO-3190 — Order confirmations carry what a real confirmation template shows (2026-09-29)
 
 **Context:** a pilot merchant moving its order-confirmation email from its own

@@ -11,6 +11,7 @@ namespace Smaily\Connect\Privacy;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
@@ -43,6 +44,10 @@ use Smaily\Connect\Smaily\RecEngine\Client;
  *     payload and the F3-44 send-time exchange. Export lists what was queued
  *     and when; erase deletes what could still send and redacts what already
  *     did (EventQueue::erase_for_privacy_request()).
+ *   - And the block-checkout newsletter consent marker
+ *     (`_smaily_newsletter_optin` order meta, PRO-3406/PRO-3426) — exported as
+ *     the consent given on that order, removed on erasure. The Smaily contact
+ *     keeps its own consent history.
  *
  * The engine call is injected via a closure so tests stand up a mock engine.
  */
@@ -254,6 +259,18 @@ class GdprHandler {
 				// Only the rec-meta off the order — NOT the order's line items / totals.
 				$items[] = $this->group_item( 'Recommendation attribution (order meta)', 'order-' . $order->get_id(), $pairs );
 			}
+
+			if ( (string) $order->get_meta( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) !== '' ) {
+				// The consent evidence the block checkout kept on the order (PRO-3426).
+				$items[] = $this->group_item(
+					'Newsletter consent (order meta)',
+					'newsletter-optin-order-' . $order->get_id(),
+					array(
+						'Order' => $order->get_order_number(),
+						'Newsletter consent given at checkout' => 'Yes',
+					)
+				);
+			}
 		}
 
 		$user = get_user_by( 'email', $email );
@@ -342,9 +359,12 @@ class GdprHandler {
 	private function erase_plugin_meta( string $email ): bool {
 		$removed = false;
 
+		// The rec markers plus the newsletter consent marker (PRO-3426).
+		$order_keys = array_merge( self::ORDER_META_KEYS, array( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) );
+
 		foreach ( $this->orders_for( $email ) as $order ) {
 			$dirty = false;
-			foreach ( self::ORDER_META_KEYS as $key ) {
+			foreach ( $order_keys as $key ) {
 				if ( (string) $order->get_meta( $key ) !== '' ) {
 					$order->delete_meta_data( $key ); // HPOS-safe (vs delete_post_meta).
 					$dirty   = true;
@@ -424,10 +444,12 @@ class GdprHandler {
 	/**
 	 * The customer's orders as WC_Order objects (storage-agnostic — works under
 	 * both legacy posts and HPOS, and gives us $order->get_meta for the rec-meta).
+	 * Protected as a unit-test seam: defining `wc_get_orders` in the unit suite
+	 * would leak into every later test that relies on it being absent.
 	 *
 	 * @return \WC_Order[]
 	 */
-	private function orders_for( string $email ): array {
+	protected function orders_for( string $email ): array {
 		if ( ! function_exists( 'wc_get_orders' ) ) {
 			return array();
 		}

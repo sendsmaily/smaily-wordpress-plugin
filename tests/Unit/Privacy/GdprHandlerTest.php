@@ -17,6 +17,7 @@ namespace Smaily\Connect\Tests\Unit\Privacy;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Privacy\GdprHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
@@ -196,21 +197,135 @@ final class GdprHandlerTest extends TestCase {
 		self::assertFalse( $result['items_removed'] );
 	}
 
+	public function test_export_states_the_newsletter_consent_kept_on_each_marked_order(): void {
+		// PRO-3426: the block checkout keeps the tick as order meta (PRO-3406).
+		$marked  = $this->fake_order( 101, '1001', array( HookHandler::ORDER_META_NEWSLETTER_OPTIN => '1' ) );
+		$plain   = $this->fake_order( 102, '1002', array() );
+		$handler = $this->handler( $this->fake_store( array() ), null, array( $marked, $plain ) );
+
+		$export = $handler->export( 'shopper@example.test' );
+		$items  = array_values(
+			array_filter(
+				$export['data'],
+				static fn ( array $item ): bool => $item['group_label'] === 'Newsletter consent (order meta)'
+			)
+		);
+
+		self::assertCount( 1, $items, 'One item per marked order; the unmarked order has none.' );
+		self::assertSame( 'smaily-connect-rec-engine', $items[0]['group_id'], 'The plugin\'s existing export group.' );
+		self::assertSame( 'smaily-connect-rec-engine-newsletter-optin-order-101', $items[0]['item_id'] );
+		self::assertSame( '1001', $this->field( $items[0], 'Order' ) );
+		self::assertSame( 'Yes', $this->field( $items[0], 'Newsletter consent given at checkout' ) );
+		self::assertSame( array( 'shopper@example.test' ), $handler->order_lookups );
+	}
+
+	public function test_erase_removes_the_newsletter_consent_marker_and_leaves_unmarked_orders_alone(): void {
+		$marked  = $this->fake_order( 201, '2001', array( HookHandler::ORDER_META_NEWSLETTER_OPTIN => '1' ) );
+		$plain   = $this->fake_order( 202, '2002', array() );
+		$handler = $this->handler( $this->fake_store( array() ), null, array( $marked, $plain ) );
+
+		$result = $handler->erase( 'shopper@example.test' );
+
+		self::assertTrue( $result['items_removed'], 'The eraser reports the marker as removed.' );
+		self::assertSame( '', $marked->get_meta( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) );
+		self::assertSame( array( HookHandler::ORDER_META_NEWSLETTER_OPTIN ), $marked->deleted );
+		self::assertSame( 1, $marked->saves );
+		self::assertSame( array(), $plain->deleted, 'An order without the marker is untouched.' );
+		self::assertSame( 0, $plain->saves );
+		self::assertSame( array( 'shopper@example.test' ), $handler->order_lookups );
+	}
+
 	// --- helpers -------------------------------------------------------
 
-	private function handler( CartSessionStore $store, ?EventQueue $queue = null ): GdprHandler {
+	/**
+	 * An order double carrying the given meta; records deletes and saves.
+	 *
+	 * @param array<string, string> $meta
+	 */
+	private function fake_order( int $id, string $number, array $meta ): \WC_Order {
+		return new class( $id, $number, $meta ) extends \WC_Order {
+			private int $id;
+			private string $number;
+
+			/** @var array<string, string> */
+			private array $meta;
+
+			/** @var array<int, string> */
+			public array $deleted = array();
+
+			public int $saves = 0;
+
+			/**
+			 * @param array<string, string> $meta
+			 */
+			public function __construct( int $id, string $number, array $meta ) {
+				$this->id     = $id;
+				$this->number = $number;
+				$this->meta   = $meta;
+			}
+
+			public function get_id(): int {
+				return $this->id;
+			}
+
+			public function get_order_number(): string {
+				return $this->number;
+			}
+
+			public function get_meta( $key = '', $single = true, $context = 'view' ) {
+				return $this->meta[ $key ] ?? '';
+			}
+
+			public function delete_meta_data( $key ): void {
+				$this->deleted[] = $key;
+				unset( $this->meta[ $key ] );
+			}
+
+			public function save() {
+				++$this->saves;
+				return $this->id;
+			}
+		};
+	}
+
+
+	/**
+	 * @param \WC_Order[] $orders What the order lookup returns — the unit suite
+	 *                            cannot define `wc_get_orders` (it would leak).
+	 */
+	private function handler( CartSessionStore $store, ?EventQueue $queue = null, array $orders = array() ): GdprHandler {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'is_connected' )->willReturn( false );
 		$settings->method( 'sending_allowed' )->willReturn( false );
 
-		return new GdprHandler(
+		return new class(
 			$settings,
 			static function (): Client {
 				throw new \RuntimeException( 'engine must not be called while disconnected' );
 			},
 			$store,
-			$queue ?? $this->fake_queue()
-		);
+			$queue ?? $this->fake_queue(),
+			$orders
+		) extends GdprHandler {
+			/** @var \WC_Order[] */
+			private array $orders;
+
+			/** @var array<int, string> */
+			public array $order_lookups = array();
+
+			/**
+			 * @param \WC_Order[] $orders
+			 */
+			public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue, array $orders ) {
+				parent::__construct( $settings, $client_factory, $cart_store, $event_queue );
+				$this->orders = $orders;
+			}
+
+			protected function orders_for( string $email ): array {
+				$this->order_lookups[] = $email;
+				return $this->orders;
+			}
+		};
 	}
 
 	/**
@@ -331,6 +446,20 @@ class WP_User {
 	public string $user_email = '';
 	public string $first_name = '';
 	public string $last_name = '';
+}
+PHP
+	);
+}
+
+if ( ! class_exists( \WC_Order::class ) ) {
+	// phpcs:ignore Squiz.Commenting.ClassComment.Missing -- test shim.
+	eval( <<<'PHP'
+class WC_Order {
+	public function get_id(): int { return 0; }
+	public function get_order_number() { return ''; }
+	public function get_meta( $key = '', $single = true, $context = 'view' ) { return ''; }
+	public function delete_meta_data( $key ): void {}
+	public function save() { return 0; }
 }
 PHP
 	);
