@@ -6720,6 +6720,24 @@ not-found contact (the upsert would create a Smaily contact just to hold an
 opt-out); changing `is_allowed()` for everyone (would turn default-on into
 opt-in for contacts that never opted out anywhere — F3-31 is out of scope).
 
+### PRO-3335 — Order, shipping and abandoned-cart emails link each product to its page (2026-09-29)
+
+**Context:** order and shipping confirmations and the abandoned-cart reminder
+sent seven attributes per product slot and no link to the product.
+**Decision (Erkki):** one new tag, `product_url_1..10`, in the existing
+`product_<field>_N` pattern, under the SAME name in all three payloads (the
+two builders already share that naming). A plain permalink — no tracking or
+campaign parameters (transactional mail goes through a separate Smaily
+account, unrelated to Campaign Intelligence). Built once in
+`ProductMatrixBuilder::product_url()`: empty unless the product is
+published; a variation links through WooCommerce's own
+`WC_Product_Variation::get_permalink()` — given the order line on a
+confirmation (the options bought), the cart's variation on a reminder.
+**Rationale:** empty instead of a trashed/draft product's dead link; the
+existing seven fields are untouched, so no template changes meaning.
+**Rejected:** tracking parameters (out of scope by decision); linking a
+trashed product (its page is gone for the customer).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

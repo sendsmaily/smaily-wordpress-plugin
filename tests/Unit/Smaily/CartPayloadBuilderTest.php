@@ -90,7 +90,7 @@ final class CartPayloadBuilderTest extends TestCase {
 		$payload = $this->builder()->build( $this->row( '[]' ) );
 
 		self::assertNotNull( $payload );
-		foreach ( array( 'product_name', 'product_price', 'product_sku', 'product_quantity', 'product_base_price', 'product_description', 'product_image_url' ) as $key ) {
+		foreach ( array( 'product_name', 'product_price', 'product_sku', 'product_quantity', 'product_base_price', 'product_description', 'product_image_url', 'product_url' ) as $key ) {
 			for ( $i = 1; $i <= 10; $i++ ) {
 				self::assertArrayHasKey( $key . '_' . $i, $payload['fields'] );
 				self::assertSame( '', $payload['fields'][ $key . '_' . $i ] );
@@ -115,6 +115,42 @@ final class CartPayloadBuilderTest extends TestCase {
 		self::assertSame( 'SKU-1', $payload['fields']['product_sku_1'] );
 		self::assertSame( 'desc', $payload['fields']['product_description_1'] );
 		self::assertSame( '', $payload['fields']['product_name_2'], 'Unused slots still ride the wire empty — that is what clears the previous cart.' );
+	}
+
+	public function test_each_cart_product_links_to_its_plain_product_page(): void {
+		// PRO-3335: the same product_url_N tag the order and shipping
+		// confirmations carry, so one template convention serves all three.
+		$this->products[11] = $this->product( 'Dog food', 'https://shop.example.test/product/dog-food/' );
+
+		$payload = $this->builder()->build( $this->row() );
+
+		self::assertNotNull( $payload );
+		self::assertSame( 'https://shop.example.test/product/dog-food/', $payload['fields']['product_url_1'], 'The plain permalink — no tracking or campaign parameters added.' );
+		for ( $i = 2; $i <= 10; $i++ ) {
+			self::assertSame( '', $payload['fields'][ 'product_url_' . $i ], 'Unused slots carry no link, like every other product field.' );
+		}
+		self::assertSame( 'Dog food', $payload['fields']['product_name_1'], 'The existing fields keep their names and values.' );
+		self::assertSame( 'SKU-1', $payload['fields']['product_sku_1'] );
+	}
+
+	public function test_a_cart_variation_links_to_the_variation_in_the_cart(): void {
+		$this->products[11] = $this->product( 'Shirt', 'https://shop.example.test/product/shirt/' );
+		$this->products[12] = $this->variation( 'https://shop.example.test/product/shirt/?attribute_pa_color=blue' );
+
+		$payload = $this->builder()->build( $this->row( '[{"product_id":11,"variation_id":12,"quantity":1}]' ) );
+
+		self::assertNotNull( $payload );
+		self::assertSame( 'https://shop.example.test/product/shirt/?attribute_pa_color=blue', $payload['fields']['product_url_1'] );
+		self::assertSame( 'Shirt', $payload['fields']['product_name_1'], 'The existing fields still describe the product, as before.' );
+	}
+
+	public function test_an_unpublished_product_has_an_empty_link(): void {
+		$this->products[11] = $this->product( 'Trashed', 'https://shop.example.test/?post_type=product&p=11', 'trash' );
+
+		$payload = $this->builder()->build( $this->row() );
+
+		self::assertNotNull( $payload );
+		self::assertSame( '', $payload['fields']['product_url_1'], 'No link rather than a dead one.' );
 	}
 
 	public function test_an_upgraded_stores_product_field_selection_is_ignored(): void {
@@ -285,24 +321,59 @@ final class CartPayloadBuilderTest extends TestCase {
 		};
 	}
 
-	private function product( string $name ): object {
-		return new class( $name ) {
+	private function product( string $name, string $url = '', string $status = 'publish' ): \WC_Product {
+		return new class( $name, $url, $status ) extends \WC_Product {
 			private string $name;
+			private string $url;
+			private string $status;
 
-			public function __construct( string $name ) {
-				$this->name = $name;
+			public function __construct( string $name, string $url, string $status ) {
+				$this->name   = $name;
+				$this->url    = $url;
+				$this->status = $status;
 			}
 
-			public function get_name(): string {
+			public function get_name( $context = 'view' ): string {
 				return $this->name;
 			}
 
-			public function get_description(): string {
+			public function get_description( $context = 'view' ): string {
 				return 'desc';
 			}
 
-			public function get_sku(): string {
+			public function get_sku( $context = 'view' ): string {
 				return 'SKU-1';
+			}
+
+			public function get_status( $context = 'view' ): string {
+				return $this->status;
+			}
+
+			public function get_permalink(): string {
+				return $this->url;
+			}
+		};
+	}
+
+	private function variation( string $url ): \WC_Product {
+		if ( ! class_exists( \WC_Product_Variation::class ) ) {
+			// phpcs:ignore Squiz.Commenting.ClassComment.Missing -- test shim.
+			eval( 'class WC_Product_Variation extends WC_Product {}' );
+		}
+
+		return new class( $url ) extends \WC_Product_Variation {
+			private string $url;
+
+			public function __construct( string $url ) {
+				$this->url = $url;
+			}
+
+			public function get_status( $context = 'view' ): string {
+				return 'publish';
+			}
+
+			public function get_permalink( $item_object = null ): string {
+				return $this->url;
 			}
 		};
 	}

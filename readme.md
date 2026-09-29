@@ -141,6 +141,7 @@ The following attributes are available:
 - `product_base_price` - product base price including tax and with currency
 - `product_price` - product sale price including tax and with currency
 - `product_image_url` - product image URL. Featured image is used. If not set the first image from the product gallery is used.
+- `product_url` - link to the product page (the variation in the cart, when there is one). Empty when the product is no longer published.
 - `over_10_product` - true if there are more than 10 products in the cart
 
 ## Changelog

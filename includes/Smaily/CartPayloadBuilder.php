@@ -72,6 +72,7 @@ class CartPayloadBuilder {
 		'product_price',
 		'product_quantity',
 		'product_sku',
+		'product_url',
 	);
 
 	private ?ContactLanguageResolver $language_resolver;
@@ -297,9 +298,25 @@ class CartPayloadBuilder {
 			case 'product_image_url':
 				$url = $this->product_image_url( $product );
 				return $url !== '' ? $url : null; // Legacy parity: empty image URL keeps the '' prefill.
+			case 'product_url':
+				return ProductMatrixBuilder::product_url( $this->linked_product( $product, $item ) );
 			default:
 				return null;
 		}
+	}
+
+	/**
+	 * The product the cart line's link points to (PRO-3335): the variation in
+	 * the cart when there is one and it still resolves, else the product.
+	 *
+	 * @param \WC_Product          $product
+	 * @param array<string, mixed> $item
+	 */
+	private function linked_product( $product, array $item ): \WC_Product {
+		$variation_id = isset( $item['variation_id'] ) && is_scalar( $item['variation_id'] ) ? (int) $item['variation_id'] : 0;
+		$variation    = $variation_id > 0 ? wc_get_product( $variation_id ) : null;
+
+		return $variation instanceof \WC_Product ? $variation : $product;
 	}
 
 	/**

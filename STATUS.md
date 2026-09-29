@@ -26,7 +26,21 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published
+_Last updated: 2026-09-29 (**PRO-3335 — product links in order, shipping
+and abandoned-cart emails; unreleased, on a worker branch, not merged.** New
+merge tag `product_url_1..10` beside the existing seven product fields, same
+name in all three payloads (`TransactionalPayloadBuilder`,
+`CartPayloadBuilder`, shared `ProductMatrixBuilder::product_url()`): a plain
+permalink, no tracking parameters; a variation links with the bought options
+(confirmation) or the cart's variation (reminder); empty when the product is
+gone or not published. Existing fields unchanged. Merchant docs Merge-tags
+tables (EN+ET) and the legacy `readme.md` list updated; the ET wording awaits
+the PRO-3405 proofread. Unit-tested only (PHPUnit unit 850 / 2 454
+assertions, +7 tests); **integration NOT run** (no Docker on that machine).
+Per-send field limit: nothing in this repo documents one — unverified.
+Next release will carry it once merged.)_
+
+Prior: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published
 2026-09-24: bump commit `3d5643f` pushed to `sendsmaily/smaily-wordpress-plugin`
 main, GitHub release `3.14.0` targeting that full SHA, `release.yml` run
 35996975422 green; the CI asset re-verified locally with
@@ -40,7 +54,7 @@ FTPS twice today at Erkki's explicit request WITHOUT the usual ET proofread
 (PRO-1520 gate) — the live copy is byte-identical to `docs/site/index.html`
 at this commit. **Unreleased on main after 3.14.0:** nothing. Next up:
 PRO-3190 (order-confirmation fields for real templates, design playback
-first), PRO-3192 (newer-choice-wins opt-out timestamp).)_
+first), PRO-3192 (newer-choice-wins opt-out timestamp).)
 
 Prior: 2026-09-24 (**3.14.0 bumped + built locally — commit
 `3d5643f` (`release: 3.14.0`), NOT pushed; publication by the orchestrator.**
