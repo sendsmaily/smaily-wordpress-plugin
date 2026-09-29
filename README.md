@@ -66,6 +66,8 @@ The 3.x code lives under the `Smaily\Connect` namespace (PSR-4); the legacy 1.x 
 
 **Merchant documentation** (install, setup wizard, settings, troubleshooting) lives at **[smaily.com/connect-woo](https://smaily.com/connect-woo/)** — the bilingual (EN/ET) source is [`docs/site/index.html`](docs/site/index.html), a single self-contained page.
 
+**Email merge fields** — the fields each triggered email carries for its Smaily template are listed in the docs site's [Merge tags](https://smaily.com/connect-woo/#set-merge-tags) section (source: [`docs/site/index.html`](docs/site/index.html)).
+
 Project / developer documentation lives in [`docs/`](docs/) — start with [`docs/INDEX.md`](docs/INDEX.md).
 
 | Document | Purpose |

@@ -531,6 +531,10 @@ Facts that must stay true when you touch it:
   no 60-day order window; consent is the **WP Consent API** companion plugin;
   background work is **Action Scheduler**; GDPR is the **WP Privacy tools**). The
   keep-current rule is in "Keeping the docs current" above.
+- **The email field (merge-tag) reference lives ONLY here** — the `#set-merge-tags`
+  section, EN+ET. The old upstream `readme.md` copy was untracked (PRO-3411: it
+  collided with `README.md` on a case-insensitive Mac disk); a new or renamed
+  email field is documented in this page alone.
 
 **Publishing it live (FTPS).** The live copy at `https://smaily.com/connect-woo/`
 is published over FTPS — Erkki places a 3-line credentials file (host /
