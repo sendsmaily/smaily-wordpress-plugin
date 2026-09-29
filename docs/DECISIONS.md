@@ -6784,7 +6784,10 @@ discounts), `order_tax`, `order_shipping` (with its tax) formatted like
 `order_status` (shown name) + `order_status_id` (bare slug);
 `payment_method_id` + `shipping_method_id` (each shipping line's method id,
 joined with `", "` exactly like WooCommerce joins the titles into
-`shipping_method`, so the two list the lines in the same order).
+`shipping_method`, so the two list the lines in the same order); and
+`product_discount_percent_N` = `round((1 − price/base_price) × 100)` from the
+order line (coupon discounts only — no live product lookup), `"0"` on a filled
+slot without discount, `''` on an unused slot.
 **Personal data behind a switch, OFF by default** (the WooCommerce tab's
 "Include addresses, phone and order note",
 `smly_plus_transactional_personal_data_enabled`, stored like the other
@@ -6798,7 +6801,8 @@ order); while off, none is. Both confirmations share one builder, so the
 switch covers both.
 **Rejected:** sending addresses/phone by default (personal data a template may
 not need); renaming or reformatting existing fields to suit the pilot's
-template (would break every other merchant's template).
+template (would break every other merchant's template); a live product lookup
+for sale-price discounts (the order line is what the customer paid).
 
 ## How to keep this document going
 

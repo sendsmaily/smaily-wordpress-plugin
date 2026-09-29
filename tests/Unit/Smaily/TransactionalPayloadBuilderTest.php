@@ -298,7 +298,7 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 
 		$context = $this->builder()->build( $order );
 
-		foreach ( array( 'product_name', 'product_sku', 'product_quantity', 'product_price', 'product_base_price', 'product_description', 'product_image_url', 'product_url' ) as $key ) {
+		foreach ( array( 'product_name', 'product_sku', 'product_quantity', 'product_price', 'product_base_price', 'product_description', 'product_image_url', 'product_url', 'product_discount_percent' ) as $key ) {
 			for ( $i = 1; $i <= 10; $i++ ) {
 				self::assertArrayHasKey( $key . '_' . $i, $context );
 				self::assertSame( '', $context[ $key . '_' . $i ] );
@@ -331,6 +331,30 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 		self::assertSame( '2', $context['product_quantity_1'] );
 		self::assertSame( 'display:11.16', $context['product_price_1'] );
 		self::assertSame( 'display:12.4', $context['product_base_price_1'] );
+	}
+
+	public function test_a_coupon_discounted_line_carries_its_whole_number_discount_percent(): void {
+		// PRO-3190. Line 1: 24.80 before the coupon, 22.32 paid → 10 %.
+		// Line 2: a third off (30.00 → 20.00) rounds to 33. Line 3: no
+		// discount → "0". Slots 4..10 are unused → ''.
+		$order = $this->fake_order(
+			array(
+				'items' => array(
+					$this->fake_item( array( 'name' => 'A', 'qty' => 2, 'subtotal' => 20.00, 'subtotal_tax' => 4.80, 'total' => 18.00, 'total_tax' => 4.32 ) ),
+					$this->fake_item( array( 'name' => 'B', 'qty' => 3, 'subtotal' => 30.00, 'total' => 20.00 ) ),
+					$this->fake_item( array( 'name' => 'C', 'qty' => 1, 'total' => 7.50 ) ),
+				),
+			)
+		);
+
+		$context = $this->builder()->build( $order );
+
+		self::assertSame( '10', $context['product_discount_percent_1'] );
+		self::assertSame( '33', $context['product_discount_percent_2'] );
+		self::assertSame( '0', $context['product_discount_percent_3'], 'A filled slot without a discount says 0.' );
+		for ( $i = 4; $i <= 10; $i++ ) {
+			self::assertSame( '', $context[ 'product_discount_percent_' . $i ], 'An unused slot stays empty.' );
+		}
 	}
 
 	public function test_deleted_product_line_still_fills_from_the_frozen_item_snapshot(): void {

@@ -55,6 +55,7 @@ class TransactionalPayloadBuilder {
 		'product_description',
 		'product_image_url',
 		'product_url',
+		'product_discount_percent',
 	);
 
 	/**
@@ -170,17 +171,31 @@ class TransactionalPayloadBuilder {
 				$product = $item->get_product();
 
 				return array(
-					'product_name'        => $this->escape( (string) $item->get_name() ),
-					'product_sku'         => $product instanceof \WC_Product ? (string) $product->get_sku() : '',
-					'product_quantity'    => (string) $qty,
-					'product_price'       => $qty > 0 ? $this->price_display( $total_gross / $qty ) : '',
-					'product_base_price'  => $qty > 0 ? $this->price_display( $subtotal_gross / $qty ) : '',
-					'product_description' => $product instanceof \WC_Product ? $this->escape( (string) $product->get_description() ) : '',
-					'product_image_url'   => $product instanceof \WC_Product ? $this->product_image_url( $product ) : '',
-					'product_url'         => $product instanceof \WC_Product ? ProductMatrixBuilder::product_url( $product, $item ) : '',
+					'product_name'             => $this->escape( (string) $item->get_name() ),
+					'product_sku'              => $product instanceof \WC_Product ? (string) $product->get_sku() : '',
+					'product_quantity'         => (string) $qty,
+					'product_price'            => $qty > 0 ? $this->price_display( $total_gross / $qty ) : '',
+					'product_base_price'       => $qty > 0 ? $this->price_display( $subtotal_gross / $qty ) : '',
+					'product_description'      => $product instanceof \WC_Product ? $this->escape( (string) $product->get_description() ) : '',
+					'product_image_url'        => $product instanceof \WC_Product ? $this->product_image_url( $product ) : '',
+					'product_url'              => $product instanceof \WC_Product ? ProductMatrixBuilder::product_url( $product, $item ) : '',
+					'product_discount_percent' => $this->discount_percent( $total_gross, $subtotal_gross ),
 				);
 			}
 		);
+	}
+
+	/**
+	 * The line's coupon discount as a whole-number percent (`"10"`) — what
+	 * product_price is below product_base_price; `"0"` without a discount
+	 * (PRO-3190). Read from the order line only, so a sale price the product
+	 * carried at the time is not a discount here.
+	 */
+	private function discount_percent( float $paid, float $before_discount ): string {
+		if ( $before_discount <= 0.0 ) {
+			return '0';
+		}
+		return (string) (int) round( ( 1 - $paid / $before_discount ) * 100 );
 	}
 
 	/**
