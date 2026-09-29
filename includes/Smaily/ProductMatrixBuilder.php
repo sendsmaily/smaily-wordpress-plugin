@@ -98,4 +98,27 @@ final class ProductMatrixBuilder {
 
 		return '';
 	}
+
+	/**
+	 * The product page link both builders send as `product_url` (PRO-3335):
+	 * the plain permalink — no tracking or campaign parameters. Empty unless
+	 * the product is published, so a trashed/draft/private product never puts
+	 * a dead link into a customer's email. A variation links to its product
+	 * page with its attributes preselected; given the order line, the
+	 * attributes are the ones the customer actually chose (WooCommerce's own
+	 * order-details template passes the order item the same way).
+	 */
+	public static function product_url( \WC_Product $product, ?\WC_Order_Item_Product $item = null ): string {
+		if ( $product->get_status() !== 'publish' ) {
+			return '';
+		}
+
+		if ( $product instanceof \WC_Product_Variation ) {
+			// @phpstan-ignore-next-line -- WC_Order_Item is ArrayAccess; WC core passes an order item here (templates/order/order-details-item.php).
+			return (string) $product->get_permalink( $item );
+		}
+
+		// (string): core get_permalink() can return false despite the stubs.
+		return (string) $product->get_permalink();
+	}
 }

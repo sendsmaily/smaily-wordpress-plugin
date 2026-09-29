@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  *     live wc_get_product() read;
  *   - prices are what the customer actually PAID (the order line, gross —
  *     PRO-1241), not the product's current live price;
- *   - image/description still need a live wc_get_product() lookup (order
+ *   - image/description/url still need a live wc_get_product() lookup (order
  *     items don't snapshot those) and are omitted when the product is gone.
  *
  * Money fields are GROSS (PRO-1241): $order->get_total() is already gross
@@ -47,6 +47,7 @@ class TransactionalPayloadBuilder {
 		'product_base_price',
 		'product_description',
 		'product_image_url',
+		'product_url',
 	);
 
 	/**
@@ -107,6 +108,7 @@ class TransactionalPayloadBuilder {
 					'product_base_price'  => $qty > 0 ? $this->price_display( $subtotal_gross / $qty ) : '',
 					'product_description' => $product instanceof \WC_Product ? $this->escape( (string) $product->get_description() ) : '',
 					'product_image_url'   => $product instanceof \WC_Product ? $this->product_image_url( $product ) : '',
+					'product_url'         => $product instanceof \WC_Product ? ProductMatrixBuilder::product_url( $product, $item ) : '',
 				);
 			}
 		);

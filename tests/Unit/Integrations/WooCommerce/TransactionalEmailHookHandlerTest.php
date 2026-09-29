@@ -232,6 +232,36 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		self::assertCount( 1, $flusher->calls, "'completed' isn't in this merchant's shipped set, so it doesn't fire." );
 	}
 
+	public function test_order_and_shipping_confirmation_both_carry_the_product_link(): void {
+		// PRO-3335: both emails build their merge tags through the SAME real
+		// builder (only its WC price/image seams stubbed), so both carry it.
+		$order           = $this->fake_order_with_product( 9, 'https://shop.example.test/product/dog-food/' );
+		$this->orders[9] = $order;
+		$flusher         = $this->recording_flusher();
+		$builder         = new class() extends TransactionalPayloadBuilder {
+			protected function price_display( float $amount ): string {
+				return (string) $amount;
+			}
+
+			protected function product_image_url( \WC_Product $product ): string {
+				return '';
+			}
+		};
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ), $builder, $flusher ) )
+			->on_order_processed( 9 );
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ), $builder, $flusher ) )
+			->on_order_status_changed( 9, 'processing', 'completed' );
+
+		self::assertCount( 2, $flusher->calls );
+		self::assertSame( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, $flusher->calls[0]['trigger_type'] );
+		self::assertSame( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, $flusher->calls[1]['trigger_type'] );
+		foreach ( $flusher->calls as $call ) {
+			self::assertSame( 'https://shop.example.test/product/dog-food/', $call['context']['product_url_1'] );
+			self::assertSame( '', $call['context']['product_url_2'] );
+		}
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	private function gate_open_for( string $open_trigger_type ): TransactionalGate {
@@ -290,6 +320,131 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 
 			public function get_billing_email( $context = 'view' ): string {
 				return $this->email;
+			}
+
+			public function update_meta_data( $key, $value, $unique_id = 0 ): void {
+				$this->meta[ $key ] = $value;
+			}
+
+			public function get_meta( $key = '', $single = true, $context = 'view' ) {
+				return $this->meta[ $key ] ?? '';
+			}
+
+			public function save() {
+				return $this->id;
+			}
+		};
+	}
+
+	/**
+	 * An order with one published product line — enough surface for the real
+	 * TransactionalPayloadBuilder plus the handler's meta guard.
+	 */
+	private function fake_order_with_product( int $id, string $product_url ): \WC_Order {
+		$product = new class( $product_url ) extends \WC_Product {
+			private string $url;
+
+			public function __construct( string $url ) {
+				$this->url = $url;
+			}
+
+			public function get_sku( $context = 'view' ) {
+				return 'DOG-1';
+			}
+
+			public function get_description( $context = 'view' ) {
+				return '';
+			}
+
+			public function get_status( $context = 'view' ) {
+				return 'publish';
+			}
+
+			public function get_permalink() {
+				return $this->url;
+			}
+		};
+
+		$item = new class( $product ) extends \WC_Order_Item_Product {
+			private \WC_Product $product;
+
+			public function __construct( \WC_Product $product ) {
+				$this->product = $product;
+			}
+
+			public function get_name( $context = 'view' ) {
+				return 'Dog food';
+			}
+
+			public function get_product() {
+				return $this->product;
+			}
+
+			public function get_quantity( $context = 'view' ) {
+				return 1;
+			}
+
+			public function get_subtotal( $context = 'view' ) {
+				return '5';
+			}
+
+			public function get_subtotal_tax( $context = 'view' ) {
+				return '0';
+			}
+
+			public function get_total( $context = 'view' ) {
+				return '5';
+			}
+
+			public function get_total_tax( $context = 'view' ) {
+				return '0';
+			}
+		};
+
+		return new class( $id, $item ) extends \WC_Order {
+			private int $id;
+			private \WC_Order_Item_Product $item;
+			private array $meta = array();
+
+			public function __construct( int $id, \WC_Order_Item_Product $item ) {
+				$this->id   = $id;
+				$this->item = $item;
+			}
+
+			public function get_id(): int {
+				return $this->id;
+			}
+
+			public function get_order_number() {
+				return (string) $this->id;
+			}
+
+			public function get_total( $context = 'view' ): string {
+				return '5';
+			}
+
+			public function get_currency( $context = 'view' ): string {
+				return 'EUR';
+			}
+
+			public function get_payment_method_title( $context = 'view' ) {
+				return '';
+			}
+
+			public function get_shipping_method() {
+				return '';
+			}
+
+			public function get_billing_first_name( $context = 'view' ): string {
+				return '';
+			}
+
+			public function get_billing_last_name( $context = 'view' ): string {
+				return '';
+			}
+
+			public function get_items( $types = 'line_item' ): array {
+				return array( $this->item );
 			}
 
 			public function update_meta_data( $key, $value, $unique_id = 0 ): void {

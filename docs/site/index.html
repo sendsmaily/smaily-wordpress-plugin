@@ -891,6 +891,7 @@ td code{white-space:nowrap}
             <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>One set per ordered product, <code>N</code> = 1…10. Unused slots are sent empty.</td></tr>
             <tr><td><code>product_price_N</code></td><td>The unit price the customer paid, after discounts, tax included.</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>The unit price before discounts, tax included.</td></tr>
+            <tr><td><code>product_url_N</code></td><td>A plain link to the product's page (for a product sold in variations, with the options the customer bought selected). Empty when the product no longer exists.</td></tr>
             <tr><td><code>over_10_products</code></td><td><code>true</code> only when the order has more than 10 products.</td></tr>
           </tbody>
         </table>
@@ -953,6 +954,7 @@ td code{white-space:nowrap}
             <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>Üks komplekt iga tellitud toote kohta, <code>N</code> = 1…10. Kasutamata kohad saadetakse tühjana.</td></tr>
             <tr><td><code>product_price_N</code></td><td>Kliendi makstud ühikuhind pärast allahindlust, koos maksuga.</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>Ühikuhind enne allahindlust, koos maksuga.</td></tr>
+            <tr><td><code>product_url_N</code></td><td>Lihtne link toote lehele (variatsioonidega toote puhul on valitud kliendi ostetud variatsioon). Tühi, kui toodet enam ei ole.</td></tr>
             <tr><td><code>over_10_products</code></td><td><code>true</code> ainult siis, kui tellimuses on üle 10 toote.</td></tr>
           </tbody>
         </table>
