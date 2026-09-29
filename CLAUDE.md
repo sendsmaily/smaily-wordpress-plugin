@@ -48,8 +48,9 @@ already stale, fixing it is in-scope now, not a future task.
 ## Operational knowledge (the painful-to-rediscover bits)
 
 ### Integration tests need `sg docker`
-The agent sandbox strips the `docker` supplementary group from the running
-process, so a bare `docker info` looks like Docker is unavailable — it isn't.
+On the Linux machine, the agent sandbox strips the `docker` supplementary group
+from the running process, so a bare `docker info` looks like Docker is
+unavailable — it isn't.
 Docker is installed and the daemon runs; you (the user `erkki`) are in the
 `docker` group. Restore it per-command with `sg`:
 
@@ -59,6 +60,14 @@ sg docker -c "composer run test:integration"
 
 Integration tests run real WP + WooCommerce + MariaDB via wp-env. Do NOT
 conclude "Docker unavailable" from a bare `docker info` failure — use `sg`.
+
+**On the MacBook, Docker runs through Colima** (installed with Homebrew, a
+2 CPU / 4 GB VM). After a reboot run `colima start` first — until then
+`docker` has no daemon to talk to. `sg docker` is not needed there: plain
+`docker` works for the user, so drop the `sg docker -c "…"` wrapper from the
+commands in this file (`composer run test:integration` directly). The
+integration suite has NOT yet been run on the Mac — treat the first run there
+as unproven, not as a known-good baseline.
 
 **Filtered/single-test integration runs:** prefer the wrapper — it passes
 extra args through to phpunit AND keeps the PRO-1240 smly_rec_* snapshot/
@@ -633,7 +642,7 @@ and the release ZIP is built by CI there — not on your machine** (PRO-2281,
 repository; the fork `erkkimarkus/smaily-wordpress-plugin` is archived
 read-only history). Your working checkout's `origin` should therefore be
 `sendsmaily/smaily-wordpress-plugin` — check with `git remote -v` before
-pushing a bump commit; if `origin` is still the fork, fix the remote (that is a
+pushing a bump branch; if `origin` is still the fork, fix the remote (that is a
 one-time human action, not something a task changes silently).
 
 `composer run package` ALONE is not a release — it rsync+zips the working tree
@@ -689,8 +698,11 @@ they are no longer how the released asset is produced. Full sequence (verified
    two-part: no `*.map` entries AND no trailer left in the shipped JS
    (`unzip -p … dist/admin/admin.js | grep -c sourceMappingURL` ⇒ 0). Local
    builds still emit maps — nothing about debugging changes, only the ZIP.
-7. **Release it — push, tag, let CI build, then publish to wordpress.org.**
-   a. Push the bump commit to `main` on `sendsmaily/smaily-wordpress-plugin`.
+7. **Release it — merge the bump, tag, let CI build, then publish to wordpress.org.**
+   a. Land the bump commit on `main` of `sendsmaily/smaily-wordpress-plugin`
+      through a PR (topic branch → PR → squash merge; see "Changes reach `main`
+      through pull requests") — `main` refuses a direct push. Tag only after
+      the merge, so `--target main` points at the bump.
    b. `gh release create 3.11.2 --repo sendsmaily/smaily-wordpress-plugin
       --target main --title "…" --notes-file …` — **NO local ZIP argument**:
       the workflow attaches the asset. **Tag convention: the PLAIN version, no
@@ -732,15 +744,28 @@ add an `-rc.<N>` suffix + `--prerelease`. Do NOT copy any of this for a new
 release; the fork's pre-PRO-2277 release runs are all red (the old broken
 workflow, not a signal about those releases).
 
-### CI "Lint and test the codebase" is PRE-EXISTING red on main — not authoritative
-The GH workflow runs `composer run test:php` (= bare `phpunit`, includes the
-Integration suite) in a runner WITHOUT WooCommerce → ~76 "WooCommerce not active"
-errors. It has been red since before the catalog-correctness work (e.g. e22a26b,
-2026-06-12). Do NOT read a red "Lint and test" as "I broke something." The
-authoritative gates are LOCAL: `npm run ci:strict` (unit + static + JS) and
-`sg docker -c "composer run test:integration"` (real WP+WC via wp-env). If you
-touch CI, the fix is to run only `phpunit --testsuite unit` there (or give the
-integration job a wp-env), not to chase the integration errors.
+### CI "Lint and test the codebase" — what each job runs (green since 2026-09-29)
+`lint_and_test.yml` runs on every PR and every push to `main`, in four jobs:
+- **PHP 8.0–8.3** (matrix): `composer validate`, PHPCS, PHPStan, then
+  `vendor/bin/phpunit --testsuite=unit` — the unit suite only (PRO-1708, PR
+  #141). Bare `phpunit` would also run the Integration suite, which errors on a
+  runner with no WordPress; that is what kept these jobs red from before the
+  catalog-correctness work (e.g. e22a26b, 2026-06-12) until 2026-09-29.
+- **Admin bundle**: typecheck, ESLint, vitest + coverage, Vite build, dist
+  artefacts, the 250 KB gzip budget.
+- **Integration suite (wp-env)**: builds the admin bundle + build-hash, installs
+  and builds the Gutenberg block workspaces (PRO-3428, PR #142 — without the
+  block build the landing-page render tests fail), starts wp-env, activates the
+  plugin, runs `composer run test:integration` — the real WP + WC suite (313
+  tests on 2026-09-29).
+- **Gutenberg blocks**: lint + test.
+
+All four jobs are expected GREEN. A red job now means something broke — read
+it as a real failure of your change (or of `main`), not as background noise;
+the old "don't read red as 'I broke something'" advice is retired. The local
+gates still run before you open a PR:
+`npm run ci:strict` (unit + static + JS) and
+`sg docker -c "composer run test:integration"` (real WP+WC via wp-env).
 
 ### Browse beacon ships as `sc-runtime.js` + `/relay` — NOT "beacon" (ad-block lists)
 The storefront beacon's two browser-visible names are deliberately neutral: the
@@ -1132,11 +1157,28 @@ Work proceeds in small sub-PRs (e.g. 3.3.0, 3.3.1...). Each one:
 3. Gates green: `ci:strict` + integration (`sg docker`) + relevant regression
    (e.g. catalog/customers regression must stay green when shared code changes).
 4. Report at the end (results, gate output, anything surfaced) **before** the
-   next sub-PR. Push directly to main per project rhythm.
+   next sub-PR. It reaches `main` as a pull request (below) — never a direct
+   push.
 
 Do NOT batch multiple sub-PRs without a checkpoint. The human participates at
 edge cases and strategic decisions, not every line — but the checkpoint between
 steps is the safety rail.
+
+### Changes reach `main` through pull requests — squash-merged (Erkki, 2026-09-29)
+`sendsmaily/smaily-wordpress-plugin` `main` has the branch rule "Changes must
+be made through a pull request"; a direct push only gets through on an admin
+bypass. So every change — code, docs, a contract sync, a release bump — goes to
+`main` as a PR:
+1. Work on a topic branch named like Linear's branch name for the issue
+   (`erkki/pro-1234-short-slug`).
+2. Open a PR whose title and description follow `github:writing-change-records`
+   — the description becomes the merge message, so it is the permanent record.
+3. The session orchestrator squash-merges it. **Squash is the only merge method
+   the repo allows, and its default message is the list of commit messages, NOT
+   the PR description** — so the merger passes the description explicitly:
+   `gh pr merge <n> --squash --subject "<title>" --body-file <description file>`.
+
+The old "push directly to main" rhythm (and the earlier fork's) is history.
 
 ### Context audit before building (LESSONS §2.5)
 Before starting real code on a new area, do a context audit: `git log`, read the
@@ -1148,7 +1190,8 @@ than in a live-walk.
 ### Spec sync is byte-identical (CC-8)
 When the engine team changes the contract, sync `docs/RECENGINE_API_CONTRACT.md`
 byte-for-byte with the engine repo: replace the file, `git diff` + md5 confirm
-identical, commit with a message naming the engine commit + what changed, push.
+identical, commit with a message naming the engine commit + what changed, and
+land it through a PR (see "Changes reach `main` through pull requests").
 The embedded header note records the sync. This discipline has caught real
 bugs (products->items drift, datetime Z-form, the seam bugs).
 
@@ -1165,7 +1208,7 @@ done. Don't let a breaking change wait for an unrelated sub-PR to surface it.
 
 **Staleness is now CI-guarded (PRO-1250, Decision A on PRO-1247).** The
 `Contract staleness` workflow (`.github/workflows/contract-staleness.yml` —
-deliberately its OWN workflow, since "Lint and test" is pre-existing red) runs
+deliberately its OWN workflow, so the staleness signal stays a separate check) runs
 `bin/check-contract-staleness.sh` on push/PR/daily-schedule/dispatch and fails
 when `docs/RECENGINE_API_CONTRACT.md` is no longer byte-identical with the
 engine repo's (`erkkimarkus/smaily-recommendations`, PRIVATE) main branch.

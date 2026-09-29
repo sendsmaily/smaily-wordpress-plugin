@@ -2,9 +2,9 @@
 #
 # Fails when this repo's vendored docs/RECENGINE_API_CONTRACT.md is no longer
 # byte-identical with the engine repo's (erkkimarkus/smaily-recommendations)
-# main-branch copy. Deliberately its OWN workflow — "Lint and test" is
-# pre-existing red on main (see CLAUDE.md), so the staleness signal must be an
-# unambiguous separate check.
+# main-branch copy. Deliberately its OWN workflow, so the staleness signal is
+# an unambiguous separate check (it also runs on a daily schedule, which
+# "Lint and test" does not).
 #
 # The schedule is the real guard: contract drift usually arrives with no push
 # on OUR side, so push/PR triggers alone would never see it.
