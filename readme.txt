@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.14.0
+Stable tag: 3.15.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -175,6 +175,15 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 == Changelog ==
 
 Only releases from 3.0.0 onward are listed here. The complete version history, including the 1.x and 2.x releases, is published at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
+
+= 3.15.0 =
+* New: order confirmation, shipping confirmation and abandoned-cart emails can link each product to its page with the new `product_url_1` … `product_url_10` merge tags.
+* New: order and shipping confirmations now also carry the subtotal, tax and shipping (formatted with currency and as plain numbers), the order status name and code, the payment and shipping method codes, and each product's coupon discount as a percent.
+* New: a "Customer details → Include addresses, phone and order note" switch on the WooCommerce tab adds the billing and delivery address, the delivery name, the phone number and the customer's order note to both confirmations. It is off by default. Developers can add store-specific fields with the `smaily_connect_transactional_email_fields` and `smaily_connect_transactional_email_product_fields` filters.
+* Fixed: in the "Subscribers only (consent)" contact mode, a customer who ticks the newsletter box at checkout (logged in or creating an account, classic or block checkout) or when registering in My Account now reaches Smaily as subscribed.
+* Fixed: a shopper's newest personalised-recommendations choice now wins over an older opt-in stored on their Smaily contact, and a malformed or future-dated value on the contact can no longer undo an opt-out.
+* Improved: the WordPress personal-data export now includes the newsletter consent kept on block-checkout orders, and the eraser removes it.
+* Improved: the FAQ now says the customer import covers registered customer accounts, not buyers who only ever checked out as guests.
 
 = 3.14.0 =
 * New: on a store with more than one language, order and shipping confirmations can use a separate Smaily workflow for each store language. Each order's confirmation goes out through the workflow for that order's language, falling back to your default workflow.
@@ -352,6 +361,9 @@ First general-availability release, graduating the 2.1.0-beta line. Existing set
 * Hardening: WordPress.org Plugin Check pass (sanitization, escaping, prefixing, ABSPATH guards); editor blocks updated to Block API v3 for the WordPress 7.0 iframe editor; diagnostics gated behind WP_DEBUG.
 
 == Upgrade Notice ==
+
+= 3.15.0 =
+Product links and more order details for confirmation and abandoned-cart emails, an optional switch for addresses, phone and order note, and fixes for checkout newsletter consent and the recommendations opt-out. Safe update.
 
 = 3.14.0 =
 Order and shipping confirmations can use a Smaily workflow per store language. The My Account Campaign Intelligence section shows only where it is live, shoppers can always opt out, and an opt-out now stays until they opt back in. Safe update.
