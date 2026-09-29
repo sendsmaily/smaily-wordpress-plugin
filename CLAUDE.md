@@ -148,6 +148,11 @@ one-time and now consumed).
 tests, WC objects are built with PHPUnit `createMock` + shared shims (e.g. the
 `WC_Order` shim in HookHandlerTest, `WC_Order_Item_Product`). Reuse this pattern
 for any new WC-dependent unit test.
+**Declare every property a test double sets** (PRO-3410): a dynamic property is a
+PHP 8.2+ deprecation, and PHPUnit marks the test risky (= `ci:strict` exit 1) only
+where the PHP build displays deprecations — green on the Linux box, red on the
+Homebrew PHP Mac. The unit `WP_User` shim declares only `ID`/`user_email`/
+`first_name`/`last_name`; a double that also sets e.g. `roles` declares it itself.
 
 ### Use SkuResolver for the engine product key — ALWAYS `woo-<id>`, NEVER the merchant SKU (PRO-1224)
 The engine keys catalog, order items, AND browse events on `sku`, but the

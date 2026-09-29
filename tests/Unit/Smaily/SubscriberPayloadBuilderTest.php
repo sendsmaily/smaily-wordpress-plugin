@@ -407,6 +407,16 @@ final class SubscriberPayloadBuilderTest extends TestCase {
 		$attrs = array_merge( $defaults, $overrides );
 
 		return new class( $attrs ) extends \WP_User {
+			// Declared, not created on the fly: a dynamic property is a PHP 8.2+
+			// deprecation that marks the test risky wherever notices are shown.
+			// Untyped, matching core WP_User's own untyped `$roles`.
+			/** @var string */
+			public $nickname = '';
+			/** @var string[] */
+			public $roles = array();
+			/** @var string */
+			public $user_registered = '';
+
 			/** @param array<string, mixed> $attrs */
 			public function __construct( array $attrs ) {
 				foreach ( $attrs as $k => $v ) {
