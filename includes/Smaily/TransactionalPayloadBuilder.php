@@ -38,6 +38,13 @@ defined( 'ABSPATH' ) || exit;
  */
 class TransactionalPayloadBuilder {
 
+	/**
+	 * The merchant's switch for the personal-data fields — addresses, phone,
+	 * delivery name, order note (PRO-3190). Off by default: none of those
+	 * keys is sent until the merchant opts in on the WooCommerce tab.
+	 */
+	public const OPTION_PERSONAL_DATA = 'smly_plus_transactional_personal_data_enabled';
+
 	/** Every product key is prefilled '' for slots 1..10 (legacy Smaily-template parity, cap: ProductMatrixBuilder::MAX_PRODUCTS). */
 	private const PRODUCT_KEYS = array(
 		'product_name',

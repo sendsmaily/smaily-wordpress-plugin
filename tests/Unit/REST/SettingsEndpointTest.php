@@ -254,6 +254,7 @@ final class SettingsEndpointTest extends TestCase {
 		self::assertTrue( $this->option_writes['smly_plus_welcome_enabled'] );
 		self::assertFalse( $this->option_writes['smly_plus_first_order_enabled'] );
 		self::assertSame( 10, $this->option_writes['smaily_connect_abandoned_cart_cutoff'] );
+		self::assertFalse( $this->option_writes['smly_plus_transactional_personal_data_enabled'], 'PRO-3190: a payload without the switch saves it off.' );
 	}
 
 	public function test_connection_tab_persists_transactional_account_and_toggle(): void {
@@ -337,12 +338,14 @@ final class SettingsEndpointTest extends TestCase {
 				'orderConfirmationEnabled'    => true,
 				'shippingConfirmationEnabled' => true,
 				'shippedOrderStatuses'        => array( 'completed', 'shipped' ),
+				'transactionalPersonalData'   => true,
 			)
 		);
 
 		$response = $endpoint->handle( $request );
 
 		self::assertTrue( $response->get_data()['saved'] );
+		self::assertTrue( $this->option_writes['smly_plus_transactional_personal_data_enabled'] );
 		self::assertTrue( $this->option_writes['smly_plus_order_confirmation_enabled'] );
 		self::assertTrue( $this->option_writes['smly_plus_shipping_confirmation_enabled'] );
 		self::assertSame(

@@ -2488,6 +2488,22 @@ msgstr ""
 msgid "Sent when the order has been completed and is ready to be sent."
 msgstr ""
 
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Customer details"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Personal data sent with both confirmation emails. Off by default — switch it on only if your email template shows these details."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Include addresses, phone and order note"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "The billing and delivery address, the delivery name, the phone number and the customer's order note."
+msgstr ""
+
 #: admin/src/components/steps/TransactionalTriggersSection.tsx:53
 msgid "Counts as shipped"
 msgstr ""

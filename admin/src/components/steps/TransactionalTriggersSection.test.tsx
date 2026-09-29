@@ -3,6 +3,7 @@ import { useReducer } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { listWorkflows } from '../../api/workflows';
+import { buildTabPayload } from '../../state/buildTabPayload';
 import { _resetUseWorkflowsCache } from '../../hooks/useWorkflows';
 import { buildSettingsInitialState } from '../../state/settings-reducer';
 import { type WizardState } from '../../state/types';
@@ -123,6 +124,24 @@ describe('TransactionalTriggersSection', () => {
       }),
     );
     expect(workflowsMock).not.toHaveBeenCalledWith('account_en');
+  });
+
+  it('keeps the customer-details switch off by default and saves it with the WooCommerce tab once switched on', async () => {
+    // PRO-3190: addresses, phone and order note go into the confirmations
+    // only when the merchant opts in.
+    let latest = connectedState();
+    render(<Harness initial={latest} onState={(s) => { latest = s; }} />);
+    await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+    const toggle = screen.getByRole('switch', { name: /Include addresses, phone and order note/ });
+    expect(toggle).not.toBeChecked();
+    expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({ transactionalPersonalData: false });
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toBeChecked();
+    expect(latest.transactionalPersonalData).toBe(true);
+    expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({ transactionalPersonalData: true });
   });
 
   it('keeps a single row on a one-language store', async () => {
