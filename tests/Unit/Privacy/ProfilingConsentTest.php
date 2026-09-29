@@ -468,4 +468,157 @@ final class ProfilingConsentTest extends TestCase {
 
 		self::assertFalse( $this->resolver( $this->failing_smaily() )->known_preference( 'a@example.com' ) );
 	}
+
+	// --- the newest choice wins (PRO-3192) --------------------------------
+
+	/**
+	 * An in-memory options store, empty to start with.
+	 *
+	 * @return array<string, mixed> The live store (by reference).
+	 */
+	private function &options(): array {
+		$options = array();
+		Functions\when( 'get_option' )->alias(
+			static function ( string $name, $fallback = false ) use ( &$options ) {
+				return $options[ $name ] ?? $fallback;
+			}
+		);
+		Functions\when( 'update_option' )->alias(
+			static function ( string $name, $value ) use ( &$options ): bool {
+				$options[ $name ] = $value;
+				return true;
+			}
+		);
+		return $options;
+	}
+
+	/**
+	 * A Smaily client whose contact reads `$profiling` + `$ts`, recording every
+	 * profiling write as [may_profile, changed_at]. The first write fails when
+	 * `$first_write_fails` (an opt-out whose Smaily write never landed).
+	 *
+	 * @param array<int, array{0: bool, 1: string}> $writes
+	 */
+	private function smaily_contact( string $profiling, ?string $ts, array &$writes, bool $first_write_fails = false ): SmailyClient {
+		$smaily = $this->smaily_reading(
+			array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => $profiling, 'smaily_rec_profiling_ts' => $ts )
+		);
+		$smaily->method( 'write_profiling_consent' )->willReturnCallback(
+			static function ( string $email, bool $may_profile, string $changed_at ) use ( &$writes, $first_write_fails ): array {
+				$writes[] = array( $may_profile, $changed_at );
+				if ( $first_write_fails && count( $writes ) === 1 ) {
+					throw new \RuntimeException( 'network' );
+				}
+				return array( 'code' => 101 );
+			}
+		);
+		return $smaily;
+	}
+
+	public function test_opt_out_newer_than_the_contacts_allowed_holds_and_is_written_again(): void {
+		$options = &$this->options();
+		$store   = &$this->transients();
+		$writes  = array();
+		// The shopper opted in earlier: the contact holds "allowed" from 2020.
+		$resolver = $this->resolver( $this->smaily_contact( '1', '2020-01-01T00:00:00Z', $writes, true ) );
+
+		// They opt out in My Account now, but the Smaily write fails.
+		$resolver->opt_out( 'a@example.com' );
+		self::assertIsInt( $options['smly_profiling_optouts'][ md5( 'a@example.com' ) ], 'The store records when it made the opt-out.' );
+
+		// The daily cache expires; the read finds the OLDER "allowed".
+		$store = array();
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
+		self::assertFalse( $resolver->known_preference( 'a@example.com' ) );
+		self::assertArrayHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertCount( 2, $writes );
+		self::assertFalse( $writes[1][0], 'The opt-out is written to the contact again.' );
+	}
+
+	public function test_contacts_allowed_newer_than_the_opt_out_is_respected(): void {
+		$options = &$this->opted_out_options( (int) strtotime( '2026-09-20T00:00:00Z' ) );
+		$this->transients();
+		$writes   = array();
+		$resolver = $this->resolver( $this->smaily_contact( '1', '2026-09-25T00:00:00Z', $writes ) );
+
+		self::assertTrue( $resolver->may_profile( 'a@example.com' ) );
+		self::assertTrue( $resolver->known_preference( 'a@example.com' ) );
+		self::assertArrayNotHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertSame( array(), $writes, 'A newer answer is left as it is.' );
+	}
+
+	/**
+	 * @dataProvider missing_timestamps
+	 */
+	public function test_contacts_allowed_without_a_timestamp_counts_as_older( ?string $ts ): void {
+		$options = &$this->opted_out_options( (int) strtotime( '2026-09-20T00:00:00Z' ) );
+		$this->transients();
+		$writes   = array();
+		$resolver = $this->resolver( $this->smaily_contact( '1', $ts, $writes ) );
+
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
+		self::assertArrayHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertCount( 1, $writes );
+		self::assertFalse( $writes[0][0], 'The opt-out is written to the contact.' );
+	}
+
+	/**
+	 * @return array<string, array{0: ?string}>
+	 */
+	public static function missing_timestamps(): array {
+		return array(
+			'field absent' => array( null ),
+			'field empty'  => array( '' ),
+			'not a moment' => array( 'not-a-date' ),
+		);
+	}
+
+	/**
+	 * An opt-out recorded before PRO-3192 (`true`, moment unknown) is read as
+	 * the newest answer: a contact's "allowed" does not lift it, however
+	 * recent. Writing it to the contact records the moment, so an "allowed"
+	 * made after that write is respected again.
+	 */
+	public function test_opt_out_recorded_before_the_change_holds_until_written_then_newer_wins(): void {
+		$options = &$this->opted_out_options( true );
+		$store   = &$this->transients();
+		$writes  = array();
+		$before  = time();
+
+		self::assertFalse( $this->resolver( $this->smaily_contact( '1', '2026-09-25T00:00:00Z', $writes ) )->may_profile( 'a@example.com' ) );
+		self::assertCount( 1, $writes );
+		self::assertFalse( $writes[0][0] );
+		$moment = $options['smly_profiling_optouts'][ md5( 'a@example.com' ) ];
+		self::assertIsInt( $moment );
+		self::assertGreaterThanOrEqual( $before, $moment );
+
+		// The shopper opts in again elsewhere, after that write.
+		$store = array();
+		$later = gmdate( 'Y-m-d\TH:i:s\Z', $moment + 60 );
+		self::assertTrue( $this->resolver( $this->smaily_contact( '1', $later, $writes ) )->may_profile( 'a@example.com' ) );
+		self::assertArrayNotHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+	}
+
+	/**
+	 * An entry that only mirrors a Smaily read-back (here an unsubscribe) has
+	 * no store-side moment: the contact's own "allowed" lifts it as before
+	 * PRO-3192 once they resubscribe, and nothing is written to the contact.
+	 */
+	public function test_read_back_opt_out_is_lifted_by_the_contacts_allowed(): void {
+		$options = &$this->options();
+		$store   = &$this->transients();
+		$writes  = array();
+
+		$unsubscribed = $this->smaily_reading(
+			array( 'found' => true, 'is_unsubscribed' => '1', 'smaily_rec_profiling' => '1', 'smaily_rec_profiling_ts' => '2026-09-01T00:00:00Z' )
+		);
+		self::assertFalse( $this->resolver( $unsubscribed )->may_profile( 'a@example.com' ) );
+		self::assertSame( 0, $options['smly_profiling_optouts'][ md5( 'a@example.com' ) ] );
+
+		// Resubscribed; the profiling answer is the same one as before.
+		$store = array();
+		self::assertTrue( $this->resolver( $this->smaily_contact( '1', '2026-09-01T00:00:00Z', $writes ) )->may_profile( 'a@example.com' ) );
+		self::assertArrayNotHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertSame( array(), $writes );
+	}
 }
