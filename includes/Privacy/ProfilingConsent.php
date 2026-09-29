@@ -120,21 +120,26 @@ class ProfilingConsent {
 
 		if ( $client instanceof SmailyClient ) {
 			try {
-				$consent = $client->get_contact_consent( $email );
-				$allowed = self::is_allowed( $consent['is_unsubscribed'], $consent['smaily_rec_profiling'] );
-				if ( $allowed && $consent['smaily_rec_profiling'] !== '1' && $this->is_durably_opted_out( $email ) ) {
+				$consent    = $client->get_contact_consent( $email );
+				$allowed    = self::is_allowed( $consent['is_unsubscribed'], $consent['smaily_rec_profiling'] );
+				$carried_at = null;
+				if ( $allowed && $this->is_durably_opted_out( $email ) && ! $this->is_newer_opt_in( $email, $consent ) ) {
 					// PRO-3191: a durable store-side opt-out holds until an
 					// EXPLICIT opt-in ('1' here, or opt_in()). A contact with no
 					// preference (or no contact at all) is not one — it is an
-					// opt-out whose Smaily write never landed.
-					$allowed = false;
-					if ( $consent['found'] && ( $consent['smaily_rec_profiling'] ?? '' ) === '' ) {
-						// Carry the opt-out to the contact that lacks it. Never
-						// for a not-found contact: the upsert would create one.
+					// opt-out whose Smaily write never landed. PRO-3192: nor is
+					// a '1' older than the opt-out, or one with no timestamp.
+					$allowed   = false;
+					$profiling = $consent['smaily_rec_profiling'] ?? '';
+					if ( $consent['found'] && ( $profiling === '' || $profiling === '1' ) ) {
+						// Carry the opt-out to the contact that lacks it or holds
+						// the older answer. Never for a not-found contact: the
+						// upsert would create one.
 						$this->write( $email, false );
+						$carried_at = time();
 					}
 				}
-				$this->remember( $email, $allowed );
+				$this->remember( $email, $allowed, $carried_at );
 				if ( ! $allowed ) {
 					$this->engine_opt_out( $email );
 				}
@@ -147,6 +152,26 @@ class ProfilingConsent {
 		$allowed = $this->fallback_on_error( $email );
 		$this->cache( $email, $allowed );
 		return $allowed;
+	}
+
+	/**
+	 * PRO-3192: does the contact carry an explicit opt-in ('1') made AFTER the
+	 * durable opt-out? Only then does the read-back lift it. A '1' with no
+	 * (parseable) timestamp counts as older; so does any '1' against an entry
+	 * recorded before PRO-3192, whose moment is unknown (the safe reading).
+	 *
+	 * @param array{found: bool, is_unsubscribed: ?string, smaily_rec_profiling: ?string, smaily_rec_profiling_ts: ?string} $consent
+	 */
+	private function is_newer_opt_in( string $email, array $consent ): bool {
+		if ( $consent['smaily_rec_profiling'] !== '1' ) {
+			return false;
+		}
+		$moment = $this->optout_moment( $email );
+		if ( $moment === null ) {
+			return false;
+		}
+		$given = strtotime( (string) ( $consent['smaily_rec_profiling_ts'] ?? '' ) );
+		return $given !== false && $given > $moment;
 	}
 
 	/**
@@ -198,7 +223,7 @@ class ProfilingConsent {
 	 */
 	public function opt_out( string $email ): void {
 		$this->write( $email, false );
-		$this->remember( $email, false );
+		$this->remember( $email, false, time() );
 		$this->engine_opt_out( $email );
 	}
 
@@ -262,12 +287,13 @@ class ProfilingConsent {
 	 * Record a definitively known decision (a successful read-back, or a
 	 * WP-side opt-out/opt-in) across all three storage layers: the fresh
 	 * daily-TTL cache, the no-expiry stale cache, and the durable opt-out
-	 * registry (added/removed as appropriate).
+	 * registry (added/removed as appropriate). `$optout_moment` is set when
+	 * the store itself makes the opt-out (PRO-3192).
 	 */
-	private function remember( string $email, bool $allowed ): void {
+	private function remember( string $email, bool $allowed, ?int $optout_moment = null ): void {
 		$this->cache( $email, $allowed );
 		set_transient( self::stale_cache_key( $email ), $allowed ? '1' : '0', self::STALE_CACHE_TTL );
-		$this->remember_optout( $email, $allowed );
+		$this->remember_optout( $email, $allowed, $optout_moment );
 	}
 
 	private function cache( string $email, bool $allowed ): void {
@@ -278,18 +304,26 @@ class ProfilingConsent {
 	 * Durable opt-out registry (autoload=false option, keyed by hashed email —
 	 * stores only opt-outs, so it stays bounded to the merchant's actual
 	 * opt-out count, not the whole contact base). Only an explicit opt-in
-	 * removes the entry — a read-back of `smaily_rec_profiling = 1`, or a
-	 * WP-side opt_in() (PRO-3191); a contact with no preference never does.
+	 * removes the entry — a read-back of `smaily_rec_profiling = 1` made after
+	 * the opt-out, or a WP-side opt_in() (PRO-3191/PRO-3192); a contact with no
+	 * preference never does.
+	 *
+	 * The value is the opt-out's moment (PRO-3192): the Unix time the store
+	 * made it (My Account, or carrying it to the contact), `0` for an entry
+	 * that only mirrors a Smaily read-back (any timestamped '1' is newer), or
+	 * `true` for an entry recorded before PRO-3192 (moment unknown).
 	 */
-	private function remember_optout( string $email, bool $allowed ): void {
+	private function remember_optout( string $email, bool $allowed, ?int $moment ): void {
 		$key       = self::email_hash( $email );
 		$optouts   = (array) get_option( self::OPTION_OPTOUTS, array() );
 		$has_entry = isset( $optouts[ $key ] );
 
 		if ( $allowed && $has_entry ) {
 			unset( $optouts[ $key ] );
+		} elseif ( ! $allowed && $moment !== null ) {
+			$optouts[ $key ] = $moment;
 		} elseif ( ! $allowed && ! $has_entry ) {
-			$optouts[ $key ] = true;
+			$optouts[ $key ] = 0;
 		} else {
 			return; // already in the right state — no write.
 		}
@@ -300,6 +334,13 @@ class ProfilingConsent {
 	private function is_durably_opted_out( string $email ): bool {
 		$optouts = (array) get_option( self::OPTION_OPTOUTS, array() );
 		return isset( $optouts[ self::email_hash( $email ) ] );
+	}
+
+	/** The durable opt-out's recorded moment; null when absent or unknown. */
+	private function optout_moment( string $email ): ?int {
+		$optouts = (array) get_option( self::OPTION_OPTOUTS, array() );
+		$moment  = $optouts[ self::email_hash( $email ) ] ?? null;
+		return is_int( $moment ) ? $moment : null;
 	}
 
 	private static function email_hash( string $email ): string {

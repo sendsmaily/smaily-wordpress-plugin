@@ -169,7 +169,8 @@ final class ProfilingConsentTest extends TestCase {
 
 	public function test_successful_opt_in_readback_clears_the_durable_optout(): void {
 		Functions\when( 'set_transient' )->justReturn( true );
-		Functions\when( 'get_option' )->justReturn( array( md5( 'a@example.com' ) => true ) );
+		// An entry mirroring an earlier Smaily read-back (PRO-3192: moment 0).
+		Functions\when( 'get_option' )->justReturn( array( md5( 'a@example.com' ) => 0 ) );
 		$stored = null;
 		Functions\when( 'update_option' )->alias(
 			static function ( string $name, $value ) use ( &$stored ): bool {
@@ -180,7 +181,7 @@ final class ProfilingConsentTest extends TestCase {
 
 		$smaily = $this->createMock( SmailyClient::class );
 		$smaily->method( 'get_contact_consent' )->willReturn(
-			array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '1' )
+			array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '1', 'smaily_rec_profiling_ts' => '2026-09-01T10:00:00Z' )
 		);
 
 		self::assertTrue( $this->resolver( $smaily )->refresh( 'a@example.com' ) );
@@ -347,10 +348,12 @@ final class ProfilingConsentTest extends TestCase {
 	/**
 	 * An in-memory options store holding a durable opt-out for a@example.com.
 	 *
+	 * @param int|true $entry The registry value: the opt-out's moment, or `true`
+	 *                        for an entry recorded before PRO-3192.
 	 * @return array<string, mixed> The live store (by reference).
 	 */
-	private function &opted_out_options(): array {
-		$options = array( 'smly_profiling_optouts' => array( md5( 'a@example.com' ) => true ) );
+	private function &opted_out_options( $entry = true ): array {
+		$options = array( 'smly_profiling_optouts' => array( md5( 'a@example.com' ) => $entry ) );
 		Functions\when( 'get_option' )->alias(
 			static function ( string $name, $fallback = false ) use ( &$options ) {
 				return $options[ $name ] ?? $fallback;
@@ -366,7 +369,7 @@ final class ProfilingConsentTest extends TestCase {
 	}
 
 	/**
-	 * @param array{found: bool, is_unsubscribed: ?string, smaily_rec_profiling: ?string} $consent
+	 * @param array{found: bool, is_unsubscribed: ?string, smaily_rec_profiling: ?string, smaily_rec_profiling_ts?: ?string} $consent
 	 */
 	private function smaily_reading( array $consent ): SmailyClient {
 		$smaily = $this->createMock( SmailyClient::class );
@@ -429,9 +432,11 @@ final class ProfilingConsentTest extends TestCase {
 	}
 
 	public function test_explicit_opt_in_on_the_contact_clears_the_durable_opt_out(): void {
-		$options = &$this->opted_out_options();
+		$options = &$this->opted_out_options( (int) strtotime( '2026-09-20T00:00:00Z' ) );
 		$this->transients();
-		$smaily = $this->smaily_reading( array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '1' ) );
+		$smaily = $this->smaily_reading(
+			array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '1', 'smaily_rec_profiling_ts' => '2026-09-25T00:00:00Z' )
+		);
 		$smaily->expects( self::never() )->method( 'write_profiling_consent' );
 
 		$resolver = $this->resolver( $smaily );
