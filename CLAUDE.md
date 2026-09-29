@@ -740,32 +740,28 @@ add an `-rc.<N>` suffix + `--prerelease`. Do NOT copy any of this for a new
 release; the fork's pre-PRO-2277 release runs are all red (the old broken
 workflow, not a signal about those releases).
 
-### CI "Lint and test the codebase" is PRE-EXISTING red on main — not authoritative
-`lint_and_test.yml` runs on every PR and every push to `main`, in four jobs
-(read 2026-09-29, against main's run 36600981993):
-- **PHP 8.0–8.3** (matrix): `composer validate`, PHPCS, PHPStan — green — then
-  a step NAMED "PHPUnit (unit suite)" that actually runs `composer run
-  test:php` = bare `phpunit` on `phpunit.xml.dist`, which also lists the
-  Integration suite. On a runner with no WordPress every integration test
-  errors (~200 `Call to a member function query() on null` from `EnvScrub`),
-  so all four PHP jobs are red — red like this since before the
-  catalog-correctness work (e.g. e22a26b, 2026-06-12).
+### CI "Lint and test the codebase" — what each job runs (green since 2026-09-29)
+`lint_and_test.yml` runs on every PR and every push to `main`, in four jobs:
+- **PHP 8.0–8.3** (matrix): `composer validate`, PHPCS, PHPStan, then
+  `vendor/bin/phpunit --testsuite=unit` — the unit suite only (PRO-1708, PR
+  #141). Bare `phpunit` would also run the Integration suite, which errors on a
+  runner with no WordPress; that is what kept these jobs red from before the
+  catalog-correctness work (e.g. e22a26b, 2026-06-12) until 2026-09-29.
 - **Admin bundle**: typecheck, ESLint, vitest + coverage, Vite build, dist
-  artefacts, the 250 KB gzip budget. Green.
-- **Integration suite (wp-env)**: builds the admin bundle, starts wp-env,
-  activates the plugin, runs `composer run test:integration` — the real
-  WP + WC suite. It does NOT build the Gutenberg blocks; on that run it was red
-  with 3 failures, all landing-page block/shortcode render tests, plus 1 skip
-  saying "Block build artifacts absent (composer run build)" (306 tests).
-- **Gutenberg blocks**: lint + test. Green.
+  artefacts, the 250 KB gzip budget.
+- **Integration suite (wp-env)**: builds the admin bundle + build-hash, installs
+  and builds the Gutenberg block workspaces (PRO-3428, PR #142 — without the
+  block build the landing-page render tests fail), starts wp-env, activates the
+  plugin, runs `composer run test:integration` — the real WP + WC suite (313
+  tests on 2026-09-29).
+- **Gutenberg blocks**: lint + test.
 
-So a red "Lint and test" is not by itself "I broke something" — compare the
-failing jobs/tests with main's latest run. The authoritative gates stay LOCAL:
+All four jobs are expected GREEN. A red job now means something broke — read
+it as a real failure of your change (or of `main`), not as background noise;
+the old "don't read red as 'I broke something'" advice is retired. The local
+gates still run before you open a PR:
 `npm run ci:strict` (unit + static + JS) and
-`sg docker -c "composer run test:integration"` (real WP+WC via wp-env). If you
-touch CI, the fix is to run only `phpunit --testsuite unit` in the PHP matrix
-and to have the integration job build the blocks — not to chase the
-integration errors in the PHP matrix.
+`sg docker -c "composer run test:integration"` (real WP+WC via wp-env).
 
 ### Browse beacon ships as `sc-runtime.js` + `/relay` — NOT "beacon" (ad-block lists)
 The storefront beacon's two browser-visible names are deliberately neutral: the
@@ -1208,7 +1204,7 @@ done. Don't let a breaking change wait for an unrelated sub-PR to surface it.
 
 **Staleness is now CI-guarded (PRO-1250, Decision A on PRO-1247).** The
 `Contract staleness` workflow (`.github/workflows/contract-staleness.yml` —
-deliberately its OWN workflow, since "Lint and test" is pre-existing red) runs
+deliberately its OWN workflow, so the staleness signal stays a separate check) runs
 `bin/check-contract-staleness.sh` on push/PR/daily-schedule/dispatch and fails
 when `docs/RECENGINE_API_CONTRACT.md` is no longer byte-identical with the
 engine repo's (`erkkimarkus/smaily-recommendations`, PRIVATE) main branch.
