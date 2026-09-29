@@ -174,3 +174,11 @@ The React admin bundle additionally expects `window.wp.i18n` (enqueued with a
   PRO-1447 — no plugin caller yet): [`RECENGINE_API_CONTRACT.md`](RECENGINE_API_CONTRACT.md).
 - **Smaily contact API**: `Smaily\Client` (HTTP Basic, subdomain credentials);
   field naming per [`FIELD_MAPPING.md`](FIELD_MAPPING.md).
+- **Smaily sends have no per-send field limit** — confirmed by Erkki (Smaily
+  product owner), 2026-09-29. The transactional `message/send` `context` has
+  no key-count or payload-size limit in practice, and the custom fields on an
+  automation-trigger (`autoresponder`) address object are effectively
+  unlimited. So the field count needs no cap on our side: an order
+  confirmation carries about 123 context keys plus up to 20 order-level and
+  20×10 per-product filter keys (PRO-3190, PRO-3335), the abandoned-cart
+  trigger about 86 fields.

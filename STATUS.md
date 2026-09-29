@@ -69,7 +69,8 @@ takes the trigger (also from "Send again"). Existing fields unchanged; GDPR
 erasure blanks the new keys (allowlist redaction, pinned by a unit test).
 Merchant docs (EN+ET) list the fields, the switch and how to move a template;
 ET admin strings added to the `.po` by hand. Per-send field count grows by up to 35
-— see PRO-3409.
+— see PRO-3409 (resolved: Smaily has no per-send field limit, confirmed by
+Erkki 2026-09-29; `docs/API.md` §6).
 **PRO-3335** — new merge tag `product_url_1..10` beside the existing seven
 product fields, same name in order confirmation, shipping confirmation and the
 abandoned-cart reminder (`TransactionalPayloadBuilder`, `CartPayloadBuilder`,
@@ -79,7 +80,7 @@ cart's variation (reminder); empty when the product is gone or not published.
 Existing fields unchanged; merchant docs Merge-tags tables (EN+ET) and the
 legacy `readme.md` list updated (that file was then removed from git in PRO-3411 —
 the email field list now lives only in the docs site). Per-send field limit
-unverified (PRO-3409).
+was unverified (PRO-3409) — now confirmed: there is none (Erkki, 2026-09-29).
 **PRO-3192** — the newest profiling choice wins over an older opt-in on the
 Smaily contact: the registry value is now the opt-out's moment (Unix time of a
 store-side opt-out; `0` for one mirrored from a Smaily read-back; `true` =
