@@ -27,7 +27,23 @@ If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
 _Last updated: 2026-09-29 (**Unreleased on main after 3.14.0: PRO-3335,
-PRO-3192, PRO-3410, PRO-3407, PRO-3190** — first session on the MacBook, orchestrated.
+PRO-3192, PRO-3410, PRO-3407, PRO-3406, PRO-3190** — first session on the MacBook, orchestrated.
+**PRO-3406** — in consent mode a registered buyer's newsletter tick now
+reaches Smaily: it is saved as the store's consent record `user_newsletter = 1`
+by one writer, `HookHandler::record_newsletter_optin()` (consent mode after the
+wizard only; only ever 1, never on an unticked box), and the existing
+meta-transition handler sends `is_unsubscribed = 0`. Fed by the classic
+checkout (`woocommerce_checkout_update_user_meta`, logged in or new account),
+My Account registration (`woocommerce_created_customer` + the
+`woocommerce-register` nonce) and the block checkout (order meta
+`_smaily_newsletter_optin` from the request hook → recorded on
+`…_checkout_order_processed`, when a new account's id exists; an unticked
+resubmission deletes the order meta). `ContactAudience` unchanged; merchant
+docs already promised this, so no site edit. DECISIONS PRO-3406. Unit-proven
+per flow in `HookHandlerTest`; `tests/Integration/CheckoutNewsletterOptinTest`
+written, NOT run; each flow on a running store is human acceptance. Consent
+surface → include in the next focused security re-audit. Readme changelog
+line belongs to the next bump.
 **PRO-3190** — order and shipping confirmations carry what a real
 confirmation template shows (`TransactionalPayloadBuilder`, DECISIONS
 PRO-3190): `order_subtotal`/`order_tax`/`order_shipping` formatted like
@@ -66,11 +82,11 @@ artifact). **PRO-3407** — FAQ (EN+ET) now says the customer import covers
 registered accounts, not guest-only buyers. ET wording of all of the above
 awaits the PRO-3405 proofread. **Integration NOT run** for any of these (no
 Docker on the MacBook yet) — due before the next release, with a focused
-security re-audit since PRO-3190 joins it (new personal data on the wire, a
-new setting, merchant filters). Human acceptance for PRO-3190: the pilot
-merchant's adapted template renders a real order confirmation. Next: PRO-3406
-fix (awaiting Erkki's go-ahead), CLIPRO-205 live-store check by Erkki (due
-02.10).)_
+security re-audit since PRO-3406 (consent surface) and PRO-3190 (new personal
+data on the wire, a new setting, merchant filters) join it. Next session opens
+with: human acceptance — PRO-3406 on a running store, PRO-3190 with the pilot
+merchant's adapted template; CLIPRO-205 live-store check by Erkki (due 02.10);
+the release cut once the CI fixes (PRO-3428, PRO-1708) are merged.)_
 
 Prior: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published
 2026-09-24: bump commit `3d5643f` pushed to `sendsmaily/smaily-wordpress-plugin`

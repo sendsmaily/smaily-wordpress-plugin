@@ -6770,6 +6770,40 @@ never made); treating pre-existing entries like mirrors (reopens the bug for
 them); a migration stamping all old entries with the upgrade time (more code
 for the same safe outcome).
 
+### PRO-3406 — A registered buyer's newsletter tick is saved as the store's consent record (2026-09-29)
+
+**Context:** in consent mode a registered customer is synced only when
+`user_newsletter` is 1 (`ContactAudience`), and the order path deliberately
+skips account holders. Nothing wrote that meta at the checkout or at
+registration: the classic checkout read the tick and dropped it, the My Account
+registration and a checkout-created account failed the account-details nonce
+`Profile_Settings` checked, and the block checkout treated a new account as a
+guest (the Store API sets its customer id after the request hook). Ticking the
+box later in My Account → Account details was the only path that worked.
+**Decision (Erkki, 2026-09-29):** an explicit tick is saved as
+`user_newsletter = 1`, and the existing meta-transition handler
+(`HookHandler::handle_newsletter_change()`) sends the contact with
+`is_unsubscribed = 0`. `ContactAudience` is unchanged. One writer,
+`HookHandler::record_newsletter_optin()`, fed by:
+- classic checkout — `woocommerce_checkout_update_user_meta( $customer_id,
+  $data )` (WooCommerce has verified the checkout nonce; covers a logged-in
+  buyer and an account created there);
+- My Account registration — `woocommerce_created_customer`, checked against
+  the `woocommerce-register` nonce and the field being offered;
+- block checkout — the request hook keeps the tick as order meta
+  `_smaily_newsletter_optin = 1` (an unticked resubmission of the same order
+  deletes it, so a failed-payment retry keeps only the final choice), and
+  `woocommerce_store_api_checkout_order_processed` records it for the order's
+  customer id, which exists by then. The order meta also stays as evidence.
+The writer only ever writes 1, only on an explicit tick, and only in consent
+mode after the wizard: an unticked box is never an opt-out; legitimate interest
+and checkout-only keep their behaviour (a record there would also hide the box
+on later checkouts); before the wizard the legacy sync owns the tick. A tick
+over an earlier Smaily unsubscribe follows the existing re-grant rule.
+**Rejected:** widening `ContactAudience` to let a registered buyer through the
+order path (would bypass the store's consent record and the reconcile);
+writing 0 for an unticked box (an absent tick is not a withdrawal).
+
 ### PRO-3190 — Order confirmations carry what a real confirmation template shows (2026-09-29)
 
 **Context:** a pilot merchant moving its order-confirmation email from its own
