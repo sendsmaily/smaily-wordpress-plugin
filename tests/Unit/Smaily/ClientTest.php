@@ -360,6 +360,32 @@ final class ClientTest extends TestCase {
 		( new Client( 'demo', 'alice', 's3cret' ) )->send_message( 1, 'a@example.test', array() );
 	}
 
+	public function test_contact_consent_read_carries_the_preference_timestamp(): void {
+		$body = '[{"email":"shopper@example.test","is_unsubscribed":"0","smaily_rec_profiling":"1","smaily_rec_profiling_ts":"2026-09-01T10:00:00Z"}]';
+		Functions\when( 'wp_remote_get' )->justReturn( $this->successful_response( $body ) );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+
+		$consent = ( new Client( 'demo', 'alice', 's3cret' ) )->get_contact_consent( 'shopper@example.test' );
+
+		self::assertSame( '1', $consent['smaily_rec_profiling'] );
+		self::assertSame( '2026-09-01T10:00:00Z', $consent['smaily_rec_profiling_ts'] );
+	}
+
+	public function test_contact_consent_read_without_a_timestamp_reports_none(): void {
+		$body = '{"code":206,"message":"Could not find requested email address"}';
+		Functions\when( 'wp_remote_get' )->justReturn( $this->successful_response( $body ) );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+
+		$consent = ( new Client( 'demo', 'alice', 's3cret' ) )->get_contact_consent( 'shopper@example.test' );
+
+		self::assertFalse( $consent['found'] );
+		self::assertNull( $consent['smaily_rec_profiling_ts'] );
+	}
+
 	private function successful_response( string $body ): array {
 		return array(
 			'response' => array( 'code' => 200 ),
