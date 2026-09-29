@@ -72,6 +72,14 @@ class HookHandler {
 	private const OPTION_FIRST_ORDER_ENABLED = 'smly_plus_first_order_enabled';
 
 	/**
+	 * Order meta recording that the buyer ticked the block-checkout newsletter
+	 * box (PRO-3406). Hands the tick from the request hook to the processed
+	 * hook — a new account's customer id only exists by then — and stays on
+	 * the order as evidence of the consent.
+	 */
+	public const ORDER_META_NEWSLETTER_OPTIN = '_smaily_newsletter_optin';
+
+	/**
 	 * Order meta key => the engine-config key naming the cookie it is read from,
 	 * plus the default cookie name the engine ships with.
 	 *
@@ -309,6 +317,15 @@ class HookHandler {
 		$opted_in = isset( $request['extensions']['smaily-checkout-optin']['user_newsletter'] )
 			&& true === $request['extensions']['smaily-checkout-optin']['user_newsletter'];
 
+		// The order is saved by WooCommerce after this hook. An unticked box
+		// clears a tick left by an earlier submission of the same order (a
+		// failed-payment retry), so only the final choice counts.
+		if ( $opted_in ) {
+			$order->update_meta_data( self::ORDER_META_NEWSLETTER_OPTIN, '1' );
+		} else {
+			$order->delete_meta_data( self::ORDER_META_NEWSLETTER_OPTIN );
+		}
+
 		$this->sync_order_contact( $order, $opted_in );
 	}
 
@@ -328,11 +345,19 @@ class HookHandler {
 	 * anyone. Contact sync is NOT repeated here; block checkout syncs the
 	 * contact from `on_checkout_block_optin`, which is the only place the
 	 * Store-API opt-in flag is readable.
+	 *
+	 * A registered buyer's tick is recorded here (PRO-3406), not in the
+	 * request hook: an account created at this checkout gets its customer id
+	 * only after that hook has run.
 	 */
 	public function on_block_checkout_order_processed( \WC_Order $order ): void {
 		$this->save_attribution_cookies_to_order( $order );
 		$this->maybe_enqueue_first_order( $order );
 		$this->maybe_mark_abandoned_cart_purchase( $order );
+
+		if ( $order->get_meta( self::ORDER_META_NEWSLETTER_OPTIN ) === '1' ) {
+			self::record_newsletter_optin( (int) $order->get_customer_id() );
+		}
 	}
 
 	/**
