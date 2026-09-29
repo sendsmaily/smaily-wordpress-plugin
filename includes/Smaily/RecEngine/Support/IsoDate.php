@@ -36,4 +36,21 @@ final class IsoDate {
 	public static function to_z( int $timestamp ): string {
 		return gmdate( 'Y-m-d\TH:i:s\Z', $timestamp );
 	}
+
+	/**
+	 * The strict inverse of `to_z()`: accepts exactly `Y-m-d\TH:i:s\Z` (the
+	 * form the plugin writes) and nothing else — no relative words
+	 * ("tomorrow"), no offset, no fractions, no out-of-range dates.
+	 *
+	 * @param string $value The datetime string to parse.
+	 *
+	 * @return int|null Unix timestamp, or null when `$value` is not that form.
+	 */
+	public static function parse_z( string $value ): ?int {
+		$date = \DateTimeImmutable::createFromFormat( '!Y-m-d\TH:i:s\Z', $value, new \DateTimeZone( 'UTC' ) );
+		if ( $date === false || $date->format( 'Y-m-d\TH:i:s\Z' ) !== $value ) {
+			return null; // Round-trip check: rejects rolled-over dates (Feb 30).
+		}
+		return $date->getTimestamp();
+	}
 }

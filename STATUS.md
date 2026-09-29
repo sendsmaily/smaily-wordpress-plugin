@@ -27,7 +27,7 @@ If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
 _Last updated: 2026-09-29 (**Unreleased on main after 3.14.0: PRO-3335,
-PRO-3192, PRO-3410, PRO-3407, PRO-3406, PRO-3190, PRO-3411; CI fixed by PRO-1708 + PRO-3428** — first session on the MacBook, orchestrated.
+PRO-3192, PRO-3434, PRO-3410, PRO-3407, PRO-3406, PRO-3190, PRO-3411; CI fixed by PRO-1708 + PRO-3428** — first session on the MacBook, orchestrated.
 **PRO-3406** — in consent mode a registered buyer's newsletter tick now
 reaches Smaily: it is saved as the store's consent record `user_newsletter = 1`
 by one writer, `HookHandler::record_newsletter_optin()` (consent mode after the
@@ -77,7 +77,7 @@ recorded before PRO-3192); `refresh()` lets a `'1'` lift it only when
 `smaily_rec_profiling_ts` (now returned by `Client::get_contact_consent()`) is
 newer — an older `'1'`, one with no timestamp, or any `'1'` against a
 pre-PRO-3192 entry keeps the shopper opted out and writes the opt-out again.
-DECISIONS PRO-3192 + `DATA_MODEL_GDPR.md` registry row. **PRO-3410** — the unit
+DECISIONS PRO-3192 + `DATA_MODEL_GDPR.md` registry row. **PRO-3434** — that timestamp counts only in the exact `IsoDate` Z form (`IsoDate::parse_z()`) and at most 5 minutes in the future; "tomorrow", other formats or a future date count as older (DECISIONS PRO-3434). **PRO-3410** — the unit
 `WP_User` test doubles declare their properties, so `ci:strict` is green on
 Homebrew PHP 8.3/8.5 too (21 risky tests were a PHP-display-deprecations
 artifact). **PRO-3407** — FAQ (EN+ET) now says the customer import covers
