@@ -56,7 +56,7 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 					public function get_countries(): array {
 						return array(
 							'EE' => 'Estonia',
-							'FI' => 'Finland',
+							'RE' => 'R&eacute;union',
 						);
 					}
 				},
@@ -235,6 +235,9 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 		self::assertSame( '11111', $context['shipping_postcode'] );
 		self::assertSame( 'Othertown', $context['shipping_city'] );
 		self::assertSame( 'XX', $context['shipping_country'], 'A code WooCommerce has no name for is sent as the code.' );
+		$order_data                        = $this->order_with_personal_data();
+		$order_data['shipping']['country'] = 'RE';
+		self::assertSame( 'Réunion', $this->builder()->build( $this->fake_order( $order_data ) )['shipping_country'], 'WooCommerce\'s entity-encoded name is decoded, not double-escaped.' );
 		self::assertSame( '+000 0000000', $context['billing_phone'] );
 		self::assertSame( 'Leave at the door &lt;b&gt;please&lt;/b&gt;', $context['customer_note'], 'Free text, escaped.' );
 		self::assertSame( 'Test', $context['first_name'], 'The billing name stays in first_name/last_name.' );

@@ -192,13 +192,19 @@ class TransactionalPayloadBuilder {
 		);
 	}
 
-	/** The country's name as WooCommerce shows it, else the code as stored. */
+	/**
+	 * The country's name as WooCommerce shows it, else the code as stored.
+	 * Decoded, because WooCommerce writes some names with HTML entities
+	 * (`R&eacute;union`) and the caller escapes the result once.
+	 */
 	private function country_name( string $code ): string {
 		if ( $code === '' ) {
 			return '';
 		}
 		$countries = WC()->countries->get_countries();
-		return isset( $countries[ $code ] ) ? (string) $countries[ $code ] : $code;
+		return isset( $countries[ $code ] )
+			? html_entity_decode( (string) $countries[ $code ], ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, 'UTF-8' )
+			: $code;
 	}
 
 	/**
