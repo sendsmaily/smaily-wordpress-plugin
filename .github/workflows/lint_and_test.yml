@@ -124,7 +124,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            blocks/package-lock.json
 
       - name: Set up PHP environment
         uses: shivammathur/setup-php@v2
@@ -142,6 +144,14 @@ jobs:
         run: |
           npm run build
           composer run package:hash
+
+      # The blocks register from blocks/*/build (gitignored, built into the
+      # release ZIP); without it the landing-page block and its stylesheet
+      # never register and the landing-page render tests fail (PRO-3428).
+      - name: Build blocks
+        run: |
+          composer run install-block-modules
+          composer run build
 
       - name: Start wp-env
         run: npx @wordpress/env start
