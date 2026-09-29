@@ -2308,6 +2308,22 @@ msgstr "Saadetakse tellimuse sooritamise järel."
 msgid "Shipping confirmation"
 msgstr "Tarne kinnituskiri"
 
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Customer details"
+msgstr "Kliendi andmed"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Personal data sent with both confirmation emails. Off by default — switch it on only if your email template shows these details."
+msgstr "Isikuandmed, mis saadetakse mõlema kinnituskirjaga. Vaikimisi väljas — lülita sisse ainult siis, kui su kirjapõhi neid andmeid näitab."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Include addresses, phone and order note"
+msgstr "Lisa aadressid, telefon ja tellimuse märkus"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "The billing and delivery address, the delivery name, the phone number and the customer's order note."
+msgstr "Arveldus- ja tarneaadress, saaja nimi, telefoninumber ja kliendi märkus tellimusele."
+
 #: admin/src/components/steps/TransactionalTriggersSection.tsx:53
 msgid "Counts as shipped"
 msgstr ""

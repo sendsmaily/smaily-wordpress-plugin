@@ -139,7 +139,7 @@ literal body POSTed to Smaily, `last_response` its reply summary.
 
 | Element | Where | What it is | Export (Art 15) | Erase (Art 17) |
 |---|---|---|---|---|
-| `smly_plus_event_queue` row | Merchant's own WordPress DB table | One queued Smaily message: `event_type`, `entity_id`, `payload` (the address plus, per type, the shopper's name, the abandoned-cart product matrix, or an order's billing name + number), `contact_key` (a sha256 of the address, migration 011), `status`, timestamps, `sent_payload` + `last_response` (F3-44) | **Yes**, narrowly — `event_type` + `created_at` per row: what the store queued for this address and when | **Yes** — a row that could still send is DELETED; a row already `sent` is REDACTED in place (see below) |
+| `smly_plus_event_queue` row | Merchant's own WordPress DB table | One queued Smaily message: `event_type`, `entity_id`, `payload` (the address plus, per type, the shopper's name, the abandoned-cart product matrix, or an order's billing name + number — plus its addresses, phone and order note when the merchant has switched those on, PRO-3190), `contact_key` (a sha256 of the address, migration 011), `status`, timestamps, `sent_payload` + `last_response` (F3-44) | **Yes**, narrowly — `event_type` + `created_at` per row: what the store queued for this address and when | **Yes** — a row that could still send is DELETED; a row already `sent` is REDACTED in place (see below) |
 
 **Retention (code-derived — `QueueJanitor`):** terminal rows are pruned on the
 daily tick — `sent` after 30 days, `failed` after 90; `pending` rows are never

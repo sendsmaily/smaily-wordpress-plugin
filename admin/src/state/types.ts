@@ -325,6 +325,8 @@ export interface WizardState {
   shippingConfirmationEnabled: boolean;
   /** WC order-status slugs (bare, no 'wc-' prefix) that count as "shipped". */
   shippedOrderStatuses: string[];
+  /** Addresses, phone and order note in both confirmations (PRO-3190) — off by default. */
+  transactionalPersonalData: boolean;
 
   /**
    * Step 4 — Recommendations. Connecting the rec-engine syncs all domains
@@ -486,6 +488,7 @@ export type WizardAction =
   | { type: 'SET_ORDER_CONFIRMATION_ENABLED'; payload: boolean }
   | { type: 'SET_SHIPPING_CONFIRMATION_ENABLED'; payload: boolean }
   | { type: 'TOGGLE_SHIPPED_ORDER_STATUS'; payload: { status: string } }
+  | { type: 'SET_TRANSACTIONAL_PERSONAL_DATA'; payload: boolean }
 
   // Step 4: Recommendations -------------------------------------------------
   | { type: 'SET_REC_ENGINE_FEATURE'; payload: { feature: 'trackBrowsing'; enabled: boolean } }

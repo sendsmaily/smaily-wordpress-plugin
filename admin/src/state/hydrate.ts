@@ -114,6 +114,7 @@ export interface BootPayload {
     orderConfirmationEnabled?: boolean;
     shippingConfirmationEnabled?: boolean;
     shippedOrderStatuses?: string[];
+    transactionalPersonalData?: boolean;
     /**
      * Step 4 — rec-engine connection. The api_key intentionally never
      * lands here; the React layer only needs the connected flag plus
@@ -194,6 +195,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       orderConfirmationEnabled: false,
       shippingConfirmationEnabled: false,
       shippedOrderStatuses: [],
+      transactionalPersonalData: false,
       recEngineFeatures: {
         trackBrowsing: false,
       },
@@ -268,6 +270,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
     orderConfirmationEnabled: s.orderConfirmationEnabled ?? false,
     shippingConfirmationEnabled: s.shippingConfirmationEnabled ?? false,
     shippedOrderStatuses: s.shippedOrderStatuses ?? [],
+    transactionalPersonalData: s.transactionalPersonalData ?? false,
     // Read the saved browse preference so reload AND re-connect restore the
     // merchant's last choice (disconnect preserves the option server-side).
     recEngineFeatures: {

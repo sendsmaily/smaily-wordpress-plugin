@@ -49,6 +49,7 @@ export function actionToTab(action: WizardAction): SettingsTabKey | null {
     case 'SET_ORDER_CONFIRMATION_ENABLED':
     case 'SET_SHIPPING_CONFIRMATION_ENABLED':
     case 'TOGGLE_SHIPPED_ORDER_STATUS':
+    case 'SET_TRANSACTIONAL_PERSONAL_DATA':
       return 'woocommerce';
 
     // Recommendations tab

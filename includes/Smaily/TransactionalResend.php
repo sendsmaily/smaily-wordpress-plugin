@@ -70,7 +70,7 @@ class TransactionalResend {
 			);
 		}
 
-		$id = $this->flusher->enqueue_resend( $trigger_type, $order, $match, $this->builder->build( $order ), $to_status );
+		$id = $this->flusher->enqueue_resend( $trigger_type, $order, $match, $this->builder->build( $order, $trigger_type ), $to_status );
 
 		return array(
 			'id'    => $id,

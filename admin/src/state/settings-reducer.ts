@@ -126,6 +126,7 @@ export function buildSettingsInitialState(env: ServerEnv = {}): WizardState {
     orderConfirmationEnabled: false,
     shippingConfirmationEnabled: false,
     shippedOrderStatuses: [],
+    transactionalPersonalData: false,
 
     recEngineFeatures: {
       trackBrowsing: false,
