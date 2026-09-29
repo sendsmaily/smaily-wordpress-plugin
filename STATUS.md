@@ -50,7 +50,8 @@ checkout: Yes", group "Newsletter consent (order meta)"), the eraser removes it
 from every order of the requester (`GdprHandler`; `orders_for()` became a
 protected unit-test seam). `DATA_MODEL_GDPR.md` lists it; DECISIONS PRO-3426.
 Unit-proven in `GdprHandlerTest`; `RecEngineGdprTest::
-test_newsletter_consent_marker_is_exported_and_erased` written (NOT RUN). Merchant
+test_newsletter_consent_marker_is_exported_and_erased` green on a local
+wp-env (Colima) in BOTH legacy and HPOS order storage (filtered run, 9/9). Merchant
 docs already say export/erase cover the plugin's data — no site edit.
 **PRO-3190** — order and shipping confirmations carry what a real
 confirmation template shows (`TransactionalPayloadBuilder`, DECISIONS
@@ -93,8 +94,9 @@ registered accounts, not guest-only buyers. **PRO-3411** — the old upstream
 `readme.md` is no longer tracked (it collided with `README.md` on a
 case-insensitive Mac disk); `README.md` now points to the docs site's Merge
 tags section, the only email field reference. ET wording of all of the above
-awaits the PRO-3405 proofread. **Integration NOT run** for any of these (no
-Docker on the MacBook yet) — due before the next release, with a focused
+awaits the PRO-3405 proofread. **Integration NOT run** for any of these except
+PRO-3426's filtered `RecEngineGdprTest` (Docker now runs on the MacBook via
+Colima; the full suite there is still unproven) — due before the next release, with a focused
 security re-audit since PRO-3406 (consent surface) and PRO-3190 (new personal
 data on the wire, a new setting, merchant filters) join it. Next session opens
 with: human acceptance — PRO-3406 on a running store, PRO-3190 with the pilot
