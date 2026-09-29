@@ -1280,3 +1280,30 @@ This repository is engineering truth — STATUS/DECISIONS/docs stay canonical he
 3. **Scribe pass at session end.** Before finishing a working session, distill it into Linear: post an honest project status update (onTrack/atRisk/offTrack), promote new backlog items to Linear issues, update the project's SDD document if architecture moved, close completed issues. Use the `/linear-project` skill if available, otherwise the Linear MCP tools directly.
 
 Never duplicate repo documents into Linear — summarize and link. Linear content is written in English.
+
+## Outcome gauges
+
+The session orchestrator reads this at every session start to build the big
+picture.
+
+- **Anchor:** legacy form, where one Linear project is the Epic:
+  *Smaily Connect for WooCommerce — v3 rewrite* (P-PRO-215).
+- **Shape: TREND.** The work is open-ended (pilot stores, merchant requests,
+  releases), so there is **no target date and no milestones**. Erkki decided
+  this on 2026-09-29: "tähtaega pole — näita progressi ajas". Don't ask again
+  before ~2026-10-13 unless something makes a date likely (a client commitment,
+  a vendor deadline).
+- **Gauges** (read-only; print only the numbers, never names or payloads):
+  1. Live version and active installs on wordpress.org. Use the **1.2**
+     endpoint: the 1.0 `…/info/1.0/smaily-connect.json` has no
+     `active_installs` field and prints `None`.
+     `curl -s "https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&slug=smaily-connect" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['version'],d.get('active_installs'))"`
+  2. Release cadence (tag and date):
+     `gh release list --repo sendsmaily/smaily-wordpress-plugin --limit 5`
+- **How to read them:** at session end (the scribe pass), record the latest
+  gauge values and the date in STATUS.md's handoff header. The next session
+  shows the last 3–4 recorded values as a trend. If the numbers stay flat for
+  2+ weeks, say so out loud.
+- **Baseline (2026-09-29):** version 3.14.0, active installs 2000 (wordpress.org
+  buckets this figure). Latest releases: 3.14.0 (2026-09-24), 3.13.0
+  (2026-09-10), 3.12.1 (2026-09-08), 3.12.0 (2026-09-07), 3.11.3 (2026-09-07).
