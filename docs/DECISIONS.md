@@ -6738,6 +6738,38 @@ existing seven fields are untouched, so no template changes meaning.
 **Rejected:** tracking parameters (out of scope by decision); linking a
 trashed product (its page is gone for the customer).
 
+### PRO-3192 — The newest profiling choice wins over an older opt-in on the contact (2026-09-29)
+
+**Context:** after PRO-3191 an explicit `'1'` on the Smaily contact still
+lifted a durable opt-out at the next read. A shopper who opted in earlier and
+later opted out in My Account while the Smaily write failed was therefore
+switched back on by their OLDER answer.
+**Decision (Erkki, 2026-09-29):** the store records WHEN it made the opt-out.
+A contact's `'1'` lifts it only when its `smaily_rec_profiling_ts` is NEWER
+than that moment; an older `'1'`, or one with no (parseable) timestamp, keeps
+the shopper opted out and the opt-out is written to the contact again (same
+`write()` upsert). Nothing else changes. The registry value
+(`smly_profiling_optouts[hash]`) is now the moment: the Unix time of a
+store-side opt-out (My Account `opt_out()`, or the store writing the opt-out to
+the contact — so the moment matches what the contact then holds), or `0` for an
+entry that only mirrors a Smaily read-back (`'0'` or unsubscribed) — any
+timestamped `'1'` is newer than that, which keeps PRO-3191's behaviour for
+those entries (e.g. a resubscribed contact whose `'1'` predates the
+unsubscribe).
+**Entries recorded before this change** hold `true` (no moment) and cannot
+tell a My Account opt-out from a mirrored one. They are read the safe way: as
+the newest answer, so no `'1'` lifts them; the opt-out is written to the
+contact and that write records the moment, after which a genuinely newer
+`'1'` is respected again. Cost: an old mirrored entry whose contact now holds
+`'1'` gets the opt-out written over it once; the shopper can opt back in from
+My Account. Choosing the other reading would leave exactly the case this
+issue fixes open for pre-existing opt-outs.
+**Rejected:** stamping read-back mirrors with the read time (a resubscribed
+contact's older `'1'` would then be overwritten with an opt-out the shopper
+never made); treating pre-existing entries like mirrors (reopens the bug for
+them); a migration stamping all old entries with the upgrade time (more code
+for the same safe outcome).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

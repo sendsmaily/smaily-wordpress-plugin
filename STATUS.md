@@ -26,19 +26,34 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-29 (**PRO-3335 — product links in order, shipping
-and abandoned-cart emails; unreleased, on a worker branch, not merged.** New
-merge tag `product_url_1..10` beside the existing seven product fields, same
-name in all three payloads (`TransactionalPayloadBuilder`,
-`CartPayloadBuilder`, shared `ProductMatrixBuilder::product_url()`): a plain
-permalink, no tracking parameters; a variation links with the bought options
-(confirmation) or the cart's variation (reminder); empty when the product is
-gone or not published. Existing fields unchanged. Merchant docs Merge-tags
-tables (EN+ET) and the legacy `readme.md` list updated; the ET wording awaits
-the PRO-3405 proofread. Unit-tested only (PHPUnit unit 850 / 2 454
-assertions, +7 tests); **integration NOT run** (no Docker on that machine).
-Per-send field limit: nothing in this repo documents one — unverified.
-Next release will carry it once merged.)_
+_Last updated: 2026-09-29 (**Unreleased on main after 3.14.0: PRO-3335,
+PRO-3192, PRO-3410, PRO-3407** — first session on the MacBook, orchestrated.
+**PRO-3335** — new merge tag `product_url_1..10` beside the existing seven
+product fields, same name in order confirmation, shipping confirmation and the
+abandoned-cart reminder (`TransactionalPayloadBuilder`, `CartPayloadBuilder`,
+shared `ProductMatrixBuilder::product_url()`): a plain permalink, no tracking
+parameters; a variation links with the bought options (confirmation) or the
+cart's variation (reminder); empty when the product is gone or not published.
+Existing fields unchanged; merchant docs Merge-tags tables (EN+ET) and the
+legacy `readme.md` list updated. Per-send field limit unverified (PRO-3409).
+**PRO-3192** — the newest profiling choice wins over an older opt-in on the
+Smaily contact: the registry value is now the opt-out's moment (Unix time of a
+store-side opt-out; `0` for one mirrored from a Smaily read-back; `true` =
+recorded before PRO-3192); `refresh()` lets a `'1'` lift it only when
+`smaily_rec_profiling_ts` (now returned by `Client::get_contact_consent()`) is
+newer — an older `'1'`, one with no timestamp, or any `'1'` against a
+pre-PRO-3192 entry keeps the shopper opted out and writes the opt-out again.
+DECISIONS PRO-3192 + `DATA_MODEL_GDPR.md` registry row. **PRO-3410** — the unit
+`WP_User` test doubles declare their properties, so `ci:strict` is green on
+Homebrew PHP 8.3/8.5 too (21 risky tests were a PHP-display-deprecations
+artifact). **PRO-3407** — FAQ (EN+ET) now says the customer import covers
+registered accounts, not guest-only buyers. ET wording of all of the above
+awaits the PRO-3405 proofread. **Integration NOT run** for any of these (no
+Docker on the MacBook yet) — due before the next release, with a focused
+security re-audit if PRO-3190 joins it. Next session opens with: PRO-3190
+build (design approved 2026-09-29: full address/phone set behind a merchant
+toggle, default off), PRO-3406 fix (awaiting Erkki's go-ahead), CLIPRO-205
+live-store check by Erkki (due 02.10).)_
 
 Prior: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published
 2026-09-24: bump commit `3d5643f` pushed to `sendsmaily/smaily-wordpress-plugin`
