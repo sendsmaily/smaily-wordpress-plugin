@@ -165,26 +165,21 @@ class Client {
 	 */
 	public function get_contact_consent( string $email ): array {
 		$body = $this->request( 'GET', 'contact', array( 'email' => $email ) );
+		$keys = array( 'is_unsubscribed', 'smaily_rec_profiling', 'smaily_rec_profiling_ts' );
 
 		// A status payload ({code, message}) = not-found / error, never a contact.
 		if ( ! is_array( $body ) || isset( $body['code'] ) ) {
-			return array(
-				'found'                   => false,
-				'is_unsubscribed'         => null,
-				'smaily_rec_profiling'    => null,
-				'smaily_rec_profiling_ts' => null,
-			);
+			return array( 'found' => false ) + array_fill_keys( $keys, null );
 		}
 
 		// The hit is a contact object, or a single-element list of one.
 		$contact = isset( $body[0] ) && is_array( $body[0] ) ? $body[0] : $body;
 
-		return array(
-			'found'                   => true,
-			'is_unsubscribed'         => isset( $contact['is_unsubscribed'] ) ? (string) $contact['is_unsubscribed'] : null,
-			'smaily_rec_profiling'    => isset( $contact['smaily_rec_profiling'] ) ? (string) $contact['smaily_rec_profiling'] : null,
-			'smaily_rec_profiling_ts' => isset( $contact['smaily_rec_profiling_ts'] ) ? (string) $contact['smaily_rec_profiling_ts'] : null,
-		);
+		$consent = array( 'found' => true );
+		foreach ( $keys as $key ) {
+			$consent[ $key ] = isset( $contact[ $key ] ) ? (string) $contact[ $key ] : null;
+		}
+		return $consent;
 	}
 
 	/**
