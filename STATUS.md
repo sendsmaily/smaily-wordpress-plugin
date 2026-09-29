@@ -27,7 +27,23 @@ If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
 _Last updated: 2026-09-29 (**Unreleased on main after 3.14.0: PRO-3335,
-PRO-3192, PRO-3410, PRO-3407** — first session on the MacBook, orchestrated.
+PRO-3192, PRO-3410, PRO-3407, PRO-3190** — first session on the MacBook, orchestrated.
+**PRO-3190** — order and shipping confirmations carry what a real
+confirmation template shows (`TransactionalPayloadBuilder`, DECISIONS
+PRO-3190): `order_subtotal`/`order_tax`/`order_shipping` formatted like
+`order_total` plus `_raw` copies of all four, `order_status` +
+`order_status_id`, `payment_method_id` + `shipping_method_id`,
+`product_discount_percent_N`; addresses, delivery name, phone and
+`customer_note` only behind the new WooCommerce-tab switch **Customer details
+→ Include addresses, phone and order note** (default OFF,
+`smly_plus_transactional_personal_data_enabled`); two extras filters
+(`smaily_connect_transactional_email_fields` / `…_product_fields`, guarded:
+built-ins win, key/scalar/length/20-key rules, Throwable-safe); `build()`
+takes the trigger (also from "Send again"). Existing fields unchanged; GDPR
+erasure blanks the new keys (allowlist redaction, pinned by a unit test).
+Merchant docs (EN+ET) list the fields, the switch and how to move a template;
+ET admin strings added to the `.po` by hand. Per-send field count grows by up to 35
+— see PRO-3409.
 **PRO-3335** — new merge tag `product_url_1..10` beside the existing seven
 product fields, same name in order confirmation, shipping confirmation and the
 abandoned-cart reminder (`TransactionalPayloadBuilder`, `CartPayloadBuilder`,
@@ -50,10 +66,11 @@ artifact). **PRO-3407** — FAQ (EN+ET) now says the customer import covers
 registered accounts, not guest-only buyers. ET wording of all of the above
 awaits the PRO-3405 proofread. **Integration NOT run** for any of these (no
 Docker on the MacBook yet) — due before the next release, with a focused
-security re-audit if PRO-3190 joins it. Next session opens with: PRO-3190
-build (design approved 2026-09-29: full address/phone set behind a merchant
-toggle, default off), PRO-3406 fix (awaiting Erkki's go-ahead), CLIPRO-205
-live-store check by Erkki (due 02.10).)_
+security re-audit since PRO-3190 joins it (new personal data on the wire, a
+new setting, merchant filters). Human acceptance for PRO-3190: the pilot
+merchant's adapted template renders a real order confirmation. Next: PRO-3406
+fix (awaiting Erkki's go-ahead), CLIPRO-205 live-store check by Erkki (due
+02.10).)_
 
 Prior: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published
 2026-09-24: bump commit `3d5643f` pushed to `sendsmaily/smaily-wordpress-plugin`
