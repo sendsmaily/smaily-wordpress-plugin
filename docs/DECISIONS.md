@@ -6804,6 +6804,26 @@ over an earlier Smaily unsubscribe follows the existing re-grant rule.
 order path (would bypass the store's consent record and the reconcile);
 writing 0 for an unticked box (an absent tick is not a withdrawal).
 
+### PRO-3426 — The block-checkout newsletter consent marker is exported and erased (2026-09-29)
+
+**Context:** PRO-3406 keeps order meta `_smaily_newsletter_optin = 1` on a
+block-checkout order whose buyer ticked the newsletter box — consent evidence,
+and personal data about that buyer. The WP Privacy exporter/eraser
+(`GdprHandler`) and `DATA_MODEL_GDPR.md` did not know it, so a subject-access
+or erasure request answered incompletely.
+**Decision (Erkki, 2026-09-29):** the marker is INCLUDED in the personal-data
+export — one item per marked order, in the plugin's existing export group,
+giving the order number and "Newsletter consent given at checkout: Yes" — and
+REMOVED from every order of the requester on an erasure request (the eraser
+reports it as removed; an order without it is not saved). Found through the
+same `wc_get_orders`-by-billing-email lookup as the rec markers, read and
+deleted through the order API (HPOS and legacy alike).
+**Rationale:** the Smaily contact keeps its own consent history, so the store
+does not need a WordPress copy of the evidence once the person has asked to be
+forgotten.
+**Rejected:** keeping the marker after erasure as proof of consent (that
+record lives in Smaily).
+
 ### PRO-3190 — Order confirmations carry what a real confirmation template shows (2026-09-29)
 
 **Context:** a pilot merchant moving its order-confirmation email from its own
@@ -6859,6 +6879,31 @@ currency sign — use the `_raw` fields to format your own.
 not need); renaming or reformatting existing fields to suit the pilot's
 template (would break every other merchant's template); a live product lookup
 for sale-price discounts (the order line is what the customer paid).
+
+### PRO-3433 — Accept the risk that a newsletter tick on a new account can resubscribe an address (2026-09-29)
+
+**Context:** the 3.15.0 security delta audit (Low 1,
+`docs/audits/SECURITY_DELTA_AUDIT_2026-09-29_3.15.0.md`) found that since
+PRO-3406 a newsletter tick on an account created in the same request (My
+Account registration, or an account created at the classic or block checkout)
+subscribes an address WooCommerce never verified, and the transition
+handler's `is_unsubscribed = 0` overrides a prior Smaily unsubscribe. Anyone
+can register an address that has no account yet and tick the box.
+**Decision (Erkki, 2026-09-29):** accept the risk; no code change. A tick on a
+new account keeps following the existing re-grant rule (PRO-3406).
+**Rationale:** the harm is limited to unwanted marketing email (every message
+carries Smaily's unsubscribe link, and an unsubscribe comes back through the
+reconciler); it works only for an address with no account on the store yet,
+because WooCommerce refuses to register an address that already has one; and
+the same class of exposure already exists through public signup forms and the
+checkout-only / guest modes, where a guest checkout sends
+`is_unsubscribed = 0` for whatever email is typed.
+**Rejected (both deferred, not ruled out):** not overriding a prior Smaily
+unsubscribe for an account created in the same request (omit
+`is_unsubscribed` when the contact is found unsubscribed); sending
+new-account ticks through a Smaily double opt-in workflow.
+**Relationships:** PRO-3406 (the consent writer); the audit's Low 2 (PRO-3434,
+strict profiling-timestamp parsing) is fixed before 3.15.0 instead.
 
 ### PRO-3434 — Only a strict, past profiling timestamp can lift a store opt-out (2026-09-29)
 

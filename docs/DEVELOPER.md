@@ -58,9 +58,11 @@ Gotchas that cost real time:
   them; always run the full `ci:strict` chain, never just `npm run test`.
 - **PHPCS: no cache locally** (`--no-cache` is baked into ci:strict), and never
   trim the summary line off PHPCS output.
-- **CI's "Lint and test the codebase" workflow is pre-existing red on main**
-  (it runs the integration suite without WooCommerce). The authoritative gates
-  are LOCAL: `ci:strict` + the wp-env integration suite.
+- **CI's "Lint and test the codebase" workflow is green on main** (since
+  2026-09-29: the PHP matrix runs only the unit suite, and the wp-env
+  integration job builds the blocks first). A red job means something broke —
+  read it as a real failure, not background noise. Still run the LOCAL gates
+  before a PR: `ci:strict` + the wp-env integration suite.
 
 ### Filtered / single integration tests
 

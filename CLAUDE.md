@@ -994,6 +994,12 @@ the pilot's actual path is the unit-tested-only one. Low risk (the SQL is the
 same shape, table_spec-verified), but if a legacy-storage order-backfill issue
 surfaces, reproduce it against a LEGACY WC env — the HPOS-mode wp-env won't show
 it. Do NOT assume "integration green" covers the legacy order path.
+**But a FRESH wp-env is not HPOS** (observed 2026-09-29, PRO-3426, on a new
+worktree's wp-env on the Mac): `woocommerce_custom_orders_table_enabled` came
+up `no`, so that run exercised LEGACY storage. Check it before claiming which
+path a run covered (`wp option get woocommerce_custom_orders_table_enabled`);
+`wp option update woocommerce_custom_orders_table_enabled yes` switched an
+order-less env to HPOS. Whether CI's fresh wp-env is the same is unverified.
 
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with

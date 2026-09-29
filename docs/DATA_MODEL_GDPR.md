@@ -168,6 +168,18 @@ which carries the email and an order's billing fields. It has no `contact_key`,
 the engine-side §9 DELETE does not reach the merchant's own table, and the
 janitor's retention is again the only thing that clears it.
 
+### Plugin-held — newsletter consent evidence on block-checkout orders (non-rec-engine, PRO-3426)
+
+| Element | Where | What it is | Export (Art 15) | Erase (Art 17) |
+|---|---|---|---|---|
+| `_smaily_newsletter_optin` | order-meta (value `1`) | Written by `HookHandler` on a block-checkout order when the buyer ticked the newsletter box (PRO-3406): it hands the tick to the order-processed hook and stays on the order as the store's evidence of that consent. Absent when the box was not ticked | **Yes** — one item per marked order: the order number and "Newsletter consent given at checkout: Yes" | **Removed** from every order of the requester; orders without it are not touched |
+
+Found through the same order lookup as the rec markers (`wc_get_orders` by
+billing email, read and deleted through the order API, so HPOS and legacy
+storage alike). Removing it on erasure is Erkki's decision (DECISIONS
+PRO-3426): the Smaily contact keeps its own consent history, which the
+merchant's Smaily account answers for.
+
 ---
 
 ## Consent model — granular, not one switch
@@ -207,9 +219,10 @@ Profiling consent OFF therefore produces **two actions**:
 Returns the shopper's **rec-engine personal data**, and nothing more:
 
 - Included: engine browse_events, visitor_tokens, recommendations, email_events,
-  engine customer record; plugin rec-meta (the `_smaily_*` markers); the local
-  abandoned-cart tracker rows (PRO-1343) and, narrowly, the Smaily event
-  queue's rows — `event_type` + `created_at` only (PRO-2383).
+  engine customer record; plugin rec-meta (the `_smaily_*` markers); the
+  block-checkout newsletter consent marker, one item per marked order
+  (PRO-3426); the local abandoned-cart tracker rows (PRO-1343) and, narrowly,
+  the Smaily event queue's rows — `event_type` + `created_at` only (PRO-2383).
 - **Not included:** `rec_attribution` (decision logic / trade secret — omitted,
   not flagged as "request separately", because it is not a subject-access right);
   the rec-engine's decision logic / weights (trade secret, as Google/Meta also
@@ -227,7 +240,8 @@ Full deletion, asymmetric to export (export is conservative, erase is complete):
 - Retained after erase: a `gdpr_audit_log` row (proof the deletion happened) and
   `lift_metrics_daily` in anonymised form (aggregate, no PII).
 - Plugin side: the `_smaily_*` order-meta and user-meta markers are removed, so
-  no rec-specific traces are left behind in WordPress; the abandoned-cart
+  no rec-specific traces are left behind in WordPress (and the newsletter
+  consent marker `_smaily_newsletter_optin` with them, PRO-3426); the abandoned-cart
   tracker rows are deleted (PRO-1343); and in the Smaily event queue every
   still-sendable row is deleted while every already-`sent` row is anonymised in
   place, so the Event Log keeps the fact of the send and none of the person
