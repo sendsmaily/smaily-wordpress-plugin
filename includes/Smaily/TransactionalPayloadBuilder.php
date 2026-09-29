@@ -63,19 +63,45 @@ class TransactionalPayloadBuilder {
 	 * @return array<string, string>
 	 */
 	public function build( \WC_Order $order ): array {
+		$items = $this->product_items( $order );
+
+		// Every order-level money field is GROSS, like order_total (PRO-1241):
+		// the subtotal is the product lines after discounts, the shipping
+		// carries its tax.
+		$total    = (float) $order->get_total();
+		$subtotal = 0.0;
+		foreach ( $items as $item ) {
+			$subtotal += (float) $item->get_total() + (float) $item->get_total_tax();
+		}
+		$tax      = (float) $order->get_total_tax();
+		$shipping = (float) $order->get_shipping_total() + (float) $order->get_shipping_tax();
+		$status   = (string) $order->get_status();
+
 		$context = array(
-			'order_number'    => $this->escape( (string) $order->get_order_number() ),
+			'order_number'       => $this->escape( (string) $order->get_order_number() ),
 			// Already gross (products + shipping + tax − discounts, as
 			// charged) — do not add get_total_tax() on top (PRO-1241).
-			'order_total'     => $this->price_display( (float) $order->get_total() ),
-			'currency'        => $this->currency( $order ),
-			'payment_method'  => $this->escape( (string) $order->get_payment_method_title() ),
-			'shipping_method' => $this->escape( (string) $order->get_shipping_method() ),
-			'first_name'      => $this->escape( (string) $order->get_billing_first_name() ),
-			'last_name'       => $this->escape( (string) $order->get_billing_last_name() ),
+			'order_total'        => $this->price_display( $total ),
+			'currency'           => $this->currency( $order ),
+			'payment_method'     => $this->escape( (string) $order->get_payment_method_title() ),
+			'shipping_method'    => $this->escape( (string) $order->get_shipping_method() ),
+			'first_name'         => $this->escape( (string) $order->get_billing_first_name() ),
+			'last_name'          => $this->escape( (string) $order->get_billing_last_name() ),
+			// PRO-3190: the rest of what a real confirmation shows.
+			'order_subtotal'     => $this->price_display( $subtotal ),
+			'order_tax'          => $this->price_display( $tax ),
+			'order_shipping'     => $this->price_display( $shipping ),
+			'order_total_raw'    => $this->raw_amount( $total ),
+			'order_subtotal_raw' => $this->raw_amount( $subtotal ),
+			'order_tax_raw'      => $this->raw_amount( $tax ),
+			'order_shipping_raw' => $this->raw_amount( $shipping ),
+			'order_status'       => $this->escape( (string) wc_get_order_status_name( $status ) ),
+			'order_status_id'    => $this->escape( $status ),
+			'payment_method_id'  => $this->escape( (string) $order->get_payment_method() ),
+			'shipping_method_id' => $this->escape( $this->shipping_method_ids( $order ) ),
 		);
 
-		return $context + $this->product_fields( $order );
+		return $context + $this->product_fields( $items );
 	}
 
 	/**
@@ -83,17 +109,12 @@ class TransactionalPayloadBuilder {
 	 * legacy-parity shape: every slot prefilled '', filled per order line,
 	 * `over_10_products` flagged past slot 10.
 	 *
+	 * @param array<int, \WC_Order_Item_Product> $valid_items
+	 *
 	 * @return array<string, string>
 	 */
-	private function product_fields( \WC_Order $order ): array {
+	private function product_fields( array $valid_items ): array {
 		$fields = ProductMatrixBuilder::prefill( self::PRODUCT_KEYS );
-
-		$valid_items = array();
-		foreach ( $order->get_items() as $item ) {
-			if ( $item instanceof \WC_Order_Item_Product ) {
-				$valid_items[] = $item;
-			}
-		}
 
 		return ProductMatrixBuilder::fill(
 			$fields,
@@ -119,6 +140,43 @@ class TransactionalPayloadBuilder {
 				);
 			}
 		);
+	}
+
+	/**
+	 * The order's product lines — the only lines that fill a slot or count
+	 * toward order_subtotal.
+	 *
+	 * @return array<int, \WC_Order_Item_Product>
+	 */
+	private function product_items( \WC_Order $order ): array {
+		$items = array();
+		foreach ( $order->get_items() as $item ) {
+			if ( $item instanceof \WC_Order_Item_Product ) {
+				$items[] = $item;
+			}
+		}
+		return $items;
+	}
+
+	/**
+	 * The shipping lines' method codes (`flat_rate`, `local_pickup`, …),
+	 * joined the way WooCommerce joins their titles into shipping_method,
+	 * so the two fields list the lines in the same order.
+	 */
+	private function shipping_method_ids( \WC_Order $order ): string {
+		$ids = array();
+		foreach ( $order->get_shipping_methods() as $shipping ) {
+			$ids[] = (string) $shipping->get_method_id();
+		}
+		return implode( ', ', $ids );
+	}
+
+	/**
+	 * An unformatted amount (`24.90`, `0.00`) for a template that formats
+	 * money itself — the store's price decimals, no currency sign.
+	 */
+	private function raw_amount( float $amount ): string {
+		return (string) wc_format_decimal( $amount, wc_get_price_decimals() );
 	}
 
 	/**

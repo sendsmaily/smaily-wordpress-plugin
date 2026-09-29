@@ -11,10 +11,48 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Unit\Smaily;
 
+use Brain\Monkey;
+use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 
 final class TransactionalPayloadBuilderTest extends TestCase {
+
+	/** @var array<string, mixed> */
+	private array $options = array();
+
+	protected function setUp(): void {
+		parent::setUp();
+		Monkey\setUp();
+		$this->options = array();
+
+		$opts = &$this->options;
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $fallback = false ) use ( &$opts ) {
+				return $opts[ $key ] ?? $fallback;
+			}
+		);
+		Functions\when( 'wc_get_price_decimals' )->justReturn( 2 );
+		Functions\when( 'wc_format_decimal' )->alias(
+			static function ( $number, $dp ) {
+				return number_format( (float) $number, (int) $dp, '.', '' );
+			}
+		);
+		Functions\when( 'wc_get_order_status_name' )->alias(
+			static function ( string $status ) {
+				$names = array(
+					'processing' => 'Processing',
+					'completed'  => 'Completed',
+				);
+				return $names[ $status ] ?? $status;
+			}
+		);
+	}
+
+	protected function tearDown(): void {
+		Monkey\tearDown();
+		parent::tearDown();
+	}
 
 	public function test_order_level_fields(): void {
 		$order = $this->fake_order(
@@ -38,6 +76,117 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 		self::assertSame( 'DPD', $context['shipping_method'] );
 		self::assertSame( 'Mari', $context['first_name'] );
 		self::assertSame( 'Maasikas', $context['last_name'] );
+	}
+
+	public function test_subtotal_tax_and_shipping_are_formatted_like_the_total(): void {
+		// PRO-3190. Two lines: one discounted by a coupon (net 18.00 + 4.32
+		// tax after the discount, 24.80 before), one not (net 5.00 + 1.20).
+		// Shipping 3.00 + 0.72 tax. All gross, all through the same display
+		// formatting as order_total.
+		$order = $this->fake_order(
+			array(
+				'total'          => 32.24,
+				'total_tax'      => 6.24,
+				'shipping_total' => 3.00,
+				'shipping_tax'   => 0.72,
+				'items'          => array(
+					$this->fake_item( array( 'name' => 'A', 'qty' => 2, 'subtotal' => 20.00, 'subtotal_tax' => 4.80, 'total' => 18.00, 'total_tax' => 4.32 ) ),
+					$this->fake_item( array( 'name' => 'B', 'qty' => 1, 'total' => 5.00, 'total_tax' => 1.20 ) ),
+				),
+			)
+		);
+
+		$context = $this->builder()->build( $order );
+
+		self::assertSame( 'display:32.24', $context['order_total'] );
+		self::assertSame( 'display:28.52', $context['order_subtotal'], 'After discounts, tax included: 18.00 + 4.32 + 5.00 + 1.20.' );
+		self::assertSame( 'display:6.24', $context['order_tax'] );
+		self::assertSame( 'display:3.72', $context['order_shipping'], 'Shipping carries its tax, like every other amount.' );
+	}
+
+	public function test_unformatted_amounts_are_sent_and_free_shipping_reads_as_zero(): void {
+		$order = $this->fake_order(
+			array(
+				'total'     => 24.9,
+				'total_tax' => 4.82,
+				'items'     => array(
+					$this->fake_item( array( 'name' => 'A', 'qty' => 1, 'total' => 20.08, 'total_tax' => 4.82 ) ),
+				),
+			)
+		);
+
+		$context = $this->builder()->build( $order );
+
+		self::assertSame( '24.90', $context['order_total_raw'] );
+		self::assertSame( '24.90', $context['order_subtotal_raw'] );
+		self::assertSame( '4.82', $context['order_tax_raw'] );
+		self::assertSame( '0.00', $context['order_shipping_raw'], 'Free shipping is a zero, not an empty field.' );
+		self::assertSame( 'display:0', $context['order_shipping'] );
+	}
+
+	public function test_status_is_sent_as_the_shown_name_and_as_the_code(): void {
+		$context = $this->builder()->build( $this->fake_order( array( 'status' => 'processing' ) ) );
+
+		self::assertSame( 'Processing', $context['order_status'] );
+		self::assertSame( 'processing', $context['order_status_id'] );
+	}
+
+	public function test_payment_and_shipping_method_codes_sit_next_to_the_titles(): void {
+		$order = $this->fake_order(
+			array(
+				'payment_method'      => 'Bank transfer',
+				'payment_method_id'   => 'bacs',
+				'shipping_method'     => 'Flat rate, Local pickup',
+				'shipping_method_ids' => array( 'flat_rate', 'local_pickup' ),
+			)
+		);
+
+		$context = $this->builder()->build( $order );
+
+		self::assertSame( 'Bank transfer', $context['payment_method'] );
+		self::assertSame( 'bacs', $context['payment_method_id'] );
+		self::assertSame( 'Flat rate, Local pickup', $context['shipping_method'] );
+		self::assertSame( 'flat_rate, local_pickup', $context['shipping_method_id'], 'Joined like the titles, so the two list the lines in the same order.' );
+	}
+
+	public function test_existing_fields_keep_their_names_and_formats(): void {
+		// PRO-3190 adds fields only: a template written against the fields
+		// sent before it keeps working unchanged.
+		$order = $this->fake_order(
+			array(
+				'order_number'    => '1001',
+				'total'           => 24.9,
+				'payment_method'  => 'Card',
+				'shipping_method' => 'Courier',
+				'first_name'      => 'Test',
+				'last_name'       => 'Shopper',
+				'items'           => array(
+					$this->fake_item( array( 'name' => 'A', 'sku' => 'A-1', 'qty' => 2, 'total' => 10.0 ) ),
+				),
+			)
+		);
+
+		$context = $this->builder()->build( $order );
+
+		self::assertSame(
+			array(
+				'order_number'    => '1001',
+				'order_total'     => 'display:24.9',
+				'currency'        => 'EUR',
+				'payment_method'  => 'Card',
+				'shipping_method' => 'Courier',
+				'first_name'      => 'Test',
+				'last_name'       => 'Shopper',
+			),
+			array_slice( $context, 0, 7, true )
+		);
+		self::assertSame( 'A', $context['product_name_1'] );
+		self::assertSame( 'A-1', $context['product_sku_1'] );
+		self::assertSame( '2', $context['product_quantity_1'] );
+		self::assertSame( 'display:5', $context['product_price_1'] );
+		self::assertSame( 'display:5', $context['product_base_price_1'] );
+		self::assertSame( '', $context['product_name_2'], 'An unused slot is still sent empty.' );
+		self::assertArrayNotHasKey( 'over_10_products', $context, 'Still absent at 10 products or fewer.' );
 	}
 
 	public function test_order_level_text_fields_are_htmlspecialchars_escaped(): void {
@@ -267,6 +416,44 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 
 			public function get_items( $types = 'line_item' ): array {
 				return $this->p['items'] ?? array();
+			}
+
+			public function get_total_tax( $context = 'view' ) {
+				return (string) ( $this->p['total_tax'] ?? '0' );
+			}
+
+			public function get_shipping_total( $context = 'view' ) {
+				return (string) ( $this->p['shipping_total'] ?? '0' );
+			}
+
+			public function get_shipping_tax( $context = 'view' ) {
+				return (string) ( $this->p['shipping_tax'] ?? '0' );
+			}
+
+			public function get_status( $context = 'view' ): string {
+				return (string) ( $this->p['status'] ?? 'processing' );
+			}
+
+			public function get_payment_method( $context = 'view' ) {
+				return (string) ( $this->p['payment_method_id'] ?? '' );
+			}
+
+			public function get_shipping_methods() {
+				$lines = array();
+				foreach ( $this->p['shipping_method_ids'] ?? array() as $id ) {
+					$lines[] = new class( $id ) {
+						private string $id;
+
+						public function __construct( string $id ) {
+							$this->id = $id;
+						}
+
+						public function get_method_id() {
+							return $this->id;
+						}
+					};
+				}
+				return $lines;
 			}
 		};
 	}

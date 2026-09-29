@@ -46,6 +46,14 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 				return $opts[ $key ] ?? $fallback;
 			}
 		);
+		// The real builder's WC formatting helpers (tests that use it).
+		Functions\when( 'wc_get_price_decimals' )->justReturn( 2 );
+		Functions\when( 'wc_format_decimal' )->alias(
+			static function ( $number, $dp ) {
+				return number_format( (float) $number, (int) $dp, '.', '' );
+			}
+		);
+		Functions\when( 'wc_get_order_status_name' )->returnArg();
 	}
 
 	protected function tearDown(): void {
@@ -445,6 +453,30 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 
 			public function get_items( $types = 'line_item' ): array {
 				return array( $this->item );
+			}
+
+			public function get_total_tax( $context = 'view' ) {
+				return '0';
+			}
+
+			public function get_shipping_total( $context = 'view' ) {
+				return '0';
+			}
+
+			public function get_shipping_tax( $context = 'view' ) {
+				return '0';
+			}
+
+			public function get_status( $context = 'view' ): string {
+				return 'processing';
+			}
+
+			public function get_payment_method( $context = 'view' ) {
+				return '';
+			}
+
+			public function get_shipping_methods() {
+				return array();
 			}
 
 			public function update_meta_data( $key, $value, $unique_id = 0 ): void {
