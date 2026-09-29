@@ -95,7 +95,11 @@ artifact). **PRO-3407** — FAQ (EN+ET) now says the customer import covers
 registered accounts, not guest-only buyers. **PRO-3411** — the old upstream
 `readme.md` is no longer tracked (it collided with `README.md` on a
 case-insensitive Mac disk); `README.md` now points to the docs site's Merge
-tags section, the only email field reference. ET wording of all of the above
+tags section, the only email field reference. **PRO-2393** — the ten Dependabot
+alerts in `blocks/package-lock.json` (dev-only, never in the ZIP) are cleared by
+in-range updates plus `overrides` in `blocks/package.json`; block builds are
+byte-identical, but `wp-scripts start --hot` (unused) no longer starts under the
+forced webpack-dev-server 5. ET wording of all of the above
 awaits the PRO-3405 proofread. **Integration NOT run** for any of these except
 PRO-3426's filtered `RecEngineGdprTest` (Docker now runs on the MacBook via
 Colima; the full suite there is still unproven) — due before the next release, with a focused
