@@ -25,6 +25,7 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\SubscriberPayloadBuilder;
+use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 
 /**
  * One-shot snapshot of the WP site state the wizard / settings panels
@@ -486,6 +487,8 @@ class EnvDetector {
 			'orderConfirmationEnabled'      => (bool) get_option( 'smly_plus_order_confirmation_enabled', false ),
 			'shippingConfirmationEnabled'   => (bool) get_option( 'smly_plus_shipping_confirmation_enabled', false ),
 			'shippedOrderStatuses'          => (array) get_option( 'smly_plus_shipped_order_statuses', array( 'completed' ) ),
+			// PRO-3190: addresses, phone and order note in both confirmations — off by default.
+			'transactionalPersonalData'     => (bool) get_option( TransactionalPayloadBuilder::OPTION_PERSONAL_DATA, false ),
 
 			// Step 4: rec-engine connection state (sub-PR 3.1). The
 			// api_key is DELIBERATELY omitted from the boot payload —

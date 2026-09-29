@@ -135,8 +135,7 @@ class ProfilingConsent {
 						// Carry the opt-out to the contact that lacks it or holds
 						// the older answer. Never for a not-found contact: the
 						// upsert would create one.
-						$this->write( $email, false );
-						$carried_at = time();
+						$carried_at = $this->write( $email, false );
 					}
 				}
 				$this->remember( $email, $allowed, $carried_at );
@@ -170,7 +169,7 @@ class ProfilingConsent {
 		if ( $moment === null ) {
 			return false;
 		}
-		$given = strtotime( (string) ( $consent['smaily_rec_profiling_ts'] ?? '' ) );
+		$given = strtotime( $consent['smaily_rec_profiling_ts'] ?? '' );
 		return $given !== false && $given > $moment;
 	}
 
@@ -222,8 +221,7 @@ class ProfilingConsent {
 	 * to say no).
 	 */
 	public function opt_out( string $email ): void {
-		$this->write( $email, false );
-		$this->remember( $email, false, time() );
+		$this->remember( $email, false, $this->write( $email, false ) );
 		$this->engine_opt_out( $email );
 	}
 
@@ -234,18 +232,24 @@ class ProfilingConsent {
 		$this->engine_opt_in( $email );
 	}
 
-	private function write( string $email, bool $may_profile ): void {
+	/**
+	 * Returns the moment stamped on the write (also when no write happened),
+	 * so the caller records the same moment Smaily was sent.
+	 */
+	private function write( string $email, bool $may_profile ): int {
+		$now    = time();
 		$client = ( $this->smaily_client_factory )();
 		if ( ! $client instanceof SmailyClient ) {
-			return;
+			return $now;
 		}
 		try {
-			$client->write_profiling_consent( $email, $may_profile, IsoDate::to_z( time() ) );
+			$client->write_profiling_consent( $email, $may_profile, IsoDate::to_z( $now ) );
 		} catch ( \Throwable $e ) {
 			// A failed write is non-fatal here; the cache still reflects the WP
 			// intent, and the next read-back reconciles against Smaily.
 			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] write failed: ' . $e->getMessage() );
 		}
+		return $now;
 	}
 
 	private function engine_opt_out( string $email ): void {
@@ -320,10 +324,8 @@ class ProfilingConsent {
 
 		if ( $allowed && $has_entry ) {
 			unset( $optouts[ $key ] );
-		} elseif ( ! $allowed && $moment !== null ) {
-			$optouts[ $key ] = $moment;
-		} elseif ( ! $allowed && ! $has_entry ) {
-			$optouts[ $key ] = 0;
+		} elseif ( ! $allowed && ( $moment !== null || ! $has_entry ) ) {
+			$optouts[ $key ] = $moment ?? 0;
 		} else {
 			return; // already in the right state — no write.
 		}
@@ -332,15 +334,24 @@ class ProfilingConsent {
 	}
 
 	private function is_durably_opted_out( string $email ): bool {
-		$optouts = (array) get_option( self::OPTION_OPTOUTS, array() );
-		return isset( $optouts[ self::email_hash( $email ) ] );
+		return $this->optout_entry( $email ) !== null;
 	}
 
 	/** The durable opt-out's recorded moment; null when absent or unknown. */
 	private function optout_moment( string $email ): ?int {
-		$optouts = (array) get_option( self::OPTION_OPTOUTS, array() );
-		$moment  = $optouts[ self::email_hash( $email ) ] ?? null;
+		$moment = $this->optout_entry( $email );
 		return is_int( $moment ) ? $moment : null;
+	}
+
+	/**
+	 * The raw durable opt-out entry (an int moment, or `true` for a
+	 * pre-PRO-3192 entry); null when the contact has none.
+	 *
+	 * @return int|bool|null
+	 */
+	private function optout_entry( string $email ) {
+		$optouts = (array) get_option( self::OPTION_OPTOUTS, array() );
+		return $optouts[ self::email_hash( $email ) ] ?? null;
 	}
 
 	private static function email_hash( string $email ): string {

@@ -126,7 +126,7 @@ class TransactionalEmailHookHandler {
 			return;
 		}
 
-		$context = $this->builder->build( $order );
+		$context = $this->builder->build( $order, $trigger_type );
 		$this->flusher->send_now( $trigger_type, $order, $match, $context, $to_status );
 	}
 

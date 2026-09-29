@@ -18,6 +18,7 @@ use Smaily\Connect\Integrations\WooCommerce\LegacyHookBridge;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\ContactSyncMode;
+use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -401,6 +402,7 @@ class SettingsEndpoint {
 	private function save_transactional_triggers( array $data ): void {
 		update_option( 'smly_plus_order_confirmation_enabled', ! empty( $data['orderConfirmationEnabled'] ) );
 		update_option( 'smly_plus_shipping_confirmation_enabled', ! empty( $data['shippingConfirmationEnabled'] ) );
+		update_option( TransactionalPayloadBuilder::OPTION_PERSONAL_DATA, ! empty( $data['transactionalPersonalData'] ) );
 
 		$statuses_raw = isset( $data['shippedOrderStatuses'] ) && is_array( $data['shippedOrderStatuses'] )
 			? $data['shippedOrderStatuses']
