@@ -113,6 +113,15 @@ Single policy object decides, per mode, what an upsert carries:
 - `is_unsubscribed` is **omitted** unless the mode + event explicitly set it
   (preset 2 opt-in → `0`, opt-out → `1`). Omission preserves Smaily's value;
   presets never silently flip consent.
+- **ASSUMPTION — not verified against Smaily (PRO-3407):** a **brand-new**
+  contact upserted WITHOUT `is_unsubscribed` (the omitted case above — e.g.
+  `HookHandler`'s order path under legitimate interest; `Smaily\Flusher`
+  forwards the key only when the payload sets it) is
+  created by Smaily as **subscribed** (Smaily's default). Nothing in this
+  repo — code, tests, mock or live-walk — confirms it; the "omission
+  preserves" rule above covers only an EXISTING contact. Confirm with Smaily
+  before relying on it (e.g. for a legitimate-interest guest who never
+  ticked a box).
 - The contact **language** comes from `ContactLanguageResolver` (F3-47),
   unchanged and mode-independent.
 
