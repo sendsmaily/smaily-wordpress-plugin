@@ -26,17 +26,27 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-29 (**3.15.0 bumped on a branch, NOT released
-(PRO-3431); publication by the orchestrator after Erkki's go.** The bump
-commit (`Bump to 3.15.0`) sets the version in the eight files CLAUDE.md step 1
+_Last updated: 2026-09-29 (**3.15.0 GitHub release published 2026-09-29
+(tag `3.15.0` → `8ca7678`, release.yml run 36626797184 green, asset verified:
+verify-release-zip exit=0, 905193 B, SHA256
+`f3e67f9d5cf8a643bdf55b9d4048a5763eaa6849411fbb74a4fd976f5ef338e4`);
+wordpress.org publish PENDING — Erkki runs `./release.sh -u sendsmaily` from
+his release clone on the Linux machine.** Release gate: PCP on the CI-built
+ZIP of dry-run 36625836258 — 0 ERRORS / 9 WARNINGS: the 3.14.0 accepted seven
+(`QueueJanitor.php:225`, `EventsEndpoint.php:728`, `BackfillJob.php:513` —
+`DirectQuery` + `NoCaching` each; `HookHandler.php:266` `DynamicHooknameFound`)
+plus two new `DynamicHooknameFound` false positives, one each at
+`TransactionalPayloadBuilder.php:159` and `:230` (class-constant hook names
+PCP cannot resolve), accepted by Erkki (`docs/audits/INDEX.md` 3.15.0 row). The bump
+commit (`Bump to 3.15.0`, PR #149) sets the version in the eight files CLAUDE.md step 1
 names, adds the `= 3.15.0 =` changelog + Upgrade Notice to `readme.txt`, and
 the `.pot` Project-Id-Version (i18n by hand: `bin/build-i18n.sh` on macOS
 reshuffles the `.po` and fails in its `sed` step; the new admin strings were
 already in the `.pot`/`-et.po`, and CI's `release.yml` rebuilds the shipped
-`.mo`/`.json` on Linux). **Unreleased on main after 3.14.0 (all in the 3.15.0
-bump): PRO-3335,
+`.mo`/`.json` on Linux). **In 3.15.0 (unreleased on wordpress.org until the
+SVN publish): PRO-3335,
 PRO-3192, PRO-3434, PRO-3410, PRO-3407, PRO-3406, PRO-3426, PRO-3190, PRO-3411; CI fixed by PRO-1708 + PRO-3428** — first session on the MacBook, orchestrated.
-**3.15.0 security delta audit (PRO-3431, `3d5643f..5661b4a`): 0 Blocking/Critical/High/Medium, 2 Low, 10 Info — 3.15.0 may proceed;** PCP skipped (release gate runs it); Lows are follow-ups (new-account newsletter tick overrides a prior Smaily unsubscribe; lenient/unbounded profiling timestamp parse) — `docs/audits/SECURITY_DELTA_AUDIT_2026-09-29_3.15.0.md`.
+**3.15.0 security delta audit (PRO-3431, `3d5643f..5661b4a`): 0 Blocking/Critical/High/Medium, 2 Low, 10 Info — 3.15.0 may proceed;** PCP ran at the release gate (above); Low 1 (new-account newsletter tick overrides a prior Smaily unsubscribe) accepted by Erkki (PRO-3433), Low 2 (lenient/unbounded profiling timestamp parse) fixed before release (PRO-3434) — `docs/audits/SECURITY_DELTA_AUDIT_2026-09-29_3.15.0.md`.
 **PRO-3406** — in consent mode a registered buyer's newsletter tick now
 reaches Smaily: it is saved as the store's consent record `user_newsletter = 1`
 by one writer, `HookHandler::record_newsletter_optin()` (consent mode after the
@@ -108,14 +118,16 @@ alerts in `blocks/package-lock.json` (dev-only, never in the ZIP) are cleared by
 in-range updates plus `overrides` in `blocks/package.json`; block builds are
 byte-identical, but `wp-scripts start --hot` (unused) no longer starts under the
 forced webpack-dev-server 5. ET wording of all of the above
-awaits the PRO-3405 proofread. **Integration NOT run** for any of these except
+awaits the PRO-3405 proofread. **Integration NOT run locally** for any of these except
 PRO-3426's filtered `RecEngineGdprTest` (Docker now runs on the MacBook via
-Colima; the full suite there is still unproven) — due before the next release, with a focused
-security re-audit since PRO-3406 (consent surface) and PRO-3190 (new personal
-data on the wire, a new setting, merchant filters) join it. Next session opens
-with: human acceptance — PRO-3406 on a running store, PRO-3190 with the pilot
-merchant's adapted template; CLIPRO-205 live-store check by Erkki (due 02.10);
-the release cut once the CI fixes (PRO-3428, PRO-1708) are merged.)_
+Colima; the full suite there is still unproven); the full suite ran GREEN in
+CI on the bump PR #149 ("Integration suite (wp-env)", run 36624032175), and
+the focused security re-audit is done (above). Next session opens
+with: confirm wordpress.org shows 3.15.0
+(`https://api.wordpress.org/plugins/info/1.0/smaily-connect.json` → `version`);
+then human acceptance — PRO-3406 on a real store, PRO-3335 with a link from a
+real email, PRO-3190 with Prike's adapted template; CLIPRO-205 live-store
+check by Erkki (due 02.10).)_
 
 Prior: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published
 2026-09-24: bump commit `3d5643f` pushed to `sendsmaily/smaily-wordpress-plugin`
