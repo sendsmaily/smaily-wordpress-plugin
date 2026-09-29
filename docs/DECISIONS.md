@@ -6860,6 +6860,31 @@ not need); renaming or reformatting existing fields to suit the pilot's
 template (would break every other merchant's template); a live product lookup
 for sale-price discounts (the order line is what the customer paid).
 
+### PRO-3433 — Accept the risk that a newsletter tick on a new account can resubscribe an address (2026-09-29)
+
+**Context:** the 3.15.0 security delta audit (Low 1,
+`docs/audits/SECURITY_DELTA_AUDIT_2026-09-29_3.15.0.md`) found that since
+PRO-3406 a newsletter tick on an account created in the same request (My
+Account registration, or an account created at the classic or block checkout)
+subscribes an address WooCommerce never verified, and the transition
+handler's `is_unsubscribed = 0` overrides a prior Smaily unsubscribe. Anyone
+can register an address that has no account yet and tick the box.
+**Decision (Erkki, 2026-09-29):** accept the risk; no code change. A tick on a
+new account keeps following the existing re-grant rule (PRO-3406).
+**Rationale:** the harm is limited to unwanted marketing email (every message
+carries Smaily's unsubscribe link, and an unsubscribe comes back through the
+reconciler); it works only for an address with no account on the store yet,
+because WooCommerce refuses to register an address that already has one; and
+the same class of exposure already exists through public signup forms and the
+checkout-only / guest modes, where a guest checkout sends
+`is_unsubscribed = 0` for whatever email is typed.
+**Rejected (both deferred, not ruled out):** not overriding a prior Smaily
+unsubscribe for an account created in the same request (omit
+`is_unsubscribed` when the contact is found unsubscribed); sending
+new-account ticks through a Smaily double opt-in workflow.
+**Relationships:** PRO-3406 (the consent writer); the audit's Low 2 (PRO-3434,
+strict profiling-timestamp parsing) is fixed before 3.15.0 instead.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

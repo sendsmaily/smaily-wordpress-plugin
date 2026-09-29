@@ -57,7 +57,8 @@
 ## Verdict
 
 **0 Blocking, 0 Critical, 0 High, 0 Medium. 2 Low, 10 Info. RESULT: 3.15.0
-may proceed.**
+may proceed — Low 1 accepted, Low 2 fixed in PRO-3434 before release.**
+(Dispositions by Erkki, 2026-09-29; see each finding.)
 
 No route, capability or crypto changes. The one new setting goes through the
 existing `manage_options`-gated Settings route. The new personal data is off
@@ -65,7 +66,8 @@ by default, escaped, erased by the existing allowlist redaction, and kept for
 the queue's existing retention. The consent changes only ever write an opt-in
 on an explicit tick, and the profiling change moves the registry toward
 opt-out. Both Lows are consent-integrity edges that already existed in a
-wider form before this delta, recorded here so they are accepted on purpose.
+wider form before this delta. Erkki accepted Low 1 and chose to fix Low 2
+before the release.
 
 **PCP (WordPress Plugin Check) was not run in this pass (skipped).** The
 Colima VM on this Mac is shared (2 CPU / 4 GiB) and was busy with another
@@ -119,6 +121,13 @@ fresh-account ticks through a Smaily double opt-in workflow. Keep the current
 behaviour for a logged-in, existing account ticking the box, where the email
 was already bound to the account before the tick.
 
+**Disposition (Erkki, 2026-09-29): risk ACCEPTED, no code change** (Linear
+PRO-3433; DECISIONS PRO-3433). The harm is limited to unwanted marketing
+email, it only works for an address with no account on the store yet, and the
+same class of exposure already exists through public signup forms and the
+checkout-only / guest modes. Both proposed fixes (not overriding a prior
+unsubscribe for a same-request account, and double opt-in) are deferred.
+
 ## 2. LOW — the contact's profiling timestamp is parsed leniently and has no upper bound
 
 **Where:** `includes/Privacy/ProfilingConsent.php:172`
@@ -144,6 +153,9 @@ UTC). Treat a timestamp more than a few minutes in the future as "no
 timestamp", which counts as older. Pin both with a
 `missing_timestamps()`-style data provider row (`'tomorrow'`, a date one year
 ahead).
+
+**Disposition (Erkki, 2026-09-29): to be FIXED before 3.15.0** (Linear
+PRO-3434), in a separate PR that is in progress. The release waits for it.
 
 ## 3. INFO — the personal-data switch governs the built-in keys only; a merchant filter can still send personal data
 
@@ -387,12 +399,13 @@ covers them.
 
 ## Follow-ups this audit leaves open
 
-1. **Finding 1 (Low):** decide whether a tick on an account created in the
-   same request may override a prior Smaily unsubscribe. The options are to
-   omit `is_unsubscribed` for a found-unsubscribed contact, or to use double
-   opt-in. This is a product decision.
-2. **Finding 2 (Low):** parse `smaily_rec_profiling_ts` strictly (IsoDate
-   Z-form) and treat a future timestamp as absent. Add data-provider rows.
+1. **Finding 1 (Low): closed — risk accepted by Erkki (2026-09-29, PRO-3433).**
+   A tick on an account created in the same request may keep overriding a
+   prior Smaily unsubscribe. Omitting `is_unsubscribed` for a
+   found-unsubscribed contact, and double opt-in, are both deferred.
+2. **Finding 2 (Low): fix before 3.15.0 (Erkki, 2026-09-29, PRO-3434, PR in
+   progress).** Parse `smaily_rec_profiling_ts` strictly (IsoDate Z-form) and
+   treat a future timestamp as absent. Add data-provider rows.
 3. **Finding 3 (Info, docs):** state that the personal-data switch covers the
    built-in fields only, and that filter output is the merchant's
    responsibility (EN+ET + DECISIONS PRO-3190).
