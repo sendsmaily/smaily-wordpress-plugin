@@ -27,7 +27,7 @@ If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
 _Last updated: 2026-09-29 (**Unreleased on main after 3.14.0: PRO-3335,
-PRO-3192, PRO-3410, PRO-3407** — first session on the MacBook, orchestrated.
+PRO-3192, PRO-3410, PRO-3407, PRO-3411** — first session on the MacBook, orchestrated.
 **PRO-3335** — new merge tag `product_url_1..10` beside the existing seven
 product fields, same name in order confirmation, shipping confirmation and the
 abandoned-cart reminder (`TransactionalPayloadBuilder`, `CartPayloadBuilder`,
@@ -35,7 +35,9 @@ shared `ProductMatrixBuilder::product_url()`): a plain permalink, no tracking
 parameters; a variation links with the bought options (confirmation) or the
 cart's variation (reminder); empty when the product is gone or not published.
 Existing fields unchanged; merchant docs Merge-tags tables (EN+ET) and the
-legacy `readme.md` list updated. Per-send field limit unverified (PRO-3409).
+legacy `readme.md` list updated (that file was then removed from git in PRO-3411 —
+the email field list now lives only in the docs site). Per-send field limit
+unverified (PRO-3409).
 **PRO-3192** — the newest profiling choice wins over an older opt-in on the
 Smaily contact: the registry value is now the opt-out's moment (Unix time of a
 store-side opt-out; `0` for one mirrored from a Smaily read-back; `true` =
@@ -47,7 +49,10 @@ DECISIONS PRO-3192 + `DATA_MODEL_GDPR.md` registry row. **PRO-3410** — the uni
 `WP_User` test doubles declare their properties, so `ci:strict` is green on
 Homebrew PHP 8.3/8.5 too (21 risky tests were a PHP-display-deprecations
 artifact). **PRO-3407** — FAQ (EN+ET) now says the customer import covers
-registered accounts, not guest-only buyers. ET wording of all of the above
+registered accounts, not guest-only buyers. **PRO-3411** — the old upstream
+`readme.md` is no longer tracked (it collided with `README.md` on a
+case-insensitive Mac disk); `README.md` now points to the docs site's Merge
+tags section, the only email field reference. ET wording of all of the above
 awaits the PRO-3405 proofread. **Integration NOT run** for any of these (no
 Docker on the MacBook yet) — due before the next release, with a focused
 security re-audit if PRO-3190 joins it. Next session opens with: PRO-3190
