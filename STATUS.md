@@ -26,7 +26,28 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-29 (**3.15.0 GitHub release published 2026-09-29
+_Last updated: 2026-09-29 (**3.15.0 is LIVE on wordpress.org** — published
+2026-09-29: GitHub release `3.15.0` → `8ca7678` (PR #149, release.yml run
+36626797184 green), CI asset verified (verify-release-zip exit=0, 905193 B,
+SHA256 `f3e67f9d5cf8a643bdf55b9d4048a5763eaa6849411fbb74a4fd976f5ef338e4`);
+`./release.sh -u sendsmaily` run by Erkki on 2026-09-29 from his release
+clone on his other machine. Confirmed: the wordpress.org API
+(`…/plugins/info/1.0/smaily-connect.json`) returns version **3.15.0**
+(last_updated 2026-09-29), the SVN trunk `Stable tag` is 3.15.0 and
+`tags/3.15.0/` exists. **Unreleased on main after 3.15.0:** nothing — the
+only commits after `8ca7678` are docs (`15ec93d` audit: record the 3.15.0
+release gate, and this one). **Outcome gauges (2026-09-29, after publish):**
+wordpress.org version 3.15.0, active installs 2000 (bucketed, flat vs the
+same-day 3.14.0 baseline); releases 3.15.0 (2026-09-29), 3.14.0 (2026-09-24),
+3.13.0 (2026-09-10), 3.12.1 (2026-09-08), 3.12.0 (2026-09-07). Next session
+opens with: human acceptance on real stores — PRO-3406 checkout newsletter
+tick, PRO-3335 product link from a real email, PRO-3190 with Prike's adapted
+template; CLIPRO-205 live-store check by Erkki (due 02.10); PRO-2393 closes
+once GitHub's Dependabot re-scan shows zero open alerts (lockfile already
+patched); then backlog candidates PRO-3435, PRO-3427, PRO-3408 (needs Erkki's
+decision), PRO-3405 (human ET proofread).)_
+
+Prior: 2026-09-29 (**3.15.0 GitHub release published 2026-09-29
 (tag `3.15.0` → `8ca7678`, release.yml run 36626797184 green, asset verified:
 verify-release-zip exit=0, 905193 B, SHA256
 `f3e67f9d5cf8a643bdf55b9d4048a5763eaa6849411fbb74a4fd976f5ef338e4`);
@@ -127,7 +148,7 @@ with: confirm wordpress.org shows 3.15.0
 (`https://api.wordpress.org/plugins/info/1.0/smaily-connect.json` → `version`);
 then human acceptance — PRO-3406 on a real store, PRO-3335 with a link from a
 real email, PRO-3190 with Prike's adapted template; CLIPRO-205 live-store
-check by Erkki (due 02.10).)_
+check by Erkki (due 02.10).)
 
 Prior: 2026-09-24 (**3.14.0 is LIVE on wordpress.org** — published
 2026-09-24: bump commit `3d5643f` pushed to `sendsmaily/smaily-wordpress-plugin`
