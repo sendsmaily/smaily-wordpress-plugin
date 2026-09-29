@@ -27,7 +27,7 @@ If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
 _Last updated: 2026-09-29 (**Unreleased on main after 3.14.0: PRO-3335,
-PRO-3192, PRO-3410, PRO-3407, PRO-3406, PRO-3190, PRO-3411; CI fixed by PRO-1708 + PRO-3428** — first session on the MacBook, orchestrated.
+PRO-3192, PRO-3410, PRO-3407, PRO-3406, PRO-3426, PRO-3190, PRO-3411; CI fixed by PRO-1708 + PRO-3428** — first session on the MacBook, orchestrated.
 **3.15.0 security delta audit (PRO-3431, `3d5643f..5661b4a`): 0 Blocking/Critical/High/Medium, 2 Low, 10 Info — 3.15.0 may proceed;** PCP skipped (release gate runs it); Lows are follow-ups (new-account newsletter tick overrides a prior Smaily unsubscribe; lenient/unbounded profiling timestamp parse) — `docs/audits/SECURITY_DELTA_AUDIT_2026-09-29_3.15.0.md`.
 **PRO-3406** — in consent mode a registered buyer's newsletter tick now
 reaches Smaily: it is saved as the store's consent record `user_newsletter = 1`
@@ -45,6 +45,15 @@ per flow in `HookHandlerTest`; `tests/Integration/CheckoutNewsletterOptinTest`
 written, NOT run; each flow on a running store is human acceptance. Consent
 surface → include in the next focused security re-audit. Readme changelog
 line belongs to the next bump.
+**PRO-3426** — that order meta is now in the WP Privacy tools: the exporter
+lists one item per marked order (order number + "Newsletter consent given at
+checkout: Yes", group "Newsletter consent (order meta)"), the eraser removes it
+from every order of the requester (`GdprHandler`; `orders_for()` became a
+protected unit-test seam). `DATA_MODEL_GDPR.md` lists it; DECISIONS PRO-3426.
+Unit-proven in `GdprHandlerTest`; `RecEngineGdprTest::
+test_newsletter_consent_marker_is_exported_and_erased` green on a local
+wp-env (Colima) in BOTH legacy and HPOS order storage (filtered run, 9/9). Merchant
+docs already say export/erase cover the plugin's data — no site edit.
 **PRO-3190** — order and shipping confirmations carry what a real
 confirmation template shows (`TransactionalPayloadBuilder`, DECISIONS
 PRO-3190): `order_subtotal`/`order_tax`/`order_shipping` formatted like
@@ -86,8 +95,9 @@ registered accounts, not guest-only buyers. **PRO-3411** — the old upstream
 `readme.md` is no longer tracked (it collided with `README.md` on a
 case-insensitive Mac disk); `README.md` now points to the docs site's Merge
 tags section, the only email field reference. ET wording of all of the above
-awaits the PRO-3405 proofread. **Integration NOT run** for any of these (no
-Docker on the MacBook yet) — due before the next release, with a focused
+awaits the PRO-3405 proofread. **Integration NOT run** for any of these except
+PRO-3426's filtered `RecEngineGdprTest` (Docker now runs on the MacBook via
+Colima; the full suite there is still unproven) — due before the next release, with a focused
 security re-audit since PRO-3406 (consent surface) and PRO-3190 (new personal
 data on the wire, a new setting, merchant filters) join it. Next session opens
 with: human acceptance — PRO-3406 on a running store, PRO-3190 with the pilot

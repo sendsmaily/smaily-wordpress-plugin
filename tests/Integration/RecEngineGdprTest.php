@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Privacy\GdprHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -134,6 +135,38 @@ final class RecEngineGdprTest extends TestCase {
 		self::assertInstanceOf( \WC_Order::class, $order );
 		self::assertSame( '', (string) $order->get_meta( '_smaily_rec_id' ) );
 		self::assertSame( '', (string) get_user_meta( $user->ID, IdentityHookHandler::MERGED_META_KEY, true ) );
+	}
+
+	public function test_newsletter_consent_marker_is_exported_and_erased(): void {
+		// PRO-3426: the block-checkout consent evidence (PRO-3406) through the
+		// real order storage (HPOS in this env; the eraser goes via the order API).
+		$email     = 'shopper@example.test';
+		$marked_id = $this->make_order_with_rec_meta( $email );
+		$plain_id  = $this->make_order_with_rec_meta( $email );
+		$marked    = wc_get_order( $marked_id );
+		self::assertInstanceOf( \WC_Order::class, $marked );
+		$marked->update_meta_data( HookHandler::ORDER_META_NEWSLETTER_OPTIN, '1' );
+		$marked->save();
+
+		$items = array_values(
+			array_filter(
+				$this->handler()->export( $email )['data'],
+				static fn ( array $item ): bool => $item['group_label'] === 'Newsletter consent (order meta)'
+			)
+		);
+		self::assertCount( 1, $items, 'One item, for the marked order only.' );
+		self::assertSame( 'Order', $items[0]['data'][0]['name'] );
+		self::assertSame( $marked->get_order_number(), $items[0]['data'][0]['value'] );
+
+		$result = $this->handler()->erase( $email );
+
+		self::assertTrue( $result['items_removed'] );
+		$marked = wc_get_order( $marked_id );
+		$plain  = wc_get_order( $plain_id );
+		self::assertInstanceOf( \WC_Order::class, $marked );
+		self::assertInstanceOf( \WC_Order::class, $plain );
+		self::assertSame( '', (string) $marked->get_meta( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) );
+		self::assertSame( '', (string) $plain->get_meta( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) );
 	}
 
 	public function test_erase_is_idempotent_when_already_deleted(): void {
