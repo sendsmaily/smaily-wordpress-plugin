@@ -6799,6 +6799,19 @@ anything personal; it is sent only while the switch is on. While on, every
 key is present (`''` when unknown, e.g. no delivery address on a pickup
 order); while off, none is. Both confirmations share one builder, so the
 switch covers both.
+**Merchant extras** instead of more built-ins: filter
+`smaily_connect_transactional_email_fields` (`$fields = []`, `WC_Order`,
+`$trigger`) adds order-level fields, `smaily_connect_transactional_email_product_fields`
+(`$fields = []`, `WC_Order_Item_Product`, `WC_Order`) per-line ones (keys
+start with `product_`, sent as `<key>_1..10`, every slot prefilled `''`).
+`build()` takes the trigger for the first (also from "Send again"). Rules:
+a built-in key always wins — and the personal-data keys stay reserved while
+the switch is off, so a snippet can't send them past it; key
+`^[a-z][a-z0-9_]{0,63}$`; scalar values only, cast to string, cut at 1000
+characters, then escaped like every text field; at most 20 keys per filter.
+Anything else is dropped and written to the WP_DEBUG log (`DebugLog`); a
+throwing filter adds nothing, so a broken snippet cannot break checkout or
+the send.
 **Rejected:** sending addresses/phone by default (personal data a template may
 not need); renaming or reformatting existing fields to suit the pilot's
 template (would break every other merchant's template); a live product lookup

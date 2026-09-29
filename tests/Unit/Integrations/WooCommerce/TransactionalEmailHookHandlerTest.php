@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Unit\Integrations\WooCommerce;
 
 use Brain\Monkey;
+use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\TransactionalEmailHookHandler;
@@ -246,15 +247,7 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		$order           = $this->fake_order_with_product( 9, 'https://shop.example.test/product/dog-food/' );
 		$this->orders[9] = $order;
 		$flusher         = $this->recording_flusher();
-		$builder         = new class() extends TransactionalPayloadBuilder {
-			protected function price_display( float $amount ): string {
-				return (string) $amount;
-			}
-
-			protected function product_image_url( \WC_Product $product ): string {
-				return '';
-			}
-		};
+		$builder         = $this->real_builder();
 
 		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ), $builder, $flusher ) )
 			->on_order_processed( 9 );
@@ -268,6 +261,33 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 			self::assertSame( 'https://shop.example.test/product/dog-food/', $call['context']['product_url_1'] );
 			self::assertSame( '', $call['context']['product_url_2'] );
 		}
+	}
+
+	public function test_a_broken_extra_fields_filter_does_not_stop_the_confirmation(): void {
+		// PRO-3190: a merchant snippet that throws must not break checkout
+		// or the send — the real builder drops its entries and goes on.
+		$seen_trigger = null;
+		Filters\expectApplied( TransactionalPayloadBuilder::FILTER_FIELDS )->andReturnUsing(
+			static function ( $fields, $order, $trigger ) use ( &$seen_trigger ) {
+				unset( $fields, $order );
+				$seen_trigger = $trigger;
+				throw new \RuntimeException( 'broken snippet' );
+			}
+		);
+		Filters\expectApplied( TransactionalPayloadBuilder::FILTER_PRODUCT_FIELDS )->andReturnUsing(
+			static function () {
+				throw new \Error( 'fatal in a snippet' );
+			}
+		);
+		$this->orders[10] = $this->fake_order_with_product( 10, 'https://shop.example.test/product/dog-food/' );
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ), $this->real_builder(), $flusher ) )
+			->on_order_processed( 10 );
+
+		self::assertSame( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, $seen_trigger, 'The filter is told which email it is building.' );
+		self::assertCount( 1, $flusher->calls, 'The confirmation is still sent.' );
+		self::assertSame( 'Dog food', $flusher->calls[0]['context']['product_name_1'] );
 	}
 
 	// --- helpers -------------------------------------------------------------
@@ -284,13 +304,26 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		};
 	}
 
+	/** The real builder, only its WC price/image seams stubbed. */
+	private function real_builder(): TransactionalPayloadBuilder {
+		return new class() extends TransactionalPayloadBuilder {
+			protected function price_display( float $amount ): string {
+				return (string) $amount;
+			}
+
+			protected function product_image_url( \WC_Product $product ): string {
+				return '';
+			}
+		};
+	}
+
 	private function builder_returning( array $context ): TransactionalPayloadBuilder {
 		return new class( $context ) extends TransactionalPayloadBuilder {
 			private array $context;
 			public function __construct( array $context ) {
 				$this->context = $context;
 			}
-			public function build( \WC_Order $order ): array {
+			public function build( \WC_Order $order, string $trigger = '' ): array {
 				return $this->context;
 			}
 		};

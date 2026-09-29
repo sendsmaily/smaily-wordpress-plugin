@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Unit\Smaily;
 
 use Brain\Monkey;
+use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
@@ -206,7 +207,7 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 		// PRO-3190: the personal-data switch is off until the merchant opts in.
 		$context = $this->builder()->build( $this->fake_order( $this->order_with_personal_data() ) );
 
-		foreach ( self::PERSONAL_DATA_KEYS as $key ) {
+		foreach ( TransactionalPayloadBuilder::PERSONAL_DATA_KEYS as $key ) {
 			self::assertArrayNotHasKey( $key, $context );
 		}
 		foreach ( $context as $value ) {
@@ -236,6 +237,10 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 		self::assertSame( '+000 0000000', $context['billing_phone'] );
 		self::assertSame( 'Leave at the door &lt;b&gt;please&lt;/b&gt;', $context['customer_note'], 'Free text, escaped.' );
 		self::assertSame( 'Test', $context['first_name'], 'The billing name stays in first_name/last_name.' );
+
+		unset( $this->options[ TransactionalPayloadBuilder::OPTION_PERSONAL_DATA ] );
+		$off = $this->builder()->build( $this->fake_order( $this->order_with_personal_data() ) );
+		self::assertSame( TransactionalPayloadBuilder::PERSONAL_DATA_KEYS, array_keys( array_diff_key( $context, $off ) ), 'The switch governs exactly the reserved keys.' );
 	}
 
 	public function test_with_the_switch_on_a_pickup_order_sends_the_delivery_fields_empty(): void {
@@ -245,13 +250,127 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 
 		$context = $this->builder()->build( $this->fake_order( $order_data ) );
 
-		foreach ( self::PERSONAL_DATA_KEYS as $key ) {
+		foreach ( TransactionalPayloadBuilder::PERSONAL_DATA_KEYS as $key ) {
 			self::assertArrayHasKey( $key, $context, 'Every personal-data key is present while the switch is on.' );
 		}
 		foreach ( array( 'shipping_first_name', 'shipping_last_name', 'shipping_address_1', 'shipping_address_2', 'shipping_postcode', 'shipping_city', 'shipping_country', 'customer_note' ) as $key ) {
 			self::assertSame( '', $context[ $key ] );
 		}
 		self::assertSame( 'Test Street 1', $context['billing_address_1'] );
+	}
+
+	public function test_a_merchant_filter_adds_order_level_fields_but_cannot_overwrite_a_built_in_one(): void {
+		$seen = array();
+		Filters\expectApplied( TransactionalPayloadBuilder::FILTER_FIELDS )
+			->once()
+			->andReturnUsing(
+				static function ( $fields, $order, $trigger ) use ( &$seen ) {
+					$seen = array( $fields, $order, $trigger );
+					return array(
+						'loyalty_points' => 120,
+						'gift_message'   => 'Happy <b>birthday</b>',
+						'order_total'    => 'FREE',
+						'product_name_1' => 'Hijacked',
+						'billing_phone'  => '+000 0000000',
+					);
+				}
+			);
+		$order = $this->fake_order( array( 'total' => 10, 'items' => array( $this->fake_item( array( 'name' => 'A', 'qty' => 1, 'total' => 10 ) ) ) ) );
+
+		$context = $this->builder()->build( $order, 'order_confirmation' );
+
+		self::assertSame( array( array(), $order, 'order_confirmation' ), $seen, 'The filter gets an empty list, the order and which email is being built.' );
+		self::assertSame( '120', $context['loyalty_points'] );
+		self::assertSame( 'Happy &lt;b&gt;birthday&lt;/b&gt;', $context['gift_message'], 'Escaped like every built-in text field.' );
+		self::assertSame( 'display:10', $context['order_total'], 'A built-in field always wins.' );
+		self::assertSame( 'A', $context['product_name_1'] );
+		self::assertArrayNotHasKey( 'billing_phone', $context, 'A personal-data key stays out while the switch is off, even from a filter.' );
+	}
+
+	public function test_a_merchant_filter_adds_per_product_fields_to_every_slot(): void {
+		Filters\expectApplied( TransactionalPayloadBuilder::FILTER_PRODUCT_FIELDS )
+			->twice()
+			->andReturnUsing(
+				static function ( $fields, $item, $order ) {
+					unset( $fields, $order );
+					return 'A' === $item->get_name()
+						? array( 'product_brand' => 'Acme', 'product_colour' => 'Blue' )
+						: array( 'product_brand' => 'Other' );
+				}
+			);
+		$order = $this->fake_order(
+			array(
+				'items' => array(
+					$this->fake_item( array( 'name' => 'A', 'qty' => 1, 'total' => 1.0 ) ),
+					$this->fake_item( array( 'name' => 'B', 'qty' => 1, 'total' => 1.0 ) ),
+				),
+			)
+		);
+
+		$context = $this->builder()->build( $order );
+
+		self::assertSame( 'Acme', $context['product_brand_1'] );
+		self::assertSame( 'Blue', $context['product_colour_1'] );
+		self::assertSame( 'Other', $context['product_brand_2'] );
+		self::assertSame( '', $context['product_colour_2'], 'Every slot is prefilled for every extra key.' );
+		for ( $i = 3; $i <= 10; $i++ ) {
+			self::assertSame( '', $context[ 'product_brand_' . $i ] );
+			self::assertSame( '', $context[ 'product_colour_' . $i ] );
+		}
+	}
+
+	public function test_invalid_extra_entries_are_dropped_and_the_rest_is_kept(): void {
+		$many = array();
+		for ( $i = 1; $i <= 22; $i++ ) {
+			$many[ 'extra_' . $i ] = 'v' . $i;
+		}
+		Filters\expectApplied( TransactionalPayloadBuilder::FILTER_FIELDS )->andReturn(
+			array(
+				'Bad-Key'      => 'x',
+				'9starts'      => 'x',
+				'has_array'    => array( 'x' ),
+				'has_null'     => null,
+				'has_object'   => new \stdClass(),
+				'is_true'      => true,
+				'long_text'    => str_repeat( 'a', 1200 ),
+			) + $many
+		);
+		Filters\expectApplied( TransactionalPayloadBuilder::FILTER_PRODUCT_FIELDS )->andReturn(
+			array(
+				'brand'        => 'no product_ prefix',
+				'product_name' => 'a built-in product field',
+				'product_ok'   => 'kept',
+			)
+		);
+		$order = $this->fake_order( array( 'items' => array( $this->fake_item( array( 'name' => 'A', 'qty' => 1, 'total' => 1.0 ) ) ) ) );
+
+		$context = $this->builder()->build( $order );
+
+		foreach ( array( 'Bad-Key', '9starts', 'has_array', 'has_null', 'has_object', 'brand_1', 'product_name_1_1' ) as $dropped ) {
+			self::assertArrayNotHasKey( $dropped, $context );
+		}
+		self::assertSame( '1', $context['is_true'], 'A scalar is sent as a string.' );
+		self::assertSame( 1000, strlen( $context['long_text'] ), 'Cut at 1000 characters.' );
+		self::assertSame( 'v18', $context['extra_18'] );
+		self::assertArrayNotHasKey( 'extra_19', $context, 'At most 20 keys per filter (is_true, long_text + 18 more).' );
+		self::assertSame( 'A', $context['product_name_1'], 'The built-in product field is untouched.' );
+		self::assertSame( 'kept', $context['product_ok_1'] );
+	}
+
+	public function test_a_failing_or_malformed_filter_adds_nothing_and_the_confirmation_is_still_built(): void {
+		Filters\expectApplied( TransactionalPayloadBuilder::FILTER_FIELDS )->andReturnUsing(
+			static function () {
+				throw new \RuntimeException( 'broken snippet' );
+			}
+		);
+		Filters\expectApplied( TransactionalPayloadBuilder::FILTER_PRODUCT_FIELDS )->andReturn( 'not an array' );
+		$order = $this->fake_order( array( 'order_number' => '77', 'items' => array( $this->fake_item( array( 'name' => 'A', 'qty' => 1, 'total' => 1.0 ) ) ) ) );
+
+		$context = $this->builder()->build( $order );
+
+		self::assertSame( '77', $context['order_number'] );
+		self::assertSame( 'A', $context['product_name_1'] );
+		self::assertSame( $this->builder()->build( $this->fake_order( array( 'order_number' => '77', 'items' => array( $this->fake_item( array( 'name' => 'A', 'qty' => 1, 'total' => 1.0 ) ) ) ) ) ), $context, 'Exactly the fields a store without the filters gets.' );
 	}
 
 	public function test_order_level_text_fields_are_htmlspecialchars_escaped(): void {
@@ -447,24 +566,6 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 	}
 
 	// --- helpers -------------------------------------------------------------
-
-	/** The keys the personal-data switch governs (PRO-3190). */
-	private const PERSONAL_DATA_KEYS = array(
-		'shipping_first_name',
-		'shipping_last_name',
-		'billing_address_1',
-		'billing_address_2',
-		'billing_postcode',
-		'billing_city',
-		'billing_country',
-		'shipping_address_1',
-		'shipping_address_2',
-		'shipping_postcode',
-		'shipping_city',
-		'shipping_country',
-		'billing_phone',
-		'customer_note',
-	);
 
 	/**
 	 * Placeholder personal data only — nothing here resembles a real person.

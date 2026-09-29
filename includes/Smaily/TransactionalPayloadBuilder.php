@@ -11,6 +11,8 @@ namespace Smaily\Connect\Smaily;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Support\DebugLog;
+
 /**
  * WC_Order → the `context` object POSTed to `message/send.php` (PRO-1504
  * Stage 2). Follows the SAME template-parity shape CartPayloadBuilder
@@ -45,6 +47,41 @@ class TransactionalPayloadBuilder {
 	 */
 	public const OPTION_PERSONAL_DATA = 'smly_plus_transactional_personal_data_enabled';
 
+	/**
+	 * The keys that switch governs. Reserved even while it is off, so a
+	 * merchant's extra-fields filter can't send them behind its back.
+	 */
+	public const PERSONAL_DATA_KEYS = array(
+		'shipping_first_name',
+		'shipping_last_name',
+		'billing_address_1',
+		'billing_address_2',
+		'billing_postcode',
+		'billing_city',
+		'billing_country',
+		'shipping_address_1',
+		'shipping_address_2',
+		'shipping_postcode',
+		'shipping_city',
+		'shipping_country',
+		'billing_phone',
+		'customer_note',
+	);
+
+	/**
+	 * Merchant extras (PRO-3190). Order-level: ( array $fields = [],
+	 * WC_Order $order, string $trigger ); per product line: ( array $fields
+	 * = [], WC_Order_Item_Product $item, WC_Order $order ), keys starting
+	 * with `product_`, sent as `<key>_1..10`. See clean_extras() for the
+	 * rules an entry must meet.
+	 */
+	public const FILTER_FIELDS         = 'smaily_connect_transactional_email_fields';
+	public const FILTER_PRODUCT_FIELDS = 'smaily_connect_transactional_email_product_fields';
+
+	private const EXTRA_KEY_PATTERN  = '/^[a-z][a-z0-9_]{0,63}$/';
+	private const EXTRA_MAX_KEYS     = 20;
+	private const EXTRA_VALUE_LENGTH = 1000;
+
 	/** Every product key is prefilled '' for slots 1..10 (legacy Smaily-template parity, cap: ProductMatrixBuilder::MAX_PRODUCTS). */
 	private const PRODUCT_KEYS = array(
 		'product_name',
@@ -61,9 +98,12 @@ class TransactionalPayloadBuilder {
 	/**
 	 * Build the `context` object for one order.
 	 *
+	 * @param string $trigger The email being built (TransactionalGate::TRIGGER_*),
+	 *                        handed to the merchant's extra-fields filter.
+	 *
 	 * @return array<string, string>
 	 */
-	public function build( \WC_Order $order ): array {
+	public function build( \WC_Order $order, string $trigger = '' ): array {
 		$items = $this->product_items( $order );
 
 		// Every order-level money field is GROSS, like order_total (PRO-1241):
@@ -106,7 +146,22 @@ class TransactionalPayloadBuilder {
 			$context += $this->personal_data_fields( $order );
 		}
 
-		return $context + $this->product_fields( $items );
+		$context += $this->product_fields( $order, $items );
+
+		// Built-in keys always win: an extra may use none of them, nor a
+		// personal-data or over_10_products key that is absent right now.
+		$reserved = $context + array_fill_keys( self::PERSONAL_DATA_KEYS, '' ) + array( 'over_10_products' => '' );
+		$accepted = array();
+
+		return $context + $this->clean_extras(
+			self::FILTER_FIELDS,
+			static function () use ( $order, $trigger ) {
+				return apply_filters( self::FILTER_FIELDS, array(), $order, $trigger );
+			},
+			$reserved,
+			'',
+			$accepted
+		);
 	}
 
 	/**
@@ -151,17 +206,39 @@ class TransactionalPayloadBuilder {
 	 * legacy-parity shape: every slot prefilled '', filled per order line,
 	 * `over_10_products` flagged past slot 10.
 	 *
+	 * A merchant's per-line extras join the matrix: every slot prefilled ''
+	 * for each extra key any line returned.
+	 *
 	 * @param array<int, \WC_Order_Item_Product> $valid_items
 	 *
 	 * @return array<string, string>
 	 */
-	private function product_fields( array $valid_items ): array {
-		$fields = ProductMatrixBuilder::prefill( self::PRODUCT_KEYS );
+	private function product_fields( \WC_Order $order, array $valid_items ): array {
+		$reserved   = array_fill_keys( self::PRODUCT_KEYS, '' );
+		$extra_keys = array();
+		$extras     = array();
+		foreach ( array_slice( $valid_items, 0, ProductMatrixBuilder::MAX_PRODUCTS ) as $item ) {
+			$extras[] = $this->clean_extras(
+				self::FILTER_PRODUCT_FIELDS,
+				static function () use ( $item, $order ) {
+					return apply_filters( self::FILTER_PRODUCT_FIELDS, array(), $item, $order );
+				},
+				$reserved,
+				'product_',
+				$extra_keys
+			);
+		}
+
+		$fields = ProductMatrixBuilder::prefill( array_merge( self::PRODUCT_KEYS, array_keys( $extra_keys ) ) );
+		$slot   = 0;
 
 		return ProductMatrixBuilder::fill(
 			$fields,
 			$valid_items,
-			function ( \WC_Order_Item_Product $item ): array {
+			function ( \WC_Order_Item_Product $item ) use ( $extras, &$slot ): array {
+				$line_extras = $extras[ $slot ] ?? array();
+				++$slot;
+
 				$qty = (int) $item->get_quantity();
 				// GROSS (PRO-1241): the order item's get_total()/get_subtotal()
 				// are NET — add the tax share, same basis as OrderPayloadBuilder.
@@ -180,9 +257,64 @@ class TransactionalPayloadBuilder {
 					'product_image_url'        => $product instanceof \WC_Product ? $this->product_image_url( $product ) : '',
 					'product_url'              => $product instanceof \WC_Product ? ProductMatrixBuilder::product_url( $product, $item ) : '',
 					'product_discount_percent' => $this->discount_percent( $total_gross, $subtotal_gross ),
-				);
+				) + $line_extras;
 			}
 		);
+	}
+
+	/**
+	 * Run one merchant extra-fields filter and keep only what is safe to
+	 * send (PRO-3190). An entry is dropped — and logged — when its key does
+	 * not match EXTRA_KEY_PATTERN or lacks $prefix, is a built-in ($reserved),
+	 * its value is not a scalar, or the filter has already given
+	 * EXTRA_MAX_KEYS keys. A kept value is cut to EXTRA_VALUE_LENGTH
+	 * characters and escaped like every other text field. A filter that
+	 * throws adds nothing: a broken snippet must not break checkout or the
+	 * send.
+	 *
+	 * @param callable(): mixed    $run      Applies the filter.
+	 * @param array<string, mixed> $reserved Keys an extra may not use.
+	 * @param array<string, true>  $accepted Keys this filter has given so far (across calls).
+	 *
+	 * @return array<string, string>
+	 */
+	private function clean_extras( string $hook, callable $run, array $reserved, string $prefix, array &$accepted ): array {
+		try {
+			$raw = $run();
+		} catch ( \Throwable $e ) {
+			DebugLog::write( sprintf( '[smaily-connect transactional] %s failed and was ignored: %s', $hook, $e->getMessage() ) );
+			return array();
+		}
+
+		if ( ! is_array( $raw ) ) {
+			DebugLog::write( sprintf( '[smaily-connect transactional] %s returned %s, not an array; ignored', $hook, gettype( $raw ) ) );
+			return array();
+		}
+
+		$clean = array();
+		foreach ( $raw as $key => $value ) {
+			$key    = (string) $key;
+			$reason = '';
+			if ( preg_match( self::EXTRA_KEY_PATTERN, $key ) !== 1 || strpos( $key, $prefix ) !== 0 ) {
+				$reason = 'invalid key';
+			} elseif ( isset( $reserved[ $key ] ) ) {
+				$reason = 'a built-in field';
+			} elseif ( ! is_scalar( $value ) ) {
+				$reason = 'value is not a scalar';
+			} elseif ( ! isset( $accepted[ $key ] ) && count( $accepted ) >= self::EXTRA_MAX_KEYS ) {
+				$reason = 'more than ' . self::EXTRA_MAX_KEYS . ' fields';
+			}
+
+			if ( $reason !== '' ) {
+				DebugLog::write( sprintf( '[smaily-connect transactional] %s: dropped field "%s" (%s)', $hook, substr( (string) preg_replace( '/[^A-Za-z0-9_-]/', '?', $key ), 0, 64 ), $reason ) );
+				continue;
+			}
+
+			$accepted[ $key ] = true;
+			$clean[ $key ]    = $this->escape( mb_substr( (string) $value, 0, self::EXTRA_VALUE_LENGTH ) );
+		}
+
+		return $clean;
 	}
 
 	/**
