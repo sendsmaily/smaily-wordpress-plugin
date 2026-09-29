@@ -2,7 +2,7 @@ import { type Dispatch } from 'react';
 
 import { __ } from '@admin/lib/i18n';
 import { type WizardAction, type WizardState } from '../../state/types';
-import { Checkbox } from '../primitives';
+import { Card, Checkbox, Toggle } from '../primitives';
 import { AutomationSection } from './AutomationSection';
 
 export interface TransactionalTriggersSectionProps {
@@ -74,6 +74,21 @@ export function TransactionalTriggersSection({
         accountKeyOverride={TRANSACTIONAL_ACCOUNT_KEY}
         extras={<ShippedStatusPicker state={state} dispatch={dispatch} />}
       />
+
+      <Card
+        title={ __( 'Customer details', 'smaily-connect' ) }
+        description={ __( 'Personal data sent with both confirmation emails. Off by default — switch it on only if your email template shows these details.', 'smaily-connect' ) }
+      >
+        <Toggle
+          name="smly-transactional-personal-data-enabled"
+          checked={state.transactionalPersonalData}
+          onChange={(e) =>
+            dispatch({ type: 'SET_TRANSACTIONAL_PERSONAL_DATA', payload: e.target.checked })
+          }
+          label={ __( 'Include addresses, phone and order note', 'smaily-connect' ) }
+          description={ __( 'The billing and delivery address, the delivery name, the phone number and the customer\'s order note.', 'smaily-connect' ) }
+        />
+      </Card>
     </div>
   );
 }

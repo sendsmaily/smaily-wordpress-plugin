@@ -43,6 +43,7 @@ export function buildTabPayload(
         orderConfirmationEnabled: state.orderConfirmationEnabled,
         shippingConfirmationEnabled: state.shippingConfirmationEnabled,
         shippedOrderStatuses: state.shippedOrderStatuses,
+        transactionalPersonalData: state.transactionalPersonalData,
       };
     case 'recommendations':
       return {

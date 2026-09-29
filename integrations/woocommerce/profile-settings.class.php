@@ -4,6 +4,7 @@ namespace Smaily_Connect\Integrations\WooCommerce;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Smaily\SubscriberPayloadBuilder;
 use Smaily_Connect\Includes\Options;
 
@@ -40,6 +41,10 @@ class Profile_Settings {
 		// Save registration fields.
 		add_action( 'woocommerce_created_customer', array( $this, 'smaily_save_wc_account_fields' ), 10 ); // register/checkout.
 		add_action( 'woocommerce_save_account_details', array( $this, 'smaily_save_wc_account_fields' ), 10 ); // edit WC account.
+
+		// Save a ticked newsletter box as the customer's consent (PRO-3406).
+		add_action( 'woocommerce_checkout_update_user_meta', array( $this, 'smaily_save_checkout_newsletter_optin' ), 10, 2 ); // classic checkout.
+		add_action( 'woocommerce_created_customer', array( $this, 'smaily_save_registration_newsletter_optin' ), 10 ); // My Account registration.
 	}
 
 	/**
@@ -146,6 +151,51 @@ class Profile_Settings {
 	public function smaily_save_wc_account_fields( $customer_id ) {
 		$sanitized_data = $this->sanitize_request_smaily_account_fields( 'save-account-details-nonce', 'save_account_details' );
 		$this->save_account_fields( $customer_id, $sanitized_data );
+	}
+
+	/**
+	 * Save a ticked classic-checkout newsletter box as the customer's consent,
+	 * for a logged-in buyer and for an account created at this checkout
+	 * (PRO-3406). WooCommerce has already verified the checkout nonce, and
+	 * $data holds only the checkout fields it printed. An unticked box writes
+	 * nothing.
+	 *
+	 * @param int   $customer_id Customer ID, 0 for a guest.
+	 * @param array $data        Posted checkout data.
+	 * @return void
+	 */
+	public function smaily_save_checkout_newsletter_optin( $customer_id, $data ) {
+		if ( ! isset( $data['user_newsletter'] ) || (int) $data['user_newsletter'] !== 1 ) {
+			return;
+		}
+
+		HookHandler::record_newsletter_optin( (int) $customer_id );
+	}
+
+	/**
+	 * Save a ticked newsletter box on the My Account registration form as the
+	 * new customer's consent (PRO-3406). The form carries the registration
+	 * nonce, not the account-details one smaily_save_wc_account_fields() checks,
+	 * so that path never saw the tick. An unticked box writes nothing.
+	 *
+	 * @param int $customer_id New customer ID.
+	 * @return void
+	 */
+	public function smaily_save_registration_newsletter_optin( $customer_id ) {
+		$nonce_val = isset( $_POST['woocommerce-register-nonce'] ) ? sanitize_key( wp_unslash( $_POST['woocommerce-register-nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce_val, 'woocommerce-register' ) ) {
+			return;
+		}
+
+		if ( ! isset( $this->get_fields()['user_newsletter'] ) ) {
+			return;
+		}
+
+		if ( ! isset( $_POST['user_newsletter'] ) || (int) $_POST['user_newsletter'] !== 1 ) {
+			return;
+		}
+
+		HookHandler::record_newsletter_optin( (int) $customer_id );
 	}
 
 	/**

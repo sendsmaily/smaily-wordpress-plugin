@@ -800,6 +800,8 @@ td code{white-space:nowrap}
       <h3>Shipping confirmation</h3>
       <p>Sent once, when an order first reaches a status you've marked as <strong>"Counts as shipped"</strong> — pick any number of your store's order statuses (built‑in or custom, e.g. a shipping plugin's "Shipped" status). A later flip back into a shipped status for the same order never sends a second notice.</p>
       <p>While either toggle is on, Smaily Connect quietly takes over WooCommerce's matching built‑in customer email (Processing order / Completed order) so the customer never gets two emails for the same event. Completed‑order suppression only applies when <strong>"completed"</strong> is itself one of your chosen shipped statuses — a custom status (like "Shipped") has no built‑in WooCommerce email to replace.</p>
+      <h3>Customer details</h3>
+      <p>Below the two sections, <strong>Customer details → Include addresses, phone and order note</strong> adds the delivery name, the billing and delivery address, the phone number and the customer's order note to both emails. It's <strong>off by default</strong> — this is personal data, so switch it on only if your template shows it. The fields are listed under <a href="#set-merge-tags">Merge tags</a>.</p>
       <p>If Smaily can't be reached, or briefly rejects the send, WooCommerce's own email for that order fires automatically as a fallback — a customer is never left without a confirmation. A send that keeps failing is retried for up to about an hour before this fallback kicks in, so a longer Smaily outage doesn't leave the customer waiting indefinitely. The attempt is recorded in your <a href="#err-retry">Event Log</a> either way.</p>
       <div class="note warn">
         <span class="k">Two things your Smaily workflow must satisfy</span>
@@ -822,6 +824,8 @@ td code{white-space:nowrap}
       <h3>Saatmisteade</h3>
       <p>Saadetakse üks kord, kui tellimus jõuab esimest korda staatusesse, mille oled märkinud kui <strong>"Loetakse saadetuks"</strong> — vali suvaline arv oma poe staatuseid (sisseehitatud või kohandatud, nt saatmis‑pluginate "Shipped" staatus). Hilisem tagasipöördumine samasse saadetud‑staatusesse sama tellimuse puhul teist teadet enam ei saada.</p>
       <p>Kui kumbki lüliti on sees, võtab Smaily Connect vaikselt üle WooCommerce'i vastava sisseehitatud kliendi‑e‑kirja (Processing order / Completed order), et klient ei saaks sama sündmuse kohta kaht e‑kirja. Completed‑order e‑kirja mahasurumine kehtib ainult siis, kui <strong>"completed"</strong> ise on üks su valitud saadetud‑staatustest — kohandatud staatusel (nt "Shipped") pole asendatavat sisseehitatud WooCommerce'i e‑kirja.</p>
+      <h3>Kliendi andmed</h3>
+      <p>Kahe jaotise all olev <strong>Kliendi andmed → Lisa aadressid, telefon ja tellimuse märkus</strong> lisab mõlemale kirjale saaja nime, arveldus‑ ja tarneaadressi, telefoninumbri ja kliendi märkuse tellimusele. See on <strong>vaikimisi väljas</strong> — need on isikuandmed, nii et lülita see sisse ainult siis, kui su kirjapõhi neid näitab. Väljad leiad jaotisest <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</p>
       <p>Kui Smailyni ei jõuta või see lükkab saatmise korraks tagasi, käivitub varuvariandina automaatselt WooCommerce'i enda e‑kiri selle tellimuse jaoks — klient ei jää kunagi kinnituseta. Pidevalt ebaõnnestuvat saatmist proovitakse uuesti kuni umbes tund aega, enne kui see varuvariant käivitub, nii et pikem Smaily katkestus ei jäta klienti lõputult ootama. Katse jääb mõlemal juhul kirja su <a href="#err-retry">Event Log'i</a>.</p>
       <div class="note warn">
         <span class="k">Kaks nõuet su Smaily töövoole</span>
@@ -893,10 +897,36 @@ td code{white-space:nowrap}
             <tr><td><code>product_price_N</code></td><td>The unit price the customer paid, after discounts, tax included.</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>The unit price before discounts, tax included.</td></tr>
             <tr><td><code>product_url_N</code></td><td>A plain link to the product's page (for a product sold in variations, with the options the customer bought selected). Empty when the product no longer exists.</td></tr>
+            <tr><td><code>product_discount_percent_N</code></td><td>The coupon discount on that product as a whole‑number percent (<code>10</code>); <code>0</code> without a discount, empty on an unused slot.</td></tr>
             <tr><td><code>over_10_products</code></td><td><code>true</code> only when the order has more than 10 products.</td></tr>
+            <tr><td><code>order_subtotal</code>, <code>order_tax</code>, <code>order_shipping</code></td><td>The products after discounts, the tax, and the shipping (with its tax) — formatted with currency like <code>order_total</code>.</td></tr>
+            <tr><td><code>order_total_raw</code>, <code>order_subtotal_raw</code>, <code>order_tax_raw</code>, <code>order_shipping_raw</code></td><td>The same four amounts as plain numbers, no currency sign (<code>24.90</code>). Free shipping is <code>0.00</code>.</td></tr>
+            <tr><td><code>order_status</code>, <code>order_status_id</code></td><td>The order status as your store shows it (<code>Processing</code>) and its code (<code>processing</code>).</td></tr>
+            <tr><td><code>payment_method_id</code>, <code>shipping_method_id</code></td><td>The payment and shipping method codes (<code>bacs</code>, <code>flat_rate</code>). Several shipping methods are listed in the same order as in <code>shipping_method</code>.</td></tr>
           </tbody>
         </table>
       </div>
+      <p>Only when <a href="#set-transactional">Customer details</a> is switched on — then every one of these is sent, empty when the order has no value (e.g. no delivery address on a pickup order):</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Merge tag</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><code>shipping_first_name</code>, <code>shipping_last_name</code></td><td>The delivery name.</td></tr>
+            <tr><td><code>billing_address_1</code>, <code>billing_address_2</code>, <code>billing_postcode</code>, <code>billing_city</code>, <code>billing_country</code></td><td>The billing address; the country as its name.</td></tr>
+            <tr><td><code>shipping_address_1</code>, <code>shipping_address_2</code>, <code>shipping_postcode</code>, <code>shipping_city</code>, <code>shipping_country</code></td><td>The delivery address; the country as its name.</td></tr>
+            <tr><td><code>billing_phone</code></td><td>The phone number.</td></tr>
+            <tr><td><code>customer_note</code></td><td>The note the customer wrote with the order.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Moving an existing order‑confirmation template</h3>
+      <ul>
+        <li><strong>Map the fields.</strong> The names follow WooCommerce's own (<code>billing_city</code>, <code>payment_method</code>…); each product has its own set ending in <code>_1</code>…<code>_10</code>, and order amounts start with <code>order_</code>.</li>
+        <li><strong>Test empty values the right way.</strong> Unused product slots are sent <em>empty</em>, not left out — test them with <code>{% if product_name_2 != "" %}</code> (or <code>{% if product_name_2 %}</code>). <code>over_10_products</code> is left out when there are 10 products or fewer, so test <code>{% if over_10_products == "true" %}</code>.</li>
+        <li><strong>Don't add a currency sign.</strong> <code>order_total</code>, <code>product_price_N</code> and the other formatted amounts already carry it. To format money yourself, use the <code>_raw</code> fields.</li>
+        <li>If the template shows an address, the phone or the order note, switch on <a href="#set-transactional">Customer details</a>. Place a test order and check the email before switching WooCommerce's own email off.</li>
+      </ul>
+      <p><strong>For developers:</strong> two filters add your own fields. <code>smaily_connect_transactional_email_fields</code> (<code>$fields</code>, the order, and which email — <code>order_confirmation</code> or <code>shipping_confirmation</code>) adds order‑level fields; <code>smaily_connect_transactional_email_product_fields</code> (<code>$fields</code>, the order line, the order) adds per‑product fields whose names start with <code>product_</code> and get the <code>_N</code> ending. A built‑in field can't be overwritten; names are lowercase letters, digits and <code>_</code> (up to 64); values are plain text or numbers, cut at 1,000 characters; at most 20 fields per filter. Anything else is skipped (logged when <code>WP_DEBUG</code> is on), and a filter that fails never stops the email.</p>
       <p>The transactional emails carry <strong>no language field</strong>. On a multilingual store, map a separate workflow per language instead (see <a href="#set-transactional">Transactional emails</a>).</p>
     </div>
     <div data-lang="et">
@@ -957,10 +987,36 @@ td code{white-space:nowrap}
             <tr><td><code>product_price_N</code></td><td>Kliendi makstud ühikuhind pärast allahindlust, koos maksuga.</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>Ühikuhind enne allahindlust, koos maksuga.</td></tr>
             <tr><td><code>product_url_N</code></td><td>Lihtne link toote lehele (variatsioonidega toote puhul on valitud kliendi ostetud variatsioon). Tühi, kui toodet enam ei ole.</td></tr>
+            <tr><td><code>product_discount_percent_N</code></td><td>Kupongiga saadud allahindlus sellele tootele täisarvulise protsendina (<code>10</code>); <code>0</code>, kui allahindlust pole, kasutamata kohal tühi.</td></tr>
             <tr><td><code>over_10_products</code></td><td><code>true</code> ainult siis, kui tellimuses on üle 10 toote.</td></tr>
+            <tr><td><code>order_subtotal</code>, <code>order_tax</code>, <code>order_shipping</code></td><td>Tooted pärast allahindlust, maks ja tarne (koos maksuga) — valuutaga vormindatud nagu <code>order_total</code>.</td></tr>
+            <tr><td><code>order_total_raw</code>, <code>order_subtotal_raw</code>, <code>order_tax_raw</code>, <code>order_shipping_raw</code></td><td>Samad neli summat lihtsa arvuna, ilma valuutamärgita (<code>24.90</code>). Tasuta tarne on <code>0.00</code>.</td></tr>
+            <tr><td><code>order_status</code>, <code>order_status_id</code></td><td>Tellimuse staatus nii, nagu pood seda näitab (nt <code>Processing</code>), ja selle kood (<code>processing</code>).</td></tr>
+            <tr><td><code>payment_method_id</code>, <code>shipping_method_id</code></td><td>Makse‑ ja tarneviisi kood (<code>bacs</code>, <code>flat_rate</code>). Mitu tarneviisi on samas järjekorras nagu väljal <code>shipping_method</code>.</td></tr>
           </tbody>
         </table>
       </div>
+      <p>Ainult siis, kui <a href="#set-transactional">Kliendi andmed</a> on sisse lülitatud — siis saadetakse kõik need väljad, tühjana, kui tellimusel väärtust pole (nt kauplusest järeletulemisel tarneaadressi pole):</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Märgend</th><th>Väärtus</th></tr></thead>
+          <tbody>
+            <tr><td><code>shipping_first_name</code>, <code>shipping_last_name</code></td><td>Saaja nimi.</td></tr>
+            <tr><td><code>billing_address_1</code>, <code>billing_address_2</code>, <code>billing_postcode</code>, <code>billing_city</code>, <code>billing_country</code></td><td>Arveldusaadress; riik nimena.</td></tr>
+            <tr><td><code>shipping_address_1</code>, <code>shipping_address_2</code>, <code>shipping_postcode</code>, <code>shipping_city</code>, <code>shipping_country</code></td><td>Tarneaadress; riik nimena.</td></tr>
+            <tr><td><code>billing_phone</code></td><td>Telefoninumber.</td></tr>
+            <tr><td><code>customer_note</code></td><td>Kliendi märkus tellimusele.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Olemasoleva tellimuskinnituse kirjapõhja üleviimine</h3>
+      <ul>
+        <li><strong>Vii väljad vastavusse.</strong> Nimed järgivad WooCommerce'i enda nimesid (<code>billing_city</code>, <code>payment_method</code>…); igal tootel on oma komplekt lõpuga <code>_1</code>…<code>_10</code> ja tellimuse summad algavad <code>order_</code>.</li>
+        <li><strong>Kontrolli tühje väärtusi õigesti.</strong> Kasutamata tootekohad saadetakse <em>tühjana</em>, mitte ei jäeta välja — kontrolli neid nii: <code>{% if product_name_2 != "" %}</code> (või <code>{% if product_name_2 %}</code>). <code>over_10_products</code> jäetakse välja, kui tooteid on 10 või vähem, nii et kontrolli <code>{% if over_10_products == "true" %}</code>.</li>
+        <li><strong>Ära lisa valuutamärki.</strong> <code>order_total</code>, <code>product_price_N</code> ja teised vormindatud summad sisaldavad seda juba. Kui tahad summasid ise vormindada, kasuta <code>_raw</code> välju.</li>
+        <li>Kui kirjapõhi näitab aadressi, telefoni või tellimuse märkust, lülita sisse <a href="#set-transactional">Kliendi andmed</a>. Tee proovitellimus ja vaata kiri üle, enne kui WooCommerce'i enda kirja välja lülitad.</li>
+      </ul>
+      <p><strong>Arendajatele:</strong> kaks filtrit lisavad sinu enda välju. <code>smaily_connect_transactional_email_fields</code> (<code>$fields</code>, tellimus ja millise kirjaga on tegu — <code>order_confirmation</code> või <code>shipping_confirmation</code>) lisab tellimuse taseme välju; <code>smaily_connect_transactional_email_product_fields</code> (<code>$fields</code>, tellimuse rida, tellimus) lisab tootepõhiseid välju, mille nimi algab <code>product_</code> ja saab lõpu <code>_N</code>. Sisseehitatud välja üle kirjutada ei saa; nimes on väiketähed, numbrid ja <code>_</code> (kuni 64); väärtus on tekst või arv, mis lõigatakse 1000 märgi juurest; filtri kohta kuni 20 välja. Muu jäetakse vahele (sisselülitatud <code>WP_DEBUG</code> korral logitakse) ja ebaõnnestuv filter ei peata kunagi kirja saatmist.</p>
       <p>Tehingu‑e‑kirjadel <strong>keelevälja pole</strong>. Mitmekeelses poes määra selle asemel iga keele jaoks eraldi töövoog (vt <a href="#set-transactional">Tehingu‑e‑kirjad</a>).</p>
     </div>
   </div>

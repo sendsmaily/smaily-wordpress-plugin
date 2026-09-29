@@ -6770,6 +6770,96 @@ never made); treating pre-existing entries like mirrors (reopens the bug for
 them); a migration stamping all old entries with the upgrade time (more code
 for the same safe outcome).
 
+### PRO-3406 — A registered buyer's newsletter tick is saved as the store's consent record (2026-09-29)
+
+**Context:** in consent mode a registered customer is synced only when
+`user_newsletter` is 1 (`ContactAudience`), and the order path deliberately
+skips account holders. Nothing wrote that meta at the checkout or at
+registration: the classic checkout read the tick and dropped it, the My Account
+registration and a checkout-created account failed the account-details nonce
+`Profile_Settings` checked, and the block checkout treated a new account as a
+guest (the Store API sets its customer id after the request hook). Ticking the
+box later in My Account → Account details was the only path that worked.
+**Decision (Erkki, 2026-09-29):** an explicit tick is saved as
+`user_newsletter = 1`, and the existing meta-transition handler
+(`HookHandler::handle_newsletter_change()`) sends the contact with
+`is_unsubscribed = 0`. `ContactAudience` is unchanged. One writer,
+`HookHandler::record_newsletter_optin()`, fed by:
+- classic checkout — `woocommerce_checkout_update_user_meta( $customer_id,
+  $data )` (WooCommerce has verified the checkout nonce; covers a logged-in
+  buyer and an account created there);
+- My Account registration — `woocommerce_created_customer`, checked against
+  the `woocommerce-register` nonce and the field being offered;
+- block checkout — the request hook keeps the tick as order meta
+  `_smaily_newsletter_optin = 1` (an unticked resubmission of the same order
+  deletes it, so a failed-payment retry keeps only the final choice), and
+  `woocommerce_store_api_checkout_order_processed` records it for the order's
+  customer id, which exists by then. The order meta also stays as evidence.
+The writer only ever writes 1, only on an explicit tick, and only in consent
+mode after the wizard: an unticked box is never an opt-out; legitimate interest
+and checkout-only keep their behaviour (a record there would also hide the box
+on later checkouts); before the wizard the legacy sync owns the tick. A tick
+over an earlier Smaily unsubscribe follows the existing re-grant rule.
+**Rejected:** widening `ContactAudience` to let a registered buyer through the
+order path (would bypass the store's consent record and the reconcile);
+writing 0 for an unticked box (an absent tick is not a withdrawal).
+
+### PRO-3190 — Order confirmations carry what a real confirmation template shows (2026-09-29)
+
+**Context:** a pilot merchant moving its order-confirmation email from its own
+automation to Smaily Connect needs data the transactional `context` did not
+carry: subtotal/tax/shipping, the status, the method codes, the line discount,
+and the customer's addresses, phone and order note.
+**Decision (Erkki, 2026-09-29):** add fields only — no existing field changes
+name or format. For every confirmation: `order_subtotal` (product lines after
+discounts), `order_tax`, `order_shipping` (with its tax) formatted like
+`order_total`, gross; `_raw` copies of those four
+(`wc_format_decimal(x, wc_get_price_decimals())`, free shipping = `0.00`);
+`order_status` (shown name) + `order_status_id` (bare slug);
+`payment_method_id` + `shipping_method_id` (each shipping line's method id,
+joined with `", "` exactly like WooCommerce joins the titles into
+`shipping_method`, so the two list the lines in the same order); and
+`product_discount_percent_N` = `round((1 − price/base_price) × 100)` from the
+order line (coupon discounts only — no live product lookup), `"0"` on a filled
+slot without discount, `''` on an unused slot.
+**Personal data behind a switch, OFF by default** (the WooCommerce tab's
+"Include addresses, phone and order note",
+`smly_plus_transactional_personal_data_enabled`, stored like the other
+default-off transactional flags): `shipping_first_name`/`_last_name`,
+`billing_`/`shipping_` `address_1`/`address_2`/`postcode`/`city`/`country`
+(the country's WooCommerce name, else the code), `billing_phone` — and
+**`customer_note` too**: it is free text a shopper types, so it can hold
+anything personal; it is sent only while the switch is on. While on, every
+key is present (`''` when unknown, e.g. no delivery address on a pickup
+order); while off, none is. Both confirmations share one builder, so the
+switch covers both.
+**Merchant extras** instead of more built-ins: filter
+`smaily_connect_transactional_email_fields` (`$fields = []`, `WC_Order`,
+`$trigger`) adds order-level fields, `smaily_connect_transactional_email_product_fields`
+(`$fields = []`, `WC_Order_Item_Product`, `WC_Order`) per-line ones (keys
+start with `product_`, sent as `<key>_1..10`, every slot prefilled `''`).
+`build()` takes the trigger for the first (also from "Send again"). Rules:
+a built-in key always wins — and the personal-data keys stay reserved while
+the switch is off, so a snippet can't send them past it; key
+`^[a-z][a-z0-9_]{0,63}$`; scalar values only, cast to string, cut at 1000
+characters, then escaped like every text field; at most 20 keys per filter.
+Anything else is dropped and written to the WP_DEBUG log (`DebugLog`); a
+throwing filter adds nothing, so a broken snippet cannot break checkout or
+the send.
+**GDPR erasure:** nothing to add — `EventQueue::redact_json()` keeps an
+allowlist of impersonal routing keys and blanks everything else, so the new
+personal-data keys are blanked in a stored row's `payload.context` and in its
+recorded request by construction (pinned by a unit test through the real
+builder).
+**Template guidance instead of code changes:** test an empty product slot
+with `!= ""` (or `{% if product_name_N %}`); `over_10_products` is absent at
+≤10 products, so test `== "true"`; formatted amounts already carry the
+currency sign — use the `_raw` fields to format your own.
+**Rejected:** sending addresses/phone by default (personal data a template may
+not need); renaming or reformatting existing fields to suit the pilot's
+template (would break every other merchant's template); a live product lookup
+for sale-price discounts (the order line is what the customer paid).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
