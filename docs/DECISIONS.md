@@ -6932,6 +6932,35 @@ them, and each extra form is another way to lift an opt-out; no allowance at
 all (a store behind a load balancer could see its own fresh opt-in a few
 seconds "ahead").
 
+### PRO-3623 — A new engine connection is accepted only on https://intelligence.smaily.com (2026-10-05)
+
+**Context:** cross-repo note from the Magento security review (PRO-3575).
+`SetupExchange::parse_setup_url()` accepted any host, and the engine's
+setup reply (`engine_base_url` + the endpoints map) was stored unchecked, so a
+pasted setup link could send the setup token — and from then on the store's
+customer and order data — to another server.
+**Decision:** `SetupExchange::is_allowed_engine_url()` accepts only `https` on
+exactly `intelligence.smaily.com` (no port, no user info; whitespace, control
+characters and backslashes refused). The setup-exchange route refuses any
+other host with `invalid_setup_url` before a request, and
+`SetupExchange::exchange()` refuses the same (defense for every caller, incl.
+`bin/exchange-setup-token.php`) and turns a reply whose base URL or ANY
+endpoint fails the check into `host_not_allowed`, which is never stored. A bare
+token is held to the same rule: the base it reuses (the route's `base_url`
+param, or the stored base in the bin script) must itself pass. The check runs
+at exchange time only — a connection stored earlier (e.g. on a retired preview
+alias) keeps working until it is replaced. Test seam: the PHP constant
+`SMAILY_CONNECT_TEST_ENGINE_HOST`, defined only in the integration bootstrap
+(the mock engine runs on `http://127.0.0.1:<port>`); it lets that one host
+through over http or https on any port. The dev wp-env needs no seam — the
+sandbox tenant lives on `intelligence.smaily.com` too.
+**Rationale:** parity with Magento; a constant rather than a filter because a
+constant cannot be switched on per request by any plugin or theme, is never
+defined by this plugin, and is visible in exactly one place.
+**Relationships:** narrows F3-4's "flexible — the engine could one day move"
+rationale: moving the engine to a new host now needs a plugin release (one
+constant). F3-4's paste-the-full-URL decision itself is unchanged.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

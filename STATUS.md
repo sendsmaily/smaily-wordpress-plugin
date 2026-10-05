@@ -26,7 +26,20 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3655 (+ the contract-copy criterion of
+_Last updated: 2026-10-05 (**PRO-3623 on a branch, unreleased:** a new
+Campaign Intelligence connection is accepted only on
+`https://intelligence.smaily.com` — the setup link is refused before any
+request on any other host, and the engine's setup reply is stored only when its
+base URL and every endpoint pass the same check; connections stored earlier are
+not re-checked. Test seam: `SMAILY_CONNECT_TEST_ENGINE_HOST`, defined only in
+the integration bootstrap (DECISIONS PRO-3623). Two new merchant-visible
+strings (EN + ET in `.pot`/`-et.po`, ET awaits the human proofread before the
+docs site is published); docs site EN+ET updated. Gates: ci:strict exit=0
+(unit 938); integration 316 OK (1 skipped, pre-existing) on the Mac. This
+touches a security-sensitive surface (external HTTP, stored config), so the
+next release needs the security delta re-audit to cover it.)_
+
+Prior: 2026-10-05 (**PRO-3655 (+ the contract-copy criterion of
 PRO-3788) — contract re-synced byte-identical to engine `41fe5cb87f41`
 (md5 `d50b289e…`) — v1.8.1 → v1.9.1, CC-8 pass.** Ends the daily red
 `Contract staleness` run (red since 2026-10-03). Six engine commits touched
@@ -68,7 +81,7 @@ follow-through call on each:**
      change.
 **Mock follow-through: none required.** No shape the plugin sends today
 changed (no wrapper key, required field, enum or removed field). Gate: `bash
-bin/check-contract-staleness.sh` against the engine main copy **green**.)_
+bin/check-contract-staleness.sh` against the engine main copy **green**.)
 
 Prior: 2026-09-29 (**3.15.0 is LIVE on wordpress.org** — published
 2026-09-29: GitHub release `3.15.0` → `8ca7678` (PR #149, release.yml run

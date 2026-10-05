@@ -372,7 +372,7 @@ td code{white-space:nowrap}
       <ul>
         <li>A <strong>WooCommerce store</strong> on WordPress, served over <strong>HTTPS</strong> (the Smaily and recommendation APIs are HTTPS‑only).</li>
         <li>A <strong>Smaily account with API access</strong>. You create API users in Smaily under <span class="path">Settings → API</span> — you'll need the <strong>subdomain</strong>, <strong>API username</strong> and <strong>API password</strong>.</li>
-        <li><em>(Optional)</em> A <strong>Campaign Intelligence setup link</strong> — a one‑time link of the form <code>https://…/setup/…</code>, provided by Smaily if you use the recommendation add‑on.</li>
+        <li><em>(Optional)</em> A <strong>Campaign Intelligence setup link</strong> — a one‑time link of the form <code>https://intelligence.smaily.com/setup/…</code>, provided by Smaily if you use the recommendation add‑on.</li>
       </ul>
       <div class="tw">
         <table>
@@ -392,7 +392,7 @@ td code{white-space:nowrap}
       <ul>
         <li><strong>WooCommerce'i poodi</strong> WordPressil, <strong>HTTPS</strong> kaudu (Smaily ja soovitus‑API‑d on ainult HTTPS).</li>
         <li><strong>Smaily kontot API‑ligipääsuga</strong>. API‑kasutajad luuakse Smailys jaotises <span class="path">Settings → API</span> — vaja läheb <strong>alamdomeeni</strong>, <strong>API kasutajanime</strong> ja <strong>API parooli</strong>.</li>
-        <li><em>(Valikuline)</em> <strong>Campaign Intelligence seadistuslinki</strong> — ühekordset linki kujul <code>https://…/setup/…</code>, mille Smaily annab, kui kasutad soovitus‑lisa.</li>
+        <li><em>(Valikuline)</em> <strong>Campaign Intelligence seadistuslinki</strong> — ühekordset linki kujul <code>https://intelligence.smaily.com/setup/…</code>, mille Smaily annab, kui kasutad soovitus‑lisa.</li>
       </ul>
       <div class="tw">
         <table>
@@ -1226,7 +1226,7 @@ td code{white-space:nowrap}
     <div data-lang="en">
       <ul>
         <li><strong>This setup link was already used</strong> — setup links are one‑time. Ask Smaily for a fresh one.</li>
-        <li><strong>Setup link not recognized</strong> — check you pasted the full URL.</li>
+        <li><strong>Setup link not recognized</strong> — check you pasted the full URL. The plugin accepts only a link that starts with <code>https://intelligence.smaily.com/setup/</code>; a link to any other address is refused before anything is sent, so copy it again from your Smaily account.</li>
         <li><strong>Campaign Intelligence did not respond</strong> — try <strong>Test</strong> again shortly; if it persists, contact support.</li>
         <li><strong>Campaign Intelligence rejected the stored API key</strong> — the key was revoked or rotated. <strong>Disconnect</strong>, reconnect with a fresh setup link, then return.</li>
         <li><strong>Product rejected — missing SKU</strong> — the engine keys products on SKU. Products with no SKU are given a synthetic one automatically, but if a row still fails, add a SKU to the product and retry.</li>
@@ -1235,7 +1235,7 @@ td code{white-space:nowrap}
     <div data-lang="et">
       <ul>
         <li><strong>This setup link was already used</strong> — seadistuslingid on ühekordsed. Küsi Smailyst uus.</li>
-        <li><strong>Setup link not recognized</strong> — kontrolli, et kleepisid terve URL‑i.</li>
+        <li><strong>Setup link not recognized</strong> — kontrolli, et kleepisid terve URL‑i. Plugin võtab vastu ainult lingi, mis algab aadressiga <code>https://intelligence.smaily.com/setup/</code>; mis tahes muule aadressile viiv link lükatakse tagasi enne, kui midagi saadetakse, seega kopeeri see uuesti oma Smaily kontolt.</li>
         <li><strong>Campaign Intelligence did not respond</strong> — proovi peagi uuesti <strong>Test</strong>; kui püsib, võta ühendust toega.</li>
         <li><strong>Campaign Intelligence rejected the stored API key</strong> — võti tühistati või vahetati. Tee <strong>Disconnect</strong>, ühenda uuesti värske seadistuslingiga ja tule tagasi.</li>
         <li><strong>Product rejected — missing SKU</strong> — mootor võtmestab tooted SKU järgi. SKU‑ta tooted saavad automaatselt sünteetilise, aga kui rida ikka ebaõnnestub, lisa tootele SKU ja proovi uuesti.</li>

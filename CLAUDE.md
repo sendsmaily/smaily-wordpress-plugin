@@ -66,8 +66,14 @@ conclude "Docker unavailable" from a bare `docker info` failure — use `sg`.
 `docker` has no daemon to talk to. `sg docker` is not needed there: plain
 `docker` works for the user, so drop the `sg docker -c "…"` wrapper from the
 commands in this file (`composer run test:integration` directly). The
-integration suite has NOT yet been run on the Mac — treat the first run there
-as unproven, not as a known-good baseline.
+integration suite runs green on the Mac (316 tests, 2026-10-05, PRO-3623), but
+a fresh worktree's wp-env there needed the CI job's prep first — `composer run package:hash`, then
+after `start`: `npx @wordpress/env run cli wp plugin activate smaily-connect`
+and `npx @wordpress/env run cli wp config set WP_DEBUG_DISPLAY false --raw`.
+Without them 78 unrelated tests failed (missing build hash, hooks never
+registered). Port 8888 can be held by another local project (a Magento
+phpMyAdmin container): `WP_ENV_PORT=8898 WP_ENV_TESTS_PORT=8899` in the
+environment moves wp-env without touching `.wp-env.json`.
 
 **Filtered/single-test integration runs:** prefer the wrapper — it passes
 extra args through to phpunit AND keeps the PRO-1240 smly_rec_* snapshot/
@@ -1119,6 +1125,21 @@ with `{email}` (the mock 422s on a literal-placeholder email). General rule: a
 URL from the endpoints-map carries the engine's placeholder syntax — confirm it
 (`{name}` vs `%s`) before picking a substitution function; a 404 echoing an
 un-interpolated token is YOUR request, not an engine bug. (LESSONS §2.9.)
+
+### A new engine connection is accepted only on https://intelligence.smaily.com (PRO-3623)
+`SetupExchange::is_allowed_engine_url()` is the one rule: `https`, exactly
+`intelligence.smaily.com`, no port, no user info. The setup-exchange route
+refuses any other host before a request; `SetupExchange::exchange()` refuses it
+too and refuses a REPLY whose `engine_base_url` or any endpoints-map URL fails
+the rule (`host_not_allowed`, never stored). A bare token's reused base must
+pass as well. It runs at exchange time only — never re-check a stored
+connection (connections on a retired preview alias must keep working), and
+don't move the check into `RecEngineSettings::store()`: `EnvSeed::connect()`
+stores the `https://re-fixture.test` fixture through it. The integration mock
+(`http://127.0.0.1:<port>`) gets through only because
+`tests/Integration/bootstrap.php` defines `SMAILY_CONNECT_TEST_ENGINE_HOST`;
+never define it in a wp-config, and don't turn it into a filter. Moving the
+engine to a new host is now a plugin release (`SetupExchange::ENGINE_HOST`).
 
 ### Merging `upstream/main` (sendsmaily) — MERGE, ours wins, and audit the CLEAN hunks
 **HISTORY once PR #135 has landed** (PRO-2281): after the merge there is ONE
