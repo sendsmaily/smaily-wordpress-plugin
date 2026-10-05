@@ -135,17 +135,26 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
 
   let captured = false;
   let present = false;
+  const written = new Set<string>();
   // 1) SAVE every present value to its cookie first.
   for (const { param, cookie, ttl, isValid } of mapping) {
     const value = params.get(param);
     if (value !== null && value !== '' && (isValid === undefined || isValid(value))) {
       writeCookie(cookie, value, ttl);
+      written.add(param);
       captured = true;
     }
     if (params.has(param)) {
       params.delete(param);
       present = true;
     }
+  }
+  // Context cookie rule (contract v1.9.0, mirrors LandingCapture::resolve()):
+  // a landing that set the rec id without a valid context clears the context,
+  // so both cookies describe the same landing — an email click after a
+  // storefront click must not leave `storefront` standing.
+  if (written.has(config.urlParams.recId) && !written.has(config.urlParams.context)) {
+    writeCookie(config.cookieNames.context, '', 0);
   }
   // 2) Only now strip the params from the visible URL.
   if (present) {

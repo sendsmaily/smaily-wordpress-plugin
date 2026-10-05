@@ -71,6 +71,36 @@ describe('captureAttributionParams (PRO-1767 attribution-only writer)', () => {
     expect(document.cookie).not.toContain('smaily_rec_ctx=');
   });
 
+  // Contract v1.9.0 context cookie rule: the rec id and the context always
+  // describe the same landing — LandingCapture::resolve() is the PHP twin.
+  it('clears the context cookie when a smaily_rec landing carries no smaily_ctx', () => {
+    document.cookie = 'smaily_rec_ctx=storefront; path=/';
+    window.history.replaceState({}, '', `/landing?smaily_rec=${REC_UUID}`);
+
+    expect(captureAttributionParams(makeConfig())).toBe(true);
+
+    expect(document.cookie).toContain(`smaily_rec_id=${REC_UUID}`);
+    expect(document.cookie).not.toContain('smaily_rec_ctx=');
+  });
+
+  it('clears the context cookie when a smaily_rec landing carries an off-shape smaily_ctx', () => {
+    document.cookie = 'smaily_rec_ctx=storefront; path=/';
+    window.history.replaceState({}, '', `/landing?smaily_rec=${REC_UUID}&smaily_ctx=has%20spaces`);
+
+    captureAttributionParams(makeConfig());
+
+    expect(document.cookie).not.toContain('smaily_rec_ctx=');
+  });
+
+  it('keeps the context cookie when the smaily_rec is refused', () => {
+    document.cookie = 'smaily_rec_ctx=storefront; path=/';
+    window.history.replaceState({}, '', '/landing?smaily_rec=junk-value');
+
+    captureAttributionParams(makeConfig());
+
+    expect(document.cookie).toContain('smaily_rec_ctx=storefront');
+  });
+
   it('writes no session cookie — this bundle only does attribution', () => {
     window.history.replaceState({}, '', `/landing?smaily_rec=${REC_UUID}`);
 

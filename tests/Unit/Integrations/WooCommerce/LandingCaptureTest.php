@@ -142,6 +142,54 @@ final class LandingCaptureTest extends TestCase {
 		);
 	}
 
+	// ---- resolve(): context cookie rule (contract v1.9.0) -------------------
+
+	public function test_resolve_clears_the_context_when_a_smaily_rec_landing_has_none(): void {
+		// The two cookies describe the same landing: without a smaily_ctx, an
+		// earlier landing's context (e.g. `storefront`) must not stand.
+		$out = $this->capture()->resolve( array( 'smaily_rec' => self::UUID ) );
+		self::assertSame( '', $out['context'] ?? null );
+	}
+
+	public function test_resolve_clears_the_context_when_a_smaily_rec_landing_has_a_malformed_one(): void {
+		$out = $this->capture()->resolve(
+			array(
+				'smaily_rec' => self::UUID,
+				'smaily_ctx' => 'bad value!',
+			)
+		);
+		self::assertSame( '', $out['context'] ?? null );
+	}
+
+	public function test_resolve_leaves_the_context_alone_on_a_utm_content_landing(): void {
+		$out = $this->capture()->resolve(
+			array(
+				'utm_content' => self::UUID,
+				'utm_source'  => 'smaily',
+			)
+		);
+		self::assertArrayNotHasKey( 'context', $out, 'Only a landing that carries smaily_rec clears the context.' );
+	}
+
+	public function test_resolve_leaves_the_context_alone_when_smaily_rec_is_not_a_uuid(): void {
+		$out = $this->capture()->resolve( array( 'smaily_rec' => 'rec_abc123' ) );
+		self::assertArrayNotHasKey( 'context', $out, 'A refused rec id writes no rec cookie, so the context stays too.' );
+	}
+
+	public function test_capture_expires_the_context_cookie_on_a_smaily_rec_landing_without_one(): void {
+		Functions\when( 'apply_filters' )->returnArg( 2 );
+		$_GET                      = array( 'smaily_rec' => self::UUID );
+		$_COOKIE['smaily_rec_ctx'] = 'storefront';
+		$writer                    = $this->recording_capture( true, array() );
+
+		$writer->capture();
+
+		self::assertSame( self::UUID, $writer->written['smaily_rec_id'] ?? null );
+		self::assertSame( '', $writer->written['smaily_rec_ctx'] ?? null );
+		self::assertLessThan( time(), $writer->expires['smaily_rec_ctx'] ?? PHP_INT_MAX, 'An expiry in the past deletes the cookie.' );
+		self::assertArrayNotHasKey( 'smaily_rec_ctx', $_COOKIE );
+	}
+
 	// ---- capture(): gating + cookie effect ----------------------------------
 
 	public function test_capture_writes_cookies_on_a_connected_rec_landing(): void {
@@ -229,12 +277,16 @@ final class LandingCaptureTest extends TestCase {
 			/** @var array<string, string> */
 			public array $written = array();
 
+			/** @var array<string, int> */
+			public array $expires = array();
+
 			protected function headers_already_sent(): bool {
 				return false; // PHPUnit's progress output makes the real one true.
 			}
 
 			protected function send_cookie( string $name, string $value, int $expires ): void {
 				$this->written[ $name ] = $value;
+				$this->expires[ $name ] = $expires;
 			}
 		};
 	}
