@@ -160,6 +160,10 @@ export function Step2Subscribers({
               { __(
                 'This sends every customer to Smaily regardless of marketing consent. Make sure you have a lawful basis (legitimate interest).',
                 'smaily-connect',
+              ) }{' '}
+              { __(
+                'Under the EU soft opt-in, email these customers only about products similar to what they bought, and give them a clear way to refuse marketing when they buy. The legal basis is your responsibility.',
+                'smaily-connect',
               ) }
             </Banner>
           )}

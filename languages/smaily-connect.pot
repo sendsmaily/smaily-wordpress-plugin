@@ -1905,6 +1905,10 @@ msgstr ""
 msgid "This sends every customer to Smaily regardless of marketing consent. Make sure you have a lawful basis (legitimate interest)."
 msgstr ""
 
+#: admin/src/components/steps/Step2Subscribers.tsx:116
+msgid "Under the EU soft opt-in, email these customers only about products similar to what they bought, and give them a clear way to refuse marketing when they buy. The legal basis is your responsibility."
+msgstr ""
+
 #: admin/src/components/steps/Step2Subscribers.tsx:122
 msgid "Also sync guest-order email addresses"
 msgstr ""
