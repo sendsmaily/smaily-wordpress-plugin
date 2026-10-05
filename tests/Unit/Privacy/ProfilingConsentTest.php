@@ -216,7 +216,7 @@ final class ProfilingConsentTest extends TestCase {
 		Functions\when( 'get_option' )->justReturn( array() );
 		Functions\when( 'update_option' )->justReturn( true );
 
-		$smaily = $this->createMock( SmailyClient::class );
+		$smaily = $this->smaily_reading( array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => null ) );
 		$smaily->expects( self::once() )
 			->method( 'write_profiling_consent' )
 			->with( 'a@example.com', false, self::isType( 'string' ) )
@@ -229,6 +229,68 @@ final class ProfilingConsentTest extends TestCase {
 			->willReturn( array( 'ok' => true ) );
 
 		$this->resolver( $smaily, $rec )->opt_out( 'a@example.com' );
+	}
+
+	// --- a choice never creates a Smaily contact (PRO-3627) ----------------
+
+	/**
+	 * Smaily creates a contact sent without a status as subscribed, so a
+	 * choice for an address Smaily does not have stays in the store: the
+	 * durable opt-out and the engine still get it, Smaily gets nothing.
+	 */
+	public function test_opt_out_for_an_address_smaily_does_not_have_stays_in_the_store(): void {
+		$options = &$this->options();
+		$this->transients();
+		$smaily = $this->smaily_reading( array( 'found' => false, 'is_unsubscribed' => null, 'smaily_rec_profiling' => null ) );
+		$smaily->expects( self::never() )->method( 'write_profiling_consent' );
+		$smaily->expects( self::never() )->method( 'upsert_subscribers' );
+
+		$rec = $this->createMock( RecEngineClient::class );
+		$rec->expects( self::once() )
+			->method( 'customer_opt_out' )
+			->with( 'a@example.com', self::callback( static fn ( array $b ): bool => $b['opt_out'] === true ) )
+			->willReturn( array( 'ok' => true ) );
+
+		$resolver = $this->resolver( $smaily, $rec );
+		$resolver->opt_out( 'a@example.com' );
+
+		self::assertArrayHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
+	}
+
+	public function test_opt_in_for_an_address_smaily_does_not_have_stays_in_the_store(): void {
+		$options = &$this->opted_out_options();
+		$this->transients();
+		$smaily = $this->smaily_reading( array( 'found' => false, 'is_unsubscribed' => null, 'smaily_rec_profiling' => null ) );
+		$smaily->expects( self::never() )->method( 'write_profiling_consent' );
+		$smaily->expects( self::never() )->method( 'upsert_subscribers' );
+
+		$resolver = $this->resolver( $smaily );
+		$resolver->opt_in( 'a@example.com' );
+
+		self::assertArrayNotHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertTrue( $resolver->may_profile( 'a@example.com' ) );
+	}
+
+	/**
+	 * When Smaily cannot say whether it has the contact, nothing is written
+	 * blind; the opt-out is still recorded store-side and reaches the engine.
+	 */
+	public function test_opt_out_writes_nothing_when_the_contact_check_fails(): void {
+		$options = &$this->options();
+		$this->transients();
+		$smaily = $this->failing_smaily();
+		$smaily->expects( self::never() )->method( 'write_profiling_consent' );
+		$smaily->expects( self::never() )->method( 'upsert_subscribers' );
+
+		$rec = $this->createMock( RecEngineClient::class );
+		$rec->expects( self::once() )->method( 'customer_opt_out' )->willReturn( array( 'ok' => true ) );
+
+		$resolver = $this->resolver( $smaily, $rec );
+		$resolver->opt_out( 'a@example.com' );
+
+		self::assertArrayHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
 	}
 
 	// --- known_preference(): the display accessor (PRO-2513) ---------------
