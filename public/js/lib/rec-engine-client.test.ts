@@ -229,7 +229,7 @@ describe('RecEngineClient (3.4.1 transport)', () => {
     expect(event).not.toHaveProperty('sku');
   });
 
-  it('never puts rec_id / ctx / email on a browse event (data-minimization — attribution rides orders)', async () => {
+  it('never puts rec_id / ctx / email / external_id on a browse event (data-minimization — attribution rides orders)', async () => {
     document.cookie = 'smaily_rec_uid=vt-abc';
     document.cookie = 'smaily_rec_id=rec-1';
     document.cookie = 'smaily_rec_ctx=welcome';
@@ -245,6 +245,8 @@ describe('RecEngineClient (3.4.1 transport)', () => {
     expect(event).not.toHaveProperty('smaily_rec_id');
     expect(event).not.toHaveProperty('smaily_ctx');
     expect(event).not.toHaveProperty('customer_email');
+    // The browser asserts no identity of its own (PRO-3620: /relay strips it too).
+    expect(event).not.toHaveProperty('external_id');
   });
 
   it('flushes the buffer via sendBeacon on pagehide', () => {
