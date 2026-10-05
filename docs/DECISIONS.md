@@ -7027,6 +7027,19 @@ already fails any non-101 at once and is unchanged.
 every other caller (backfill, consent writes) and every other code, which
 this issue does not cover.
 
+### PRO-3673 — The browse-tracking toggle says where consent comes from (2026-10-05)
+
+**Context:** without the WP Consent API the browse tracker has no consent
+signal and sends nothing (F3-50); only the dismissible admin notice said so,
+not the setting itself.
+**Decision:** `EnvDetector` emits `consentApiPresent`
+(`function_exists( 'wp_has_consent' )`, the notice's own check) in the boot
+env; a line under the toggle says either that consent comes from the store's
+consent plugin, or that browse tracking sends nothing until a consent source
+is connected, with a link to the WP Consent API plugin on wordpress.org.
+Shown whatever the toggle state, as in the Magento plugin (PRO-3664). The
+admin notice and how consent is decided are unchanged.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

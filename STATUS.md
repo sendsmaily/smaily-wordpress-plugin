@@ -26,7 +26,17 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3750 (Magento parity with PRO-1962)** — a Smaily HTTP 200
+_Last updated: 2026-10-05 (**PRO-3673 (Magento parity with PRO-3664)** — a line under the
+browse-tracking toggle (Step 4 / Settings, connected view) says where consent
+comes from: "Consent comes from your store's consent plugin…" when the WP
+Consent API is active, otherwise "Browse tracking sends nothing until a
+consent source is connected." + a link to the plugin on wordpress.org. Data:
+`EnvDetector` `consentApiPresent` → `hydrate.ts` env. Admin notice unchanged.
+Three new strings (EN + ET by hand in `.pot`/`-et.po`, ET awaits the human
+proofread); docs site EN+ET; DECISIONS PRO-3673. Unit `EnvDetectorTest`,
+vitest `Step4Recommendations`/`hydrate`. **Unreleased on main.**)_
+
+Prior: 2026-10-05 (**PRO-3750 (Magento parity with PRO-1962)** — a Smaily HTTP 200
 answer with code 203 "invalid data" now fails the Smaily-queue row on the
 first attempt as `permanent_envelope_203: <Smaily's answer>`, in the main
 Flusher (contact sync, welcome, first order) and in CartFlusher (routed and
@@ -37,7 +47,7 @@ was marked **sent**; other codes still are (follow-up candidate). Unit
 `RetryPolicyTest`/`FlusherTest`/`CartFlusherTest` (red without the change)
 + integration `SmailyInvalidDataAnswerTest` (real Client + queue table);
 merchant docs EN+ET (Event Log error); DECISIONS PRO-3750. **Unreleased on
-main** (readme changelog line belongs to the next bump).)_
+main** (readme changelog line belongs to the next bump).)
 
 Prior: 2026-10-05 (**PRO-3796 (Magento parity with PRO-1957)** — the abandoned-cart
 reminder now writes `over_10_products` on every send: `true` past 10
