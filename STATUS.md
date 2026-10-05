@@ -26,7 +26,16 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3788 — storefront recommendations
+_Last updated: 2026-10-05 (**PRO-3627 (unreleased on main once merged):** Smaily creates a
+contact sent without a status as subscribed, so a profiling choice and the
+abandoned-cart purchase marker now go only to a contact Smaily already has
+(contact read first). A missing contact: the profiling choice stays in the
+store; the marker row closes as a skip with its reason in the Event Log. A
+failed read writes nothing (profiling: logged, reconciled on the next
+read-back; marker row: normal RetryPolicy ladder). DECISIONS PRO-3627.
+Readme changelog line belongs to the next bump. Mirrors Magento PRO-3619.)_
+
+Prior: 2026-10-05 (**PRO-3788 — storefront recommendations
 (contract v1.9.0 §15), unreleased on its PR branch.** New
 `smaily/recommendations` block + `[smaily_recommendations]` shortcode
 (merchant-placed only, `blocks/recommendations/` workspace): server-rendered
@@ -50,7 +59,7 @@ customers carry a store id). Mock engine serves §15 + the
 321/321 green (wp-env on the Mac, dev port 8890 — 8888 was taken); blocks
 build + lint green. Not live-walked: the dev wp-env was not connected.
 New ET strings (block + "Sulle soovitatud") and the docs-site section need
-the human ET proofread before publishing. Contract copy synced by PR #152.)_
+the human ET proofread before publishing. Contract copy synced by PR #152.)
 
 Prior: 2026-10-05 (**PRO-3673 (Magento parity with PRO-3664)** — a line under the
 browse-tracking toggle (Step 4 / Settings, connected view) says where consent
