@@ -823,6 +823,7 @@ msgstr "Smaily Maandumisleht"
 
 #: blocks/landingpage/src/block.json
 #: blocks/newsletter-signup/src/block.json
+#: blocks/recommendations/src/block.json
 msgctxt "block keyword"
 msgid "smaily"
 msgstr "smaily"
@@ -2750,3 +2751,35 @@ msgstr "Pikslites või protsentides — näiteks 500 või 100%."
 #: integrations/elementor/landingpage-widget.class.php:160
 msgid "Add the address of a landing page of your connected Smaily account."
 msgstr "Lisa ühendatud Smaily konto maandumislehe aadress."
+
+#: includes/Integrations/WooCommerce/StorefrontRecommendations.php:124
+msgid "Recommended for you"
+msgstr "Sulle soovitatud"
+
+#: blocks/recommendations/src/edit.js:13
+msgid "Smaily Recommendations"
+msgstr "Smaily soovitused"
+
+#: blocks/recommendations/src/edit.js:14
+msgid "Logged-in shoppers see their personal product recommendations here. Visitors who are not logged in see nothing."
+msgstr "Sisse logitud ostjad näevad siin oma isiklikke tootesoovitusi. Sisse logimata külastajad ei näe midagi."
+
+#: blocks/recommendations/src/block.json
+msgctxt "block title"
+msgid "Smaily Recommendations"
+msgstr "Smaily soovitused"
+
+#: blocks/recommendations/src/block.json
+msgctxt "block description"
+msgid "Shows logged-in shoppers their personal Smaily product recommendations."
+msgstr "Näitab sisse logitud ostjatele nende isiklikke Smaily tootesoovitusi."
+
+#: blocks/recommendations/src/block.json
+msgctxt "block keyword"
+msgid "recommendations"
+msgstr "soovitused"
+
+#: blocks/recommendations/src/block.json
+msgctxt "block keyword"
+msgid "products"
+msgstr "tooted"
