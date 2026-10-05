@@ -240,6 +240,8 @@ final class CartPipelineTest extends TestCase {
 			}
 		}
 
+		self::assertSame( '', $second_address['over_10_products'], 'The over-10 flag is written empty too, so a larger cart\'s flag cannot linger (PRO-3796).' );
+
 		$serialized = (string) wp_json_encode( $second_address );
 		self::assertStringNotContainsString( 'First Cart Alpha', $serialized, 'The earlier cart must not appear anywhere in the second reminder.' );
 		self::assertStringNotContainsString( 'First Cart Beta', $serialized );
