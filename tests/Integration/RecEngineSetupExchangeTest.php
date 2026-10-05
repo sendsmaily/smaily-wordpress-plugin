@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\EnvSeed;
 use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
 
 /**
@@ -167,6 +168,41 @@ final class RecEngineSetupExchangeTest extends TestCase {
 		self::assertSame( 400, $response->get_status() );
 		$body = $response->get_data();
 		self::assertSame( 'invalid_setup_url', $body['error'] );
+	}
+
+	public function test_a_setup_link_on_another_host_is_refused_before_any_request(): void {
+		// Same mock server, reached under a host name the plugin does not
+		// accept: if the refusal ever slipped, the request WOULD land on the
+		// mock and bump its counter. PRO-3623.
+		$setup_url = str_replace( '://127.0.0.1:', '://localhost:', self::$engine->setup_url( 'tok_success' ) );
+		self::$engine->reset_request_count();
+
+		$response = RestRequestHelper::post(
+			'/rec-engine/setup-exchange',
+			array( 'setup_url' => $setup_url )
+		);
+
+		self::assertSame( 400, $response->get_status() );
+		self::assertSame( 'invalid_setup_url', $response->get_data()['error'] );
+		self::assertSame( 0, self::$engine->request_count(), 'The setup token must not be sent to a host other than the engine.' );
+		self::assertFalse( ( new RecEngineSettings() )->is_connected() );
+	}
+
+	public function test_a_connection_stored_earlier_on_another_host_survives_a_refused_link(): void {
+		// The fixture connection lives on https://re-fixture.test — a host a
+		// NEW exchange would refuse. The rule applies at exchange time only.
+		EnvSeed::connect();
+
+		$response = RestRequestHelper::post(
+			'/rec-engine/setup-exchange',
+			array( 'setup_url' => 'https://intelligence.smaily.com.evil.com/setup/tok_abc' )
+		);
+
+		self::assertSame( 400, $response->get_status() );
+		$settings = new RecEngineSettings();
+		self::assertTrue( $settings->is_connected() );
+		self::assertSame( EnvSeed::FIXTURE_BASE_URL, $settings->base_url() );
+		self::assertSame( EnvSeed::FIXTURE_API_KEY, $settings->api_key() );
 	}
 
 	public function test_setup_token_does_not_persist_in_wp_options_after_exchange(): void {

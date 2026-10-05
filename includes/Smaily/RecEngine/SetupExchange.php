@@ -36,6 +36,69 @@ defined( 'ABSPATH' ) || exit;
 class SetupExchange {
 
 	/**
+	 * The only engine host a NEW connection may point at (PRO-3623). The setup
+	 * link, the engine's `engine_base_url` and every URL in its endpoints map
+	 * must be https on exactly this host — otherwise a pasted link could send
+	 * the store's customer and order data to another server. A connection
+	 * stored before this rule keeps working: the check runs only at exchange.
+	 */
+	public const ENGINE_HOST = 'intelligence.smaily.com';
+
+	/**
+	 * Name of the PHP constant that lets ONE extra host through, over http or
+	 * https on any port. Only the integration suite defines it (its mock engine
+	 * runs on http://127.0.0.1:<port>); the plugin never does, so a store can
+	 * only open it by editing PHP code on purpose.
+	 */
+	public const TEST_ENGINE_HOST_CONSTANT = 'SMAILY_CONNECT_TEST_ENGINE_HOST';
+
+	/**
+	 * Is this an engine URL a new connection may use? https on
+	 * ENGINE_HOST, no port, no user info — or the test host, when defined.
+	 *
+	 * Whitespace, control characters and backslashes are refused outright:
+	 * they are where URL parsers disagree, and the URL is later handed to
+	 * the HTTP transport as-is.
+	 */
+	public static function is_allowed_engine_url( string $url ): bool {
+		if ( $url === '' || preg_match( '/[\x00-\x20\x7f\\\\]/', $url ) === 1 ) {
+			return false;
+		}
+
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) || ! isset( $parts['scheme'], $parts['host'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
+			return false;
+		}
+
+		$scheme = strtolower( (string) $parts['scheme'] );
+		$host   = strtolower( (string) $parts['host'] );
+
+		if ( $scheme === 'https' && $host === self::ENGINE_HOST && ! isset( $parts['port'] ) ) {
+			return true;
+		}
+
+		$test_host = defined( self::TEST_ENGINE_HOST_CONSTANT ) ? strtolower( (string) constant( self::TEST_ENGINE_HOST_CONSTANT ) ) : '';
+
+		return $test_host !== '' && $host === $test_host && ( $scheme === 'https' || $scheme === 'http' );
+	}
+
+	/**
+	 * May this exchange reply be stored? Its base URL and every endpoint
+	 * in its map must pass is_allowed_engine_url().
+	 */
+	public static function is_allowed_reply( ExchangeResult $result ): bool {
+		if ( ! self::is_allowed_engine_url( $result->engine_base_url ) ) {
+			return false;
+		}
+		foreach ( $result->endpoints as $url ) {
+			if ( ! self::is_allowed_engine_url( $url ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * Plugin-info payload echoed back to the engine for the audit log
 	 * (`tenant_setup_tokens.used_from_plugin` per contract §7.1).
 	 * Builds at runtime so the WP / WC version numbers reflect the
@@ -132,6 +195,11 @@ class SetupExchange {
 			return ExchangeResult::engine_unreachable( 'Setup URL is incomplete (missing token or engine host).' );
 		}
 
+		// Refused before any request: the token must never reach another host.
+		if ( ! self::is_allowed_engine_url( $engine_base_url ) ) {
+			return ExchangeResult::host_not_allowed( 'Setup URL is not on https://' . self::ENGINE_HOST . '.' );
+		}
+
 		$payload = array(
 			'setup_token' => $setup_token,
 			'plugin_info' => self::build_plugin_info(),
@@ -167,7 +235,11 @@ class SetupExchange {
 
 		switch ( $status ) {
 			case 200:
-				return ExchangeResult::success( $json );
+				$result = ExchangeResult::success( $json );
+				if ( ! self::is_allowed_reply( $result ) ) {
+					return ExchangeResult::host_not_allowed( 'Engine reply points outside https://' . self::ENGINE_HOST . '.' );
+				}
+				return $result;
 
 			case 410:
 				$regen = isset( $json['regenerate_url'] ) ? (string) $json['regenerate_url'] : '';

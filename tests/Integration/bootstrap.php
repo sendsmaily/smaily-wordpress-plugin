@@ -65,6 +65,13 @@ $_SERVER['REQUEST_URI']     = '/';
 // the global, so the copy-back is a no-op.
 global $shortcode_tags;
 
+// The mock engine (Fixtures/RecEngineMockServer) runs on http://127.0.0.1:<port>.
+// A new connection is otherwise accepted only on https://intelligence.smaily.com
+// (SetupExchange::is_allowed_engine_url, PRO-3623); this constant is the one
+// test-only way through, and it lives in this process alone — never in the
+// dev site's wp-config.
+define( 'SMAILY_CONNECT_TEST_ENGINE_HOST', '127.0.0.1' );
+
 require_once $wp_load;
 
 // Activate the plugin if WP hasn't done so yet. Idempotent — WP's
