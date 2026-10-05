@@ -77,3 +77,42 @@ describe('Step4Recommendations — a deactivated account is stated, not disguise
     expect(screen.queryByText('Connected')).not.toBeInTheDocument();
   });
 });
+
+describe('Step4Recommendations — the browse-tracking toggle says where consent comes from (PRO-3673)', () => {
+  const connected = {
+    ...wizardInitialState,
+    recEngineConnection: { kind: 'success', message: 'Acme Pets' },
+  } as typeof wizardInitialState;
+
+  it('says nothing is sent and links the WP Consent API plugin when the store has no consent API', () => {
+    render(<Step4Recommendations state={connected} dispatch={vi.fn()} />);
+
+    expect(
+      screen.getByText('Browse tracking sends nothing until a consent source is connected.', {
+        exact: false,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Get the WP Consent API plugin' })).toHaveAttribute(
+      'href',
+      'https://wordpress.org/plugins/wp-consent-api/',
+    );
+    expect(screen.queryByText(/Consent comes from your store's consent plugin/)).not.toBeInTheDocument();
+  });
+
+  it("says consent comes from the store's consent plugin when the consent API is active", () => {
+    render(
+      <Step4Recommendations
+        state={{ ...connected, env: { ...connected.env, consentApiPresent: true } }}
+        dispatch={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Consent comes from your store's consent plugin: browse events are sent only for visitors who gave marketing consent.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/sends nothing until a consent source is connected/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Get the WP Consent API plugin' })).not.toBeInTheDocument();
+  });
+});
