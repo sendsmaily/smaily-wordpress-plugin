@@ -115,15 +115,19 @@ Single policy object decides, per mode, what an upsert carries:
 - `is_unsubscribed` is **omitted** unless the mode + event explicitly set it
   (preset 2 opt-in → `0`, opt-out → `1`). Omission preserves Smaily's value;
   presets never silently flip consent.
-- **ASSUMPTION — not verified against Smaily (PRO-3407):** a **brand-new**
-  contact upserted WITHOUT `is_unsubscribed` (the omitted case above — e.g.
-  `HookHandler`'s order path under legitimate interest; `Smaily\Flusher`
-  forwards the key only when the payload sets it) is
-  created by Smaily as **subscribed** (Smaily's default). Nothing in this
-  repo — code, tests, mock or live-walk — confirms it; the "omission
-  preserves" rule above covers only an EXISTING contact. Confirm with Smaily
-  before relying on it (e.g. for a legitimate-interest guest who never
-  ticked a box).
+- **VERIFIED (Erkki, 2026-10-02 — PRO-3609; raised as an assumption in
+  PRO-3407):** a **brand-new** contact upserted WITHOUT `is_unsubscribed` (the
+  omitted case above — e.g. `HookHandler`'s order path under legitimate
+  interest; `Smaily\Flusher` forwards the key only when the payload sets it)
+  is created by Smaily as **subscribed** (Smaily's default). The "omission
+  preserves" rule above covers an EXISTING contact; together they are the EU
+  **soft opt-in** Erkki set as the meaning of preset 1 across the Smaily
+  plugins: a customer new to Smaily becomes a subscriber, a customer who
+  unsubscribed stays unsubscribed — for the import and the live sync alike.
+  The Woo behaviour (omit the status for non-subscribers) is therefore
+  correct. The audience stays every WordPress user, staff/admins included —
+  no role filter (PRO-3408, 2026-10-05). The admin tells the merchant what
+  soft opt-in requires (§ 9).
 - The contact **language** comes from `ContactLanguageResolver` (F3-47),
   unchanged and mode-independent.
 
@@ -206,6 +210,10 @@ the existing `Card` / `Toggle` / `Checkbox` / `Banner` primitives:
   tone="warning"`**: *"This sends every customer to Smaily regardless of marketing
   consent. Make sure you have a lawful basis (legitimate interest). Automation
   triggers may re-subscribe contacts — see settings."* (role="alert").
+  **As shipped (PRO-3609):** the banner names the soft opt-in requirements —
+  marketing only about products similar to what the customer bought, a clear
+  way to refuse marketing at purchase, and the merchant's own responsibility
+  for the legal basis. (The automation sentence never shipped; PRO-1716.)
 - An **`include_guests` `Checkbox`** under the mode card (default off), shown for
   presets 1/2.
 - ~~An advanced **"Force opt-in on automation triggers" `Toggle`** shown ONLY
