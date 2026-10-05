@@ -1679,6 +1679,32 @@ msgstr "Ühenda"
 msgid "Regenerate the link"
 msgstr "Loo link uuesti"
 
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "Catalog import started"
+msgstr "Kataloogi import käivitus"
+
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "Hold back"
+msgstr "Peata import"
+
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about 3 minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below."
+msgstr "Kogu sinu tootekataloog saadetakse Campaign Intelligence'i üks kord, taustal, umbes 3 minuti pärast. Selle peatamiseks vajuta enne seda „Peata import“: midagi ei saadeta ja impordi saad hiljem käivitada allpool jaotises „Tooted“ nupuga „Impordi kohe“."
+
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "Catalog import held back"
+msgstr "Kataloogi import peatatud"
+
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "The catalog import is cancelled. Start it any time with Import now under Products below."
+msgstr "Kataloogi import on katkestatud. Saad selle igal ajal käivitada allpool jaotises „Tooted“ nupuga „Impordi kohe“."
+
+#. translators: %s: error message.
+#: admin/src/components/steps/Step4Recommendations.tsx
+#, js-format
+msgid "Couldn't hold back the import: %s"
+msgstr "Importi ei õnnestunud peatada: %s"
+
 #. translators: 1: engine version, 2: tenant status.
 #: admin/src/components/steps/Step4Recommendations.tsx:160
 #, js-format
