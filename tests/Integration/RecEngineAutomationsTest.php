@@ -40,6 +40,11 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *     proxy always sends the stored key).
  *
  *   - api_key non-leak: none of the proxied bodies may carry the stored key.
+ *
+ *   - Real sends are switched on engine-side only (§13): a save asking for
+ *     them answers 200 as usual, and the §12 read the settings screen runs
+ *     after every save shows the trigger still in test mode until the
+ *     operator has switched it on.
  */
 final class RecEngineAutomationsTest extends TestCase {
 
@@ -124,6 +129,36 @@ final class RecEngineAutomationsTest extends TestCase {
 		}
 		self::assertSame( 'plugin', $configs[0]['configured_via'], 'This endpoint always writes configured_via=plugin (§13).' );
 		self::assertNotSame( '', (string) $configs[0]['updated_at'] );
+	}
+
+	public function test_a_real_sends_request_is_stored_in_test_mode_until_the_operator_switches_it_on(): void {
+		$this->connect( 'tok_automations_real_sends' );
+		self::$engine->set_automations_real_sends_on( array( 'winback_risk' ) );
+
+		$requested                = $this->valid_row();
+		$requested['test_mode']   = false;
+		$operator_on              = $this->valid_row( 'winback_risk' );
+		$operator_on['test_mode'] = false;
+		$disabled                 = $this->valid_row( 'life_stage' );
+		$disabled['enabled']      = false;
+		$disabled['test_mode']    = false;
+
+		$put = RestRequestHelper::put(
+			'/rec-engine/automations/config',
+			array( 'configs' => array( $requested, $operator_on, $disabled ) )
+		);
+		self::assertSame( 200, $put->get_status(), 'The request answers like any save — nothing in the PUT response says it was held back.' );
+		self::assertSame( 3, $put->get_data()['upserted'] );
+
+		$configs = array_column(
+			RestRequestHelper::get( '/rec-engine/automations/config' )->get_data()['configs'],
+			null,
+			'trigger_key'
+		);
+		self::assertTrue( $configs['replenish_due']['test_mode'], 'Requested real sends stay in test mode until the operator switches them on.' );
+		self::assertTrue( $configs['replenish_due']['enabled'], 'Every other field is stored as sent.' );
+		self::assertFalse( $configs['winback_risk']['test_mode'], 'A trigger the operator already switched on keeps real sends on a re-save.' );
+		self::assertFalse( $configs['life_stage']['test_mode'], 'A disabled row is stored as sent.' );
 	}
 
 	public function test_invalid_row_returns_indexed_422_and_saves_nothing(): void {

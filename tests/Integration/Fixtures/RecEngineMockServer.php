@@ -161,6 +161,18 @@ final class RecEngineMockServer {
 		$this->write_state( array( 'storefront_slots' => $seeded ) );
 	}
 
+	/**
+	 * Play the Smaily operator who switches real automated sends on in the
+	 * engine admin (contract §13): only the listed triggers keep
+	 * `test_mode=false` when the plugin saves them; any other enabled row is
+	 * stored in test mode.
+	 *
+	 * @param string[] $trigger_keys
+	 */
+	public function set_automations_real_sends_on( array $trigger_keys ): void {
+		$this->write_state( array( 'automations_real_sends_on' => $trigger_keys ) );
+	}
+
 	/** Zero the request counter so a test can assert "no request since here". */
 	public function reset_request_count(): void {
 		$this->write_state( array( 'request_count' => 0 ) );

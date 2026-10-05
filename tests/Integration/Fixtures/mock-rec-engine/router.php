@@ -1503,7 +1503,18 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 	$stored = ( isset( $state['automations_configs'] ) && is_array( $state['automations_configs'] ) )
 		? $state['automations_configs']
 		: array();
+	// Real sends are switched on engine-side only (§13, contract v1.8.2):
+	// an enabled row sent with test_mode=false is STORED with test_mode=true
+	// unless the operator already switched that trigger's real sends on —
+	// a test seeds that operator switch via `automations_real_sends_on`.
+	// The 200 response is unchanged; only the §12 read shows the outcome.
+	$real_sends_on = ( isset( $state['automations_real_sends_on'] ) && is_array( $state['automations_real_sends_on'] ) )
+		? $state['automations_real_sends_on']
+		: array();
 	foreach ( $rows_to_save as $clean ) {
+		if ( $clean['enabled'] === true && $clean['test_mode'] === false && ! in_array( $clean['trigger_key'], $real_sends_on, true ) ) {
+			$clean['test_mode'] = true;
+		}
 		$clean['configured_via']                  = 'plugin';
 		$clean['updated_at']                      = gmdate( 'Y-m-d\TH:i:s' ) . '.000Z';
 		$stored[ $clean['trigger_key'] ]          = $clean;
