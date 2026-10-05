@@ -6961,6 +6961,39 @@ defined by this plugin, and is visible in exactly one place.
 rationale: moving the engine to a new host now needs a plugin release (one
 constant). F3-4's paste-the-full-URL decision itself is unchanged.
 
+### PRO-3620 — The browse relay is hardened as in Magento (2026-10-05)
+
+**Context:** the Magento security review (PRO-3575) hardened its browse relay
+three ways; the WooCommerce `/relay` (`BeaconEndpoint`) had the same gaps. It
+still forwarded a browser-supplied `external_id` — on a browse event the
+platform user id the engine binds the event to (§6), so a guessed sequential
+WP user id attached anonymous browsing to a real customer. Its engine call ran
+with the default retry policy inside a shopper's request: up to 5 attempts of
+15 s each, back-off sleeps, and an unbounded engine-requested Retry-After wait.
+And the per-IP limit was skipped when REMOTE_ADDR was missing or not an IP
+(e.g. `unix:` behind a socket proxy), leaving only the session counter, whose
+key is a cookie the client chooses.
+**Decision:** (1) `external_id` leaves the `/relay` field whitelist (the
+PRO-1486/PRO-1712 pattern); the browser asserts no identity — identity comes
+only from the engine-issued visitor token, `attach_logged_in_identity()`
+(PRO-1389, unchanged) and the login identity merge. (2)
+`Client::ingest_browse()` is ONE attempt bounded by
+`Client::BROWSE_TIMEOUT_SECONDS` = 3 s for the whole request (Magento's
+bound), no redirect, no retry, no back-off or Retry-After wait — regardless of
+the client's retry ceiling; every other engine call keeps its policy. (3) The
+per-IP counter always runs: a request with no usable address counts against
+one shared bucket. The key stays REMOTE_ADDR only; forwarding headers count
+only where the web server is configured to rewrite REMOTE_ADDR from them.
+**Rationale:** browse is loss-tolerant telemetry; a slow or throttling engine
+must cost the batch, never a storefront PHP worker. The session counter alone
+cannot bound a client that discards cookies, so the address counter has to be
+the one that always applies.
+**Rejected:** a filter to trust a forwarding header for the rate-limit key —
+not added speculatively; a store behind a CDN/reverse proxy that does not
+restore the client address shares one bucket per proxy address (unchanged
+behavior), and the fix there is the server's real-IP configuration.
+`smaily_rec_id`/`smaily_ctx` needed nothing: PRO-1712 already removed them.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
