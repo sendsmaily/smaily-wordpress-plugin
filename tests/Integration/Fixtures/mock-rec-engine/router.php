@@ -218,6 +218,7 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				'customer_opt_out'        => $engine_base . '/api/v1/customer/{email}/opt-out',
 				'recommendations_preview' => $engine_base . '/api/v1/recommendations/preview',
 				'recommendations_issue'   => $engine_base . '/api/v1/recommendations/issue',
+				'recommendations_customer' => $engine_base . '/api/v1/recommendations/customer',
 				'automations_catalog'     => $engine_base . '/api/v1/automations/catalog',
 				'automations_config'      => $engine_base . '/api/v1/automations/config',
 			),
@@ -1511,6 +1512,56 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 	save_state( $state_file, $state );
 
 	reply( 200, array( 'ok' => true, 'upserted' => count( $rows_to_save ) ) );
+}
+
+// Storefront recommendations (§15, contract v1.9.0). Read-only. The shopper is
+// named by `customer_external_id` (a 1–255 char string); `limit` is an optional
+// positive integer, clamped to 9. A test seeds the answers in the state file
+// under `storefront_slots` (external id => slots); anyone else gets the same
+// `{slots: []}` the live engine gives an unknown/holdout/opted-out customer.
+// The request body is recorded so a test can prove no email was sent.
+if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
+	require_bearer_auth();
+
+	$body = json_decode( (string) file_get_contents( 'php://input' ), true );
+	if ( ! is_array( $body ) ) {
+		reply( 400, array( 'error' => 'invalid_json', 'message' => 'Request body is not valid JSON.' ) );
+	}
+
+	$external_id = $body['customer_external_id'] ?? null;
+	if ( ! is_string( $external_id ) || strlen( $external_id ) < 1 || strlen( $external_id ) > 255 ) {
+		reply(
+			400,
+			array(
+				'error'   => 'validation_failed',
+				'details' => array( 'fieldErrors' => array( 'customer_external_id' => array( 'Required' ) ) ),
+			)
+		);
+	}
+
+	$limit = 9;
+	if ( array_key_exists( 'limit', $body ) ) {
+		if ( ! is_int( $body['limit'] ) || $body['limit'] < 1 ) {
+			reply(
+				400,
+				array(
+					'error'   => 'validation_failed',
+					'details' => array( 'fieldErrors' => array( 'limit' => array( 'Expected a positive integer' ) ) ),
+				)
+			);
+		}
+		$limit = min( 9, $body['limit'] );
+	}
+
+	$state['last_recommendations_request'] = $body;
+	save_state( $state_file, $state );
+
+	$seeded = ( isset( $state['storefront_slots'][ $external_id ] ) && is_array( $state['storefront_slots'][ $external_id ] ) )
+		? $state['storefront_slots'][ $external_id ]
+		: array();
+
+	header( 'Cache-Control: no-store, private', true );
+	reply( 200, array( 'slots' => array_slice( array_values( $seeded ), 0, $limit ) ) );
 }
 
 // Fallback.

@@ -22,6 +22,7 @@ use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Integrations\WooCommerce\OrderHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
+use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Integrations\WooCommerce\TransactionalEmailHookHandler;
 use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Notifications\NotificationManager;
@@ -988,6 +989,30 @@ final class Bootstrap {
 			$settings->base_url(),
 			$settings->endpoints(),
 			2
+		);
+	}
+
+	/**
+	 * The logged-in shopper's storefront recommendations (§15). Its engine
+	 * client makes ONE attempt with a short timeout: the call sits on the
+	 * shopper's page render, so it never waits out a retry or a Retry-After.
+	 */
+	public function storefront_recommendations(): StorefrontRecommendations {
+		$settings = $this->rec_engine_settings();
+
+		return new StorefrontRecommendations(
+			$settings,
+			$this->profiling_consent(),
+			static function () use ( $settings ): RecEngineClient {
+				return new RecEngineClient(
+					$settings->api_key(),
+					$settings->base_url(),
+					$settings->endpoints(),
+					1,
+					$settings,
+					StorefrontRecommendations::TIMEOUT_SECONDS
+				);
+			}
 		);
 	}
 
