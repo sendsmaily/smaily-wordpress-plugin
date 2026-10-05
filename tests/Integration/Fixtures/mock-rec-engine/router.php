@@ -700,6 +700,9 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/customers' ) {
 		},
 		$customers
 	);
+	// The whole wire objects, so a test can assert a field reached the engine
+	// (e.g. `external_id`, the id §15 looks a shopper up by).
+	$state['last_customers_payload'] = $customers;
 	save_state( $state_file, $state );
 
 	$response = array(
