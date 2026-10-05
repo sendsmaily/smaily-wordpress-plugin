@@ -26,7 +26,51 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-09-29 (**3.15.0 is LIVE on wordpress.org** — published
+_Last updated: 2026-10-05 (**PRO-3655 (+ the contract-copy criterion of
+PRO-3788) — contract re-synced byte-identical to engine `41fe5cb87f41`
+(md5 `d50b289e…`) — v1.8.1 → v1.9.1, CC-8 pass.** Ends the daily red
+`Contract staleness` run (red since 2026-10-03). Six engine commits touched
+the contract since our `bfebf942` sync; **what changed, and the
+follow-through call on each:**
+  1. **§4 `language` (`0869f018e`)** — when absent, the engine no longer
+     overwrites the Smaily contact `language` with the tenant default.
+     Already what we send: `CustomerPayloadBuilder` omits an empty
+     `language`. No change.
+  2. **§6/§7 one customer per visitor token (v1.8.2, PRO-3649)** — a bound
+     token never binds to a different customer; shapes unchanged, the
+     skipped part reports `0` in the existing counts. Nothing sender-side.
+  3. **§13 real sends switched on by the engine operator only (v1.8.2
+     clarification, PRO-3705)** — `enabled:true` + `test_mode:false` is
+     stored as `test_mode:true` unless the trigger already sends for real;
+     response unchanged. Plugin UI should show the §12 state, not its own
+     request → **PRO-3707**, not built here.
+  4. **§3/§3b catalog sync lifecycle (v1.8.3, PRO-3740)** — full import at
+     setup, then changes only, manual full import; no scheduled full
+     re-sync; a change re-sends the whole row (UPSERT clears an omitted
+     optional field). We already work this way (no recurring catalog
+     re-sync job). No change.
+  5. **§15 `POST /api/v1/recommendations/customer` + endpoints-map key
+     `recommendations_customer` (v1.9.0, PRO-3781)** — additive; storefront
+     slot links carry `smaily_ctx=storefront`; email slots without an intent
+     now carry `smaily_ctx=email`. Not built → **PRO-3788**.
+  6. **Context cookie rule + §5 `smaily_rec_ctx` now decides the channel
+     (v1.9.0)** — a landing with `smaily_rec` must set `smaily_rec_ctx` to
+     the URL's `smaily_ctx` or CLEAR it when absent. **Today we only
+     overwrite on a present value** (`LandingCapture::resolve()` and
+     `attribution.ts` both skip an absent `smaily_ctx`), so a stale
+     `storefront` context could survive a later email click. Latent until
+     the plugin renders storefront links → belongs with **PRO-3788**.
+     `smaily_rec_ctx` is already forwarded on the order; both values pass
+     the existing context shape check.
+  7. **§1 `recommendations_preview` / `recommendations_issue` deprecated
+     (v1.9.1, PRO-3793)** — the plugin never calls them (only the mock and
+     `EnvSeed` list them, as the engine's setup response still does). No
+     change.
+**Mock follow-through: none required.** No shape the plugin sends today
+changed (no wrapper key, required field, enum or removed field). Gate: `bash
+bin/check-contract-staleness.sh` against the engine main copy **green**.)_
+
+Prior: 2026-09-29 (**3.15.0 is LIVE on wordpress.org** — published
 2026-09-29: GitHub release `3.15.0` → `8ca7678` (PR #149, release.yml run
 36626797184 green), CI asset verified (verify-release-zip exit=0, 905193 B,
 SHA256 `f3e67f9d5cf8a643bdf55b9d4048a5763eaa6849411fbb74a4fd976f5ef338e4`);
