@@ -7040,6 +7040,43 @@ is connected, with a link to the WP Consent API plugin on wordpress.org.
 Shown whatever the toggle state, as in the Magento plugin (PRO-3664). The
 admin notice and how consent is decided are unchanged.
 
+### PRO-3788 — Storefront recommendations: a server-rendered block + shortcode, and the context cookie rule (2026-10-05)
+
+**Context:** contract v1.9.0 (§15) lets the store ask the engine for a
+logged-in shopper's current recommendations by the store's own customer id,
+and makes `smaily_rec_ctx` decide the channel of a purchase (`storefront` =
+a store credit). On the pilot, 30 of 75 orders with a `smaily_rec_id` in 90
+days carried no `smaily_rec_ctx`. Cause (engine `lib/sync/url-builder.ts`
+before engine commit `7e7a6e7`): an email slot without an intent (a
+cold-start fill) linked with `smaily_rec` but NO `smaily_ctx`, so no context
+cookie was ever written; the plugin's two writers and the order stamping
+were already symmetric. The engine now always sends `smaily_ctx`
+(`email` for such slots), which fixes new emails; already-sent emails keep
+the old links.
+**Decision:** (1) both cookie writers (`LandingCapture::resolve()` and
+`public/js/lib/attribution.ts`) apply the v1.9.0 rule identically: a landing
+with a valid `smaily_rec` and no valid `smaily_ctx` CLEARS `smaily_rec_ctx`;
+the guarded `utm_content` fallback (no `smaily_rec`) never clears; a refused
+(non-UUID) `smaily_rec` touches neither cookie. (2) The widget is the
+`smaily/recommendations` block + `[smaily_recommendations]` shortcode, placed
+by the merchant only, rendered server-side (the API key never reaches the
+browser) by `StorefrontRecommendations`: logged-in + `sending_allowed()` +
+`ProfilingConsent::may_profile()` gate the call; one attempt, 1 s timeout,
+no Retry-After wait; the answer (empty included) cached per shopper for
+5 minutes under tenant + md5(user id), errors not cached; 4 cards built from
+the store's own product data (`is_visible()` decides), linked
+`?smaily_rec=<rec_id>&smaily_ctx=storefront`.
+**Rationale:** the timeout follows §15's hard 1 s; the 5-minute cache follows
+Erkki's approved design ("cached briefly") over §15's "about 1 hour" — one
+constant (`CACHE_TTL`) if the engine load ever argues for longer. WooCommerce
+loop classes (`ul.products li.product`) let the theme style the cards with no
+plugin stylesheet. Local product data keeps price/stock live and the link on
+the store's own domain and language.
+**Rejected:** client-side rendering (would need a public proxy and leak
+per-shopper data to page caches); automatic placement (Erkki: the merchant
+decides); defaulting a missing context to `email` on the order (the contract
+forwards the cookie, it never invents one).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

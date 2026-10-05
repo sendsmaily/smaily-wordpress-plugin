@@ -26,7 +26,33 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3673 (Magento parity with PRO-3664)** — a line under the
+_Last updated: 2026-10-05 (**PRO-3788 — storefront recommendations
+(contract v1.9.0 §15), unreleased on its PR branch.** New
+`smaily/recommendations` block + `[smaily_recommendations]` shortcode
+(merchant-placed only, `blocks/recommendations/` workspace): server-rendered
+by `Integrations\WooCommerce\StorefrontRecommendations` for a logged-in
+shopper — gated on `sending_allowed()` + `ProfilingConsent::may_profile()`,
+`Client::customer_recommendations()` with ONE attempt and a 1 s timeout
+(new `Client` constructor arg `$timeout_seconds`), answer cached 5 min per
+shopper (tenant + md5 of the user id), 4 cards from the store's own product
+data, links `?smaily_rec=…&smaily_ctx=storefront`; renders nothing on any
+gate, error or empty answer. Context cookie rule (v1.9.0): both writers
+(`LandingCapture` + `attribution.ts`) now CLEAR `smaily_rec_ctx` on a
+`smaily_rec` landing without a valid `smaily_ctx` (the `utm_content`
+fallback never clears). Why 30/75 pilot orders had a rec id but no context:
+the engine's email links for intent-less (cold-start) slots carried no
+`smaily_ctx` before engine commit `7e7a6e7` — not a plugin gap (DECISIONS
+PRO-3788). Customers already carry `external_id` = WP user id on every path
+(builder, live hook, backfill); now pinned by an integration test. **After
+release MiuMjau needs a Customers re-import** (only 5 of ~6,000 engine
+customers carry a store id). Mock engine serves §15 + the
+`recommendations_customer` map key. Gates: `ci:strict` exit 0; integration
+321/321 green (wp-env on the Mac, dev port 8890 — 8888 was taken); blocks
+build + lint green. Not live-walked: the dev wp-env was not connected.
+New ET strings (block + "Sulle soovitatud") and the docs-site section need
+the human ET proofread before publishing. Contract copy synced by PR #152.)_
+
+Prior: 2026-10-05 (**PRO-3673 (Magento parity with PRO-3664)** — a line under the
 browse-tracking toggle (Step 4 / Settings, connected view) says where consent
 comes from: "Consent comes from your store's consent plugin…" when the WP
 Consent API is active, otherwise "Browse tracking sends nothing until a
@@ -34,7 +60,7 @@ consent source is connected." + a link to the plugin on wordpress.org. Data:
 `EnvDetector` `consentApiPresent` → `hydrate.ts` env. Admin notice unchanged.
 Three new strings (EN + ET by hand in `.pot`/`-et.po`, ET awaits the human
 proofread); docs site EN+ET; DECISIONS PRO-3673. Unit `EnvDetectorTest`,
-vitest `Step4Recommendations`/`hydrate`. **Unreleased on main.**)_
+vitest `Step4Recommendations`/`hydrate`. **Unreleased on main.**)
 
 Prior: 2026-10-05 (**PRO-3750 (Magento parity with PRO-1962)** — a Smaily HTTP 200
 answer with code 203 "invalid data" now fails the Smaily-queue row on the
