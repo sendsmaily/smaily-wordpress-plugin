@@ -731,11 +731,16 @@ td code{white-space:nowrap}
       <ul>
         <li>an <strong>Enable</strong> toggle and the Smaily <strong>workflow</strong> to use;</li>
         <li>a <strong>Cooldown</strong> — minimum days between two fires for the same customer (<strong>1–365</strong>);</li>
-        <li><strong>Test mode</strong> — while on, emails go only to your test addresses (comma‑separated), never to customers. Use <strong>Activate for real…</strong> to go live.</li>
+        <li><strong>Test mode</strong> — while on, emails go only to your test addresses (comma‑separated), never to customers. Use <strong>Activate for real…</strong> to ask for real sends.</li>
       </ul>
       <div class="note">
         <span class="k">Fail‑closed by design</span>
         <p>Test mode starts <strong>on</strong>. A test‑mode automation with no test addresses sends to <strong>no one</strong> until you add at least one address — so an automation can never fire at customers before you mean it to.</p>
+      </div>
+      <div class="note">
+        <span class="k">Real sends are switched on by Smaily</span>
+        <p><strong>Activate for real…</strong> sends Smaily a request when you save. The automation stays in test mode — test addresses only — until Smaily switches real sends on after your confirmation; <a href="https://smaily.com/help/" target="_blank" rel="noopener">contact Smaily support</a> to confirm.</p>
+        <p>After each save the plugin reads back what Campaign Intelligence stored, and the label on each automation shows it: <strong>Test mode</strong>, <strong>Waiting for Smaily's confirmation</strong> (you asked for real sends and Smaily has not switched them on yet) or <strong>Live — real sends on</strong>. The waiting label comes from your own last save on that page: after you reload the page, an automation that is still waiting shows <strong>Test mode</strong> again.</p>
       </div>
       <h3>Transactional‑email triggers</h3>
       <p>Order confirmation and Shipping confirmation appear here too — but only once you've connected the separate transactional Smaily account on the <a href="#set-connection">Connection tab</a>. See <a href="#set-transactional">Transactional emails</a> for the full walkthrough.</p>
@@ -776,11 +781,16 @@ td code{white-space:nowrap}
       <ul>
         <li><strong>Enable</strong> lüliti ja kasutatava Smaily <strong>töövoo</strong>;</li>
         <li><strong>Cooldown</strong> — vähim päevade arv sama kliendi kahe käivituse vahel (<strong>1–365</strong>);</li>
-        <li><strong>Test mode</strong> — sees olles lähevad e‑kirjad ainult su test‑aadressidele (komadega eraldatud), mitte kunagi klientidele. Reaalseks minekuks kasuta <strong>Activate for real…</strong>.</li>
+        <li><strong>Test mode</strong> — sees olles lähevad e‑kirjad ainult su test‑aadressidele (komadega eraldatud), mitte kunagi klientidele. Päris saatmise taotlemiseks kasuta <strong>Activate for real…</strong>.</li>
       </ul>
       <div class="note">
         <span class="k">Disaini poolest fail‑closed</span>
         <p>Test mode algab <strong>sees</strong>. Test‑režiimi automaatika ilma test‑aadressideta saadab <strong>mitte kellelegi</strong>, kuni lisad vähemalt ühe aadressi — nii ei saa automaatika kunagi klientidele käivituda enne, kui sa seda soovid.</p>
+      </div>
+      <div class="note">
+        <span class="k">Päris saatmise lülitab sisse Smaily</span>
+        <p><strong>Activate for real…</strong> saadab salvestamisel Smailyle taotluse. Automaatika jääb testrežiimi — ainult test‑aadressidele — kuni Smaily lülitab päris saatmise sisse pärast sinu kinnitust; kinnitamiseks <a href="https://smaily.com/help/" target="_blank" rel="noopener">võta ühendust Smaily toega</a>.</p>
+        <p>Pärast iga salvestamist loeb plugin tagasi, mida Campaign Intelligence salvestas, ja iga automaatika silt näitab seda: <strong>Test mode</strong> („Testrežiim“), <strong>Waiting for Smaily's confirmation</strong> („Ootab Smaily kinnitust“ — taotlesid päris saatmist ja Smaily pole seda veel sisse lülitanud) või <strong>Live — real sends on</strong> („Aktiivne — päris saatmine sees“). Ootamise silt tuleb sinu enda viimasest salvestamisest sellel lehel: kui laadid lehe uuesti, näitab veel ootel automaatika jälle <strong>Test mode</strong> silti.</p>
       </div>
       <h3>Tehingu‑e‑kirjade päästikud</h3>
       <p>Tellimuse kinnitus ja Saatmisteade ilmuvad ka siia — aga alles pärast eraldi tehingu‑Smaily konto ühendamist <a href="#set-connection">Connection vahekaardil</a>. Täisjuhendi leiad siit: <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
