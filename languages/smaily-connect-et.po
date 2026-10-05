@@ -235,6 +235,14 @@ msgstr "Kleebi Smaily haldusliidesest saadud täielik seadistus-URL (lõpeb kuju
 msgid "Setup URL must include the engine host (e.g. https://<host>/setup/<token>)."
 msgstr "Seadistus-URL peab sisaldama mootori hosti (nt https://<host>/setup/<token>)."
 
+#: includes/REST/RecEngineEndpoint.php:171
+msgid "This setup link does not point to Smaily Campaign Intelligence. Copy the setup link again from your Smaily account — it starts with https://intelligence.smaily.com/setup/."
+msgstr "See seadistuslink ei vii Smaily Campaign Intelligence'isse. Kopeeri seadistuslink uuesti oma Smaily kontolt — see algab aadressiga https://intelligence.smaily.com/setup/."
+
+#: includes/REST/RecEngineEndpoint.php:220
+msgid "Smaily Campaign Intelligence replied with an address outside https://intelligence.smaily.com, so the connection was not saved. Contact Smaily support."
+msgstr "Smaily Campaign Intelligence vastas aadressiga, mis ei ole https://intelligence.smaily.com, seega ühendust ei salvestatud. Võta ühendust Smaily toega."
+
 #: includes/REST/RecEngineEndpoint.php:185
 msgid "This setup link has already been used. Ask the engine administrator to generate a new one."
 msgstr "See seadistuslink on juba kasutatud. Palu mootori administraatoril genereerida uus."

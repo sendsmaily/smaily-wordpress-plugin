@@ -12,13 +12,17 @@ namespace Smaily\Connect\Smaily\RecEngine;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Discriminated union of the four shapes the setup-exchange can
- * produce, per RECENGINE_API_CONTRACT.md §7.1:
+ * Discriminated union of the shapes the setup-exchange can produce —
+ * the first four per RECENGINE_API_CONTRACT.md §7.1, the last one the
+ * plugin's own host check:
  *
  *   - success           HTTP 200 — tenant config + api_key
  *   - token_expired     HTTP 410 — already used or expired
  *   - token_not_found   HTTP 404 — invalid token string
  *   - engine_unreachable network failure / 5xx / unparseable body
+ *   - host_not_allowed   the setup URL or the engine's reply points
+ *                        outside https://intelligence.smaily.com
+ *                        (PRO-3623) — never stored
  *
  * The class is intentionally a plain final value-object rather than
  * a hierarchy of subclasses — match-by-`kind` reads more linearly in
@@ -36,6 +40,7 @@ final class ExchangeResult {
 	public const KIND_TOKEN_EXPIRED      = 'token_expired';
 	public const KIND_TOKEN_NOT_FOUND    = 'token_not_found';
 	public const KIND_ENGINE_UNREACHABLE = 'engine_unreachable';
+	public const KIND_HOST_NOT_ALLOWED   = 'host_not_allowed';
 
 	public string $kind;
 
@@ -54,7 +59,7 @@ final class ExchangeResult {
 	/** Populated on token_expired only. */
 	public string $regenerate_url = '';
 
-	/** Populated on engine_unreachable / network errors. */
+	/** Populated on engine_unreachable / network errors / host_not_allowed. */
 	public string $reason = '';
 
 	private function __construct( string $kind ) {
@@ -98,6 +103,12 @@ final class ExchangeResult {
 
 	public static function engine_unreachable( string $reason ): self {
 		$r         = new self( self::KIND_ENGINE_UNREACHABLE );
+		$r->reason = $reason;
+		return $r;
+	}
+
+	public static function host_not_allowed( string $reason ): self {
+		$r         = new self( self::KIND_HOST_NOT_ALLOWED );
 		$r->reason = $reason;
 		return $r;
 	}

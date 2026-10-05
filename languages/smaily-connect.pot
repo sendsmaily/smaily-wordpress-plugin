@@ -253,6 +253,14 @@ msgstr ""
 msgid "Setup URL must include the engine host (e.g. https://<host>/setup/<token>)."
 msgstr ""
 
+#: includes/REST/RecEngineEndpoint.php:171
+msgid "This setup link does not point to Smaily Campaign Intelligence. Copy the setup link again from your Smaily account — it starts with https://intelligence.smaily.com/setup/."
+msgstr ""
+
+#: includes/REST/RecEngineEndpoint.php:220
+msgid "Smaily Campaign Intelligence replied with an address outside https://intelligence.smaily.com, so the connection was not saved. Contact Smaily support."
+msgstr ""
+
 #: includes/REST/RecEngineEndpoint.php:185
 msgid "This setup link has already been used. Ask the engine administrator to generate a new one."
 msgstr ""

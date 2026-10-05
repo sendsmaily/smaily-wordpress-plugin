@@ -12,7 +12,10 @@
  *
  * Accepts either a full setup URL (`https://<engine>/setup/<token>`) or a bare
  * token — a bare token reuses the currently stored engine base URL, because the
- * token alone carries no host.
+ * token alone carries no host. Either way the host must be
+ * https://intelligence.smaily.com (PRO-3623): a stored base on any other host
+ * (e.g. a retired preview alias) is refused with kind=host_not_allowed before
+ * any request — paste the full setup URL instead.
  *
  * The setup token is ONE-TIME (contract §7.1): a successful exchange consumes it
  * engine-side, so delete the temp file afterwards and mint a new one for the

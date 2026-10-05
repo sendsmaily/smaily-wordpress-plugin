@@ -160,6 +160,20 @@ class RecEngineEndpoint {
 			);
 		}
 
+		// PRO-3623: the token is sent only to https://intelligence.smaily.com.
+		// SetupExchange::exchange() refuses the same; checking here first
+		// gives the merchant a message that says what is wrong.
+		if ( ! SetupExchange::is_allowed_engine_url( $base ) ) {
+			return new WP_REST_Response(
+				array(
+					'connected' => false,
+					'error'     => 'invalid_setup_url',
+					'message'   => __( 'This setup link does not point to Smaily Campaign Intelligence. Copy the setup link again from your Smaily account — it starts with https://intelligence.smaily.com/setup/.', 'smaily-connect' ),
+				),
+				400
+			);
+		}
+
 		$result = ( $this->exchange_factory )()->exchange( $parsed['token'], $base );
 
 		switch ( $result->kind ) {
@@ -196,6 +210,16 @@ class RecEngineEndpoint {
 						'message'   => __( 'Setup token not recognised. Verify the URL is correct.', 'smaily-connect' ),
 					),
 					400
+				);
+
+			case ExchangeResult::KIND_HOST_NOT_ALLOWED:
+				return new WP_REST_Response(
+					array(
+						'connected' => false,
+						'error'     => 'engine_unreachable',
+						'message'   => __( 'Smaily Campaign Intelligence replied with an address outside https://intelligence.smaily.com, so the connection was not saved. Contact Smaily support.', 'smaily-connect' ),
+					),
+					502
 				);
 
 			case ExchangeResult::KIND_ENGINE_UNREACHABLE:
