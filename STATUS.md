@@ -26,14 +26,27 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3796 (Magento parity with PRO-1957)** — the abandoned-cart
+_Last updated: 2026-10-05 (**PRO-3750 (Magento parity with PRO-1962)** — a Smaily HTTP 200
+answer with code 203 "invalid data" now fails the Smaily-queue row on the
+first attempt as `permanent_envelope_203: <Smaily's answer>`, in the main
+Flusher (contact sync, welcome, first order) and in CartFlusher (routed and
+legacy-fallback paths), via `RetryPolicy::permanent_envelope()`. **Premise
+correction:** the WooCommerce plugin never retried a 203 five times — the
+Client throws only on non-2xx, so a 203 (like any non-101 code on HTTP 200)
+was marked **sent**; other codes still are (follow-up candidate). Unit
+`RetryPolicyTest`/`FlusherTest`/`CartFlusherTest` (red without the change)
++ integration `SmailyInvalidDataAnswerTest` (real Client + queue table);
+merchant docs EN+ET (Event Log error); DECISIONS PRO-3750. **Unreleased on
+main** (readme changelog line belongs to the next bump).)_
+
+Prior: 2026-10-05 (**PRO-3796 (Magento parity with PRO-1957)** — the abandoned-cart
 reminder now writes `over_10_products` on every send: `true` past 10
 products, empty otherwise (prefilled like the product slots in
 `CartPayloadBuilder`), so a smaller cart's reminder clears a larger cart's
 flag from the Smaily contact. Order emails unchanged. Unit
 `CartPayloadBuilderTest` (11 → 1 → 10 products, red without the change) +
 `CartPipelineTest` assert; merchant docs EN+ET; DECISIONS PRO-3796.
-**Unreleased on main** (readme changelog line belongs to the next bump).)_
+**Unreleased on main** (readme changelog line belongs to the next bump).)
 
 Prior: 2026-10-05 (**PRO-3620 — the storefront browse relay is hardened
 as in Magento (PRO-3575)**, unreleased on main after 3.15.0, security-sensitive
