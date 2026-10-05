@@ -26,14 +26,25 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3627 (unreleased on main once merged):** Smaily creates a
+_Last updated: 2026-10-05 (**PRO-3743 — connecting Campaign Intelligence
+starts the catalog import** (unreleased on main once merged): a successful
+setup exchange starts the products backfill with its first batch 3 minutes
+out; the Campaign Intelligence screen shows "Catalog import started" with
+**Hold back** (= the existing products cancel, nothing sent when pressed in
+time); a catalog import already queued or running is not restarted;
+customers/orders unchanged. Integration `RecEngineCatalogImportOnConnectTest`
+(5) + vitest; merchant docs EN+ET (Step 4, Settings, Importing) — ET text
+awaits the human proofread before the docs site is published. DECISIONS
+PRO-3743.)_
+
+Prior: 2026-10-05 (**PRO-3627 (unreleased on main once merged):** Smaily creates a
 contact sent without a status as subscribed, so a profiling choice and the
 abandoned-cart purchase marker now go only to a contact Smaily already has
 (contact read first). A missing contact: the profiling choice stays in the
 store; the marker row closes as a skip with its reason in the Event Log. A
 failed read writes nothing (profiling: logged, reconciled on the next
 read-back; marker row: normal RetryPolicy ladder). DECISIONS PRO-3627.
-Readme changelog line belongs to the next bump. Mirrors Magento PRO-3619.)_
+Readme changelog line belongs to the next bump. Mirrors Magento PRO-3619.)
 
 Prior: 2026-10-05 (**PRO-3788 — storefront recommendations
 (contract v1.9.0 §15), unreleased on its PR branch.** New

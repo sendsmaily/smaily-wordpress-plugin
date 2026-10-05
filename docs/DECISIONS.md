@@ -7118,6 +7118,33 @@ day; these writes are rare enough to read each time).
 **Relationships:** PRO-1723 (the purchase marker), PRO-3191/PRO-3192 (the
 profiling carry-over), Magento PRO-3619 (the same fix).
 
+### PRO-3743 — Connecting Campaign Intelligence starts the catalog import, with a hold-back window (2026-10-05)
+
+**Context:** Erkki's 2026-10-04 decision for every store plugin (Magento
+PRO-3741), contract v1.8.3 §3: the full catalog reaches the engine once, at
+setup, then only changes. Before this, a merchant who connected but never
+pressed Products "Import now" had a catalog of only the products saved since.
+**Decision:** a successful setup exchange (the REST handler's success branch,
+right after `RecEngineSettings::store()`) starts the existing products
+backfill — same job row, same `smly_plus_backfill_tick` hook and group —
+through `CatalogImportOnConnect`, with the first tick scheduled
+`DELAY_SECONDS` (180) out. The response carries `catalogImport:
+'started'|'unchanged'`; on `started` the Campaign Intelligence screen (wizard
+step and Settings tab, same component) shows a "Catalog import started" notice
+whose **Hold back** is the existing `/backfill/cancel` — it unschedules the
+tick, so held back in time nothing is sent. A products row already `running`
+(queued or mid-walk) is left untouched: no second import, the running one
+resumes from its cursor. Customers and orders still start only by hand.
+**Rationale:** reusing the manual start path keeps one import implementation
+and one cancel; the delay is what makes the hold-back real (the manual start
+fires its tick at once). Hooking in the REST handler, not in `store()`, keeps
+dev tooling (`bin/exchange-setup-token.php`) from starting imports and lets
+the response tell the UI. No new AS hook or group, so `Deactivation::AS_GROUPS`
+is unchanged.
+**Rejected:** deriving the notice from status alone (`running` with nothing
+processed) — a manual "Import now" passes through the same state for a few
+seconds and would flash the notice.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
