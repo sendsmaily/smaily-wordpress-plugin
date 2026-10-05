@@ -168,7 +168,7 @@ Four separate mechanisms — do not conflate them (F3-46/F3-49):
    placed by the merchant. Rendered server-side by
    `Integrations\WooCommerce\StorefrontRecommendations`: for a logged-in
    shopper it asks the engine by the WP user id (one attempt, 1 s timeout,
-   5-minute per-shopper cache), then builds cards from the store's own
+   1-hour per-shopper cache), then builds cards from the store's own
    products, linked with `smaily_rec` + `smaily_ctx=storefront` so item 2
    captures a storefront credit.
 

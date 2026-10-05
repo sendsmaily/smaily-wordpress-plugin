@@ -35,7 +35,7 @@ use Smaily\Connect\Support\DebugLog;
  *   - one attempt with a short timeout and no Retry-After wait (the Client is
  *     built that way by Bootstrap::storefront_recommendations());
  *   - the answer — an empty one included, which §15 says not to retry — is
- *     cached per shopper for a few minutes, keyed by tenant + a hash of the
+ *     cached per shopper for one hour (§15), keyed by tenant + a hash of the
  *     user id. A finite TTL: a no-expiry transient per shopper would be an
  *     autoloaded option forever (PRO-2435);
  *   - an error or timeout renders nothing and is not cached.
@@ -57,8 +57,8 @@ class StorefrontRecommendations {
 	/** Hard client timeout for the §15 call, in seconds. */
 	public const TIMEOUT_SECONDS = 1;
 
-	/** Per-shopper cache lifetime, in seconds (five minutes). */
-	public const CACHE_TTL = 300;
+	/** Per-shopper cache lifetime, in seconds: one hour, as §15 advises (Erkki, 2026-10-05). */
+	public const CACHE_TTL = HOUR_IN_SECONDS;
 
 	private const CACHE_PREFIX = 'smly_rec_storefront_';
 

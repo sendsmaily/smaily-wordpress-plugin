@@ -33,7 +33,7 @@ _Last updated: 2026-10-05 (**PRO-3788 — storefront recommendations
 by `Integrations\WooCommerce\StorefrontRecommendations` for a logged-in
 shopper — gated on `sending_allowed()` + `ProfilingConsent::may_profile()`,
 `Client::customer_recommendations()` with ONE attempt and a 1 s timeout
-(new `Client` constructor arg `$timeout_seconds`), answer cached 5 min per
+(new `Client` constructor arg `$timeout_seconds`), answer cached 1 h per
 shopper (tenant + md5 of the user id), 4 cards from the store's own product
 data, links `?smaily_rec=…&smaily_ctx=storefront`; renders nothing on any
 gate, error or empty answer. Context cookie rule (v1.9.0): both writers

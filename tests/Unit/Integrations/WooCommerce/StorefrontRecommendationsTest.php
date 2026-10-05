@@ -164,7 +164,7 @@ final class StorefrontRecommendationsTest extends TestCase {
 		self::assertCount( 1, $this->transients );
 		$key = (string) array_key_first( $this->transients );
 		self::assertStringNotContainsString( '42', $key, 'The cache key hashes the customer id (§15).' );
-		self::assertGreaterThan( 0, $this->transients[ $key ]['ttl'], 'A per-shopper cache never lives forever.' );
+		self::assertSame( HOUR_IN_SECONDS, $this->transients[ $key ]['ttl'], 'One hour per §15 — and a per-shopper cache never lives forever.' );
 
 		$service->slots( 43 );
 		self::assertCount( 2, $this->calls, 'Another shopper is asked separately.' );

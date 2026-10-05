@@ -7063,12 +7063,14 @@ by the merchant only, rendered server-side (the API key never reaches the
 browser) by `StorefrontRecommendations`: logged-in + `sending_allowed()` +
 `ProfilingConsent::may_profile()` gate the call; one attempt, 1 s timeout,
 no Retry-After wait; the answer (empty included) cached per shopper for
-5 minutes under tenant + md5(user id), errors not cached; 4 cards built from
+1 hour under tenant + md5(user id), errors not cached; 4 cards built from
 the store's own product data (`is_visible()` decides), linked
 `?smaily_rec=<rec_id>&smaily_ctx=storefront`.
-**Rationale:** the timeout follows §15's hard 1 s; the 5-minute cache follows
-Erkki's approved design ("cached briefly") over §15's "about 1 hour" — one
-constant (`CACHE_TTL`) if the engine load ever argues for longer. WooCommerce
+**Rationale:** the timeout follows §15's hard 1 s. The cache is 1 hour
+(Erkki 2026-10-05: 1 h per contract §15) — the first cut used 5 minutes
+from the design's "cached briefly"; the engine serves already-issued
+recommendations, so a fresher answer buys little and costs engine load and
+page-render calls. One constant (`CACHE_TTL`). WooCommerce
 loop classes (`ul.products li.product`) let the theme style the cards with no
 plugin stylesheet. Local product data keeps price/stock live and the link on
 the store's own domain and language.
