@@ -1101,6 +1101,11 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/browse' ) {
 			if ( isset( $event['customer_email'] ) && (string) $event['customer_email'] !== '' ) {
 				$row['customer_email'] = (string) $event['customer_email'];
 			}
+			// Recorded when present so a test can prove the relay strips a
+			// browser-supplied one (PRO-3620).
+			if ( isset( $event['external_id'] ) ) {
+				$row['external_id'] = (string) $event['external_id'];
+			}
 			return $row;
 		},
 		$events
