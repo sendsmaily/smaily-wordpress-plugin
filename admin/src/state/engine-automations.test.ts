@@ -10,6 +10,7 @@ import {
   convertAutomationMap,
   defaultRow,
   deriveLanguageMode,
+  engineTriggerStatus,
   fallbackLanguage,
   issuesByTrigger,
   pickRecipe,
@@ -198,6 +199,36 @@ describe('buildRows — dynamic catalog-driven rows', () => {
     expect(rows[0]?.automation_map).toEqual({ id: '13' });
   });
 
+  it('keeps a standing real-sends request in the draft while the engine still stores test mode (PRO-3707)', () => {
+    const rows = buildRows(
+      [catalogTrigger('replenish_due'), catalogTrigger('winback_rescue')],
+      [
+        configuredRow({ trigger_key: 'replenish_due', test_mode: true }),
+        configuredRow({ trigger_key: 'winback_rescue', test_mode: true }),
+      ],
+      null,
+      'single',
+      ['replenish_due'],
+    );
+
+    // Requested → the draft keeps asking; a re-save repeats the request.
+    expect(rows[0]?.test_mode).toBe(false);
+    // Not requested → stored test mode as-is.
+    expect(rows[1]?.test_mode).toBe(true);
+  });
+
+  it('never turns test mode off for a requested trigger the engine stores as disabled', () => {
+    const rows = buildRows(
+      [catalogTrigger('replenish_due')],
+      [configuredRow({ enabled: false, test_mode: true })],
+      null,
+      'single',
+      ['replenish_due'],
+    );
+
+    expect(rows[0]?.test_mode).toBe(true);
+  });
+
   it('follows catalog order', () => {
     const rows = buildRows(
       [catalogTrigger('b'), catalogTrigger('a')],
@@ -206,6 +237,23 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       'single',
     );
     expect(rows.map((r) => r.trigger_key)).toEqual(['b', 'a']);
+  });
+});
+
+describe('engineTriggerStatus — the stored state on the card (PRO-3707)', () => {
+  it('is off for a never-configured or disabled trigger', () => {
+    expect(engineTriggerStatus(undefined, false)).toBe('off');
+    expect(engineTriggerStatus({ enabled: false, test_mode: false }, true)).toBe('off');
+  });
+
+  it('is live only when the engine stores real sends on', () => {
+    expect(engineTriggerStatus({ enabled: true, test_mode: false }, false)).toBe('live');
+    expect(engineTriggerStatus({ enabled: true, test_mode: false }, true)).toBe('live');
+  });
+
+  it('tells a pending real-sends request apart from plain test mode', () => {
+    expect(engineTriggerStatus({ enabled: true, test_mode: true }, true)).toBe('waiting');
+    expect(engineTriggerStatus({ enabled: true, test_mode: true }, false)).toBe('test');
   });
 });
 
@@ -351,6 +399,20 @@ describe('saveEngineAutomations — save orchestration', () => {
       'ENGINE_AUTOMATIONS_SAVE_START',
       'ENGINE_AUTOMATIONS_SAVED',
     ]);
+  });
+
+  it('records which saved rows requested real sends (enabled + test mode off)', async () => {
+    putMock.mockResolvedValue({ ok: true, upserted: 3 });
+    const live = { ...defaultRow('live', 'single'), enabled: true, automation_map: { id: '1' }, test_mode: false };
+    const test = { ...defaultRow('test', 'single'), enabled: true, automation_map: { id: '2' } };
+    const off = { ...defaultRow('off', 'single'), test_mode: false };
+
+    await saveEngineAutomations([live, test, off], dispatch);
+
+    expect(dispatched[1]).toEqual({
+      type: 'ENGINE_AUTOMATIONS_SAVED',
+      payload: { realSendsRequested: ['live'] },
+    });
   });
 
   it('skips the PUT entirely when client-side validation fails', async () => {

@@ -117,12 +117,17 @@ export function convertAutomationMap(
  *   server row for triggers it already holds, so a tab switch doesn't
  *   clobber unsaved edits; triggers new to the catalog still get a
  *   default row appended.
+ * - A trigger in `realSendsRequested` that the engine still stores in
+ *   test mode keeps `test_mode: false` in the draft: the merchant's
+ *   request stands, so a later save repeats it instead of withdrawing
+ *   it (the engine keeps such a row in test mode either way, §13).
  */
 export function buildRows(
   catalog: AutomationCatalogTrigger[],
   configs: AutomationConfigServerRow[],
   previousDraft: EngineAutomationRow[] | null,
   languageMode: EngineAutomationRow['language_mode'],
+  realSendsRequested: readonly string[] = [],
 ): EngineAutomationRow[] {
   const configByKey = new Map(configs.map((c) => [c.trigger_key, c]));
   const draftByKey = new Map((previousDraft ?? []).map((r) => [r.trigger_key, r]));
@@ -148,12 +153,36 @@ export function buildRows(
         ),
         cooldown_days: server.cooldown_days,
         daily_cap: server.daily_cap,
-        test_mode: server.test_mode,
+        test_mode:
+          server.test_mode &&
+          !(server.enabled && realSendsRequested.includes(server.trigger_key)),
         test_emails: [...server.test_emails],
       };
     }
     return defaultRow(trigger.key, languageMode);
   });
+}
+
+export type EngineTriggerStatus = 'off' | 'test' | 'waiting' | 'live';
+
+/**
+ * A trigger's state as the engine stores it (§12), for the card's
+ * status label. Real sends are switched on by a Smaily operator only
+ * (§13): a requested trigger stays in test mode until then, and the
+ * §12 read does not show the request — `realSendsRequested` (the
+ * plugin's own last save) tells "waiting" apart from plain test mode.
+ */
+export function engineTriggerStatus(
+  stored: Pick<EngineAutomationRow, 'enabled' | 'test_mode'> | undefined,
+  realSendsRequested: boolean,
+): EngineTriggerStatus {
+  if (stored === undefined || !stored.enabled) {
+    return 'off';
+  }
+  if (!stored.test_mode) {
+    return 'live';
+  }
+  return realSendsRequested ? 'waiting' : 'test';
 }
 
 /**
@@ -351,7 +380,7 @@ export async function saveEngineAutomations(
 
   if (rows.length === 0) {
     // Empty catalog — nothing to send (§13 requires 1..50 rows).
-    dispatch({ type: 'ENGINE_AUTOMATIONS_SAVED' });
+    dispatch({ type: 'ENGINE_AUTOMATIONS_SAVED', payload: { realSendsRequested: [] } });
     return true;
   }
 
@@ -359,7 +388,14 @@ export async function saveEngineAutomations(
   const result = await putAutomationsConfig(rows);
 
   if (result.ok) {
-    dispatch({ type: 'ENGINE_AUTOMATIONS_SAVED' });
+    dispatch({
+      type: 'ENGINE_AUTOMATIONS_SAVED',
+      payload: {
+        realSendsRequested: rows
+          .filter((row) => row.enabled && !row.test_mode)
+          .map((row) => row.trigger_key),
+      },
+    });
     return true;
   }
 
