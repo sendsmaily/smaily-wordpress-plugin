@@ -60,6 +60,8 @@ export interface BootPayload {
     docsUrl?: string;
     /** Registered WC order statuses from EnvDetector::snapshot() (PRO-1504). */
     orderStatuses?: Array<{ slug: string; name: string }>;
+    /** Whether the WP Consent API is active, from EnvDetector::snapshot() (PRO-3673). */
+    consentApiPresent?: boolean;
   };
   savedSettings: {
     smailyCredentials: { subdomain: string; username: string; password: string };
@@ -243,6 +245,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       rss: env.rss ?? null,
       docsUrl: env.docsUrl ?? '',
       orderStatuses: env.orderStatuses ?? [],
+      consentApiPresent: env.consentApiPresent ?? false,
     },
     smailyCredentials: { ...s.smailyCredentials },
     smailyConnection: deriveCredentialConnection(s.smailyConnected, s.smailyCredentials),

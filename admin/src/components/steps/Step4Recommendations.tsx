@@ -420,6 +420,30 @@ function ConnectedView({
             'smaily-connect',
           )}
         />
+        {/* Where the browse tracker's consent comes from (PRO-3673). */}
+        <p className="mt-3 text-sm text-text-secondary">
+          {state.env.consentApiPresent ? (
+            __(
+              "Consent comes from your store's consent plugin: browse events are sent only for visitors who gave marketing consent.",
+              'smaily-connect',
+            )
+          ) : (
+            <>
+              {__(
+                'Browse tracking sends nothing until a consent source is connected.',
+                'smaily-connect',
+              )}{' '}
+              <a
+                href="https://wordpress.org/plugins/wp-consent-api/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline"
+              >
+                {__('Get the WP Consent API plugin', 'smaily-connect')}
+              </a>
+            </>
+          )}
+        </p>
         {state.recEngineFeatures.trackBrowsing && (
           <Banner tone="warning" className="mt-4">
             {__(

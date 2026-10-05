@@ -1767,6 +1767,18 @@ msgstr "Jälgi sirvimiskäitumist"
 msgid "Requires marketing consent (WP Consent API / Cookiebot / Complianz / CookieYes)."
 msgstr "Nõuab turundusnõusolekut (WP Consent API / Cookiebot / Complianz / CookieYes)."
 
+#: admin/src/components/steps/Step4Recommendations.tsx:427
+msgid "Consent comes from your store's consent plugin: browse events are sent only for visitors who gave marketing consent."
+msgstr "Nõusolek tuleb sinu poe nõusolekupluginast: sirvimissündmused saadetakse ainult turundusnõusoleku andnud külastajate kohta."
+
+#: admin/src/components/steps/Step4Recommendations.tsx:433
+msgid "Browse tracking sends nothing until a consent source is connected."
+msgstr "Sirvimise jälgimine ei saada midagi enne, kui nõusoleku allikas on ühendatud."
+
+#: admin/src/components/steps/Step4Recommendations.tsx:442
+msgid "Get the WP Consent API plugin"
+msgstr "Hangi WP Consent API plugin"
+
 #: admin/src/components/steps/Step4Recommendations.tsx:332
 msgid "Browsing telemetry only fires when the visitor has granted marketing consent. If your site doesn't have a consent banner installed, the beacon won't collect events."
 msgstr "Sirvimistelemeetria käivitub ainult siis, kui külastaja on andnud turundusnõusoleku. Kui sinu saidil pole nõusolekuriba paigaldatud, ei kogu majakas sündmusi."

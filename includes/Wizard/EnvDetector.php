@@ -58,6 +58,7 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *     rss: { baseUrl, categories[], defaults{} } | null,
  *     docsUrl: string,
  *     orderStatuses: array<{slug, name}>,
+ *     consentApiPresent: bool,
  *   }
  *
  * The React bundle reads everything that's not in WizardState.env
@@ -85,6 +86,7 @@ class EnvDetector {
 	 *   }|null,
 	 *   docsUrl: string,
 	 *   orderStatuses: array<int, array{slug: string, name: string}>,
+	 *   consentApiPresent: bool,
 	 * }
 	 */
 	public function snapshot(): array {
@@ -104,6 +106,11 @@ class EnvDetector {
 			// PRO-1504 — registered WooCommerce order statuses (incl. custom
 			// ones), choices for the "counts as shipped" multi-select.
 			'orderStatuses'      => $this->order_statuses(),
+			// PRO-3673 — whether the WP Consent API is active, the same check
+			// NotificationManager's consent advisory makes: without it the
+			// browse tracker gets no consent signal and sends nothing, and the
+			// browse-tracking toggle says so.
+			'consentApiPresent'  => function_exists( 'wp_has_consent' ),
 		);
 	}
 
