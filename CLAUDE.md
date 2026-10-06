@@ -390,7 +390,11 @@ that event type — a row the merchant retries waits as pending and the next
 night sends under it. **The dev wp-env is connected to a real tenant:** with
 this code checked out its AS runner sends a real manifest after 03:00 site
 time, which tombstones that tenant's products missing from the dev store —
-the live-walk needs Erkki's approval; tests only ever talk to the mock.
+Erkki approved that and the walk (2026-10-06); tests only ever talk to the
+mock. The walk is `bin/walk-pro3859-manifest.php` (run with `wp eval-file`
+in the dev cli container, then `bash bin/lib-smly-snapshot.sh snapshot`): it
+aborts unless the tenant is "Beauty Synthetic (live-walk)" on
+intelligence.smaily.com and prints only the gates and the engine's counts.
 
 ### Use the IsoDate helper for datetimes — never raw format
 The engine's strict Zod `.datetime()` requires Z-suffix (`Y-m-d\TH:i:s\Z`), NOT
