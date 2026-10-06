@@ -359,6 +359,8 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 * STALL_GRACE_SECONDS ago. Deactivation cancels the queued batch, and a
 	 * batch that dies on a fatal error schedules none. Read-only: the row is
 	 * not rewritten and the import is not restarted — Import now does that.
+	 * The status route asks this for the contact import as well (PRO-3902):
+	 * it runs on the same tick hook, keyed by its job_type.
 	 *
 	 * @param array<string, mixed> $row A state row from read_state().
 	 */
