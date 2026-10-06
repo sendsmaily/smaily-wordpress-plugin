@@ -17,6 +17,7 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EventsEndpointFactory;
 use Smaily\Connect\Tests\Integration\Support\QueueRowFixture;
@@ -264,7 +265,8 @@ final class SmailyQueuePrivacyTest extends TestCase {
 				throw new \RuntimeException( 'engine must not be called while disconnected' );
 			},
 			new CartSessionStore(),
-			new EventQueue()
+			new EventQueue(),
+			new IngestQueue()
 		);
 	}
 

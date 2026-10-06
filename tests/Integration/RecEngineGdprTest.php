@@ -18,6 +18,7 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -235,7 +236,8 @@ final class RecEngineGdprTest extends TestCase {
 				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
 			},
 			new CartSessionStore(),
-			new EventQueue()
+			new EventQueue(),
+			new IngestQueue()
 		);
 	}
 

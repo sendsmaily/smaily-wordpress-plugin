@@ -18,6 +18,7 @@ use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 
 /**
  * Registers a WP Privacy API exporter (Art 15) + eraser (Art 17) so the rec
@@ -44,6 +45,11 @@ use Smaily\Connect\Smaily\RecEngine\Client;
  *     payload and the F3-44 send-time exchange. Export lists what was queued
  *     and when; erase deletes what could still send and redacts what already
  *     did (EventQueue::erase_for_privacy_request()).
+ *   - And the Campaign Intelligence ingest queue (`smly_rec_event_queue`,
+ *     PRO-2384) — its F3-44 copy of a sent customer or order carries the
+ *     address and the customer fields. Erase deletes every row whose copy
+ *     carries the address (IngestQueue::delete_for_privacy_request()),
+ *     independent of the engine connection.
  *   - And the block-checkout newsletter consent marker
  *     (`_smaily_newsletter_optin` order meta, PRO-3406/PRO-3426) — exported as
  *     the consent given on that order, removed on erasure. The Smaily contact
@@ -95,6 +101,7 @@ class GdprHandler {
 	private RecEngineSettings $settings;
 	private CartSessionStore $cart_store;
 	private EventQueue $event_queue;
+	private IngestQueue $ingest_queue;
 
 	/** @var callable(): Client */
 	private $client_factory;
@@ -102,11 +109,12 @@ class GdprHandler {
 	/**
 	 * @param callable(): Client $client_factory
 	 */
-	public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue ) {
+	public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue, IngestQueue $ingest_queue ) {
 		$this->settings       = $settings;
 		$this->client_factory = $client_factory;
 		$this->cart_store     = $cart_store;
 		$this->event_queue    = $event_queue;
+		$this->ingest_queue   = $ingest_queue;
 	}
 
 	public function register(): void {
@@ -170,6 +178,9 @@ class GdprHandler {
 			$removed = true;
 		}
 		if ( $this->erase_cart_sessions( $email ) ) {
+			$removed = true;
+		}
+		if ( $this->ingest_queue->delete_for_privacy_request( $email ) > 0 ) {
 			$removed = true;
 		}
 

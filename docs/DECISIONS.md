@@ -7696,6 +7696,38 @@ hours; auto-restarting a stalled import — rejected, the merchant decides.
 **Relationships:** PRO-3821 (compare-and-set), PRO-3868 (contact import
 failure), PRO-3859 (manifest skip), PRO-2433 (deactivation cancels AS groups).
 
+### PRO-2384 — An erasure request deletes the Campaign Intelligence queue rows that carry the address (2026-10-06)
+
+**Context:** `smly_rec_event_queue` rows enqueue an empty `payload`, but the
+F3-44 copy of what was sent (`sent_payload`) carries a customer update's
+`email` and an order's `customer_email` plus its customer fields. The table has
+no contact key and no email column, the engine-side §9 DELETE reaches only the
+engine, and the WP eraser did not touch the table — so only the QueueJanitor's
+30/90-day retention removed that copy.
+**Decision (Erkki, 2026-10-06):** the eraser DELETES those rows outright, as it
+does for the Smaily queue's sendable rows (PRO-2383) — no redaction.
+`IngestQueue::delete_for_privacy_request()` deletes every row whose
+`sent_payload` holds the address as a whole JSON string, in two forms: as typed
+and as `wp_json_encode()` writes it (`\uXXXX` for a non-ASCII character, `\/`
+for a slash — the PRO-2448 trap). The quotes bound the match, so erasing
+`jane@…` leaves `xjane@…`. The address is lowercased as the payload builders
+lowercase it, and the comparison is binary: the column's accent-blind collation
+would otherwise count `jane@…` as `jäne@…` and delete another person's row
+(an integration test fails without it). It runs whatever the engine connection
+state. No new column and no schema change.
+**Rationale:** a copy of what was sent is a diagnostic record, not the
+merchant's evidence of contact (the Smaily queue's sent rows are kept for
+that), so nothing is lost by deleting it. `payload` never carries an address on
+this queue, and `last_response` is the reply to the same row's copy, so
+matching `sent_payload` and deleting the row covers both.
+**Alternatives:** a `contact_key` column like the Smaily queue's (migration
+011) — rejected, a schema change for a one-off admin action; redacting in place
+— rejected, there is no history worth keeping; a plain collation LIKE — rejected,
+it over-matches accented addresses.
+**Relationships:** PRO-2383 (Smaily queue eraser), PRO-2448 (the same escaping
+gap in the Smaily queue's fallback match — not changed here), F3-44 (stored
+exchange), F3-28 (engine erasure).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
