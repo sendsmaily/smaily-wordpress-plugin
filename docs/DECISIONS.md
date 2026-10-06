@@ -7193,6 +7193,62 @@ made, is the least a merchant needs — no further legal advice.
 (decided 2026-10-05: the preset keeps syncing every WordPress user, staff and
 admins included — no role filter).
 
+### PRO-3806 — Elementor Pro forms get a native "Smaily" action; a form signup is fresh consent (2026-10-06)
+
+**Context:** a merchant wanted Elementor Pro's Form widget to send signups to
+Smaily directly — keeping Elementor's design, consent fields and reCAPTCHA —
+without Contact Form 7 or Make. The plugin had Elementor widgets (PRO-2440) but
+no action under Elementor Pro's Actions After Submit.
+**Decision:** a `smaily` form action (`integrations/elementor/form-action.class.php`,
+registered on `elementor_pro/forms/actions/register` only when Elementor Pro's
+`Action_Base` exists) that adapts Elementor's record to
+`Integrations\Elementor\FormSubscription`, which holds every rule:
+- Two modes: **Newsletter signup** (every submission) and **Contact form with
+  marketing consent** (only when the configured consent field is ticked; no
+  consent field configured = nothing sent). No consent never adds an Elementor
+  error, so the form's other actions are unaffected.
+- **Only mapped fields are sent:** email (required, trimmed + lowercased,
+  `is_email()`), optional name → `name`, and explicit form-field → Smaily-field
+  rows (`[a-z0-9_]{1,64}`, reserved names refused, empty values left out).
+- **Consent rule (Erkki, 2026-10-05):** a signup through the form is fresh
+  explicit consent, so the upsert (`contact.php`) always sends
+  `is_unsubscribed = 0` — a contact who unsubscribed earlier is subscribed
+  again. The optional workflow is then triggered with `force_opt_in = false`
+  and the email only: the upsert already subscribed the contact, and the legacy
+  client's `force_opt_in = true` default is not used.
+- **Source on the contact:** `elementor_form_name`, `elementor_form_url`,
+  `elementor_form_submitted_at` (UTC `Y-m-d H:i:s`, the automation-marker
+  shape) — merchant-visible and permanent, documented in the docs site's
+  merge-tag section.
+- **Envelope check:** an HTTP failure (the client's `ApiException`) and any
+  body code other than 101 on HTTP 200 both fail the upsert; the visitor gets a
+  generic Elementor error, the editor an admin-only line with the technical
+  reason (no credentials — the action has no credential control and uses the
+  saved connection).
+- **Partial failure:** the subscriber write decides the outcome. A failed
+  workflow trigger after a successful write is success for the visitor and is
+  logged (`DebugLog`, no email address in the line).
+- **Double submit:** a 5-minute transient keyed on form id + form name + email
+  stops the workflow firing twice (finite TTL — never `set_transient( …, 0 )`).
+  Best effort: two requests in the same instant can both pass.
+- The workflow dropdown reuses `Client::list_autoresponders()` (active only),
+  cached 5 minutes, and is only fetched for a user who can edit posts in the
+  admin — never during a visitor's submission. An exported form drops the
+  workflow choice (it belongs to this site's Smaily account).
+**Rationale:** Elementor runs actions only after its own validation and spam
+protection, so the action needs no spam handling of its own; keeping the logic
+out of the class that extends Elementor Pro makes it testable without Elementor
+Pro. Multilingual account routing is out of scope: the default account is used.
+**Alternatives:** Elementor Pro's `Fields_Map` control (remote field fetch, more
+Pro internals) — rejected for plain field-ID controls like Elementor's own
+documentation example; sending the whole submission — rejected (data
+minimisation, the acceptance criteria).
+**Relationships:** sits beside the PRO-2440 widgets (same Elementor admin
+class); the opposite of the contact-sync rule (PRO-1716 / F3-48) that never
+resubscribes on a routine sync — here the visitor's own form submission is the
+consent. A real Elementor Pro submission is human acceptance (no licensed
+Elementor Pro in the test environments).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

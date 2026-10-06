@@ -26,13 +26,26 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3609 (unreleased on main):** soft opt-in verified (Erkki,
+_Last updated: 2026-10-06 (**PRO-3806 on a branch, unreleased:** Elementor
+Pro forms get a native **Smaily** action under Actions After Submit (two modes:
+newsletter signup / contact form with marketing consent; only mapped fields are
+sent; a form signup sends `is_unsubscribed = 0` — fresh consent resubscribes;
+source fields `elementor_form_name` / `elementor_form_url` /
+`elementor_form_submitted_at`; optional workflow, 5-min double-submit guard;
+DECISIONS PRO-3806). 17 new strings (EN + ET in `.pot`/`-et.po`, ET awaits the
+human proofread before the docs site is published); docs site EN+ET updated
+(Integrations + Merge tags). Gates: ci:strict exit=0 (unit 960); integration
+318 OK on the Mac. A real Elementor Pro submission is human acceptance (no
+licensed Elementor Pro in wp-env). Touches consent + external HTTP, so the next
+release's security delta re-audit must cover it.)_
+
+Prior: 2026-10-05 (**PRO-3609 (unreleased on main):** soft opt-in verified (Erkki,
 2026-10-02) — Smaily creates a new contact sent without `is_unsubscribed` as
 subscribed; `docs/CONTACT_SYNC_MODES.md` § 5 no longer marks it an
 assumption (DECISIONS PRO-3609). The "All customers" warning in Step 2
 (wizard + Settings) now names the soft opt-in requirements; new string in
 `.pot`/`-et.po` by hand; merchant docs updated EN+ET (ET proofread before
-publish). No sync behaviour change.)_
+publish). No sync behaviour change.)
 
 Prior: 2026-10-05 (**PRO-3707 — the engine-run automations screen
 shows what the engine stored.** After every save the section re-reads §12;

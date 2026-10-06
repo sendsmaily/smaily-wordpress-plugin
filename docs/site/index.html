@@ -894,6 +894,19 @@ td code{white-space:nowrap}
           </tbody>
         </table>
       </div>
+      <h3>Elementor Pro forms</h3>
+      <p>Written onto the contact by every signup through the <a href="#set-integrations">Smaily action of an Elementor Pro form</a>, so the workflow it starts — and any later email — can use them.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Merge tag</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code>, and every field mapped under <strong>Other fields</strong></td><td>What the visitor entered, only when the field is mapped and not empty.</td></tr>
+            <tr><td><code>elementor_form_name</code></td><td>The form's name in Elementor.</td></tr>
+            <tr><td><code>elementor_form_url</code></td><td>The page the form was sent from.</td></tr>
+            <tr><td><code>elementor_form_submitted_at</code></td><td>When the form was sent (UTC, <code>2026-08-04 14:30:00</code>).</td></tr>
+          </tbody>
+        </table>
+      </div>
       <h3>Order confirmation and Shipping confirmation</h3>
       <p>Both <a href="#set-transactional">transactional emails</a> carry the same fields.</p>
       <div class="tw">
@@ -981,6 +994,19 @@ td code{white-space:nowrap}
             <tr><td><code>product_base_price_N</code></td><td>Toote tavahind koos valuutaga.</td></tr>
             <tr><td><code>product_url_N</code></td><td>Lihtne link toote lehele (variatsioonidega toote puhul on valitud korvis olev variatsioon) — sama märgend nagu tellimuse kinnituses ja saatmisteates. Tühi, kui toode pole enam avaldatud.</td></tr>
             <tr><td><code>over_10_products</code></td><td><code>true</code>, kui korvis on üle 10 toote, muidu saadetakse tühjana — nii kustutab väiksema korvi meeldetuletus kontaktilt suurema korvi jäetud märke.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Elementor Pro vormid</h3>
+      <p>Salvestatakse kontaktile iga liitumisega <a href="#set-integrations">Elementor Pro vormi Smaily toimingu</a> kaudu, nii et selle käivitatud töövoog — ja iga hilisem kiri — saab neid kasutada.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Märgend</th><th>Väärtus</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code> ja iga jaotises <strong>Muud väljad</strong> seotud väli</td><td>Külastaja sisestatud väärtus, ainult siis, kui väli on seotud ja pole tühi.</td></tr>
+            <tr><td><code>elementor_form_name</code></td><td>Vormi nimi Elementoris.</td></tr>
+            <tr><td><code>elementor_form_url</code></td><td>Leht, millelt vorm saadeti.</td></tr>
+            <tr><td><code>elementor_form_submitted_at</code></td><td>Vormi saatmise aeg (UTC, <code>2026-08-04 14:30:00</code>).</td></tr>
           </tbody>
         </table>
       </div>
@@ -1091,6 +1117,16 @@ td code{white-space:nowrap}
       <p>The cards are made for each shopper separately. Page caches normally skip logged‑in visitors; if yours caches pages for logged‑in shoppers too, exclude the pages that carry the block.</p>
       <h3>Elementor widget</h3>
       <p>If you run Elementor, open its editor and look under the <strong>Smaily</strong> category in the widget panel: <strong>Smaily Opt-In Form</strong> adds a subscription form, <strong>Smaily Landing Page</strong> embeds a landing page of your Smaily account (URL, height, width). Both render exactly what their block counterparts do.</p>
+      <h3>Elementor Pro forms</h3>
+      <p>If you run <strong>Elementor Pro</strong>, its Form widget can send signups straight to Smaily — you keep the form's own design, consent fields and spam protection (honeypot, reCAPTCHA). Smaily runs only after Elementor's own validation and spam checks have passed.</p>
+      <ol>
+        <li>Open the form in Elementor, go to <strong>Actions After Submit</strong> and add <strong>Smaily</strong>. A <strong>Smaily</strong> section appears below.</li>
+        <li>Pick the <strong>Mode</strong>: <strong>Newsletter signup</strong> sends every submission to Smaily; <strong>Contact form with marketing consent</strong> sends it only when the visitor ticks the consent field — enter that field's ID in <strong>Consent field ID</strong> (an Acceptance or Checkbox field). Without a ticked box, or without a consent field set, nothing goes to Smaily and the form's other actions (e.g. the email to you) run as usual.</li>
+        <li><strong>Email field ID</strong> (required, <code>email</code> by default) and optionally <strong>Name field ID</strong> (sent as <code>name</code>) — the field ID is on each field's <strong>Advanced</strong> tab. Under <strong>Other fields</strong>, map more form fields to Smaily fields (lowercase letters, digits and <code>_</code>). <strong>Only the mapped fields are sent</strong>, never the whole form; an empty value is left out.</li>
+        <li>Optionally pick a <strong>Workflow</strong> to start after the signup. The list shows your account's active workflows.</li>
+      </ol>
+      <p><strong>A signup through the form is fresh consent:</strong> the contact is saved as subscribed, so someone who unsubscribed earlier and signs up again is subscribed again. Each signup also records the form's name, the page and the time on the contact (see <a href="#set-merge-tags">Merge tags</a>).</p>
+      <p>An invalid email address, or Smaily not answering, shows the visitor an error and the form can be sent again; when you are logged in as an editor, Elementor also shows you the technical reason. If the contact was saved but the workflow could not be started, the visitor sees success. Sending the same form twice within a few minutes starts the workflow once. The action uses the plugin's saved Smaily connection — no API credentials go into the form, and an exported form doesn't carry the workflow choice.</p>
       <h3>Classic Widget</h3>
       <p>Go to <strong>Appearance → Widgets</strong> and add the <strong>Smaily Classic Subscription Widget</strong> to any widget area.</p>
       <h3>Contact Form 7</h3>
@@ -1132,6 +1168,16 @@ td code{white-space:nowrap}
       <p>Kaardid tehakse iga ostja jaoks eraldi. Lehecache jätab sisse logitud külastajad tavaliselt vahele; kui sinu oma salvestab lehti ka sisse logitud ostjatele, jäta ploki sisaldavad lehed sellest välja.</p>
       <h3>Elementori vidin</h3>
       <p>Kui kasutad Elementorit, ava selle redaktor ja vaata vidinate paneelil <strong>Smaily</strong> kategooriat: <strong>Smaily Opt-In Form</strong> lisab liitumisvormi, <strong>Smaily Landing Page</strong> lisab sinu Smaily konto maandumislehe (URL, kõrgus, laius). Mõlemad kuvavad täpselt sama, mida nende plokid.</p>
+      <h3>Elementor Pro vormid</h3>
+      <p>Kui kasutad <strong>Elementor Pro</strong>'d, saab selle vormividin saata liitujad otse Smailysse — vormi kujundus, nõusolekuväljad ja rämpspostikaitse (honeypot, reCAPTCHA) jäävad alles. Smaily toiming käivitub alles siis, kui Elementori enda kontrollid ja rämpspostikaitse on läbitud.</p>
+      <ol>
+        <li>Ava vorm Elementoris, mine jaotisse <strong>Actions After Submit</strong> ja lisa <strong>Smaily</strong>. Allapoole tekib jaotis <strong>Smaily</strong>.</li>
+        <li>Vali <strong>Režiim</strong>: <strong>Uudiskirjaga liitumine</strong> saadab Smailysse iga vormi täitmise; <strong>Kontaktivorm turundusnõusolekuga</strong> saadab selle ainult siis, kui külastaja märgib nõusolekuvälja — sisesta selle välja ID lahtrisse <strong>Nõusolekuvälja ID</strong> (Acceptance- või Checkbox-väli). Kui ruut pole märgitud või nõusolekuvälja pole määratud, ei lähe Smailysse midagi ja vormi muud toimingud (nt kiri sulle) toimivad tavapäraselt.</li>
+        <li><strong>E-posti välja ID</strong> (kohustuslik, vaikimisi <code>email</code>) ja valikuliselt <strong>Nime välja ID</strong> (saadetakse väljana <code>name</code>) — välja ID leiad iga välja vahekaardilt <strong>Advanced</strong>. Jaotises <strong>Muud väljad</strong> saad siduda veel vormi välju Smaily väljadega (väiketähed, numbrid ja <code>_</code>). <strong>Saadetakse ainult seotud väljad</strong>, mitte kogu vorm; tühja väärtust ei saadeta.</li>
+        <li>Soovi korral vali <strong>Töövoog</strong>, mis käivitub pärast liitumist. Nimekirjas on su konto aktiivsed töövood.</li>
+      </ol>
+      <p><strong>Vormi kaudu liitumine on uus nõusolek:</strong> kontakt salvestatakse liitununa, nii et varem loobunud inimene, kes uuesti liitub, on taas liitunud. Iga liitumine salvestab kontaktile ka vormi nime, lehe ja aja (vt <a href="#set-merge-tags">Kirjapõhja märgendid</a>).</p>
+      <p>Vigase e-posti aadressi või Smaily vastamata jätmise korral näeb külastaja veateadet ja saab vormi uuesti saata; kui oled toimetajana sisse logitud, näitab Elementor sulle ka tehnilist põhjust. Kui kontakt salvestati, aga töövoogu ei õnnestunud käivitada, näeb külastaja õnnestumist. Sama vormi kahekordne saatmine mõne minuti jooksul käivitab töövoo üks kord. Toiming kasutab plugina salvestatud Smaily ühendust — API-võtmeid vormi ei lähe ja eksporditud vorm töövoo valikut kaasa ei võta.</p>
       <h3>Klassikaline vidin</h3>
       <p>Mine <strong>Väljanägemine → Vidinad</strong> ja lisa <strong>Smaily Classic Subscription Widget</strong> mõnda vidina‑alasse.</p>
       <h3>Contact Form 7</h3>
