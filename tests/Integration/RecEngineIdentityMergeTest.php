@@ -103,7 +103,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		$received = self::$engine->state()['last_merge_received'] ?? null;
 		self::assertIsArray( $received );
 		self::assertSame( 'anon-vs-noconsent', $received['anon_session_id'] );
-		self::assertArrayNotHasKey( 'smaily_visitor_token', $received );
+		self::assertSame( '', $received['smaily_visitor_token'], 'The mock records an absent token as \'\'.' );
 	}
 
 	public function test_a_store_token_is_sent_with_marketing_consent(): void {
