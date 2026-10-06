@@ -31,8 +31,10 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *   2. process_batch() handles up to $batch_size users, then either
  *      schedules the next iteration (when the cursor hasn't reached
  *      total_count) or marks status='completed'.
- *   3. Failures bump the row's error_message and leave status='failed'
- *      so the UI surfaces a "Retry" affordance.
+ *   3. A failed Smaily call records error_message, leaves status='failed'
+ *      and the cursor before the failing page, and stops the tick chain, so
+ *      the UI shows the failure. The merchant retries with Start import — a
+ *      new start() — which walks from the first user again (PRO-3868).
  *
  * The Smaily API call itself is delegated to a Client instance supplied
  * via constructor injection so tests don't need wp_remote_post mocks.
@@ -317,11 +319,12 @@ class BackfillJob implements BackfillJobInterface {
 		}
 
 		// The merchant cancelled the import after Action Scheduler had already
-		// claimed this tick: send nothing, leave the row cancelled, and stop
-		// the tick chain (PRO-3821).
+		// claimed this tick (PRO-3821), or an earlier batch failed (PRO-3868):
+		// send nothing, leave the row as it is, and stop the tick chain. Only
+		// a new start() takes the import out of either state.
 		$status = isset( $state['status'] ) ? (string) $state['status'] : '';
-		if ( $status === self::STATUS_CANCELLED ) {
-			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect backfill.batch] import was cancelled — tick sends nothing' );
+		if ( $status === self::STATUS_CANCELLED || $status === self::STATUS_FAILED ) {
+			\Smaily\Connect\Support\DebugLog::write( sprintf( '[smaily-connect backfill.batch] import is %s — tick sends nothing', $status ) );
 			return array(
 				'processed' => 0,
 				'remaining' => max( 0, (int) $state['total_count'] - (int) $state['processed_count'] ),
@@ -375,9 +378,17 @@ class BackfillJob implements BackfillJobInterface {
 						$e->getMessage()
 					)
 				);
+				// Stop here and leave the row failed, its cursor before this
+				// page: the progress write below would overwrite the failure
+				// with running/completed and move the cursor past the users
+				// of this page that were never sent (PRO-3868). Retry is a
+				// new start(), which walks from the first user again.
 				$this->record_error( (int) $state['id'], $e->getMessage(), $status );
-				$status = self::STATUS_FAILED;
-				break;
+				return array(
+					'processed' => $synced,
+					'remaining' => max( 0, (int) $state['total_count'] - (int) $state['processed_count'] ),
+					'completed' => true,
+				);
 			}
 		}
 
@@ -411,8 +422,8 @@ class BackfillJob implements BackfillJobInterface {
 				'status'          => $completed ? 'completed' : 'running',
 				'completed_at'    => $completed ? current_time( 'mysql', true ) : null,
 			),
-			// Written only while the status is still the one this batch left
-			// it in: a cancel that lands while the batch sends stays a cancel
+			// Written only while the status is still the one this batch read:
+			// a cancel that lands while the batch sends stays a cancel
 			// (PRO-3821).
 			array(
 				'id'     => (int) $state['id'],

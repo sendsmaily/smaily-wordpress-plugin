@@ -16,6 +16,7 @@ use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\PipelineFixture;
 use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
 
 /**
@@ -361,7 +362,121 @@ final class ContactBackfillAudienceTest extends TestCase {
 		self::assertSame( 0, (int) $row['processed_count'] );
 	}
 
+	/**
+	 * PRO-3868: a Smaily call that fails mid-page leaves the contact import
+	 * failed — not running or done — and does not move it past the rest of
+	 * that page. Pressing Start import again (the merchant's retry) sends
+	 * every customer the failed run did not reach.
+	 */
+	public function test_a_failed_batch_stays_failed_and_the_retry_syncs_the_rest_of_its_page(): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+		PipelineFixture::seed_credentials();
+
+		$first  = $this->make_user( 'bf-fail-first', '1' );
+		$broken = $this->make_user( 'bf-fail-broken', '1' );
+		$after  = $this->make_user( 'bf-fail-after', '1' );
+		$emails = array(
+			$first  => get_userdata( $first )->user_email,
+			$broken => get_userdata( $broken )->user_email,
+			$after  => get_userdata( $after )->user_email,
+		);
+
+		$fail_broken = true;
+		$sent        = array();
+		$fake        = static function ( $pre, $args, $url ) use ( &$fail_broken, &$sent, $emails, $broken ) {
+			if ( strpos( (string) $url, 'sendsmaily.net' ) === false ) {
+				return $pre;
+			}
+			// The contact upsert posts a form-encoded list of contacts.
+			$email  = (string) ( $args['body'][0]['email'] ?? '' );
+			$refuse = $fail_broken && $email === $emails[ $broken ];
+			if ( ! $refuse ) {
+				$sent[] = $email;
+			}
+			return array(
+				'headers'  => array(),
+				'body'     => '{}',
+				'response' => array(
+					'code'    => $refuse ? 500 : 200,
+					'message' => $refuse ? 'Internal Server Error' : 'OK',
+				),
+				'cookies'  => array(),
+				'filename' => '',
+			);
+		};
+
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			RestRequestHelper::login_as_admin();
+			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
+			$this->run_one_tick();
+
+			$row = $this->contact_job_row();
+			self::assertSame( BackfillJobInterface::STATUS_FAILED, $row['status'], 'The failed batch must not overwrite the failure with running or completed.' );
+			self::assertNotSame( '', (string) $row['error_message'] );
+			self::assertLessThan( $after, (int) $row['cursor_value'], 'The import must not move past the customers the failure kept from being sent.' );
+			self::assertNotContains( $emails[ $after ], $sent, 'The batch stops at the failure.' );
+			self::assertSame( array(), $this->pending_ticks(), 'A failed import schedules no further batch.' );
+
+			$status = RestRequestHelper::get( '/backfill/status', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) );
+			self::assertSame( BackfillJobInterface::STATUS_FAILED, $status->get_data()['status'], 'The screen shows the failure.' );
+
+			// The merchant's retry: Smaily answers again, Start import is pressed.
+			$fail_broken = false;
+			$sent        = array();
+			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
+			$this->run_one_tick();
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+			wp_set_current_user( 0 );
+		}
+
+		self::assertSame( BackfillJobInterface::STATUS_COMPLETED, $this->contact_job_row()['status'] );
+		self::assertContains( $emails[ $broken ], $sent, 'The customer whose send failed is synced on retry.' );
+		self::assertContains( $emails[ $after ], $sent, 'The customer after the failure on that page is synced on retry.' );
+	}
+
 	// --- helpers -------------------------------------------------------------
+
+	/**
+	 * Run one contact-import batch the way Action Scheduler does, after
+	 * dropping the tick /backfill/start queued.
+	 */
+	private function run_one_tick(): void {
+		as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK );
+		do_action( BackfillJobInterface::TICK_HOOK, BackfillJob::BACKFILL_TYPE );
+	}
+
+	/**
+	 * @return int[]
+	 */
+	private function pending_ticks(): array {
+		return as_get_scheduled_actions(
+			array(
+				'hook'   => BackfillJobInterface::TICK_HOOK,
+				'status' => \ActionScheduler_Store::STATUS_PENDING,
+			),
+			'ids'
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function contact_job_row(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT status, cursor_value, error_message FROM {$wpdb->prefix}smly_plus_backfill_job WHERE job_type = %s AND target = %s",
+				BackfillJob::BACKFILL_TYPE,
+				BackfillJob::BACKFILL_TARGET
+			),
+			ARRAY_A
+		);
+		self::assertIsArray( $row );
+		return $row;
+	}
 
 	/**
 	 * @param string|null $newsletter user_newsletter meta value; null = no meta row.

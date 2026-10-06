@@ -210,10 +210,67 @@ final class BackfillJobTest extends TestCase {
 		);
 	}
 
-	public function test_process_batch_records_error_on_api_failure(): void {
+	/**
+	 * PRO-3868: the failed batch leaves the row failed — no progress write
+	 * flips it to running/completed or moves the cursor past the users of
+	 * this page that were never sent — and stops the tick chain.
+	 */
+	public function test_process_batch_records_error_on_api_failure_and_stops_there(): void {
 		$wpdb            = $this->fake_wpdb_for_process_batch(
 			array(
 				'id'              => 77,
+				'status'          => 'running',
+				'cursor_value'    => '0',
+				'processed_count' => '0',
+				'total_count'     => '3',
+			),
+			array( 1, 2, 3 )
+		);
+		$GLOBALS['wpdb'] = $wpdb;
+
+		Functions\when( 'get_users' )->justReturn(
+			array(
+				$this->fake_user( 1, 'a@x.test' ),
+				$this->fake_user( 2, 'b@x.test' ),
+				$this->fake_user( 3, 'c@x.test' ),
+			)
+		);
+
+		$calls  = 0;
+		$client = $this->createMock( Client::class );
+		$client->expects( $this->exactly( 2 ) )
+			->method( 'upsert_subscribers' )
+			->willReturnCallback(
+				static function () use ( &$calls ): array {
+					++$calls;
+					if ( $calls === 2 ) {
+						throw new ApiException( 'rate limited', 429 );
+					}
+					return array();
+				}
+			);
+
+		$result = ( new BackfillJob( $client ) )->process_batch( 3 );
+
+		self::assertCount( 1, $wpdb->updates, 'Only the error is written — nothing overwrites it.' );
+		self::assertSame( 'failed', $wpdb->updates[0]['data']['status'] );
+		self::assertSame( 'rate limited', $wpdb->updates[0]['data']['error_message'] );
+		self::assertSame( 'running', $wpdb->updates[0]['where']['status'] );
+		self::assertSame( 1, $result['processed'] );
+		self::assertSame( 3, $result['remaining'] );
+		self::assertTrue( $result['completed'], 'A failed import schedules no further tick.' );
+	}
+
+	/**
+	 * PRO-3868: a tick that reads a failed import — one Action Scheduler had
+	 * already claimed — sends nothing and leaves the row failed, like a
+	 * cancelled one (PRO-3821).
+	 */
+	public function test_process_batch_sends_nothing_for_a_failed_import(): void {
+		$wpdb            = $this->fake_wpdb_for_process_batch(
+			array(
+				'id'              => 77,
+				'status'          => 'failed',
 				'cursor_value'    => '0',
 				'processed_count' => '0',
 				'total_count'     => '1',
@@ -222,18 +279,14 @@ final class BackfillJobTest extends TestCase {
 		);
 		$GLOBALS['wpdb'] = $wpdb;
 
-		Functions\when( 'get_users' )->justReturn( array( $this->fake_user( 1, 'a@x.test' ) ) );
-
 		$client = $this->createMock( Client::class );
-		$client->method( 'upsert_subscribers' )
-			->willThrowException( new ApiException( 'rate limited', 429 ) );
+		$client->expects( $this->never() )->method( 'upsert_subscribers' );
 
-		( new BackfillJob( $client ) )->process_batch();
+		$result = ( new BackfillJob( $client ) )->process_batch();
 
-		// First update is the error-record (status='failed'), no further updates.
-		self::assertNotEmpty( $wpdb->updates );
-		self::assertSame( 'failed', $wpdb->updates[0]['data']['status'] );
-		self::assertSame( 'rate limited', $wpdb->updates[0]['data']['error_message'] );
+		self::assertSame( array(), $wpdb->updates );
+		self::assertSame( 0, $result['processed'] );
+		self::assertTrue( $result['completed'] );
 	}
 
 	public function test_backfill_payload_carries_resolved_default_language(): void {
