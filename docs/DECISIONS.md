@@ -7365,6 +7365,49 @@ timeout, who is asked); engine PRO-3834 / contract v1.10.0 (the
 `smaily_visitor_token` request);
 `/relay` (BeaconEndpoint) for the auth-cookie and throttle patterns.
 
+### PRO-3845 — A consenting guest buyer gets a store-created visitor token at checkout (2026-10-06)
+
+**Context:** the storefront recommendations ask the engine for a guest by the
+visitor-token cookie, and only an email-link landing (LandingCapture / the JS
+capture) wrote that cookie. A guest who came any other way could not be
+recognised after buying. The engine will bind a store-created token on an order
+to that order's customer (engine PRO-3844).
+**Decision:** `GuestVisitorToken` listens on both checkout hooks
+(`woocommerce_checkout_order_processed`, `woocommerce_store_api_checkout_order_processed`).
+It creates a token only when the engine is connected, the request is not cron
+or WP-CLI, the buyer is a guest (no account on the order and nobody logged in),
+the shopper gave an explicit marketing yes (`Support\MarketingConsent::given()`,
+below), and the browser has no token in the engine's shape. It writes the token
+through `LandingCapture::issue_visitor_token()` (same cookie name, TTL and
+attributes as a landing capture) and onto `_smaily_visitor_token` order meta, so
+`OrderPayloadBuilder` sends it as `smaily_visitor_token`. A cookie outside the
+token shape is replaced, because the engine would never accept it. Nothing is
+stored when the cookie cannot be written (headers sent).
+**Token format — ASSUMPTION:** the contract does not yet define a store-created
+token. `vt_` + 32 lowercase hex from `random_bytes(16)` is inside
+`AttributionShape::is_visitor_token()` (`vt_` + 1–64 alphanumerics), so the
+order sender keeps it. The PRO-3844 contract sync confirms or changes it.
+**Consent rule — an explicit yes only (Erkki, 2026-10-06; parity with the
+Magento plugin's PRO-3664 decision "consent only on an explicit yes"):** the
+WP Consent API's `wp_has_consent()` answers true when no consent plugin has set
+a consent type (the API treats that as "no consent management") and, in an
+opt-out region, until the visitor opts out. Neither is the shopper saying yes,
+and a token is a persistent marketing cookie. So `MarketingConsent::given()`
+counts consent only when BOTH hold: `wp_get_consent_type()` is a non-empty
+string (a consent plugin is active), and `wp_has_consent( category )` is
+exactly `true` for `smaily_connect_beacon_consent_category` (default
+`marketing`). No API, no type, no consent for the category, or a value of the
+wrong type = no consent. The rule lives in one helper (`decide()` is the pure
+rule) because browse tracking and the recommendations fetch are to adopt it in
+a follow-up — they still read `wp_has_consent()` alone in the browser today.
+**Rationale:** the checkout is the one moment a guest's order and browser meet.
+Logged-in buyers are already named by their account, so they get no token.
+**Alternatives:** a token for logged-in buyers too — not built (not asked; the
+account identifies them).
+**Relationships:** F3-46 / LandingCapture (the other writer of the cookie),
+F3-49 (what the token is for), F3-50 (the consent gate), PRO-1942
+(`AttributionShape`), `GdprHandler` (already exports and erases the meta).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

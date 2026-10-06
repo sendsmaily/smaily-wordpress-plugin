@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Integrations\WooCommerce\GuestVisitorToken;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Integrations\WooCommerce\OrderHookHandler;
@@ -24,11 +25,15 @@ use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
+use Smaily\Connect\Support\MarketingConsent;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
 
 final class RecEngineOrdersTest extends TestCase {
+
+	/** WP Consent API answers of a consent plugin that recorded a yes. */
+	private const CONSENT_YES = array( 'optin', true );
 
 	/** A genuine engine-issued rec id shape (the engine validates it as a uuid). */
 	private const REC_UUID = '11111111-2222-4333-8444-555555555555';
@@ -395,6 +400,120 @@ final class RecEngineOrdersTest extends TestCase {
 		self::assertArrayNotHasKey( 'smaily_rec_ctx', $payloads[0] );
 	}
 
+	public function test_a_consenting_guest_buyer_gets_a_visitor_token_that_rides_the_order(): void {
+		// PRO-3845: a guest with marketing consent and no token gets one at
+		// checkout — on the order and on the §5 wire.
+		$product  = $this->make_product( 'ORD-VT-GUEST', '15.00' );
+		$order_id = $this->make_order( 'vt-guest@example.test', 'completed', $product );
+
+		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES );
+
+		$token = (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' );
+		self::assertMatchesRegularExpression( '/^vt_[0-9a-f]{32}$/', $token );
+		self::assertSame( $token, $cookies['smaily_rec_uid'] ?? null, 'The same token went to the visitor-token cookie.' );
+
+		$stats = $this->flusher()->flush();
+
+		self::assertSame( 1, $stats['sent'], 'stats: ' . wp_json_encode( $stats ) );
+		$payloads = self::$engine->state()['last_orders_payload'] ?? null;
+		self::assertIsArray( $payloads );
+		self::assertSame( $token, $payloads[0]['smaily_visitor_token'] ?? null );
+	}
+
+	public function test_a_guest_buyer_who_already_has_a_visitor_token_keeps_it(): void {
+		$product  = $this->make_product( 'ORD-VT-KEEP', '15.00' );
+		$order_id = $this->make_order( 'vt-keep@example.test', 'completed', $product );
+
+		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES, array( 'smaily_rec_uid' => 'vt_fromemaillink123' ) );
+
+		self::assertSame( array(), $cookies, 'No second token was written.' );
+		self::assertSame( 'vt_fromemaillink123', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	public function test_a_guest_buyer_without_marketing_consent_gets_no_visitor_token(): void {
+		$product  = $this->make_product( 'ORD-VT-NOCONSENT', '15.00' );
+		$order_id = $this->make_order( 'vt-noconsent@example.test', 'completed', $product );
+
+		$cookies = $this->guest_checkout( $order_id, array( 'optin', false ) );
+
+		self::assertSame( array(), $cookies );
+		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
+
+		$this->flusher()->flush();
+		$payloads = self::$engine->state()['last_orders_payload'] ?? null;
+		self::assertIsArray( $payloads );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $payloads[0] );
+	}
+
+	public function test_a_guest_buyer_gets_no_visitor_token_when_no_consent_plugin_set_a_consent_type(): void {
+		// The WP Consent API answers wp_has_consent() true when no consent
+		// plugin set a type; that is not a yes from the shopper (Magento PRO-3664).
+		$product  = $this->make_product( 'ORD-VT-NOTYPE', '15.00' );
+		$order_id = $this->make_order( 'vt-notype@example.test', 'completed', $product );
+
+		$cookies = $this->guest_checkout( $order_id, array( '', true ) );
+
+		self::assertSame( array(), $cookies );
+		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	public function test_without_the_wp_consent_api_a_guest_buyer_gets_no_visitor_token(): void {
+		// The test site has no WP Consent API plugin: the real consent check
+		// must fail closed.
+		self::assertFalse( function_exists( 'wp_has_consent' ), 'Precondition: no WP Consent API on the test site.' );
+		$product  = $this->make_product( 'ORD-VT-NOAPI', '15.00' );
+		$order_id = $this->make_order( 'vt-noapi@example.test', 'completed', $product );
+		$cookies  = $this->recording_cookies();
+
+		$previous_user = get_current_user_id();
+		wp_set_current_user( 0 );
+		try {
+			( new GuestVisitorToken( new RecEngineSettings(), $cookies ) )->on_classic_checkout( $order_id );
+		} finally {
+			wp_set_current_user( $previous_user );
+		}
+
+		self::assertSame( array(), $cookies->written );
+		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	public function test_a_registered_buyer_gets_no_visitor_token(): void {
+		$product  = $this->make_product( 'ORD-VT-REGISTERED', '15.00' );
+		$order_id = $this->make_order( 'vt-registered@example.test', 'completed', $product );
+		$order    = wc_get_order( $order_id );
+		$order->set_customer_id( 1 );
+		$order->save();
+
+		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES );
+
+		self::assertSame( array(), $cookies );
+		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	public function test_an_order_created_by_a_logged_in_admin_gets_no_visitor_token(): void {
+		$product  = $this->make_product( 'ORD-VT-ADMIN', '15.00' );
+		$order_id = $this->make_order( 'vt-admin@example.test', 'completed', $product );
+
+		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES, array(), 1 );
+
+		self::assertSame( array(), $cookies );
+		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	public function test_the_visitor_token_issuer_listens_on_both_checkouts(): void {
+		foreach ( array( 'woocommerce_checkout_order_processed', 'woocommerce_store_api_checkout_order_processed' ) as $hook ) {
+			$found = false;
+			foreach ( $GLOBALS['wp_filter'][ $hook ]->callbacks ?? array() as $callbacks ) {
+				foreach ( $callbacks as $callback ) {
+					if ( is_array( $callback['function'] ) && $callback['function'][0] instanceof GuestVisitorToken ) {
+						$found = true;
+					}
+				}
+			}
+			self::assertTrue( $found, "GuestVisitorToken is registered on {$hook}." );
+		}
+	}
+
 	public function test_mock_rejects_a_non_uuid_smaily_rec_id_like_the_live_engine(): void {
 		// PRO-1710 mock fidelity: the live route validates smaily_rec_id as
 		// `z.string().uuid()` PER ORDER (D6). The plugin can no longer produce
@@ -634,6 +753,68 @@ final class RecEngineOrdersTest extends TestCase {
 		$_COOKIE = array();
 
 		return $order_id;
+	}
+
+	/**
+	 * Run the real classic-checkout attribution stamping and the visitor-token
+	 * issuer. The consent rule is the real one, run on the two WP Consent API
+	 * answers the test gives (the test site has no WP Consent API).
+	 *
+	 * @param array{0: string, 1: bool} $consent wp_get_consent_type() and wp_has_consent() answers.
+	 * @param array<string, string>     $cookies The browser's cookies.
+	 * @param int                       $user_id The user logged in during checkout.
+	 * @return array<string, string> The cookies the issuer wrote.
+	 */
+	private function guest_checkout( int $order_id, array $consent, array $cookies = array(), int $user_id = 0 ): array {
+		$_COOKIE = $cookies;
+		$writer  = $this->recording_cookies();
+		$issuer  = new class( new RecEngineSettings(), $writer, $consent ) extends GuestVisitorToken {
+			/** @var array{0: string, 1: bool} */
+			private array $consent;
+
+			/**
+			 * @param array{0: string, 1: bool} $consent
+			 */
+			public function __construct( RecEngineSettings $settings, LandingCapture $cookies, array $consent ) {
+				parent::__construct( $settings, $cookies );
+				$this->consent = $consent;
+			}
+
+			protected function marketing_consent_given(): bool {
+				return MarketingConsent::decide( $this->consent[0], $this->consent[1] );
+			}
+		};
+
+		// An earlier REST test can leave the admin logged in.
+		$previous_user = get_current_user_id();
+		wp_set_current_user( $user_id );
+		try {
+			( new HookHandler( new EventQueue() ) )->on_checkout_order_processed( $order_id, array() );
+			$issuer->on_classic_checkout( $order_id );
+		} finally {
+			wp_set_current_user( $previous_user );
+			$_COOKIE = array();
+		}
+
+		return $writer->written;
+	}
+
+	/**
+	 * A LandingCapture that records cookie writes instead of sending headers.
+	 */
+	private function recording_cookies(): LandingCapture {
+		return new class( new RecEngineSettings() ) extends LandingCapture {
+			/** @var array<string, string> */
+			public array $written = array();
+
+			protected function headers_already_sent(): bool {
+				return false; // PHPUnit's progress output makes the real one true.
+			}
+
+			protected function send_cookie( string $name, string $value, int $expires ): void {
+				$this->written[ $name ] = $value;
+			}
+		};
 	}
 
 	/**

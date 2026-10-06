@@ -247,6 +247,25 @@ final class LandingCaptureTest extends TestCase {
 		self::assertSame( array(), $writer->written );
 	}
 
+	// ---- issue_visitor_token() / current_visitor_token() (PRO-3845) --------
+
+	public function test_an_issued_visitor_token_takes_the_visitor_cookie_name_and_ttl(): void {
+		$writer = $this->recording_capture( true, array( 'tracking_cookie_name' => 'acme_vt', 'cookie_ttl_days' => 10 ) );
+
+		$token = $writer->issue_visitor_token();
+
+		self::assertMatchesRegularExpression( '/^vt_[0-9a-f]{32}$/', $token );
+		self::assertSame( $token, $writer->written['acme_vt'] ?? null );
+		self::assertEqualsWithDelta( time() + 10 * 86400, $writer->expires['acme_vt'], 5 );
+		self::assertSame( $token, $writer->current_visitor_token() );
+	}
+
+	public function test_current_visitor_token_ignores_a_value_outside_the_token_shape(): void {
+		$_COOKIE['smaily_rec_uid'] = 'visitor-abc';
+
+		self::assertSame( '', $this->recording_capture( true, array() )->current_visitor_token() );
+	}
+
 	/**
 	 * A LandingCapture whose settings are doubled (connected flag + config) and
 	 * whose cookie write is captured into a public `$written` map instead of a

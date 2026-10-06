@@ -17,6 +17,7 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Integrations\WooCommerce\CartHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
+use Smaily\Connect\Integrations\WooCommerce\GuestVisitorToken;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler as WooHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
@@ -485,6 +486,10 @@ final class Bootstrap {
 	 */
 	public function register_woocommerce_hooks(): void {
 		WooHooks::register( new WooHookHandler( $this->event_queue() ) );
+
+		// A consenting guest buyer gets a visitor token at checkout (PRO-3845),
+		// written to the visitor-token cookie and onto the order.
+		( new GuestVisitorToken( $this->rec_engine_settings(), new LandingCapture( $this->rec_engine_settings() ) ) )->register();
 
 		// Abandoned-cart tracker (PRO-1195). Replaces the legacy Cart class:
 		// guest carts included (session-token rows), own scalar item shape,
