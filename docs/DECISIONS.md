@@ -7559,6 +7559,25 @@ retry is the way back.
 **Relationships:** supersedes PRO-3750's "every other code keeps its
 handling"; PRO-1685 (the retry ladder), PRO-1504 (transactional terminal rule).
 
+### PRO-3904 — The contact import reads Smaily's refusing body code too (2026-10-06)
+
+**Context:** PRO-3862 made the queued sends read the `{code, message}` body
+of an HTTP 200 answer. The contact import (`Smaily\BackfillJob`) sends on its
+own path: `Client::upsert_subscribers()` throws only on a non-2xx status, so a
+contact Smaily refused with a 200 + refusing code was marked synced
+(`_smaily_synced_at`), counted in `synced_count`, and skipped by every later
+run inside the freshness window.
+**Decision:** after each upsert the import calls
+`RetryPolicy::throw_if_refused_envelope( $client->last_exchange() )` — the
+PRO-3862 helper, no second code table — and catches its
+`TerminalDispatchException` next to `ApiException`. Any refusing code then
+takes the PRO-3868 failure path: the contact is not marked or counted, the
+import stays `failed` with Smaily's message, the cursor stays before the page,
+no further batch runs, and **Start import** is the retry. 225 lands on the same
+path: the import has no retry ladder and already fails on every error a queued
+send would retry (a 500, a 429, a transport error).
+**Relationships:** addendum to PRO-3862; PRO-3868 (the import's failed state).
+
 ### PRO-3872 — 3.16.1 ships as a GitHub release only (2026-10-06)
 
 **Context:** a customer needs the Elementor Pro form-action fix (PRO-3872)

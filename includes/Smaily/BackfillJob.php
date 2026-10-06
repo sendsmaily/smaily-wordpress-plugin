@@ -31,10 +31,12 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *   2. process_batch() handles up to $batch_size users, then either
  *      schedules the next iteration (when the cursor hasn't reached
  *      total_count) or marks status='completed'.
- *   3. A failed Smaily call records error_message, leaves status='failed'
- *      and the cursor before the failing page, and stops the tick chain, so
- *      the UI shows the failure. The merchant retries with Start import — a
- *      new start() — which walks from the first user again (PRO-3868).
+ *   3. A failed Smaily call — an HTTP error, or a refusing body code in an
+ *      HTTP 200 answer (RetryPolicy, PRO-3904) — records error_message,
+ *      leaves status='failed' and the cursor before the failing page, and
+ *      stops the tick chain, so the UI shows the failure. The merchant
+ *      retries with Start import — a new start() — which walks from the
+ *      first user again (PRO-3868).
  *
  * The Smaily API call itself is delegated to a Client instance supplied
  * via constructor injection so tests don't need wp_remote_post mocks.
@@ -368,9 +370,13 @@ class BackfillJob implements BackfillJobInterface {
 			$payload = $this->build_subscriber_payload( $user );
 			try {
 				$this->client->upsert_subscribers( array( $payload ) );
+				// An HTTP 200 can still carry a refusal in Smaily's body code:
+				// it throws like the queued sends (PRO-3862), so the contact
+				// is not counted as synced and the import fails (PRO-3904).
+				RetryPolicy::throw_if_refused_envelope( $this->client->last_exchange() );
 				update_user_meta( (int) $user->ID, self::META_KEY, time() );
 				++$synced;
-			} catch ( ApiException $e ) {
+			} catch ( ApiException | TerminalDispatchException $e ) {
 				\Smaily\Connect\Support\DebugLog::write(
 					sprintf(
 						'[smaily-connect backfill.batch] user_id=%d upsert_failed: %s',
