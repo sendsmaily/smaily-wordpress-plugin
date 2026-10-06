@@ -208,6 +208,14 @@ class BackfillEndpoint {
 			);
 		}
 
+		// A Campaign Intelligence import that nothing drives any more reads
+		// as stopped, so the panel offers Import now again (PRO-3886). The
+		// row itself is left alone — nothing restarts it.
+		$status = (string) $row['status'];
+		if ( $job_type !== BackfillJob::BACKFILL_TYPE && AbstractBackfillJob::is_stalled( $job_type, $row ) ) {
+			$status = BackfillJobInterface::STATUS_FAILED;
+		}
+
 		$processed = (int) $row['processed_count'];
 		$total     = (int) $row['total_count'];
 		$percent   = $total > 0 ? (int) round( ( $processed / $total ) * 100 ) : 0;
@@ -230,7 +238,7 @@ class BackfillEndpoint {
 		// payload didn't include this state.
 		return new WP_REST_Response(
 			array(
-				'status'            => (string) $row['status'],
+				'status'            => $status,
 				'processed'         => $processed,
 				// F3-55: contacts job — cumulative AUDIENCE members handled
 				// (POSTed + already-fresh). processed counts rows WALKED, so
@@ -246,7 +254,7 @@ class BackfillEndpoint {
 				'eta_seconds'       => $this->estimate_eta( $row, $processed, $total ),
 				'started_at'        => isset( $row['started_at'] ) ? (string) $row['started_at'] : null,
 				'completed_at'      => isset( $row['completed_at'] ) ? (string) $row['completed_at'] : null,
-				'audience_estimate' => $this->contact_audience_estimate( $job_type, (string) $row['status'] ),
+				'audience_estimate' => $this->contact_audience_estimate( $job_type, $status ),
 			),
 			200
 		);

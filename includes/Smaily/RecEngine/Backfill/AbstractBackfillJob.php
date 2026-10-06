@@ -54,6 +54,14 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 */
 	private const MAX_DRAIN_PASSES = 200;
 
+	/**
+	 * How long after start() a running import may have no batch queued before
+	 * it counts as stalled (PRO-3886). start() and its first batch being queued
+	 * are a few lines apart; ten minutes keeps a just-started import from ever
+	 * reading as stopped, and is short against a night the manifest would skip.
+	 */
+	public const STALL_GRACE_SECONDS = 600;
+
 	protected IngestQueue $queue;
 
 	protected AbstractD6Flusher $flusher;
@@ -150,9 +158,11 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		$after = isset( $state['cursor_value'] ) ? (int) $state['cursor_value'] : 0;
 
 		// The merchant cancelled the import (Cancel / Hold back) after Action
-		// Scheduler had already claimed this tick: send nothing, leave the row
-		// cancelled, and stop the tick chain (PRO-3821).
-		if ( ( $state['status'] ?? '' ) === BackfillJobInterface::STATUS_CANCELLED ) {
+		// Scheduler had already claimed this tick (PRO-3821), or an earlier
+		// batch failed (PRO-3890): send nothing, leave the row as it is, and
+		// stop the tick chain. Only a new start() takes it out of either state.
+		$status = (string) ( $state['status'] ?? '' );
+		if ( $status === BackfillJobInterface::STATUS_CANCELLED || $status === BackfillJobInterface::STATUS_FAILED ) {
 			return $this->batch_result(
 				0,
 				0,
@@ -178,6 +188,34 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 			);
 		}
 
+		try {
+			return $this->walk_batch( $state, $after, $batch_size );
+		} catch ( \Throwable $e ) {
+			// Anything but the engine's own errors (the flusher handles those):
+			// a database error, a product that cannot be built. Left to escape,
+			// it ends the tick before the next one is scheduled and the row
+			// stays `running` forever (PRO-3890). Stop the import instead —
+			// Import now runs it again.
+			$this->record_failure( (int) $state['id'], $e );
+			return $this->batch_result(
+				0,
+				0,
+				0,
+				max( 0, (int) $state['total_count'] - (int) $state['processed_count'] ),
+				true
+			);
+		}
+	}
+
+	/**
+	 * Enqueue and send the next page, then write the progress.
+	 *
+	 * @param array<string, mixed> $state The job row this batch read.
+	 * @return array{processed: int, sent: int, failed: int, remaining: int, completed: bool}
+	 */
+	private function walk_batch( array $state, int $after, int $batch_size ): array {
+		global $wpdb;
+
 		$ids = $this->fetch_ids_after( $after, $batch_size );
 
 		foreach ( $ids as $entity_id ) {
@@ -195,7 +233,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		// Written only while the row is still running: a cancel that lands
 		// while this batch sends stays a cancel (PRO-3821).
 		$wpdb->update(
-			$table,
+			$this->table_name(),
 			array(
 				'processed_count' => $processed,
 				'cursor_value'    => (string) $cursor,
@@ -216,6 +254,29 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 			$flush['failed'],
 			max( 0, (int) $state['total_count'] - $processed ),
 			$completed
+		);
+	}
+
+	/**
+	 * Mark the import failed — only while it is still running, so a cancel
+	 * that landed meanwhile stays a cancel (PRO-3821). The stored reason is
+	 * the error class and where it was thrown, never the message: a message
+	 * can carry a customer's email.
+	 */
+	private function record_failure( int $job_id, \Throwable $e ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->table_name(),
+			array(
+				'status'        => BackfillJobInterface::STATUS_FAILED,
+				'error_message' => sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ),
+			),
+			array(
+				'id'     => $job_id,
+				'status' => BackfillJobInterface::STATUS_RUNNING,
+			),
+			array( '%s', '%s' ),
+			array( '%d', '%s' )
 		);
 	}
 
@@ -286,10 +347,32 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		return is_array( $row ) ? $row : null;
 	}
 
-	/** Whether this import's state row is `running` — queued or mid-walk. */
+	/** Whether this import's state row is `running` — queued or mid-walk — and not stalled. */
 	public function is_running(): bool {
 		$row = self::read_state( $this->job_type() );
-		return is_array( $row ) && $row['status'] === BackfillJobInterface::STATUS_RUNNING;
+		return is_array( $row ) && $row['status'] === BackfillJobInterface::STATUS_RUNNING && ! self::is_stalled( $this->job_type(), $row );
+	}
+
+	/**
+	 * A `running` import that nothing drives any more (PRO-3886): no batch of
+	 * it is queued or running in Action Scheduler, and it started longer than
+	 * STALL_GRACE_SECONDS ago. Deactivation cancels the queued batch, and a
+	 * batch that dies on a fatal error schedules none. Read-only: the row is
+	 * not rewritten and the import is not restarted — Import now does that.
+	 *
+	 * @param array<string, mixed> $row A state row from read_state().
+	 */
+	public static function is_stalled( string $job_type, array $row ): bool {
+		if ( ( $row['status'] ?? '' ) !== BackfillJobInterface::STATUS_RUNNING || ! function_exists( 'as_has_scheduled_action' ) ) {
+			return false;
+		}
+
+		$started = strtotime( (string) ( $row['started_at'] ?? '' ) . ' UTC' );
+		if ( $started === false || $started > time() - self::STALL_GRACE_SECONDS ) {
+			return false;
+		}
+
+		return ! as_has_scheduled_action( BackfillJobInterface::TICK_HOOK, array( 'job_type' => $job_type ) );
 	}
 
 	protected function table_name(): string {
