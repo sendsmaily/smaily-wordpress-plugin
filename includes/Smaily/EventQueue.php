@@ -444,27 +444,37 @@ class EventQueue {
 	 * for rows whose payload carries an `email` — rows enqueued before that
 	 * migration have none, and a transactional row never does (its recipient
 	 * is `to`). Those fall back to a payload text match on the two recipient
-	 * keys, case-insensitively via the column's collation — unindexable, and
-	 * that is why the checkout path refuses it (PRO-1723), but an erasure
-	 * request is an admin-triggered one-off where completeness beats speed.
+	 * keys — unindexable, and that is why the checkout path refuses it
+	 * (PRO-1723), but an erasure request is an admin-triggered one-off where
+	 * completeness beats speed. The address is matched as a whole JSON string,
+	 * both as typed and as wp_json_encode() stores it (`\uXXXX` for a
+	 * non-ASCII character, `\/` for a slash — PRO-2448); the closing quote
+	 * keeps a longer address out. The match is binary, because the column's
+	 * accent-blind collation would also count `jane@…` as `jäne@…`; both sides
+	 * are lowercased, the way contact_key() normalises the address.
 	 *
 	 * @return array{0: string, 1: array<int, string>}|null
 	 */
 	private function privacy_request_where( string $email ): ?array {
 		global $wpdb;
 
-		$email = trim( $email );
+		$email = strtolower( trim( $email ) );
 		if ( $email === '' ) {
 			return null;
 		}
 
+		$patterns = array();
+		foreach ( array( '"email":', '"to":' ) as $key ) {
+			foreach ( array_unique( array( '"' . $email . '"', (string) wp_json_encode( $email ) ) ) as $form ) {
+				$patterns[] = '%' . $wpdb->esc_like( $key . $form ) . '%';
+			}
+		}
+
+		$fallback = implode( ' OR ', array_fill( 0, count( $patterns ), 'LOWER( payload ) LIKE CAST( %s AS BINARY )' ) );
+
 		return array(
-			'( contact_key = %s OR ( contact_key IS NULL AND ( payload LIKE %s OR payload LIKE %s ) ) )',
-			array(
-				self::contact_key( $email ),
-				'%' . $wpdb->esc_like( '"email":"' . $email . '"' ) . '%',
-				'%' . $wpdb->esc_like( '"to":"' . $email . '"' ) . '%',
-			),
+			"( contact_key = %s OR ( contact_key IS NULL AND ( {$fallback} ) ) )",
+			array_merge( array( self::contact_key( $email ) ), $patterns ),
 		);
 	}
 

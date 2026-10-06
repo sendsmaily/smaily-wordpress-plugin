@@ -6304,7 +6304,8 @@ Smaily. Both only cleared when the QueueJanitor's retention window came round
   before that migration, and EVERY transactional row (its recipient rides `to`,
   and `enqueue()` keys only on `email`). Those fall back to a payload text
   match on `"email":"…"` / `"to":"…"`, case-insensitive via the column's
-  collation. PRO-1723 rejected exactly this search — correctly, for the
+  collation (superseded — see the PRO-2448 addendum below). PRO-1723
+  rejected exactly this search — correctly, for the
   CHECKOUT path, where it is unindexable and runs on every order. An erasure
   request is an admin-triggered one-off where completeness beats speed, so the
   same search is the right answer here. Redaction is idempotent by
@@ -6353,6 +6354,31 @@ and why the checkout path may not search the payload), PRO-2372 (`outcome`,
 which is why it survives redaction), PRO-1680 (the product matrix a reminder
 carries). Merchant docs site: the Deletion & GDPR section now says what an
 erasure does to queued and sent messages, in both languages.
+
+**PRO-2448 addendum — the payload fallback matches the exact address, also a
+non-ASCII one (2026-10-06).** Two flaws in the key-less fallback above, both
+found after it shipped (the second confirmed 2026-10-06). (1) `enqueue()`
+stores the payload through `wp_json_encode()`, which writes a non-ASCII
+character as `\uXXXX`, so the raw address never matched a row whose recipient
+had an `ä` or `õ` — that row was neither deleted nor redacted. (2) The match
+ran under the column's accent-insensitive collation (`utf8mb4_unicode_520_ci`),
+so erasing `jäne@…` also deleted or redacted a key-less row of `jane@…` — a
+different person. Now `EventQueue::privacy_request_where()` matches the address as a
+whole JSON string after `"email":` / `"to":`, in two forms — as typed and as
+`wp_json_encode()` writes it — with `LOWER( payload ) LIKE CAST( %s AS BINARY )`:
+binary, so no accent folding; both sides lowercased (`strtolower`, the same
+fold `contact_key()` uses), so an address typed in another case
+still matches. The same mechanics as PRO-2384's
+`IngestQueue::delete_for_privacy_request()`; that PR was still open, so the
+match lives in `EventQueue` alone and a shared helper is a follow-up once both
+have merged. The `contact_key` path is unaffected: it compares a lowercase
+sha256 hex string, which no collation folds into another address's hash.
+Rejected: `COLLATE utf8mb4_bin` (names a charset a legacy `utf8` table does not
+have); `mb_strtolower` (the stored `\uXXXX` escapes cannot be case-folded in
+SQL, so it would buy nothing on the escaped form). Pinned in
+`SmailyQueuePrivacyTest` (a non-ASCII key-less row deleted and one redacted,
+and accent-only and longer neighbours left byte-identical — the longer ones
+already were, the quotes on both sides of the address keep them out).
 
 ### PRO-2391 — Every shipped bundle is an IIFE, one Vite pass per entry (2026-09-08)
 

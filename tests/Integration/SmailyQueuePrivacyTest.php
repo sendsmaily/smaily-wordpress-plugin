@@ -43,6 +43,8 @@ final class SmailyQueuePrivacyTest extends TestCase {
 	private const SUBJECT   = 'erase-me@example.test';
 	private const BYSTANDER = 'keep-me@example.test';
 
+	private const SUBJECT_NON_ASCII = 'jõe-erase@example.test';
+
 	protected function setUp(): void {
 		parent::setUp();
 		EnvScrub::reset();
@@ -191,6 +193,71 @@ final class SmailyQueuePrivacyTest extends TestCase {
 		$this->run_eraser( self::SUBJECT );
 
 		self::assertEquals( $before, array( $this->row( $pending ), $this->row( $sent ) ) );
+	}
+
+	public function test_a_non_ascii_address_without_a_contact_key_is_found_and_deleted(): void {
+		// wp_json_encode() stores the address as `jõe-…` (PRO-2448), so
+		// the raw address alone never matched this row. Stored in another
+		// case than the request, like an address typed differently later.
+		$id = $this->insert_raw(
+			'contact.sync',
+			(string) wp_json_encode( array( 'email' => 'Jõe-Erase@Example.test' ) ),
+			EventQueue::STATUS_PENDING
+		);
+
+		$this->run_eraser( self::SUBJECT_NON_ASCII );
+
+		self::assertNull( $this->row( $id ), 'The queued message for the non-ASCII address is gone.' );
+	}
+
+	public function test_a_non_ascii_address_without_a_contact_key_is_found_and_redacted(): void {
+		$id = $this->insert_raw(
+			'transactional.order_confirmation',
+			(string) wp_json_encode(
+				array(
+					'to'          => self::SUBJECT_NON_ASCII,
+					'workflow_id' => 'wf-7',
+					'context'     => array( 'first_name' => 'Given' ),
+				)
+			),
+			EventQueue::STATUS_SENT
+		);
+		$this->set_exchange(
+			$id,
+			(string) wp_json_encode( array( 'to' => self::SUBJECT_NON_ASCII ) ),
+			(string) wp_json_encode( array( 'outcome' => 'sent' ) )
+		);
+
+		$this->run_eraser( self::SUBJECT_NON_ASCII );
+
+		$row = $this->row( $id );
+		self::assertNotNull( $row, 'The sent row stays as the store\'s record.' );
+		$escaped = trim( (string) wp_json_encode( self::SUBJECT_NON_ASCII ), '"' );
+		foreach ( array( 'payload', 'sent_payload' ) as $column ) {
+			$stored = (string) $row[ $column ];
+			self::assertStringNotContainsString( $escaped, $stored, $column . ' carries no address.' );
+			self::assertStringNotContainsString( self::SUBJECT_NON_ASCII, $stored, $column . ' carries no address.' );
+			self::assertStringNotContainsString( 'Given', $stored, $column . ' carries no name.' );
+		}
+	}
+
+	public function test_a_neighbouring_address_is_never_erased_with_the_subject(): void {
+		// Key-less rows of OTHER people: one differing only by an accent from
+		// the erased address (the column's collation counts `a` as `ä`), and
+		// two longer addresses that contain the erased one.
+		$neighbours = array(
+			$this->insert_raw( 'contact.sync', (string) wp_json_encode( array( 'email' => 'joe-erase@example.test' ) ), EventQueue::STATUS_PENDING ),
+			$this->insert_raw( 'transactional.order_confirmation', (string) wp_json_encode( array( 'to' => 'joe-erase@example.test' ) ), EventQueue::STATUS_SENT ),
+			$this->insert_raw( 'contact.sync', (string) wp_json_encode( array( 'email' => 'x' . self::SUBJECT ) ), EventQueue::STATUS_PENDING ),
+			$this->insert_raw( 'contact.sync', (string) wp_json_encode( array( 'email' => self::SUBJECT . '.ee' ) ), EventQueue::STATUS_PENDING ),
+			$this->insert_raw( 'transactional.order_confirmation', (string) wp_json_encode( array( 'to' => self::SUBJECT . '.ee' ) ), EventQueue::STATUS_SENT ),
+		);
+		$before     = array_map( fn( int $id ) => $this->row( $id ), $neighbours );
+
+		$this->run_eraser( self::SUBJECT_NON_ASCII );
+		$this->run_eraser( self::SUBJECT );
+
+		self::assertEquals( $before, array_map( fn( int $id ) => $this->row( $id ), $neighbours ) );
 	}
 
 	public function test_erasing_a_contact_with_no_queue_rows_reports_nothing(): void {
