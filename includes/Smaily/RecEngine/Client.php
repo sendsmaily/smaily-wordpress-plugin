@@ -139,9 +139,6 @@ class Client {
 
 	private RecEngineSettings $settings;
 
-	/** True while ingest_browse() runs: one short attempt, no retry, no wait. */
-	private bool $single_attempt = false;
-
 	private int $timeout_seconds;
 
 	/**
@@ -347,12 +344,7 @@ class Client {
 	public function ingest_browse( array $events ): array {
 		$url = $this->resolve_url( 'ingest_browse', self::PATH_INGEST_BROWSE );
 
-		$this->single_attempt = true;
-		try {
-			return $this->request_url( 'POST', $url, array( 'events' => $events ) );
-		} finally {
-			$this->single_attempt = false;
-		}
+		return $this->request_url( 'POST', $url, array( 'events' => $events ), true );
 	}
 
 	/**
@@ -575,23 +567,26 @@ class Client {
 	/**
 	 * Issue a request against a fully-resolved URL, with the retry policy.
 	 *
-	 * @param array<string, mixed>|null $body Request body for non-GET methods.
+	 * @param array<string, mixed>|null $body           Request body for non-GET methods.
+	 * @param bool                      $single_attempt One attempt bounded by BROWSE_TIMEOUT_SECONDS,
+	 *                                                  no redirect, no retry and no Retry-After wait
+	 *                                                  (ingest_browse(), PRO-3620).
 	 *
 	 * @return array<string, mixed>
 	 *
 	 * @throws ApiException
 	 */
-	protected function request_url( string $method, string $url, ?array $body = null ): array {
+	protected function request_url( string $method, string $url, ?array $body = null, bool $single_attempt = false ): array {
 		$attempts     = 0;
 		$backoff      = 1;
-		$max_attempts = $this->single_attempt ? 1 : $this->max_attempts;
+		$max_attempts = $single_attempt ? 1 : $this->max_attempts;
 
 		while ( true ) {
 			++$attempts;
 
 			$args = array(
 				'method'  => $method,
-				'timeout' => $this->single_attempt ? self::BROWSE_TIMEOUT_SECONDS : $this->timeout_seconds,
+				'timeout' => $single_attempt ? self::BROWSE_TIMEOUT_SECONDS : $this->timeout_seconds,
 				'headers' => array(
 					'Authorization' => 'Bearer ' . $this->api_key,
 					'User-Agent'    => sprintf(
@@ -604,7 +599,7 @@ class Client {
 				$args['headers']['Content-Type'] = 'application/json';
 				$args['body']                    = (string) wp_json_encode( $body );
 			}
-			if ( $this->single_attempt ) {
+			if ( $single_attempt ) {
 				// Each redirect hop would get its own timeout.
 				$args['redirection'] = 0;
 			}

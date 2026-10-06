@@ -74,7 +74,7 @@ final class ClientTest extends TestCase {
 		// ingest_catalog must return it as-is (a success), NOT throw — that's
 		// what lets the flush job mark the row sent instead of retrying it.
 		$client = new class( 'sk_live', 'https://base.test' ) extends Client {
-			protected function request_url( string $method, string $url, ?array $body = null ): array {
+			protected function request_url( string $method, string $url, ?array $body = null, bool $single_attempt = false ): array {
 				return array( 'deduplicated' => true );
 			}
 		};
@@ -169,7 +169,7 @@ final class ClientTest extends TestCase {
 				$this->d6 = $d6;
 			}
 
-			protected function request_url( string $method, string $url, ?array $body = null ): array {
+			protected function request_url( string $method, string $url, ?array $body = null, bool $single_attempt = false ): array {
 				return $this->d6;
 			}
 		};
@@ -229,7 +229,7 @@ final class ClientTest extends TestCase {
 				$this->d6 = $d6;
 			}
 
-			protected function request_url( string $method, string $url, ?array $body = null ): array {
+			protected function request_url( string $method, string $url, ?array $body = null, bool $single_attempt = false ): array {
 				return $this->d6;
 			}
 		};
@@ -359,7 +359,7 @@ final class ClientTest extends TestCase {
 			/** @var array<string, mixed> */
 			public array $captured = array();
 
-			protected function request_url( string $method, string $url, ?array $body = null ): array {
+			protected function request_url( string $method, string $url, ?array $body = null, bool $single_attempt = false ): array {
 				$this->captured = array(
 					'method' => $method,
 					'url'    => $url,
