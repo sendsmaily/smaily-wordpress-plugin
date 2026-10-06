@@ -53,6 +53,10 @@ msgstr ""
 msgid "Initial setup"
 msgstr ""
 
+#: admin/wizard.php
+msgid "Run setup again"
+msgstr ""
+
 #: admin/wizard.php:61
 #: admin/wizard.php:62
 #: includes/smaily.class.php:270

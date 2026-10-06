@@ -2421,6 +2421,10 @@ msgstr ""
 msgid "Initial setup"
 msgstr "Algseadistus"
 
+#: admin/wizard.php
+msgid "Run setup again"
+msgstr "Seadista uuesti"
+
 #: includes/Notifications/NotificationManager.php:446
 msgid "Smaily Connect: your saved list of contact fields to sync could not be read, so every supported field is being synced. Open the Subscribers settings, tick the fields you want and save to fix it."
 msgstr ""
