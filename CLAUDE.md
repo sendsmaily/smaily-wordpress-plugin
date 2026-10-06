@@ -710,6 +710,10 @@ they are no longer how the released asset is produced. Full sequence (verified
    two-part: no `*.map` entries AND no trailer left in the shipped JS
    (`unzip -p … dist/admin/admin.js | grep -c sourceMappingURL` ⇒ 0). Local
    builds still emit maps — nothing about debugging changes, only the ZIP.
+   **Run it from the repo root**: from another directory its bundle-scope step cannot load jsdom from the repo's
+   `node_modules` and reports "a shipped bundle is not an IIFE or leaks
+   globals" with no FAIL line above it — a false alarm (seen 2026-10-06 on the
+   3.16.1 asset; the same ZIP passed from the repo root).
 7. **Release it — merge the bump, tag, let CI build, then publish to wordpress.org.**
    a. Land the bump commit on `main` of `sendsmaily/smaily-wordpress-plugin`
       through a PR (topic branch → PR → squash merge; see "Changes reach `main`
