@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.11
+# Smaily Recommendation Engine — API Contract v1.12
 
-**Version**: 1.11.0
+**Version**: 1.12.0
 **Published**: 2026-05-19
-**Last updated**: 2026-10-06 (v1.11.0 — a store may create a visitor token (`vs_` + 22 letters/digits) at checkout for a shopper who gave marketing consent and send it on the order's existing `smaily_visitor_token` field (§5); the engine binds it to the order's customer, so §15 recognises a returning guest buyer. A token carried on an order lives 365 days from the latest such order. MINOR bump: new accepted token format, no new field — PRO-3844)
+**Last updated**: 2026-10-06 (v1.12.0 — new §3c `POST /api/v1/ingest/catalog/manifest`: once a night the sender sends every product code with its stock; the engine removes products missing from the list (as §3b), corrects stock, counts products it does not have, and a truncation guard removes nothing when the list is empty or would remove more than 20% of the live catalog. MINOR bump: new endpoint — PRO-3763)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -48,6 +48,7 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
    - [GET /api/v1/ingest/ping](#2-get-apiv1ingestping)
    - [POST /api/v1/ingest/catalog](#3-post-apiv1ingestcatalog)
    - [POST /api/v1/ingest/catalog/remove](#3b-post-apiv1ingestcatalogremove)
+   - [POST /api/v1/ingest/catalog/manifest](#3c-post-apiv1ingestcatalogmanifest)
    - [POST /api/v1/ingest/customers](#4-post-apiv1ingestcustomers)
    - [POST /api/v1/ingest/orders](#5-post-apiv1ingestorders)
    - [POST /api/v1/ingest/browse](#6-post-apiv1ingestbrowse)
@@ -425,6 +426,7 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
     "ingest_ping":       "https://intelligence.smaily.com/api/v1/ingest/ping",
     "ingest_catalog":    "https://intelligence.smaily.com/api/v1/ingest/catalog",
     "ingest_catalog_remove": "https://intelligence.smaily.com/api/v1/ingest/catalog/remove",
+    "ingest_catalog_manifest": "https://intelligence.smaily.com/api/v1/ingest/catalog/manifest",
     "ingest_customers":  "https://intelligence.smaily.com/api/v1/ingest/customers",
     "ingest_orders":     "https://intelligence.smaily.com/api/v1/ingest/orders",
     "ingest_browse":     "https://intelligence.smaily.com/api/v1/ingest/browse",
@@ -657,7 +659,7 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 - **One row per canonical product — collapse translations.** Send exactly one catalog row per real, purchasable product. Do **NOT** send a separate row per language: a multilingual product (WPML/Polylang) must be a **single `sku`** whose translations are carried in the `{lang: value}` object form of `name` / `description` / `product_url` (see *Multilingual variant* above). Keep the `sku` identical across languages and across syncs. Emitting one row per translation creates duplicate SKUs that the engine **cannot** dedupe (there is no language tag or parent link), producing language-mixed recommendations.
 - **Parent product id — `tags.product_id`.** Alongside the variant-level `sku`, emit the platform **parent product id** as `tags.product_id` (Shopify `<product_id>`, Woo `<product_id>`). All variants of one product share one `tags.product_id`. The engine uses it for **product-level removal** (see [§3b](#3b-post-apiv1ingestcatalogremove)) and for **cross-variant grouping** — it groups catalog variants sharing a `tags.product_id` into one product family for cross-variant cadence and `sample_to_full` (live since PRO-1227). `sku` stays the variant-level key and `external_id` stays the variant id; only the grouping is by parent. Shopify and Woo emit it today; Magento rolls it in with its canonical-key work. Where a sender does not emit it, product-level removal is unavailable and cadence/grouping degrade to per-SKU for that sender (per-SKU `in_stock=false` still works).
 - **Real products only.** Do not send non-purchasable artifacts: language-switcher pseudo-products, gift cards, donation items, or virtual config entries. *(The engine additionally derives an internal `recommendable` flag at ingest to defensively exclude such items — see [Engine-internal fields](#engine-internal). The source should still not send them, to avoid catalog bloat.)*
-- **Lifecycle is UPSERT-only — no delete-by-absence; removal is soft, never a hard delete.** The engine UPSERTs by `sku` and never removes a `sku` merely because it stopped appearing in a sync. **Removal is explicit and always *soft*:** either re-send the product with `in_stock=false` (per-SKU), or call [`POST /api/v1/ingest/catalog/remove`](#3b-post-apiv1ingestcatalogremove) with the parent `product_id` to tombstone all of a product's SKUs at once (the path for a platform hard-delete, where the webhook gives only the product id). A tombstone sets `in_stock=false` + `recommendable=false` — it drops the product from every recommendation path but **keeps the row**. Catalog rows (like `orders` / `order_items`) are **retained as a learning corpus** and are **never hard-deleted** except on GDPR erasure or tenant offboarding; the engine offers no full-catalog replace/reconcile and does not delete by absence. When to send what is the [catalog sync lifecycle](#catalog-sync-lifecycle) below. **Consequence when changing the SKU scheme:** migrated old SKUs are **not** auto-removed — they linger as stale rows; orphan removal at a SKU-scheme migration is a **one-time manual purge** on the engine side, coordinated with the sender.
+- **Lifecycle is UPSERT-only; removal is soft, never a hard delete.** The engine UPSERTs by `sku` and never removes a `sku` merely because it stopped appearing in a §3 sync or a full import. The one place absence counts is the nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest), which lists the store's complete catalog. **Removal is explicit and always *soft*:** either re-send the product with `in_stock=false` (per-SKU), or call [`POST /api/v1/ingest/catalog/remove`](#3b-post-apiv1ingestcatalogremove) with the parent `product_id` to tombstone all of a product's SKUs at once (the path for a platform hard-delete, where the webhook gives only the product id). A tombstone sets `in_stock=false` + `recommendable=false` — it drops the product from every recommendation path but **keeps the row**. Catalog rows (like `orders` / `order_items`) are **retained as a learning corpus** and are **never hard-deleted** except on GDPR erasure or tenant offboarding; the engine offers no full-catalog replace and deletes by absence only through the §3c manifest. A product missing from the nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest) is tombstoned the same way. When to send what is the [catalog sync lifecycle](#catalog-sync-lifecycle) below. **Consequence when changing the SKU scheme:** migrated old SKUs are **not** auto-removed — they linger as stale rows; orphan removal at a SKU-scheme migration is a **one-time manual purge** on the engine side, coordinated with the sender.
 
 <a name="catalog-sync-lifecycle"></a>
 **Catalog sync lifecycle** (v1.8.3, PRO-3740):
@@ -670,8 +672,9 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
    - **Platform hard delete** → [§3b](#3b-post-apiv1ingestcatalogremove) with the parent `product_id`.
 
    **Send the whole row, not a patch.** The UPSERT replaces every sender-owned column with the value in the request, so an optional field that a change omits (`compare_price`, `description`, `image_url`, …) is cleared. Only `tags` is merged (keys the request does not set are kept).
-3. **Full import by hand.** The merchant can start a full import at any time. It uses the same §3 batches as the setup import and is safe to repeat (natural-key UPSERT, [Idempotency](#idempotency)). It does **not** remove products that are missing from it — the engine does not delete by absence.
+3. **Full import by hand.** The merchant can start a full import at any time. It uses the same §3 batches as the setup import and is safe to repeat (natural-key UPSERT, [Idempotency](#idempotency)). It does **not** remove products that are missing from it — absence counts only in the nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest).
 4. **No scheduled full re-sync.** The engine does not need a periodic full re-sync and does not expect one. A sender that still runs one causes no harm (the UPSERT is idempotent, and back-in-stock detection only reacts to a real stock transition), but it is not part of this contract.
+5. **Nightly manifest (v1.12.0).** Once a night the sender sends the store's complete product list — `sku` + `in_stock` only — to [§3c](#3c-post-apiv1ingestcatalogmanifest). It heals lost stock-change and delete events, and tells the operator when a full import is needed.
 
 **What the engine reconciles itself.** Every engine-derived catalog value is computed from data the engine already stores on the row (`name`, `name_i18n`, `category_path`, `product_type`, `raw_attributes`, `tags`) or from other engine data. When the engine changes its own rules, it re-derives the values engine-side, from the stored rows. **No plugin re-sync is needed and the engine never asks for one for this reason.**
 - `recommendable` (see [Engine-internal fields](#engine-internal)) — computed on every upsert; after a classifier change the engine re-classifies stored rows with an engine-side backfill.
@@ -683,9 +686,9 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 **When a full import from the plugin is required.** Only when the engine needs data that it does not store:
 - A contract change that adds a catalog field, or changes what a field must hold. The changelog entry for that version says so explicitly (as the v1.4.0 entry did for the order gross-amount re-sync). Without such a note, no re-sync is needed after an engine release.
 - A sender-side mapping fix: the sender corrects what it sends (for example attribute labels instead of term ids). The corrected values exist only in the store.
-- After the sender knows that it lost change events (see the next paragraph).
+- After the sender knows that it lost change events, or the engine's operator reports that the [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest) named products the engine does not have.
 
-**Known gap: a lost change is not healed automatically.** Without a scheduled full re-sync, a change event that never reaches the engine (a failed webhook, a dropped queue item, an outage longer than the sender's retries) stays wrong until that product changes again or the merchant runs a full import. The engine cannot detect this today: it keeps no per-row last-sync time and does not compare its catalog with the store. Deletes are a special case that a full re-sync never covered either: a product missing from a full import is not removed, so a lost delete event stays unhealed until the sender sends §3b or an `in_stock=false` row for that product. Senders therefore **SHOULD** send change events from a durable queue with retries, and show the merchant when events fail, so that the merchant knows when to start a full import by hand.
+**Lost change events are healed by the nightly manifest.** A change event that never reaches the engine (a failed webhook, a dropped queue item, an outage longer than the sender's retries) used to stay wrong until that product changed again or the merchant ran a full import. Since v1.12.0 the [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest) heals the two cases that keep a wrong product in recommendations within a night: a lost stock change (the engine takes the manifest's `in_stock`) and a lost delete (a product missing from the manifest is tombstoned as §3b does). Other lost field changes (name, price, category, …) are not in the manifest and still wait for the next change of that product or a full import; a product the store has and the engine does not is reported to the operator as "full import needed". Senders **SHOULD** still send change events from a durable queue with retries, and show the merchant when events fail.
 
 <a name="engine-internal"></a>
 **Engine-internal fields** (not part of the request — do not send): the engine derives some columns at ingest that senders never supply. Notably `recommendable` (boolean): the engine's **exclusion decision** (a per-store/business-model call the connector must NOT make). Derived primarily from the **`product_type` signal** (gift-card types → excluded), with `sku`/`category_path`/`name` heuristics as fallback (test artifacts `LIVE-*`/`live-test`, name-matched gift cards/donations). `is_virtual`/`is_downloadable` are **stored but do NOT auto-exclude** (digital-goods stores sell those). Recomputed on every upsert, so a corrected sync self-heals; tunable engine-side without redeploying connectors. Excluded products are never recommended via any path. **Division of labour: the connector sends structural signal; the engine owns the exclusion.**
@@ -779,7 +782,7 @@ Returned when every product carrying an `event_id` in the request was already pr
 - **All SKUs at once.** A product's variants share one `tags.product_id`, so one id removes the whole product.
 - **Idempotent.** Re-removing an already-removed product is a no-op. A product id matching no rows is counted in `not_found`, not an error.
 - **Effect on serving.** A tombstoned product is excluded from every recommendation path (hard-gate, tier-0, orchestrator); if it was in a customer's replenishment set, the `stock_status_change` trigger surfaces a substitute.
-- **The only delete signal.** The engine never deletes by absence, so this call (or an `in_stock=false` row via §3) is the only way it learns that a product is gone — a full import does not remove a product that is missing from it. Send it from a durable queue with retries; a lost delete event is not healed automatically (see [catalog sync lifecycle](#catalog-sync-lifecycle)).
+- **The direct delete signal.** A full import does not remove a product that is missing from it, so this call (or an `in_stock=false` row via §3) is how the engine learns at once that a product is gone. Send it from a durable queue with retries; a lost delete event is healed by the next nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest), which tombstones each SKU missing from the store's list the same way.
 
 **Response 200 OK**:
 ```json
@@ -794,6 +797,72 @@ Returned when every product carrying an `event_id` in the request was already pr
 `removed_products` = ids that matched ≥1 row; `rows_tombstoned` = catalog rows set to `in_stock=false` + `recommendable=false`; `not_found` = ids that matched no row for this tenant (safe to ignore — already removed, or never sent).
 
 **Errors**: a malformed wrapper (`product_ids` missing / not an array / empty / >1000) → `400 validation_failed` (same shape as §3). Auth and rate-limit behave as the other ingest routes.
+
+---
+
+### 3c. POST /api/v1/ingest/catalog/manifest
+
+**Nightly catalog manifest** (v1.12.0, PRO-3763). Once a night the sender sends the store's **complete** product list — the product code and its stock, nothing else. The engine compares it with its own catalog for the store and heals what lost change events left wrong.
+
+**URL**: `POST /api/v1/ingest/catalog/manifest`
+
+**Auth**: `Authorization: Bearer sk_...`
+
+**Rate limit**: shares the `/api/v1/ingest/catalog` bucket (100 req/sec). One request per night is expected.
+
+**Request body**:
+```json
+{
+  "products": [
+    {"sku": "woo-101", "in_stock": true},
+    {"sku": "woo-102", "in_stock": false}
+  ]
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `products` | array | YES | The store's **complete** product list, **0–50,000** items, in **one** request. Send every product the store has, in stock or not. |
+| `products[].sku` | string (1–64) | YES | The same `sku` value §3 sends for the product (the canonical identity token — see [Product identity](#catalog-identity)). One item per catalog row, variants included. |
+| `products[].in_stock` | boolean | YES | The product's stock now, with the same meaning as §3 `in_stock`. |
+
+Send nothing else (no names, prices or descriptions). Unknown keys are ignored. Send compact JSON: the request body must stay under 4.5 MB (the hosting limit; about 50,000 items with typical SKUs).
+
+**When and what to send.**
+- Once a night, at a quiet hour. Build the list immediately before sending it.
+- The list covers the **whole store catalog**, however many connections feed this tenant. A product left out is treated as deleted.
+- A store with more than 50,000 products cannot use this endpoint yet; it must not send a partial list.
+
+**What the engine does** with each difference:
+
+| Case | Engine action |
+|------|---------------|
+| Product in the engine, **missing** from the list | Tombstoned exactly as [§3b](#3b-post-apiv1ingestcatalogremove) does: `in_stock=false` + `recommendable=false`, row kept. It is no longer recommended. A row that is already tombstoned is left alone. |
+| Product in both, `in_stock` **differs** | The engine takes the list's value. The back-in-stock clock is kept as for a §3 stock change, but a product found back in stock **here sends no back-in-stock email** — the real time of the restock is unknown. |
+| Product in the list, **missing** in the engine | Not created (the list has no name or price). Counted and reported to the engine's operator as "full import needed". |
+| Same `sku` twice in the list | The last occurrence wins. |
+
+**Truncation guard.** If the list is **empty**, or would remove **more than 20%** of the store's live catalog rows (rows not already tombstoned), the engine removes **nothing**. Stock corrections still apply. The engine's operator gets a warning. The guard does not apply when nothing would be removed. Nightly drift is one day of lost delete events — far below 20%; a list cut short by a paging bug or a timeout is usually far above it. When the guard trips on a real cleanup, the engine's operator removes the products by hand.
+
+**Idempotent.** Re-sending the same list changes nothing: removed products are no longer live, corrected stock already matches. Each manifest overwrites the engine's record of the last one.
+
+**Response 200 OK**:
+```json
+{
+  "ok": true,
+  "products_in_manifest": 1840,
+  "removed": 3,
+  "stock_fixed": 12,
+  "missing_in_engine": 0,
+  "guard_tripped": false,
+  "guard_reason": null,
+  "would_remove": 3
+}
+```
+
+`products_in_manifest` = distinct SKUs in the list; `removed` = rows tombstoned; `stock_fixed` = rows whose `in_stock` changed; `missing_in_engine` = SKUs in the list that the engine does not have; `guard_tripped` / `guard_reason` (`"empty_list"` | `"too_many_removals"` | `null`) = whether the guard stopped the removals; `would_remove` = rows the list would remove (equal to `removed` unless the guard tripped). The sender does not need to act on any of these; the engine's operator sees them.
+
+**Errors**: a malformed wrapper or item (`products` missing / not an array / more than 50,000 items; an item without a non-empty `sku` of at most 64 characters or without a boolean `in_stock`) → `400 validation_failed` (same shape as §3). The whole list is rejected: a partly accepted list would read as missing products. Auth and rate limit behave as the other ingest routes.
 
 ---
 
@@ -2254,6 +2323,15 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **Lifetime.** A token carried on an order lives 365 days from the latest order that carries it. A `vt_` token never carried on an order keeps 90 days from issue.
 - **§15.** Unchanged in shape. The token now also names a guest buyer; the customer id still wins when both are sent; the empty-answer rules are unchanged.
 - **What the plugin does.** At checkout, for a guest shopper who gave marketing consent and has no visitor-token cookie: create a `vs_` token, set it in the visitor-token cookie (server-set), and send it on the order's `smaily_visitor_token`. On later visits, send the cookie value to §15 as in v1.10.0. A plugin that does none of this keeps working unchanged.
+
+**v1.12.0** (2026-10-06) — **§3c `POST /api/v1/ingest/catalog/manifest`: nightly catalog manifest**. MINOR bump per the [Versioning](#versioning) rule (new endpoint; backward-compatible — nothing existing changes shape). PRO-3763, Erkki's decisions 2026-10-06:
+- **The gap.** Since v1.8.3 a sender sends the full catalog once and only changes after that. A lost stock-change or delete event stayed wrong, so an out-of-stock or deleted product could stay in recommendations.
+- **The endpoint.** Once a night, the store's complete product list in one request: `{"products":[{"sku","in_stock"}]}`, 0–50,000 items, nothing else. Setup-exchange `endpoints` map gains `ingest_catalog_manifest` (§1).
+- **What the engine does.** A product missing from the list is tombstoned exactly as §3b; a stock difference takes the list's value (no back-in-stock email for a restock found this way); a product the engine does not have is counted and reported to the engine's operator as "full import needed".
+- **Truncation guard.** An empty list, or one that would remove more than 20% of the live catalog, removes nothing; stock corrections still apply and the operator is warned.
+- **One list per store.** The list covers the whole store catalog, however many connections feed the tenant.
+- **Lifecycle wording.** §3 "no delete-by-absence" and §3b "the only delete signal" now name the manifest as the one place absence counts; the "known gap" paragraph now says what the manifest heals and what still needs a full import.
+- **What the plugin does.** Send the manifest once a night from the store's full product list. A plugin that does not send it keeps working; lost events then stay unhealed as before.
 
 ### Appendix F: Migration notes
 
