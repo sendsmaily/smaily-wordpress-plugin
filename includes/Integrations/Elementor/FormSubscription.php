@@ -133,7 +133,7 @@ final class FormSubscription {
 		}
 
 		$code = (int) ( $reply['code'] ?? 0 );
-		if ( $code !== 101 ) {
+		if ( $code !== Client::CODE_OK ) {
 			$this->error = sprintf( 'Smaily API returned code %d for POST contact', $code );
 			return self::OUTCOME_FAILED;
 		}
@@ -247,7 +247,7 @@ final class FormSubscription {
 		try {
 			$reply = $client->trigger_automation( $workflow_id, array( array( 'email' => $email ) ), false );
 			$code  = (int) ( $reply['code'] ?? 0 );
-			if ( $code !== 101 ) {
+			if ( $code !== Client::CODE_OK ) {
 				DebugLog::write( sprintf( '[smaily-connect elementor-form] workflow %d not triggered: Smaily code %d', $workflow_id, $code ) );
 			}
 		} catch ( ApiException $e ) {

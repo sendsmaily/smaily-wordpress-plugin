@@ -262,7 +262,7 @@ class ProfilingConsent {
 			return $now;
 		}
 		try {
-			if ( $contact_known || $client->get_contact_consent( $email )['found'] ) {
+			if ( $contact_known || $client->has_contact( $email ) ) {
 				$client->write_profiling_consent( $email, $may_profile, IsoDate::to_z( $now ) );
 			}
 		} catch ( \Throwable $e ) {

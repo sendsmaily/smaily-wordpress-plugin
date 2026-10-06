@@ -241,7 +241,7 @@ final class Flusher {
 	 */
 	private function smaily_has_contact( Client $client, string $email ): bool {
 		try {
-			return $client->get_contact_consent( $email )['found'];
+			return $client->has_contact( $email );
 		} catch ( ApiException $e ) {
 			$this->current_exchange = $client->last_exchange();
 			throw $e;

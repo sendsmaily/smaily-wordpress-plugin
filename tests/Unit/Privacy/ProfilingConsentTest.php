@@ -321,6 +321,7 @@ final class ProfilingConsentTest extends TestCase {
 	private function failing_smaily(): SmailyClient {
 		$smaily = $this->createMock( SmailyClient::class );
 		$smaily->method( 'get_contact_consent' )->willThrowException( new \RuntimeException( 'network' ) );
+		$smaily->method( 'has_contact' )->willThrowException( new \RuntimeException( 'network' ) );
 		return $smaily;
 	}
 
@@ -437,6 +438,7 @@ final class ProfilingConsentTest extends TestCase {
 	private function smaily_reading( array $consent ): SmailyClient {
 		$smaily = $this->createMock( SmailyClient::class );
 		$smaily->method( 'get_contact_consent' )->willReturn( $consent );
+		$smaily->method( 'has_contact' )->willReturn( $consent['found'] );
 		return $smaily;
 	}
 

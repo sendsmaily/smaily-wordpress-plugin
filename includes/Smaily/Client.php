@@ -36,6 +36,9 @@ use Smaily\Connect\Constants;
  */
 class Client {
 
+	/** Smaily's `{code, message}` reply code for a request it accepted. */
+	public const CODE_OK = 101;
+
 	private string $subdomain;
 	private string $username;
 	private string $password;
@@ -180,6 +183,15 @@ class Client {
 			$consent[ $key ] = isset( $contact[ $key ] ) ? (string) $contact[ $key ] : null;
 		}
 		return $consent;
+	}
+
+	/**
+	 * Whether Smaily has a contact for this address.
+	 *
+	 * @throws ApiException When Smaily cannot be read.
+	 */
+	public function has_contact( string $email ): bool {
+		return $this->get_contact_consent( $email )['found'];
 	}
 
 	/**
