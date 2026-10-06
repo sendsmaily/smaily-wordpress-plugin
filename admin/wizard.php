@@ -37,32 +37,68 @@ function smaily_connect_register_admin_pages(): void {
 		? 'data:image/svg+xml;base64,' . base64_encode( (string) file_get_contents( $icon_path ) ) // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		: 'dashicons-email-alt';
 
+	// Until setup is finished the menu opens the wizard. After that it opens
+	// Settings, and the wizard moves to the last submenu item, so a finished
+	// store does not look unfinished on every click (PRO-3873). Both page
+	// slugs stay registered either way, so bookmarks and the links in admin
+	// notices still resolve.
+	if ( ! \Smaily\Connect\Settings\SetupState::completed() ) {
+		add_menu_page(
+			__( 'Smaily Connect', 'smaily-connect' ),
+			'Smaily Connect',
+			$capability,
+			'smaily-connect-wizard',
+			'smaily_connect_render_wizard_page',
+			$icon,
+			56
+		);
+
+		add_submenu_page(
+			'smaily-connect-wizard',
+			__( 'Initial setup', 'smaily-connect' ),
+			__( 'Initial setup', 'smaily-connect' ),
+			$capability,
+			'smaily-connect-wizard',
+			'smaily_connect_render_wizard_page'
+		);
+
+		add_submenu_page(
+			'smaily-connect-wizard',
+			__( 'Settings', 'smaily-connect' ),
+			__( 'Settings', 'smaily-connect' ),
+			$capability,
+			'smaily-connect-settings',
+			'smaily_connect_render_settings_page'
+		);
+		return;
+	}
+
 	add_menu_page(
 		__( 'Smaily Connect', 'smaily-connect' ),
 		'Smaily Connect',
 		$capability,
-		'smaily-connect-wizard',
-		'smaily_connect_render_wizard_page',
+		'smaily-connect-settings',
+		'smaily_connect_render_settings_page',
 		$icon,
 		56
 	);
 
 	add_submenu_page(
-		'smaily-connect-wizard',
-		__( 'Initial setup', 'smaily-connect' ),
-		__( 'Initial setup', 'smaily-connect' ),
-		$capability,
-		'smaily-connect-wizard',
-		'smaily_connect_render_wizard_page'
-	);
-
-	add_submenu_page(
-		'smaily-connect-wizard',
+		'smaily-connect-settings',
 		__( 'Settings', 'smaily-connect' ),
 		__( 'Settings', 'smaily-connect' ),
 		$capability,
 		'smaily-connect-settings',
 		'smaily_connect_render_settings_page'
+	);
+
+	add_submenu_page(
+		'smaily-connect-settings',
+		__( 'Run setup again', 'smaily-connect' ),
+		__( 'Run setup again', 'smaily-connect' ),
+		$capability,
+		'smaily-connect-wizard',
+		'smaily_connect_render_wizard_page'
 	);
 }
 
