@@ -26,32 +26,34 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-06 (3.16.1 bump prepared on branch `release/3.16.1`). **3.16.0 is LIVE on wordpress.org**
-(published 2026-10-06; GitHub release 3.16.0, CI asset verified 932 500 B, SHA256
-`470d42bc81b13b21c7845b84f8ecc6f2907e1715bb764e522d3ab72323feaf3b`). Merchant docs
-site published 2026-10-06 (smaily.com/connect-woo/, md5 matched main at `6022d58`)
-incl. the Elementor Pro guide and the consent-scenarios section._
-- **3.16.1 — prepared as a GitHub-only release** (bump PR from `release/3.16.1`; Erkki 2026-10-06, DECISIONS "PRO-3872 — 3.16.1 ships as a GitHub release only"). It is tagged and published as a GitHub release with the CI-built ZIP for a customer who installs it by hand, and is NOT pushed to wordpress.org (no `./release.sh`); wordpress.org stays on 3.16.0. **The next wordpress.org release must carry a version higher than 3.16.1** (e.g. 3.17.0) and keep the `= 3.16.1 =` changelog entry. It carries everything merged after 3.16.0: PR #176 (docs only: CI connected in Step 4, import button names, import-card copy), #177 (PRO-3818 mock records hints only when sent; PRO-3821 a cancelled import stays cancelled when a batch already started), #178 (PRO-3862 every Smaily refusing body code: 225 retried, all others fail at once with Smaily's message; PRO-3863 pinning test), #180 (PRO-3872, below) and #181 (PRO-3873, below — included: merged into the release branch from main at `de5a17d`). Merchant-facing list: the `= 3.16.1 =` changelog in `readme.txt` (the 3.15.0 changelog and upgrade notice were dropped to keep the changelog under 5 000 characters). Tag, GitHub release and the CI asset check are the next, separate steps.
-- **PRO-3872 (Elementor Pro form):** the "Other fields" repeater's row fields had no `default`, so "Add Item" threw `ReferenceError: smaily_field is not defined` in the editor and a saved broken row blanked the whole Smaily section (customer report on Elementor 4.3.3). Both row fields now default to `''`, `prevent_empty` is off. Unit-pinned in `FormActionTest`; not walked in a real Elementor Pro editor (no Pro in wp-env), so the customer's editor is the acceptance.
+_Last updated: 2026-10-06 (3.16.1 released on GitHub only). **3.16.1 is a GitHub
+release, NOT on wordpress.org** ([release 3.16.1](https://github.com/sendsmaily/smaily-wordpress-plugin/releases/tag/3.16.1),
+tag `3.16.1` on main `1f30b45`, release.yml run 37478020210 green; CI asset
+`smaily-connect.zip` 933 841 B, SHA256
+`60d75efcafaf33d8db5a5c1694dd51edcb490ecfd67c73708c8aed1e7e119c3e`,
+`verify-release-zip.sh … 3.16.1` → VERIFY OK, 42 checks). `./release.sh` was NOT
+run: **wordpress.org stays on 3.16.0**._
+- **3.16.1 — released on GitHub only** (Erkki 2026-10-06, DECISIONS "PRO-3872 — 3.16.1 ships as a GitHub release only"): the CI-built ZIP is for a customer who installs it by hand. **The next wordpress.org release must carry a version higher than 3.16.1** (e.g. 3.17.0) and keep the `= 3.16.1 =` changelog entry. It carries everything merged after 3.16.0: PR #176 (docs only: CI connected in Step 4, import button names, import-card copy), #177 (PRO-3818 mock records hints only when sent; PRO-3821 a cancelled import stays cancelled when a batch already started), #178 (PRO-3862 every Smaily refusing body code: 225 retried, all others fail at once with Smaily's message; PRO-3863 pinning test), #180 (PRO-3872, below), #181 (PRO-3873, below) and the bump #182. Merchant-facing list: the `= 3.16.1 =` changelog in `readme.txt` (the 3.15.0 changelog and upgrade notice were dropped to keep the changelog under 5 000 characters).
+- **PRO-3872 (Elementor Pro form):** the "Other fields" repeater's row fields had no `default`, so "Add Item" threw `ReferenceError: smaily_field is not defined` in the editor and a saved broken row blanked the whole Smaily section (customer report on Elementor 4.3.3). Both row fields now default to `''`, `prevent_empty` is off. Unit-pinned in `FormActionTest`; not walked in a real Elementor Pro editor (no Pro in wp-env). **Acceptance still open:** the customer installs the 3.16.1 ZIP and adds a row under "Other fields" in their Elementor editor. PRO-3806 (the action itself) is closed: the same customer's real signup on a licensed Elementor Pro reached Smaily.
 - **PRO-3873 (admin menu, customer feedback):** once setup is finished, the top-level "Smaily Connect" menu opens Settings (Settings first, then "Run setup again" = the wizard); before that the menu is unchanged. Both page slugs stay registered. `AdminMenuTest` (integration) pins both states. Docs site: the stale "Dashboard" section (it described a "Setup incomplete" / "Resume setup" screen that does not exist) is rewritten as "Finding your way around" / "Menüü", EN+ET — the ET sentences need the Estonian proofread before the next docs publish.
-- **Outcome gauges (2026-10-06):** wordpress.org version 3.16.0, active installs 2000 (bucketed; flat at 2000 since 2026-09-24 — two weeks flat). Releases: 3.16.0 (2026-10-06), 3.15.0 (2026-09-29), 3.14.0 (2026-09-24), 3.13.0 (2026-09-10), 3.12.1 (2026-09-08).
-- **Next session opens with:** (1) human acceptance on real stores — MiuMjau runs Import existing data → Customers once and places the Smaily Recommendations block; CookieYes accept → `wp_consent_marketing=allow` cookie → /relay + /recommendations fire; one real guest checkout with consent gets a `vs_` token; one Elementor Pro form signup (Tanel/Skroot, PRO-3806); (2) Estonian proofread of the docs-site sentences changed after the 3.16.0 publish (PR #176's eight ET sentences + PR #178's Event Log sentence), then republish the docs site over FTPS; (3) backlog candidates: PRO-3868 (failed contact import status + skipped page, Medium), PRO-3858 (157 dev-tool Dependabot alerts, nothing ships), PRO-3859 (nightly catalog manifest, contract 1.12.0 §3c), PRO-3833/PRO-3819 hardening, PRO-3824 (CF7 forced opt-in decision), PRO-3820 (multilingual cards).
+- **PRO-3824 decision (Erkki 2026-10-06):** signing up again through a Contact Form 7 form counts as new consent and may mark an unsubscribed contact subscribed — the same rule as the Elementor Pro action. Not implemented yet (queue item 5 below).
+- **Outcome gauges (2026-10-06):** wordpress.org version 3.16.0, active installs 2000 (bucketed). **Installs have been flat at 2000 for two weeks** (since 2026-09-24). Releases: 3.16.1 (2026-10-06, GitHub only), 3.16.0 (2026-10-06), 3.15.0 (2026-09-29), 3.14.0 (2026-09-24), 3.13.0 (2026-09-10).
+- **Next session opens with** (queue approved by Erkki 2026-10-06):
+  (1) this STATUS/CLAUDE.md handoff PR;
+  (2) PRO-3868 — a failed contact import stays failed, and Retry re-syncs the skipped customers;
+  (3) PRO-3817 — bound the engine Retry-After wait in background calls;
+  (4) PRO-3859 — nightly catalog manifest (contract 1.12.0 §3c); needs a design nod first;
+  (5) PRO-3824 — CF7 resubscribe per the decision above.
+  Human acceptance on real stores stays open: PRO-3872 "Other fields" row (customer, above); MiuMjau runs Import existing data → Customers once and places the Smaily Recommendations block; CookieYes accept → `wp_consent_marketing=allow` cookie → /relay + /recommendations fire; one real guest checkout with consent gets a `vs_` token. Erkki's Estonian proofread (docs-site "Menüü" section, PR #176's eight ET sentences, PR #178's Event Log sentence) gates the next docs-site FTPS publish.
 - Dev wp-env (main checkout) is connected to the synthetic test tenant "Beauty Synthetic (live-walk)" (Erkki approved 2026-10-06); NO durable snapshot was taken of it. Residue on that tenant: one test order (external id 11) + its test customer.
 
-_Previous entry (2026-10-06, before the publish — 3.16.0 release gate on branch
-`release/3.16.0`; the tag, the GitHub release and `./release.sh` were Erkki's
-one-way door, now done. **Release gate ran on the CI-built ZIP** (release.yml dry-run
-37443891817 on `f0f78ee`): 932 508 B, SHA256 `f1833e66…4ecc5812`,
-verify-release-zip exit 0; PCP 0 ERRORS / 10 WARNINGS, all accepted (the 3.15.0
-set + `MarketingConsent.php:42`, accepted by Erkki 2026-10-06). Fixed on the
-branch: a PCP error from the #164 refactor (`2f8445e`, log-only `phpcs:ignore`
-in `RetryPolicy.php`) and the readme changelog over 5 000 characters
-(`f0f78ee`: 3.16.0 and 3.15.0 only, plus a link to the GitHub releases page —
-which lists 3.11.2 onward and 1.x/2.0.0, not 3.0.0–3.11.1, released on the
-archived fork). Gates: ci:strict exit 0 (unit 1102, vitest 374); integration
-369 OK on the Mac. Details: the 3.16.0 release-gate row of
-`docs/audits/INDEX.md`. The tag build makes a new ZIP, so re-run
-`verify-release-zip` on the released asset.)_
+_Previous entry (2026-10-06, 3.16.1 bump prepared on `release/3.16.1`):
+**3.16.0 went LIVE on wordpress.org** 2026-10-06 (GitHub release 3.16.0, CI asset
+932 500 B, SHA256 `470d42bc…23feaf3b`, verified). Merchant docs site published the
+same day (smaily.com/connect-woo/, md5 matched main at `6022d58`) incl. the
+Elementor Pro guide and the consent-scenarios section. The 3.16.0 release-gate
+details (PCP 0 errors / 10 accepted warnings, gates) are in the 3.16.0 row of
+`docs/audits/INDEX.md`._
 
 **3.16.0 — what it carries** (everything merged after 3.15.0, `3afff33..e1dcc18`;
 the merchant-facing list is the `= 3.16.0 =` changelog in `readme.txt`; the
