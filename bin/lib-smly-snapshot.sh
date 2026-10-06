@@ -12,7 +12,8 @@
 #   - snapshot: saves the dev site's `smly_rec_*` options to a durable file
 #     OUTSIDE the repo (~/.local/state/smaily-connect/, mode 600 — it
 #     contains the encrypted API key), never overwriting a good snapshot
-#     with a fixture/production/empty one, and records whether a restore
+#     with a fixture/production/empty one or one whose API key the engine
+#     refuses (PRO-3888: one ping before saving), and records whether a restore
 #     should happen afterwards (a pending-decision file, so the decision
 #     survives across processes — a walk's pre-step and exit-step are
 #     separate invocations);
@@ -52,6 +53,7 @@ SMLY_SNAPSHOT_PREV="${SMLY_SNAPSHOT_FILE%.json}.prev.json"
 # by smly_restore_options.
 SMLY_RESTORE_PENDING="${SMLY_STATE_DIR}/smly_rec_restore_pending"
 SMLY_PLUGIN_PATH_IN_CONTAINER="/var/www/html/wp-content/plugins/smaily-connect"
+SMLY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Pick `docker` directly when the current user is already in the docker
 # group (CI runners, dev machines that have rebooted since `usermod -aG`)
@@ -130,6 +132,17 @@ smly_classify_snapshot() {
   ' "$1"
 }
 
+# Ask the engine whether it still accepts the dev site's connection: one
+# ping through the plugin's own Client. The helper travels over STDIN, so
+# the host copy runs (a worktree's too). Prints the helper's one line —
+# probe=ok | probe=refused http=N | probe=unreachable http=N — or
+# probe=unknown when the container call itself failed. Never the API key.
+smly_probe_connection() {
+  local out
+  out=$(smly_run_docker "docker exec -i $SMLY_CLI_CONTAINER wp eval-file - --allow-root" < "$SMLY_LIB_DIR/probe-smly-rec-connection.php" 2>/dev/null | grep '^probe=' | head -1 || true)
+  printf '%s\n' "${out:-probe=unknown}"
+}
+
 # Snapshot the dev site's smly_rec_* options and decide the restore source.
 # Requires SMLY_CLI_CONTAINER. Never fails the caller (always returns 0).
 smly_snapshot_options() {
@@ -157,6 +170,27 @@ smly_snapshot_options() {
   state=$(smly_classify_snapshot "$tmp")
   echo "smly_rec_* pre-run state: $state"
 
+  # A connection that only LOOKS good may hold a key the engine already
+  # refuses (PRO-3888) — never let it replace the last good snapshot.
+  if [[ "$state" == GOOD* ]]; then
+    local probe tenant
+    probe=$(smly_probe_connection)
+    tenant="${state#* tenant=}"
+    tenant="${tenant% base=*}"
+    case "$probe" in
+      probe=ok)
+        echo "Engine accepts the dev connection (ping ok)."
+        ;;
+      probe=refused*)
+        state="REFUSED${state#GOOD}"
+        echo "WARNING: tenant '$tenant': connection refused (${probe#probe=refused }) — mint a fresh SANDBOX setup token." >&2
+        ;;
+      *)
+        echo "NOTE: could not reach the engine to verify the dev connection (${probe#probe=}) — saving it unverified." >&2
+        ;;
+    esac
+  fi
+
   case "$state" in
     GOOD*)
       # Rotate: keep the previous good snapshot as .prev.json.
@@ -168,9 +202,10 @@ smly_snapshot_options() {
       printf '%s\n' "$SMLY_SNAPSHOT_FILE" > "$SMLY_RESTORE_PENDING"
       echo "Snapshotted dev-site smly_rec_* options to $SMLY_SNAPSHOT_FILE (mode 600)."
       ;;
-    FIXTURE*|PRODUCTION*)
+    FIXTURE*|PRODUCTION*|REFUSED*)
       # Never let a fixture (or a production-tenant!) state clobber a good
-      # snapshot — a re-fixture.test snapshot is worse than none.
+      # snapshot — a re-fixture.test snapshot is worse than none. Nor a key
+      # the engine refuses: restoring it brings back a dead connection.
       rm -f "$tmp"
       echo "WARNING: dev site currently holds a ${state%% *} smly_rec_* state — NOT saved as snapshot." >&2
       if [[ -f "$SMLY_SNAPSHOT_FILE" ]] && [[ "$(smly_classify_snapshot "$SMLY_SNAPSHOT_FILE")" == GOOD* ]]; then
