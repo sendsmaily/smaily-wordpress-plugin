@@ -107,6 +107,12 @@ the engine creates a token binding from an order only for `vs_`.
 - Follow-up candidates: other non-101 Smaily body codes on HTTP 200 are still
   marked sent (PRO-3750 premise correction); PRO-3859 nightly manifest.
 
+Also 2026-10-06 (**PRO-3822 docs + copy, on a PR branch:** the merchant docs
+say Campaign Intelligence is connected in Step 4 (not Step 1) and name the
+import buttons as shown — Start import (Contacts), Import now (CI imports);
+the Import existing data card says the catalog import starts on connect. ET
+docs + `-et.po` await the proofread.)
+
 **Outcome gauges (2026-10-06, before the 3.16.0 publish):** wordpress.org
 version 3.15.0, active installs 2000 (bucketed; flat since 2026-09-24 — two
 weeks flat, say so at the scribe pass); releases 3.15.0 (2026-09-29), 3.14.0

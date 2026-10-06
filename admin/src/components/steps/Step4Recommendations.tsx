@@ -394,7 +394,7 @@ function ConnectedView({
       <Card
         title={__('Import existing data', 'smaily-connect')}
         description={__(
-          'The toggles above sync future changes. Import your existing catalog, customers, and orders into the engine once so recommendations have history to learn from. Runs in the background in batches.',
+          'The catalog import starts on its own when you connect Campaign Intelligence; run it again any time with Import now under Products. Import your existing customers and orders into the engine once so recommendations have history to learn from. Imports run in the background in batches, and future changes sync on their own.',
           'smaily-connect',
         )}
       >

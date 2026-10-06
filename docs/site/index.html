@@ -239,7 +239,7 @@ td code{white-space:nowrap}
         <li><a href="#step1" data-lang="en">Step 1 — Connect Smaily</a><a href="#step1" data-lang="et">Samm 1 — Ühenda Smaily</a></li>
         <li><a href="#step2" data-lang="en">Step 2 — Contacts</a><a href="#step2" data-lang="et">Samm 2 — Kontaktid</a></li>
         <li><a href="#step3" data-lang="en">Step 3 — Automations</a><a href="#step3" data-lang="et">Samm 3 — Automaatikad</a></li>
-        <li><a href="#step4" data-lang="en">Step 4 — Recommendations</a><a href="#step4" data-lang="et">Samm 4 — Soovitused</a></li>
+        <li><a href="#step4" data-lang="en">Step 4 — Campaign Intelligence</a><a href="#step4" data-lang="et">Samm 4 — Campaign Intelligence</a></li>
         <li><a href="#step5" data-lang="en">Step 5 — Forms and RSS feed</a><a href="#step5" data-lang="et">Samm 5 — Vormid ja RSS</a></li>
         <li><a href="#step6" data-lang="en">Step 6 — Overview</a><a href="#step6" data-lang="et">Samm 6 — Ülevaade</a></li>
       </ul>
@@ -480,7 +480,7 @@ td code{white-space:nowrap}
       </ul>
       <p>Press <strong>Test connection</strong>. On success you'll see <span class="pill ok">Verified</span> and <em>Connection verified</em>. You can change these credentials later under <span class="path">Settings → Connection</span>.</p>
       <p><strong>Upgrading from an older Smaily plugin?</strong> Your subdomain and API username are already filled in and the password field is empty — the plugin never sends a stored password back to the browser. Leave it empty and press <strong>Test connection</strong>: it uses the password already saved for that account. Type a password only if you are switching accounts or have rotated it.</p>
-      <p><em>(Optional)</em> Under <strong>Recommendations engine</strong>, paste the one‑time <strong>setup link</strong> from <span class="path">Smaily admin → Recommendations</span> and press <strong>Connect</strong>. You'll see <em>Connected to tenant: your shop</em>. Skip this if you're not using recommendations yet — you can add it in Step 4 or later from Settings.</p>
+      <p><strong>Campaign Intelligence</strong> (optional) is not connected in this step. You connect it in <a href="#step4">Step 4</a>, or later under <span class="path">Settings → Campaign Intelligence</span>.</p>
     </div>
     <div data-lang="et">
       <p>Sisesta oma Smaily API‑andmed — plugin kontrollib need enne salvestamist üle.</p>
@@ -490,7 +490,7 @@ td code{white-space:nowrap}
       </ul>
       <p>Vajuta <strong>Test connection</strong>. Õnnestumisel näed <span class="pill ok">Verified</span> ja <em>Connection verified</em>. Neid andmeid saad hiljem muuta jaotises <span class="path">Settings → Connection</span>.</p>
       <p><strong>Uuendad vanemalt Smaily pluginalt?</strong> Alamdomeen ja API kasutajanimi on juba täidetud ning parooli väli on tühi — plugin ei saada salvestatud parooli kunagi brauserisse tagasi. Jäta see tühjaks ja vajuta <strong>Test connection</strong>: kasutatakse juba salvestatud parooli. Sisesta parool ainult siis, kui vahetad kontot või oled parooli muutnud.</p>
-      <p><em>(Valikuline)</em> Jaotises <strong>Recommendations engine</strong> kleebi ühekordne <strong>seadistuslink</strong> aadressilt <span class="path">Smaily admin → Recommendations</span> ja vajuta <strong>Connect</strong>. Näed <em>Connected to tenant: sinu pood</em>. Jäta vahele, kui soovitusi veel ei kasuta — saad lisada 4. sammus või hiljem seadetest.</p>
+      <p><strong>Campaign Intelligence</strong>'i (valikuline) selles sammus ei ühendata. Selle ühendad <a href="#step4">4. sammus</a> või hiljem jaotises <span class="path">Settings → Campaign Intelligence</span>.</p>
     </div>
   </div>
 
@@ -539,9 +539,10 @@ td code{white-space:nowrap}
   </div>
 
   <div class="sub" id="step4">
-    <h2><span data-lang="en">Step 4 — Recommendations</span><span data-lang="et">Samm 4 — Soovitused</span></h2>
+    <h2><span data-lang="en">Step 4 — Campaign Intelligence</span><span data-lang="et">Samm 4 — Campaign Intelligence</span></h2>
     <div data-lang="en">
-      <p><em>Only if you connected Campaign Intelligence in Step 1.</em> This step seeds the engine and turns on the optional signals.</p>
+      <p><em>(Optional)</em> This is the step where you connect Campaign Intelligence. Under <strong>Connect Smaily Campaign Intelligence</strong>, paste the one‑time setup link from Smaily (<code>https://intelligence.smaily.com/setup/…</code>) into <strong>Setup URL</strong> and press <strong>Connect</strong>. You'll see <em>✓ Connected as</em> followed by your shop's name. If you don't use Campaign Intelligence yet, press <strong>Continue →</strong> to skip this step — you can connect it later under <span class="path">Settings → Campaign Intelligence</span>.</p>
+      <p>Once connected, this step seeds the engine and turns on the optional signals.</p>
       <p><strong>Syncing is automatic.</strong> Once connected, your <strong>products, customers and orders</strong> sync to the engine on their own — there's nothing to switch on per data type.</p>
       <p><strong>The catalog import starts when you connect.</strong> Connecting sends your whole product catalog to the engine once, in the background; after that only changes are sent (a product save, a stock change, a deletion). A <strong>Catalog import started</strong> notice appears right after you connect. The first products go out about 3 minutes later — press <strong>Hold back</strong> before then and nothing is sent. You can start the catalog import again any time with <strong>Import now</strong> next to <strong>Products</strong>. If a catalog import is already running, connecting again does not start a second one.</p>
       <p><strong>Import existing data:</strong> run the <strong>Customers</strong> and <strong>Orders</strong> imports (one <strong>Import now</strong> each) so the engine has history to learn from — they stay your choice and never start on their own. <strong>Products</strong> is here too, to run the catalog import again. Safe to re‑run — duplicates are impossible by design.</p>
@@ -560,7 +561,8 @@ td code{white-space:nowrap}
       </div>
     </div>
     <div data-lang="et">
-      <p><em>Ainult siis, kui ühendasid Campaign Intelligence'i 1. sammus.</em> See samm annab mootorile alusandmed ja lülitab sisse valikulised signaalid.</p>
+      <p><em>(Valikuline)</em> Selles sammus ühendad Campaign Intelligence'i. Kleebi kaardil <strong>Ühenda Smaily Campaign Intelligence</strong> Smailylt saadud ühekordne seadistuslink (<code>https://intelligence.smaily.com/setup/…</code>) välja <strong>Seadistus-URL</strong> ja vajuta <strong>Ühenda</strong>. Näed teadet <em>✓ Ühendatud</em> koos oma poe nimega. Kui sa Campaign Intelligence'i veel ei kasuta, vajuta <strong>Jätka →</strong> ja jäta see samm vahele — saad selle hiljem ühendada jaotises <span class="path">Settings → Campaign Intelligence</span>.</p>
+      <p>Kui ühendus on loodud, annab see samm mootorile alusandmed ja lülitab sisse valikulised signaalid.</p>
       <p><strong>Sünkroonimine on automaatne.</strong> Kui ühendatud, sünkroonivad su <strong>tooted, kliendid ja tellimused</strong> mootorisse iseenesest — andmetüübi kaupa pole midagi sisse lülitada.</p>
       <p><strong>Kataloogi import käivitub ühendamisel.</strong> Ühendamine saadab kogu su tootekataloogi mootorisse üks kord, taustal; pärast seda saadetakse ainult muudatused (toote salvestamine, laoseisu muutus, kustutamine). Kohe pärast ühendamist ilmub teade <strong>Kataloogi import käivitus</strong>. Esimesed tooted lähevad teele umbes 3 minuti pärast — vajuta enne seda <strong>Peata import</strong> ja midagi ei saadeta. Kataloogi impordi saad igal ajal uuesti käivitada nupuga <strong>Impordi kohe</strong> rea <strong>Tooted</strong> juures. Kui kataloogi import juba käib, ei käivita uus ühendamine teist.</p>
       <p><strong>Impordi olemasolevad andmed:</strong> käivita <strong>Kliendid</strong> ja <strong>Tellimused</strong> import (igaühe <strong>Impordi kohe</strong>), et mootoril oleks ajalugu, millest õppida — need jäävad sinu valikuks ega käivitu iseenesest. Siin on ka <strong>Tooted</strong>, et kataloogi importi uuesti käivitada. Kordamine on ohutu — duplikaadid on disaini poolest võimatud.</p>
@@ -1342,7 +1344,7 @@ td code{white-space:nowrap}
         <li><strong>Contacts</strong> → your Smaily contact list (from <a href="#set-subscribers">Contacts</a>).</li>
         <li><strong>Products</strong>, <strong>Customers</strong>, <strong>Orders</strong> → Campaign Intelligence (from <a href="#set-ci">Campaign Intelligence</a>).</li>
       </ul>
-      <p>Each is a one‑time bulk import that runs in the background — you can leave the page and it keeps going. It is <strong>safe to re‑run</strong>: duplicates are impossible by design, because every record carries a stable id. Press <strong>Start</strong> the first time, <strong>Sync again</strong> afterwards.</p>
+      <p>Each is a one‑time bulk import that runs in the background — you can leave the page and it keeps going. It is <strong>safe to re‑run</strong>: duplicates are impossible by design, because every record carries a stable id. Start the <strong>Contacts</strong> import with <strong>Start import</strong>, and the <strong>Products</strong>, <strong>Customers</strong> and <strong>Orders</strong> imports with <strong>Import now</strong> — the same button runs an import again.</p>
       <p>The <strong>Products</strong> import is the one exception to "you start it": connecting Campaign Intelligence starts it for you, and you can hold it back from the notice before anything is sent (see <a href="#step4">Step 4</a>).</p>
       <div class="note tip">
         <span class="k">Full history, no window</span>
@@ -1355,7 +1357,7 @@ td code{white-space:nowrap}
         <li><strong>Contacts</strong> → su Smaily kontaktinimekiri (jaotisest <a href="#set-subscribers">Kontaktid</a>).</li>
         <li><strong>Products</strong>, <strong>Customers</strong>, <strong>Orders</strong> → Campaign Intelligence (jaotisest <a href="#set-ci">Campaign Intelligence</a>).</li>
       </ul>
-      <p>Iga import on ühekordne masssiire, mis käib taustal — võid lehelt lahkuda ja see jätkab. <strong>Kordamine on ohutu</strong>: duplikaadid on disaini poolest võimatud, sest iga kirje kannab stabiilset id'd. Vajuta esimest korda <strong>Start</strong>, seejärel <strong>Sync again</strong>.</p>
+      <p>Iga import on ühekordne masssiire, mis käib taustal — võid lehelt lahkuda ja see jätkab. <strong>Kordamine on ohutu</strong>: duplikaadid on disaini poolest võimatud, sest iga kirje kannab stabiilset id'd. <strong>Contacts</strong> impordi käivitad nupuga <strong>Alusta importi</strong>, <strong>Products</strong>, <strong>Customers</strong> ja <strong>Orders</strong> impordid nupuga <strong>Impordi kohe</strong> — sama nupp käivitab impordi ka uuesti.</p>
       <p><strong>Products</strong> import on erand reeglist "sina käivitad": Campaign Intelligence'i ühendamine käivitab selle sinu eest ja teatest saad selle peatada enne, kui midagi saadetakse (vt <a href="#step4">4. samm</a>).</p>
       <div class="note tip">
         <span class="k">Terve ajalugu, ilma aknata</span>
@@ -1556,8 +1558,8 @@ td code{white-space:nowrap}
 
   <div class="sub" id="faq-resync">
     <h2><span data-lang="en">Is it safe to re‑sync?</span><span data-lang="et">Kas re‑sünk on ohutu?</span></h2>
-    <p data-lang="en">Yes. Every import is safe to re‑run — duplicates are impossible by design. <strong>Sync again</strong> re‑runs from scratch, in the background, and survives you leaving the page.</p>
-    <p data-lang="et">Jah. Iga import on ohutu korrata — duplikaadid on disaini poolest võimatud. <strong>Sync again</strong> jooksutab nullist, taustal, ja jääb püsima ka siis, kui lehelt lahkud.</p>
+    <p data-lang="en">Yes. Every import is safe to re‑run — duplicates are impossible by design. Pressing <strong>Start import</strong> or <strong>Import now</strong> again re‑runs the import from scratch, in the background, and it keeps going when you leave the page.</p>
+    <p data-lang="et">Jah. Iga import on ohutu korrata — duplikaadid on disaini poolest võimatud. Kui vajutad uuesti <strong>Alusta importi</strong> või <strong>Impordi kohe</strong>, jookseb import nullist läbi, taustal, ja jätkab ka siis, kui lehelt lahkud.</p>
   </div>
 
   <div class="sub" id="faq-cadence">
@@ -1568,7 +1570,7 @@ td code{white-space:nowrap}
         <li><strong>Near‑real‑time</strong> — when a customer or order changes, WooCommerce fires a hook and the plugin queues the change straight away. A live edit (e.g. a product price) typically reaches its destination within about a minute.</li>
         <li><strong>Every 15 minutes (background)</strong> — an <strong>Action Scheduler</strong> job retries anything still queued, processes abandoned carts, and mirrors state back where needed.</li>
       </ul>
-      <p>One‑time imports run when you press <strong>Start</strong> / <strong>Sync again</strong> and then continue in the background.</p>
+      <p>One‑time imports run when you press <strong>Start import</strong> (Contacts) or <strong>Import now</strong> (Campaign Intelligence) and then continue in the background. The catalog import also starts on its own when you connect Campaign Intelligence.</p>
     </div>
     <div data-lang="et">
       <p>Smaily Connect töötab kahel kiirusel:</p>
@@ -1576,7 +1578,7 @@ td code{white-space:nowrap}
         <li><strong>Peaaegu reaalajas</strong> — kui klient või tellimus muutub, käivitab WooCommerce hooki ja plugin paneb muudatuse kohe järjekorda. Reaalne muudatus (nt toote hind) jõuab sihtkohta tavaliselt umbes minutiga.</li>
         <li><strong>Iga 15 minuti järel (taust)</strong> — <strong>Action Scheduleri</strong> töö kordab kõike, mis veel järjekorras, töötleb hüljatud korve ja peegeldab seisu vajadusel tagasi.</li>
       </ul>
-      <p>Ühekordsed impordid käivituvad, kui vajutad <strong>Start</strong> / <strong>Sync again</strong>, ja jätkavad seejärel taustal.</p>
+      <p>Ühekordsed impordid käivituvad, kui vajutad <strong>Alusta importi</strong> (kontaktid) või <strong>Impordi kohe</strong> (Campaign Intelligence), ja jätkavad seejärel taustal. Kataloogi import käivitub ka iseenesest, kui ühendad Campaign Intelligence'i.</p>
     </div>
   </div>
 

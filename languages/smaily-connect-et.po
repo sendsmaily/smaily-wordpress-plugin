@@ -1758,8 +1758,8 @@ msgid "below to seed history into the engine; future changes sync on their own. 
 msgstr "allpool, et täita mootor ajalooga; tulevased muudatused sünkroonitakse ise. Sirvimistelemeetria on ainus erand — see on valitav ja seadistatakse eraldi allpool."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:270
-msgid "The toggles above sync future changes. Import your existing catalog, customers, and orders into the engine once so recommendations have history to learn from. Runs in the background in batches."
-msgstr "Ülaltoodud lülitid sünkroonivad tulevased muudatused. Impordi oma olemasolev kataloog, kliendid ja tellimused korra mootorisse, et soovitustel oleks ajalugu, millest õppida. Töötab taustal pakkidena."
+msgid "The catalog import starts on its own when you connect Campaign Intelligence; run it again any time with Import now under Products. Import your existing customers and orders into the engine once so recommendations have history to learn from. Imports run in the background in batches, and future changes sync on their own."
+msgstr "Kataloogi import käivitub iseenesest, kui ühendad Campaign Intelligence'i; uuesti saad selle igal ajal käivitada jaotises „Tooted“ nupuga „Impordi kohe“. Impordi oma olemasolevad kliendid ja tellimused korra mootorisse, et soovitustel oleks ajalugu, millest õppida. Impordid töötavad taustal pakkidena ja tulevased muudatused sünkroonitakse ise."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:279
 msgid "Products"
