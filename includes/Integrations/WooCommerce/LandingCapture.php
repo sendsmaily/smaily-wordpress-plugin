@@ -219,8 +219,10 @@ class LandingCapture {
 			$out[ self::SLOT_REC_ID ] = $rec_id;
 		}
 
+		// A link carries the engine's `vt_` token only, never a store-created
+		// `vs_` one (PRO-3857).
 		$visitor = $this->clean( $get, self::URL_PARAM_VISITOR );
-		if ( AttributionShape::is_visitor_token( $visitor ) ) {
+		if ( AttributionShape::is_engine_visitor_token( $visitor ) ) {
 			$out[ self::SLOT_VISITOR ] = $visitor;
 		}
 
