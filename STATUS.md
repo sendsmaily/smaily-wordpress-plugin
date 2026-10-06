@@ -33,7 +33,7 @@ is `allow` (one TS helper for both storefront bundles, `MarketingConsent` on the
 server; replaces PRO-3845's consent-type rule, which missed CookieYes). Stores
 with the API but no banner storing consent stop sending browse events. Notice +
 toggle text EN+ET, docs site EN+ET (incl. "How consent works in each setup";
-ET awaits the proofread). Gates: ci:strict exit=0 (unit 1070); integration 361
+ET awaits the proofread). Gates: ci:strict exit=0 (unit 1074); integration 361
 OK on the Mac. Consent surface: the 3.16.0 security delta
 re-audit must cover it. Contract synced to v1.11.0 (engine 5d66cce797a8,
 PRO-3844: store-created `vs_` visitor token on the order); the checkout token
