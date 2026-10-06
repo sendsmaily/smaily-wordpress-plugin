@@ -12,8 +12,6 @@ namespace Smaily\Connect\Smaily\RecEngine;
 
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
-use Smaily\Connect\Smaily\BackfillJobInterface;
-use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogBackfillJob;
 use Smaily\Connect\Support\DebugLog;
 
@@ -67,9 +65,6 @@ class CatalogManifest {
 	 */
 	public const TIMEOUT_SECONDS = 60;
 
-	/** Cap (chars) on each stored exchange field, as the flushers (F3-44). */
-	private const EXCHANGE_MAX = 10000;
-
 	/** The engine's answer fields the Event Log keeps. */
 	private const RESPONSE_FIELDS = array( 'products_in_manifest', 'removed', 'stock_fixed', 'missing_in_engine', 'guard_tripped', 'guard_reason', 'would_remove' );
 
@@ -105,7 +100,7 @@ class CatalogManifest {
 	public function run(): void {
 		$skip = $this->skip_reason();
 		if ( $skip !== '' ) {
-			DebugLog::write( '[smaily-connect catalog.manifest] not sent tonight: ' . $skip );
+			$this->log_skip( $skip );
 			return;
 		}
 
@@ -113,13 +108,13 @@ class CatalogManifest {
 		try {
 			$products = $this->catalog->manifest_items( $limit );
 		} catch ( \Throwable $e ) {
-			DebugLog::write( '[smaily-connect catalog.manifest] not sent tonight: building the product list failed: ' . $e->getMessage() );
+			$this->log_skip( 'building the product list failed: ' . $e->getMessage() );
 			return;
 		}
 
 		$id = $this->row_id();
 		if ( $id === null ) {
-			DebugLog::write( '[smaily-connect catalog.manifest] not sent tonight: the Event Log row could not be written' );
+			$this->log_skip( 'the Event Log row could not be written' );
 			return;
 		}
 
@@ -146,25 +141,12 @@ class CatalogManifest {
 			return;
 		}
 
-		$sent = $this->trim( (string) wp_json_encode( array( 'products' => $products ) ) );
+		$sent = self::stored_request( $products );
 		try {
 			$response = ( $this->client_factory )()->catalog_manifest( $products );
 		} catch ( ApiException $e ) {
-			$this->queue->mark_failed( $id, sprintf( 'http_%d %s', $e->getCode(), $e->error_code() ) );
-			$this->queue->store_exchange(
-				$id,
-				$sent,
-				$this->trim(
-					(string) wp_json_encode(
-						array(
-							'http'       => $e->getCode(),
-							'outcome'    => 'http_error',
-							'error_code' => $e->error_code(),
-							'message'    => $e->getMessage(),
-						)
-					)
-				)
-			);
+			$this->queue->mark_failed( $id, IngestQueue::http_error_message( $e ) );
+			$this->queue->store_exchange( $id, $sent, IngestQueue::http_error_response( $e ) );
 			return;
 		}
 
@@ -217,8 +199,7 @@ class CatalogManifest {
 
 	/** The products import's state row is `running` from start() — queued or mid-walk. */
 	protected function import_active(): bool {
-		$row = AbstractBackfillJob::read_state( 'products' );
-		return is_array( $row ) && $row['status'] === BackfillJobInterface::STATUS_RUNNING;
+		return $this->catalog->is_running();
 	}
 
 	protected function catalog_changes_waiting(): bool {
@@ -236,9 +217,21 @@ class CatalogManifest {
 		return self::MAX_PRODUCTS;
 	}
 
-	private function trim( string $text ): string {
-		return strlen( $text ) <= self::EXCHANGE_MAX
-			? $text
-			: substr( $text, 0, self::EXCHANGE_MAX ) . '…[truncated]';
+	/**
+	 * The request as the Event Log stores it, capped like every exchange. Only
+	 * the items that can reach the cap are encoded: each one encodes to at
+	 * least 31 chars (`{"sku":"woo-1","in_stock":true}`), so the first
+	 * EXCHANGE_MAX / 30 + 1 already run past it, and the capped text is the
+	 * same as from encoding the whole list.
+	 *
+	 * @param array<int, array{sku: string, in_stock: bool}> $products
+	 */
+	private static function stored_request( array $products ): string {
+		$head = array_slice( $products, 0, intdiv( IngestQueue::EXCHANGE_MAX, 30 ) + 1 );
+		return IngestQueue::cap_exchange( (string) wp_json_encode( array( 'products' => $head ) ) );
+	}
+
+	private function log_skip( string $why ): void {
+		DebugLog::write( '[smaily-connect catalog.manifest] not sent tonight: ' . $why );
 	}
 }

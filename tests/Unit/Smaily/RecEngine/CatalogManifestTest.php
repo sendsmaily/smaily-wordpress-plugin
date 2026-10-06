@@ -24,7 +24,7 @@ use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 
 final class CatalogManifestTest extends TestCase {
 
-	private const ITEMS = array(
+	public const ITEMS = array(
 		array(
 			'sku'      => 'woo-1',
 			'in_stock' => true,
@@ -158,6 +158,44 @@ final class CatalogManifestTest extends TestCase {
 		self::assertSame( array( CatalogManifest::EVENT_TYPE ), $queue->pending_types );
 	}
 
+	/**
+	 * The stored request encodes only the head of the list; it must equal the
+	 * whole list encoded and then capped, above the cap and below it.
+	 */
+	public function test_the_stored_request_equals_the_whole_list_encoded_and_capped(): void {
+		$shortest = array(
+			'sku'      => 'woo-1',
+			'in_stock' => true,
+		);
+		$mixed    = array();
+		for ( $i = 1; $i <= 2000; $i++ ) {
+			$mixed[] = array(
+				'sku'      => 'woo-' . $i,
+				'in_stock' => $i % 3 !== 0,
+			);
+		}
+
+		$lists = array(
+			'shortest items, above the cap' => array_fill( 0, 1000, $shortest ),
+			'shortest items, just above'    => array_fill( 0, 334, $shortest ),
+			'shortest items, below the cap' => array_fill( 0, 300, $shortest ),
+			'mixed items, above the cap'    => $mixed,
+			'two items'                     => self::ITEMS,
+		);
+
+		foreach ( $lists as $label => $items ) {
+			$queue = $this->fake_queue();
+
+			$this->manifest( $queue, $this->client(), null, array( 'items' => $items ) )->run();
+
+			$whole    = (string) wp_json_encode( array( 'products' => $items ) );
+			$expected = strlen( $whole ) <= 10000 ? $whole : substr( $whole, 0, 10000 ) . '…[truncated]';
+			self::assertSame( $expected, $queue->exchanges[1]['sent'], $label );
+		}
+		self::assertGreaterThan( 10000, strlen( (string) wp_json_encode( array( 'products' => $lists['shortest items, just above'] ) ) ) );
+		self::assertLessThan( 10000, strlen( (string) wp_json_encode( array( 'products' => $lists['shortest items, below the cap'] ) ) ) );
+	}
+
 	public function test_first_run_is_the_next_three_o_clock_store_time(): void {
 		Functions\when( 'wp_timezone' )->justReturn( new \DateTimeZone( 'Europe/Tallinn' ) );
 
@@ -170,30 +208,34 @@ final class CatalogManifestTest extends TestCase {
 	// --- doubles -------------------------------------------------------------
 
 	/**
-	 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int} $opts
+	 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>} $opts
 	 */
 	private function manifest( IngestQueue $queue, Client $client, ?RecEngineSettings $settings = null, array $opts = array() ): CatalogManifest {
-		$catalog = new class( ! empty( $opts['throw'] ) ) extends CatalogBackfillJob {
+		$catalog = new class( ! empty( $opts['throw'] ), $opts['items'] ?? null ) extends CatalogBackfillJob {
 			private bool $throw;
+			/** @var array<int, array{sku: string, in_stock: bool}>|null */
+			private ?array $items;
 
-			public function __construct( bool $throw ) {
+			/** @param array<int, array{sku: string, in_stock: bool}>|null $items */
+			public function __construct( bool $throw, ?array $items ) {
 				$this->throw = $throw;
+				$this->items = $items;
 			}
 
 			public function manifest_items( int $limit ): array {
 				if ( $this->throw ) {
 					throw new \RuntimeException( 'out of memory' );
 				}
-				return array_slice( CatalogManifestTest::items(), 0, $limit + 1 );
+				return array_slice( $this->items ?? CatalogManifestTest::ITEMS, 0, $limit + 1 );
 			}
 		};
 
 		return new class( $queue, $settings ?? new FakeRecEngineSettings(), static fn (): Client => $client, $catalog, $opts ) extends CatalogManifest {
-			/** @var array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int} */
+			/** @var array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>} */
 			private array $opts;
 
 			/**
-			 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int} $opts
+			 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>} $opts
 			 */
 			public function __construct( IngestQueue $queue, RecEngineSettings $settings, callable $client_factory, CatalogBackfillJob $catalog, array $opts ) {
 				parent::__construct( $queue, $settings, $client_factory, $catalog );
@@ -212,13 +254,6 @@ final class CatalogManifestTest extends TestCase {
 				return $this->opts['limit'] ?? parent::max_products();
 			}
 		};
-	}
-
-	/**
-	 * @return array<int, array{sku: string, in_stock: bool}>
-	 */
-	public static function items(): array {
-		return self::ITEMS;
 	}
 
 	/**

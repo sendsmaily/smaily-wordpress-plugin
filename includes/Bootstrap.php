@@ -354,12 +354,7 @@ final class Bootstrap {
 					return null;
 				}
 			case 'products': // 3.5.0 rec-engine catalog backfill.
-				return new CatalogBackfillJob(
-					$this->ingest_queue(),
-					$this->ingest_flusher(),
-					$this->catalog_payload_builder(),
-					$this->multilingual_detector()
-				);
+				return $this->catalog_backfill_job();
 			case 'customers': // 3.5.1 rec-engine customer backfill (A-filter).
 				return new CustomerBackfillJob(
 					$this->ingest_queue(),
@@ -380,7 +375,20 @@ final class Bootstrap {
 	 * same products job the "Import now" button starts.
 	 */
 	public function catalog_import_on_connect(): CatalogImportOnConnect {
-		return new CatalogImportOnConnect( $this->make_backfill_job( CatalogImportOnConnect::JOB_TYPE ) );
+		return new CatalogImportOnConnect( $this->catalog_backfill_job() );
+	}
+
+	/**
+	 * The products import — also the nightly manifest's enumeration, so the
+	 * two can never walk the catalog differently.
+	 */
+	public function catalog_backfill_job(): CatalogBackfillJob {
+		return new CatalogBackfillJob(
+			$this->ingest_queue(),
+			$this->ingest_flusher(),
+			$this->catalog_payload_builder(),
+			$this->multilingual_detector()
+		);
 	}
 
 	/**
@@ -1109,12 +1117,7 @@ final class Bootstrap {
 			static function () use ( $bootstrap ): RecEngineClient {
 				return $bootstrap->rec_client( 2, CatalogManifest::TIMEOUT_SECONDS );
 			},
-			new CatalogBackfillJob(
-				$this->ingest_queue(),
-				$this->ingest_flusher(),
-				$this->catalog_payload_builder(),
-				$this->multilingual_detector()
-			)
+			$this->catalog_backfill_job()
 		);
 	}
 

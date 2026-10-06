@@ -146,6 +146,10 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 
 		do {
 			$ids = $this->fetch_ids_after( $after, $this->batch_size() );
+			if ( function_exists( '_prime_post_caches' ) ) {
+				// One query for the batch's posts and meta instead of one per product.
+				_prime_post_caches( $ids, false, true );
+			}
 			foreach ( $ids as $entity_id ) {
 				$post = $this->units_to_send( $entity_id );
 				if ( $post === null ) {
@@ -165,7 +169,8 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 					return $items;
 				}
 			}
-			$after = $ids === array() ? $after : (int) end( $ids );
+			// An empty batch ends the loop below before $after is read again.
+			$after = (int) end( $ids );
 		} while ( count( $ids ) === $this->batch_size() );
 
 		return $items;

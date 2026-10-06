@@ -46,9 +46,6 @@ abstract class AbstractD6Flusher {
 	 */
 	private const RETRY_BACKOFF = array( 60, 300, 900, 3600, 21600 );
 
-	/** Cap (chars) on each stored exchange field so the queue stays bounded (F3-44). */
-	private const EXCHANGE_MAX = 10000;
-
 	protected IngestQueue $queue;
 	protected RecEngineSettings $settings;
 
@@ -271,19 +268,10 @@ abstract class AbstractD6Flusher {
 		$id       = (int) ( $row['id'] ?? 0 );
 		$attempts = (int) ( $row['attempts'] ?? 0 );
 		$max      = (int) ( $row['max_attempts'] ?? IngestQueue::DEFAULT_MAX_ATTEMPTS );
-		$message  = sprintf( 'http_%d %s', $e->getCode(), $e->error_code() );
+		$message  = IngestQueue::http_error_message( $e );
 
 		$sent     = $this->trim_json( $object );
-		$response = $this->trim_text(
-			(string) wp_json_encode(
-				array(
-					'http'       => $e->getCode(),
-					'outcome'    => 'http_error',
-					'error_code' => $e->error_code(),
-					'message'    => $e->getMessage(),
-				)
-			)
-		);
+		$response = IngestQueue::http_error_response( $e );
 
 		if ( $terminal || $attempts + 1 >= $max ) {
 			$this->queue->mark_failed( $id, $message );
@@ -323,11 +311,9 @@ abstract class AbstractD6Flusher {
 		return is_string( $json ) ? $this->trim_text( $json ) : '';
 	}
 
-	/** Cap a string at EXCHANGE_MAX chars, flagging the truncation. */
+	/** Cap a string at IngestQueue::EXCHANGE_MAX chars, flagging the truncation. */
 	protected function trim_text( string $text ): string {
-		return strlen( $text ) <= self::EXCHANGE_MAX
-			? $text
-			: substr( $text, 0, self::EXCHANGE_MAX ) . '…[truncated]';
+		return IngestQueue::cap_exchange( $text );
 	}
 
 	/** `last_response` for a terminal-skip row — nothing was POSTed. */

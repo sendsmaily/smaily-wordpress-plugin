@@ -59,6 +59,9 @@ class IngestQueue {
 	/** Mirrors the smly_rec_event_queue.max_attempts column default. */
 	public const DEFAULT_MAX_ATTEMPTS = 5;
 
+	/** Cap (chars) on each stored exchange field so the queue stays bounded (F3-44). */
+	public const EXCHANGE_MAX = 10000;
+
 	/**
 	 * Persist an ingest event and ensure a flush is scheduled.
 	 *
@@ -293,6 +296,32 @@ class IngestQueue {
 			array( 'id' => $id ),
 			array( '%s', '%s' ),
 			array( '%d' )
+		);
+	}
+
+	/** Cap a stored exchange field at EXCHANGE_MAX chars, flagging the truncation. */
+	public static function cap_exchange( string $text ): string {
+		return strlen( $text ) <= self::EXCHANGE_MAX
+			? $text
+			: substr( $text, 0, self::EXCHANGE_MAX ) . '…[truncated]';
+	}
+
+	/** The row's last_error for an engine call that threw. */
+	public static function http_error_message( ApiException $e ): string {
+		return sprintf( 'http_%d %s', $e->getCode(), $e->error_code() );
+	}
+
+	/** The row's capped `last_response` for an engine call that threw. */
+	public static function http_error_response( ApiException $e ): string {
+		return self::cap_exchange(
+			(string) wp_json_encode(
+				array(
+					'http'       => $e->getCode(),
+					'outcome'    => 'http_error',
+					'error_code' => $e->error_code(),
+					'message'    => $e->getMessage(),
+				)
+			)
 		);
 	}
 

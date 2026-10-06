@@ -286,6 +286,12 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		return is_array( $row ) ? $row : null;
 	}
 
+	/** Whether this import's state row is `running` — queued or mid-walk. */
+	public function is_running(): bool {
+		$row = self::read_state( $this->job_type() );
+		return is_array( $row ) && $row['status'] === BackfillJobInterface::STATUS_RUNNING;
+	}
+
 	protected function table_name(): string {
 		global $wpdb;
 		return $wpdb->prefix . self::TABLE_SUFFIX;

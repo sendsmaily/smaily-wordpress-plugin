@@ -639,6 +639,8 @@ class Client {
 		$attempts     = 0;
 		$backoff      = 1;
 		$max_attempts = $single_attempt ? 1 : $this->max_attempts;
+		// Encoded once: every attempt sends the same bytes.
+		$json = $body !== null ? (string) wp_json_encode( $body ) : null;
 
 		while ( true ) {
 			++$attempts;
@@ -654,9 +656,9 @@ class Client {
 					),
 				),
 			);
-			if ( $body !== null ) {
+			if ( $json !== null ) {
 				$args['headers']['Content-Type'] = 'application/json';
-				$args['body']                    = (string) wp_json_encode( $body );
+				$args['body']                    = $json;
 			}
 			if ( $single_attempt ) {
 				// Each redirect hop would get its own timeout.
