@@ -162,6 +162,18 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * Seed the §15 storefront answer for one returning guest, named by the
+	 * engine's visitor token (PRO-3835 — the assumed PRO-3834 request field).
+	 *
+	 * @param array<int, array<string, mixed>> $slots
+	 */
+	public function set_storefront_visitor_slots( string $visitor_token, array $slots ): void {
+		$seeded                   = (array) ( $this->state()['storefront_visitor_slots'] ?? array() );
+		$seeded[ $visitor_token ] = $slots;
+		$this->write_state( array( 'storefront_visitor_slots' => $seeded ) );
+	}
+
+	/**
 	 * Play the Smaily operator who switches real automated sends on in the
 	 * engine admin (contract §13): only the listed triggers keep
 	 * `test_mode=false` when the plugin saves them; any other enabled row is

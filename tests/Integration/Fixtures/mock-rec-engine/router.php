@@ -1531,6 +1531,12 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 // under `storefront_slots` (external id => slots); anyone else gets the same
 // `{slots: []}` the live engine gives an unknown/holdout/opted-out customer.
 // The request body is recorded so a test can prove no email was sent.
+//
+// ASSUMPTION (PRO-3835, until engine Story PRO-3834 is synced into the
+// contract): a returning guest is named by `visitor_token` IN PLACE OF
+// `customer_external_id` — exactly one of the two, else 400 — with the same
+// response shape and the same empty answer for an unknown token. Seeded under
+// `storefront_visitor_slots` (token => slots).
 if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 	require_bearer_auth();
 
@@ -1539,13 +1545,18 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 		reply( 400, array( 'error' => 'invalid_json', 'message' => 'Request body is not valid JSON.' ) );
 	}
 
-	$external_id = $body['customer_external_id'] ?? null;
-	if ( ! is_string( $external_id ) || strlen( $external_id ) < 1 || strlen( $external_id ) > 255 ) {
+	$by_visitor  = array_key_exists( 'visitor_token', $body );
+	$identifier  = $by_visitor ? 'visitor_token' : 'customer_external_id';
+	$external_id = $body[ $identifier ] ?? null;
+	if (
+		( $by_visitor && array_key_exists( 'customer_external_id', $body ) )
+		|| ! is_string( $external_id ) || strlen( $external_id ) < 1 || strlen( $external_id ) > 255
+	) {
 		reply(
 			400,
 			array(
 				'error'   => 'validation_failed',
-				'details' => array( 'fieldErrors' => array( 'customer_external_id' => array( 'Required' ) ) ),
+				'details' => array( 'fieldErrors' => array( $identifier => array( 'Required' ) ) ),
 			)
 		);
 	}
@@ -1567,8 +1578,9 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 	$state['last_recommendations_request'] = $body;
 	save_state( $state_file, $state );
 
-	$seeded = ( isset( $state['storefront_slots'][ $external_id ] ) && is_array( $state['storefront_slots'][ $external_id ] ) )
-		? $state['storefront_slots'][ $external_id ]
+	$seed_key = $by_visitor ? 'storefront_visitor_slots' : 'storefront_slots';
+	$seeded   = ( isset( $state[ $seed_key ][ $external_id ] ) && is_array( $state[ $seed_key ][ $external_id ] ) )
+		? $state[ $seed_key ][ $external_id ]
 		: array();
 
 	header( 'Cache-Control: no-store, private', true );
