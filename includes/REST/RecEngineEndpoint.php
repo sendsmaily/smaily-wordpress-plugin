@@ -62,22 +62,22 @@ class RecEngineEndpoint {
 
 	/**
 	 * Runs once a connection is saved; answers whether it started the catalog
-	 * import (PRO-3743). Null = start nothing.
+	 * import (PRO-3743).
 	 *
-	 * @var (callable(): bool)|null
+	 * @var callable(): bool
 	 */
 	private $on_connected;
 
 	/**
 	 * @param callable(): SetupExchange                              $exchange_factory
 	 * @param callable(string $api_key, string $base_url): Client    $client_factory
-	 * @param (callable(): bool)|null                                $on_connected
+	 * @param callable(): bool                                       $on_connected
 	 */
 	public function __construct(
 		RecEngineSettings $settings,
 		callable $exchange_factory,
 		callable $client_factory,
-		?callable $on_connected = null
+		callable $on_connected
 	) {
 		$this->settings         = $settings;
 		$this->exchange_factory = $exchange_factory;
@@ -191,7 +191,7 @@ class RecEngineEndpoint {
 		switch ( $result->kind ) {
 			case ExchangeResult::KIND_SUCCESS:
 				$this->settings->store( $result );
-				$import_started = $this->on_connected !== null && ( $this->on_connected )();
+				$import_started = ( $this->on_connected )();
 				return new WP_REST_Response(
 					array(
 						'connected'     => true,

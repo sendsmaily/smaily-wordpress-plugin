@@ -20,6 +20,14 @@ defined( 'ABSPATH' ) || exit;
  */
 interface BackfillJobInterface {
 
+	public const STATUS_RUNNING   = 'running';
+	public const STATUS_COMPLETED = 'completed';
+	public const STATUS_FAILED    = 'failed';
+	public const STATUS_CANCELLED = 'cancelled';
+
+	/** The Action Scheduler hook one batch of a backfill runs on. */
+	public const TICK_HOOK = 'smly_plus_backfill_tick';
+
 	/**
 	 * Seed (or reset) the state row and return its id. status='running',
 	 * processed_count=0, cursor cleared.

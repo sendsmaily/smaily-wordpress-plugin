@@ -15,7 +15,6 @@ use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
-use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
 use Smaily\Connect\Smaily\RecEngine\SetupExchange;
 use Smaily\Connect\Smaily\TransactionalResend;
@@ -99,9 +98,7 @@ final class EndpointRegistry {
 				// Connecting starts the full catalog import (PRO-3743) through
 				// the same products job the "Import now" button starts.
 				static function () use ( $bootstrap ): bool {
-					return ( new CatalogImportOnConnect(
-						$bootstrap->make_backfill_job( CatalogImportOnConnect::JOB_TYPE )
-					) )->start();
+					return $bootstrap->catalog_import_on_connect()->start();
 				}
 			),
 			new AutomationsEndpoint(

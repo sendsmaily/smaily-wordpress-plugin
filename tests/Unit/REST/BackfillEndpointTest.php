@@ -14,6 +14,7 @@ use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\Smaily\BackfillJob;
+use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
 use WP_REST_Request;
 
@@ -63,7 +64,7 @@ final class BackfillEndpointTest extends TestCase {
 		$wpdb            = $this->fake_wpdb_with_state(
 			array(
 				'id'              => 77,
-				'status'          => BackfillEndpoint::STATUS_RUNNING,
+				'status'          => BackfillJobInterface::STATUS_RUNNING,
 				'processed_count' => '0',
 				'total_count'     => '5000',
 				'started_at'      => null,
@@ -88,7 +89,7 @@ final class BackfillEndpointTest extends TestCase {
 		self::assertSame( 5000, $response->get_data()['total'] );
 
 		self::assertCount( 1, $enqueued );
-		self::assertSame( BackfillEndpoint::TICK_HOOK, $enqueued[0]['hook'] );
+		self::assertSame( BackfillJobInterface::TICK_HOOK, $enqueued[0]['hook'] );
 		self::assertSame( 'contacts', $enqueued[0]['args']['job_type'] );
 	}
 
@@ -105,7 +106,7 @@ final class BackfillEndpointTest extends TestCase {
 		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
 			array(
 				'id'              => 77,
-				'status'          => BackfillEndpoint::STATUS_COMPLETED,
+				'status'          => BackfillJobInterface::STATUS_COMPLETED,
 				'processed_count' => '5000',
 				'total_count'     => '5000',
 				'started_at'      => '2026-05-19 12:00:00',
@@ -125,7 +126,7 @@ final class BackfillEndpointTest extends TestCase {
 		$response = $endpoint->start( $request );
 
 		self::assertSame( 200, $response->get_status() );
-		self::assertSame( BackfillEndpoint::STATUS_COMPLETED, $response->get_data()['status'] );
+		self::assertSame( BackfillJobInterface::STATUS_COMPLETED, $response->get_data()['status'] );
 		self::assertSame( array(), $enqueued );
 	}
 
@@ -187,9 +188,9 @@ final class BackfillEndpointTest extends TestCase {
 
 		self::assertTrue( $response->get_data()['cancelled'] );
 		self::assertCount( 1, $wpdb->updates );
-		self::assertSame( BackfillEndpoint::STATUS_CANCELLED, $wpdb->updates[0]['data']['status'] );
+		self::assertSame( BackfillJobInterface::STATUS_CANCELLED, $wpdb->updates[0]['data']['status'] );
 		self::assertCount( 1, $unscheduled );
-		self::assertSame( BackfillEndpoint::TICK_HOOK, $unscheduled[0]['hook'] );
+		self::assertSame( BackfillJobInterface::TICK_HOOK, $unscheduled[0]['hook'] );
 	}
 
 	public function test_cancel_returns_false_when_no_rows_were_updated(): void {

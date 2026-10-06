@@ -244,6 +244,30 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		return $totals;
 	}
 
+	/**
+	 * The state row of one backfill — any job type, the legacy contacts one
+	 * (target `smaily`) included — or null before it was ever started.
+	 *
+	 * @return array<string, mixed>|null
+	 */
+	public static function read_state( string $job_type, string $target = self::TARGET ): ?array {
+		global $wpdb;
+		$table = $wpdb->prefix . self::TABLE_SUFFIX;
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, status, processed_count, synced_count, total_count, started_at, completed_at FROM {$table} WHERE job_type = %s AND target = %s",
+				$job_type,
+				$target
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+
+		return is_array( $row ) ? $row : null;
+	}
+
 	protected function table_name(): string {
 		global $wpdb;
 		return $wpdb->prefix . self::TABLE_SUFFIX;

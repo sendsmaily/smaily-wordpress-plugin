@@ -34,7 +34,6 @@ use Smaily\Connect\Integrations\WooCommerce\LegacyHookBridge;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Multilingual\Router as MultilingualRouter;
-use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\REST\EndpointRegistry;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -49,6 +48,7 @@ use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\ContactReconciler;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CustomerBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\Client;
@@ -217,7 +217,7 @@ final class Bootstrap {
 
 		// REST endpoints + the AS callback that drives the backfill loop.
 		add_action( 'rest_api_init', array( $this, 'register_rest_endpoints' ) );
-		add_action( BackfillEndpoint::TICK_HOOK, array( $this, 'on_backfill_tick' ), 10, 1 );
+		add_action( BackfillJobInterface::TICK_HOOK, array( $this, 'on_backfill_tick' ), 10, 1 );
 
 		// Storefront browse-beacon enqueue (3.4.3). wp_enqueue_scripts is a
 		// front-end-only hook; StorefrontBeacon::enqueue() self-gates on
@@ -309,7 +309,7 @@ final class Bootstrap {
 	}
 
 	/**
-	 * AS callback for BackfillEndpoint::TICK_HOOK. Processes one batch
+	 * AS callback for BackfillJobInterface::TICK_HOOK. Processes one batch
 	 * (≤100 users by default per BackfillJob) and reschedules another
 	 * tick 30s out if the job hasn't reached its terminal state.
 	 *
@@ -329,7 +329,7 @@ final class Bootstrap {
 		if ( empty( $result['completed'] ) && function_exists( 'as_schedule_single_action' ) ) {
 			as_schedule_single_action(
 				time() + 30,
-				BackfillEndpoint::TICK_HOOK,
+				BackfillJobInterface::TICK_HOOK,
 				array( 'job_type' => $job_type ),
 				EventQueue::AS_GROUP
 			);
@@ -369,6 +369,14 @@ final class Bootstrap {
 			default:
 				return null;
 		}
+	}
+
+	/**
+	 * The catalog import a successful setup exchange starts (PRO-3743), on the
+	 * same products job the "Import now" button starts.
+	 */
+	public function catalog_import_on_connect(): CatalogImportOnConnect {
+		return new CatalogImportOnConnect( $this->make_backfill_job( CatalogImportOnConnect::JOB_TYPE ) );
 	}
 
 	/**
@@ -448,7 +456,7 @@ final class Bootstrap {
 
 		as_schedule_single_action(
 			time() + 5,
-			BackfillEndpoint::TICK_HOOK,
+			BackfillJobInterface::TICK_HOOK,
 			array( 'job_type' => BackfillJob::BACKFILL_TYPE ),
 			EventQueue::AS_GROUP
 		);
@@ -981,14 +989,16 @@ final class Bootstrap {
 	 * a small max_attempts keeps the flush job from blocking the AS worker on
 	 * long backoff (durable retry lives in IngestQueue).
 	 */
-	public function rec_client(): RecEngineClient {
+	public function rec_client( int $max_attempts = 2, int $timeout = RecEngineClient::DEFAULT_TIMEOUT_SECONDS ): RecEngineClient {
 		$settings = $this->rec_engine_settings();
 
 		return new RecEngineClient(
 			$settings->api_key(),
 			$settings->base_url(),
 			$settings->endpoints(),
-			2
+			$max_attempts,
+			$settings,
+			$timeout
 		);
 	}
 
@@ -998,20 +1008,13 @@ final class Bootstrap {
 	 * shopper's page render, so it never waits out a retry or a Retry-After.
 	 */
 	public function storefront_recommendations(): StorefrontRecommendations {
-		$settings = $this->rec_engine_settings();
+		$bootstrap = $this;
 
 		return new StorefrontRecommendations(
-			$settings,
+			$this->rec_engine_settings(),
 			$this->profiling_consent(),
-			static function () use ( $settings ): RecEngineClient {
-				return new RecEngineClient(
-					$settings->api_key(),
-					$settings->base_url(),
-					$settings->endpoints(),
-					1,
-					$settings,
-					StorefrontRecommendations::TIMEOUT_SECONDS
-				);
+			static function () use ( $bootstrap ): RecEngineClient {
+				return $bootstrap->rec_client( 1, StorefrontRecommendations::TIMEOUT_SECONDS );
 			}
 		);
 	}

@@ -11,7 +11,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
-use Smaily\Connect\REST\BackfillEndpoint;
+use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
@@ -77,11 +77,11 @@ final class RecEngineCatalogImportOnConnectTest extends TestCase {
 
 		$row = $this->read_products_row();
 		self::assertIsArray( $row, 'Connecting seeded the products import row.' );
-		self::assertSame( BackfillEndpoint::STATUS_RUNNING, $row['status'] );
+		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $row['status'] );
 		self::assertGreaterThanOrEqual( 2, (int) $row['total_count'] );
 		self::assertSame( 0, (int) $row['processed_count'] );
 
-		$next = as_next_scheduled_action( BackfillEndpoint::TICK_HOOK, self::TICK_ARGS, EventQueue::AS_GROUP );
+		$next = as_next_scheduled_action( BackfillJobInterface::TICK_HOOK, self::TICK_ARGS, EventQueue::AS_GROUP );
 		self::assertIsInt( $next, 'The first import batch is scheduled.' );
 		self::assertGreaterThanOrEqual(
 			$before + CatalogImportOnConnect::DELAY_SECONDS,
@@ -102,17 +102,17 @@ final class RecEngineCatalogImportOnConnectTest extends TestCase {
 		self::assertTrue( $cancel->get_data()['cancelled'] );
 
 		self::assertFalse(
-			as_has_scheduled_action( BackfillEndpoint::TICK_HOOK, self::TICK_ARGS, EventQueue::AS_GROUP ),
+			as_has_scheduled_action( BackfillJobInterface::TICK_HOOK, self::TICK_ARGS, EventQueue::AS_GROUP ),
 			'Hold back removed the pending first batch.'
 		);
-		self::assertSame( BackfillEndpoint::STATUS_CANCELLED, $this->read_products_row()['status'] ?? null );
+		self::assertSame( BackfillJobInterface::STATUS_CANCELLED, $this->read_products_row()['status'] ?? null );
 		self::assertSame( 0, $this->ingest_queue_rows() );
 		self::assertSame( array(), self::$engine->state()['last_catalog_received'] ?? array() );
 
 		// The manual "Import now" works as before after a hold-back.
 		$start = RestRequestHelper::post( '/backfill/start', array( 'job_type' => CatalogImportOnConnect::JOB_TYPE ) );
 		self::assertSame( 200, $start->get_status() );
-		self::assertSame( BackfillEndpoint::STATUS_RUNNING, $this->read_products_row()['status'] ?? null );
+		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->read_products_row()['status'] ?? null );
 	}
 
 	public function test_reconnecting_while_the_import_is_queued_starts_no_second_import(): void {
@@ -148,7 +148,7 @@ final class RecEngineCatalogImportOnConnectTest extends TestCase {
 
 		self::assertSame( 'unchanged', $response->get_data()['catalogImport'] );
 		$row = $this->read_products_row();
-		self::assertSame( BackfillEndpoint::STATUS_RUNNING, $row['status'] ?? null );
+		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $row['status'] ?? null );
 		self::assertSame( 1, (int) ( $row['processed_count'] ?? 0 ), 'Not restarted from zero.' );
 		self::assertSame( (string) $this->created[0], $row['cursor_value'] ?? null, 'The cursor is kept.' );
 		self::assertCount( 1, $this->pending_tick_ids() );
@@ -196,7 +196,7 @@ final class RecEngineCatalogImportOnConnectTest extends TestCase {
 		return array_values(
 			as_get_scheduled_actions(
 				array(
-					'hook'   => BackfillEndpoint::TICK_HOOK,
+					'hook'   => BackfillJobInterface::TICK_HOOK,
 					'args'   => self::TICK_ARGS,
 					'group'  => EventQueue::AS_GROUP,
 					'status' => \ActionScheduler_Store::STATUS_PENDING,
@@ -207,7 +207,7 @@ final class RecEngineCatalogImportOnConnectTest extends TestCase {
 	}
 
 	private function unschedule_ticks(): void {
-		as_unschedule_all_actions( BackfillEndpoint::TICK_HOOK, self::TICK_ARGS, EventQueue::AS_GROUP );
+		as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK, self::TICK_ARGS, EventQueue::AS_GROUP );
 	}
 
 	private function ingest_queue_rows(): int {
