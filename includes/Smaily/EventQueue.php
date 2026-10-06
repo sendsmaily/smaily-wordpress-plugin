@@ -162,7 +162,8 @@ class EventQueue {
 	 * hammered every 60s nor hold a FIFO batch slot against fresher work
 	 * (PRO-1685). The flush hook calls this, processes the rows, and uses
 	 * mark_sent() / mark_failed() / record_attempt() to advance their state.
-	 * Selecting in created_at order keeps the queue FIFO so hooks like
+	 * Selecting in created_at order (the id breaks a same-second tie,
+	 * PRO-3897) keeps the queue FIFO so hooks like
 	 * contact.sync don't end up arbitrarily reordered relative to subsequent
 	 * automation.* events for the same user.
 	 *
@@ -207,7 +208,7 @@ class EventQueue {
 		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, event_type, entity_id, payload, created_at, attempts FROM {$table} WHERE {$where} ORDER BY created_at ASC LIMIT %d",
+				"SELECT id, event_type, entity_id, payload, created_at, attempts FROM {$table} WHERE {$where} ORDER BY created_at ASC, id ASC LIMIT %d",
 				...$args
 			),
 			ARRAY_A
