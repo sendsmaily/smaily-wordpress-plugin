@@ -18,7 +18,9 @@ namespace Smaily\Connect\Tests\Integration;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
+use Smaily\Connect\REST\RecommendationsEndpoint;
 use Smaily\Connect\REST\RequestThrottle;
+use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -52,6 +54,7 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		RecEngineMockServer::reset();
 		$this->forget_visitor();
 		delete_transient( 'smly_recs_rl_ip_' . md5( RequestThrottle::client_ip() ) );
+		delete_transient( StorefrontRecommendations::PAUSE_KEY );
 
 		$base = (string) self::$engine->base_url();
 		EnvSeed::connect(
@@ -75,6 +78,7 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		delete_transient( StorefrontRecommendations::PAUSE_KEY );
 		wp_set_current_user( 0 );
 		$this->forget_visitor();
 		$product = wc_get_product( $this->product_id );
@@ -154,7 +158,7 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 	public function test_a_returning_guest_gets_their_cards_by_the_visitor_token_cookie(): void {
 		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
 
-		$html = $this->cards();
+		$html = $this->consenting_guest_cards();
 
 		self::assertStringContainsString( 'Grain-free adult food 3 kg', $html );
 		self::assertSame(
@@ -164,6 +168,17 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 			),
 			self::$engine->state()['last_recommendations_request'] ?? null
 		);
+	}
+
+	public function test_a_guest_without_marketing_consent_gets_nothing_and_the_engine_is_not_asked(): void {
+		// PRO-3857: the route applies the consent rule on the server too. The
+		// test site has no WP Consent API, so the real check fails closed.
+		self::assertFalse( function_exists( 'wp_has_consent' ), 'Precondition: no WP Consent API on the test site.' );
+		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
+		self::$engine->reset_request_count();
+
+		self::assertSame( '', $this->cards() );
+		self::assertSame( 0, self::$engine->request_count() );
 	}
 
 	public function test_a_visitor_with_neither_an_account_nor_a_token_gets_nothing_and_the_engine_is_not_asked(): void {
@@ -188,8 +203,8 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
 		self::$engine->reset_request_count();
 
-		$first  = $this->cards();
-		$second = $this->cards();
+		$first  = $this->consenting_guest_cards();
+		$second = $this->consenting_guest_cards();
 
 		self::assertNotSame( '', $first );
 		self::assertSame( $first, $second );
@@ -201,11 +216,44 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
 		self::$engine->reset_request_count();
 
-		self::assertSame( '', $this->cards(), 'A 400 shows nothing.' );
+		self::assertSame( '', $this->consenting_guest_cards(), 'A 400 shows nothing.' );
 		self::assertSame( 1, self::$engine->request_count() );
 
-		self::assertSame( '', $this->cards() );
+		self::assertSame( '', $this->consenting_guest_cards() );
 		self::assertSame( 1, self::$engine->request_count(), 'The failure is cached: the second request makes no engine call.' );
+	}
+
+	public function test_an_unreachable_engine_pauses_every_shoppers_engine_calls_briefly(): void {
+		// PRO-3857: after a timeout / network failure / 5xx, a cache miss of
+		// ANY shopper answers empty without an engine call for a short while.
+		$base = (string) self::$engine->base_url();
+		EnvSeed::connect(
+			array(
+				'engine_base_url' => $base,
+				'endpoints'       => array( 'recommendations_customer' => 'http://127.0.0.1:1/api/v1/recommendations/customer' ),
+			)
+		);
+		$this->log_in( $this->user_id );
+
+		self::assertSame( '', $this->cards(), 'An unreachable engine shows nothing.' );
+		self::assertNotFalse( get_transient( StorefrontRecommendations::PAUSE_KEY ), 'The store-wide pause is set.' );
+
+		// The engine is reachable again, but the pause still holds for another shopper.
+		EnvSeed::connect(
+			array(
+				'engine_base_url' => $base,
+				'endpoints'       => array( 'recommendations_customer' => $base . '/api/v1/recommendations/customer' ),
+			)
+		);
+		$this->forget_visitor();
+		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
+		self::$engine->reset_request_count();
+
+		self::assertSame( '', $this->consenting_guest_cards() );
+		self::assertSame( 0, self::$engine->request_count(), 'No engine call during the pause.' );
+
+		delete_transient( StorefrontRecommendations::PAUSE_KEY );
+		self::assertStringContainsString( 'Grain-free adult food 3 kg', $this->consenting_guest_cards(), 'After the pause the engine is asked again.' );
 	}
 
 	public function test_no_shared_cache_may_keep_the_answer(): void {
@@ -226,14 +274,19 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		);
 		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
 
-		self::assertSame( '', $this->cards(), 'With no card left, nothing is shown.' );
+		self::$engine->reset_request_count();
+
+		self::assertSame( '', $this->consenting_guest_cards(), 'With no card left, nothing is shown.' );
+		self::assertSame( 1, self::$engine->request_count(), 'The engine was asked; the store left the card out.' );
 	}
 
 	public function test_an_empty_engine_answer_shows_nothing(): void {
 		self::$engine->set_storefront_visitor_slots( $this->token, array() );
 		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
+		self::$engine->reset_request_count();
 
-		self::assertSame( '', $this->cards() );
+		self::assertSame( '', $this->consenting_guest_cards() );
+		self::assertSame( 1, self::$engine->request_count() );
 	}
 
 	public function test_a_store_without_an_engine_connection_answers_404(): void {
@@ -250,6 +303,30 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 	 */
 	private function cards( array $query = array() ): string {
 		$response = RestRequestHelper::get( '/recommendations', $query );
+		self::assertSame( 200, $response->get_status() );
+		$data = $response->get_data();
+		return is_array( $data ) ? (string) ( $data['html'] ?? '' ) : '';
+	}
+
+	/**
+	 * The route as a guest with a marketing yes sees it: the real handler,
+	 * engine call and cards, with only the consent answer given — the test
+	 * site has no WP Consent API, and defining its functions here would leak
+	 * into every later test of the process.
+	 */
+	private function consenting_guest_cards(): string {
+		$endpoint = new class(
+			new RecEngineSettings(),
+			static function (): StorefrontRecommendations {
+				return Bootstrap::instance()->storefront_recommendations();
+			}
+		) extends RecommendationsEndpoint {
+			protected function marketing_consent_given(): bool {
+				return true;
+			}
+		};
+
+		$response = $endpoint->handle( new \WP_REST_Request( 'GET', '/smaily-connect/v1' . RecommendationsEndpoint::ROUTE ) );
 		self::assertSame( 200, $response->get_status() );
 		$data = $response->get_data();
 		return is_array( $data ) ? (string) ( $data['html'] ?? '' ) : '';

@@ -15,6 +15,7 @@ use Smaily\Connect\Constants;
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\REST\RecommendationsEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\Support\AttributionShape;
 use Smaily\Connect\Smaily\RecEngine\Support\RecId;
@@ -55,7 +56,9 @@ use Smaily\Connect\Support\DebugLog;
  * nothing and is cached as an empty answer for FAILURE_CACHE_TTL (10 minutes),
  * so an engine that cannot answer — an outage, or one that does not take the
  * visitor token yet — gets one call per shopper per 10 minutes, not one per
- * page view.
+ * page view. A timeout, network failure or 5xx also pauses the engine calls
+ * of every shopper for PAUSE_TTL (2 minutes): a cache miss then answers
+ * empty without a call (PRO-3857).
  *
  * The cards show the store's own product data (live name, price, stock,
  * image), so only the slot's recommendation id and product id are kept from
@@ -88,6 +91,21 @@ class StorefrontRecommendations {
 	 * while the engine cannot answer, instead of one per page view.
 	 */
 	public const FAILURE_CACHE_TTL = 10 * MINUTE_IN_SECONDS;
+
+	/**
+	 * How long, in seconds, no shopper's cache miss calls the engine after an
+	 * engine timeout, network failure or 5xx (PRO-3857). The per-shopper
+	 * failure cache alone bounds nothing per client: a guest names its own
+	 * cache key, so fresh tokens miss every time, and under a hanging engine
+	 * each miss holds a PHP worker for the full timeout. One store-wide pause
+	 * makes those misses answer empty at once. A 4xx answers this shopper
+	 * only, so it does not pause the store. A finite TTL, so the transient is
+	 * stored with autoload off.
+	 */
+	public const PAUSE_TTL = 2 * MINUTE_IN_SECONDS;
+
+	/** The store-wide pause transient. */
+	public const PAUSE_KEY = 'smly_rec_storefront_paused';
 
 	/** Script handle — neutral, like the other storefront bundles (F3-41). */
 	public const HANDLE = 'smaily-connect-recs';
@@ -259,6 +277,11 @@ class StorefrontRecommendations {
 			return $cached;
 		}
 
+		// The store-wide pause after an engine timeout or 5xx (PRO-3857).
+		if ( false !== get_transient( self::PAUSE_KEY ) ) {
+			return array();
+		}
+
 		try {
 			$client = ( $this->client_factory )();
 			$answer = self::ID_CUSTOMER === $identity['type']
@@ -267,6 +290,10 @@ class StorefrontRecommendations {
 		} catch ( \Throwable $e ) {
 			DebugLog::write( sprintf( '[smaily-connect storefront-recs] engine call failed (%s) — showing nothing for %d minutes', get_class( $e ), (int) ( self::FAILURE_CACHE_TTL / MINUTE_IN_SECONDS ) ) );
 			set_transient( $cache_key, array(), self::FAILURE_CACHE_TTL );
+			if ( $e instanceof ApiException && ( 0 === $e->getCode() || $e->getCode() >= 500 ) ) {
+				DebugLog::write( sprintf( '[smaily-connect storefront-recs] engine unavailable — no engine calls for any shopper for %d seconds', self::PAUSE_TTL ) );
+				set_transient( self::PAUSE_KEY, 1, self::PAUSE_TTL );
+			}
 			return array();
 		}
 
