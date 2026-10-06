@@ -2229,7 +2229,7 @@ msgid "below to seed history into the engine; future changes sync on their own. 
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:270
-msgid "The toggles above sync future changes. Import your existing catalog, customers, and orders into the engine once so recommendations have history to learn from. Runs in the background in batches."
+msgid "The catalog import starts on its own when you connect Campaign Intelligence; run it again any time with Import now under Products. Import your existing customers and orders into the engine once so recommendations have history to learn from. Imports run in the background in batches, and future changes sync on their own."
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:279
