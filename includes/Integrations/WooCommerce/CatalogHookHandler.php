@@ -70,6 +70,15 @@ use Smaily\Connect\Smaily\RecEngine\Support\SkuResolver;
  * delete-by-key and a skipped removal would leave a synced product stuck
  * `in_stock=true` forever (extends F3-43's order-item never-drop principle).
  *
+ * Only a PUBLISHED product is recommendable (PRO-3884): a product whose parent
+ * post is draft / private / pending (any status but `publish`) is sent through
+ * the same in_stock=false removal as a trashed one — on save, on a stock flip
+ * and on a translation re-sync alike — so the live sync agrees with the
+ * catalog import (publish + trash only). Publishing it again sends it as a
+ * normal upsert. A never-published draft gets the same tombstone: a removal
+ * for a SKU the engine never had is harmless, and it needs no "was it sent
+ * before" state.
+ *
  * HARD delete (PRO-1230, contract v1.3.0 §3b): a permanently deleted PARENT
  * product additionally stops being recommendable engine-side via one
  * catalog.remove row (POST /ingest/catalog/remove) carrying the RAW canonical
@@ -122,7 +131,7 @@ class CatalogHookHandler {
 		// catalog row — empty category_path/product_url — that the engine
 		// would reject (PRO-1491 fix B). The auto-draft is re-saved as a real
 		// draft/publish later, which fires save_post again and is enqueued
-		// normally then.
+		// then (a draft as the removal, PRO-3884).
 		if ( $this->post_status( $post_id ) === 'auto-draft' ) {
 			return;
 		}
@@ -132,9 +141,9 @@ class CatalogHookHandler {
 		if ( $product === null ) {
 			return;
 		}
-		foreach ( $this->builder->expand( $product ) as $unit ) {
-			$this->enqueue_upsert( $unit );
-		}
+		// The saved post counts too: a published translation of a draft
+		// canonical stands in for it, as in the catalog import (PRO-3884).
+		$this->enqueue_sync( $product, $this->post_status( $post_id ) === 'publish' || $this->is_published( $product ) );
 	}
 
 	/**
@@ -154,9 +163,7 @@ class CatalogHookHandler {
 		if ( $loaded === null ) {
 			return;
 		}
-		foreach ( $this->builder->expand( $loaded ) as $unit ) {
-			$this->enqueue_upsert( $unit );
-		}
+		$this->enqueue_sync( $loaded, $this->is_published( $loaded ) );
 	}
 
 	/**
@@ -180,9 +187,7 @@ class CatalogHookHandler {
 		if ( $canonical_id > 0 && $canonical_id !== $post_id ) {
 			$canonical = $this->get_product( $canonical_id );
 			if ( $canonical !== null ) {
-				foreach ( $this->builder->expand( $canonical ) as $unit ) {
-					$this->enqueue_upsert( $unit );
-				}
+				$this->enqueue_sync( $canonical, $this->is_published( $canonical ) );
 				return;
 			}
 			// Canonical gone too → fall through and mark this post's units gone.
@@ -254,9 +259,7 @@ class CatalogHookHandler {
 		if ( $canonical_id > 0 && $canonical_id !== $post_id ) {
 			$canonical = $this->get_product( $canonical_id );
 			if ( $canonical !== null ) {
-				foreach ( $this->builder->expand( $canonical ) as $unit ) {
-					$this->enqueue_upsert( $unit );
-				}
+				$this->enqueue_sync( $canonical, $this->is_published( $canonical ) );
 				return;
 			}
 			// Canonical gone too → fall through; product_group_id() collapses
@@ -297,6 +300,30 @@ class CatalogHookHandler {
 	 */
 	public static function reset_seen(): void {
 		self::$seen = array();
+	}
+
+	/**
+	 * Enqueue every unit of $product as it should stand in the engine now: a
+	 * published product upserts (the flusher loads it fresh), any other status
+	 * goes out as the in_stock=false removal (PRO-3884).
+	 */
+	private function enqueue_sync( \WC_Product $product, bool $published ): void {
+		foreach ( $this->builder->expand( $product ) as $unit ) {
+			if ( $published ) {
+				$this->enqueue_upsert( $unit );
+			} else {
+				$this->enqueue_delete( $unit );
+			}
+		}
+	}
+
+	/**
+	 * Whether the product's PARENT post is published — a variation follows its
+	 * variable product, as in the catalog import (PRO-3884).
+	 */
+	private function is_published( \WC_Product $product ): bool {
+		$post_id = $product->is_type( 'variation' ) ? (int) $product->get_parent_id() : (int) $product->get_id();
+		return $this->post_status( $post_id ) === 'publish';
 	}
 
 	private function enqueue_upsert( \WC_Product $unit ): void {
