@@ -1001,6 +1001,24 @@ footprint is not only its PHP on the request path:
    of THAT slowness — while the audit still found the four residues above.
    Both statements are true; report both.
 
+### 2.28 A guarded write whose guard the code itself just changed guards nothing (PRO-3868, contact import, 2026-10-06)
+
+PRO-3821 made the contact import's final progress write conditional:
+`UPDATE … WHERE status = <the status this batch read>`, so a cancel that
+lands mid-batch survives. The failure branch then wrote `failed` AND set
+the guard variable to `failed` — so the guarded write matched the row the
+batch had just failed and overwrote it with `running`/`completed`, and
+moved the cursor past the users of that page that were never sent. The
+merchant never saw the failure or the retry it promises. Two rules:
+1. **A compare-and-set guard holds the value read BEFORE the work.** If a
+   branch writes a terminal state, it returns; it does not update the
+   guard so a later write can still match.
+2. **Every terminal state is a stop state for a claimed tick**, not only
+   the one the last bug was about — `cancelled` and `failed` alike send
+   nothing and stop the chain; only `start()` leaves them.
+The unit test asserted only `updates[0]` was `failed`, while its comment
+said "no further updates" — assert the count, not just the first write.
+
 ---
 
 ## 4. Concrete checklist for the start of a new project
