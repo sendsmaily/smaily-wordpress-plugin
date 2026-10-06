@@ -31,7 +31,8 @@ use WP_REST_Response;
  *   GET    /backfill/status  query: ?job_type=contacts
  *                            → {"status": "running|completed|failed|idle",
  *                               "processed": int, "total": int,
- *                               "percent": int, "eta_seconds": int|null}
+ *                               "percent": int, "eta_seconds": int|null,
+ *                               "error": string|null}
  *
  *   POST   /backfill/cancel  body: {"job_type": "contacts"}
  *                            → {"cancelled": bool}
@@ -200,6 +201,7 @@ class BackfillEndpoint {
 					'total'             => 0,
 					'percent'           => 0,
 					'eta_seconds'       => null,
+					'error'             => null,
 					'started_at'        => null,
 					'completed_at'      => null,
 					'audience_estimate' => $this->contact_audience_estimate( $job_type, 'idle' ),
@@ -211,8 +213,9 @@ class BackfillEndpoint {
 		// A Campaign Intelligence import that nothing drives any more reads
 		// as stopped, so the panel offers Import now again (PRO-3886). The
 		// row itself is left alone — nothing restarts it.
-		$status = (string) $row['status'];
-		if ( $job_type !== BackfillJob::BACKFILL_TYPE && AbstractBackfillJob::is_stalled( $job_type, $row ) ) {
+		$status  = (string) $row['status'];
+		$stalled = $job_type !== BackfillJob::BACKFILL_TYPE && AbstractBackfillJob::is_stalled( $job_type, $row );
+		if ( $stalled ) {
 			$status = BackfillJobInterface::STATUS_FAILED;
 		}
 
@@ -252,12 +255,39 @@ class BackfillEndpoint {
 				'total'             => $total,
 				'percent'           => min( 100, max( 0, $percent ) ),
 				'eta_seconds'       => $this->estimate_eta( $row, $processed, $total ),
+				'error'             => $this->failure_reason( $status, $row, $stalled ),
 				'started_at'        => isset( $row['started_at'] ) ? (string) $row['started_at'] : null,
 				'completed_at'      => isset( $row['completed_at'] ) ? (string) $row['completed_at'] : null,
 				'audience_estimate' => $this->contact_audience_estimate( $job_type, $status ),
 			),
 			200
 		);
+	}
+
+	/**
+	 * Why a failed import stopped, for the panel (PRO-3881): the stored reason
+	 * — what Smaily answered for the contact import, the error class and line
+	 * for a Campaign Intelligence import (PRO-3890) — with anything shaped like
+	 * an email address masked, or a plain sentence for an import that nothing
+	 * drives any more (PRO-3886). Null for any other status.
+	 *
+	 * @param array<string, mixed> $row
+	 */
+	private function failure_reason( string $status, array $row, bool $stalled ): ?string {
+		if ( $status !== BackfillJobInterface::STATUS_FAILED ) {
+			return null;
+		}
+
+		if ( $stalled ) {
+			return __( 'The import stopped running in the background.', 'smaily-connect' );
+		}
+
+		$stored = trim( (string) ( $row['error_message'] ?? '' ) );
+		if ( $stored === '' ) {
+			return null;
+		}
+
+		return (string) preg_replace( '/[^\s@]+@[^\s@]+/', '[email]', $stored );
 	}
 
 	/**

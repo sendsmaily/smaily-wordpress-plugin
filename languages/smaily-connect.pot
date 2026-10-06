@@ -247,6 +247,10 @@ msgstr ""
 msgid "This connection is not configured yet. Finish setup first."
 msgstr ""
 
+#: includes/REST/BackfillEndpoint.php:282
+msgid "The import stopped running in the background."
+msgstr ""
+
 #: includes/REST/BackfillEndpoint.php:421
 msgid "Unsupported job_type."
 msgstr ""

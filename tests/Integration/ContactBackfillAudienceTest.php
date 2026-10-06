@@ -420,6 +420,7 @@ final class ContactBackfillAudienceTest extends TestCase {
 
 			$status = RestRequestHelper::get( '/backfill/status', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) );
 			self::assertSame( BackfillJobInterface::STATUS_FAILED, $status->get_data()['status'], 'The screen shows the failure.' );
+			self::assertSame( 'Smaily API returned HTTP 500 for POST contact', $status->get_data()['error'], 'The screen shows Smaily\'s reason (PRO-3881).' );
 
 			// The merchant's retry: Smaily answers again, Start import is pressed.
 			$fail_broken = false;

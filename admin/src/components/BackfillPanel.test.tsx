@@ -13,6 +13,7 @@ const IDLE = {
   total: 0,
   percent: 0,
   eta_seconds: null,
+  error: null,
   started_at: null,
   completed_at: null,
   audience_estimate: null,
@@ -67,6 +68,7 @@ describe('BackfillPanel', () => {
       total: 7794,
       percent: 100,
       eta_seconds: null,
+      error: null,
       started_at: '2026-06-14 10:00:00',
       completed_at: '2026-06-14 10:05:00',
       audience_estimate: null,
@@ -76,6 +78,24 @@ describe('BackfillPanel', () => {
 
     expect(await screen.findByText(/1354 products synced/i)).toBeInTheDocument();
     expect(screen.queryByText(/of 7794/i)).not.toBeInTheDocument();
+  });
+
+  it('shows why a failed import stopped (PRO-3881)', async () => {
+    vi.spyOn(api, 'getBackfillStatus').mockResolvedValue({
+      ...IDLE,
+      status: 'failed',
+      processed: 100,
+      total: 200,
+      percent: 50,
+      started_at: '2026-10-06 10:00:00',
+      error: 'The import stopped running in the background.',
+    });
+
+    render(<BackfillPanel jobType="orders" label="Orders" recordCount={200} />);
+
+    expect(
+      await screen.findByText('Backfill failed: The import stopped running in the background.'),
+    ).toBeInTheDocument();
   });
 
   it('starts the backfill for its own job type on click', async () => {

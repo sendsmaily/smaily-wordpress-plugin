@@ -89,7 +89,9 @@ final class RecEngineImportStopTest extends TestCase {
 		self::assertStringStartsWith( 'RuntimeException at ', (string) $row['error_message'], 'The reason names the error class and where it was thrown.' );
 		self::assertStringNotContainsString( 'database went away', (string) $row['error_message'], 'No message text, which could carry personal data.' );
 		self::assertFalse( $this->tick_queued(), 'No further batch is scheduled.' );
-		self::assertSame( BackfillJobInterface::STATUS_FAILED, $this->status_route()['status'], 'The Settings screen reads it as stopped.' );
+		$status = $this->status_route();
+		self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'], 'The Settings screen reads it as stopped.' );
+		self::assertSame( $row['error_message'], $status['error'], 'The Settings screen shows why (PRO-3881).' );
 
 		$start = RestRequestHelper::post( '/backfill/start', array( 'job_type' => self::JOB_TYPE ) );
 		self::assertSame( 200, $start->get_status() );
@@ -127,7 +129,9 @@ final class RecEngineImportStopTest extends TestCase {
 		$this->backdate_start( 20 * MINUTE_IN_SECONDS ); // Past the grace period.
 		self::assertFalse( $job->is_running(), 'Nothing drives it any more.' );
 		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->job_row()['status'], 'Nothing restarts or rewrites it.' );
-		self::assertSame( BackfillJobInterface::STATUS_FAILED, $this->status_route()['status'], 'The Settings screen shows it stopped.' );
+		$status = $this->status_route();
+		self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'], 'The Settings screen shows it stopped.' );
+		self::assertSame( 'The import stopped running in the background.', $status['error'], 'The Settings screen says why (PRO-3881).' );
 		self::assertFalse( $this->tick_queued(), 'It is not restarted automatically.' );
 
 		do_action( CatalogManifest::HOOK );
@@ -136,7 +140,9 @@ final class RecEngineImportStopTest extends TestCase {
 		$start = RestRequestHelper::post( '/backfill/start', array( 'job_type' => self::JOB_TYPE ) );
 		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $start->get_data()['status'] );
 		self::assertTrue( $job->is_running(), 'Import now runs it again.' );
-		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->status_route()['status'] );
+		$status = $this->status_route();
+		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $status['status'] );
+		self::assertNull( $status['error'], 'A running import has no failure reason.' );
 	}
 
 	// --- helpers -------------------------------------------------------------
