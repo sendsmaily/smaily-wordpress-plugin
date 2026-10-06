@@ -41,7 +41,9 @@ release's security delta re-audit must cover it.)_
 
 Also 2026-10-06 (**3.16.0 audit Lows — Erkki: fix both before the cut; on a
 PR branch:** PRO-3831 — the Elementor action sends `elementor_form_url` only
-for a page on the store's own host (DECISIONS PRO-3831; docs site EN+ET).)
+for a page on the store's own host; PRO-3832 — a page that shows
+recommendation cards sets `DONOTCACHEPAGE` and no-cache headers, a page with
+no cards stays cacheable (DECISIONS PRO-3831 / PRO-3832; docs site EN+ET).)
 
 Also 2026-10-06 (**3.16.0 security delta audit, `3afff33..066724d`: 0
 Blocking/Critical/High/Medium, 2 Low, 10 Info — 3.16.0 may proceed;** both Lows

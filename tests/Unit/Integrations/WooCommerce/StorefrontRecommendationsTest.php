@@ -177,6 +177,66 @@ final class StorefrontRecommendationsTest extends TestCase {
 		self::assertSame( array(), $this->transients );
 	}
 
+	public function test_a_page_with_cards_is_marked_not_to_be_cached_with_the_constant_and_the_headers(): void {
+		$marked = $this->record_marking();
+
+		$this->marker( false )->mark();
+
+		self::assertSame( array( 'DONOTCACHEPAGE' => true, 'nocache_headers' => 1 ), $marked->getArrayCopy() );
+	}
+
+	public function test_once_the_headers_are_sent_only_the_constant_is_set(): void {
+		$marked = $this->record_marking();
+
+		$this->marker( true )->mark();
+
+		self::assertSame( array( 'DONOTCACHEPAGE' => true ), $marked->getArrayCopy() );
+	}
+
+	/**
+	 * Records the constants defined through WooCommerce's helper and the
+	 * no-cache header calls.
+	 *
+	 * @return \ArrayObject<string, mixed>
+	 */
+	private function record_marking(): \ArrayObject {
+		$marked = new \ArrayObject();
+		Functions\when( 'wc_maybe_define_constant' )->alias(
+			static function ( string $name, $value ) use ( $marked ): void {
+				$marked[ $name ] = $value;
+			}
+		);
+		Functions\when( 'nocache_headers' )->alias(
+			static function () use ( $marked ): void {
+				$marked['nocache_headers'] = ( $marked['nocache_headers'] ?? 0 ) + 1;
+			}
+		);
+		return $marked;
+	}
+
+	/**
+	 * The renderer with its do-not-cache step exposed and the headers-sent
+	 * seam fixed (PRO-3832). The marking touches none of the constructor's
+	 * collaborators.
+	 */
+	private function marker( bool $headers_sent ): object {
+		return new class( $headers_sent ) extends StorefrontRecommendations {
+			private bool $headers_sent;
+
+			public function __construct( bool $headers_sent ) {
+				$this->headers_sent = $headers_sent;
+			}
+
+			public function mark(): void {
+				$this->mark_not_cacheable();
+			}
+
+			protected function headers_already_sent(): bool {
+				return $this->headers_sent;
+			}
+		};
+	}
+
 	private function service( bool $sending_allowed = true, bool $may_profile = true ): StorefrontRecommendations {
 		$settings = new class( $sending_allowed ) extends RecEngineSettings {
 			private bool $allowed;

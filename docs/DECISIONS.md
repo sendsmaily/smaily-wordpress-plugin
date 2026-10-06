@@ -7269,6 +7269,27 @@ permanent, merchant-visible field name; accept the risk — rejected by Erkki
 **Relationships:** PRO-3806 (the action); the host rule mirrors
 `SetupExchange::is_allowed_engine_url()` (PRO-3623).
 
+### PRO-3832 — A page that shows recommendation cards is marked not to be cached (2026-10-06)
+
+**Context:** the 3.16.0 security delta audit (Low 2). The recommendations block
+and shortcode print one shopper's cards (and their `rec_id`s) into the page
+HTML with no do-not-cache signal. A cache that does not skip logged-in visitors
+(a CDN "cache everything" rule, a cookie-stripping Varnish) would serve them to
+every later visitor and credit their purchases to the first shopper.
+**Decision:** when `StorefrontRecommendations::render()` returns cards it calls
+`wc_maybe_define_constant( 'DONOTCACHEPAGE', true )` and, while headers are not
+yet sent, `nocache_headers()`. A render with nothing in the slot sets neither,
+so the page stays cacheable. `headers_already_sent()` is the LandingCapture-style
+test seam. The docs site says so (EN+ET).
+**Rationale:** `DONOTCACHEPAGE` is honoured by the common WordPress page
+caches; the headers cover a proxy or CDN in front. Marking only when cards show
+keeps the cost on the pages that need it.
+**Alternatives:** client-side rendering — rejected in PRO-3788 (the engine key
+stays on the server); accept the risk — rejected by Erkki (2026-10-06, fix
+before 3.16.0).
+**Relationships:** PRO-3788 (the block); WooCommerce marks its own cart and
+checkout pages the same way.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

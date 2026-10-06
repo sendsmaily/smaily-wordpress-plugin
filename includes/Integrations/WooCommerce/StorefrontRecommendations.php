@@ -45,7 +45,8 @@ use Smaily\Connect\Support\DebugLog;
  * the answer. A product the store no longer shows (unpublished, hidden, or
  * out of stock while the store hides those) is left out. Each link carries
  * `smaily_rec` + `smaily_ctx=storefront`, so LandingCapture stamps the
- * purchase as a storefront credit (§15 Attribution).
+ * purchase as a storefront credit (§15 Attribution). A page that shows cards
+ * is marked not to be cached (PRO-3832).
  *
  * Not final: unit tests drive slots() without WooCommerce.
  */
@@ -132,12 +133,37 @@ class StorefrontRecommendations {
 			return '';
 		}
 
+		$this->mark_not_cacheable();
+
 		return sprintf(
 			'<section class="smaily-connect-recommendations woocommerce"><h2 class="smaily-connect-recommendations__title">%1$s</h2><ul class="products columns-%2$d">%3$s</ul></section>',
 			esc_html__( 'Recommended for you', 'smaily-connect' ),
 			self::LIMIT,
 			$cards
 		);
+	}
+
+	/**
+	 * Tell page caches not to store this page: its cards belong to one
+	 * shopper (PRO-3832). `DONOTCACHEPAGE` is honoured by the common WordPress
+	 * page caches; the no-cache headers cover a proxy or CDN in front. Called
+	 * only when cards are shown, so a page with nothing in the slot stays
+	 * cacheable.
+	 */
+	protected function mark_not_cacheable(): void {
+		wc_maybe_define_constant( 'DONOTCACHEPAGE', true );
+		if ( ! $this->headers_already_sent() ) {
+			nocache_headers();
+		}
+	}
+
+	/**
+	 * Whether the response headers have already been sent. A seam so tests can
+	 * exercise the header path — PHPUnit's own progress output makes the bare
+	 * headers_sent() true mid-suite (the LandingCapture pattern).
+	 */
+	protected function headers_already_sent(): bool {
+		return headers_sent();
 	}
 
 	/**
