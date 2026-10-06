@@ -336,7 +336,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, status, processed_count, synced_count, total_count, started_at, completed_at FROM {$table} WHERE job_type = %s AND target = %s",
+				"SELECT id, status, processed_count, synced_count, total_count, started_at, completed_at, error_message FROM {$table} WHERE job_type = %s AND target = %s",
 				$job_type,
 				$target
 			),

@@ -202,6 +202,10 @@ msgstr "Sul ei ole õigust imporditöid hallata."
 msgid "This connection is not configured yet. Finish setup first."
 msgstr "See ühendus on veel seadistamata. Lõpeta kõigepealt seadistamine."
 
+#: includes/REST/BackfillEndpoint.php:282
+msgid "The import stopped running in the background."
+msgstr "Import lakkas taustal töötamast."
+
 #: includes/REST/BackfillEndpoint.php:421
 msgid "Unsupported job_type."
 msgstr "Toetamata töötüüp (job_type)."

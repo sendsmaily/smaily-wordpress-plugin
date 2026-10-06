@@ -1377,38 +1377,38 @@ td code{white-space:nowrap}
   <div class="sub" id="imp-progress">
     <h2><span data-lang="en">Reading the progress</span><span data-lang="et">Edenemise lugemine</span></h2>
     <div data-lang="en">
-      <p>While running you'll see <strong>Importing…</strong> and a count. The number is <strong>engine‑confirmed</strong> — it reflects records the destination actually accepted, not just records read. When it finishes, the status line means:</p>
+      <p>While it runs, the <strong>Contacts</strong> import's button reads <strong>Running…</strong> and the line under the bar <em>Checked N of M contacts — N contacts synced.</em>; a <strong>Products</strong>, <strong>Customers</strong> or <strong>Orders</strong> import's button reads <strong>Importing…</strong> and the line <em>Synced N products · P% complete</em> (customers or orders for the other two). The synced number counts records the destination actually accepted, not just records read. When the import ends, the status line means:</p>
       <div class="tw">
         <table>
           <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
           <tbody>
-            <tr><td><strong>Done — N synced.</strong></td><td>Everything imported cleanly.</td></tr>
-            <tr><td><strong>Done — N of M synced.</strong></td><td>Finished; a few records were rejected (usually invalid data). The rest are in.</td></tr>
+            <tr><td><strong>Done — N contacts synced (M contacts checked).</strong></td><td>Contacts import: finished. N is the contacts of your sync audience that are up to date in Smaily; M is every store user checked, including the ones outside your sync audience.</td></tr>
+            <tr><td><strong>Done — N products synced.</strong></td><td>Products, Customers or Orders import (customers or orders for the other two): finished.</td></tr>
             <tr><td><strong>Nothing to import — no contacts match your synchronization settings.</strong></td><td>Contacts import only: nobody on the store is in your sync audience, so there was nothing to send. The run finishes immediately. Check the switch and the mode under <a href="#set-subscribers">Contacts</a>.</td></tr>
-            <tr><td><strong>Stopped — N processed before an error.</strong></td><td>The import hit a real error and halted. See the error banner for what to do.</td></tr>
-            <tr><td><strong>Cancelled — N processed.</strong></td><td>You cancelled it.</td></tr>
+            <tr><td><strong>Backfill failed: </strong><em>reason</em></td><td>The import stopped on an error. The reason after the colon is Smaily's answer for the Contacts import, or the error and where it happened for the other imports. Press <strong>Start import</strong> (Contacts) or <strong>Import now</strong> (Products, Customers, Orders) again to retry; a Contacts retry sends every contact again from the first one.</td></tr>
+            <tr><td><strong>Backfill cancelled. Re-run when ready.</strong></td><td>You cancelled it. The same button starts it again.</td></tr>
           </tbody>
         </table>
       </div>
-      <p>If some records failed you'll see a <em>N failed — see Event Log</em> link. Open it to see exactly which records and why (see <a href="#err-retry">Failed events &amp; retry</a>).</p>
-      <p>A <strong>Products</strong>, <strong>Customers</strong> or <strong>Orders</strong> import that stops on an error, or that has nothing driving it any more (for example after the plugin was deactivated during the import), shows as stopped; <strong>Import now</strong> runs it again.</p>
+      <p>If the engine rejected some records, a Products, Customers or Orders import also shows <em>N records failed to sync — see the Event Log for details.</em> Open the Event Log to see exactly which records and why (see <a href="#err-retry">Failed events &amp; retry</a>).</p>
+      <p>A <strong>Products</strong>, <strong>Customers</strong> or <strong>Orders</strong> import that stops on an error, or that has nothing driving it any more (for example after the plugin was deactivated during the import), shows <strong>Backfill failed:</strong> — in the second case with the reason <em>The import stopped running in the background.</em>; <strong>Import now</strong> runs it again.</p>
     </div>
     <div data-lang="et">
-      <p>Jooksmise ajal näed <strong>Importing…</strong> ja loendurit. Number on <strong>mootori‑kinnitatud</strong> — see peegeldab kirjeid, mille sihtkoht päriselt vastu võttis, mitte lihtsalt loetud kirjeid. Lõppedes tähendab olekurida:</p>
+      <p>Töö ajal on <strong>Contacts</strong> impordi nupul <strong>Töötab…</strong> ja edenemisriba all rida <em>N kontakti M-st kontrollitud — N kontakti imporditud.</em>; <strong>Products</strong>, <strong>Customers</strong> või <strong>Orders</strong> impordi nupul on <strong>Impordin…</strong> ja rida <em>Sünkroonitud N tooted · P% valmis</em> (teistel kahel kliendid või tellimused). Sünkroonitud arv loeb kirjeid, mille sihtkoht päriselt vastu võttis, mitte lihtsalt loetud kirjeid. Impordi lõppedes tähendab olekurida:</p>
       <div class="tw">
         <table>
           <thead><tr><th>Olek</th><th>Tähendus</th></tr></thead>
           <tbody>
-            <tr><td><strong>Done — N synced.</strong></td><td>Kõik imporditi puhtalt.</td></tr>
-            <tr><td><strong>Done — N of M synced.</strong></td><td>Lõpetatud; mõni kirje lükati tagasi (tavaliselt vigased andmed). Ülejäänud on sees.</td></tr>
-            <tr><td><strong>Nothing to import — no contacts match your synchronization settings.</strong></td><td>Ainult kontaktide import: ükski poe kasutaja ei kuulu sinu sünkroniseerimise sihtrühma, seega polnud midagi saata. Import lõpeb kohe. Kontrolli lülitit ja režiimi jaotises <a href="#set-subscribers">Kontaktid</a>.</td></tr>
-            <tr><td><strong>Stopped — N processed before an error.</strong></td><td>Import sattus päris veale ja peatus. Vaata veabännerit, mida teha.</td></tr>
-            <tr><td><strong>Cancelled — N processed.</strong></td><td>Sina katkestasid.</td></tr>
+            <tr><td><strong>Valmis — N kontakti imporditud (M kontakti kontrollitud).</strong></td><td>Kontaktide import: lõpetatud. N on sinu sünkroniseerimise sihtrühma kontaktid, mis on Smailys ajakohased; M on kõik kontrollitud poe kasutajad, ka need, kes sinu sünkroniseerimise sihtrühma ei kuulu.</td></tr>
+            <tr><td><strong>Valmis — sünkroonitud N tooted.</strong></td><td>Products, Customers või Orders import (teistel kahel kliendid või tellimused): lõpetatud.</td></tr>
+            <tr><td><strong>Pole midagi importida — ükski kontakt ei vasta sinu sünkroniseerimise seadetele.</strong></td><td>Ainult kontaktide import: ükski poe kasutaja ei kuulu sinu sünkroniseerimise sihtrühma, seega polnud midagi saata. Import lõpeb kohe. Kontrolli lülitit ja režiimi jaotises <a href="#set-subscribers">Kontaktid</a>.</td></tr>
+            <tr><td><strong>Import ebaõnnestus: </strong><em>põhjus</em></td><td>Import peatus vea tõttu. Koolonile järgnev põhjus on kontaktide impordi puhul Smaily vastus, teiste impordite puhul viga ja koht, kus see tekkis. Uuesti proovimiseks vajuta uuesti <strong>Alusta importi</strong> (Contacts) või <strong>Impordi kohe</strong> (Products, Customers, Orders); kontaktide import saadab kordamisel kõik kontaktid uuesti, alates esimesest.</td></tr>
+            <tr><td><strong>Import tühistatud. Käivita uuesti, kui valmis.</strong></td><td>Sina katkestasid. Sama nupp käivitab selle uuesti.</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Kui mõni kirje ebaõnnestus, näed linki <em>N failed — see Event Log</em>. Ava see, et näha, millised kirjed täpselt ja miks (vt <a href="#err-retry">Ebaõnnestunud sündmused &amp; kordus</a>).</p>
-      <p><strong>Products</strong>, <strong>Customers</strong> või <strong>Orders</strong> import, mis peatub vea tõttu või mida miski enam edasi ei vii (näiteks kui plugin impordi ajal deaktiveeriti), näitab end peatununa; <strong>Impordi kohe</strong> käivitab selle uuesti.</p>
+      <p>Kui mootor mõne kirje tagasi lükkas, näitab Products, Customers või Orders import ka rida <em>N kirjet ei sünkroonitud — vaata üksikasju sündmuste logist.</em> Ava sündmuste logi, et näha, millised kirjed täpselt ja miks (vt <a href="#err-retry">Ebaõnnestunud sündmused &amp; kordus</a>).</p>
+      <p><strong>Products</strong>, <strong>Customers</strong> või <strong>Orders</strong> import, mis peatub vea tõttu või mida miski enam edasi ei vii (näiteks kui plugin impordi ajal deaktiveeriti), näitab <strong>Import ebaõnnestus:</strong> — teisel juhul põhjusega <em>Import lakkas taustal töötamast.</em>; <strong>Impordi kohe</strong> käivitab selle uuesti.</p>
     </div>
   </div>
   <hr class="secend">

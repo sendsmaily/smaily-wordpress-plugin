@@ -166,6 +166,62 @@ final class BackfillEndpointTest extends TestCase {
 		// 50 items in ~60s → ~0.83 items/sec; 150 remaining → ~180s ETA.
 		self::assertGreaterThan( 100, $data['eta_seconds'] );
 		self::assertLessThan( 300, $data['eta_seconds'] );
+		self::assertNull( $data['error'], 'A running import has no failure reason.' );
+	}
+
+	/**
+	 * PRO-3881: the panel shows why an import failed — the stored reason,
+	 * with any email address masked before it leaves the server.
+	 */
+	public function test_status_returns_the_stored_reason_of_a_failed_import_without_email_addresses(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'contacts' );
+
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 77,
+				'status'          => BackfillJobInterface::STATUS_FAILED,
+				'processed_count' => '100',
+				'total_count'     => '200',
+				'started_at'      => '2026-10-06 10:00:00',
+				'completed_at'    => null,
+				'error_message'   => 'Smaily HTTP transport error: cURL error 6 for jane.doe+news@example.com',
+			)
+		);
+
+		$endpoint = new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) );
+		$data     = $endpoint->status( $request )->get_data();
+
+		self::assertSame( BackfillJobInterface::STATUS_FAILED, $data['status'] );
+		self::assertSame( 'Smaily HTTP transport error: cURL error 6 for [email]', $data['error'] );
+	}
+
+	/**
+	 * PRO-3881: a Campaign Intelligence import nothing drives any more reads
+	 * as failed (PRO-3886) and says so — its row stores no reason.
+	 */
+	public function test_status_explains_a_stalled_campaign_intelligence_import(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'products' );
+
+		Functions\when( 'as_has_scheduled_action' )->justReturn( false );
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 78,
+				'status'          => BackfillJobInterface::STATUS_RUNNING,
+				'processed_count' => '100',
+				'total_count'     => '200',
+				'started_at'      => gmdate( 'Y-m-d H:i:s', time() - 3600 ),
+				'completed_at'    => null,
+				'error_message'   => null,
+			)
+		);
+
+		$endpoint = new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) );
+		$data     = $endpoint->status( $request )->get_data();
+
+		self::assertSame( BackfillJobInterface::STATUS_FAILED, $data['status'] );
+		self::assertSame( 'The import stopped running in the background.', $data['error'] );
 	}
 
 	public function test_cancel_writes_cancelled_status_and_unschedules_ticks(): void {

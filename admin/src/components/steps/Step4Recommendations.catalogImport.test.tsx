@@ -16,6 +16,7 @@ const STATUS = {
   total: 3,
   percent: 0,
   eta_seconds: null,
+  error: null,
   started_at: '2026-10-05 10:00:00',
   completed_at: null,
   audience_estimate: null,

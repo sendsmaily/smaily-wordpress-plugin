@@ -35,6 +35,7 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
     total: 0,
     percent: 0,
     eta_seconds: null,
+    error: null,
     started_at: null,
     completed_at: null,
     audience_estimate: null,
@@ -137,5 +138,29 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
       await screen.findByText(/Nothing to import — no contacts match your synchronization settings\./i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Done — 0 contacts synced/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * PRO-3881: a failed contact import shows Smaily's reason, which the status
+   * route returns, instead of a bare "Backfill failed.".
+   */
+  it('shows why a failed contact import stopped', async () => {
+    vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(
+      status({
+        status: 'failed',
+        processed: 100,
+        synced: 99,
+        total: 30000,
+        percent: 0,
+        started_at: '2026-10-06 10:00:00',
+        error: 'Smaily API returned HTTP 500 for POST contact',
+      }),
+    );
+
+    render(<Step2Subscribers state={state} dispatch={vi.fn()} />);
+
+    expect(
+      await screen.findByText('Backfill failed: Smaily API returned HTTP 500 for POST contact'),
+    ).toBeInTheDocument();
   });
 });
