@@ -62,6 +62,18 @@ nightly catalog manifest (optional, new behaviour not built); no wire shape we
 send changed. Gates: ci:strict exit=0 (unit 1090, vitest 375); integration
 364 OK on the Mac.)
 
+Also 2026-10-06 (**3.16.0 security delta audit, part 2, `066724d..1fcae5d`:
+0 Blocking/Critical/High, 1 Medium, 2 Low, 8 Info — 3.16.0 may proceed once
+the Medium is fixed or Erkki accepts it.** Medium: `LandingCapture` takes a
+`vs_` token from `?smaily_vt=`, so a link can plant a known token that the
+victim's next guest order binds; fix: URL capture accepts `vt_` only. Lows: no
+server-side consent check before a `vs_` token is sent (orders, `/recommendations`);
+no store-wide breaker on the 10 s engine call —
+`docs/audits/SECURITY_DELTA_AUDIT_2026-10-06_3.16.0_PART2.md`. **Disposition:**
+M1, L2, L3 fixed before the cut in #172 (PRO-3857), Erkki 2026-10-06;
+follow-ups PRO-3860 (identity merge / relay token consent, fixing before
+3.16.0) and PRO-3859 (nightly manifest, after 3.16.0).)
+
 Also 2026-10-06 (**Contract v1.10.0 synced byte-identical** to engine
 `967287f541fa` (PRO-3834; md5 e4b739e0…): §15 also takes
 `smaily_visitor_token` in place of `customer_external_id` (customer id wins
