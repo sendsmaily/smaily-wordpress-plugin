@@ -542,7 +542,8 @@ td code{white-space:nowrap}
     <div data-lang="en">
       <p><em>Only if you connected Campaign Intelligence in Step 1.</em> This step seeds the engine and turns on the optional signals.</p>
       <p><strong>Syncing is automatic.</strong> Once connected, your <strong>products, customers and orders</strong> sync to the engine on their own — there's nothing to switch on per data type.</p>
-      <p><strong>Import existing data:</strong> run the <strong>Products</strong>, <strong>Customers</strong> and <strong>Orders</strong> backfills (one <strong>Start</strong> each) so the engine has history to learn from. Safe to re‑run — duplicates are impossible by design.</p>
+      <p><strong>The catalog import starts when you connect.</strong> Connecting sends your whole product catalog to the engine once, in the background; after that only changes are sent (a product save, a stock change, a deletion). A <strong>Catalog import started</strong> notice appears right after you connect. The first products go out about 3 minutes later — press <strong>Hold back</strong> before then and nothing is sent. You can start the catalog import again any time with <strong>Import now</strong> next to <strong>Products</strong>. If a catalog import is already running, connecting again does not start a second one.</p>
+      <p><strong>Import existing data:</strong> run the <strong>Customers</strong> and <strong>Orders</strong> imports (one <strong>Import now</strong> each) so the engine has history to learn from — they stay your choice and never start on their own. <strong>Products</strong> is here too, to run the catalog import again. Safe to re‑run — duplicates are impossible by design.</p>
       <h3>Browse tracking (opt‑in)</h3>
       <p>The <strong>Track browsing behavior</strong> toggle is <strong>off by default</strong>. It powers "similar products" recommendations from what shoppers view, and it is <strong>consent‑gated</strong>: browse events only fire for visitors who have granted marketing consent.</p>
       <div class="note">
@@ -560,7 +561,8 @@ td code{white-space:nowrap}
     <div data-lang="et">
       <p><em>Ainult siis, kui ühendasid Campaign Intelligence'i 1. sammus.</em> See samm annab mootorile alusandmed ja lülitab sisse valikulised signaalid.</p>
       <p><strong>Sünkroonimine on automaatne.</strong> Kui ühendatud, sünkroonivad su <strong>tooted, kliendid ja tellimused</strong> mootorisse iseenesest — andmetüübi kaupa pole midagi sisse lülitada.</p>
-      <p><strong>Impordi olemasolevad andmed:</strong> käivita <strong>Products</strong>, <strong>Customers</strong> ja <strong>Orders</strong> backfill'id (igaühe <strong>Start</strong>), et mootoril oleks ajalugu, millest õppida. Kordamine on ohutu — duplikaadid on disaini poolest võimatud.</p>
+      <p><strong>Kataloogi import käivitub ühendamisel.</strong> Ühendamine saadab kogu su tootekataloogi mootorisse üks kord, taustal; pärast seda saadetakse ainult muudatused (toote salvestamine, laoseisu muutus, kustutamine). Kohe pärast ühendamist ilmub teade <strong>Kataloogi import käivitus</strong>. Esimesed tooted lähevad teele umbes 3 minuti pärast — vajuta enne seda <strong>Peata import</strong> ja midagi ei saadeta. Kataloogi impordi saad igal ajal uuesti käivitada nupuga <strong>Impordi kohe</strong> rea <strong>Tooted</strong> juures. Kui kataloogi import juba käib, ei käivita uus ühendamine teist.</p>
+      <p><strong>Impordi olemasolevad andmed:</strong> käivita <strong>Kliendid</strong> ja <strong>Tellimused</strong> import (igaühe <strong>Impordi kohe</strong>), et mootoril oleks ajalugu, millest õppida — need jäävad sinu valikuks ega käivitu iseenesest. Siin on ka <strong>Tooted</strong>, et kataloogi importi uuesti käivitada. Kordamine on ohutu — duplikaadid on disaini poolest võimatud.</p>
       <h3>Sirvimise jälgimine (opt‑in)</h3>
       <p>Lüliti <strong>Track browsing behavior</strong> on <strong>vaikimisi väljas</strong>. See toidab "sarnaste toodete" soovitusi selle põhjal, mida külastajad vaatavad, ja on <strong>nõusolekuga piiratud</strong>: sirvimissündmused käivituvad ainult külastajatel, kes on andnud turundusnõusoleku.</p>
       <div class="note">
@@ -1026,7 +1028,7 @@ td code{white-space:nowrap}
     <div data-lang="en">
       <p>When connected, this tab shows the connection (with <strong>Test</strong> and <strong>Disconnect</strong>) plus:</p>
       <ul>
-        <li><strong>Import existing data</strong> — seed history so recommendations have something to learn from (Products / Customers / Orders). Safe to re‑run.</li>
+        <li><strong>Import existing data</strong> — seed history so recommendations have something to learn from (Products / Customers / Orders). Safe to re‑run. The Products (catalog) import starts on its own when you connect, with a <strong>Hold back</strong> button in the notice that appears (see <a href="#step4">Step 4</a>); Customers and Orders start only when you press <strong>Import now</strong>.</li>
         <li><strong>Browse tracking</strong> — captures product and category views to power "similar products" recommendations. Off by default; only runs when the visitor has granted marketing consent (see <a href="#step4">Step 4</a>).</li>
         <li><strong>Recommendation attribution</strong> — credits store purchases to the recommendation that drove them. It runs automatically once the engine is connected: when a shopper lands from a recommendation link, the plugin captures the attribution parameters and stamps them onto the resulting order. No consent gate and nothing to switch on. The capture happens both on the server and in the browser (a small script the plugin loads on your storefront), so it keeps working behind a page cache and with browse tracking switched off. A click on the <a href="#set-integrations">Recommendations block</a> is credited to the store, and a later email click to the email — the last click wins.</li>
       </ul>
@@ -1035,7 +1037,7 @@ td code{white-space:nowrap}
     <div data-lang="et">
       <p>Kui ühendatud, näitab see vahekaart ühendust (koos <strong>Test</strong> ja <strong>Disconnect</strong>) ning lisaks:</p>
       <ul>
-        <li><strong>Import existing data</strong> — anna ajalugu, millest soovitused õppida saavad (Products / Customers / Orders). Kordamine on ohutu.</li>
+        <li><strong>Import existing data</strong> — anna ajalugu, millest soovitused õppida saavad (Products / Customers / Orders). Kordamine on ohutu. Toodete (kataloogi) import käivitub ühendamisel iseenesest ja ilmuvas teates on nupp <strong>Peata import</strong> (vt <a href="#step4">4. samm</a>); Kliendid ja Tellimused käivituvad ainult siis, kui vajutad <strong>Impordi kohe</strong>.</li>
         <li><strong>Browse tracking</strong> — jäädvustab toote‑ ja kategooria‑vaatamised, et toita "sarnaste toodete" soovitusi. Vaikimisi väljas; töötab ainult siis, kui külastaja on andnud turundusnõusoleku (vt <a href="#step4">4. samm</a>).</li>
         <li><strong>Recommendation attribution</strong> — omistab poe ostud soovitusele, mis need tõi. See töötab automaatselt, niipea kui mootor on ühendatud: kui klient saabub soovituslingilt, jäädvustab plugin atribuutsiooni‑parameetrid ja märgib need tekkivale tellimusele. Nõusoleku‑väravat pole ja midagi pole sisse lülitada. Jäädvustamine toimub nii serveris kui ka brauseris (plugin laadib poe lehele väikese skripti), nii et see töötab ka lehecache'i taga ja siis, kui sirvimise jälgimine on välja lülitatud. Klikk <a href="#set-integrations">soovituste plokil</a> omistatakse poele ja hilisem e‑kirja klikk e‑kirjale — kehtib viimane klikk.</li>
       </ul>
@@ -1146,6 +1148,7 @@ td code{white-space:nowrap}
         <li><strong>Products</strong>, <strong>Customers</strong>, <strong>Orders</strong> → Campaign Intelligence (from <a href="#set-ci">Campaign Intelligence</a>).</li>
       </ul>
       <p>Each is a one‑time bulk import that runs in the background — you can leave the page and it keeps going. It is <strong>safe to re‑run</strong>: duplicates are impossible by design, because every record carries a stable id. Press <strong>Start</strong> the first time, <strong>Sync again</strong> afterwards.</p>
+      <p>The <strong>Products</strong> import is the one exception to "you start it": connecting Campaign Intelligence starts it for you, and you can hold it back from the notice before anything is sent (see <a href="#step4">Step 4</a>).</p>
       <div class="note tip">
         <span class="k">Full history, no window</span>
         <p>The Orders import brings in your <strong>whole order history</strong> — there is no 60‑day or any other cutoff. It counts only real sales: draft, pending, failed and trashed orders are skipped (they aren't sales), and a custom shipping status like "shipped" still counts.</p>
@@ -1158,6 +1161,7 @@ td code{white-space:nowrap}
         <li><strong>Products</strong>, <strong>Customers</strong>, <strong>Orders</strong> → Campaign Intelligence (jaotisest <a href="#set-ci">Campaign Intelligence</a>).</li>
       </ul>
       <p>Iga import on ühekordne masssiire, mis käib taustal — võid lehelt lahkuda ja see jätkab. <strong>Kordamine on ohutu</strong>: duplikaadid on disaini poolest võimatud, sest iga kirje kannab stabiilset id'd. Vajuta esimest korda <strong>Start</strong>, seejärel <strong>Sync again</strong>.</p>
+      <p><strong>Products</strong> import on erand reeglist "sina käivitad": Campaign Intelligence'i ühendamine käivitab selle sinu eest ja teatest saad selle peatada enne, kui midagi saadetakse (vt <a href="#step4">4. samm</a>).</p>
       <div class="note tip">
         <span class="k">Terve ajalugu, ilma aknata</span>
         <p>Tellimuste import toob sisse su <strong>kogu tellimuste ajaloo</strong> — 60‑päeva ega muud lõikepiiri pole. See loeb ainult päris müügid: mustand‑, ootel, ebaõnnestunud ja prügikasti‑tellimused jäetakse vahele (need pole müügid), aga kohandatud tarnestaatus nagu "shipped" loeb ikka.</p>

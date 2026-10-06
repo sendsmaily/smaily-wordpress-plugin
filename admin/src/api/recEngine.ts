@@ -23,6 +23,12 @@ export interface SetupExchangeSuccess {
   engineVersion: string;
   baseUrl: string;
   issuedAt: string;
+  /**
+   * 'started' when connecting queued the full catalog import (PRO-3743) —
+   * its first batch waits a few minutes so the merchant can hold it back;
+   * 'unchanged' when a catalog import was already running.
+   */
+  catalogImport: 'started' | 'unchanged';
 }
 
 export interface SetupExchangeFailure {

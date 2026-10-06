@@ -25,7 +25,8 @@ use WP_REST_Response;
  * Three sub-routes under `/wp-json/smaily-connect/v1/rec-engine/...`:
  *
  *   POST /rec-engine/setup-exchange  body: { setup_url, [base_url] }
- *     → 200 { connected: true, tenantName, tenantId, engineVersion }
+ *     → 200 { connected: true, tenantName, tenantId, engineVersion,
+ *             catalogImport: 'started'|'unchanged' }
  *     → 400 { error: 'token_expired_or_used', regenerateUrl }
  *     → 400 { error: 'token_not_found' }
  *     → 502 { error: 'engine_unreachable', reason }
@@ -60,17 +61,28 @@ class RecEngineEndpoint {
 	private $client_factory;
 
 	/**
+	 * Runs once a connection is saved; answers whether it started the catalog
+	 * import (PRO-3743). Null = start nothing.
+	 *
+	 * @var (callable(): bool)|null
+	 */
+	private $on_connected;
+
+	/**
 	 * @param callable(): SetupExchange                              $exchange_factory
 	 * @param callable(string $api_key, string $base_url): Client    $client_factory
+	 * @param (callable(): bool)|null                                $on_connected
 	 */
 	public function __construct(
 		RecEngineSettings $settings,
 		callable $exchange_factory,
-		callable $client_factory
+		callable $client_factory,
+		?callable $on_connected = null
 	) {
 		$this->settings         = $settings;
 		$this->exchange_factory = $exchange_factory;
 		$this->client_factory   = $client_factory;
+		$this->on_connected     = $on_connected;
 	}
 
 	public function register(): void {
@@ -179,6 +191,7 @@ class RecEngineEndpoint {
 		switch ( $result->kind ) {
 			case ExchangeResult::KIND_SUCCESS:
 				$this->settings->store( $result );
+				$import_started = $this->on_connected !== null && ( $this->on_connected )();
 				return new WP_REST_Response(
 					array(
 						'connected'     => true,
@@ -187,6 +200,7 @@ class RecEngineEndpoint {
 						'engineVersion' => $result->engine_version,
 						'baseUrl'       => $result->engine_base_url,
 						'issuedAt'      => $result->issued_at,
+						'catalogImport' => $import_started ? 'started' : 'unchanged',
 					),
 					200
 				);

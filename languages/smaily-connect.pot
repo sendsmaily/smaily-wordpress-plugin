@@ -2114,6 +2114,32 @@ msgstr ""
 msgid "Regenerate the link"
 msgstr ""
 
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "Catalog import started"
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "Hold back"
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about 3 minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below."
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "Catalog import held back"
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx
+msgid "The catalog import is cancelled. Start it any time with Import now under Products below."
+msgstr ""
+
+#. translators: %s: error message.
+#: admin/src/components/steps/Step4Recommendations.tsx
+#, js-format
+msgid "Couldn't hold back the import: %s"
+msgstr ""
+
 #. translators: 1: engine version, 2: tenant status.
 #: admin/src/components/steps/Step4Recommendations.tsx:160
 #, js-format

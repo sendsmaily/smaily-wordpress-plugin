@@ -6,6 +6,7 @@ import {
   setupExchange,
   type SetupExchangeFailure,
 } from '../../api/recEngine';
+import { cancelBackfill } from '../../api/backfill';
 import { type WizardAction, type WizardState } from '../../state/types';
 import { Banner, Button, Card, Input, Label, Toggle } from '../primitives';
 import { BackfillPanel } from '../BackfillPanel';
@@ -43,6 +44,9 @@ export function Step4Recommendations({
   inSettings = false,
 }: Step4RecommendationsProps): React.JSX.Element {
   const isConnected = state.recEngineConnection.kind === 'success';
+  // Set by this page's own Connect (PRO-3743): the exchange answers whether
+  // it queued the catalog import, and only then is the hold-back notice shown.
+  const [catalogImportStarted, setCatalogImportStarted] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -93,9 +97,13 @@ export function Step4Recommendations({
       )}
 
       {isConnected ? (
-        <ConnectedView state={state} dispatch={dispatch} />
+        <ConnectedView
+          state={state}
+          dispatch={dispatch}
+          catalogImportStarted={catalogImportStarted}
+        />
       ) : (
-        <SetupCard dispatch={dispatch} />
+        <SetupCard dispatch={dispatch} onConnected={setCatalogImportStarted} />
       )}
     </div>
   );
@@ -129,8 +137,11 @@ function IntroCopy(): React.JSX.Element {
 
 function SetupCard({
   dispatch,
+  onConnected,
 }: {
   dispatch: Dispatch<WizardAction>;
+  /** Told whether connecting started the catalog import. */
+  onConnected: (catalogImportStarted: boolean) => void;
 }): React.JSX.Element {
   const [setupUrl, setSetupUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'pending' | 'error'>('idle');
@@ -147,6 +158,7 @@ function SetupCard({
     const response = await setupExchange({ setupUrl: setupUrl.trim() });
 
     if (response.connected) {
+      onConnected(response.catalogImport === 'started');
       dispatch({
         type: 'TEST_REC_ENGINE_CONNECTION_SUCCESS',
         payload: { message: response.tenantName },
@@ -232,11 +244,17 @@ function SetupCard({
 function ConnectedView({
   state,
   dispatch,
+  catalogImportStarted,
 }: {
   state: WizardState;
   dispatch: Dispatch<WizardAction>;
+  catalogImportStarted: boolean;
 }): React.JSX.Element {
   type FeatureKey = keyof WizardState['recEngineFeatures'];
+
+  // Bumped after a hold-back so the Products panel remounts and reads the
+  // cancelled state at once, instead of waiting for its next status poll.
+  const [productsPanelKey, setProductsPanelKey] = useState(0);
 
   const tenantName =
     state.recEngineConnection.kind === 'success'
@@ -345,6 +363,10 @@ function ConnectedView({
         )}
       </Card>
 
+      {catalogImportStarted && (
+        <CatalogImportNotice onHeldBack={() => setProductsPanelKey((key) => key + 1)} />
+      )}
+
       <Card
         title={__('Data synchronisation', 'smaily-connect')}
         description={__(
@@ -374,6 +396,7 @@ function ConnectedView({
       >
         <div className="space-y-3">
           <BackfillPanel
+            key={`products-${productsPanelKey}`}
             jobType="products"
             label={__('Products', 'smaily-connect')}
             recordCount={state.env.storeTotals.products}
@@ -454,6 +477,73 @@ function ConnectedView({
         )}
       </Card>
     </>
+  );
+}
+
+/**
+ * Connecting started the full catalog import (PRO-3743). Its first batch waits
+ * a few minutes, so the merchant can hold it back here before anything is
+ * sent — Hold back is the existing products import cancel. After that the
+ * Products "Import now" control starts it again, as it always has.
+ */
+function CatalogImportNotice({ onHeldBack }: { onHeldBack: () => void }): React.JSX.Element {
+  const [status, setStatus] = useState<'started' | 'pending' | 'held'>('started');
+  const [error, setError] = useState<string>('');
+
+  const handleHoldBack = async (): Promise<void> => {
+    setStatus('pending');
+    setError('');
+    try {
+      await cancelBackfill('products');
+      setStatus('held');
+      onHeldBack();
+    } catch (err) {
+      setStatus('started');
+      setError(err instanceof Error ? err.message : __('Network error', 'smaily-connect'));
+    }
+  };
+
+  if (status === 'held') {
+    return (
+      <Banner tone="info" title={__('Catalog import held back', 'smaily-connect')}>
+        {__(
+          'The catalog import is cancelled. Start it any time with Import now under Products below.',
+          'smaily-connect',
+        )}
+      </Banner>
+    );
+  }
+
+  return (
+    <Banner
+      tone="info"
+      title={__('Catalog import started', 'smaily-connect')}
+      actions={
+        <Button
+          variant="secondary"
+          size="sm"
+          type="button"
+          onClick={() => void handleHoldBack()}
+          loading={status === 'pending'}
+        >
+          {__('Hold back', 'smaily-connect')}
+        </Button>
+      }
+    >
+      {__(
+        'Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about 3 minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below.',
+        'smaily-connect',
+      )}
+      {error !== '' && (
+        <span className="mt-1 block text-danger-fg">
+          {sprintf(
+            /* translators: %s: error message. */
+            __("Couldn't hold back the import: %s", 'smaily-connect'),
+            error,
+          )}
+        </span>
+      )}
+    </Banner>
   );
 }
 
