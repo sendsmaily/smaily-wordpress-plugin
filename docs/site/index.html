@@ -1675,6 +1675,7 @@ td code{white-space:nowrap}
         <li><strong>Erase</strong> — an erase request removes the customer from the plugin and asks Campaign Intelligence to delete them.</li>
       </ul>
       <p>The erase request also empties the plugin's <strong>Smaily send queue</strong> for that address: any message still waiting to go out is deleted, so nothing is sent to someone who has asked to be forgotten. Messages that were already sent stay in the <span class="path">Event log</span> as a record that they were sent, but are <strong>anonymised</strong> — the address, the name and the product details are replaced with <span class="path">[erased]</span>.</p>
+      <p>It also deletes the plugin's own copies of what was sent to <strong>Campaign Intelligence</strong> for that address — the customer and order records the <span class="path">Event log</span> shows under <strong>Details</strong>. Those rows leave the Event log entirely.</p>
       <p>Shoppers also control profiling themselves: the opt‑out under <span class="path">My Account → Smaily Campaign Intelligence</span> (shown on stores with Campaign Intelligence connected) is honoured on the store and mirrored to the shopper's Smaily contact when one exists. Per‑customer erasure is available on request at any time.</p>
     </div>
     <div data-lang="et">
@@ -1684,6 +1685,7 @@ td code{white-space:nowrap}
         <li><strong>Kustutamine</strong> — kustutuspäring eemaldab kliendi pluginast ja palub Campaign Intelligence'il ta kustutada.</li>
       </ul>
       <p>Kustutuspäring tühjendab ka plugina <strong>Smaily saatmisjärjekorra</strong> selle aadressi jaoks: kõik veel saatmata kirjad kustutatakse, nii et kustutamist palunud inimesele ei lähe midagi välja. Juba saadetud kirjad jäävad <span class="path">Sündmuste logi</span>sse tõendina, et need saadeti, kuid muudetakse <strong>anonüümseks</strong> — aadress, nimi ja tooteandmed asendatakse väärtusega <span class="path">[erased]</span>.</p>
+      <p>Samuti kustutab see plugina enda koopiad sellest, mis selle aadressi kohta <strong>Campaign Intelligence</strong>'ile saadeti — kliendi- ja tellimuskirjed, mida <span class="path">Sündmuste logi</span> näitab vaates <strong>Details</strong>. Need read kaovad sündmuste logist täielikult.</p>
       <p>Kliendid juhivad profileerimist ka ise: loobumine <span class="path">My Account → Smaily Campaign Intelligence</span> all (nähtav poodides, kus Campaign Intelligence on ühendatud) austatakse poes ja peegeldatakse ostleja Smaily kontaktile, kui see on olemas. Kliendipõhine kustutamine on igal ajal soovi korral saadaval.</p>
     </div>
   </div>

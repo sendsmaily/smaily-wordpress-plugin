@@ -23,6 +23,7 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 
 final class GdprHandlerTest extends TestCase {
 
@@ -197,6 +198,17 @@ final class GdprHandlerTest extends TestCase {
 		self::assertFalse( $result['items_removed'] );
 	}
 
+	public function test_erase_reports_the_deleted_ingest_queue_rows_as_removed(): void {
+		// PRO-2384: the Campaign Intelligence queue's sent copies, deleted
+		// whether or not the engine is connected.
+		$ingest = $this->fake_ingest_queue( 2 );
+
+		$result = $this->handler( $this->fake_store( array() ), null, array(), $ingest )->erase( 'erase-me@example.test' );
+
+		self::assertTrue( $result['items_removed'] );
+		self::assertSame( array( 'erase-me@example.test' ), $ingest->erase_calls );
+	}
+
 	public function test_export_states_the_newsletter_consent_kept_on_each_marked_order(): void {
 		// PRO-3426: the block checkout keeps the tick as order meta (PRO-3406).
 		$marked  = $this->fake_order( 101, '1001', array( HookHandler::ORDER_META_NEWSLETTER_OPTIN => '1' ) );
@@ -293,7 +305,7 @@ final class GdprHandlerTest extends TestCase {
 	 * @param \WC_Order[] $orders What the order lookup returns — the unit suite
 	 *                            cannot define `wc_get_orders` (it would leak).
 	 */
-	private function handler( CartSessionStore $store, ?EventQueue $queue = null, array $orders = array() ): GdprHandler {
+	private function handler( CartSessionStore $store, ?EventQueue $queue = null, array $orders = array(), ?IngestQueue $ingest = null ): GdprHandler {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'is_connected' )->willReturn( false );
 		$settings->method( 'sending_allowed' )->willReturn( false );
@@ -305,6 +317,7 @@ final class GdprHandlerTest extends TestCase {
 			},
 			$store,
 			$queue ?? $this->fake_queue(),
+			$ingest ?? $this->fake_ingest_queue( 0 ),
 			$orders
 		) extends GdprHandler {
 			/** @var \WC_Order[] */
@@ -316,8 +329,8 @@ final class GdprHandlerTest extends TestCase {
 			/**
 			 * @param \WC_Order[] $orders
 			 */
-			public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue, array $orders ) {
-				parent::__construct( $settings, $client_factory, $cart_store, $event_queue );
+			public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue, IngestQueue $ingest_queue, array $orders ) {
+				parent::__construct( $settings, $client_factory, $cart_store, $event_queue, $ingest_queue );
 				$this->orders = $orders;
 			}
 
@@ -364,6 +377,24 @@ final class GdprHandlerTest extends TestCase {
 					'removed'  => $this->removed,
 					'redacted' => $this->redacted,
 				);
+			}
+		};
+	}
+
+	private function fake_ingest_queue( int $deleted ): IngestQueue {
+		return new class( $deleted ) extends IngestQueue {
+			private int $deleted;
+
+			/** @var array<int, string> */
+			public array $erase_calls = array();
+
+			public function __construct( int $deleted ) {
+				$this->deleted = $deleted;
+			}
+
+			public function delete_for_privacy_request( string $email ): int {
+				$this->erase_calls[] = $email;
+				return $this->deleted;
 			}
 		};
 	}

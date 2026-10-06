@@ -161,12 +161,31 @@ called by `GdprHandler`'s eraser:
   match on `"email"` / `"to"` where there is not (rows enqueued before
   migration 011, and every transactional row — its recipient rides `to`).
 
-**Still open (its own decision, not covered here).** The rec-engine queue
-`smly_rec_event_queue` has the same F3-44 exposure: its rows enqueue an empty
-`payload`, but `sent_payload` stores the customer/order object that was sent,
-which carries the email and an order's billing fields. It has no `contact_key`,
-the engine-side §9 DELETE does not reach the merchant's own table, and the
-janitor's retention is again the only thing that clears it.
+### Plugin-held — Campaign Intelligence ingest queue (PRO-2384)
+
+The local queue of what the store sends to the engine. Rows in
+`{prefix}smly_rec_event_queue` (migration 004) enqueue an empty `payload` (a
+catalog removal carries a product object, never an address), but since F3-44
+`sent_payload` stores the object that was POSTed — a customer update's `email`,
+an order's `customer_email` and its customer fields — and `last_response` the
+engine's reply to it. The table has no `contact_key`, and the engine-side §9
+DELETE does not reach it.
+
+| Element | Where | What it is | Export (Art 15) | Erase (Art 17) |
+|---|---|---|---|---|
+| `smly_rec_event_queue` row | Merchant's own WordPress DB table | One queued engine event: `event_type`, `entity_id`, `payload`, `status`, timestamps, `sent_payload` + `last_response` (F3-44) | No | **Yes** — every row whose `sent_payload` carries the address is DELETED |
+
+**What erasure does here (PRO-2384).** `IngestQueue::delete_for_privacy_request()`,
+called by `GdprHandler`'s eraser whatever the engine connection state, deletes
+every row whose `sent_payload` holds the address as a whole JSON string — as
+typed, and as `wp_json_encode()` writes it (`\uXXXX` escapes for a non-ASCII
+character, PRO-2448). The address is lowercased as the payload builders write
+it, and the match is binary, so neither a longer address ending in the
+requester's nor an accented neighbour is touched. Deleting the row removes its
+`last_response` too. A row with no stored copy yet (a `pending` row not yet
+attempted) carries no address and is left. **Retention (code-derived —
+`QueueJanitor`):** terminal rows are otherwise pruned after 30 days (`sent`) or
+90 (`failed`).
 
 ### Plugin-held — newsletter consent evidence on block-checkout orders (non-rec-engine, PRO-3426)
 

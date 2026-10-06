@@ -249,7 +249,8 @@ final class Bootstrap {
 				return $gdpr_bootstrap->rec_client();
 			},
 			$this->cart_session_store(),
-			$this->event_queue()
+			$this->event_queue(),
+			$this->ingest_queue()
 		) )->register();
 
 		// Proactive health notifications (3.10.2) — a recurring health-check sets

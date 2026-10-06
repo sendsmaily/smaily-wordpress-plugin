@@ -367,6 +367,43 @@ class IngestQueue {
 	}
 
 	/**
+	 * Delete every row whose stored send-time copy carries this address
+	 * (Art 17, PRO-2384). Returns the number of rows deleted.
+	 *
+	 * Rows enqueue an empty payload, so the address lives only in
+	 * `sent_payload` (F3-44): a customer update's `email`, an order's
+	 * `customer_email` plus its customer fields. `last_response` is the reply
+	 * to that same copy, so deleting the row takes it too. The table has no
+	 * contact key (Erkki, 2026-10-06: no schema change), so the match is on the
+	 * text — the address as a whole JSON string, both as typed and as
+	 * wp_json_encode() writes it (`\uXXXX` for a non-ASCII character, `\/` for
+	 * a slash — PRO-2448). The quotes keep `xjane@…` out of an erasure of
+	 * `jane@…`. The match is binary, because the column's accent-blind
+	 * collation would also count `jane@…` as `jäne@…`; the address is
+	 * lowercased the way the payload builders lowercase it.
+	 */
+	public function delete_for_privacy_request( string $email ): int {
+		global $wpdb;
+
+		$email = strtolower( trim( $email ) );
+		if ( $email === '' ) {
+			return 0;
+		}
+
+		$patterns = array();
+		foreach ( array_unique( array( '"' . $email . '"', (string) wp_json_encode( $email ) ) ) as $form ) {
+			$patterns[] = '%' . $wpdb->esc_like( $form ) . '%';
+		}
+
+		$table = $this->table_name();
+		$where = implode( ' OR ', array_fill( 0, count( $patterns ), 'sent_payload LIKE CAST( %s AS BINARY )' ) );
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE {$where}", $patterns ) );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	/**
 	 * Make sure this queue's flush hooks have a pass queued after a re-drive.
 	 * Public so the /events/retry endpoint can call it right after
 	 * reset_failed(); the revived rows go out at the next scheduled pass
