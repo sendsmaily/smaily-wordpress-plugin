@@ -25,11 +25,15 @@ use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
+use Smaily\Connect\Support\MarketingConsent;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
 
 final class RecEngineOrdersTest extends TestCase {
+
+	/** WP Consent API answers of a consent plugin that recorded a yes. */
+	private const CONSENT_YES = array( 'optin', true );
 
 	/** A genuine engine-issued rec id shape (the engine validates it as a uuid). */
 	private const REC_UUID = '11111111-2222-4333-8444-555555555555';
@@ -402,7 +406,7 @@ final class RecEngineOrdersTest extends TestCase {
 		$product  = $this->make_product( 'ORD-VT-GUEST', '15.00' );
 		$order_id = $this->make_order( 'vt-guest@example.test', 'completed', $product );
 
-		$cookies = $this->guest_checkout( $order_id, true );
+		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES );
 
 		$token = (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' );
 		self::assertMatchesRegularExpression( '/^vt_[0-9a-f]{32}$/', $token );
@@ -420,7 +424,7 @@ final class RecEngineOrdersTest extends TestCase {
 		$product  = $this->make_product( 'ORD-VT-KEEP', '15.00' );
 		$order_id = $this->make_order( 'vt-keep@example.test', 'completed', $product );
 
-		$cookies = $this->guest_checkout( $order_id, true, array( 'smaily_rec_uid' => 'vt_fromemaillink123' ) );
+		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES, array( 'smaily_rec_uid' => 'vt_fromemaillink123' ) );
 
 		self::assertSame( array(), $cookies, 'No second token was written.' );
 		self::assertSame( 'vt_fromemaillink123', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
@@ -430,7 +434,7 @@ final class RecEngineOrdersTest extends TestCase {
 		$product  = $this->make_product( 'ORD-VT-NOCONSENT', '15.00' );
 		$order_id = $this->make_order( 'vt-noconsent@example.test', 'completed', $product );
 
-		$cookies = $this->guest_checkout( $order_id, false );
+		$cookies = $this->guest_checkout( $order_id, array( 'optin', false ) );
 
 		self::assertSame( array(), $cookies );
 		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
@@ -439,6 +443,18 @@ final class RecEngineOrdersTest extends TestCase {
 		$payloads = self::$engine->state()['last_orders_payload'] ?? null;
 		self::assertIsArray( $payloads );
 		self::assertArrayNotHasKey( 'smaily_visitor_token', $payloads[0] );
+	}
+
+	public function test_a_guest_buyer_gets_no_visitor_token_when_no_consent_plugin_set_a_consent_type(): void {
+		// The WP Consent API answers wp_has_consent() true when no consent
+		// plugin set a type; that is not a yes from the shopper (Magento PRO-3664).
+		$product  = $this->make_product( 'ORD-VT-NOTYPE', '15.00' );
+		$order_id = $this->make_order( 'vt-notype@example.test', 'completed', $product );
+
+		$cookies = $this->guest_checkout( $order_id, array( '', true ) );
+
+		self::assertSame( array(), $cookies );
+		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
 	}
 
 	public function test_without_the_wp_consent_api_a_guest_buyer_gets_no_visitor_token(): void {
@@ -468,7 +484,7 @@ final class RecEngineOrdersTest extends TestCase {
 		$order->set_customer_id( 1 );
 		$order->save();
 
-		$cookies = $this->guest_checkout( $order_id, true );
+		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES );
 
 		self::assertSame( array(), $cookies );
 		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
@@ -478,7 +494,7 @@ final class RecEngineOrdersTest extends TestCase {
 		$product  = $this->make_product( 'ORD-VT-ADMIN', '15.00' );
 		$order_id = $this->make_order( 'vt-admin@example.test', 'completed', $product );
 
-		$cookies = $this->guest_checkout( $order_id, true, array(), 1 );
+		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES, array(), 1 );
 
 		self::assertSame( array(), $cookies );
 		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
@@ -741,25 +757,31 @@ final class RecEngineOrdersTest extends TestCase {
 
 	/**
 	 * Run the real classic-checkout attribution stamping and the visitor-token
-	 * issuer, with marketing consent answered by the test.
+	 * issuer. The consent rule is the real one, run on the two WP Consent API
+	 * answers the test gives (the test site has no WP Consent API).
 	 *
-	 * @param array<string, string> $cookies The browser's cookies.
-	 * @param int                   $user_id The user logged in during checkout.
+	 * @param array{0: string, 1: bool} $consent wp_get_consent_type() and wp_has_consent() answers.
+	 * @param array<string, string>     $cookies The browser's cookies.
+	 * @param int                       $user_id The user logged in during checkout.
 	 * @return array<string, string> The cookies the issuer wrote.
 	 */
-	private function guest_checkout( int $order_id, bool $consent, array $cookies = array(), int $user_id = 0 ): array {
+	private function guest_checkout( int $order_id, array $consent, array $cookies = array(), int $user_id = 0 ): array {
 		$_COOKIE = $cookies;
 		$writer  = $this->recording_cookies();
 		$issuer  = new class( new RecEngineSettings(), $writer, $consent ) extends GuestVisitorToken {
-			private bool $consent;
+			/** @var array{0: string, 1: bool} */
+			private array $consent;
 
-			public function __construct( RecEngineSettings $settings, LandingCapture $cookies, bool $consent ) {
+			/**
+			 * @param array{0: string, 1: bool} $consent
+			 */
+			public function __construct( RecEngineSettings $settings, LandingCapture $cookies, array $consent ) {
 				parent::__construct( $settings, $cookies );
 				$this->consent = $consent;
 			}
 
 			protected function marketing_consent_given(): bool {
-				return $this->consent;
+				return MarketingConsent::decide( $this->consent[0], $this->consent[1] );
 			}
 		};
 

@@ -16,6 +16,7 @@ use Smaily\Connect\Integrations\WooCommerce\GuestVisitorToken;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\Support\AttributionShape;
+use Smaily\Connect\Support\MarketingConsent;
 use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 
 final class GuestVisitorTokenTest extends TestCase {
@@ -101,6 +102,33 @@ final class GuestVisitorTokenTest extends TestCase {
 		$this->issuer( true )->on_block_checkout( $order );
 
 		self::assertTrue( AttributionShape::is_visitor_token( $this->written['smaily_rec_uid'] ?? '' ) );
+	}
+
+	public function test_a_consent_plugin_yes_issues_a_token(): void {
+		$order = $this->order( 0 );
+
+		$this->issuer_with_signals( 'optin', true )->on_block_checkout( $order );
+
+		self::assertTrue( AttributionShape::is_visitor_token( (string) $order->get_meta( '_smaily_visitor_token' ) ) );
+	}
+
+	public function test_no_consent_type_means_no_token_even_when_wp_has_consent_is_true(): void {
+		// The WP Consent API answers true when no consent plugin set a type.
+		$order = $this->order( 0 );
+
+		$this->issuer_with_signals( '', true )->on_block_checkout( $order );
+
+		self::assertSame( array(), $this->written );
+		self::assertSame( '', $order->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	public function test_a_consent_type_without_a_yes_means_no_token(): void {
+		$order = $this->order( 0 );
+
+		$this->issuer_with_signals( 'optin', false )->on_block_checkout( $order );
+
+		self::assertSame( array(), $this->written );
+		self::assertSame( '', $order->get_meta( '_smaily_visitor_token' ) );
 	}
 
 	public function test_without_marketing_consent_nothing_changes(): void {
@@ -197,6 +225,37 @@ final class GuestVisitorTokenTest extends TestCase {
 
 			protected function marketing_consent_given(): bool {
 				return $this->consent;
+			}
+		};
+	}
+
+	/**
+	 * An issuer whose consent seam runs the real rule on the two WP Consent
+	 * API answers a test gives.
+	 *
+	 * @param mixed $consent_type What wp_get_consent_type() would return.
+	 * @param mixed $has_consent  What wp_has_consent() would return.
+	 */
+	private function issuer_with_signals( $consent_type, $has_consent ): GuestVisitorToken {
+		return new class( $this->settings( true, array() ), $this->writer( array() ), $consent_type, $has_consent ) extends GuestVisitorToken {
+			/** @var mixed */
+			private $consent_type;
+
+			/** @var mixed */
+			private $has_consent;
+
+			/**
+			 * @param mixed $consent_type
+			 * @param mixed $has_consent
+			 */
+			public function __construct( RecEngineSettings $settings, LandingCapture $cookies, $consent_type, $has_consent ) {
+				parent::__construct( $settings, $cookies );
+				$this->consent_type = $consent_type;
+				$this->has_consent  = $has_consent;
+			}
+
+			protected function marketing_consent_given(): bool {
+				return MarketingConsent::decide( $this->consent_type, $this->has_consent );
 			}
 		};
 	}

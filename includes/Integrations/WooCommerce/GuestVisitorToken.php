@@ -12,6 +12,7 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Support\MarketingConsent;
 
 /**
  * Gives a guest buyer a visitor token at checkout, so the store can recognise
@@ -29,9 +30,9 @@ use Smaily\Connect\Settings\RecEngineSettings;
  * (no account on the order, nobody logged in — a registered buyer is named by
  * the account); the request is a shopper's checkout (the two checkout hooks
  * fire for nothing else, and cron / WP-CLI are refused outright); the shopper
- * gave marketing consent through the WP Consent API (fail-closed — no API, no
- * token); and the browser carries no visitor token yet. An existing token is
- * never replaced.
+ * gave an explicit marketing yes through a consent plugin on the WP Consent
+ * API (MarketingConsent — no API, no consent type, no yes: no token); and the
+ * browser carries no visitor token yet. An existing token is never replaced.
  */
 class GuestVisitorToken {
 
@@ -90,17 +91,11 @@ class GuestVisitorToken {
 	}
 
 	/**
-	 * The WP Consent API's answer for the category the browse beacon gates on.
-	 * A seam so tests can answer it: defining `wp_has_consent` in a test would
-	 * leak into every later test of the process.
+	 * Whether the shopper gave an explicit marketing yes. A seam so tests can
+	 * answer it: defining the WP Consent API functions in a test would leak
+	 * into every later test of the process.
 	 */
 	protected function marketing_consent_given(): bool {
-		if ( ! function_exists( 'wp_has_consent' ) ) {
-			return false;
-		}
-		/** Documented in StorefrontBeacon::enqueue_runtime(). */
-		$category = (string) apply_filters( 'smaily_connect_beacon_consent_category', 'marketing' );
-
-		return true === wp_has_consent( $category );
+		return MarketingConsent::given();
 	}
 }
