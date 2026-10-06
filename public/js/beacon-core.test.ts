@@ -236,7 +236,7 @@ describe('beacon-core: init', () => {
     expect(lastEvents(fetchMock)[0]).toMatchObject({ event_type: 'product_view' });
   });
 
-  it('a token captured pre-consent from the URL rides later events once consent is granted (PRO-1388)', async () => {
+  it('a token captured pre-consent from the URL stays in the cookie /relay reads once consent is granted (PRO-1388, PRO-3860)', async () => {
     window.history.replaceState({}, '', '/landing?smaily_vt=vt_preconsent');
     let consent = false;
     window.smailyConnectBeacon = makeBoot({ consentOverride: () => consent, context: { pageType: 'other' } });
@@ -247,12 +247,16 @@ describe('beacon-core: init', () => {
     await client?.flush();
     expect(fetchMock).not.toHaveBeenCalled();
 
-    // Consent granted later; a cart event now carries the pre-consent token.
+    // Consent granted later; the cart event goes out, and the token stays in
+    // the cookie the same-origin /relay request carries — the server reads it
+    // there, the event body never names it.
     consent = true;
     document.dispatchEvent(new Event('wp_listen_for_consent_change'));
     client?.track({ event_type: 'cart_add', product_id: '1' });
     await client?.flush();
-    expect(lastEvents(fetchMock)[0]).toMatchObject({ smaily_visitor_token: 'vt_preconsent' });
+    expect(lastEvents(fetchMock)[0]).toMatchObject({ event_type: 'cart_add' });
+    expect(lastEvents(fetchMock)[0]).not.toHaveProperty('smaily_visitor_token');
+    expect(document.cookie).toContain('smaily_rec_uid=vt_preconsent');
   });
 
 });
