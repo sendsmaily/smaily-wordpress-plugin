@@ -26,7 +26,14 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-06 (**PRO-3806 on a branch, unreleased:** Elementor
+_Last updated: 2026-10-06 (**PRO-3849 on a branch, unreleased:** browse
+tracking, storefront recommendations and the guest visitor token count
+marketing consent only when the WP Consent API consent cookie for the category
+is `allow` (one TS helper for both storefront bundles, `MarketingConsent` on the
+server; replaces PRO-3845's consent-type rule, which missed CookieYes). Stores
+with the API but no banner storing consent stop sending browse events. Notice +
+toggle text EN+ET, docs site EN+ET. Consent surface: the 3.16.0 security delta
+re-audit must cover it. Then: **PRO-3806 on a branch, unreleased:** Elementor
 Pro forms get a native **Smaily** action under Actions After Submit (two modes:
 newsletter signup / contact form with marketing consent; only mapped fields are
 sent; a form signup sends `is_unsubscribed = 0` — fresh consent resubscribes;

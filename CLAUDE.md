@@ -851,10 +851,17 @@ bundle" is not evidence it isn't ours. Rules:
   attribution working).
 
 ### Browse consent is fail-closed on the WP Consent API — needs the `wp-consent-api` plugin, NOT vendor code (F3-50)
-The beacon sends browse events ONLY when `window.wp_has_consent(category) === true`
-(`beacon-core.ts` `detectConsent`, category `marketing` via the
-`smaily_connect_beacon_consent_category` PHP filter) — else the JS `consentOverride` hatch,
-else fail-closed. No signal ⇒ **0 events, no error** — indistinguishable from "feature off".
+The beacon (`beacon-core.ts` `detectConsent`) and the recommendations fetch
+(`recs-core.ts`) send ONLY on an explicit yes (PRO-3849): the JS `consentOverride` hatch
+decides when present (beacon only); else consent = the WP Consent API consent cookie
+`<prefix>_<category>` (prefix from the API, default `wp_consent`) is exactly `allow` AND
+`window.wp_has_consent(category) === true` (category `marketing` via the
+`smaily_connect_beacon_consent_category` PHP filter); else fail-closed. One helper per
+side, never a second copy: `public/js/lib/marketing-consent.ts` (both bundles) and
+`Support\MarketingConsent` (server — the guest visitor token). `wp_has_consent()` alone is
+NOT a yes (it is true when no consent type is set and in opt-out regions), and the consent
+TYPE is no server signal (CookieYes sets it only in the browser). No signal ⇒
+**0 events, no error** — indistinguishable from "feature off".
 `window.wp_has_consent` is defined by the free **"WP Consent API" plugin** (`wp-consent-api`),
 which CMPs register consent INTO — **CookieYes, Complianz, Real Cookie Banner all support it**
 (CookieYes maps its `Advertisement` category → WP Consent API `marketing`). **The MiuMjau
