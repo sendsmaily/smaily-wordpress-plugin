@@ -47,7 +47,7 @@ a deprecation notice and exits 0 without starting anything.
 |---|---|
 | `npm run ci:strict` | The full local gate: PHPCS → PHPStan → PHPUnit unit → eslint → tsc → vitest. Must be exit 0 before any push. |
 | `sg docker -c "composer run test:integration"` | Real WP + WC + MariaDB via wp-env (wrapper `bin/run-integration-tests.sh`). Look for the `OK (N tests)` line — the wrapper's exit-255 is a quirk. |
-| `npm run build:admin` | Vite builds → `dist/admin/*`, `dist/public/js/sc-runtime.js`, `dist/public/js/sc-landing.js` (chained landing pass) |
+| `npm run build:admin` | Vite builds → `dist/admin/*`, `dist/public/js/sc-runtime.js`, `dist/public/js/sc-landing.js`, `dist/public/js/sc-recs.js` (one chained pass per storefront bundle) |
 | `composer run build` | Gutenberg blocks (`blocks/*/build/*`) |
 | `bash bin/build-i18n.sh` | Rebuild `.mo` + script-translation `.json` from the committed `.po` (needs the wp-env container; the plain `compile-translations` script produces the WRONG admin-bundle JSON — see CLAUDE.md "React admin i18n") |
 | `composer run package` | Distributable ZIP (see Release below — packaging alone is NOT a release) |

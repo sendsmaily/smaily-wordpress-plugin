@@ -20,7 +20,8 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * The ONE public, unauthenticated route in the plugin.
+ * One of the plugin's two public, unauthenticated routes (the other is
+ * RecommendationsEndpoint, PRO-3835).
  *
  * Why public: browse events come from anonymous storefront visitors, so the
  * route cannot be `manage_options`-gated like the rest of the rec-engine
@@ -49,7 +50,8 @@ use WP_REST_Response;
  *      collapses behind NAT/mobile; the session counter complements it. Fixed
  *      60s windows via transients. The per-IP counter is the bound a client
  *      cannot lift by changing request headers (PRO-3620): it keys on the
- *      connection's own address and always applies — see client_ip().
+ *      connection's own address and always applies — see
+ *      RequestThrottle::client_ip().
  *   3. SERVER-SIDE VALIDATION — before forwarding: event_type must be one of
  *      the 9 §6 types, every event must carry an event_id, the batch is capped
  *      at 100, and each event is field-whitelisted to the §6 shape. Our own
@@ -239,7 +241,7 @@ class BeaconEndpoint {
 
 		$session = $this->session_id();
 
-		if ( $this->rate_limited( $this->client_ip(), $session ) ) {
+		if ( $this->rate_limited( RequestThrottle::client_ip(), $session ) ) {
 			return new WP_REST_Response(
 				array(
 					'ok'    => false,
@@ -664,28 +666,7 @@ class BeaconEndpoint {
 	 * Increment a window counter; return true once it exceeds $max.
 	 */
 	private function bump( string $key, int $max ): bool {
-		$count = (int) get_transient( $key );
-		++$count;
-		set_transient( $key, $count, self::RL_WINDOW_SECONDS );
-		return $count > $max;
-	}
-
-	/**
-	 * REMOTE_ADDR only — X-Forwarded-For (and X-Real-IP, Forwarded, Client-IP)
-	 * is attacker-spoofable, so trusting it would let one client masquerade as
-	 * many IPs and defeat the throttle. A forwarding header counts only where
-	 * the web server itself is configured to trust it and rewrites REMOTE_ADDR
-	 * from it (e.g. nginx `real_ip`, Apache `mod_remoteip`). '' when the
-	 * address is missing or not an IP — rate_limited() then uses its shared
-	 * bucket.
-	 */
-	private function client_ip(): string {
-		if ( ! isset( $_SERVER['REMOTE_ADDR'] ) ) {
-			return '';
-		}
-		$raw = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
-		$ip  = filter_var( $raw, FILTER_VALIDATE_IP );
-		return is_string( $ip ) ? $ip : '';
+		return RequestThrottle::exceeded( $key, $max, self::RL_WINDOW_SECONDS );
 	}
 
 	/**

@@ -99,6 +99,7 @@ jobs:
           test -f dist/admin/admin.css
           test -f dist/public/js/sc-runtime.js
           test -f dist/public/js/sc-landing.js
+          test -f dist/public/js/sc-recs.js
 
       - name: Bundle size budget (admin.js must stay under 250KB gzipped)
         run: |

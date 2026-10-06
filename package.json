@@ -7,10 +7,11 @@
   "type": "module",
   "scripts": {
     "build": "npm run typecheck && npm run build:admin",
-    "build:admin": "vite build --mode admin && npm run build:runtime && npm run build:landing && npm run check:bundle-scope",
+    "build:admin": "vite build --mode admin && npm run build:runtime && npm run build:landing && npm run build:recs && npm run check:bundle-scope",
     "build:runtime": "vite build --mode runtime",
     "build:landing": "vite build --mode landing",
-    "check:bundle-scope": "bash bin/check-bundle-scope.sh dist/admin/admin.js dist/public/js/sc-runtime.js dist/public/js/sc-landing.js",
+    "build:recs": "vite build --mode recs",
+    "check:bundle-scope": "bash bin/check-bundle-scope.sh dist/admin/admin.js dist/public/js/sc-runtime.js dist/public/js/sc-landing.js dist/public/js/sc-recs.js",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "lint": "eslint admin/src public/js --ext .ts,.tsx --max-warnings 0",

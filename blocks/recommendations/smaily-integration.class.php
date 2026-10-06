@@ -8,21 +8,23 @@ use Smaily\Connect\Bootstrap;
 
 class Integration {
 	/**
-	 * Renders the recommendations block: the logged-in shopper's own Smaily
-	 * product recommendations, or nothing.
+	 * Renders the recommendations block: an empty container, the same for
+	 * every visitor, that the storefront script fills with the shopper's own
+	 * Smaily product recommendations after the page has loaded (PRO-3835).
 	 *
-	 * Server-rendered on purpose: the engine is asked with the store's API key,
-	 * which never reaches the browser (RECENGINE_API_CONTRACT.md §15). A
-	 * visitor who is not logged in, a store without a usable engine
-	 * connection, a shopper who opted out of profiling, an engine error and an
-	 * empty answer all render nothing — never an error to the shopper.
+	 * The page itself carries no per-shopper data and asks the engine nothing,
+	 * so it stays fast and may be kept in a full-page cache. The script asks
+	 * the store — never the engine, whose API key stays on the server
+	 * (RECENGINE_API_CONTRACT.md §15) — and only with the shopper's marketing
+	 * consent. No answer, an empty one or an error shows nothing — never an
+	 * error to the shopper.
 	 *
 	 * @param array  $attributes Block attributes.
 	 * @param string $content    Block content.
 	 * @return string
 	 */
 	public static function render( $attributes, $content ) {
-		return Bootstrap::instance()->storefront_recommendations()->render( get_current_user_id() );
+		return Bootstrap::instance()->storefront_recommendations()->placeholder();
 	}
 
 	/**

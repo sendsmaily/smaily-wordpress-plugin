@@ -12,6 +12,7 @@ namespace Smaily\Connect\REST;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Bootstrap;
+use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
@@ -120,6 +121,12 @@ final class EndpointRegistry {
 				// opted-out known contact before they reach the engine.
 				$bootstrap->profiling_consent()
 			),
+			new RecommendationsEndpoint(
+				new RecEngineSettings(),
+				static function () use ( $bootstrap ): StorefrontRecommendations {
+					return $bootstrap->storefront_recommendations();
+				}
+			),
 		);
 	}
 
@@ -214,6 +221,12 @@ final class EndpointRegistry {
 			array(
 				'method' => 'POST',
 				'path'   => '/relay',
+			),
+			// The public storefront recommendations the block's script asks
+			// for (PRO-3835). Gated in the handler like /relay.
+			array(
+				'method' => 'GET',
+				'path'   => '/recommendations',
 			),
 		);
 	}

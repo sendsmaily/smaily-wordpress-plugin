@@ -24,6 +24,7 @@ export default defineConfig({
         'admin/src/index.tsx', // mount-only, covered by manual sanity test
         'public/js/beacon.ts', // thin auto-boot entry, logic lives in beacon-core.ts
         'public/js/landing.ts', // thin auto-boot entry, logic lives in lib/attribution.ts
+        'public/js/recs.ts', // thin auto-boot entry, logic lives in recs-core.ts
       ],
       reporter: ['text', 'html'],
 

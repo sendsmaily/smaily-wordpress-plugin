@@ -1003,9 +1003,10 @@ final class Bootstrap {
 	}
 
 	/**
-	 * The logged-in shopper's storefront recommendations (§15). Its engine
-	 * client makes ONE attempt with a short timeout: the call sits on the
-	 * shopper's page render, so it never waits out a retry or a Retry-After.
+	 * The shopper's storefront recommendations (§15). Its engine client makes
+	 * ONE attempt with StorefrontRecommendations::TIMEOUT_SECONDS: a shopper
+	 * waits for the cards, so the call never waits out a retry or a
+	 * Retry-After.
 	 */
 	public function storefront_recommendations(): StorefrontRecommendations {
 		$bootstrap = $this;

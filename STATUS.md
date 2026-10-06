@@ -39,6 +39,28 @@ human proofread before the docs site is published); docs site EN+ET updated
 licensed Elementor Pro in wp-env). Touches consent + external HTTP, so the next
 release's security delta re-audit must cover it.)_
 
+Also 2026-10-06 (**Contract v1.10.0 synced byte-identical** to engine
+`967287f541fa` (PRO-3834; md5 e4b739e0…): §15 also takes
+`smaily_visitor_token` in place of `customer_external_id` (customer id wins
+when both are sent; unknown/expired/other-tenant token = the same empty
+answer); client timeout up to 10 s from a background request. No other wire
+shape changed.)
+
+Also 2026-10-06 (**PRO-3835 on a PR branch, 3.16.0 waits for it:** storefront
+recommendations load after the page — the block/shortcode print one empty
+container for every visitor (cacheable; PRO-3832's `DONOTCACHEPAGE` removed),
+and `sc-recs.js` (new IIFE pass) asks the public `GET /recommendations` route
+only with WP Consent API marketing consent; the route names a logged-in
+shopper by user id, a returning guest by the visitor-token cookie, else asks
+nothing; `no-store, private`; 10 s engine timeout (§15 v1.10.0); a failed
+engine call is cached empty for 10 min. Guest field `smaily_visitor_token`
+per contract v1.10.0 (synced above). **Not live-checked yet:** the dev wp-env
+had no engine connection — one sandbox §15 guest request (expect 200
+`{slots: []}` for a made-up `vt_…`) is still owed. DECISIONS PRO-3835; docs
+site EN+ET (ET awaits proofread). Gates: ci:strict exit=0; integration 353
+(1 env-dependent skip) on the Mac. New public route + cookie +
+external HTTP → the 3.16.0 security delta must cover it.)
+
 Also 2026-10-06 (**3.16.0 audit Lows — Erkki: fix both before the cut; on a
 PR branch:** PRO-3831 — the Elementor action sends `elementor_form_url` only
 for a page on the store's own host; PRO-3832 — a page that shows

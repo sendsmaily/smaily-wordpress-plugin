@@ -5,7 +5,7 @@
 	"version": "1.0.0",
 	"title": "Smaily Recommendations",
 	"category": "widgets",
-	"description": "Shows logged-in shoppers their personal Smaily product recommendations.",
+	"description": "Shows shoppers their personal Smaily product recommendations.",
 	"keywords": [ "smaily", "recommendations", "products" ],
 	"supports": {
 		"html": false

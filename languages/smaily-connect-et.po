@@ -2807,17 +2807,17 @@ msgstr "Pikslites või protsentides — näiteks 500 või 100%."
 msgid "Add the address of a landing page of your connected Smaily account."
 msgstr "Lisa ühendatud Smaily konto maandumislehe aadress."
 
-#: includes/Integrations/WooCommerce/StorefrontRecommendations.php:124
+#: includes/Integrations/WooCommerce/StorefrontRecommendations.php:222
 msgid "Recommended for you"
 msgstr "Sulle soovitatud"
 
-#: blocks/recommendations/src/edit.js:13
+#: blocks/recommendations/src/edit.js:14
 msgid "Smaily Recommendations"
 msgstr "Smaily soovitused"
 
-#: blocks/recommendations/src/edit.js:14
-msgid "Logged-in shoppers see their personal product recommendations here. Visitors who are not logged in see nothing."
-msgstr "Sisse logitud ostjad näevad siin oma isiklikke tootesoovitusi. Sisse logimata külastajad ei näe midagi."
+#: blocks/recommendations/src/edit.js:15
+msgid "Shoppers who accepted marketing cookies see their personal product recommendations here a moment after the page loads: when logged in, or as a guest who came to the store from a Smaily email before. Other visitors see nothing."
+msgstr "Turundusküpsistega nõustunud ostjad näevad siin hetk pärast lehe laadimist oma isiklikke tootesoovitusi: sisse logituna või külalisena, kes on varem Smaily e-kirjast poodi tulnud. Teised külastajad ei näe midagi."
 
 #: blocks/recommendations/src/block.json
 msgctxt "block title"
@@ -2826,8 +2826,8 @@ msgstr "Smaily soovitused"
 
 #: blocks/recommendations/src/block.json
 msgctxt "block description"
-msgid "Shows logged-in shoppers their personal Smaily product recommendations."
-msgstr "Näitab sisse logitud ostjatele nende isiklikke Smaily tootesoovitusi."
+msgid "Shows shoppers their personal Smaily product recommendations."
+msgstr "Näitab ostjatele nende isiklikke Smaily tootesoovitusi."
 
 #: blocks/recommendations/src/block.json
 msgctxt "block keyword"

@@ -49,6 +49,25 @@ final class ClientCustomerRecommendationsTest extends TestCase {
 		);
 	}
 
+	public function test_posts_a_returning_guest_s_visitor_token_in_place_of_the_customer_id(): void {
+		$client = $this->capturing_client(
+			array( 'recommendations_customer' => 'https://engine.test/api/v1/recommendations/customer' )
+		);
+
+		$client->visitor_recommendations( 'vt_8f3k2a', 4 );
+
+		self::assertSame( 'POST', $client->captured['method'] );
+		self::assertSame( 'https://engine.test/api/v1/recommendations/customer', $client->captured['url'] );
+		self::assertSame(
+			array(
+				'smaily_visitor_token' => 'vt_8f3k2a',
+				'limit'                => 4,
+			),
+			$client->captured['body'],
+			'§15 v1.10.0: the token alone, never together with a customer id.'
+		);
+	}
+
 	public function test_falls_back_to_the_constant_path_on_a_connection_without_the_key(): void {
 		// A connection set up before v1.9.0 keeps a map without the key (§15).
 		$client = $this->capturing_client();

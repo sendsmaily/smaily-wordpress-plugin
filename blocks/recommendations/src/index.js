@@ -24,8 +24,8 @@ const smailyIcon = (
 
 registerBlockType( metadata.name, {
 	edit: Edit,
-	// Rendered on the server for the logged-in shopper; nothing is saved into
-	// the post content.
+	// Rendered on the server as an empty container the storefront script
+	// fills; nothing is saved into the post content.
 	save: () => null,
 	icon: smailyIcon,
 } );

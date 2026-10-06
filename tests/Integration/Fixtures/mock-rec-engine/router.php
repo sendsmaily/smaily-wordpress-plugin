@@ -1525,12 +1525,16 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 	reply( 200, array( 'ok' => true, 'upserted' => count( $rows_to_save ) ) );
 }
 
-// Storefront recommendations (§15, contract v1.9.0). Read-only. The shopper is
-// named by `customer_external_id` (a 1–255 char string); `limit` is an optional
-// positive integer, clamped to 9. A test seeds the answers in the state file
-// under `storefront_slots` (external id => slots); anyone else gets the same
-// `{slots: []}` the live engine gives an unknown/holdout/opted-out customer.
-// The request body is recorded so a test can prove no email was sent.
+// Storefront recommendations (§15, contract v1.9.0 / v1.10.0). Read-only. The
+// shopper is named by `customer_external_id` or, for a returning guest,
+// `smaily_visitor_token` (each a 1–255 char string; at least one required, else
+// 400 reported under `customer_external_id`; with both, the customer id wins and
+// the token is ignored). `limit` is an optional positive integer, clamped to 9.
+// A test seeds the answers in the state file under `storefront_slots` (external
+// id => slots) and `storefront_visitor_slots` (token => slots); anyone else gets
+// the same `{slots: []}` the live engine gives an unknown/holdout/opted-out
+// customer or an unknown/expired token. The request body is recorded so a test
+// can prove no email was sent.
 if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 	require_bearer_auth();
 
@@ -1539,13 +1543,27 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 		reply( 400, array( 'error' => 'invalid_json', 'message' => 'Request body is not valid JSON.' ) );
 	}
 
-	$external_id = $body['customer_external_id'] ?? null;
-	if ( ! is_string( $external_id ) || strlen( $external_id ) < 1 || strlen( $external_id ) > 255 ) {
+	// Play an engine that refuses the visitor token (one before v1.10.0): a
+	// guest request gets the 400 a missing `customer_external_id` gets.
+	if ( ! empty( $state['storefront_visitor_token_unsupported'] ) && ! array_key_exists( 'customer_external_id', $body ) ) {
 		reply(
 			400,
 			array(
 				'error'   => 'validation_failed',
 				'details' => array( 'fieldErrors' => array( 'customer_external_id' => array( 'Required' ) ) ),
+			)
+		);
+	}
+
+	$by_visitor  = ! array_key_exists( 'customer_external_id', $body ) && array_key_exists( 'smaily_visitor_token', $body );
+	$identifier  = $by_visitor ? 'smaily_visitor_token' : 'customer_external_id';
+	$external_id = $body[ $identifier ] ?? null;
+	if ( ! is_string( $external_id ) || strlen( $external_id ) < 1 || strlen( $external_id ) > 255 ) {
+		reply(
+			400,
+			array(
+				'error'   => 'validation_failed',
+				'details' => array( 'fieldErrors' => array( $identifier => array( 'Required' ) ) ),
 			)
 		);
 	}
@@ -1567,8 +1585,9 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 	$state['last_recommendations_request'] = $body;
 	save_state( $state_file, $state );
 
-	$seeded = ( isset( $state['storefront_slots'][ $external_id ] ) && is_array( $state['storefront_slots'][ $external_id ] ) )
-		? $state['storefront_slots'][ $external_id ]
+	$seed_key = $by_visitor ? 'storefront_visitor_slots' : 'storefront_slots';
+	$seeded   = ( isset( $state[ $seed_key ][ $external_id ] ) && is_array( $state[ $seed_key ][ $external_id ] ) )
+		? $state[ $seed_key ][ $external_id ]
 		: array();
 
 	header( 'Cache-Control: no-store, private', true );

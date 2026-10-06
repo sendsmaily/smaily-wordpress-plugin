@@ -162,6 +162,26 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * Seed the §15 storefront answer for one returning guest, named by the
+	 * engine's visitor token (`smaily_visitor_token`, contract v1.10.0).
+	 *
+	 * @param array<int, array<string, mixed>> $slots
+	 */
+	public function set_storefront_visitor_slots( string $visitor_token, array $slots ): void {
+		$seeded                   = (array) ( $this->state()['storefront_visitor_slots'] ?? array() );
+		$seeded[ $visitor_token ] = $slots;
+		$this->write_state( array( 'storefront_visitor_slots' => $seeded ) );
+	}
+
+	/**
+	 * Play an engine that refuses the visitor token (one before contract
+	 * v1.10.0): a guest request is answered 400 `validation_failed`.
+	 */
+	public function set_storefront_visitor_token_unsupported( bool $unsupported ): void {
+		$this->write_state( array( 'storefront_visitor_token_unsupported' => $unsupported ) );
+	}
+
+	/**
 	 * Play the Smaily operator who switches real automated sends on in the
 	 * engine admin (contract §13): only the listed triggers keep
 	 * `test_mode=false` when the plugin saves them; any other enabled row is

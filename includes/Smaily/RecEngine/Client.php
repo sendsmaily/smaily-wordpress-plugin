@@ -504,6 +504,31 @@ class Client {
 		);
 	}
 
+	/**
+	 * The current recommendations of a returning guest, named by the
+	 * engine-issued visitor token (the `smaily_rec_uid` cookie) — the same
+	 * §15 route as customer_recommendations() (contract v1.10.0): the body
+	 * carries `smaily_visitor_token` IN PLACE OF `customer_external_id`. Never
+	 * send both — the engine then uses the customer id and ignores the token.
+	 * The answer and its empty-answer rules are the customer id's; an unknown,
+	 * expired or other-tenant token gets the same `{slots: []}`.
+	 *
+	 * @return array<string, mixed>
+	 *
+	 * @throws ApiException On 4xx, an exhausted retry budget, or a network failure.
+	 */
+	public function visitor_recommendations( string $visitor_token, int $limit ): array {
+		$url = $this->resolve_url( 'recommendations_customer', self::PATH_RECOMMENDATIONS_CUSTOMER );
+		return $this->request_url(
+			'POST',
+			$url,
+			array(
+				'smaily_visitor_token' => $visitor_token,
+				'limit'                => $limit,
+			)
+		);
+	}
+
 	// ---------------------------------------------------------------
 	// Private request engine.
 	// ---------------------------------------------------------------
