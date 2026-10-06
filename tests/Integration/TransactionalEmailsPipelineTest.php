@@ -223,7 +223,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION );
 		self::assertNotNull( $row );
 		self::assertSame( 'failed', $row['status'], 'A non-101 body code is deterministic — mark_failed, not an eternal retry.' );
-		self::assertStringContainsString( 'smaily_response_code_203', (string) $row['last_error'] );
+		self::assertStringStartsWith( 'permanent_envelope_203: ', (string) $row['last_error'] );
 
 		$order = wc_get_order( $order_id );
 		self::assertSame(

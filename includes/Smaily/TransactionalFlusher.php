@@ -31,10 +31,12 @@ defined( 'ABSPATH' ) || exit;
  * Error model (mirrors CartFlusher):
  *   - mark_sent + order-meta 'sent' on success (Smaily {code:101}).
  *   - mark_failed + fail-open (design point 7) on TerminalDispatchException
- *     (a non-101 Smaily body code — deterministic, e.g. 203 validation /
- *     221 invalid autoresponder) and on any other Throwable (F3-53 class:
+ *     (a refusing Smaily body code, as `permanent_envelope_<code>` with
+ *     Smaily's message, e.g. 203 validation / 221 invalid autoresponder —
+ *     RetryPolicy, PRO-3862) and on any other Throwable (F3-53 class:
  *     a deterministic failure must never become an eternal retry loop).
- *   - record_attempt on ApiException (network error / 5xx / 429 — the
+ *   - record_attempt on ApiException (network error / 5xx / 429 / Smaily
+ *     body code 225 — the
  *     recurring AS tick retries; the row stays 'pending', order-meta stays
  *     'queued' so the WC hook can't double-enqueue meanwhile).
  *   - mark_failed + fail-open ALSO once a row is older than
@@ -433,9 +435,12 @@ class TransactionalFlusher {
 		}
 
 		// Success = HTTP 200 (Client::send_message() throws ApiException
-		// otherwise) with body {code:101}. Any other body code — 203
-		// validation, 221 invalid autoresponder, or anything else — is a
-		// deterministic Smaily-side rejection, terminal (design point 3).
+		// otherwise) with body {code:101}. A refusing body code fails the row
+		// with Smaily's message, or is retried when a retry can pass (225) —
+		// the same classification as the other Smaily flushers (PRO-3862).
+		// A reply with no body code at all stays terminal (design point 3).
+		RetryPolicy::throw_if_refused_envelope( $this->current_exchange );
+
 		$code = isset( $response['code'] ) ? (int) $response['code'] : 0;
 		if ( $code !== Client::CODE_OK ) {
 			throw new TerminalDispatchException( sprintf( 'smaily_response_code_%d', $code ) );

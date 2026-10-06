@@ -381,19 +381,36 @@ final class FlusherTest extends TestCase {
 		self::assertStringStartsWith( 'permanent_envelope_203: ', $queue->marked_failed[0]['error'] );
 	}
 
-	public function test_another_smaily_error_code_keeps_todays_handling(): void {
-		// PRO-3750 changes code 203 only. Today an HTTP 200 reply with any
-		// other Smaily code leaves the row as sent, with the reply stored.
+	public function test_another_refusing_smaily_code_fails_the_row_instead_of_marking_it_sent(): void {
+		// PRO-3862: an HTTP 200 reply with any other refusing Smaily code
+		// used to leave the row "sent". It now fails at once with Smaily's
+		// answer (the per-code table is pinned in RetryPolicyTest).
 		$queue = $this->fake_queue( array( $this->contact_sync_event( 23 ) ) );
 
-		$client = $this->client_answering( 216, 'Unknown error' );
+		$client = $this->client_answering( 204, 'Invalid email address provided' );
 
 		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
 
-		self::assertSame( 1, $stats['sent'] );
-		self::assertSame( array( 23 ), $queue->marked_sent );
-		self::assertSame( array(), $queue->marked_failed );
+		self::assertSame( 1, $stats['failed'] );
+		self::assertSame( array(), $queue->marked_sent );
 		self::assertSame( array(), $queue->attempts );
+		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204: Invalid email address provided', $queue->marked_failed[0]['error'] );
+	}
+
+	public function test_a_smaily_database_insert_failure_is_retried_instead_of_marked_sent(): void {
+		// PRO-3862: 225 is Smaily's own database error — the same data can
+		// pass later, so the row takes the retry ladder.
+		$queue = $this->fake_queue( array( $this->contact_sync_event( 24 ) ) );
+
+		$client = $this->client_answering( 225, 'Database insert failed' );
+
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+
+		self::assertSame( 1, $stats['retried'] );
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertSame( array(), $queue->marked_failed );
+		self::assertSame( 'Smaily API returned code 225: Database insert failed', $queue->attempts[0]['error'] );
+		self::assertSame( 60, $queue->attempts[0]['retry_in_seconds'] );
 	}
 
 	public function test_the_retry_ceiling_fails_a_row_that_keeps_failing_transiently(): void {

@@ -53,12 +53,14 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  *     abandoned-cart purchase marker for an address Smaily does not have —
  *     a retry can't recover any of them, so we don't waste retry attempts)
  *   - mark_failed on TerminalDispatchException (unknown event_type,
- *     payload decode failure, an HTTP 200 reply whose Smaily code is 203
- *     "invalid data" — RetryPolicy::permanent_envelope(), PRO-3750; any
- *     other Smaily code on HTTP 200 still marks the row sent)
+ *     payload decode failure, an HTTP 200 reply whose Smaily body code
+ *     refuses the request for good, as `permanent_envelope_<code>` with
+ *     Smaily's message — RetryPolicy::throw_if_refused_envelope(),
+ *     PRO-3750 / PRO-3862; no refused request is marked sent)
  *   - RetryPolicy::apply() on ApiException: a permanent refusal (4xx bar
- *     429) fails the row at once, anything else is retried with backoff
- *     until the attempt ceiling (PRO-1685)
+ *     429) fails the row at once, anything else (incl. a transient Smaily
+ *     body code) is retried with backoff until the attempt ceiling
+ *     (PRO-1685)
  */
 final class Flusher {
 
@@ -131,9 +133,9 @@ final class Flusher {
 				$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
 				$this->dispatch( $type, $payload );
 
-				// An HTTP 200 can still carry a refusal Smaily repeats for the
-				// same data (203 "invalid data") — fail it now (PRO-3750).
-				RetryPolicy::throw_if_permanent_envelope( $this->current_exchange );
+				// An HTTP 200 can still carry a refusal in Smaily's body code —
+				// fail or retry it by the code, never mark it sent (PRO-3862).
+				RetryPolicy::throw_if_refused_envelope( $this->current_exchange );
 
 				$this->queue->mark_sent( $id );
 				++$stats['sent'];

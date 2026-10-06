@@ -156,7 +156,53 @@ final class CartFlusherTest extends TestCase {
 		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
-		self::assertSame( 'smaily_response_code_221', $queue->marked_failed[0]['error'] );
+		self::assertSame( 'permanent_envelope_221: Smaily API returned code 221: no such autoresponder', $queue->marked_failed[0]['error'] );
+	}
+
+	public function test_a_refusing_code_on_the_routed_path_is_never_marked_sent(): void {
+		// PRO-3862: the router returns true whatever Smaily's HTTP 200 body
+		// says. A permanent code fails the row with Smaily's answer; 225
+		// (Smaily's own database error) is retried.
+		$queue = $this->fake_queue( array( $this->cart_event( 8 ), $this->cart_event( 9 ) ) );
+
+		$router = new class extends AutomationRouter {
+			/** @var array<int, array{0: int, 1: string}> */
+			public array $answers = array(
+				array( 207, 'Following fields are required' ),
+				array( 225, 'Database insert failed' ),
+			);
+
+			/** @var array{0: int, 1: string} */
+			private array $current = array( 0, '' );
+
+			public function __construct() {}
+
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+				$this->current = (array) array_shift( $this->answers );
+				return true;
+			}
+
+			public function last_exchange(): ?array {
+				return array(
+					'request'  => array( 'endpoint' => 'autoresponder' ),
+					'response' => array(
+						'http' => 200,
+						'body' => array(
+							'code'    => $this->current[0],
+							'message' => $this->current[1],
+						),
+					),
+				);
+			}
+		};
+
+		$stats = ( new CartFlusher( $queue, $router, static fn () => null ) )->flush();
+
+		self::assertSame( 0, $stats['sent'] );
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertSame( 'permanent_envelope_207: Smaily API returned code 207: Following fields are required', $queue->marked_failed[0]['error'] );
+		self::assertSame( 9, $queue->attempts[0]['id'] );
+		self::assertSame( 'Smaily API returned code 225: Database insert failed', $queue->attempts[0]['error'] );
 	}
 
 	public function test_an_invalid_data_answer_on_the_fallback_names_its_class_and_smailys_answer(): void {

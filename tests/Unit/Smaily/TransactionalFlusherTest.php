@@ -229,6 +229,56 @@ final class TransactionalFlusherTest extends TestCase {
 		);
 	}
 
+	/**
+	 * PRO-3862: a refusing body code takes the Smaily-queue classification —
+	 * a permanent code fails with Smaily's message, 225 is retried.
+	 *
+	 * @dataProvider refusing_answers
+	 */
+	public function test_a_refusing_body_code_is_failed_with_smailys_message_or_retried( int $code, string $failed_reason, string $attempt_reason ): void {
+		$order = $this->fake_order( 511, 'buyer@example.test' );
+		$this->orders[511] = $order;
+
+		$body   = array(
+			'code'    => $code,
+			'message' => 'Smaily said no',
+		);
+		$queue  = $this->fake_queue( array() );
+		$client = $this->createMock( Client::class );
+		$client->method( 'send_message' )->willReturn( $body );
+		$client->method( 'last_exchange' )->willReturn(
+			array(
+				'request'  => array(),
+				'response' => array(
+					'http' => 200,
+					'body' => $body,
+				),
+			)
+		);
+		$this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
+
+		( new TransactionalFlusher( $queue, static fn () => $client ) )->send_now(
+			TransactionalGate::TRIGGER_ORDER_CONFIRMATION,
+			$order,
+			new WorkflowMatch( 1, 'transactional' ),
+			array()
+		);
+
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertSame( $failed_reason, $queue->marked_failed[0]['error'] ?? '' );
+		self::assertSame( $attempt_reason, $queue->attempts[0]['error'] ?? '' );
+	}
+
+	/**
+	 * @return array<string, array{0: int, 1: string, 2: string}>
+	 */
+	public static function refusing_answers(): array {
+		return array(
+			'221 workflow unusable'    => array( 221, 'permanent_envelope_221: Smaily API returned code 221: Smaily said no', '' ),
+			'225 Smaily database error' => array( 225, '', 'Smaily API returned code 225: Smaily said no' ),
+		);
+	}
+
 	public function test_unexpected_throwable_from_the_client_factory_is_terminal_and_fails_open(): void {
 		$order = $this->fake_order( 508, 'buyer@example.test' );
 		$this->orders[508] = $order;

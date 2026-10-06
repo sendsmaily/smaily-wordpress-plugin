@@ -29,12 +29,15 @@ defined( 'ABSPATH' ) || exit;
  *
  *   - PERMANENT (4xx except 429): stop. mark_failed with a `permanent_http_*`
  *     reason, visible in the Event Log and countable by NotificationManager.
- *   - PERMANENT envelope (HTTP 2xx whose `{code, message}` body is 203
- *     "invalid data" — Smaily rejects identical data again): stop. The
- *     flusher fails the row with the `permanent_envelope_203` reason
- *     throw_if_permanent_envelope() raises (PRO-3750, Magento parity with
- *     PRO-1962).
- *   - TEMPORARY (5xx, 429, transport error / code 0): retry, spaced by
+ *   - REFUSING envelope (HTTP 2xx whose `{code, message}` body carries any
+ *     code other than 101): throw_if_refused_envelope() decides by the code
+ *     (PRO-3750 for 203, PRO-3862 for the rest). A code a retry with the
+ *     same data can pass (TRANSIENT_ENVELOPE_CODES) takes the TEMPORARY path
+ *     below; every other code, listed by Smaily or not, fails the row at
+ *     once with a `permanent_envelope_<code>` reason that keeps Smaily's
+ *     message. Never "sent".
+ *   - TEMPORARY (5xx, 429, transport error / code 0, a transient envelope
+ *     code): retry, spaced by
  *     BACKOFF (1m, 5m, 15m, 1h, 6h) — or by Smaily's own Retry-After when it
  *     sent one — until MAX_ATTEMPTS, then mark_failed with
  *     `retry_limit_exceeded`.
@@ -46,8 +49,9 @@ defined( 'ABSPATH' ) || exit;
  * Log's recovery path (`POST /events/retry` → EventQueue::reset_failed(),
  * which clears status + attempts + the retry park for ANY row in this queue).
  *
- * Applied by Flusher and CartFlusher. TransactionalFlusher deliberately keeps
- * its own bound — a time ceiling (PRO-1519), because a pending transactional
+ * Applied by Flusher and CartFlusher. TransactionalFlusher reads envelopes
+ * through throw_if_refused_envelope() too, but deliberately keeps its own
+ * retry bound — a time ceiling (PRO-1519), because a pending transactional
  * row suppresses the customer's native WooCommerce email while it waits, so
  * elapsed time (not attempt count) is what must be capped there.
  */
@@ -69,11 +73,18 @@ final class RetryPolicy {
 	private const MAX_DELAY = 21600;
 
 	/**
-	 * Smaily's envelope code for "invalid data": a retry with the same data
-	 * is rejected again (PRO-3750). Every other envelope code is handled as
-	 * before.
+	 * Smaily body codes a retry with the SAME data can pass (PRO-3862). Of
+	 * Smaily's response-code table
+	 * (https://smaily.com/help/api/general/response-codes/) only 225
+	 * "Database insert failed", an internal Smaily database error, is not
+	 * about the request. Every other code there names the request itself
+	 * (203 invalid data, 204 invalid email, 207 missing fields, 221 workflow
+	 * missing / disabled / out of credit, …) and fails at once; so does a
+	 * code the table does not list, because its meaning is unknown.
+	 *
+	 * @var array<int, int>
 	 */
-	private const CODE_INVALID_DATA = 203;
+	private const TRANSIENT_ENVELOPE_CODES = array( 225 );
 
 	/**
 	 * Can this failure ever succeed on a retry? 4xx (bar 429) says no —
@@ -88,41 +99,74 @@ final class RetryPolicy {
 
 	/**
 	 * The failure reason when a Smaily reply that arrived as HTTP 2xx refuses
-	 * the request permanently in its `{code, message}` body, else null. The
-	 * reason keeps Smaily's answer behind a `permanent_envelope_<code>:`
-	 * class, the same shape `permanent_http_<code>:` has.
+	 * the request for good in its `{code, message}` body, else null — null
+	 * also for success (101), a reply with no body code, and a code a retry
+	 * can pass (TRANSIENT_ENVELOPE_CODES). The reason keeps Smaily's answer
+	 * behind a `permanent_envelope_<code>:` class, the same shape
+	 * `permanent_http_<code>:` has.
 	 *
 	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
 	 */
 	public static function permanent_envelope( ?array $exchange ): ?string {
+		$refusal = self::envelope_refusal( $exchange );
+		if ( $refusal === null || in_array( $refusal['code'], self::TRANSIENT_ENVELOPE_CODES, true ) ) {
+			return null;
+		}
+
+		return sprintf( 'permanent_envelope_%1$d: Smaily API returned code %1$d: %2$s', $refusal['code'], $refusal['message'] );
+	}
+
+	/**
+	 * Throw when the reply's `{code, message}` body refuses the request: a
+	 * TerminalDispatchException (the flusher fails the row) for a permanent
+	 * code, an ApiException (the flusher retries it) for a code a retry can
+	 * pass. Returns quietly on success and when no body code came back.
+	 *
+	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
+	 *
+	 * @throws TerminalDispatchException When Smaily refused the data for good.
+	 * @throws ApiException              When Smaily refused it for a reason that can pass.
+	 */
+	public static function throw_if_refused_envelope( ?array $exchange ): void {
+		$permanent = self::permanent_envelope( $exchange );
+		if ( $permanent !== null ) {
+			throw new TerminalDispatchException( $permanent ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message goes to the Event Log / debug log, never echoed to a browser.
+		}
+
+		$refusal = self::envelope_refusal( $exchange );
+		if ( $refusal !== null ) {
+			throw new ApiException( // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message goes to the Event Log / debug log, never echoed to a browser.
+				sprintf( 'Smaily API returned code %d: %s', $refusal['code'], $refusal['message'] ),
+				(int) ( $exchange['response']['http'] ?? 200 ),
+				null,
+				$refusal['code']
+			);
+		}
+	}
+
+	/**
+	 * The refusing `{code, message}` of a reply, or null when the reply is a
+	 * success (101), carries no numeric body code, or nothing was sent.
+	 *
+	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
+	 *
+	 * @return array{code: int, message: string}|null
+	 */
+	private static function envelope_refusal( ?array $exchange ): ?array {
 		$body = $exchange['response']['body'] ?? null;
 		if ( ! is_array( $body ) || ! isset( $body['code'] ) || ! is_numeric( $body['code'] ) ) {
 			return null;
 		}
 
 		$code = (int) $body['code'];
-		if ( $code !== self::CODE_INVALID_DATA ) {
+		if ( $code === Client::CODE_OK ) {
 			return null;
 		}
 
-		$message = isset( $body['message'] ) && is_scalar( $body['message'] ) ? (string) $body['message'] : '';
-
-		return sprintf( 'permanent_envelope_%d: Smaily API returned code %d: %s', $code, $code, $message );
-	}
-
-	/**
-	 * Throw the permanent_envelope() refusal, if the reply carries one, as a
-	 * TerminalDispatchException — the flusher then fails the row.
-	 *
-	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
-	 *
-	 * @throws TerminalDispatchException When Smaily refused the data permanently.
-	 */
-	public static function throw_if_permanent_envelope( ?array $exchange ): void {
-		$refusal = self::permanent_envelope( $exchange );
-		if ( $refusal !== null ) {
-			throw new TerminalDispatchException( $refusal ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message goes to the Event Log / debug log, never echoed to a browser.
-		}
+		return array(
+			'code'    => $code,
+			'message' => isset( $body['message'] ) && is_scalar( $body['message'] ) ? (string) $body['message'] : '',
+		);
 	}
 
 	/**
