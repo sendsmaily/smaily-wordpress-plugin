@@ -131,6 +131,14 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		public function set_param( string $key, $value ): void {
 			$this->params[ $key ] = $value;
 		}
+		/** @var array<string, string> Keyed the way WP canonicalizes them: lower case, `-` → `_`. */
+		private array $headers = array();
+		public function get_header( string $key ): ?string {
+			return $this->headers[ str_replace( '-', '_', strtolower( $key ) ) ] ?? null;
+		}
+		public function set_header( string $key, string $value ): void {
+			$this->headers[ str_replace( '-', '_', strtolower( $key ) ) ] = $value;
+		}
 	}
 }
 
@@ -144,6 +152,11 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 		}
 		public function get_data() { return $this->data; }
 		public function get_status(): int { return $this->status; }
+		/** @var array<string, string> */
+		private array $headers = array();
+		public function header( string $key, string $value ): void { $this->headers[ $key ] = $value; }
+		/** @return array<string, string> */
+		public function get_headers(): array { return $this->headers; }
 	}
 }
 

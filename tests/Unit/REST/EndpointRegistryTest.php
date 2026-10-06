@@ -57,10 +57,13 @@ final class EndpointRegistryTest extends TestCase {
 		// Public browse-beacon proxy (F3-41: `/relay`, never `/beacon`).
 		self::assertContains( 'POST /relay', $paths );
 
+		// Public storefront recommendations (PRO-3835).
+		self::assertContains( 'GET /recommendations', $paths );
+
 		// Pin the TOTAL so a route can't silently drop out of the list
 		// (PRO-1258: the /events triple was missing for months and nothing
 		// failed). A new endpoint bumps this number on purpose.
-		self::assertCount( 17, $paths );
+		self::assertCount( 18, $paths );
 		self::assertSame( $paths, array_unique( $paths ), 'Duplicate method+path pair in expected_routes()' );
 	}
 
