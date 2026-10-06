@@ -26,10 +26,19 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-06 (**3.16.0 release candidate — bumped on branch
-`release/3.16.0`, PR open, NOT tagged or published.** The tag, the GitHub
-release and `./release.sh` stay Erkki's one-way door (CLAUDE.md "Cutting a
-release ZIP"). **Release gate ran on the CI-built ZIP** (release.yml dry-run
+_Last updated: 2026-10-06 (session end). **3.16.0 is LIVE on wordpress.org**
+(published 2026-10-06; GitHub release 3.16.0, CI asset verified 932 500 B, SHA256
+`470d42bc81b13b21c7845b84f8ecc6f2907e1715bb764e522d3ab72323feaf3b`). Merchant docs
+site published 2026-10-06 (smaily.com/connect-woo/, md5 matched main at `6022d58`)
+incl. the Elementor Pro guide and the consent-scenarios section._
+- **Unreleased on main after 3.16.0:** PR #176 (docs: CI connected in Step 4, import button names, import-card copy), #177 (PRO-3818 mock records hints only when sent; PRO-3821 a cancelled import stays cancelled when a batch already started), #178 (PRO-3862 every Smaily refusing body code: 225 retried, all others fail at once with Smaily's message; PRO-3863 pinning test). They go out in the next release.
+- **Outcome gauges (2026-10-06):** wordpress.org version 3.16.0, active installs 2000 (bucketed; flat at 2000 since 2026-09-24 — two weeks flat). Releases: 3.16.0 (2026-10-06), 3.15.0 (2026-09-29), 3.14.0 (2026-09-24), 3.13.0 (2026-09-10), 3.12.1 (2026-09-08).
+- **Next session opens with:** (1) human acceptance on real stores — MiuMjau runs Import existing data → Customers once and places the Smaily Recommendations block; CookieYes accept → `wp_consent_marketing=allow` cookie → /relay + /recommendations fire; one real guest checkout with consent gets a `vs_` token; one Elementor Pro form signup (Tanel/Skroot, PRO-3806); (2) Estonian proofread of the docs-site sentences changed after the 3.16.0 publish (PR #176's eight ET sentences + PR #178's Event Log sentence), then republish the docs site over FTPS; (3) backlog candidates: PRO-3868 (failed contact import status + skipped page, Medium), PRO-3858 (157 dev-tool Dependabot alerts, nothing ships), PRO-3859 (nightly catalog manifest, contract 1.12.0 §3c), PRO-3833/PRO-3819 hardening, PRO-3824 (CF7 forced opt-in decision), PRO-3820 (multilingual cards).
+- Dev wp-env (main checkout) is connected to the synthetic test tenant "Beauty Synthetic (live-walk)" (Erkki approved 2026-10-06); NO durable snapshot was taken of it. Residue on that tenant: one test order (external id 11) + its test customer.
+
+_Previous entry (2026-10-06, before the publish — 3.16.0 release gate on branch
+`release/3.16.0`; the tag, the GitHub release and `./release.sh` were Erkki's
+one-way door, now done. **Release gate ran on the CI-built ZIP** (release.yml dry-run
 37443891817 on `f0f78ee`): 932 508 B, SHA256 `f1833e66…4ecc5812`,
 verify-release-zip exit 0; PCP 0 ERRORS / 10 WARNINGS, all accepted (the 3.15.0
 set + `MarketingConsent.php:42`, accepted by Erkki 2026-10-06). Fixed on the
