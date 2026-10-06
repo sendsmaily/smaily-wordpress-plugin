@@ -67,7 +67,7 @@ final class RecEngineImportStopTest extends TestCase {
 		parent::tearDown();
 	}
 
-	public function test_an_unexpected_error_in_a_batch_stops_the_import_and_start_import_runs_it_again(): void {
+	public function test_an_unexpected_error_in_a_batch_stops_the_import_and_import_now_runs_it_again(): void {
 		$first  = $this->simple( 'a' );
 		$second = $this->simple( 'b' );
 		$this->forget_live_events();
@@ -94,7 +94,7 @@ final class RecEngineImportStopTest extends TestCase {
 		$start = RestRequestHelper::post( '/backfill/start', array( 'job_type' => self::JOB_TYPE ) );
 		self::assertSame( 200, $start->get_status() );
 		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $start->get_data()['status'] );
-		self::assertTrue( $this->tick_queued(), 'Start import queues the first batch again.' );
+		self::assertTrue( $this->tick_queued(), 'Import now queues the first batch again.' );
 
 		$this->unschedule_ticks();
 		do_action( BackfillJobInterface::TICK_HOOK, self::JOB_TYPE );
@@ -135,7 +135,7 @@ final class RecEngineImportStopTest extends TestCase {
 
 		$start = RestRequestHelper::post( '/backfill/start', array( 'job_type' => self::JOB_TYPE ) );
 		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $start->get_data()['status'] );
-		self::assertTrue( $job->is_running(), 'Start import runs it again.' );
+		self::assertTrue( $job->is_running(), 'Import now runs it again.' );
 		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->status_route()['status'] );
 	}
 

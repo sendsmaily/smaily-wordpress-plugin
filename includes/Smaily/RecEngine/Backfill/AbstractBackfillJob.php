@@ -195,7 +195,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 			// a database error, a product that cannot be built. Left to escape,
 			// it ends the tick before the next one is scheduled and the row
 			// stays `running` forever (PRO-3890). Stop the import instead —
-			// Start import runs it again.
+			// Import now runs it again.
 			$this->record_failure( (int) $state['id'], $e );
 			return $this->batch_result(
 				0,
@@ -358,7 +358,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 * it is queued or running in Action Scheduler, and it started longer than
 	 * STALL_GRACE_SECONDS ago. Deactivation cancels the queued batch, and a
 	 * batch that dies on a fatal error schedules none. Read-only: the row is
-	 * not rewritten and the import is not restarted — Start import does that.
+	 * not rewritten and the import is not restarted — Import now does that.
 	 *
 	 * @param array<string, mixed> $row A state row from read_state().
 	 */
