@@ -950,7 +950,8 @@ shared with `/relay`; empty answer on `Sec-Fetch-Site: cross-site|same-site`;
 `Cache-Control: no-store, private` on every answer) and injects its `{html}`
 (cards built and escaped by `StorefrontRecommendations::cards()`). Who is asked
 about comes from SERVER state only: the WP user id from the `logged_in` cookie
-(validated directly — no REST nonce, it would be cached), else the engine
+(validated directly — no REST nonce, it would be cached), else — only with the
+guest's marketing consent, checked on the server too (PRO-3857) — the
 visitor token from the `tracking_cookie_name` cookie (`smaily_rec_uid`), else
 nobody (no engine call); never a value from the request. An opted-out
 logged-in shopper is never asked about, not by the token either. The client is
@@ -970,6 +971,21 @@ valid `smaily_ctx` CLEARS `smaily_rec_ctx` — in BOTH writers
 (`LandingCapture::resolve()` returns `''` for the context slot = delete;
 `attribution.ts` writes it with `Max-Age=0`). The `utm_content` fallback
 never clears. Change one writer, change the other in the same commit.
+
+**Visitor-token sources (PRO-3857, security audit M1/L2/L3).** Two shape checks,
+never merged: a LINK (`?smaily_vt=`) takes only the engine's `vt_` token —
+`AttributionShape::is_engine_visitor_token()` in `LandingCapture::resolve()`,
+`VISITOR_TOKEN_PATTERN` in `attribution.ts`; the cookie read, the order meta and
+the send paths take `vt_` or the store's `vs_` (`is_visitor_token()`). A `vs_`
+in a link is one its sender chose, and the engine binds it to the victim at
+their next guest order. A `vs_` value rides an order
+(`save_attribution_cookies_to_order()`) and the route passes a guest's token on
+only with `MarketingConsent::given()` (both have a `marketing_consent_given()`
+test seam); `vt_` on an order stays consent-ungated (F3-46). An engine
+timeout/network failure/5xx on §15 sets `StorefrontRecommendations::PAUSE_KEY`
+for `PAUSE_TTL` (2 min): every shopper's cache miss answers empty with no call;
+an answer or a 4xx never pauses. An integration test that trips it must
+`delete_transient()` it (EnvScrub does not sweep transients).
 
 ### A new Gutenberg block is a new `blocks/` workspace — touch four places
 Adding `blocks/<name>/` (PRO-3788 added `recommendations`): (1) list it in
