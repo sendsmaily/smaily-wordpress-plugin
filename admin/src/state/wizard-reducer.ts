@@ -413,7 +413,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
           ...state.engineAutomations,
           rows: action.payload.rows,
           dirty: action.payload.keepDirty,
-          saveStatus: 'idle',
+          saveStatus: action.payload.afterSave === true ? state.engineAutomations.saveStatus : 'idle',
           saveError: null,
           // A preserved draft keeps its unresolved save errors visible;
           // a fresh hydrate starts clean.
@@ -457,6 +457,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
           saveStatus: 'success',
           saveError: null,
           serverErrors: [],
+          realSendsRequested: action.payload.realSendsRequested,
         },
       };
 

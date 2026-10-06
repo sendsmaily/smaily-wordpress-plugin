@@ -178,6 +178,34 @@ describe('Settings — engine automations join the WooCommerce tab save (T2.2)',
     expect(screen.getByRole('button', { name: /save changes/i })).not.toBeDisabled();
   });
 
+  it('re-reads the engine after a save and shows a real-sends request as waiting, not live (PRO-3707)', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    putMock.mockResolvedValue({ ok: true, upserted: 1 });
+    await renderOnWooCommerceTab();
+    expect(screen.getByText('Test mode')).toBeInTheDocument();
+    expect(configMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(await screen.findByRole('button', { name: /activate for real/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(putMock).toHaveBeenCalledTimes(1);
+    });
+    expect(putMock.mock.calls[0]?.[0]?.[0]).toMatchObject({ enabled: true, test_mode: false });
+
+    // The engine stored the row in test mode (operator not yet confirmed):
+    // the re-read config is unchanged, and the card says so.
+    await waitFor(() => {
+      expect(configMock).toHaveBeenCalledTimes(2);
+    });
+    expect(await screen.findByText("Waiting for Smaily's confirmation")).toBeInTheDocument();
+    expect(screen.getByText(/real sends requested — waiting for smaily/i)).toBeInTheDocument();
+    expect(screen.queryByText('Live — real sends on')).not.toBeInTheDocument();
+    expect(screen.getByText(/engine automations saved/i)).toBeInTheDocument();
+    // A clean slice after the re-read: nothing left to save.
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
+  });
+
   it('does not PUT when only the local WooCommerce half is dirty', async () => {
     await renderOnWooCommerceTab();
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch } from 'react';
+import { useEffect, useRef, useState, type Dispatch } from 'react';
 
 import { __, sprintf } from '@admin/lib/i18n';
 import {
@@ -12,12 +12,14 @@ import {
   COOLDOWN_MAX,
   COOLDOWN_MIN,
   deriveLanguageMode,
+  engineTriggerStatus,
   fallbackLanguage,
   issuesByTrigger,
   pickRecipe,
   setFallbackLanguage,
   updateLanguageWorkflow,
   validateRows,
+  type EngineTriggerStatus,
 } from '../../state/engine-automations';
 import {
   type EngineAutomationRow,
@@ -37,6 +39,9 @@ import {
   Select,
   Toggle,
 } from '../primitives';
+
+/** Smaily's support page — where the merchant confirms real sends. */
+const SMAILY_SUPPORT_URL = 'https://smaily.com/help/';
 
 export interface EngineAutomationsSectionProps {
   state: WizardState;
@@ -63,7 +68,11 @@ export interface EngineAutomationsSectionProps {
  *    the re-fetch; a clean one is replaced.
  *  - Fail-closed: enabled comes only from the merchant's toggle;
  *    test_mode defaults ON, and switching it off ("activate for real")
- *    is a separate, confirmed action — never the enable checkbox.
+ *    is a separate, confirmed action — never the enable checkbox. It
+ *    only REQUESTS real sends: the engine keeps the trigger in test
+ *    mode until a Smaily operator switches real sends on (§13), so
+ *    every save is followed by a §12 re-read and the status label
+ *    shows the stored state.
  *  - Save rides the surrounding context's save path (Settings sticky
  *    footer / wizard Continue) via state.engineAutomations — this
  *    component renders and edits; it never PUTs on its own.
@@ -161,6 +170,21 @@ function ConnectedSection({
 
   const derivedMode = deriveLanguageMode(state.multilingualMode, state.env.detectedLanguages);
 
+  // Re-read §12 after every save: the engine may store a row
+  // differently from what was sent (a real-sends request stays in test
+  // mode, §13), and the screen must show what the engine stored. Fires
+  // on the pending → success transition only, so a remount after an
+  // earlier save does not re-read twice.
+  const previousSaveStatus = useRef(engine.saveStatus);
+  const rereadAfterSave = useRef(false);
+  useEffect(() => {
+    if (previousSaveStatus.current === 'pending' && engine.saveStatus === 'success') {
+      rereadAfterSave.current = true;
+      refetch();
+    }
+    previousSaveStatus.current = engine.saveStatus;
+  }, [engine.saveStatus, refetch]);
+
   // Hydrate the reducer slice from every fresh fetch. A dirty draft is
   // preserved (its rows win per trigger); a clean slice takes the
   // server rows verbatim — the engine's GET is the truth (F3-51).
@@ -173,14 +197,21 @@ function ConnectedSection({
       data.configs,
       engine.dirty ? engine.rows : null,
       derivedMode,
+      engine.realSendsRequested,
     );
-    dispatch({ type: 'ENGINE_AUTOMATIONS_HYDRATED', payload: { rows, keepDirty: engine.dirty } });
+    dispatch({
+      type: 'ENGINE_AUTOMATIONS_HYDRATED',
+      payload: { rows, keepDirty: engine.dirty, afterSave: rereadAfterSave.current },
+    });
+    rereadAfterSave.current = false;
     // engine.dirty/rows are read on purpose only when data changes — a
     // fetch result hydrates once; edits must not re-trigger it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, dispatch, derivedMode]);
 
-  if (status === 'pending' || status === 'idle') {
+  // The post-save re-read keeps the cards on screen; only a first load
+  // (no data yet) shows the skeleton.
+  if (data === null && (status === 'pending' || status === 'idle')) {
     return <SkeletonCard />;
   }
 
@@ -211,6 +242,7 @@ function ConnectedSection({
   const boundServer = issuesByTrigger(engine.serverErrors, engine.rows);
   // Wrapper-level / unbindable server errors surface in the section banner.
   const unboundServer = boundServer.get('') ?? [];
+  const storedByKey = new Map(data.configs.map((c) => [c.trigger_key, c]));
 
   return (
     <div className="space-y-4">
@@ -240,6 +272,10 @@ function ConnectedSection({
             trigger={trigger}
             row={row}
             docsUrl={data.catalog.docs}
+            status={engineTriggerStatus(
+              storedByKey.get(trigger.key),
+              engine.realSendsRequested.includes(trigger.key),
+            )}
             state={state}
             dispatch={dispatch}
             issues={[
@@ -318,6 +354,8 @@ interface TriggerCardProps {
   trigger: AutomationCatalogTrigger;
   row: EngineAutomationRow;
   docsUrl: string;
+  /** The trigger's state as the engine stores it (§12) — not the draft. */
+  status: EngineTriggerStatus;
   state: WizardState;
   dispatch: Dispatch<WizardAction>;
   issues: EngineAutomationsIssue[];
@@ -327,6 +365,7 @@ function TriggerCard({
   trigger,
   row,
   docsUrl,
+  status,
   state,
   dispatch,
   issues,
@@ -342,15 +381,12 @@ function TriggerCard({
     });
   };
 
-  const statusPill = row.enabled ? (
-    row.test_mode ? (
-      <Pill tone="warning">{ __( 'Test mode', 'smaily-connect' ) }</Pill>
-    ) : (
-      <Pill tone="success">{ __( 'Active', 'smaily-connect' ) }</Pill>
-    )
-  ) : (
-    <Pill tone="neutral">{ __( 'Off', 'smaily-connect' ) }</Pill>
-  );
+  const statusPill = {
+    off: <Pill tone="neutral">{ __( 'Off', 'smaily-connect' ) }</Pill>,
+    test: <Pill tone="warning">{ __( 'Test mode', 'smaily-connect' ) }</Pill>,
+    waiting: <Pill tone="brand">{ __( "Waiting for Smaily's confirmation", 'smaily-connect' ) }</Pill>,
+    live: <Pill tone="success">{ __( 'Live — real sends on', 'smaily-connect' ) }</Pill>,
+  }[status];
 
   return (
     <Card title={name} description={description} headerAccessory={statusPill}>
@@ -393,7 +429,14 @@ function TriggerCard({
 
         <CooldownField trigger={trigger} row={row} patch={patch} issues={issues} />
 
-        <TestModeBlock trigger={trigger} row={row} name={name} patch={patch} issues={issues} />
+        <TestModeBlock
+          trigger={trigger}
+          row={row}
+          name={name}
+          status={status}
+          patch={patch}
+          issues={issues}
+        />
       </div>
     </Card>
   );
@@ -642,17 +685,22 @@ function WorkflowSelect({
  * Test-mode block — the fail-closed heart of the section (§11):
  * test_mode starts ON, fires reach only the listed addresses, and
  * going live is a SEPARATE confirmed action, never the enable toggle.
+ * That action only REQUESTS real sends: a Smaily operator switches them
+ * on after the merchant's confirmation (§13), so until the engine
+ * stores the trigger live the test addresses stay in force and editable.
  */
 function TestModeBlock({
   trigger,
   row,
   name,
+  status,
   patch,
   issues,
 }: {
   trigger: AutomationCatalogTrigger;
   row: EngineAutomationRow;
   name: string;
+  status: EngineTriggerStatus;
   patch: (fields: Partial<EngineAutomationRow>) => void;
   issues: EngineAutomationsIssue[];
 }): React.JSX.Element {
@@ -663,7 +711,7 @@ function TestModeBlock({
       sprintf(
         // translators: %s is the automation name, e.g. "Replenishment due".
         __(
-          'Turn off test mode for "%s"? Once you save, the engine will start sending this automation to real customers. You can switch back to test mode at any time.',
+          'Request real sends for "%s"? Once you save, the request goes to Smaily. The automation stays in test mode until Smaily switches real sends on after your confirmation.',
           'smaily-connect',
         ),
         name,
@@ -675,16 +723,18 @@ function TestModeBlock({
     patch({ test_mode: false });
   };
 
-  if (!row.test_mode) {
+  const backToTestMode = (
+    <Button variant="ghost" size="sm" type="button" onClick={() => patch({ test_mode: true })}>
+      { __( 'Back to test mode', 'smaily-connect' ) }
+    </Button>
+  );
+
+  if (!row.test_mode && status === 'live') {
     return (
       <Banner
         tone="success"
-        title={ __( 'Live — real customers receive this automation once saved.', 'smaily-connect' ) }
-        actions={
-          <Button variant="ghost" size="sm" type="button" onClick={() => patch({ test_mode: true })}>
-            { __( 'Back to test mode', 'smaily-connect' ) }
-          </Button>
-        }
+        title={ __( 'Live — real sends are on: real customers receive this automation.', 'smaily-connect' ) }
+        actions={backToTestMode}
       />
     );
   }
@@ -728,9 +778,26 @@ function TestModeBlock({
         <FieldIssuesPrefix issues={issues} prefix="test_emails" />
       </div>
       <div className="mt-3">
-        <Button variant="secondary" size="sm" type="button" onClick={handleActivate}>
-          { __( 'Activate for real…', 'smaily-connect' ) }
-        </Button>
+        {row.test_mode ? (
+          <Button variant="secondary" size="sm" type="button" onClick={handleActivate}>
+            { __( 'Activate for real…', 'smaily-connect' ) }
+          </Button>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-text-primary">
+              {status === 'waiting'
+                ? __( "Real sends requested — waiting for Smaily's confirmation. Until then this automation stays in test mode.", 'smaily-connect' )
+                : __( 'Real sends will be requested when you save. Until Smaily switches them on, this automation stays in test mode.', 'smaily-connect' )}
+            </p>
+            {backToTestMode}
+          </div>
+        )}
+        <p className="mt-2 text-xs text-text-tertiary">
+          { __( 'Real sends are switched on by Smaily after your confirmation.', 'smaily-connect' ) }{' '}
+          <a href={SMAILY_SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="underline">
+            { __( 'Contact Smaily support', 'smaily-connect' ) }
+          </a>
+        </p>
       </div>
     </div>
   );

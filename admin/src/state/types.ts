@@ -180,6 +180,15 @@ export interface EngineAutomationsState {
   saveError: string | null;
   /** §13 422 errors (or local pre-validation issues) from the last save attempt. */
   serverErrors: EngineAutomationsIssue[];
+  /**
+   * Trigger keys the last successful save in this page session sent
+   * with `enabled: true` + `test_mode: false` — a request for real
+   * sends. The engine stores such a row in test mode until a Smaily
+   * operator switches real sends on (contract §13), and the §12 read
+   * cannot tell a request from plain test mode, so this is the only
+   * record of it.
+   */
+  realSendsRequested: string[];
 }
 
 /**
@@ -423,6 +432,7 @@ export const idleEngineAutomations: EngineAutomationsState = {
   saveStatus: 'idle',
   saveError: null,
   serverErrors: [],
+  realSendsRequested: [],
 };
 
 export const idleBackfill: BackfillProgress = {
@@ -507,10 +517,14 @@ export type WizardAction =
   // preserves an unsaved draft across a tab switch. UPDATE marks the slice
   // dirty; SAVED/SAVE_FAILED come from the PUT round-trip (all-or-nothing:
   // a failure keeps the WHOLE slice dirty).
-  | { type: 'ENGINE_AUTOMATIONS_HYDRATED'; payload: { rows: EngineAutomationRow[]; keepDirty: boolean } }
+  | {
+      type: 'ENGINE_AUTOMATIONS_HYDRATED';
+      /** afterSave: the re-read that follows a save — keeps the save outcome banner. */
+      payload: { rows: EngineAutomationRow[]; keepDirty: boolean; afterSave?: boolean };
+    }
   | { type: 'UPDATE_ENGINE_AUTOMATION'; payload: { triggerKey: string; patch: Partial<EngineAutomationRow> } }
   | { type: 'ENGINE_AUTOMATIONS_SAVE_START' }
-  | { type: 'ENGINE_AUTOMATIONS_SAVED' }
+  | { type: 'ENGINE_AUTOMATIONS_SAVED'; payload: { realSendsRequested: string[] } }
   | { type: 'ENGINE_AUTOMATIONS_SAVE_FAILED'; payload: { error: string; errors: EngineAutomationsIssue[] } }
 
   // Settings dirty-tab tracking ---------------------------------------------

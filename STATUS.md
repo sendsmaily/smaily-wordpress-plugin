@@ -26,7 +26,16 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3743 — connecting Campaign Intelligence
+_Last updated: 2026-10-05 (**PRO-3707 — the engine-run automations screen
+shows what the engine stored.** After every save the section re-reads §12;
+each card's label is Off / Test mode / Waiting for Smaily's confirmation /
+Live — real sends on, and the go-live step says Smaily switches real sends
+on after the merchant's confirmation (support link). "Waiting" comes from the
+plugin's own last save in the page session — §12 cannot show a request
+(DECISIONS PRO-3707). The mock engine now stores a real-sends request in test
+mode unless the test seeds the operator switch. Unreleased.)_
+
+Prior: 2026-10-05 (**PRO-3743 — connecting Campaign Intelligence
 starts the catalog import** (unreleased on main once merged): a successful
 setup exchange starts the products backfill with its first batch 3 minutes
 out; the Campaign Intelligence screen shows "Catalog import started" with
@@ -35,7 +44,7 @@ time); a catalog import already queued or running is not restarted;
 customers/orders unchanged. Integration `RecEngineCatalogImportOnConnectTest`
 (5) + vitest; merchant docs EN+ET (Step 4, Settings, Importing) — ET text
 awaits the human proofread before the docs site is published. DECISIONS
-PRO-3743.)_
+PRO-3743.)
 
 Prior: 2026-10-05 (**PRO-3627 (unreleased on main once merged):** Smaily creates a
 contact sent without a status as subscribed, so a profiling choice and the

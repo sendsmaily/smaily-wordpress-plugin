@@ -164,7 +164,7 @@ describe('EngineAutomationsSection', () => {
     expect(optionLabels).not.toContain('Old flow');
   });
 
-  it('requires a confirm before switching test mode off, and offers the way back', async () => {
+  it('requires a confirm before requesting real sends, and offers the way back', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<Harness initial={connectedState()} />);
 
@@ -173,15 +173,54 @@ describe('EngineAutomationsSection', () => {
     // Declined → still in test mode.
     fireEvent.click(activate);
     expect(confirmSpy).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/test mode is on/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /activate for real/i })).toBeInTheDocument();
 
-    // Confirmed → live, with a "back to test mode" escape hatch.
+    // Confirmed → a REQUEST to be saved, never "live": the trigger stays
+    // in test mode until Smaily switches real sends on (§13).
     confirmSpy.mockReturnValue(true);
     fireEvent.click(activate);
-    expect(await screen.findByText(/live — real customers/i)).toBeInTheDocument();
+    expect(await screen.findByText(/real sends will be requested when you save/i)).toBeInTheDocument();
+    expect(screen.getByText(/test mode is on/i)).toBeInTheDocument();
+    expect(screen.queryByText(/live/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /back to test mode/i }));
-    expect(await screen.findByText(/test mode is on/i)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /activate for real/i })).toBeInTheDocument();
+  });
+
+  it('says next to the go-live step that Smaily switches real sends on, with a support link (PRO-3707)', async () => {
+    render(<Harness initial={connectedState()} />);
+
+    await screen.findByRole('button', { name: /activate for real/i });
+    expect(
+      screen.getByText(/real sends are switched on by smaily after your confirmation/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /contact smaily support/i })).toHaveAttribute(
+      'href',
+      'https://smaily.com/help/',
+    );
+  });
+
+  it('labels a trigger the engine stores with real sends on as live (PRO-3707)', async () => {
+    configMock.mockResolvedValue({
+      configs: [
+        {
+          trigger_key: 'quantum_upsell_2027',
+          enabled: true,
+          language_mode: 'single',
+          automation_map: { id: '123' },
+          cooldown_days: 7,
+          daily_cap: null,
+          test_mode: false,
+          test_emails: [],
+          configured_via: 'admin',
+          updated_at: '2026-10-05T08:00:00.000Z',
+        },
+      ],
+    });
+    render(<Harness initial={connectedState()} />);
+
+    expect(await screen.findByText('Live — real sends on')).toBeInTheDocument();
+    expect(screen.getByText(/real sends are on: real customers receive/i)).toBeInTheDocument();
   });
 
   it('flags an enabled trigger without a workflow at the field before any PUT', async () => {

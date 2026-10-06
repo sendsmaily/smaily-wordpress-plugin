@@ -7145,6 +7145,33 @@ is unchanged.
 processed) — a manual "Import now" passes through the same state for a few
 seconds and would flash the notice.
 
+### PRO-3707 — The automations screen shows what the engine stored; a real-sends request is known from the plugin's own last save (2026-10-05)
+
+**Context:** contract §13 (v1.8.2, PRO-3705): the engine stores an enabled
+row sent with `test_mode: false` in test mode unless a Smaily operator has
+switched that trigger's real sends on, and answers the PUT exactly as before.
+The settings screen kept its own draft after a save, so "Activate for real…"
+plus Save showed the trigger as live while it still sent only to test
+addresses.
+**Decision:** every successful engine save is followed by a §12 re-read; the
+card's status label shows the STORED state (Off / Test mode / Waiting for
+Smaily's confirmation / Live — real sends on), not the draft. "Waiting" is
+known from the plugin's own last successful save in this page session
+(`engineAutomations.realSendsRequested`), because the §12 read has no field
+that tells a request apart from plain test mode. While a request stands, the
+hydrated draft keeps `test_mode: false`, so a later save repeats the request
+instead of silently withdrawing it. The go-live step says Smaily switches real
+sends on after the merchant's confirmation and links Smaily support.
+**Rationale:** the engine stays the authority for what is stored (F3-51);
+the request is the plugin's own act, not a copy of engine state, so no local
+cache of the config is introduced.
+**Rejected:** persisting the request in a WordPress option (a local record
+F3-51 rules out, and it would drift from an operator decision made
+engine-side) — the waiting label therefore disappears on a page reload; the
+proper fix is the engine exposing the request in §12 (follow-up).
+**Relationships:** F3-51, F3-52 (going live is a confirmed separate act —
+now a request).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

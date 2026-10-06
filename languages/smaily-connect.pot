@@ -1472,7 +1472,6 @@ msgid "Save changes"
 msgstr ""
 
 #: admin/src/components/steps/AutomationSection.tsx:25
-#: admin/src/components/steps/EngineAutomationsSection.tsx:204
 msgid "Active"
 msgstr ""
 
@@ -1685,14 +1684,38 @@ msgstr ""
 msgid "No active workflows found in Smaily — enter the workflow id manually or create the workflow first."
 msgstr ""
 
-#. translators: %s is the automation name, e.g. "Replenishment due".
-#: admin/src/components/steps/EngineAutomationsSection.tsx:417
-#, js-format
-msgid "Turn off test mode for \"%s\"? Once you save, the engine will start sending this automation to real customers. You can switch back to test mode at any time."
+#: admin/src/components/steps/EngineAutomationsSection.tsx
+msgid "Waiting for Smaily's confirmation"
 msgstr ""
 
-#: admin/src/components/steps/EngineAutomationsSection.tsx:434
-msgid "Live — real customers receive this automation once saved."
+#: admin/src/components/steps/EngineAutomationsSection.tsx
+msgid "Live — real sends on"
+msgstr ""
+
+#. translators: %s is the automation name, e.g. "Replenishment due".
+#: admin/src/components/steps/EngineAutomationsSection.tsx
+#, js-format
+msgid "Request real sends for \"%s\"? Once you save, the request goes to Smaily. The automation stays in test mode until Smaily switches real sends on after your confirmation."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx
+msgid "Live — real sends are on: real customers receive this automation."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx
+msgid "Real sends requested — waiting for Smaily's confirmation. Until then this automation stays in test mode."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx
+msgid "Real sends will be requested when you save. Until Smaily switches them on, this automation stays in test mode."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx
+msgid "Real sends are switched on by Smaily after your confirmation."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx
+msgid "Contact Smaily support"
 msgstr ""
 
 #: admin/src/components/steps/EngineAutomationsSection.tsx:435

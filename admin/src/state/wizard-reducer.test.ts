@@ -512,6 +512,7 @@ describe('wizardReducer — engine-run automations slice (T2.2)', () => {
     });
     s = wizardReducer(s, {
       type: 'ENGINE_AUTOMATIONS_SAVED',
+      payload: { realSendsRequested: [] },
     });
     s = wizardReducer(s, {
       type: 'UPDATE_ENGINE_AUTOMATION',
@@ -547,9 +548,31 @@ describe('wizardReducer — engine-run automations slice (T2.2)', () => {
     expect(s.engineAutomations.saveStatus).toBe('error');
     expect(s.engineAutomations.serverErrors).toHaveLength(1);
 
-    s = wizardReducer(s, { type: 'ENGINE_AUTOMATIONS_SAVED' });
+    s = wizardReducer(s, {
+      type: 'ENGINE_AUTOMATIONS_SAVED',
+      payload: { realSendsRequested: ['replenish_due'] },
+    });
     expect(s.engineAutomations.dirty).toBe(false);
     expect(s.engineAutomations.saveStatus).toBe('success');
     expect(s.engineAutomations.serverErrors).toEqual([]);
+    expect(s.engineAutomations.realSendsRequested).toEqual(['replenish_due']);
+  });
+
+  it('the re-read after a save keeps the save outcome; any other hydrate resets it (PRO-3707)', () => {
+    let s = wizardReducer(baseState, {
+      type: 'ENGINE_AUTOMATIONS_SAVED',
+      payload: { realSendsRequested: [] },
+    });
+    s = wizardReducer(s, {
+      type: 'ENGINE_AUTOMATIONS_HYDRATED',
+      payload: { rows: [row], keepDirty: false, afterSave: true },
+    });
+    expect(s.engineAutomations.saveStatus).toBe('success');
+
+    s = wizardReducer(s, {
+      type: 'ENGINE_AUTOMATIONS_HYDRATED',
+      payload: { rows: [row], keepDirty: false },
+    });
+    expect(s.engineAutomations.saveStatus).toBe('idle');
   });
 });
