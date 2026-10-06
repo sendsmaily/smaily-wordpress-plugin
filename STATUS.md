@@ -61,6 +61,11 @@ site EN+ET (ET awaits proofread). Gates: ci:strict exit=0; integration 353
 (1 env-dependent skip) on the Mac. New public route + cookie +
 external HTTP → the 3.16.0 security delta must cover it.)
 
+Also 2026-10-06 (**PRO-3806 docs, on a PR branch:** the merchant docs site
+has a step-by-step Elementor Pro guide (`#elementor-pro`, EN+ET, from Tanel's
+ET tutorial, facts checked against the code); publish waits for the ET
+proofread of the sentences changed from his text.)
+
 Also 2026-10-06 (**3.16.0 audit Lows — Erkki: fix both before the cut; on a
 PR branch:** PRO-3831 — the Elementor action sends `elementor_form_url` only
 for a page on the store's own host; PRO-3832 — a page that shows
