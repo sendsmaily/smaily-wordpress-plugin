@@ -113,6 +113,11 @@ import buttons as shown — Start import (Contacts), Import now (CI imports);
 the Import existing data card says the catalog import starts on connect. ET
 docs + `-et.po` await the proofread.)
 
+**PRO-3821 (after 3.16.0):** an import tick that runs after Cancel / Hold back
+sends nothing and leaves the import cancelled (rec-engine and contacts).
+**PRO-3818:** the mock engine records a browse event's `smaily_rec_id` /
+`smaily_ctx` / `smaily_visitor_token` only when sent, so the PRO-1712 test can fail.
+
 **Outcome gauges (2026-10-06, before the 3.16.0 publish):** wordpress.org
 version 3.15.0, active installs 2000 (bucketed; flat since 2026-09-24 — two
 weeks flat, say so at the scribe pass); releases 3.15.0 (2026-09-29), 3.14.0
