@@ -7484,6 +7484,30 @@ invented `vt_` the same way.
 (the consent rule), F3-46 (attribution stays consent-ungated), PRO-1942
 (`AttributionShape`).
 
+### PRO-3860 — The relay and the login merge send a store token only with consent; the relay reads the token on the server (2026-10-06)
+
+**Context:** PRO-3857 gated the store `vs_` token on the order and the
+recommendations route, but two more paths sent it with no server-side consent
+check (contract v1.11.0 §5: without marketing consent, send none): the login
+identity merge (`IdentityHookHandler`, §7) and the browse relay (`/relay`),
+which also forwarded whatever token the request BODY named. Erkki decided it
+ships in 3.16.0.
+**Decision:** (1) `IdentityHookHandler` reads the token through
+`LandingCapture::current_visitor_token()` (shape-checked) and drops a `vs_`
+token unless `MarketingConsent::given()`; a `vt_` token is sent as before.
+(2) `smaily_visitor_token` leaves `BeaconEndpoint::EVENT_FIELDS` (like
+`customer_email`, PRO-1486); `attach_visitor_token()` puts the cookie's token
+(same read) on every event after validation — a `vs_` token only with
+`MarketingConsent::given()`, a `vt_` token always (F3-46). Without the token
+the event still forwards, anonymous. (3) The JS `enrich()` no longer sends the
+token. Both classes carry a `marketing_consent_given()` test seam.
+**Rationale:** the browser sends browse events only with consent, but the
+server does not rely on a client check; and a body-named token is not
+necessarily the shopper's. Reading the cookie also drops a malformed value
+(neither `vt_` nor `vs_`) on both paths — the old code sent it raw.
+**Relationships:** PRO-3857 (same rule on the order + route), PRO-1486 (the
+strip-and-attach-on-server pattern), F3-49 (browse identity), F3-46.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

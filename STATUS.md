@@ -74,6 +74,14 @@ M1, L2, L3 fixed before the cut in #172 (PRO-3857), Erkki 2026-10-06;
 follow-ups PRO-3860 (identity merge / relay token consent, fixing before
 3.16.0) and PRO-3859 (nightly manifest, after 3.16.0).)
 
+Also 2026-10-06 (**PRO-3860 on a PR branch, for 3.16.0:** the login identity
+merge and `/relay` send a store `vs_` visitor token only with
+`MarketingConsent::given()` (`vt_` unchanged); `/relay` reads the token from
+the visitor-token cookie on the server and strips one from the request body
+(the JS stopped sending it). DECISIONS PRO-3860. Public route + consent: the
+3.16.0 security delta re-audit must cover it. Gates: ci:strict exit=0 (unit
+1102, vitest 374); integration 369 OK on the Mac.)
+
 Also 2026-10-06 (**Contract v1.10.0 synced byte-identical** to engine
 `967287f541fa` (PRO-3834; md5 e4b739e0…): §15 also takes
 `smaily_visitor_token` in place of `customer_external_id` (customer id wins

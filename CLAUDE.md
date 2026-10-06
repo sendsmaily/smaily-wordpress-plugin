@@ -981,7 +981,8 @@ in a link is one its sender chose, and the engine binds it to the victim at
 their next guest order. A `vs_` value rides an order
 (`save_attribution_cookies_to_order()`) and the route passes a guest's token on
 only with `MarketingConsent::given()` (both have a `marketing_consent_given()`
-test seam); `vt_` on an order stays consent-ungated (F3-46). An engine
+test seam); `/relay` and the login merge apply the same rule (PRO-3860);
+`vt_` on an order stays consent-ungated (F3-46). An engine
 timeout/network failure/5xx on §15 sets `StorefrontRecommendations::PAUSE_KEY`
 for `PAUSE_TTL` (2 min): every shopper's cache miss answers empty with no call;
 an answer or a 4xx never pauses. An integration test that trips it must
@@ -1002,9 +1003,10 @@ on "no files".
 Browse attribution rides ORDER signals, not browse (engine-confirmed 2026-07-03): the
 order's `smaily_rec_id` + email-click drive the `direct`/`exact_later`/`indirect_*`
 classes; browse would at best give the soft `assisted_view`, which the engine
-deprioritized. So `enrich()` (`rec-engine-client.ts`) puts the opaque
-`smaily_visitor_token` on each browse event **when the cookie is present** (omit-on-empty,
-mirrors `session_id`) — its value is future **cold-start personalization** (the engine
+deprioritized. So `/relay` puts the opaque `smaily_visitor_token` on each browse event
+**when the cookie is present** (omit-on-empty; since PRO-3860 read on the SERVER — see
+that addendum below; `enrich()` no longer sends it) — its value is future **cold-start
+personalization** (the engine
 binds the browse row to the customer via the token), NOT attribution. The CLIENT still
 NEVER adds `smaily_rec_id` / `smaily_ctx` / `customer_email` to browse events — deliberate
 data-minimization enforced CLIENT-side (the omission is `enrich()`'s job) — that discipline
@@ -1057,6 +1059,14 @@ client-supplied email DIFFERING from the server-resolved one is gone (unreachabl
 client-supplied value is stripped) — the method keeps its loop/counter/logging shape as
 defense-in-depth against a future customer_email producer that skips its own consent
 check, but in the current single-producer graph it can no longer actually drop anything.
+
+**PRO-3860 addendum — the visitor token is read on the server, a `vs_` one only with
+consent.** `smaily_visitor_token` left `EVENT_FIELDS` (a body value is stripped, like
+`customer_email`); `BeaconEndpoint::attach_visitor_token()` reads the cookie through
+`LandingCapture::current_visitor_token()` after validation and attaches a `vt_` token
+always, a store `vs_` token only with `MarketingConsent::given()` (contract §5). The
+login merge (`IdentityHookHandler`) applies the same rule. Both have a
+`marketing_consent_given()` test seam. (DECISIONS PRO-3860.)
 
 **PRO-3620 addendum — the relay never holds a storefront request, and its limit is
 header-proof** (Magento's PRO-3575 hardening, mirrored). (1) `Client::ingest_browse()` is
