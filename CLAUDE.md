@@ -662,14 +662,16 @@ stay documented because they are how you REPRODUCE or COMPARE a ZIP locally (a
 packaging bug, a PCP run against the built ZIP, a pre-flight before tagging) —
 they are no longer how the released asset is produced. Full sequence (verified
 2026-06-14, v2.1.0-beta.3-rc.1):
-1. Bump the version in EIGHT files (the 3.11.3 bump, 2026-09-07 — an older note
-   here said "four", which under-counted): `smaily-connect.php` (three spots —
+1. Bump the version in NINE files (the 3.11.3 bump, 2026-09-07, counted eight —
+   an older note said "four"; the 3.16.1 bump added the `.pot` header):
+   `smaily-connect.php` (three spots —
    Version header + `SMAILY_CONNECT_VERSION` + `SMAILY_CONNECT_PLUGIN_VERSION`),
    `package.json`, `package-lock.json` (**two** spots — the root `version` and
    the `packages[""]` one), `readme.txt` (Stable tag + Changelog + Upgrade
    Notice), `docs/INSTALL.md`'s "current release" line, and the three test pins
    `tests/Unit/ConstantsTest.php`, `tests/bootstrap.php`,
-   `tests/phpstan-bootstrap.php` (else ConstantsTest fails). Commit FIRST so
+   `tests/phpstan-bootstrap.php` (else ConstantsTest fails), and the
+   `Project-Id-Version` header of `languages/smaily-connect.pot`. Commit FIRST so
    `package:hash` stamps a clean (non-`-dirty`) build-hash.
 2. `npm run build:admin` → `dist/admin/*`,
    `dist/public/js/sc-runtime.js` + `dist/public/js/sc-landing.js` +
