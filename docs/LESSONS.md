@@ -907,6 +907,17 @@ state it did not arrange itself.
    aborted run". **If a test needs a WP admin API, `require_once` it (guarded)
    like the five sibling tests do — and read "works on my run" as unproven until
    the class passes both alone and inside the suite.**
+3. **The stale cache can also make a test pass that should fail — and a cache
+   flush anywhere in production code then breaks it** (PRO-3899, 2026-10-06).
+   `EnvScrub` swept the `smly_plus_schema_version` row, while it keeps the tables
+   that row describes. `SchemaMigrationTest` read 11 only from the object cache;
+   the DB row was gone. The manifest walk's new per-batch runtime flush made it
+   read 0, and the suite went red on code it never touched. The fix was not the
+   flush list (that turns the hidden gap into a real failure): the scrub keeps a
+   row that describes state it keeps. **A scrub must agree with itself: what it
+   keeps in the tables, it keeps in the options. When a production cache flush
+   turns a test red, read it as a test that never read the database, not a bug in
+   the flush.**
 
 ### 2.26 A classic `<script>` built as an ES module leaks its top-level bindings into EVERY later script — and the break lands in someone else's code (PRO-2391 MiuMjau variable products, 2026-09-08)
 

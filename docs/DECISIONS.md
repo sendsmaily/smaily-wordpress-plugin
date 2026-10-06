@@ -7653,6 +7653,26 @@ per-night retry ladder — not chosen (a retried list would be stale).
 **Relationships:** F3-16 (catalog pipeline), F3-44 (stored exchange),
 PRO-1230 (the §3b remove flusher this mirrors), PRO-1893 (sending gate),
 PRO-2433..2437 (AS groups and the hourly verification), PRO-3884.
+**Addendum (PRO-3899, 2026-10-06):** the walk runs in one Action Scheduler
+run, and WordPress keeps every post and its meta it loads until the run ends,
+so near 50,000 products the run could exhaust memory (the night then fails
+safely: nothing is sent, the reason is only in the debug log).
+`CatalogBackfillJob::manifest_items()` now releases each batch's posts before
+it reads the next one: `wp_cache_flush_runtime()` when the cache reports
+`wp_cache_supports( 'flush_runtime' )` (WordPress's own cache and current
+persistent drop-ins — it drops only this process's copy). On a drop-in without
+that support, WordPress's fallback only reports `_doing_it_wrong`, so the walk
+deletes the batch's `posts` and `post_meta` entries (parents and their
+expanded variations) instead; a shared cache refills them on the next read.
+Rejected: `wp_cache_flush()` (empties a persistent cache for the whole site),
+`clean_post_cache()` (announces a changed post, so WooCommerce and other
+plugins invalidate their caches for 50,000 unchanged products), doing nothing
+on such a drop-in (the memory problem stays there). Measured on 600 simple
+products in wp-env: 8.1 MB stays in memory after the walk without the release,
+0.45 MB (the list itself) with it. The release exposed a test-harness bug:
+`EnvScrub::reset()` swept the `smly_plus_schema_version` row while it keeps
+the tables that row describes, and `SchemaMigrationTest` passed only on the
+stale cached value; EnvScrub now keeps that row (LESSONS §2.25).
 
 ### PRO-3824 — A Contact Form 7 signup may subscribe again a contact who unsubscribed (2026-10-06)
 
@@ -7802,6 +7822,41 @@ duplicate `is_stalled()` and its grace constant.
 PRO-3868 (contact import failure), PRO-3881 (failure reason on screen),
 F3-48.3 (the daily contact refresh — its `should_start_refresh()` still reads a
 stalled `running` row as running; not changed here).
+
+### PRO-3906 — An erasure request drops the customer's waiting Campaign Intelligence updates (2026-10-06)
+
+**Context:** customer and order rows in `smly_rec_event_queue` enqueue an empty
+`payload`; the flusher builds them from the current WP user or WC order at send
+time. A row not yet attempted therefore holds no copy for the PRO-2384 match to
+find. Left in the queue after an erasure, it was sent after the engine's §9
+DELETE and could create the customer in the engine again (the WP user keeps its
+address, and an order keeps its billing address unless WooCommerce's own order
+eraser is switched on).
+**Decision (Erkki, 2026-10-06):** at erasure the customer's WAITING updates are
+dropped from the queue. A later profile save or order is a new action and may
+send the customer again; no lasting record of the erasure is kept.
+`IngestQueue::delete_unsent()` deletes the `customer.upsert` rows whose
+`entity_id` is the WP user with the address and the `order.upsert` rows whose
+`entity_id` is an order billed to it. "Waiting" is `pending` (due now, or
+parked for a retry) and `failed`, because the Event Log's Retry
+(`reset_failed()`) revives a failed row and the flusher then builds it fresh; a
+`sent` row is never sent again. The orders come from the
+`wc_get_orders( billing_email )` lookup the order-meta erasure already runs, now
+run once per erasure and shared; the DELETE runs in chunks of 500 ids on the
+`(status, …)` index. The drop runs before the engine call, so no waiting row is
+sent after the engine has forgotten the customer. Catalog rows and other
+customers' rows are never touched.
+**Rationale:** the engine creates a customer from any customer or order it
+receives, so a waiting row is a resend of the erased person, not history. The
+row holds nothing worth keeping — it is a pointer to data the store still has.
+**Alternatives:** a suppression list of erased addresses checked at send time —
+rejected by Erkki, it is a lasting record of the erasure and would also block
+the customer's own later orders; deleting rows by a text match — impossible, a
+waiting row holds no address. Not covered: a batch a flusher has already taken
+from the queue when the erasure runs, and an import still running whose cursor
+has not reached the customer — it enqueues them as a new row later.
+**Relationships:** PRO-2384 (the sent copies), PRO-2383 (the Smaily queue's
+sendable rows), F3-28 (engine erasure), 3.10.1 (Event Log Retry).
 
 ## How to keep this document going
 

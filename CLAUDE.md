@@ -386,7 +386,10 @@ multilingual collapse and `expand()` — and each item from
 `CatalogPayloadBuilder::manifest_item()` (SkuResolver + the builder's
 detector, trashed ⇒ `in_stock=false`). A new filter or key rule on the import
 therefore changes the manifest too; never build the list from a separate
-query. Skip rules (nothing sent, debug log only): not `sending_allowed()`,
+query. The walk releases each batch's loaded posts before the next batch
+(PRO-3899: `wp_cache_flush_runtime()` when `wp_cache_supports(
+'flush_runtime' )`, else `wp_cache_delete_multiple()` of the batch's posts +
+meta — never `wp_cache_flush()` or `clean_post_cache()`). Skip rules (nothing sent, debug log only): not `sending_allowed()`,
 the products import `running` (incl. the import-on-connect wait — but
 `AbstractBackfillJob::is_running()` is false for a STALLED import: running,
 no batch of it queued or running in Action Scheduler, started over
