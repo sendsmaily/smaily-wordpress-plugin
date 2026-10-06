@@ -78,6 +78,7 @@ require dist/admin/admin.js
 require dist/admin/admin.css
 require dist/public/js/sc-runtime.js
 require dist/public/js/sc-landing.js
+require dist/public/js/sc-recs.js
 require languages/smaily-connect-et.mo
 # The admin bundle's script translations: WordPress requests this exact name
 # (md5 of "dist/admin/admin.js"), so a generically-named catalog is not loaded.
@@ -113,7 +114,7 @@ done
 forbid "vendor/bin"     'vendor/bin/'
 
 # --- 4. No bundle points at a stripped source map --------------------------
-for bundle in dist/admin/admin.js dist/public/js/sc-runtime.js dist/public/js/sc-landing.js; do
+for bundle in dist/admin/admin.js dist/public/js/sc-runtime.js dist/public/js/sc-landing.js dist/public/js/sc-recs.js; do
 	if grep -qx "${ROOT}/${bundle}" "$LIST"; then
 		n="$( unzip -p "$ZIP" "${ROOT}/${bundle}" | grep -c sourceMappingURL )"
 		if [ "$n" -eq 0 ]; then
@@ -132,7 +133,7 @@ if [ -f "$( dirname "$0" )/check-bundle-scope.sh" ]; then
 	SCOPE_DIR="$( mktemp -d )"
 	trap 'rm -f "$LIST"; rm -rf "$SCOPE_DIR"' EXIT
 	scope_files=()
-	for bundle in dist/admin/admin.js dist/public/js/sc-runtime.js dist/public/js/sc-landing.js; do
+	for bundle in dist/admin/admin.js dist/public/js/sc-runtime.js dist/public/js/sc-landing.js dist/public/js/sc-recs.js; do
 		if grep -qx "${ROOT}/${bundle}" "$LIST"; then
 			mkdir -p "${SCOPE_DIR}/$( dirname "$bundle" )"
 			unzip -p "$ZIP" "${ROOT}/${bundle}" > "${SCOPE_DIR}/${bundle}"

@@ -3,12 +3,13 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 
 /**
- * Single Vite config, THREE build passes — one entry per pass, every bundle an
+ * Single Vite config, FOUR build passes — one entry per pass, every bundle an
  * IIFE:
  *
  *   (default / --mode admin)  admin/admin          → dist/admin/admin.js + admin.css
  *   --mode runtime            public/js/sc-runtime → dist/public/js/sc-runtime.js
  *   --mode landing            public/js/sc-landing → dist/public/js/sc-landing.js
+ *   --mode recs               public/js/sc-recs    → dist/public/js/sc-recs.js
  *
  * Erkki ratified the single-config approach for sub-PR 2.A. We split into
  * separate `vite.*.config.ts` files only if the build-time options start
@@ -47,10 +48,20 @@ import { resolve } from 'node:path';
  * with the browse runtime on purpose (one capture implementation for both);
  * separate passes keep the shared code inlined in both instead of a shared
  * chunk with a top-level `import`. Only the first pass empties dist/; every
- * build script chains all three (see package.json `build:admin`).
+ * build script chains all four (see package.json `build:admin`).
+ *
+ * The storefront recommendations bundle (public/js/recs.ts →
+ * dist/public/js/sc-recs.js, PRO-3835) fills the recommendations block's
+ * empty container after the page has loaded.
  */
 export default defineConfig(({ mode }) => {
-  const input: Record<string, string> = mode === 'landing'
+  const input: Record<string, string> = mode === 'recs'
+    ? {
+      // Storefront recommendations — fills the block's container after load.
+      // Neutral shipped name, same rule as sc-runtime.js (F3-41).
+      'public/js/sc-recs': resolve(__dirname, 'public/js/recs.ts'),
+    }
+    : mode === 'landing'
     ? {
       // The attribution-only writer — URL params in, cookies out, nothing
       // else. Neutral shipped name, same rule as sc-runtime.js (F3-41).
@@ -86,9 +97,9 @@ export default defineConfig(({ mode }) => {
 
   build: {
     outDir: 'dist',
-    // The admin pass runs first and empties dist/; the two storefront passes
+    // The admin pass runs first and empties dist/; the storefront passes
     // append to it.
-    emptyOutDir: mode !== 'landing' && mode !== 'runtime',
+    emptyOutDir: mode !== 'landing' && mode !== 'runtime' && mode !== 'recs',
     sourcemap: true,
     // With a non-ES output format Vite would otherwise INJECT the CSS from JS
     // (a runtime <style> tag) instead of emitting dist/admin/admin.css — which
