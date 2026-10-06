@@ -2836,3 +2836,71 @@ msgstr ""
 msgctxt "block keyword"
 msgid "products"
 msgstr ""
+
+#: integrations/elementor/form-action.class.php:68
+msgid "Please enter a valid email address."
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:71
+msgid "Sorry, we could not sign you up right now. Please try again later."
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:95
+msgid "Mode"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:99
+msgid "Newsletter signup"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:100
+msgid "Contact form with marketing consent"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:108
+msgid "Email field ID"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:111
+msgid "Required. The ID of the form's email field (the field's Advanced tab)."
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:118
+msgid "Name field ID"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:120
+msgid "Optional. Sent to the Smaily field \"name\"."
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:127
+msgid "Consent field ID"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:129
+msgid "The acceptance or checkbox field the visitor ticks to agree to marketing emails. Nothing is sent to Smaily unless it is ticked."
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:139
+msgid "Other fields"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:141
+msgid "Optional. Only the fields listed here are sent. Smaily field names use lowercase letters, digits and _."
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:145
+msgid "Form field ID"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:150
+msgid "Smaily field"
+msgstr ""
+
+#: integrations/elementor/form-action.class.php:165
+msgid "Optional. The Smaily workflow to trigger after the signup."
+msgstr ""
+
+#: includes/Integrations/Elementor/FormSubscription.php:154
+msgid "No workflow"
+msgstr ""

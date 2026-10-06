@@ -2836,3 +2836,71 @@ msgstr "soovitused"
 msgctxt "block keyword"
 msgid "products"
 msgstr "tooted"
+
+#: integrations/elementor/form-action.class.php:68
+msgid "Please enter a valid email address."
+msgstr "Palun sisestage kehtiv e-posti aadress."
+
+#: integrations/elementor/form-action.class.php:71
+msgid "Sorry, we could not sign you up right now. Please try again later."
+msgstr "Vabandust, me ei saanud teid praegu liitujaks lisada. Palun proovige hiljem uuesti."
+
+#: integrations/elementor/form-action.class.php:95
+msgid "Mode"
+msgstr "Režiim"
+
+#: integrations/elementor/form-action.class.php:99
+msgid "Newsletter signup"
+msgstr "Uudiskirjaga liitumine"
+
+#: integrations/elementor/form-action.class.php:100
+msgid "Contact form with marketing consent"
+msgstr "Kontaktivorm turundusnõusolekuga"
+
+#: integrations/elementor/form-action.class.php:108
+msgid "Email field ID"
+msgstr "E-posti välja ID"
+
+#: integrations/elementor/form-action.class.php:111
+msgid "Required. The ID of the form's email field (the field's Advanced tab)."
+msgstr "Kohustuslik. Vormi e-posti välja ID (välja vahekaardil Advanced)."
+
+#: integrations/elementor/form-action.class.php:118
+msgid "Name field ID"
+msgstr "Nime välja ID"
+
+#: integrations/elementor/form-action.class.php:120
+msgid "Optional. Sent to the Smaily field \"name\"."
+msgstr "Valikuline. Saadetakse Smaily välja \"name\"."
+
+#: integrations/elementor/form-action.class.php:127
+msgid "Consent field ID"
+msgstr "Nõusolekuvälja ID"
+
+#: integrations/elementor/form-action.class.php:129
+msgid "The acceptance or checkbox field the visitor ticks to agree to marketing emails. Nothing is sent to Smaily unless it is ticked."
+msgstr "Nõustumis- või märkeruudu väli, mille külastaja märgib, et turunduskirjadega nõustuda. Kui see pole märgitud, ei saadeta Smailyle midagi."
+
+#: integrations/elementor/form-action.class.php:139
+msgid "Other fields"
+msgstr "Muud väljad"
+
+#: integrations/elementor/form-action.class.php:141
+msgid "Optional. Only the fields listed here are sent. Smaily field names use lowercase letters, digits and _."
+msgstr "Valikuline. Saadetakse ainult siin loetletud väljad. Smaily väljade nimed koosnevad väiketähtedest, numbritest ja märgist _."
+
+#: integrations/elementor/form-action.class.php:145
+msgid "Form field ID"
+msgstr "Vormi välja ID"
+
+#: integrations/elementor/form-action.class.php:150
+msgid "Smaily field"
+msgstr "Smaily väli"
+
+#: integrations/elementor/form-action.class.php:165
+msgid "Optional. The Smaily workflow to trigger after the signup."
+msgstr "Valikuline. Smaily töövoog, mis käivitatakse pärast liitumist."
+
+#: includes/Integrations/Elementor/FormSubscription.php:154
+msgid "No workflow"
+msgstr "Ilma töövoota"
