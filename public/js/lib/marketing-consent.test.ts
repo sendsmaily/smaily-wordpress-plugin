@@ -1,84 +1,118 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { decide, marketingConsentGiven } from './marketing-consent';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { decide, marketingConsentGiven, storedConsent } from './marketing-consent';
 
 /**
- * PRO-3849: marketing consent counts only as an explicit yes — a consent
- * banner set a WP Consent API consent type AND the visitor said yes to the
- * category. Mirrors the PHP MarketingConsent rule (PRO-3845).
+ * PRO-3849: marketing consent counts only as an explicit yes — the WP Consent
+ * API's consent cookie for the category is `allow` AND `wp_has_consent()` is
+ * true. Mirrors the PHP MarketingConsent rule.
  */
 
+function setCookie(name: string, value: string): void {
+  document.cookie = `${name}=${value}; path=/`;
+}
+
+function clearCookie(name: string): void {
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+}
+
 describe('marketing-consent: decide', () => {
-  it('gives consent only with a consent type and a yes', () => {
-    expect(decide('optin', true)).toBe(true);
-    expect(decide('optout', true)).toBe(true);
+  it('gives consent only with an allow cookie and a yes', () => {
+    expect(decide(true, 'allow')).toBe(true);
   });
 
-  it('gives no consent without a consent type', () => {
-    expect(decide('', true)).toBe(false);
-    expect(decide(undefined, true)).toBe(false);
-    expect(decide(null, true)).toBe(false);
-    expect(decide(false, true)).toBe(false);
+  it('gives no consent when wp_has_consent says yes without an allow cookie (no banner, opt-out default)', () => {
+    expect(decide(true, null)).toBe(false);
+    expect(decide(true, '')).toBe(false);
   });
 
-  it('gives no consent without a yes', () => {
-    expect(decide('optin', false)).toBe(false);
-    expect(decide('optin', undefined)).toBe(false);
-    expect(decide('optin', 'true')).toBe(false);
-    expect(decide('optin', 1)).toBe(false);
+  it('gives no consent for a deny', () => {
+    expect(decide(true, 'deny')).toBe(false);
+    expect(decide(false, 'deny')).toBe(false);
   });
 
-  it('gives no consent for a consent type of the wrong type', () => {
-    expect(decide(1, true)).toBe(false);
-    expect(decide({ type: 'optin' }, true)).toBe(false);
+  it('gives no consent when wp_has_consent says no', () => {
+    expect(decide(false, 'allow')).toBe(false);
+    expect(decide(undefined, 'allow')).toBe(false);
+  });
+
+  it('gives no consent for an unreadable value', () => {
+    expect(decide('true', 'allow')).toBe(false);
+    expect(decide(1, 'allow')).toBe(false);
+    expect(decide(true, 'ALLOW')).toBe(false);
+    expect(decide(true, true)).toBe(false);
   });
 });
 
-describe('marketing-consent: marketingConsentGiven', () => {
+describe('marketing-consent: storedConsent and marketingConsentGiven', () => {
+  beforeEach(() => {
+    window.consent_api = { cookie_prefix: 'wp_consent' };
+  });
+
   afterEach(() => {
     delete window.wp_has_consent;
-    delete window.wp_consent_type;
-    delete window.wp_fallback_consent_type;
+    delete window.consent_api;
+    for (const name of ['wp_consent_marketing', 'wp_consent_statistics', 'acme_marketing', 'xwp_consent_marketing']) {
+      clearCookie(name);
+    }
+  });
+
+  it('reads the consent cookie the WP Consent API writes', () => {
+    setCookie('wp_consent_marketing', 'allow');
+    setCookie('wp_consent_statistics', 'deny');
+    expect(storedConsent('marketing')).toBe('allow');
+    expect(storedConsent('statistics')).toBe('deny');
+    expect(storedConsent('preferences')).toBeNull();
+  });
+
+  it('follows the cookie prefix the WP Consent API prints', () => {
+    window.consent_api = { cookie_prefix: 'acme' };
+    setCookie('acme_marketing', 'allow');
+    expect(storedConsent('marketing')).toBe('allow');
+  });
+
+  it('does not match a cookie whose name only ends with the consent cookie name', () => {
+    setCookie('xwp_consent_marketing', 'allow');
+    expect(storedConsent('marketing')).toBeNull();
+  });
+
+  it('reads nothing without the WP Consent API settings', () => {
+    delete window.consent_api;
+    setCookie('wp_consent_marketing', 'allow');
+    expect(storedConsent('marketing')).toBeNull();
   });
 
   it('gives no consent without the WP Consent API', () => {
-    window.wp_consent_type = 'optin';
+    setCookie('wp_consent_marketing', 'allow');
     expect(marketingConsentGiven('marketing')).toBe(false);
   });
 
-  it('gives no consent when no banner set a consent type, although the API says yes', () => {
-    window.wp_fallback_consent_type = '';
+  it('gives consent when the banner stored allow and the API says yes', () => {
+    setCookie('wp_consent_marketing', 'allow');
     window.wp_has_consent = vi.fn(() => true);
-    expect(marketingConsentGiven('marketing')).toBe(false);
-  });
-
-  it('gives consent when the banner set a consent type and the visitor said yes', () => {
-    window.wp_consent_type = 'optin';
-    window.wp_has_consent = vi.fn((category: string) => category === 'marketing');
     expect(marketingConsentGiven('marketing')).toBe(true);
     expect(window.wp_has_consent).toHaveBeenCalledWith('marketing');
   });
 
-  it('gives no consent when the visitor did not say yes to the category', () => {
-    window.wp_consent_type = 'optin';
-    window.wp_has_consent = vi.fn((category: string) => category === 'statistics');
+  it('gives no consent when the API says yes but no banner stored a choice', () => {
+    window.wp_has_consent = vi.fn(() => true);
     expect(marketingConsentGiven('marketing')).toBe(false);
   });
 
-  it('reads the server-side consent type when the banner set none in the browser', () => {
-    window.wp_fallback_consent_type = 'optin';
+  it('gives no consent when the banner stored deny', () => {
+    setCookie('wp_consent_marketing', 'deny');
     window.wp_has_consent = vi.fn(() => true);
-    expect(marketingConsentGiven('marketing')).toBe(true);
+    expect(marketingConsentGiven('marketing')).toBe(false);
   });
 
-  it('prefers the banner consent type over the server-side one', () => {
-    window.wp_consent_type = '';
-    window.wp_fallback_consent_type = 'optin';
+  it('checks the cookie of the category asked for', () => {
+    setCookie('wp_consent_statistics', 'allow');
     window.wp_has_consent = vi.fn(() => true);
+    expect(marketingConsentGiven('statistics')).toBe(true);
     expect(marketingConsentGiven('marketing')).toBe(false);
   });
 
   it('gives no consent when the API cannot be read', () => {
-    window.wp_consent_type = 'optin';
+    setCookie('wp_consent_marketing', 'allow');
     window.wp_has_consent = vi.fn(() => {
       throw new Error('broken banner');
     });

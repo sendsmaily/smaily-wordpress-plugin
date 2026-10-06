@@ -1,5 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildPageEvent, detectConsent, init, pageViewEvent } from './beacon-core';
+
+/** A consent banner stored the visitor's marketing yes through the WP Consent API. */
+function storeBannerYes(): void {
+  window.consent_api = { cookie_prefix: 'wp_consent' };
+  document.cookie = 'wp_consent_marketing=allow; path=/';
+  window.wp_has_consent = vi.fn((category: string) => category === 'marketing');
+}
+
+function clearConsentCookie(): void {
+  document.cookie = 'wp_consent_marketing=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+}
 import type { RecEngineClientConfig } from './lib/rec-engine-client';
 
 /**
@@ -47,7 +58,8 @@ describe('beacon-core: detectConsent', () => {
   afterEach(() => {
     delete window.smailyConnectBeacon;
     delete window.wp_has_consent;
-    delete window.wp_consent_type;
+    delete window.consent_api;
+    clearConsentCookie();
   });
 
   it('uses the site override when present', () => {
@@ -56,26 +68,25 @@ describe('beacon-core: detectConsent', () => {
     expect(detectConsent(boot)).toBe(true);
   });
 
-  it('lets the site override decide even when no consent banner set a consent type', () => {
+  it('lets the site override decide even when the banner stored a yes', () => {
     const boot = makeBoot({ consentOverride: () => false });
     window.smailyConnectBeacon = boot;
-    window.wp_consent_type = 'optin';
-    window.wp_has_consent = vi.fn(() => true);
+    storeBannerYes();
     expect(detectConsent(boot)).toBe(false);
   });
 
-  it('falls back to the WP Consent API when a consent banner set a consent type', () => {
+  it('falls back to the WP Consent API when a consent banner stored a yes', () => {
     const boot = makeBoot();
     window.smailyConnectBeacon = boot;
-    window.wp_consent_type = 'optin';
-    window.wp_has_consent = vi.fn((category: string) => category === 'marketing');
+    storeBannerYes();
     expect(detectConsent(boot)).toBe(true);
     expect(window.wp_has_consent).toHaveBeenCalledWith('marketing');
   });
 
-  it('denies when no consent banner set a consent type, although the WP Consent API says yes (PRO-3849)', () => {
+  it('denies when the WP Consent API says yes but no banner stored a yes (PRO-3849)', () => {
     const boot = makeBoot();
     window.smailyConnectBeacon = boot;
+    window.consent_api = { cookie_prefix: 'wp_consent' };
     window.wp_has_consent = vi.fn(() => true);
     expect(detectConsent(boot)).toBe(false);
   });
@@ -126,7 +137,8 @@ describe('beacon-core: init', () => {
   afterEach(() => {
     delete window.smailyConnectBeacon;
     delete window.wp_has_consent;
-    delete window.wp_consent_type;
+    delete window.consent_api;
+    clearConsentCookie();
     vi.unstubAllGlobals();
     for (const n of ['smaily_rec_uid', 'smaily_anon_sid', 'smaily_rec_id', 'smaily_rec_ctx']) {
       document.cookie = `${n}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
@@ -205,17 +217,18 @@ describe('beacon-core: init', () => {
     expect(lastEvents(fetchMock)[0]).toMatchObject({ event_type: 'product_view' });
   });
 
-  it('starts when a consent banner sets the consent type late in the page load (PRO-3849)', async () => {
+  it('starts once the banner stores a yes, not on the WP Consent API default alone (PRO-3849)', async () => {
     window.smailyConnectBeacon = makeBoot();
+    window.consent_api = { cookie_prefix: 'wp_consent' };
     window.wp_has_consent = vi.fn(() => true);
     const client = init();
 
-    // The API says yes, but no banner has set a consent type yet → nothing.
+    // The API says yes, but no banner has stored a choice yet → nothing.
     await client?.flush();
     expect(fetchMock).not.toHaveBeenCalled();
 
-    // The banner sets the consent type and tells the page.
-    window.wp_consent_type = 'optin';
+    // The banner stores the visitor's yes and tells the page.
+    storeBannerYes();
     document.dispatchEvent(new Event('wp_consent_type_defined'));
 
     await client?.flush();

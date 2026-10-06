@@ -65,8 +65,8 @@ declare global {
 
 /**
  * Resolve marketing consent. Order: site override → the store's consent rule
- * (a consent banner set a WP Consent API consent type AND the visitor said yes
- * to the category, PRO-3849) → fail-safe DENY. No consent signal means no
+ * (a consent banner stored the visitor's yes in the WP Consent API's consent
+ * cookie for the category, PRO-3849) → fail-safe DENY. No consent signal means no
  * tracking — matching the admin promise that a site without a consent banner
  * collects no events.
  */

@@ -6,9 +6,9 @@
  * the page asks the engine nothing and may stay in a full-page cache.
  * StorefrontRecommendations prints `window.smailyConnectRecs = { url, consent }`
  * just before this script. After the page has loaded, and only when the
- * shopper has given marketing consent — a consent banner set a WP Consent API
- * consent type AND the shopper said yes to the category (the same rule and
- * category as the browse runtime, PRO-3849; no signal = no request) — this asks the
+ * shopper has given marketing consent — a consent banner stored the shopper's
+ * yes in the WP Consent API's consent cookie for the category (the same rule
+ * and category as the browse runtime, PRO-3849; no signal = no request) — this asks the
  * store's own route ONCE and puts the cards it answers into every container.
  * An empty answer, an error or a timeout leaves the containers empty — the
  * shopper never sees an error.
