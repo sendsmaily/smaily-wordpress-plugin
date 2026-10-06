@@ -67,14 +67,16 @@ ET tutorial, facts checked against the code); publish waits for the ET
 proofread of the sentences changed from his text.)
 
 Also 2026-10-06 (**PRO-3845 on a PR branch, for 3.16.0:** a guest buyer who
-gave marketing consent through the WP Consent API and has no visitor token gets
-a store-created one at checkout (classic + block) — written to the
-visitor-token cookie and to `_smaily_visitor_token`, so the order sends it as
-`smaily_visitor_token` (DECISIONS PRO-3845). Token format `vt_` + 32 hex is an
-ASSUMPTION until the PRO-3844 contract sync. Docs site EN+ET + privacy template
-updated (ET awaits the proofread). Gates: ci:strict exit=0 (unit 1037);
-integration 355 OK on the Mac. A new cookie + consent surface: the 3.16.0
-security delta re-audit must cover it.)
+gave an explicit marketing yes and has no visitor token gets a store-created
+one at checkout (classic + block) — written to the visitor-token cookie and to
+`_smaily_visitor_token`, so the order sends it as `smaily_visitor_token`. An
+explicit yes = a consent plugin set a WP Consent API consent type AND
+`wp_has_consent()` is true (`Support\MarketingConsent`, Magento PRO-3664
+parity; browse + recommendations still read `wp_has_consent()` alone — a
+follow-up adopts the helper). DECISIONS PRO-3845. Token format `vt_` + 32 hex
+is an ASSUMPTION until the PRO-3844 contract sync. Docs site EN+ET + privacy
+template updated (ET awaits the proofread). Gates: ci:strict exit=0 (unit 1064); integration 361 OK (1 env-dependent skip) on the Mac. A new
+cookie + consent surface: the 3.16.0 security delta re-audit must cover it.)
 
 Also 2026-10-06 (**3.16.0 audit Lows — Erkki: fix both before the cut; on a
 PR branch:** PRO-3831 — the Elementor action sends `elementor_form_url` only
