@@ -160,6 +160,9 @@ called by `GdprHandler`'s eraser:
 - **Finds the rows** by `contact_key` where there is one, and by a payload
   match on `"email"` / `"to"` where there is not (rows enqueued before
   migration 011, and every transactional row — its recipient rides `to`).
+  That match is the exact address, as typed or JSON-escaped (a non-ASCII
+  address), compared binary so a neighbour differing only by accents is never
+  hit (PRO-2448).
 
 ### Plugin-held — Campaign Intelligence ingest queue (PRO-2384)
 
