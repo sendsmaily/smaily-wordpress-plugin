@@ -44,7 +44,7 @@ run: **wordpress.org stays on 3.16.0**._
   (1) this STATUS/CLAUDE.md handoff PR — merged (PR #183);
   (2) PRO-3868 — a failed contact import stays failed, and Retry re-syncs the skipped customers — **in PR #184** (bullet above);
   (3) PRO-3817 — bound the engine Retry-After wait in background calls;
-  (4) PRO-3859 — nightly catalog manifest (contract 1.12.0 §3c) — design approved 2026-10-06, built (bullet above);
+  (4) PRO-3859 — nightly catalog manifest (contract 1.12.0 §3c) — design approved 2026-10-06 — **in PR #186** (bullet above);
   (5) PRO-3824 — CF7 resubscribe per the decision above.
   Human acceptance on real stores stays open: PRO-3872 "Other fields" row (customer, above); MiuMjau runs Import existing data → Customers once and places the Smaily Recommendations block; CookieYes accept → `wp_consent_marketing=allow` cookie → /relay + /recommendations fire; one real guest checkout with consent gets a `vs_` token. Erkki's Estonian proofread (docs-site "Menüü" section, PR #176's eight ET sentences, PR #178's Event Log sentence) gates the next docs-site FTPS publish.
 - Dev wp-env (main checkout) is connected to the synthetic test tenant "Beauty Synthetic (live-walk)" (Erkki approved 2026-10-06); the PRO-3859 integration runs took the durable snapshot of it. Residue on that tenant: one test order (external id 11) + its test customer. **With the PRO-3859 code checked out, the dev site's Action Scheduler sends a real nightly manifest to that tenant** (first run 03:00 site time, whenever a request wakes the runner) — decide before merging whether the dev site stays connected.
