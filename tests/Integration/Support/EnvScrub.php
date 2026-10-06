@@ -35,10 +35,15 @@ final class EnvScrub {
 		// wp_options — every smly_* row (smly_plus_* + smly_rec_*) and the
 		// legacy keys this plugin owns. The single LIKE 'smly_%' sweep
 		// covers both prefixes; uninstall.php uses the same pattern.
+		// Except the schema version (PRO-3899): it describes the tables,
+		// which this scrub keeps. Sweeping its row while the object cache
+		// still held it let SchemaMigrationTest pass only on that stale
+		// cached value; any runtime cache flush in between made it read 0.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",
-				$wpdb->esc_like( 'smly_' ) . '%'
+				"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s AND option_name <> %s",
+				$wpdb->esc_like( 'smly_' ) . '%',
+				\Smaily\Connect\Constants::OPTION_SCHEMA_VERSION
 			)
 		);
 		$legacy_options = array(

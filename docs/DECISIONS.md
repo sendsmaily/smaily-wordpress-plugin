@@ -7653,6 +7653,26 @@ per-night retry ladder — not chosen (a retried list would be stale).
 **Relationships:** F3-16 (catalog pipeline), F3-44 (stored exchange),
 PRO-1230 (the §3b remove flusher this mirrors), PRO-1893 (sending gate),
 PRO-2433..2437 (AS groups and the hourly verification), PRO-3884.
+**Addendum (PRO-3899, 2026-10-06):** the walk runs in one Action Scheduler
+run, and WordPress keeps every post and its meta it loads until the run ends,
+so near 50,000 products the run could exhaust memory (the night then fails
+safely: nothing is sent, the reason is only in the debug log).
+`CatalogBackfillJob::manifest_items()` now releases each batch's posts before
+it reads the next one: `wp_cache_flush_runtime()` when the cache reports
+`wp_cache_supports( 'flush_runtime' )` (WordPress's own cache and current
+persistent drop-ins — it drops only this process's copy). On a drop-in without
+that support, WordPress's fallback only reports `_doing_it_wrong`, so the walk
+deletes the batch's `posts` and `post_meta` entries (parents and their
+expanded variations) instead; a shared cache refills them on the next read.
+Rejected: `wp_cache_flush()` (empties a persistent cache for the whole site),
+`clean_post_cache()` (announces a changed post, so WooCommerce and other
+plugins invalidate their caches for 50,000 unchanged products), doing nothing
+on such a drop-in (the memory problem stays there). Measured on 600 simple
+products in wp-env: 8.1 MB stays in memory after the walk without the release,
+0.45 MB (the list itself) with it. The release exposed a test-harness bug:
+`EnvScrub::reset()` swept the `smly_plus_schema_version` row while it keeps
+the tables that row describes, and `SchemaMigrationTest` passed only on the
+stale cached value; EnvScrub now keeps that row (LESSONS §2.25).
 
 ### PRO-3824 — A Contact Form 7 signup may subscribe again a contact who unsubscribed (2026-10-06)
 

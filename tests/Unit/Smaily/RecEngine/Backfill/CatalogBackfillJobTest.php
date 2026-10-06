@@ -14,6 +14,8 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine\Backfill;
 
+use Brain\Monkey;
+use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Multilingual\DetectorInterface;
@@ -23,6 +25,16 @@ use Smaily\Connect\Smaily\RecEngine\IngestFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 
 final class CatalogBackfillJobTest extends TestCase {
+
+	protected function setUp(): void {
+		parent::setUp();
+		Monkey\setUp();
+	}
+
+	protected function tearDown(): void {
+		Monkey\tearDown();
+		parent::tearDown();
+	}
 
 	public function test_published_product_enqueues_upsert(): void {
 		$queue   = $this->fake_queue();
@@ -149,7 +161,81 @@ final class CatalogBackfillJobTest extends TestCase {
 		self::assertSame( '102', $queue->enqueued[1]['entity_id'] );
 	}
 
+	public function test_manifest_walk_flushes_the_runtime_cache_after_each_batch(): void {
+		// PRO-3899: WordPress keeps every post it loads until the run ends, so
+		// a walk over a 50,000-product catalog in one run can exhaust memory.
+		// Each batch's posts are released before the next batch is read.
+		$log = new \ArrayObject();
+		Functions\when( '_prime_post_caches' )->justReturn( null );
+		Functions\when( 'wp_cache_supports' )->alias( static fn ( string $feature ): bool => $feature === 'flush_runtime' );
+		Functions\expect( 'wp_cache_flush_runtime' )->twice()->andReturnUsing(
+			static function () use ( $log ): bool {
+				$log[] = 'flush';
+				return true;
+			}
+		);
+		Functions\expect( 'wp_cache_delete_multiple' )->never();
+
+		$items = $this->manifest_job( $log )->manifest_items( 50000 );
+
+		self::assertCount( 6, $items, 'Three parents, two variations each.' );
+		self::assertSame( array( 'fetch', 'flush', 'fetch', 'flush' ), $log->getArrayCopy(), 'One flush after each batch, before the next one is read.' );
+	}
+
+	public function test_manifest_walk_without_runtime_flush_deletes_only_the_batch_posts(): void {
+		// A drop-in without runtime-flush support: WordPress's fallback would
+		// only report _doing_it_wrong, and a full flush would empty a shared
+		// cache — so the batch's own posts and meta are deleted instead.
+		$log = new \ArrayObject();
+		Functions\when( '_prime_post_caches' )->justReturn( null );
+		Functions\when( 'wp_cache_supports' )->justReturn( false );
+		Functions\expect( 'wp_cache_flush_runtime' )->never();
+		$deleted = array();
+		Functions\expect( 'wp_cache_delete_multiple' )->times( 4 )->andReturnUsing(
+			static function ( array $keys, string $group ) use ( &$deleted ): array {
+				$deleted[] = array( $group, array_values( array_unique( $keys ) ) );
+				return array();
+			}
+		);
+
+		$this->manifest_job( $log )->manifest_items( 50000 );
+
+		self::assertSame(
+			array(
+				array( 'posts', array( 1, 2, 11, 12 ) ),
+				array( 'post_meta', array( 1, 2, 11, 12 ) ),
+				array( 'posts', array( 3, 11, 12 ) ),
+				array( 'post_meta', array( 3, 11, 12 ) ),
+			),
+			$deleted,
+			'Each batch deletes its parents and their expanded variations — nothing else.'
+		);
+	}
+
 	// --- doubles -------------------------------------------------------------
+
+	/**
+	 * Three published variable products (ids 1-3, each expanding to variations
+	 * 11 and 12) walked in batches of two.
+	 */
+	private function manifest_job( \ArrayObject $log ): CatalogBackfillJob {
+		$products = array();
+		foreach ( array( 1, 2, 3 ) as $id ) {
+			$products[ $id ] = $this->fake_product( $id, '' );
+		}
+		$units = array( $this->fake_product( 11, '' ), $this->fake_product( 12, '' ) );
+
+		return $this->job(
+			$this->fake_queue(),
+			$products,
+			$units,
+			array(
+				'ids'        => array( 1, 2, 3 ),
+				'batch_size' => 2,
+				'log'        => $log,
+			)
+		);
+	}
 
 	private function fake_queue(): IngestQueue {
 		return new class() extends IngestQueue {
@@ -213,6 +299,12 @@ final class CatalogBackfillJobTest extends TestCase {
 			// the real home_url() — this raw (non-Brain\Monkey) test file has no
 			// WordPress loaded; the real method's behaviour is covered directly in
 			// CatalogPayloadBuilderTest.
+			public function manifest_item( \WC_Product $unit, bool $trashed ): array {
+				return array(
+					'sku'      => 'woo-' . $unit->get_id(),
+					'in_stock' => ! $trashed,
+				);
+			}
 			public function ensure_valid_removal( array $object ): array {
 				if ( (string) ( $object['category_path'] ?? '' ) === '' ) {
 					$object['category_path'] = 'uncategorized';
@@ -230,7 +322,7 @@ final class CatalogBackfillJobTest extends TestCase {
 	/**
 	 * @param array<int, \WC_Product>                        $products_by_id get_product() lookup.
 	 * @param array<int, \WC_Product>                        $expand_units   builder->expand() result.
-	 * @param array{canonical?: array<int,int>, status?: array<int,string>, enumerated?: array<int,int>} $opts
+	 * @param array{canonical?: array<int,int>, status?: array<int,string>, enumerated?: array<int,int>, ids?: array<int,int>, batch_size?: int, log?: \ArrayObject<int,string>} $opts
 	 */
 	private function job( IngestQueue $queue, array $products_by_id, array $expand_units, array $opts = array() ): CatalogBackfillJob {
 		$canonical_map = $opts['canonical'] ?? array();
@@ -245,28 +337,47 @@ final class CatalogBackfillJobTest extends TestCase {
 		$builder = $this->fake_builder( $expand_units );
 		$flusher = $this->createMock( IngestFlusher::class );
 
-		return new class( $queue, $flusher, $builder, $detector, $products_by_id, $status_map, $enumerated ) extends CatalogBackfillJob {
+		return new class( $queue, $flusher, $builder, $detector, $products_by_id, $status_map, $enumerated, $opts ) extends CatalogBackfillJob {
 			/** @var array<int, \WC_Product> */
 			private array $products_by_id;
 			/** @var array<int, string> */
 			private array $status_map;
 			/** @var array<int, int> */
 			private array $enumerated;
+			/** @var array<int, int> */
+			private array $ids;
+			private int $batch;
+			/** @var \ArrayObject<int, string> */
+			private \ArrayObject $log;
 
 			/**
 			 * @param array<int, \WC_Product> $products_by_id
 			 * @param array<int, string>      $status_map
 			 * @param array<int, int>         $enumerated
+			 * @param array{ids?: array<int,int>, batch_size?: int, log?: \ArrayObject<int,string>} $opts
 			 */
-			public function __construct( IngestQueue $queue, IngestFlusher $flusher, CatalogPayloadBuilder $builder, DetectorInterface $detector, array $products_by_id, array $status_map, array $enumerated ) {
+			public function __construct( IngestQueue $queue, IngestFlusher $flusher, CatalogPayloadBuilder $builder, DetectorInterface $detector, array $products_by_id, array $status_map, array $enumerated, array $opts ) {
 				parent::__construct( $queue, $flusher, $builder, $detector );
 				$this->products_by_id = $products_by_id;
 				$this->status_map     = $status_map;
 				$this->enumerated     = $enumerated;
+				$this->ids            = $opts['ids'] ?? array();
+				$this->batch          = $opts['batch_size'] ?? 100;
+				$this->log            = $opts['log'] ?? new \ArrayObject();
 			}
 
 			public function run( int $id ): void {
 				$this->enqueue_record( $id );
+			}
+
+			protected function batch_size(): int {
+				return $this->batch;
+			}
+
+			protected function fetch_ids_after( int $after_id, int $limit ): array {
+				$this->log[] = 'fetch';
+				$after       = array_filter( $this->ids, static fn ( int $id ): bool => $id > $after_id );
+				return array_slice( array_values( $after ), 0, $limit );
 			}
 
 			protected function get_product( int $product_id ): ?\WC_Product {
