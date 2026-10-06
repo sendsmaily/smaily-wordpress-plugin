@@ -137,6 +137,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 * trashed product is in it as in_stock=false; drafts, private and pending
 	 * products are not, because the import does not enumerate them. Stops once
 	 * the list holds more than $limit items: the caller sends nothing then.
+	 * Each batch's loaded posts are released before the next one is read.
 	 *
 	 * @return array<int, array{sku: string, in_stock: bool}>
 	 */
@@ -150,6 +151,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 				// One query for the batch's posts and meta instead of one per product.
 				_prime_post_caches( $ids, false, true );
 			}
+			$loaded = $ids;
 			foreach ( $ids as $entity_id ) {
 				$post = $this->units_to_send( $entity_id );
 				if ( $post === null ) {
@@ -161,7 +163,8 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 					$items[] = $this->builder->manifest_item_unresolvable( $entity_id );
 				} else {
 					foreach ( $units as $unit ) {
-						$items[] = $this->builder->manifest_item( $unit, $is_trashed );
+						$items[]  = $this->builder->manifest_item( $unit, $is_trashed );
+						$loaded[] = (int) $unit->get_id();
 					}
 				}
 
@@ -169,11 +172,38 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 					return $items;
 				}
 			}
+			$this->release_loaded_posts( $loaded );
 			// An empty batch ends the loop below before $after is read again.
 			$after = (int) end( $ids );
 		} while ( count( $ids ) === $this->batch_size() );
 
 		return $items;
+	}
+
+	/**
+	 * Drops the posts one manifest batch loaded from this process's object
+	 * cache (PRO-3899). WordPress keeps every post and its meta it reads until
+	 * the request ends, so a walk over a whole large catalog in one Action
+	 * Scheduler run can exhaust memory before it reaches the send.
+	 *
+	 * A cache that can flush its in-memory copy alone (WordPress's own cache,
+	 * current persistent drop-ins) does exactly that. A drop-in without that
+	 * support gets the batch's `posts` and `post_meta` entries deleted instead:
+	 * WordPress's wp_cache_flush_runtime() fallback there only reports
+	 * _doing_it_wrong, and a full wp_cache_flush() would empty the shared
+	 * cache for the whole site. clean_post_cache() is not used either: it
+	 * announces a changed post (WooCommerce and other plugins invalidate
+	 * their own caches on it) for products that did not change.
+	 *
+	 * @param int[] $post_ids The batch's parent posts and their expanded units.
+	 */
+	private function release_loaded_posts( array $post_ids ): void {
+		if ( wp_cache_supports( 'flush_runtime' ) ) {
+			wp_cache_flush_runtime();
+			return;
+		}
+		wp_cache_delete_multiple( $post_ids, 'posts' );
+		wp_cache_delete_multiple( $post_ids, 'post_meta' );
 	}
 
 	/**
