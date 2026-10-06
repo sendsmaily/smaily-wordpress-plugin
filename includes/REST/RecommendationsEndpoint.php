@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Support\MarketingConsent;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -39,7 +40,9 @@ use WP_REST_Response;
  *   3. a request another site makes (`Sec-Fetch-Site: cross-site` /
  *      `same-site`) gets an empty answer: WordPress sends credentialed CORS
  *      headers for any origin, so without this a page elsewhere could read a
- *      shopper's recommendations with the shopper's own cookies.
+ *      shopper's recommendations with the shopper's own cookies;
+ *   4. a guest's visitor token is passed on only with the guest's marketing
+ *      consent (MarketingConsent), the same rule `sc-recs.js` applies.
  * Every answer carries `Cache-Control: no-store, private`: it belongs to one
  * shopper and must never be kept by a shared cache.
  */
@@ -108,9 +111,24 @@ class RecommendationsEndpoint {
 			return $this->respond( array( 'html' => '' ), 200 );
 		}
 
-		$html = ( $this->recommendations )()->cards( $this->logged_in_user_id(), $this->visitor_token() );
+		// A guest is asked about only with their marketing yes, checked here on
+		// the server too — not only in `sc-recs.js` (PRO-3857). A logged-in
+		// shopper is named by the account and gated by the profiling check.
+		$user_id = $this->logged_in_user_id();
+		$token   = ( $user_id > 0 || $this->marketing_consent_given() ) ? $this->visitor_token() : '';
+
+		$html = ( $this->recommendations )()->cards( $user_id, $token );
 
 		return $this->respond( array( 'html' => $html ), 200 );
+	}
+
+	/**
+	 * Whether the shopper gave an explicit marketing yes. A seam so tests can
+	 * answer it: defining the WP Consent API functions in a test would leak
+	 * into every later test of the process.
+	 */
+	protected function marketing_consent_given(): bool {
+		return MarketingConsent::given();
 	}
 
 	/**

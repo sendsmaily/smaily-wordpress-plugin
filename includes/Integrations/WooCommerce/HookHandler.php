@@ -19,7 +19,9 @@ use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\ContactReconciler;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\Support\AttributionShape;
 use Smaily\Connect\Support\ContactLanguageResolver;
+use Smaily\Connect\Support\MarketingConsent;
 
 /**
  * Hook callbacks that fan WordPress + WooCommerce events into the Smaily
@@ -761,6 +763,16 @@ class HookHandler {
 				continue;
 			}
 
+			// A store-created `vs_` token is consent-based (contract §5: without
+			// marketing consent, send none), so it rides the order only with the
+			// shopper's marketing yes. The engine's `vt_` token is attribution
+			// and stays ungated (F3-46). PRO-3857.
+			if ( '_smaily_visitor_token' === $meta_key
+				&& AttributionShape::is_store_visitor_token( $value )
+				&& ! $this->marketing_consent_given() ) {
+				continue;
+			}
+
 			$order->update_meta_data( $meta_key, $value );
 			$wrote_any = true;
 		}
@@ -768,6 +780,15 @@ class HookHandler {
 		if ( $wrote_any ) {
 			$order->save();
 		}
+	}
+
+	/**
+	 * Whether the shopper gave an explicit marketing yes. A seam so tests can
+	 * answer it: defining the WP Consent API functions in a test would leak
+	 * into every later test of the process.
+	 */
+	protected function marketing_consent_given(): bool {
+		return MarketingConsent::given();
 	}
 
 	private function is_enabled( string $option_key, bool $fallback ): bool {

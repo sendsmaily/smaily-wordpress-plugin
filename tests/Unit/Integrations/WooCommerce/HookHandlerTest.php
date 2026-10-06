@@ -583,6 +583,55 @@ final class HookHandlerTest extends TestCase {
 		self::assertSame( $vt, $order->get_meta( '_smaily_visitor_token' ) );
 	}
 
+	public function test_a_store_created_visitor_token_is_not_stamped_without_marketing_consent(): void {
+		// PRO-3857 / contract §5: without marketing consent the store sends no
+		// `vs_` token. The unit environment has no WP Consent API = no consent.
+		Functions\when( 'get_option' )->justReturn( false );
+
+		$order = $this->fake_order( 100, 'buyer@example.test', 9, 1 );
+		Functions\when( 'wc_get_order' )->justReturn( $order );
+
+		$_COOKIE['smaily_rec_uid'] = 'vs_0123456789ABCDEFabcdef';
+		$_COOKIE['smaily_rec_id']  = 'rec-uuid-123';
+
+		( new HookHandler( $this->queue ) )->on_checkout_order_processed( 100 );
+
+		self::assertSame( '', $order->get_meta( '_smaily_visitor_token' ) );
+		self::assertSame( 'rec-uuid-123', $order->get_meta( '_smaily_rec_id' ), 'The other attribution still rides the order.' );
+	}
+
+	public function test_a_store_created_visitor_token_is_stamped_with_marketing_consent(): void {
+		Functions\when( 'get_option' )->justReturn( false );
+
+		$order = $this->fake_order( 100, 'buyer@example.test', 9, 1 );
+		Functions\when( 'wc_get_order' )->justReturn( $order );
+
+		$_COOKIE['smaily_rec_uid'] = 'vs_0123456789ABCDEFabcdef';
+
+		$handler = new class( $this->queue ) extends HookHandler {
+			protected function marketing_consent_given(): bool {
+				return true;
+			}
+		};
+		$handler->on_checkout_order_processed( 100 );
+
+		self::assertSame( 'vs_0123456789ABCDEFabcdef', $order->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	public function test_an_engine_visitor_token_is_stamped_without_marketing_consent(): void {
+		// F3-46: the engine's `vt_` token is attribution, consent-ungated.
+		Functions\when( 'get_option' )->justReturn( false );
+
+		$order = $this->fake_order( 100, 'buyer@example.test', 9, 1 );
+		Functions\when( 'wc_get_order' )->justReturn( $order );
+
+		$_COOKIE['smaily_rec_uid'] = 'vt_8f3k2aBz01';
+
+		( new HookHandler( $this->queue ) )->on_checkout_order_processed( 100 );
+
+		self::assertSame( 'vt_8f3k2aBz01', $order->get_meta( '_smaily_visitor_token' ) );
+	}
+
 	public function test_block_checkout_stamps_rec_attribution_onto_order(): void {
 		// F3-46 gap fix: block checkout never fires woocommerce_checkout_order_processed,
 		// so the smaily_rec cookie must be stamped via the Store-API twin.

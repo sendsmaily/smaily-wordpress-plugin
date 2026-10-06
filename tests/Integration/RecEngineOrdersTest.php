@@ -445,6 +445,25 @@ final class RecEngineOrdersTest extends TestCase {
 		self::assertArrayNotHasKey( 'smaily_visitor_token', $payloads[0] );
 	}
 
+	public function test_a_store_created_token_does_not_ride_an_order_without_marketing_consent(): void {
+		// PRO-3857 / contract §5: without consent the store sends no `vs_`
+		// token — also not one the browser already carries (a token given
+		// before the shopper withdrew consent). The real consent check runs:
+		// the test site has no WP Consent API, so it fails closed.
+		$product  = $this->make_product( 'ORD-VT-VS-NOCONSENT', '15.00' );
+		$order_id = $this->make_order( 'vt-vs-noconsent@example.test', 'completed', $product );
+
+		$cookies = $this->guest_checkout( $order_id, array( true, 'deny' ), array( 'smaily_rec_uid' => 'vs_0123456789ABCDEFabcdef' ) );
+
+		self::assertSame( array(), $cookies );
+		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
+
+		$this->flusher()->flush();
+		$payloads = self::$engine->state()['last_orders_payload'] ?? null;
+		self::assertIsArray( $payloads );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $payloads[0] );
+	}
+
 	public function test_a_guest_buyer_gets_no_visitor_token_when_no_banner_stored_a_yes(): void {
 		// The WP Consent API answers wp_has_consent() true when no consent
 		// plugin set a type, and in an opt-out region until the visitor opts

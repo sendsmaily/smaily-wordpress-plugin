@@ -95,6 +95,26 @@ final class RecommendationsEndpointTest extends TestCase {
 		self::assertSame( 'vt_AbC123', $this->asked[0]['visitor_token'] );
 	}
 
+	public function test_a_guest_without_marketing_consent_is_not_asked_about_by_the_visitor_cookie(): void {
+		// PRO-3857: the server applies the consent rule too, not only sc-recs.js.
+		$_COOKIE['smaily_rec_uid'] = 'vs_0123456789ABCDEFabcdef';
+
+		$response = $this->endpoint( 0, true, false )->handle( new WP_REST_Request() );
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( '', $this->asked[0]['visitor_token'], 'No consent: the token is not passed on, so the engine is not asked.' );
+	}
+
+	public function test_a_logged_in_shopper_is_passed_on_without_the_marketing_consent_check(): void {
+		// The account names a logged-in shopper; the profiling check gates it.
+		$_COOKIE['smaily_rec_uid'] = 'vt_AbC123';
+
+		$this->endpoint( 42, true, false )->handle( new WP_REST_Request() );
+
+		self::assertSame( 42, $this->asked[0]['user_id'] );
+		self::assertSame( 'vt_AbC123', $this->asked[0]['visitor_token'] );
+	}
+
 	public function test_a_visitor_token_in_the_request_itself_is_ignored(): void {
 		$request = new WP_REST_Request();
 		$request->set_param( 'smaily_visitor_token', 'vt_Someone' );
@@ -151,14 +171,17 @@ final class RecommendationsEndpointTest extends TestCase {
 		self::assertSame( 200, $endpoint->handle( new WP_REST_Request() )->get_status(), 'Another address has its own window.' );
 	}
 
-	private function endpoint( int $user_id, bool $sending_allowed = true ): RecommendationsEndpoint {
+	private function endpoint( int $user_id, bool $sending_allowed = true, bool $consent = true ): RecommendationsEndpoint {
 		$test = $this;
 
-		return new class( new FakeRecEngineSettings( $sending_allowed ), $test, $user_id ) extends RecommendationsEndpoint {
+		return new class( new FakeRecEngineSettings( $sending_allowed ), $test, $user_id, $consent ) extends RecommendationsEndpoint {
 			private int $user_id;
 
-			public function __construct( FakeRecEngineSettings $settings, RecommendationsEndpointTest $test, int $user_id ) {
+			private bool $consent;
+
+			public function __construct( FakeRecEngineSettings $settings, RecommendationsEndpointTest $test, int $user_id, bool $consent ) {
 				$this->user_id = $user_id;
+				$this->consent = $consent;
 				parent::__construct(
 					$settings,
 					static function () use ( $test ): StorefrontRecommendations {
@@ -169,6 +192,10 @@ final class RecommendationsEndpointTest extends TestCase {
 
 			protected function logged_in_user_id(): int {
 				return $this->user_id;
+			}
+
+			protected function marketing_consent_given(): bool {
+				return $this->consent;
 			}
 		};
 	}
