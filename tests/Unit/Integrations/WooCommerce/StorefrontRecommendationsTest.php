@@ -218,11 +218,26 @@ final class StorefrontRecommendationsTest extends TestCase {
 		self::assertSame( HOUR_IN_SECONDS, $this->transients[ $key ]['ttl'] );
 	}
 
-	public function test_an_engine_error_renders_nothing_and_is_not_cached(): void {
+	public function test_an_engine_failure_shows_nothing_and_is_cached_briefly(): void {
+		$this->answer = new ApiException( 400, 'validation_failed', 'visitor_token not accepted' );
+		$service      = $this->service();
+
+		self::assertSame( array(), $service->slots( 0, self::TOKEN ) );
+		self::assertSame( array(), $service->slots( 0, self::TOKEN ) );
+
+		self::assertCount( 1, $this->calls, 'The second request makes no engine call.' );
+		$key = (string) array_key_first( $this->transients );
+		self::assertSame( array(), $this->transients[ $key ]['value'] );
+		self::assertSame( 10 * MINUTE_IN_SECONDS, $this->transients[ $key ]['ttl'], 'A failure is kept for 10 minutes, not the hour an answer gets.' );
+	}
+
+	public function test_a_timeout_is_cached_briefly_too(): void {
 		$this->answer = new ApiException( 0, 'network_error', 'timed out' );
 
-		self::assertSame( array(), $this->service()->slots( 42, '' ) );
-		self::assertSame( array(), $this->transients );
+		$this->service()->slots( 42, '' );
+
+		$key = (string) array_key_first( $this->transients );
+		self::assertSame( StorefrontRecommendations::FAILURE_CACHE_TTL, $this->transients[ $key ]['ttl'] );
 	}
 
 	private function service( bool $sending_allowed = true, bool $may_profile = true ): StorefrontRecommendations {

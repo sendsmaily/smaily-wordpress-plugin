@@ -196,6 +196,18 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		self::assertSame( 1, self::$engine->request_count(), 'The second request is served from the store\'s cache.' );
 	}
 
+	public function test_an_engine_that_refuses_the_guest_is_asked_again_only_after_a_while(): void {
+		self::$engine->set_storefront_visitor_token_unsupported( true );
+		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
+		self::$engine->reset_request_count();
+
+		self::assertSame( '', $this->cards(), 'A 400 shows nothing.' );
+		self::assertSame( 1, self::$engine->request_count() );
+
+		self::assertSame( '', $this->cards() );
+		self::assertSame( 1, self::$engine->request_count(), 'The failure is cached: the second request makes no engine call.' );
+	}
+
 	public function test_no_shared_cache_may_keep_the_answer(): void {
 		$_COOKIE[ self::VISITOR_COOKIE ] = $this->token;
 

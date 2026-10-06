@@ -1545,6 +1545,18 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 		reply( 400, array( 'error' => 'invalid_json', 'message' => 'Request body is not valid JSON.' ) );
 	}
 
+	// Play today's engine, which does not take the visitor token yet: answer
+	// a guest request the 400 a missing `customer_external_id` gets.
+	if ( ! empty( $state['storefront_visitor_token_unsupported'] ) && array_key_exists( 'visitor_token', $body ) ) {
+		reply(
+			400,
+			array(
+				'error'   => 'validation_failed',
+				'details' => array( 'fieldErrors' => array( 'customer_external_id' => array( 'Required' ) ) ),
+			)
+		);
+	}
+
 	$by_visitor  = array_key_exists( 'visitor_token', $body );
 	$identifier  = $by_visitor ? 'visitor_token' : 'customer_external_id';
 	$external_id = $body[ $identifier ] ?? null;

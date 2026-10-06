@@ -949,7 +949,9 @@ nobody (no engine call); never a value from the request. An opted-out
 logged-in shopper is never asked about, not by the token either. The client is
 `Bootstrap::storefront_recommendations()` → `rec_client( 1, 3 )`: one attempt,
 3 s, no Retry-After sleep — never plain `rec_client()`. Cache: tenant +
-md5(type|id), one hour, empty answers included, errors not cached.
+md5(type|id), one hour, empty answers included; a FAILED call (error,
+timeout, 4xx/5xx) is cached as empty for 10 minutes (`FAILURE_CACHE_TTL`), so
+an engine that cannot answer gets one call per shopper per 10 minutes.
 **The guest request is an ASSUMPTION** until engine PRO-3834 lands in the
 contract: §15 takes `visitor_token` in place of `customer_external_id`
 (`Client::visitor_recommendations()`, mock `storefront_visitor_slots`). On the

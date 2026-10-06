@@ -51,8 +51,11 @@ use Smaily\Connect\Support\DebugLog;
  * The answer — an empty one included, which §15 says not to retry — is cached
  * for one hour (§15), keyed by tenant + a hash of the identifier type and
  * value. A finite TTL: a no-expiry transient per shopper would be an
- * autoloaded option forever (PRO-2435). An error or timeout shows nothing and
- * is not cached.
+ * autoloaded option forever (PRO-2435). An error, timeout or 4xx/5xx shows
+ * nothing and is cached as an empty answer for FAILURE_CACHE_TTL (10 minutes),
+ * so an engine that cannot answer — an outage, or one that does not take the
+ * visitor token yet — gets one call per shopper per 10 minutes, not one per
+ * page view.
  *
  * The cards show the store's own product data (live name, price, stock,
  * image), so only the slot's recommendation id and product id are kept from
@@ -78,6 +81,13 @@ class StorefrontRecommendations {
 
 	/** Per-shopper cache lifetime, in seconds: one hour, as §15 advises (Erkki, 2026-10-05). */
 	public const CACHE_TTL = HOUR_IN_SECONDS;
+
+	/**
+	 * How long a failed engine call (error, timeout, 4xx/5xx) is remembered as
+	 * an empty answer, in seconds: one engine call per shopper per 10 minutes
+	 * while the engine cannot answer, instead of one per page view.
+	 */
+	public const FAILURE_CACHE_TTL = 10 * MINUTE_IN_SECONDS;
 
 	/** Script handle — neutral, like the other storefront bundles (F3-41). */
 	public const HANDLE = 'smaily-connect-recs';
@@ -255,7 +265,8 @@ class StorefrontRecommendations {
 				? $client->customer_recommendations( $identity['id'], self::LIMIT )
 				: $client->visitor_recommendations( $identity['id'], self::LIMIT );
 		} catch ( \Throwable $e ) {
-			DebugLog::write( sprintf( '[smaily-connect storefront-recs] engine call failed (%s) — showing nothing', get_class( $e ) ) );
+			DebugLog::write( sprintf( '[smaily-connect storefront-recs] engine call failed (%s) — showing nothing for %d minutes', get_class( $e ), (int) ( self::FAILURE_CACHE_TTL / MINUTE_IN_SECONDS ) ) );
+			set_transient( $cache_key, array(), self::FAILURE_CACHE_TTL );
 			return array();
 		}
 

@@ -45,7 +45,7 @@ container for every visitor (cacheable; PRO-3832's `DONOTCACHEPAGE` removed),
 and `sc-recs.js` (new IIFE pass) asks the public `GET /recommendations` route
 only with WP Consent API marketing consent; the route names a logged-in
 shopper by user id, a returning guest by the visitor-token cookie, else asks
-nothing; `no-store, private`; 3 s engine timeout. **Guest path ASSUMES engine
+nothing; `no-store, private`; 3 s engine timeout; a failed engine call is cached empty for 10 min. **Guest path ASSUMES engine
 PRO-3834's `visitor_token` field** — confirm on the contract sync + one live
 request. DECISIONS PRO-3835; docs site EN+ET (ET awaits proofread). Gates:
 ci:strict exit=0; integration 352 OK on the Mac. New public route + cookie +

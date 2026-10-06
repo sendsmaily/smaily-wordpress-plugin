@@ -7329,14 +7329,19 @@ visitor token from the `tracking_cookie_name` cookie (`smaily_rec_uid`), else
 nobody — then no engine call. A token in the request is ignored. An opted-out
 logged-in shopper (ProfilingConsent) is never asked about, not by the token
 either; for a guest the engine applies the opt-out on the token path. (5) The
-cache key is tenant + md5(identifier type + value), one hour, as before.
+cache key is tenant + md5(identifier type + value), one hour, as before. A
+failed engine call (error, timeout, 4xx/5xx) is cached as an empty answer for
+10 minutes (`FAILURE_CACHE_TTL`): it bounds load on an engine that cannot answer
+yet (a guest request before PRO-3834) and covers the engine outage PRO-3819
+names — one call per shopper per 10 minutes instead of one per page view.
 (6) The engine client timeout is 3 s, still one attempt and no Retry-After
 wait.
 **ASSUMPTION — engine Story PRO-3834 is not built yet:** §15 accepts
 `visitor_token` (string) in place of `customer_external_id`, with the same
 response shape and the same empty-answer rules. `Client::visitor_recommendations()`
 and the mock (`storefront_visitor_slots`; exactly one of the two fields, else
-400) are built on that. Until the engine accepts it, a guest request fails and
+400) are built on that. Until the engine accepts it, a guest request fails (and
+the failure is cached for 10 minutes) and
 shows nothing. Confirm with the contract sync and one live request before
 release.
 **Rationale:** the card markup stays server-rendered and escaped (the route
