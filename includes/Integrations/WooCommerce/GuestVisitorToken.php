@@ -31,7 +31,7 @@ use Smaily\Connect\Support\MarketingConsent;
  * the account); the request is a shopper's checkout (the two checkout hooks
  * fire for nothing else, and cron / WP-CLI are refused outright); the shopper
  * gave an explicit marketing yes through a consent plugin on the WP Consent
- * API (MarketingConsent — no API, no consent type, no yes: no token); and the
+ * API (MarketingConsent — no API, no stored `allow`, no yes: no token); and the
  * browser carries no visitor token yet. An existing token is never replaced.
  */
 class GuestVisitorToken {
