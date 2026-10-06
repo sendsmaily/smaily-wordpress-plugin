@@ -15,6 +15,7 @@ defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\PolylangAdapter;
 use Smaily\Connect\Multilingual\SiteLocaleAdapter;
@@ -110,7 +111,7 @@ class EnvDetector {
 			// NotificationManager's consent advisory makes: without it the
 			// browse tracker gets no consent signal and sends nothing, and the
 			// browse-tracking toggle says so.
-			'consentApiPresent'  => function_exists( 'wp_has_consent' ),
+			'consentApiPresent'  => StorefrontBeacon::consent_api_present(),
 		);
 	}
 

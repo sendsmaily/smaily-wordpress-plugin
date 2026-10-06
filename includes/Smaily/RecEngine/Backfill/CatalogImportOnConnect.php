@@ -11,7 +11,6 @@ namespace Smaily\Connect\Smaily\RecEngine\Backfill;
 
 defined( 'ABSPATH' ) || exit;
 
-use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\EventQueue;
 
@@ -53,7 +52,7 @@ final class CatalogImportOnConnect {
 
 		as_schedule_single_action(
 			time() + self::DELAY_SECONDS,
-			BackfillEndpoint::TICK_HOOK,
+			BackfillJobInterface::TICK_HOOK,
 			array( 'job_type' => self::JOB_TYPE ),
 			EventQueue::AS_GROUP
 		);
@@ -62,19 +61,7 @@ final class CatalogImportOnConnect {
 	}
 
 	private function is_running(): bool {
-		global $wpdb;
-		$table = $wpdb->prefix . AbstractBackfillJob::TABLE_SUFFIX;
-
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom backfill-state table, read-through.
-		$status = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT status FROM {$table} WHERE job_type = %s AND target = %s",
-				self::JOB_TYPE,
-				AbstractBackfillJob::TARGET
-			)
-		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-
-		return $status === BackfillEndpoint::STATUS_RUNNING;
+		$row = AbstractBackfillJob::read_state( self::JOB_TYPE );
+		return is_array( $row ) && $row['status'] === BackfillJobInterface::STATUS_RUNNING;
 	}
 }

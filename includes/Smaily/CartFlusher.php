@@ -123,10 +123,7 @@ class CartFlusher {
 
 				// An HTTP 200 can still carry a refusal Smaily repeats for the
 				// same data (203 "invalid data") — fail it now (PRO-3750).
-				$refusal = RetryPolicy::permanent_envelope( $this->current_exchange );
-				if ( $refusal !== null ) {
-					throw new TerminalDispatchException( $refusal );
-				}
+				RetryPolicy::throw_if_permanent_envelope( $this->current_exchange );
 
 				$this->queue->mark_sent( $id );
 				++$stats['sent'];
@@ -209,7 +206,7 @@ class CartFlusher {
 		// The legacy Smaily API signals failure inside an HTTP 200 body
 		// (code 101 = success). A non-101 (e.g. a deleted autoresponder id)
 		// is deterministic — terminal, not an eternal retry (F3-53 class).
-		if ( isset( $response['code'] ) && (int) $response['code'] !== 101 ) {
+		if ( isset( $response['code'] ) && (int) $response['code'] !== Client::CODE_OK ) {
 			throw new TerminalDispatchException(
 				RetryPolicy::permanent_envelope( $this->current_exchange )
 					?? sprintf( 'smaily_response_code_%d', (int) $response['code'] )

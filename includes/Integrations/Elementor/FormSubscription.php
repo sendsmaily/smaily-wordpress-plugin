@@ -11,6 +11,7 @@ namespace Smaily\Connect\Integrations\Elementor;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\REST\WorkflowsEndpoint;
 use Smaily\Connect\Smaily\ApiException;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Support\DebugLog;
@@ -117,8 +118,8 @@ final class FormSubscription {
 		}
 
 		$email_field = self::setting( $settings, 'smaily_email_field' );
-		$email       = strtolower( trim( $email_field !== '' ? ( $values[ $email_field ] ?? '' ) : '' ) );
-		if ( $email === '' || ! is_email( $email ) ) {
+		$email       = strtolower( trim( $values[ $email_field ] ?? '' ) );
+		if ( ! is_email( $email ) ) {
 			return self::OUTCOME_INVALID_EMAIL;
 		}
 
@@ -133,7 +134,7 @@ final class FormSubscription {
 		}
 
 		$code = (int) ( $reply['code'] ?? 0 );
-		if ( $code !== 101 ) {
+		if ( $code !== Client::CODE_OK ) {
 			$this->error = sprintf( 'Smaily API returned code %d for POST contact', $code );
 			return self::OUTCOME_FAILED;
 		}
@@ -144,41 +145,25 @@ final class FormSubscription {
 	}
 
 	/**
-	 * The editor's workflow dropdown: '' (none) plus the account's active
-	 * workflows. Only a site editor in the admin reaches Smaily, never a
-	 * visitor's submission; the list is cached for WORKFLOWS_TTL.
+	 * The account's workflows as id => name, cached for WORKFLOWS_TTL; empty
+	 * when Smaily cannot be read.
 	 *
 	 * @return array<string, string>
 	 */
-	public function workflow_options(): array {
-		$options = array( '' => __( 'No workflow', 'smaily-connect' ) );
-
-		if ( ! is_admin() || ! current_user_can( 'edit_posts' ) ) {
-			return $options;
-		}
-
+	public function workflows(): array {
 		$workflows = get_transient( self::WORKFLOWS_TRANSIENT );
-		if ( ! is_array( $workflows ) ) {
-			try {
-				$workflows = array();
-				foreach ( ( $this->client_factory )()->list_autoresponders() as $row ) {
-					$id   = isset( $row['id'] ) ? (string) $row['id'] : '';
-					$name = isset( $row['name'] ) ? trim( (string) $row['name'] ) : '';
-					if ( $id !== '' && $id !== '0' && $name !== '' ) {
-						$workflows[ $id ] = $name;
-					}
-				}
-			} catch ( ApiException | \RuntimeException $e ) {
-				return $options;
-			}
-			set_transient( self::WORKFLOWS_TRANSIENT, $workflows, self::WORKFLOWS_TTL );
+		if ( is_array( $workflows ) ) {
+			return $workflows;
 		}
 
-		foreach ( $workflows as $id => $name ) {
-			$options[ (string) $id ] = (string) $name;
+		try {
+			$workflows = array_column( WorkflowsEndpoint::normalise( ( $this->client_factory )()->list_autoresponders() ), 'name', 'id' );
+		} catch ( ApiException | \RuntimeException $e ) {
+			return array();
 		}
+		set_transient( self::WORKFLOWS_TRANSIENT, $workflows, self::WORKFLOWS_TTL );
 
-		return $options;
+		return $workflows;
 	}
 
 	/**
@@ -200,8 +185,11 @@ final class FormSubscription {
 		}
 		$rows = isset( $settings['smaily_fields'] ) && is_array( $settings['smaily_fields'] ) ? $settings['smaily_fields'] : array();
 		foreach ( $rows as $row ) {
-			$smaily_field = is_array( $row ) ? strtolower( self::setting( $row, 'smaily_field' ) ) : '';
-			$form_field   = is_array( $row ) ? self::setting( $row, 'form_field' ) : '';
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$smaily_field = strtolower( self::setting( $row, 'smaily_field' ) );
+			$form_field   = self::setting( $row, 'form_field' );
 			if ( $form_field === '' || preg_match( '/^[a-z0-9_]{1,64}$/', $smaily_field ) !== 1 || in_array( $smaily_field, self::RESERVED_FIELDS, true ) ) {
 				continue;
 			}
@@ -247,7 +235,7 @@ final class FormSubscription {
 		try {
 			$reply = $client->trigger_automation( $workflow_id, array( array( 'email' => $email ) ), false );
 			$code  = (int) ( $reply['code'] ?? 0 );
-			if ( $code !== 101 ) {
+			if ( $code !== Client::CODE_OK ) {
 				DebugLog::write( sprintf( '[smaily-connect elementor-form] workflow %d not triggered: Smaily code %d', $workflow_id, $code ) );
 			}
 		} catch ( ApiException $e ) {

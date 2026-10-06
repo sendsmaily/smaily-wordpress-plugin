@@ -49,14 +49,6 @@ class BackfillEndpoint {
 	public const ROUTE_PREFIX = '/backfill';
 	public const TABLE_SUFFIX = 'smly_plus_backfill_job';
 
-	public const STATUS_RUNNING   = 'running';
-	public const STATUS_COMPLETED = 'completed';
-	public const STATUS_FAILED    = 'failed';
-	public const STATUS_CANCELLED = 'cancelled';
-
-	/** Hook the AS tick scheduler fires once /backfill/start enqueues it. */
-	public const TICK_HOOK = 'smly_plus_backfill_tick';
-
 	/**
 	 * Job types this endpoint accepts. `contacts` is the legacy Smaily backfill;
 	 * `products` / `customers` / `orders` are the 3.5 rec-engine backfills.
@@ -166,17 +158,17 @@ class BackfillEndpoint {
 		$job_id = $job->start();
 		\Smaily\Connect\Support\DebugLog::write( sprintf( '[smaily-connect backfill.endpoint.start] start() returned row_id=%d', $job_id ) );
 
-		$row    = $this->read_state( $job_type );
-		$status = is_array( $row ) ? (string) $row['status'] : self::STATUS_RUNNING;
+		$row    = AbstractBackfillJob::read_state( $job_type, $this->target_for( $job_type ) );
+		$status = is_array( $row ) ? (string) $row['status'] : BackfillJobInterface::STATUS_RUNNING;
 
 		// Schedule the first AS tick so backfill processing begins
 		// immediately. The tick handler reschedules itself until the job
 		// reaches its terminal state. A job start() already finished has
 		// nothing to tick for (PRO-1715: an empty contact audience) — and a
 		// tick would flip its row back to 'running'.
-		if ( $status === self::STATUS_RUNNING && function_exists( 'as_enqueue_async_action' ) ) {
+		if ( $status === BackfillJobInterface::STATUS_RUNNING && function_exists( 'as_enqueue_async_action' ) ) {
 			as_enqueue_async_action(
-				self::TICK_HOOK,
+				BackfillJobInterface::TICK_HOOK,
 				array( 'job_type' => $job_type ),
 				EventQueue::AS_GROUP
 			);
@@ -198,7 +190,7 @@ class BackfillEndpoint {
 			return $this->unsupported_job_type_response();
 		}
 
-		$row = $this->read_state( $job_type );
+		$row = AbstractBackfillJob::read_state( $job_type, $this->target_for( $job_type ) );
 		if ( $row === null ) {
 			return new WP_REST_Response(
 				array(
@@ -356,7 +348,7 @@ class BackfillEndpoint {
 		$updated = $wpdb->update(
 			$table,
 			array(
-				'status'       => self::STATUS_CANCELLED,
+				'status'       => BackfillJobInterface::STATUS_CANCELLED,
 				'completed_at' => current_time( 'mysql', true ),
 			),
 			array(
@@ -370,7 +362,7 @@ class BackfillEndpoint {
 		// Drop any pending AS ticks so process_batch doesn't undo the cancel.
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
 			as_unschedule_all_actions(
-				self::TICK_HOOK,
+				BackfillJobInterface::TICK_HOOK,
 				array( 'job_type' => $job_type ),
 				EventQueue::AS_GROUP
 			);
@@ -423,31 +415,6 @@ class BackfillEndpoint {
 			),
 			400
 		);
-	}
-
-	/**
-	 * @return array<string, mixed>|null
-	 */
-	private function read_state( string $job_type ): ?array {
-		global $wpdb;
-		$table = $wpdb->prefix . self::TABLE_SUFFIX;
-
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery
-		$row = $wpdb->get_row(
-			$wpdb->prepare(
-				"SELECT id, status, processed_count, synced_count, total_count, started_at, completed_at FROM {$table} WHERE job_type = %s AND target = %s",
-				$job_type,
-				$this->target_for( $job_type )
-			),
-			ARRAY_A
-		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery
-
-		return is_array( $row ) ? $row : null;
 	}
 
 	/**

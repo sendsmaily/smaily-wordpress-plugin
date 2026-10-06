@@ -344,11 +344,7 @@ final class FormSubscriptionTest extends TestCase {
 		);
 	}
 
-	public function test_workflow_options_list_the_active_workflows_and_cache_them_briefly(): void {
-		Functions\when( 'is_admin' )->justReturn( true );
-		Functions\when( 'current_user_can' )->justReturn( true );
-		Functions\when( '__' )->returnArg( 1 );
-
+	public function test_workflows_list_the_active_workflows_and_cache_them_briefly(): void {
 		$client            = $this->fake_client();
 		$client->workflows = array(
 			array(
@@ -359,30 +355,13 @@ final class FormSubscriptionTest extends TestCase {
 		);
 		$subscription = $this->subscription( $client );
 
-		$options = $subscription->workflow_options();
-		$subscription->workflow_options();
+		$workflows = $subscription->workflows();
+		$subscription->workflows();
 
-		self::assertSame(
-			array(
-				''   => 'No workflow',
-				'42' => 'Welcome series',
-			),
-			$options
-		);
+		self::assertSame( array( '42' => 'Welcome series' ), $workflows );
 		self::assertSame( 1, $client->list_calls, 'The second editor load reads the cache.' );
 		$ttl = array_values( $this->transients )[0]['ttl'];
 		self::assertGreaterThan( 0, $ttl );
-	}
-
-	public function test_workflow_options_never_call_smaily_for_a_visitor(): void {
-		Functions\when( 'is_admin' )->justReturn( true );
-		Functions\when( 'current_user_can' )->justReturn( false );
-		Functions\when( '__' )->returnArg( 1 );
-
-		$client = $this->fake_client();
-
-		self::assertSame( array( '' => 'No workflow' ), $this->subscription( $client )->workflow_options() );
-		self::assertSame( 0, $client->list_calls );
 	}
 
 	/**

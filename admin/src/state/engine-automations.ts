@@ -127,7 +127,7 @@ export function buildRows(
   configs: AutomationConfigServerRow[],
   previousDraft: EngineAutomationRow[] | null,
   languageMode: EngineAutomationRow['language_mode'],
-  realSendsRequested: readonly string[] = [],
+  realSendsRequested: readonly string[],
 ): EngineAutomationRow[] {
   const configByKey = new Map(configs.map((c) => [c.trigger_key, c]));
   const draftByKey = new Map((previousDraft ?? []).map((r) => [r.trigger_key, r]));

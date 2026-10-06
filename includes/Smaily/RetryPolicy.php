@@ -31,8 +31,9 @@ defined( 'ABSPATH' ) || exit;
  *     reason, visible in the Event Log and countable by NotificationManager.
  *   - PERMANENT envelope (HTTP 2xx whose `{code, message}` body is 203
  *     "invalid data" — Smaily rejects identical data again): stop. The
- *     flusher fails the row with the `permanent_envelope_203` reason from
- *     permanent_envelope() (PRO-3750, Magento parity with PRO-1962).
+ *     flusher fails the row with the `permanent_envelope_203` reason
+ *     throw_if_permanent_envelope() raises (PRO-3750, Magento parity with
+ *     PRO-1962).
  *   - TEMPORARY (5xx, 429, transport error / code 0): retry, spaced by
  *     BACKOFF (1m, 5m, 15m, 1h, 6h) — or by Smaily's own Retry-After when it
  *     sent one — until MAX_ATTEMPTS, then mark_failed with
@@ -107,6 +108,21 @@ final class RetryPolicy {
 		$message = isset( $body['message'] ) && is_scalar( $body['message'] ) ? (string) $body['message'] : '';
 
 		return sprintf( 'permanent_envelope_%d: Smaily API returned code %d: %s', $code, $code, $message );
+	}
+
+	/**
+	 * Throw the permanent_envelope() refusal, if the reply carries one, as a
+	 * TerminalDispatchException — the flusher then fails the row.
+	 *
+	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
+	 *
+	 * @throws TerminalDispatchException When Smaily refused the data permanently.
+	 */
+	public static function throw_if_permanent_envelope( ?array $exchange ): void {
+		$refusal = self::permanent_envelope( $exchange );
+		if ( $refusal !== null ) {
+			throw new TerminalDispatchException( $refusal );
+		}
 	}
 
 	/**

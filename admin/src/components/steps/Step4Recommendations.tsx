@@ -45,8 +45,9 @@ export function Step4Recommendations({
 }: Step4RecommendationsProps): React.JSX.Element {
   const isConnected = state.recEngineConnection.kind === 'success';
   // Set by this page's own Connect (PRO-3743): the exchange answers whether
-  // it queued the catalog import, and only then is the hold-back notice shown.
-  const [catalogImportStarted, setCatalogImportStarted] = useState(false);
+  // it queued the catalog import, and only then is the hold-back notice shown
+  // — with the import's start delay; null while no import was started.
+  const [catalogImportDelay, setCatalogImportDelay] = useState<number | null>(null);
 
   return (
     <div className="space-y-6">
@@ -100,10 +101,10 @@ export function Step4Recommendations({
         <ConnectedView
           state={state}
           dispatch={dispatch}
-          catalogImportStarted={catalogImportStarted}
+          catalogImportDelay={catalogImportDelay}
         />
       ) : (
-        <SetupCard dispatch={dispatch} onConnected={setCatalogImportStarted} />
+        <SetupCard dispatch={dispatch} onConnected={setCatalogImportDelay} />
       )}
     </div>
   );
@@ -140,8 +141,8 @@ function SetupCard({
   onConnected,
 }: {
   dispatch: Dispatch<WizardAction>;
-  /** Told whether connecting started the catalog import. */
-  onConnected: (catalogImportStarted: boolean) => void;
+  /** Told the started catalog import's delay in seconds, or null when none was started. */
+  onConnected: (catalogImportDelay: number | null) => void;
 }): React.JSX.Element {
   const [setupUrl, setSetupUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'pending' | 'error'>('idle');
@@ -158,7 +159,7 @@ function SetupCard({
     const response = await setupExchange({ setupUrl: setupUrl.trim() });
 
     if (response.connected) {
-      onConnected(response.catalogImport === 'started');
+      onConnected(response.catalogImport === 'started' ? response.catalogImportDelaySeconds : null);
       dispatch({
         type: 'TEST_REC_ENGINE_CONNECTION_SUCCESS',
         payload: { message: response.tenantName },
@@ -244,11 +245,11 @@ function SetupCard({
 function ConnectedView({
   state,
   dispatch,
-  catalogImportStarted,
+  catalogImportDelay,
 }: {
   state: WizardState;
   dispatch: Dispatch<WizardAction>;
-  catalogImportStarted: boolean;
+  catalogImportDelay: number | null;
 }): React.JSX.Element {
   type FeatureKey = keyof WizardState['recEngineFeatures'];
 
@@ -363,8 +364,11 @@ function ConnectedView({
         )}
       </Card>
 
-      {catalogImportStarted && (
-        <CatalogImportNotice onHeldBack={() => setProductsPanelKey((key) => key + 1)} />
+      {catalogImportDelay !== null && (
+        <CatalogImportNotice
+          delaySeconds={catalogImportDelay}
+          onHeldBack={() => setProductsPanelKey((key) => key + 1)}
+        />
       )}
 
       <Card
@@ -486,7 +490,13 @@ function ConnectedView({
  * sent — Hold back is the existing products import cancel. After that the
  * Products "Import now" control starts it again, as it always has.
  */
-function CatalogImportNotice({ onHeldBack }: { onHeldBack: () => void }): React.JSX.Element {
+function CatalogImportNotice({
+  delaySeconds,
+  onHeldBack,
+}: {
+  delaySeconds: number;
+  onHeldBack: () => void;
+}): React.JSX.Element {
   const [status, setStatus] = useState<'started' | 'pending' | 'held'>('started');
   const [error, setError] = useState<string>('');
 
@@ -530,9 +540,13 @@ function CatalogImportNotice({ onHeldBack }: { onHeldBack: () => void }): React.
         </Button>
       }
     >
-      {__(
-        'Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about 3 minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below.',
-        'smaily-connect',
+      {sprintf(
+        /* translators: %d: minutes until the catalog import starts. */
+        __(
+          'Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about %d minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below.',
+          'smaily-connect',
+        ),
+        Math.max(1, Math.round(delaySeconds / 60)),
       )}
       {error !== '' && (
         <span className="mt-1 block text-danger-fg">

@@ -10,8 +10,8 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
-use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\Smaily\BackfillJob;
+use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\ContactSyncMode;
@@ -181,7 +181,7 @@ final class ContactBackfillAudienceTest extends TestCase {
 		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CHECKOUT_OPTIN );
 		self::assertSame( 0, ( new ContactAudience() )->count_audience() );
 
-		as_unschedule_all_actions( BackfillEndpoint::TICK_HOOK );
+		as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK );
 
 		RestRequestHelper::login_as_admin();
 		$start = RestRequestHelper::post( '/backfill/start', array( 'job_type' => 'contacts' ) );
@@ -194,7 +194,7 @@ final class ContactBackfillAudienceTest extends TestCase {
 
 		self::assertSame(
 			array(),
-			as_get_scheduled_actions( array( 'hook' => BackfillEndpoint::TICK_HOOK, 'status' => \ActionScheduler_Store::STATUS_PENDING ), 'ids' ),
+			as_get_scheduled_actions( array( 'hook' => BackfillJobInterface::TICK_HOOK, 'status' => \ActionScheduler_Store::STATUS_PENDING ), 'ids' ),
 			'A finished run must not leave a tick that would flip its row back to running.'
 		);
 

@@ -78,6 +78,14 @@ class StorefrontBeacon {
 		$this->settings = $settings;
 	}
 
+	/**
+	 * Whether the WP Consent API (the `wp-consent-api` plugin) is active.
+	 * Without it the runtime gets no consent signal and sends nothing (F3-50).
+	 */
+	public static function consent_api_present(): bool {
+		return function_exists( 'wp_has_consent' );
+	}
+
 	public function register(): void {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
 	}

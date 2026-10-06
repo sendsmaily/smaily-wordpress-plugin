@@ -29,6 +29,8 @@ export interface SetupExchangeSuccess {
    * 'unchanged' when a catalog import was already running.
    */
   catalogImport: 'started' | 'unchanged';
+  /** How long the started import waits before its first batch, in seconds. */
+  catalogImportDelaySeconds: number;
 }
 
 export interface SetupExchangeFailure {

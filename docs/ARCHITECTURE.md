@@ -219,7 +219,7 @@ The registration runs on `init` but verifies the set at most once an hour
 clear that marker, so a set that actually changed re-arms on the next request.
 
 Backfills use chained `as_schedule_single_action` ticks
-(`BackfillEndpoint::TICK_HOOK`) rather than a recurring action.
+(`BackfillJobInterface::TICK_HOOK`) rather than a recurring action.
 
 ## 7. Storage — custom tables, migrations, options
 

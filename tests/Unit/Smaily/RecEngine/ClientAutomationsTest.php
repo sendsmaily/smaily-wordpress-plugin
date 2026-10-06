@@ -228,7 +228,7 @@ final class ClientAutomationsTest extends TestCase {
 			/** @var array<string, mixed> */
 			public array $captured = array();
 
-			protected function request_url( string $method, string $url, ?array $body = null ): array {
+			protected function request_url( string $method, string $url, ?array $body = null, bool $single_attempt = false ): array {
 				$this->captured = array(
 					'method' => $method,
 					'url'    => $url,

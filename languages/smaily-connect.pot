@@ -2149,8 +2149,10 @@ msgstr ""
 msgid "Hold back"
 msgstr ""
 
+#. translators: %d: minutes until the catalog import starts.
 #: admin/src/components/steps/Step4Recommendations.tsx
-msgid "Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about 3 minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below."
+#, js-format
+msgid "Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about %d minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below."
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx

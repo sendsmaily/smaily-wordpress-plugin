@@ -62,9 +62,7 @@ class StorefrontRecommendations {
 
 	private const CACHE_PREFIX = 'smly_rec_storefront_';
 
-	/** The link parameters LandingCapture reads, and the §15 storefront context. */
-	private const URL_PARAM_REC_ID   = 'smaily_rec';
-	private const URL_PARAM_CONTEXT  = 'smaily_ctx';
+	/** The §15 storefront context the card links carry. */
 	private const CONTEXT_STOREFRONT = 'storefront';
 
 	private RecEngineSettings $settings;
@@ -91,17 +89,32 @@ class StorefrontRecommendations {
 			return '';
 		}
 
-		$cards = '';
-		foreach ( $this->slots( $user_id ) as $slot ) {
+		// One query each for the products and their images, not one per card.
+		$slots = $this->slots( $user_id );
+		_prime_post_caches( array_column( $slots, 'product_id' ) );
+
+		$shown     = array();
+		$image_ids = array();
+		foreach ( $slots as $slot ) {
 			$product = wc_get_product( $slot['product_id'] );
 			if ( ! $product instanceof \WC_Product || ! $product->is_visible() ) {
 				continue;
 			}
+			$shown[]     = array(
+				'rec_id'  => $slot['rec_id'],
+				'product' => $product,
+			);
+			$image_ids[] = (int) $product->get_image_id();
+		}
+		_prime_post_caches( array_filter( $image_ids ), false );
 
-			$url = add_query_arg(
+		$cards = '';
+		foreach ( $shown as $card ) {
+			$product = $card['product'];
+			$url     = add_query_arg(
 				array(
-					self::URL_PARAM_REC_ID  => $slot['rec_id'],
-					self::URL_PARAM_CONTEXT => self::CONTEXT_STOREFRONT,
+					LandingCapture::URL_PARAM_REC_ID  => $card['rec_id'],
+					LandingCapture::URL_PARAM_CONTEXT => self::CONTEXT_STOREFRONT,
 				),
 				$product->get_permalink()
 			);
@@ -211,14 +224,6 @@ class StorefrontRecommendations {
 			return (int) $external_id;
 		}
 
-		$sku = isset( $slot['sku'] ) ? (string) $slot['sku'] : '';
-		if ( 0 === strpos( $sku, SkuResolver::KEY_PREFIX ) ) {
-			$id = substr( $sku, strlen( SkuResolver::KEY_PREFIX ) );
-			if ( ctype_digit( $id ) ) {
-				return (int) $id;
-			}
-		}
-
-		return 0;
+		return SkuResolver::product_id_from_key( isset( $slot['sku'] ) ? (string) $slot['sku'] : '' );
 	}
 }

@@ -54,6 +54,14 @@ final class SkuResolverTest extends TestCase {
 		self::assertSame( 'woo-7', SkuResolver::resolve( $product ) );
 	}
 
+	public function test_product_id_from_key_reads_the_id_back_out_of_a_woo_key(): void {
+		self::assertSame( 7, SkuResolver::product_id_from_key( 'woo-7' ) );
+		self::assertSame( 0, SkuResolver::product_id_from_key( 'woo-oi-8001' ), 'An order-item key names no product.' );
+		self::assertSame( 0, SkuResolver::product_id_from_key( 'wc-7' ) );
+		self::assertSame( 0, SkuResolver::product_id_from_key( 'woo-' ) );
+		self::assertSame( 0, SkuResolver::product_id_from_key( '' ) );
+	}
+
 	public function test_order_item_prefers_variation_id(): void {
 		self::assertSame( 'woo-433', SkuResolver::resolve_order_item( $this->item( 432, 433 ) ) );
 	}

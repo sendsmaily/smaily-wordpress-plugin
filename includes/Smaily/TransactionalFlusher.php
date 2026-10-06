@@ -437,7 +437,7 @@ class TransactionalFlusher {
 		// validation, 221 invalid autoresponder, or anything else — is a
 		// deterministic Smaily-side rejection, terminal (design point 3).
 		$code = isset( $response['code'] ) ? (int) $response['code'] : 0;
-		if ( $code !== 101 ) {
+		if ( $code !== Client::CODE_OK ) {
 			throw new TerminalDispatchException( sprintf( 'smaily_response_code_%d', $code ) );
 		}
 	}

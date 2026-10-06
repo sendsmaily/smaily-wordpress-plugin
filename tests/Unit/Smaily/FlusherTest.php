@@ -478,9 +478,9 @@ final class FlusherTest extends TestCase {
 		$queue  = $this->marker_queue( 21 );
 		$client = $this->createMock( Client::class );
 		$client->expects( self::once() )
-			->method( 'get_contact_consent' )
+			->method( 'has_contact' )
 			->with( 'a@b.c' )
-			->willReturn( array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => null, 'smaily_rec_profiling_ts' => null ) );
+			->willReturn( true );
 		$client->expects( self::once() )
 			->method( 'upsert_subscribers' )
 			->with(
@@ -502,9 +502,7 @@ final class FlusherTest extends TestCase {
 	public function test_purchase_marker_for_an_address_smaily_does_not_have_is_skipped(): void {
 		$queue  = $this->marker_queue( 22 );
 		$client = $this->createMock( Client::class );
-		$client->method( 'get_contact_consent' )->willReturn(
-			array( 'found' => false, 'is_unsubscribed' => null, 'smaily_rec_profiling' => null, 'smaily_rec_profiling_ts' => null )
-		);
+		$client->method( 'has_contact' )->willReturn( false );
 		// Smaily would create the contact as a subscriber.
 		$client->expects( self::never() )->method( 'upsert_subscribers' );
 
@@ -521,7 +519,7 @@ final class FlusherTest extends TestCase {
 	public function test_purchase_marker_waits_for_a_retry_when_the_contact_check_fails(): void {
 		$queue  = $this->marker_queue( 23 );
 		$client = $this->createMock( Client::class );
-		$client->method( 'get_contact_consent' )->willThrowException( new ApiException( 'server error', 500 ) );
+		$client->method( 'has_contact' )->willThrowException( new ApiException( 'server error', 500 ) );
 		$client->method( 'last_exchange' )->willReturn(
 			array(
 				'request'  => array( 'method' => 'GET', 'endpoint' => 'contact', 'body' => array( 'email' => 'a@b.c' ) ),
@@ -550,7 +548,7 @@ final class FlusherTest extends TestCase {
 			)
 		);
 		$client = $this->createMock( Client::class );
-		$client->expects( self::never() )->method( 'get_contact_consent' );
+		$client->expects( self::never() )->method( 'has_contact' );
 		$client->expects( self::once() )->method( 'upsert_subscribers' )->willReturn( array() );
 
 		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();

@@ -126,7 +126,7 @@ class WorkflowsEndpoint {
 		}
 
 		return new WP_REST_Response(
-			array( 'workflows' => $this->normalise( $raw_list ) ),
+			array( 'workflows' => self::normalise( $raw_list ) ),
 			200
 		);
 	}
@@ -146,7 +146,7 @@ class WorkflowsEndpoint {
 	 *
 	 * @return array<int, array{id: string, name: string, status: string}>
 	 */
-	private function normalise( array $rows ): array {
+	public static function normalise( array $rows ): array {
 		$normalised = array();
 
 		foreach ( $rows as $row ) {

@@ -39,6 +39,18 @@ human proofread before the docs site is published); docs site EN+ET updated
 licensed Elementor Pro in wp-env). Touches consent + external HTTP, so the next
 release's security delta re-audit must cover it.)_
 
+Also 2026-10-06 (**refactor after the October 5 simplification review, no
+behaviour change, on its PR branch:** backfill status/tick constants and the
+state-row read moved to the job layer (`BackfillJobInterface`,
+`AbstractBackfillJob::read_state()`); `Bootstrap::catalog_import_on_connect()`;
+Smaily `Client::has_contact()` + `Client::CODE_OK`; the permanent-envelope
+check is `RetryPolicy::throw_if_permanent_envelope()`; the browse relay's
+single attempt is a per-call `request_url()` option; the Elementor workflow
+dropdown's label + editor gate live in `Form_Action`; the setup exchange
+returns `catalogImportDelaySeconds` and the hold-back copy renders from it;
+a save re-reads only §12. Gates: ci:strict exit=0; blocks green; integration
+346 OK on the Mac.)
+
 Prior: 2026-10-05 (**PRO-3609 (unreleased on main):** soft opt-in verified (Erkki,
 2026-10-02) — Smaily creates a new contact sent without `is_unsubscribed` as
 subscribed; `docs/CONTACT_SYNC_MODES.md` § 5 no longer marks it an
