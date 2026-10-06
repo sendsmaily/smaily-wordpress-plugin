@@ -15,7 +15,9 @@ use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\Support\AttributionShape;
 use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
+use Smaily\Connect\Support\MarketingConsent;
 
 /**
  * The engine binds an anonymous session's browse history to a customer
@@ -80,7 +82,13 @@ class IdentityHookHandler {
 		}
 
 		$anon_sid = $this->cookie( $this->session_cookie_name() );
-		$token    = $this->cookie( $this->visitor_cookie_name() );
+		$token    = ( new LandingCapture( $this->settings ) )->current_visitor_token();
+		// A store-created `vs_` token is consent-based (contract §5: without
+		// marketing consent, send none); the engine's `vt_` token from an email
+		// link is attribution and stays ungated (F3-46). PRO-3860.
+		if ( AttributionShape::is_store_visitor_token( $token ) && ! $this->marketing_consent_given() ) {
+			$token = '';
+		}
 		if ( $anon_sid === '' && $token === '' ) {
 			return; // Nothing to merge — no anon session was ever started.
 		}
@@ -129,6 +137,15 @@ class IdentityHookHandler {
 		}
 	}
 
+	/**
+	 * Whether the shopper gave an explicit marketing yes. A seam so tests can
+	 * answer it: defining the WP Consent API functions in a test would leak
+	 * into every later test of the process.
+	 */
+	protected function marketing_consent_given(): bool {
+		return MarketingConsent::given();
+	}
+
 	private function cookie( string $name ): string {
 		if ( $name === '' || ! isset( $_COOKIE[ $name ] ) ) {
 			return '';
@@ -139,10 +156,5 @@ class IdentityHookHandler {
 	private function session_cookie_name(): string {
 		$config = $this->settings->config();
 		return isset( $config['session_cookie_name'] ) ? (string) $config['session_cookie_name'] : 'smaily_anon_sid';
-	}
-
-	private function visitor_cookie_name(): string {
-		$config = $this->settings->config();
-		return isset( $config['tracking_cookie_name'] ) ? (string) $config['tracking_cookie_name'] : 'smaily_rec_uid';
 	}
 }

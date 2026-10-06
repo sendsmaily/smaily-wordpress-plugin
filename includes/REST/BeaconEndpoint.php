@@ -12,10 +12,13 @@ namespace Smaily\Connect\REST;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\Support\AttributionShape;
+use Smaily\Connect\Support\MarketingConsent;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -58,12 +61,13 @@ use WP_REST_Response;
  *      JS client never produces an invalid type or an id-less event, so a
  *      violation signals tampering ⇒ hard 400, nothing forwarded. The
  *      whitelist (EVENT_FIELDS) deliberately excludes `customer_email`
- *      (PRO-1486), `external_id` (PRO-3620) and the two deprecated
- *      attribution hints `smaily_rec_id` / `smaily_ctx` (PRO-1712) — a
- *      client-supplied value is spoofable
+ *      (PRO-1486), `external_id` (PRO-3620), `smaily_visitor_token`
+ *      (PRO-3860) and the two deprecated attribution hints `smaily_rec_id` /
+ *      `smaily_ctx` (PRO-1712) — a client-supplied value is spoofable
  *      (arbitrary attribution, or probing another contact's opt-out state by
- *      guessing emails); the only sanctioned source of an identity hint is the
- *      server-side attach_logged_in_identity() below. This strip is scoped to
+ *      guessing emails); the only sanctioned sources of an identity hint are
+ *      the server-side attach_visitor_token() and attach_logged_in_identity()
+ *      below. This strip is scoped to
  *      THIS browse-event POST handler — see EVENT_FIELDS's docblock for the
  *      caveat a future recommendations-GET proxy must not inherit it blindly.
  *
@@ -155,9 +159,15 @@ class BeaconEndpoint {
 	 * client-supplied value attaches anonymous browsing to any customer whose
 	 * sequential WP user id an attacker guesses — the same spoofing class as
 	 * `customer_email`. Our own JS client never sent it. Browse identity
-	 * reaches the engine only from server-side state: the engine-issued
-	 * `smaily_visitor_token`, attach_logged_in_identity() and the login
+	 * reaches the engine only from server-side state: the visitor token
+	 * (attach_visitor_token()), attach_logged_in_identity() and the login
 	 * identity merge.
+	 *
+	 * PRO-3860: `smaily_visitor_token` is out as well. The server reads it from
+	 * the shopper's own visitor-token cookie (attach_visitor_token()), so the
+	 * store-created `vs_` token can be held to the shopper's marketing consent
+	 * (contract §5) on the server, and a request body cannot name a token that
+	 * is not the shopper's.
 	 *
 	 * @var array<int, string>
 	 */
@@ -171,7 +181,6 @@ class BeaconEndpoint {
 		'dwell_seconds',
 		'event_ts',
 		'source',
-		'smaily_visitor_token',
 	);
 
 	private RecEngineSettings $settings;
@@ -278,7 +287,7 @@ class BeaconEndpoint {
 		// identity, server-side) BEFORE the profiling gate below — attach_
 		// logged_in_identity() itself checks the same gate, so an opted-out
 		// contact never gets an email attached in the first place.
-		$identity = $this->attach_logged_in_identity( $validation['events'] );
+		$identity = $this->attach_logged_in_identity( $this->attach_visitor_token( $validation['events'] ) );
 
 		// SECOND GATE (a).1 — drop browse events carrying an OPTED-OUT contact's
 		// email before they leave the building. Anon events (no email) have no
@@ -336,6 +345,45 @@ class BeaconEndpoint {
 			),
 			200
 		);
+	}
+
+	/**
+	 * PRO-3860: put the shopper's visitor token on every event, read on the
+	 * server from the visitor-token cookie the same way LandingCapture reads it
+	 * (shape-checked), never from the request body. The engine's `vt_` token
+	 * from an email link is attribution and is attached as is (F3-46). A
+	 * store-created `vs_` token is consent-based (contract §5): it is attached
+	 * only with the shopper's marketing yes, checked here on the server too —
+	 * the browser sends browse events only with consent, but the server does
+	 * not rely on that.
+	 *
+	 * @param array<int, array<string, mixed>> $events
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function attach_visitor_token( array $events ): array {
+		$token = ( new LandingCapture( $this->settings ) )->current_visitor_token();
+		if ( '' === $token ) {
+			return $events;
+		}
+		if ( AttributionShape::is_store_visitor_token( $token ) && ! $this->marketing_consent_given() ) {
+			return $events;
+		}
+
+		foreach ( $events as $index => $event ) {
+			$event['smaily_visitor_token'] = $token;
+			$events[ $index ]              = $event;
+		}
+		return $events;
+	}
+
+	/**
+	 * Whether the shopper gave an explicit marketing yes. A seam so tests can
+	 * answer it: defining the WP Consent API functions in a test would leak
+	 * into every later test of the process.
+	 */
+	protected function marketing_consent_given(): bool {
+		return MarketingConsent::given();
 	}
 
 	/**
