@@ -451,13 +451,13 @@ function ConnectedView({
         <p className="mt-3 text-sm text-text-secondary">
           {state.env.consentApiPresent ? (
             __(
-              "Consent comes from your store's consent plugin: browse events are sent only for visitors who gave marketing consent.",
+              "Consent comes from your consent banner through the WP Consent API: browse events are sent only for visitors who said yes to marketing in that banner.",
               'smaily-connect',
             )
           ) : (
             <>
               {__(
-                'Browse tracking sends nothing until a consent source is connected.',
+                'Browse tracking sends nothing until a consent banner is connected to the WP Consent API.',
                 'smaily-connect',
               )}{' '}
               <a

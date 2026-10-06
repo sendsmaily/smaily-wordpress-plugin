@@ -415,7 +415,7 @@ final class NotificationManager {
 		printf(
 			'<div class="notice notice-warning"><p>%1$s %2$s %3$s</p></div>',
 			esc_html__(
-				'Smaily Connect: browse tracking is on, but no cookie-consent signal was found, so no browse data is being collected. Install the free WP Consent API plugin so your consent banner (CookieYes, Complianz, Real Cookie Banner, …) can tell Smaily when a visitor consents.',
+				'Smaily Connect: browse tracking is on, but the WP Consent API plugin is not installed, so no browse data is being collected. Install the free plugin and connect your consent banner (CookieYes, Complianz, Real Cookie Banner, …) to it: only a visitor\'s yes in that banner counts as consent.',
 				'smaily-connect'
 			),
 			wp_kses_post( $this->consent_api_install_link() ),
