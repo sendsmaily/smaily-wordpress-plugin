@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.9
+# Smaily Recommendation Engine — API Contract v1.10
 
-**Version**: 1.9.1
+**Version**: 1.10.0
 **Published**: 2026-05-19
-**Last updated**: 2026-10-05 (v1.9.1 — the setup-exchange keys `recommendations_preview` and `recommendations_issue` are deprecated: their routes were retired on 2026-07-13, plugins must not call them, and contract 2.0 removes them. PATCH bump: wording only, wire unchanged — PRO-3793)
+**Last updated**: 2026-10-06 (v1.10.0 — §15 storefront recommendations also accept the visitor token (`smaily_visitor_token`) in place of the store's customer id, so a returning guest shopper gets their recommendations; when both are sent, the customer id wins. MINOR bump: new optional field — PRO-3834)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -1846,7 +1846,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/notifications/ingest \
 
 ### 15. POST /api/v1/recommendations/customer
 
-Storefront recommendations (v1.9.0, PRO-3781): the current recommendations of one shopper, for the plugin to show in the store (product page, cart, account page). **The same products, in the same order and language, as in that customer's Smaily contact fields** (`rec_N_*`) — the engine serves the recommendations it already issued; nothing is computed on the request.
+Storefront recommendations (v1.9.0, PRO-3781; visitor token v1.10.0, PRO-3834): the current recommendations of one shopper, for the plugin to show in the store (product page, cart, account page). **The same products, in the same order and language, as in that customer's Smaily contact fields** (`rec_N_*`) — the engine serves the recommendations it already issued; nothing is computed on the request.
 
 **URL**: `POST /api/v1/recommendations/customer`
 
@@ -1854,7 +1854,7 @@ Storefront recommendations (v1.9.0, PRO-3781): the current recommendations of on
 
 **Rate limit**: 100 req/sec per tenant.
 
-**Request body**:
+**Request body** — a logged-in shopper:
 ```json
 {
   "customer_external_id": "1042",
@@ -1862,12 +1862,25 @@ Storefront recommendations (v1.9.0, PRO-3781): the current recommendations of on
 }
 ```
 
+A returning guest shopper (no store customer account), named by the visitor token from the store's cookie (v1.10.0):
+```json
+{
+  "smaily_visitor_token": "vt_8f3k2a",
+  "limit": 4
+}
+```
+
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `customer_external_id` | string | YES | The **store's own customer id** of the logged-in shopper — the `external_id` the plugin sends on [`POST /api/v1/ingest/customers`](#4-post-apiv1ingestcustomers) (WooCommerce user id, Shopify customer id, Magento customer id). 1–255 characters. |
+| `customer_external_id` | string | ONE OF | The **store's own customer id** of the logged-in shopper — the `external_id` the plugin sends on [`POST /api/v1/ingest/customers`](#4-post-apiv1ingestcustomers) (WooCommerce user id, Shopify customer id, Magento customer id). 1–255 characters. |
+| `smaily_visitor_token` | string | ONE OF | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)) — the `smaily_vt` value of an engine link. 1–255 characters. Send it for a shopper who has no store customer id, so a guest shopper can be shown their recommendations. |
 | `limit` | integer | NO | Default `9`, max `9`. A value above 9 is clamped, not rejected. |
 
-**Never send an email address, name or other contact detail** in this request. The shopper is named by the store's id only. Unknown fields are ignored.
+**At least one of `customer_external_id` and `smaily_visitor_token` is required.** When the request carries both, **`customer_external_id` wins and the token is ignored entirely** — the engine does not fall back to the token when the customer id finds nobody, because on a shared browser the cookie can belong to a different person than the logged-in shopper.
+
+**Which customer a visitor token names.** The customer the engine issued the token for, in this tenant, while the token is valid: a token is valid for 90 days after the engine issued it, even though the cookie lives longer. An expired token, a token issued for another tenant, and a value the engine never issued are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
+
+**Never send an email address, name or other contact detail** in this request. The shopper is named by the store's id or the visitor token only. Unknown fields are ignored.
 
 **Response 200 OK**:
 ```json
@@ -1907,17 +1920,17 @@ Storefront recommendations (v1.9.0, PRO-3781): the current recommendations of on
 | `product_url` | `<product url>?smaily_rec=<rec_id>&smaily_ctx=storefront` — **no `utm_*` and no `smaily_vt`** (an on-site click is not email traffic). Null when the product has no valid absolute URL. Capture it like any landing with `smaily_rec` ([context cookie rule](#cookie-names-plugin-side-management)), and forward `smaily_rec_id` + `smaily_rec_ctx` on the order. |
 | `headline`, `cta`, `reason` | The slot copy the email renders, in the customer's language. Rendered **without the customer's first name** — a greeting falls back to its default word. Nullable. |
 
-**Empty answer.** `{ "slots": [] }` with status 200 for: an unknown `customer_external_id`; an id that several customers share in the tenant; a customer in the holdout group of a running measurement; a customer who objected to profiling ([§10](#10-post-apiv1customeremailopt-out)) or whom Smaily reports unsubscribed; a customer with no current recommendations. **The response is the same in every case and does not say which** — render nothing (or your own fallback). Do not retry.
+**Empty answer.** `{ "slots": [] }` with status 200 for: an unknown `customer_external_id`; an unknown, expired or other-tenant `smaily_visitor_token`; an id that several customers share in the tenant; a customer in the holdout group of a running measurement; a customer who objected to profiling ([§10](#10-post-apiv1customeremailopt-out)) or whom Smaily reports unsubscribed; a customer with no current recommendations. **The response is the same in every case and does not say which** — render nothing (or your own fallback). Do not retry.
 
 **Attribution.** A purchase whose last landing was a storefront link (order `smaily_rec_ctx: "storefront"`, matched by `smaily_rec_id`) is credited to the **storefront**: it names no email campaign, and an earlier email click on the same `rec_id` does not count. An email click after the storefront click overwrites both cookies, and the purchase is credited to the email. Last touch wins.
 
-**Caching.** The engine answers with `Cache-Control: no-store, private`. Cache in the plugin's own server-side store, keyed by tenant + a **hash** of `customer_external_id`, for about 1 hour. Never let a shared or CDN cache hold a response across shoppers.
+**Caching.** The engine answers with `Cache-Control: no-store, private`. Cache in the plugin's own server-side store, keyed by tenant + a **hash** of the identifier the request sent (`customer_external_id`, else `smaily_visitor_token`), for about 1 hour. Never let a shared or CDN cache hold a response across shoppers.
 
-**Timeouts.** Use a hard client timeout of 1 second and render nothing (or the last cached answer) on a timeout or an error.
+**Timeouts.** Ask from a background request after the page has loaded, so a slower answer does not delay the page. The 1-second client timeout of v1.9.x no longer applies (v1.10.0): the engine ends a request after 10 seconds, so use a client timeout of at most 10 seconds, and render nothing (or the last cached answer) on a timeout or an error.
 
-**Errors**: `400 validation_failed` (missing `customer_external_id`, bad `limit`), `400 invalid_json`, `401`, `403 tenant_inactive`, `429` — the standard shapes ([Error handling](#error-handling)).
+**Errors**: `400 validation_failed` (neither `customer_external_id` nor `smaily_visitor_token` — reported under `details.customer_external_id`; an empty or over-long identifier; bad `limit`), `400 invalid_json`, `401`, `403 tenant_inactive`, `429` — the standard shapes ([Error handling](#error-handling)).
 
-**Read only.** The call writes nothing in the engine.
+**Read only.** The call writes nothing in the engine — a visitor-token request does not mark the token as seen either. The engine logs no identifier from the request.
 
 **Endpoint map key**: `recommendations_customer` (setup-exchange response, [§1](#1-post-apisetupexchange)). A connection set up before v1.9.0 does not have the key — use the fallback path constant.
 
@@ -1927,6 +1940,12 @@ curl -X POST https://intelligence.smaily.com/api/v1/recommendations/customer \
   -H "Authorization: Bearer sk_..." \
   -H "Content-Type: application/json" \
   -d '{"customer_external_id": "1042", "limit": 4}'
+
+# A returning guest shopper, by the visitor token (v1.10.0)
+curl -X POST https://intelligence.smaily.com/api/v1/recommendations/customer \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"smaily_visitor_token": "vt_8f3k2a", "limit": 4}'
 ```
 
 ---
@@ -2204,6 +2223,14 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **The gap.** The §1 endpoints map lists two keys whose routes the engine retired on 2026-07-13 (PRO-1295). They never served real recommendations, and a call now answers `404`.
 - **The rule.** Plugins must not call `recommendations_preview` or `recommendations_issue`. Contract 2.0 removes both keys from the setup response.
 - **What the plugin does.** Nothing, if it never calls them. Storefront recommendations use `recommendations_customer` (§15).
+
+**v1.10.0** (2026-10-06) — **§15: a returning guest shopper is named by the visitor token**. MINOR bump per the [Versioning](#versioning) rule (new optional field; backward-compatible — a v1.9.x request is still valid and answers the same). PRO-3834, Erkki's decision 2026-10-06:
+- **The gap.** §15 named the shopper only by the store's customer id. At the pilot store nearly every purchase is a guest checkout, so the call answered empty for almost every shopper.
+- **The field.** `smaily_visitor_token` — the visitor token from the store's visitor-token cookie. `customer_external_id` is no longer required on its own: a request carries at least one of the two; with neither, the answer is `400 validation_failed` as before.
+- **Which identifier wins.** When both are sent, `customer_external_id` wins and the token is ignored entirely, also when the customer id finds nobody: on a shared browser the cookie can belong to someone else.
+- **Same answer rules.** A token names the customer the engine issued it for, in this tenant, for 90 days after issue. That customer gets the same slots the customer id gives, under the same empty-answer rules. An expired, other-tenant or unknown token gets the same `{"slots": []}` as an unknown customer id, and the answer does not say which case applies.
+- **Timeouts.** Ask from a background request after the page has loaded. The 1-second client timeout no longer applies; use at most 10 seconds (the engine ends a request after 10 seconds).
+- **What the plugin does.** For a shopper without a store customer id who has given marketing consent, send `smaily_visitor_token` from the visitor-token cookie. A plugin that sends only `customer_external_id` keeps working unchanged.
 
 ### Appendix F: Migration notes
 

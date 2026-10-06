@@ -39,6 +39,13 @@ human proofread before the docs site is published); docs site EN+ET updated
 licensed Elementor Pro in wp-env). Touches consent + external HTTP, so the next
 release's security delta re-audit must cover it.)_
 
+Also 2026-10-06 (**Contract v1.10.0 synced byte-identical** to engine
+`967287f541fa` (PRO-3834; md5 e4b739e0…): §15 also takes
+`smaily_visitor_token` in place of `customer_external_id` (customer id wins
+when both are sent; unknown/expired/other-tenant token = the same empty
+answer); client timeout up to 10 s from a background request. No other wire
+shape changed.)
+
 Also 2026-10-06 (**PRO-3835 on a PR branch, 3.16.0 waits for it:** storefront
 recommendations load after the page — the block/shortcode print one empty
 container for every visitor (cacheable; PRO-3832's `DONOTCACHEPAGE` removed),
