@@ -500,6 +500,116 @@ final class ContactBackfillAudienceTest extends TestCase {
 	}
 
 	/**
+	 * PRO-3902: an error that is not a Smaily answer — here the HTTP layer
+	 * throws — stops the contact import as failed instead of leaving it
+	 * running with no next batch. The reason names the error class and where
+	 * it was thrown, never the message (PRO-3890). Start import runs it again.
+	 */
+	public function test_an_unexpected_error_in_a_batch_stops_the_import_and_start_import_runs_it_again(): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+		PipelineFixture::seed_credentials();
+
+		$first  = $this->make_user( 'bf-error-first', '1' );
+		$second = $this->make_user( 'bf-error-second', '1' );
+
+		$explode = true;
+		$sent    = array();
+		$fake    = static function ( $pre, $args, $url ) use ( &$explode, &$sent ) {
+			if ( strpos( (string) $url, 'sendsmaily.net' ) === false ) {
+				return $pre;
+			}
+			if ( $explode ) {
+				throw new \RuntimeException( 'connection reset while sending a contact' );
+			}
+			$sent[] = (string) ( $args['body'][0]['email'] ?? '' );
+			return array(
+				'headers'  => array(),
+				'body'     => '{}',
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
+				'cookies'  => array(),
+				'filename' => '',
+			);
+		};
+
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			RestRequestHelper::login_as_admin();
+			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
+			$this->run_one_tick();
+
+			$row = $this->contact_job_row();
+			self::assertSame( BackfillJobInterface::STATUS_FAILED, $row['status'], 'The import is stopped, not left running.' );
+			self::assertStringStartsWith( 'RuntimeException at ', (string) $row['error_message'], 'The reason names the error class and where it was thrown.' );
+			self::assertStringNotContainsString( 'connection reset', (string) $row['error_message'], 'No message text, which could carry personal data.' );
+			self::assertSame( array(), $this->pending_ticks(), 'No further batch is scheduled.' );
+
+			$status = $this->contact_status();
+			self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'], 'The Settings screen reads it as stopped.' );
+			self::assertSame( $row['error_message'], $status['error'], 'The Settings screen shows why (PRO-3881).' );
+
+			// The merchant presses Start import; the error is gone.
+			$explode = false;
+			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
+			self::assertNotSame( array(), $this->pending_ticks(), 'Start import queues the first batch again.' );
+			$this->run_one_tick();
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+			wp_set_current_user( 0 );
+		}
+
+		self::assertSame( BackfillJobInterface::STATUS_COMPLETED, $this->contact_job_row()['status'] );
+		self::assertContains( get_userdata( $first )->user_email, $sent );
+		self::assertContains( get_userdata( $second )->user_email, $sent );
+	}
+
+	/**
+	 * PRO-3902: a contact import left `running` with no batch queued or
+	 * running — deactivation cancelled it, or a batch died on a fatal error —
+	 * reads as stopped once the grace period after its start has passed, like
+	 * a Campaign Intelligence import (PRO-3886). Nothing restarts or rewrites
+	 * it; Start import runs it again.
+	 */
+	public function test_a_running_contact_import_with_nothing_driving_it_shows_as_stopped(): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+		PipelineFixture::seed_credentials();
+		$this->make_user( 'bf-stalled', '1' );
+
+		RestRequestHelper::login_as_admin();
+		try {
+			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
+
+			// Its first batch queued: running, however long ago it started.
+			$this->backdate_contact_start( HOUR_IN_SECONDS );
+			self::assertNotSame( array(), $this->pending_ticks() );
+			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->contact_status()['status'], 'A queued batch drives it.' );
+
+			// Within the grace period after start, even with no batch queued.
+			as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK );
+			$this->backdate_contact_start( 60 );
+			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->contact_status()['status'], 'A just-started import is not stalled yet.' );
+
+			// Nothing drives it any more, and it started 20 minutes ago.
+			$this->backdate_contact_start( 20 * MINUTE_IN_SECONDS );
+			$status = $this->contact_status();
+			self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'], 'The Settings screen shows it stopped.' );
+			self::assertSame( 'The import stopped running in the background.', $status['error'], 'The Settings screen says why (PRO-3881).' );
+			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->contact_job_row()['status'], 'Nothing rewrites the row.' );
+			self::assertSame( array(), $this->pending_ticks(), 'It is not restarted automatically.' );
+
+			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
+			$status = $this->contact_status();
+			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $status['status'], 'Start import runs it again.' );
+			self::assertNull( $status['error'], 'A running import has no failure reason.' );
+		} finally {
+			as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK );
+			wp_set_current_user( 0 );
+		}
+	}
+
+	/**
 	 * @return array<string, array{int}>
 	 */
 	public static function refusing_codes(): array {
@@ -530,6 +640,28 @@ final class ContactBackfillAudienceTest extends TestCase {
 				'status' => \ActionScheduler_Store::STATUS_PENDING,
 			),
 			'ids'
+		);
+	}
+
+	/**
+	 * @return array<string, mixed> What /backfill/status answers for the contact import.
+	 */
+	private function contact_status(): array {
+		$response = RestRequestHelper::get( '/backfill/status', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) );
+		self::assertSame( 200, $response->get_status() );
+		return $response->get_data();
+	}
+
+	private function backdate_contact_start( int $seconds ): void {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->update(
+			$wpdb->prefix . 'smly_plus_backfill_job',
+			array( 'started_at' => gmdate( 'Y-m-d H:i:s', time() - $seconds ) ),
+			array(
+				'job_type' => BackfillJob::BACKFILL_TYPE,
+				'target'   => BackfillJob::BACKFILL_TARGET,
+			)
 		);
 	}
 

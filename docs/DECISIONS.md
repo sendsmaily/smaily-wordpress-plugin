@@ -7749,7 +7749,8 @@ tick action for its job_type that started more than `STALL_GRACE_SECONDS`
 (10 min) ago is STALLED: `is_running()` is false (so the manifest and
 import-on-connect stop waiting for it), and `/backfill/status` reports it
 `failed`, so the panel shows it stopped with Import now. Nothing rewrites the
-row or restarts the import — Start import does. The contact import is untouched.
+row or restarts the import — Start import does. The contact import was left
+as it was here; PRO-3902 applies both rules to it.
 **Rationale:** the approved design was "no progress for 2 hours", but the job
 row stores no progress time and a schema change was not wanted; the Action
 Scheduler queue is the direct signal for "nothing drives it". The grace covers
@@ -7792,6 +7793,35 @@ it over-matches accented addresses.
 **Relationships:** PRO-2383 (Smaily queue eraser), PRO-2448 (the same escaping
 gap in the Smaily queue's fallback match — not changed here), F3-44 (stored
 exchange), F3-28 (engine erasure).
+
+### PRO-3902 — A contact import that hits an error or has nothing driving it shows as stopped (2026-10-06)
+
+**Context:** PRO-3890 / PRO-3886 covered the Campaign Intelligence imports
+only. The contact import (`Smaily\BackfillJob`) caught Smaily's own errors
+(PRO-3868, PRO-3904); any other Throwable in a batch — a database error, a
+transport that throws — ended the tick before the next one was scheduled, so
+the row stayed `running` forever. The status route also skipped the stall check
+for the contact import, so a row that deactivation or a fatal error left
+`running` read as running forever.
+**Decision:** the same two rules, with nothing new. (1) A Throwable inside the
+batch marks the import `failed` through the existing `record_error()`, with
+compare-and-set on `running`, the reason `<class> at <file>:<line>` (never the
+message) and no further tick. (2) `/backfill/status` asks
+`AbstractBackfillJob::is_stalled()` for every job_type, the contact import
+included — it runs on the same `TICK_HOOK`, keyed by its job_type, so the same
+check and `STALL_GRACE_SECONDS` apply unchanged; a stalled contact import
+reads `failed` with the existing reason "The import stopped running in the
+background." Nothing rewrites the row or restarts the import; Start import
+runs it again.
+**Rationale:** one rule for every import, so the panel never shows a contact
+import as running when nothing drives it. Reusing the check and its constant
+keeps the two from drifting.
+**Alternatives:** a separate stall check on `BackfillJob` — rejected, it would
+duplicate `is_stalled()` and its grace constant.
+**Relationships:** PRO-3890 / PRO-3886 (the Campaign Intelligence rules),
+PRO-3868 (contact import failure), PRO-3881 (failure reason on screen),
+F3-48.3 (the daily contact refresh — its `should_start_refresh()` still reads a
+stalled `running` row as running; not changed here).
 
 ### PRO-3906 — An erasure request drops the customer's waiting Campaign Intelligence updates (2026-10-06)
 

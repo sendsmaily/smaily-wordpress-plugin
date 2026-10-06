@@ -36,7 +36,9 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *      leaves status='failed' and the cursor before the failing page, and
  *      stops the tick chain, so the UI shows the failure. The merchant
  *      retries with Start import — a new start() — which walks from the
- *      first user again (PRO-3868).
+ *      first user again (PRO-3868). Any other error in a batch stops the
+ *      import the same way, with the error class and line as its reason
+ *      (PRO-3902).
  *
  * The Smaily API call itself is delegated to a Client instance supplied
  * via constructor injection so tests don't need wp_remote_post mocks.
@@ -334,6 +336,42 @@ class BackfillJob implements BackfillJobInterface {
 			);
 		}
 
+		try {
+			return $this->walk_batch( $state, $status, $batch_size );
+		} catch ( \Throwable $e ) {
+			// Anything but a Smaily answer (walk_batch handles those): a
+			// database error, a transport that throws. Left to escape, it ends
+			// the tick before the next one is scheduled and the row stays
+			// `running` forever (PRO-3902, as PRO-3890 for the Campaign
+			// Intelligence imports). Stop the import instead — only while it
+			// is still running, so a cancel stays a cancel (PRO-3821). The
+			// reason is the error class and where it was thrown, never the
+			// message: a message can carry a customer's email. Start import
+			// runs it again.
+			$this->record_error(
+				(int) $state['id'],
+				sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ),
+				self::STATUS_RUNNING
+			);
+			return array(
+				'processed' => 0,
+				'remaining' => max( 0, (int) $state['total_count'] - (int) $state['processed_count'] ),
+				'completed' => true,
+			);
+		}
+	}
+
+	/**
+	 * Sync the next page of users, then write the progress.
+	 *
+	 * @param array<string, mixed> $state  The job row this batch read.
+	 * @param string               $status The status this batch read.
+	 * @return array{processed: int, remaining: int, completed: bool}
+	 */
+	private function walk_batch( array $state, string $status, int $batch_size ): array {
+		global $wpdb;
+
+		$table    = $this->table_name();
 		$after    = isset( $state['cursor_value'] ) ? (int) $state['cursor_value'] : 0;
 		$user_ids = $this->fetch_user_ids_after( $after, $batch_size );
 		$users    = $this->hydrate_users( $user_ids );
@@ -546,8 +584,9 @@ class BackfillJob implements BackfillJobInterface {
 	}
 
 	/**
-	 * @param string $expected_status The status this batch read; a row a cancel
-	 *                                changed meanwhile is left alone (PRO-3821).
+	 * @param string $expected_status The status the row must still have; a row
+	 *                                a cancel changed meanwhile is left alone
+	 *                                (PRO-3821).
 	 */
 	private function record_error( int $job_id, string $message, string $expected_status ): void {
 		global $wpdb;

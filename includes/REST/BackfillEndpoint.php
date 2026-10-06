@@ -210,11 +210,11 @@ class BackfillEndpoint {
 			);
 		}
 
-		// A Campaign Intelligence import that nothing drives any more reads
-		// as stopped, so the panel offers Import now again (PRO-3886). The
-		// row itself is left alone — nothing restarts it.
+		// An import that nothing drives any more reads as stopped, so the
+		// panel offers to start it again (PRO-3886; the contact import too,
+		// PRO-3902). The row itself is left alone — nothing restarts it.
 		$status  = (string) $row['status'];
-		$stalled = $job_type !== BackfillJob::BACKFILL_TYPE && AbstractBackfillJob::is_stalled( $job_type, $row );
+		$stalled = AbstractBackfillJob::is_stalled( $job_type, $row );
 		if ( $stalled ) {
 			$status = BackfillJobInterface::STATUS_FAILED;
 		}
