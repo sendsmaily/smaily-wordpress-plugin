@@ -42,7 +42,7 @@ run: **wordpress.org stays on 3.16.0**._
 - **Next session opens with** (queue approved by Erkki 2026-10-06):
   (1) this STATUS/CLAUDE.md handoff PR;
   (2) PRO-3868 — a failed contact import stays failed, and Retry re-syncs the skipped customers;
-  (3) PRO-3817 — bound the engine Retry-After wait in background calls — **in review** (bullet above);
+  (3) PRO-3817 — bound the engine Retry-After wait in background calls — **in PR #185** (bullet above);
   (4) PRO-3859 — nightly catalog manifest (contract 1.12.0 §3c); needs a design nod first;
   (5) PRO-3824 — CF7 resubscribe per the decision above.
   Human acceptance on real stores stays open: PRO-3872 "Other fields" row (customer, above); MiuMjau runs Import existing data → Customers once and places the Smaily Recommendations block; CookieYes accept → `wp_consent_marketing=allow` cookie → /relay + /recommendations fire; one real guest checkout with consent gets a `vs_` token. Erkki's Estonian proofread (docs-site "Menüü" section, PR #176's eight ET sentences, PR #178's Event Log sentence) gates the next docs-site FTPS publish.
