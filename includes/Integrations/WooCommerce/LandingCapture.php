@@ -64,9 +64,9 @@ use Smaily\Connect\Support\DebugLog;
 class LandingCapture {
 
 	/** URL params the engine link carries (re: lib/sync/url-builder.ts). */
-	private const URL_PARAM_REC_ID  = 'smaily_rec';
+	public const URL_PARAM_REC_ID   = 'smaily_rec';
 	private const URL_PARAM_VISITOR = 'smaily_vt';
-	private const URL_PARAM_CONTEXT = 'smaily_ctx';
+	public const URL_PARAM_CONTEXT  = 'smaily_ctx';
 
 	/** The generic UTM the engine ALSO sets (utm_content = rec_id) + its source guard. */
 	private const UTM_CONTENT       = 'utm_content';

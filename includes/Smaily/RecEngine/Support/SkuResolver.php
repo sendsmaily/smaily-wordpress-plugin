@@ -160,6 +160,19 @@ final class SkuResolver {
 	}
 
 	/**
+	 * The product id inside a `woo-<id>` key — the inverse of resolve_id(),
+	 * without the canonical-id step. 0 for any other key (an order-item
+	 * `woo-oi-<id>` key, a foreign or empty one).
+	 */
+	public static function product_id_from_key( string $key ): int {
+		if ( 0 !== strpos( $key, self::KEY_PREFIX ) ) {
+			return 0;
+		}
+		$id = substr( $key, strlen( self::KEY_PREFIX ) );
+		return ctype_digit( $id ) ? (int) $id : 0;
+	}
+
+	/**
 	 * Collapse a product/variation id to its canonical (default-language) post
 	 * id via the detector. Falls back to the input id when the detector can't
 	 * resolve one (single-language site, unlinked variation, deleted post) — a
