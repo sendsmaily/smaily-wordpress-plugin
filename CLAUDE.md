@@ -472,7 +472,8 @@ state flag + `request_count`) is the only automated proof, and the real
 engine's 403 is human acceptance.
 
 **Test trap it exposed:** `EnvScrub::reset()` LIKE-sweeps `smly_%` rows in raw
-SQL, which does NOT clear the per-key object cache of an `autoload=false`
+SQL (except `smly_plus_schema_version`, which it deliberately KEEPS: it
+describes the tables the scrub keeps — PRO-3899), which does NOT clear the per-key object cache of an `autoload=false`
 option. A later `update_option()` then compares against the stale cache,
 UPDATEs a row that no longer exists, affects 0 rows, writes nothing and leaves
 the cache — so one test reads another's value, and `delete_option()` does not
@@ -1381,6 +1382,14 @@ bypass. So every change — code, docs, a contract sync, a release bump — goes
    `gh pr merge <n> --squash --subject "<title>" --body-file <description file>`.
 
 The old "push directly to main" rhythm (and the earlier fork's) is history.
+
+**A batch of several open PRs may leave STATUS.md to one batch PR (Erkki,
+2026-10-06).** When several feature PRs are open at once, each one that adds
+its STATUS bullet at the same spot puts every other one in conflict on each
+merge. So in such a batch the feature PRs may leave STATUS.md alone, and one
+batch STATUS PR records all their bullets after the merges. That batch PR must
+land in the same session — the "same commit" rule above is relaxed only for
+the length of that session, never past it.
 
 ### Context audit before building (LESSONS §2.5)
 Before starting real code on a new area, do a context audit: `git log`, read the
