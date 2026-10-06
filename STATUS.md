@@ -29,8 +29,16 @@ table in README is a high-level view; this is the working register.
 _Last updated: 2026-10-06 (**3.16.0 release candidate — bumped on branch
 `release/3.16.0`, PR open, NOT tagged or published.** The tag, the GitHub
 release and `./release.sh` stay Erkki's one-way door (CLAUDE.md "Cutting a
-release ZIP"). The release-gate results (CI-built ZIP, `verify-release-zip`,
-PCP) are in the 3.16.0 release-gate row of `docs/audits/INDEX.md`.)_
+release ZIP"). **Release gate ran on the CI-built ZIP** (release.yml dry-run
+37442352646 on `2f8445e`): 943 209 B, SHA256 `4de73381…5fbf69`,
+verify-release-zip exit 0; PCP 0 ERRORS / 11 WARNINGS — 9 already accepted at
+3.15.0, **2 new for Erkki to accept** (`MarketingConsent.php:42` hook-name
+false positive; readme Changelog section over 5 000 characters). A PCP error
+from the #164 refactor (`RetryPolicy.php` exception message) was fixed on the
+branch (`2f8445e`, log-only `phpcs:ignore`). Gates: ci:strict exit 0 (unit
+1102, vitest 374); integration 369 OK on the Mac. Details: the 3.16.0
+release-gate row of `docs/audits/INDEX.md`. The tag build makes a new ZIP, so
+re-run `verify-release-zip` on the released asset.)_
 
 **3.16.0 — what it carries** (everything merged after 3.15.0, `3afff33..e1dcc18`;
 the merchant-facing list is the `= 3.16.0 =` changelog in `readme.txt`; the
