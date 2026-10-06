@@ -1095,13 +1095,21 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/browse' ) {
 	// PRO-1389 server-side customer_email injection for a logged-in session).
 	// customer_email is omitted from the row entirely (not even as '') when
 	// absent, so a test can assert on absence with assertArrayNotHasKey.
+	// smaily_visitor_token and the deprecated attribution hints smaily_rec_id /
+	// smaily_ctx (PRO-1712) are recorded whenever the key was sent — even as
+	// '' — and omitted only when absent, so "absent" differs from "sent
+	// empty" (PRO-3818).
 	$state['last_browse_events'] = array_map(
 		static function ( $event ) {
 			$row = array(
-				'event_id'             => isset( $event['event_id'] ) ? (string) $event['event_id'] : '',
-				'smaily_visitor_token' => isset( $event['smaily_visitor_token'] ) ? (string) $event['smaily_visitor_token'] : '',
-				'sku'                  => isset( $event['sku'] ) ? (string) $event['sku'] : null,
+				'event_id' => isset( $event['event_id'] ) ? (string) $event['event_id'] : '',
+				'sku'      => isset( $event['sku'] ) ? (string) $event['sku'] : null,
 			);
+			foreach ( array( 'smaily_visitor_token', 'smaily_rec_id', 'smaily_ctx' ) as $field ) {
+				if ( is_array( $event ) && array_key_exists( $field, $event ) ) {
+					$row[ $field ] = (string) $event[ $field ];
+				}
+			}
 			if ( isset( $event['customer_email'] ) && (string) $event['customer_email'] !== '' ) {
 				$row['customer_email'] = (string) $event['customer_email'];
 			}
