@@ -658,6 +658,72 @@ final class RecEngineCatalogTest extends TestCase {
 		self::assertTrue( $in_stock[ 'woo-' . $pid ] ?? null, 'Untrash restores in_stock=true — the product is sellable again.' );
 	}
 
+	public function test_two_rows_for_one_product_in_the_same_second_are_sent_in_creation_order(): void {
+		// PRO-3897: created_at is stored to the second, so a removal and a
+		// re-publish of one product in the same second tie on it, and only the
+		// auto-increment id says which came first. SQL leaves the order of tied
+		// rows to the server: the MariaDB here happens to return them in id
+		// order for this query, other servers and query plans do not. So the
+		// test pins the order through the query pending() runs, not only
+		// through the rows that come back.
+		$base = (string) self::$engine->base_url();
+		EnvSeed::connect(
+			array(
+				'engine_base_url' => $base,
+				'endpoints'       => self::mock_endpoints( $base ),
+			)
+		);
+
+		$product = $this->make_categorized_product( 'CAT-SAME-SECOND-1', '9.90' );
+		$pid     = (int) $product->get_id();
+
+		CatalogHookHandler::reset_seen();
+		$this->truncate_queue(); // ignore the create-time save-hook row.
+
+		// The removal first, then the re-publish — id order is creation order.
+		$queue      = new IngestQueue();
+		$removal_id = (int) $queue->enqueue(
+			CatalogHookHandler::EVENT_CATALOG_DELETE,
+			(string) $pid,
+			array( 'object' => ( new CatalogPayloadBuilder() )->build( $product, '' ) )
+		);
+		$upsert_id  = (int) $queue->enqueue( CatalogHookHandler::EVENT_CATALOG_UPSERT, (string) $pid, array() );
+		self::assertGreaterThan( $removal_id, $upsert_id, 'Precondition: the removal was created first.' );
+
+		global $wpdb;
+		$same_second = gmdate( 'Y-m-d H:i:s', time() - 60 );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}smly_rec_event_queue SET created_at = %s", $same_second ) );
+
+		$queries = array();
+		$capture = static function ( $query ) use ( &$queries ) {
+			$queries[] = (string) $query;
+			return $query;
+		};
+		add_filter( 'query', $capture );
+		try {
+			$pending = $queue->pending( 100, array( CatalogHookHandler::EVENT_CATALOG_UPSERT, CatalogHookHandler::EVENT_CATALOG_DELETE ) );
+		} finally {
+			remove_filter( 'query', $capture );
+		}
+
+		self::assertSame(
+			array( $removal_id, $upsert_id ),
+			array_map( 'intval', array_column( $pending, 'id' ) ),
+			'Rows that tie on created_at come out in the order they were created.'
+		);
+		self::assertCount( 1, $queries, 'pending() reads the queue with one query.' );
+		self::assertMatchesRegularExpression(
+			'/ORDER BY created_at ASC, id ASC\s+LIMIT/',
+			$queries[0],
+			'The id breaks a created_at tie, so the order never depends on the server.'
+		);
+
+		$this->flush_catalog( $queue );
+		$in_stock = self::$engine->state()['last_catalog_in_stock'] ?? array();
+		self::assertTrue( $in_stock[ 'woo-' . $pid ] ?? null, 'The engine ends with the later state — the re-published product is available.' );
+	}
+
 	public function test_hard_delete_reaches_engine_as_catalog_remove_with_raw_parent_id(): void {
 		// PRO-1230 end-to-end through the REAL Bootstrap wiring: a permanent
 		// delete fires before_delete_post → on_hard_delete_product → ONE

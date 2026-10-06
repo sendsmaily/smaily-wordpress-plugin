@@ -136,8 +136,11 @@ class IngestQueue {
 	 * "Due" = status pending AND (never retried OR next_retry_at has
 	 * passed). Ordering by created_at keeps the queue FIFO so a product's
 	 * catalog.delete can't overtake an earlier catalog.upsert for the same
-	 * SKU. The flush job processes the batch and advances each row with
-	 * mark_sent() / record_attempt() / mark_failed().
+	 * SKU. created_at is stored to the second, so the id breaks a tie: two
+	 * rows for one product made in the same second still go out in the
+	 * order they were created (PRO-3897). The flush job processes the batch
+	 * and advances each row with mark_sent() / record_attempt() /
+	 * mark_failed().
 	 *
 	 * The queue is shared across ingest endpoints (catalog, customers,
 	 * orders — see the class doc). $event_types scopes a drain to one
@@ -182,7 +185,7 @@ class IngestQueue {
 				"SELECT id, event_type, entity_id, event_uuid, payload, created_at, attempts, max_attempts
 					FROM {$table}
 					WHERE status = %s AND ( next_retry_at IS NULL OR next_retry_at <= %s ){$type_clause}
-					ORDER BY created_at ASC
+					ORDER BY created_at ASC, id ASC
 					LIMIT %d",
 				...$args
 			),
