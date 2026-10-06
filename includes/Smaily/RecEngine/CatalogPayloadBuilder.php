@@ -178,6 +178,35 @@ class CatalogPayloadBuilder {
 	}
 
 	/**
+	 * One §3c manifest item for an ingest unit (PRO-3859): the `sku` build()
+	 * sends for it, and the `in_stock` the catalog sync sends — false for a
+	 * trashed product, which the import sends as a catalog.delete that the
+	 * flusher stamps in_stock=false. Lives beside build() so the two keys come
+	 * from the same resolver and detector and cannot drift apart.
+	 *
+	 * @return array{sku: string, in_stock: bool}
+	 */
+	public function manifest_item( \WC_Product $unit, bool $trashed ): array {
+		return array(
+			'sku'      => SkuResolver::resolve( $unit, $this->detector() ),
+			'in_stock' => ! $trashed && (bool) $unit->is_in_stock(),
+		);
+	}
+
+	/**
+	 * The manifest item for a trashed product WooCommerce cannot load — the
+	 * `sku` build_unresolvable() sends for it, out of stock.
+	 *
+	 * @return array{sku: string, in_stock: bool}
+	 */
+	public function manifest_item_unresolvable( int $product_id ): array {
+		return array(
+			'sku'      => SkuResolver::resolve_id( $product_id, $this->detector() ),
+			'in_stock' => false,
+		);
+	}
+
+	/**
 	 * Build a minimal, always-valid catalog.delete tombstone for a product id
 	 * that no longer resolves to a WC_Product at all (PRO-1498) — e.g. its
 	 * product_type came from a since-deactivated plugin (a gift-card add-on),

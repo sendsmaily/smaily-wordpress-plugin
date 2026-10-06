@@ -7565,6 +7565,48 @@ Retry-After; an HTTP-date value falls back to the back-off, as before.
 so a shorter in-request wait loses nothing; the cap matches Magento.
 **Relationships:** PRO-3620 (browse relay), `ClientRetryAfterCapTest`.
 
+### PRO-3859 — The store sends its complete product list to the engine once a night (2026-10-06)
+
+**Context:** contract v1.12.0 §3c adds `POST /api/v1/ingest/catalog/manifest`.
+A lost stock-change or delete event used to stay wrong in the engine until
+that product changed again or the merchant ran a full import.
+**Decision (Erkki, 2026-10-06):** a recurring Action Scheduler job
+(`smly_rec_catalog_manifest`, group `smaily-rec-catalog-manifest`, in
+`Deactivation::AS_GROUPS`) runs daily at 03:00 store time (the site
+timezone; a fixed 24 h interval from the first run, so after a
+daylight-saving change it runs an hour off 03:00 — Action Scheduler's cron
+schedule cannot fix that: its `as_schedule_cron_action()` evaluates the
+expression in UTC (`as_get_datetime_object()` at creation and on every
+repeat; verified in AS 3.9.3 source and in wp-env, where `0 3 * * *` under
+Europe/Tallinn gave 03:00 UTC). No merchant setting: it
+sends whenever `sending_allowed()`. The list is exactly what the products
+import sends — published products plus trashed ones as `in_stock=false`;
+drafts, private and pending products are left out (PRO-3884 aligns the live
+hook) — built by `CatalogBackfillJob::manifest_items()` on the import's own
+walk, collapse and expansion, keyed through `CatalogPayloadBuilder::
+manifest_item()` (SkuResolver, the builder's detector). The night is skipped
+(nothing sent, debug log only) when the engine refuses the store, the
+products import is running or waits to start, catalog.* rows still wait in
+the ingest queue (due or parked), or building the list throws. More than
+50,000 items sends nothing and writes a FAILED `catalog.manifest` Event Log
+row whose error says why in plain words. Every other night is one
+`catalog.manifest` row with the F3-44 exchange (request trimmed to ~10 KB,
+the engine's counts as the response). A failed send stays failed (no retry
+ladder: the next night sends a fresh list); a row the merchant retries waits
+as pending and carries the next night's manifest.
+**Rationale:** a partial or early list would tombstone real products, so
+every doubt means "send nothing tonight". Reusing the import enumeration and
+the resolver means a manifest key cannot differ from the catalog key — a
+differing key reads to the engine as a deleted product. Only the 50,000 skip
+needs the merchant (they cannot fix it, but they must see why); the other
+skips clear themselves by the next night.
+**Alternatives:** a merchant on/off setting — not chosen; including drafts —
+not chosen (the engine would keep products the import never sent); a
+per-night retry ladder — not chosen (a retried list would be stale).
+**Relationships:** F3-16 (catalog pipeline), F3-44 (stored exchange),
+PRO-1230 (the §3b remove flusher this mirrors), PRO-1893 (sending gate),
+PRO-2433..2437 (AS groups and the hourly verification), PRO-3884.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

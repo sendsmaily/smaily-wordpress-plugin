@@ -12,6 +12,7 @@ namespace Smaily\Connect;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
 use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
@@ -50,6 +51,7 @@ final class Deactivation {
 		CustomerFlusher::AS_GROUP,
 		OrderFlusher::AS_GROUP,
 		CatalogRemoveFlusher::AS_GROUP,
+		CatalogManifest::AS_GROUP,
 	);
 
 	public static function run(): void {

@@ -364,6 +364,38 @@ precedent). Live-walked against the sandbox engine
 (`bin/walk-pro1499-category-defaulted.cjs`): `{"http":200,"outcome":
 "accepted"}` with the flag on the sent payload.
 
+### The nightly catalog manifest reuses the import's enumeration — never a second product query (PRO-3859)
+`Smaily\RecEngine\CatalogManifest` runs on the recurring AS hook
+`smly_rec_catalog_manifest` (group `smaily-rec-catalog-manifest`, listed in
+`Deactivation::AS_GROUPS`; registered in `register_action_scheduler_jobs`,
+first run at the next 03:00 site time, then every 24 h — so after a
+daylight-saving change it runs an hour off 03:00; don't "fix" it with
+`as_schedule_cron_action()`, which evaluates the cron expression in UTC, not
+the site timezone, verified in AS 3.9.3) and POSTs the store's
+complete `{sku, in_stock}` list to contract §3c in ONE request. The engine
+tombstones every sku missing from it, so the list must be exactly what the
+catalog sync sends: it comes from `CatalogBackfillJob::manifest_items()` —
+the import's own walk (publish + trash; drafts/private/pending left out), its
+multilingual collapse and `expand()` — and each item from
+`CatalogPayloadBuilder::manifest_item()` (SkuResolver + the builder's
+detector, trashed ⇒ `in_stock=false`). A new filter or key rule on the import
+therefore changes the manifest too; never build the list from a separate
+query. Skip rules (nothing sent, debug log only): not `sending_allowed()`,
+the products import `running` (incl. the import-on-connect wait), any
+pending catalog.* row in the ingest queue (`IngestQueue::has_pending`, parked
+retries included), or a Throwable while building. Over 50,000 items: no send,
+a FAILED `catalog.manifest` Event Log row with a plain reason. Otherwise one
+`catalog.manifest` row per night with the F3-44 exchange. No flusher drains
+that event type — a row the merchant retries waits as pending and the next
+night sends under it. **The dev wp-env is connected to a real tenant:** with
+this code checked out its AS runner sends a real manifest after 03:00 site
+time, which tombstones that tenant's products missing from the dev store —
+Erkki approved that and the walk (2026-10-06); tests only ever talk to the
+mock. The walk is `bin/walk-pro3859-manifest.php` (run with `wp eval-file`
+in the dev cli container, then `bash bin/lib-smly-snapshot.sh snapshot`): it
+aborts unless the tenant is "Beauty Synthetic (live-walk)" on
+intelligence.smaily.com and prints only the gates and the engine's counts.
+
 ### Use the IsoDate helper for datetimes — never raw format
 The engine's strict Zod `.datetime()` requires Z-suffix (`Y-m-d\TH:i:s\Z`), NOT
 `+00:00`. Raw `gmdate('c')` / `$date->format('c')` produces `+00:00` and the

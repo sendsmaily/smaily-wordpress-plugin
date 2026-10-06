@@ -191,7 +191,8 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 	// endpoints present (11 from the endpoints-map audit P2 #11, plus the
 	// v1.1.0 `automations_*` keys, plus `ingest_catalog_remove` — added to
 	// the live map by engine 6b225fb; the Client keeps its absolute-path
-	// fallback for pre-6b225fb connections whose stored map lacks the key).
+	// fallback for pre-6b225fb connections whose stored map lacks the key —
+	// plus v1.12.0's `ingest_catalog_manifest`).
 	$engine_base = sprintf( 'http://%s', $_SERVER['HTTP_HOST'] ?? 'localhost:9876' );
 	reply(
 		200,
@@ -205,6 +206,7 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				'ingest_ping'             => $engine_base . '/api/v1/ingest/ping',
 				'ingest_catalog'          => $engine_base . '/api/v1/ingest/catalog',
 				'ingest_catalog_remove'   => $engine_base . '/api/v1/ingest/catalog/remove',
+				'ingest_catalog_manifest' => $engine_base . '/api/v1/ingest/catalog/manifest',
 				'ingest_customers'        => $engine_base . '/api/v1/ingest/customers',
 				'ingest_orders'           => $engine_base . '/api/v1/ingest/orders',
 				'ingest_browse'           => $engine_base . '/api/v1/ingest/browse',
@@ -494,6 +496,12 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog' ) {
 		}
 	}
 	$state['catalog_group_by_sku'] = $group_by_sku;
+	// Accumulate sku → in_stock too, so the §3c manifest route can count the
+	// stock it would correct.
+	$state['catalog_in_stock_by_sku'] = array_merge(
+		( isset( $state['catalog_in_stock_by_sku'] ) && is_array( $state['catalog_in_stock_by_sku'] ) ) ? $state['catalog_in_stock_by_sku'] : array(),
+		$in_stock_by_sku
+	);
 	save_state( $state_file, $state );
 
 	$response = array(
@@ -574,6 +582,97 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog/remove' ) {
 			'removed_products' => $removed_products,
 			'rows_tombstoned'  => $rows_tombstoned,
 			'not_found'        => array_values( $not_found ),
+		)
+	);
+}
+
+// Nightly catalog manifest — §3c (contract v1.12.0, PRO-3859). The store's
+// complete product list in ONE request: `{"products":[{"sku","in_stock"}]}`,
+// 0–50,000 items. Validation mirrors the contract: a missing / non-array /
+// over-50,000 wrapper, or any item without a non-empty sku of at most 64
+// characters or without a boolean in_stock, is a 400 validation_failed for the
+// whole list. Unknown item keys are ignored, as on the engine — the received
+// items are recorded raw so a test can assert the plugin sends nothing else.
+// The answer is computed against what /ingest/catalog accumulated: a known sku
+// missing from the list would be tombstoned, a differing in_stock corrected,
+// an unknown sku counted; the guard (empty list, or more than 20 % of the live
+// rows) removes nothing.
+if ( $method === 'POST' && $path === '/api/v1/ingest/catalog/manifest' ) {
+	require_bearer_auth();
+
+	$raw  = (string) file_get_contents( 'php://input' );
+	$body = json_decode( $raw, true );
+
+	$items = ( is_array( $body ) && isset( $body['products'] ) && is_array( $body['products'] ) ) ? $body['products'] : null;
+	$valid = $items !== null && count( $items ) <= 50000;
+	foreach ( $valid ? $items : array() as $item ) {
+		$sku = is_array( $item ) && isset( $item['sku'] ) && is_string( $item['sku'] ) ? $item['sku'] : '';
+		if ( $sku === '' || strlen( $sku ) > 64 || ! is_bool( $item['in_stock'] ?? null ) ) {
+			$valid = false;
+			break;
+		}
+	}
+	if ( ! $valid ) {
+		$state['manifest_rejected_count'] = ( isset( $state['manifest_rejected_count'] ) ? (int) $state['manifest_rejected_count'] : 0 ) + 1;
+		save_state( $state_file, $state );
+		reply(
+			400,
+			array(
+				'error'   => 'validation_failed',
+				'details' => array( 'fieldErrors' => array( 'products' => array( 'Invalid manifest' ) ) ),
+			)
+		);
+	}
+
+	$listed = array();
+	foreach ( $items as $item ) {
+		$listed[ $item['sku'] ] = $item['in_stock']; // The last occurrence wins.
+	}
+
+	$known      = ( isset( $state['catalog_in_stock_by_sku'] ) && is_array( $state['catalog_in_stock_by_sku'] ) ) ? $state['catalog_in_stock_by_sku'] : array();
+	$tombstoned = ( isset( $state['catalog_tombstoned'] ) && is_array( $state['catalog_tombstoned'] ) ) ? $state['catalog_tombstoned'] : array();
+
+	$live        = array_diff_key( $known, $tombstoned );
+	$to_remove   = array_keys( array_diff_key( $live, $listed ) );
+	$stock_fixed = 0;
+	foreach ( $listed as $sku => $in_stock ) {
+		if ( array_key_exists( $sku, $known ) && (bool) $known[ $sku ] !== $in_stock ) {
+			++$stock_fixed;
+			$known[ $sku ] = $in_stock;
+		}
+	}
+
+	$guard_reason = null;
+	if ( $to_remove !== array() ) {
+		if ( $listed === array() ) {
+			$guard_reason = 'empty_list';
+		} elseif ( count( $to_remove ) > 0.2 * count( $live ) ) {
+			$guard_reason = 'too_many_removals';
+		}
+	}
+	if ( $guard_reason === null ) {
+		foreach ( $to_remove as $sku ) {
+			$tombstoned[ (string) $sku ] = true;
+		}
+	}
+
+	$state['catalog_in_stock_by_sku'] = $known;
+	$state['catalog_tombstoned']      = $tombstoned;
+	$state['manifest_count']          = ( isset( $state['manifest_count'] ) ? (int) $state['manifest_count'] : 0 ) + 1;
+	$state['last_manifest_items']     = $items;
+	save_state( $state_file, $state );
+
+	reply(
+		200,
+		array(
+			'ok'                   => true,
+			'products_in_manifest' => count( $listed ),
+			'removed'              => $guard_reason === null ? count( $to_remove ) : 0,
+			'stock_fixed'          => $stock_fixed,
+			'missing_in_engine'    => count( array_diff_key( $listed, $known ) ),
+			'guard_tripped'        => $guard_reason !== null,
+			'guard_reason'         => $guard_reason,
+			'would_remove'         => count( $to_remove ),
 		)
 	);
 }
