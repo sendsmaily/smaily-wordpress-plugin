@@ -165,7 +165,7 @@ function ConnectedSection({
   dispatch: Dispatch<WizardAction>;
   inSettings: boolean;
 }): React.JSX.Element {
-  const { data, status, failure, refetch } = useAutomationsData(true);
+  const { data, status, failure, refetch, refetchConfig } = useAutomationsData(true);
   const engine = state.engineAutomations;
 
   const derivedMode = deriveLanguageMode(state.multilingualMode, state.env.detectedLanguages);
@@ -180,10 +180,10 @@ function ConnectedSection({
   useEffect(() => {
     if (previousSaveStatus.current === 'pending' && engine.saveStatus === 'success') {
       rereadAfterSave.current = true;
-      refetch();
+      refetchConfig();
     }
     previousSaveStatus.current = engine.saveStatus;
-  }, [engine.saveStatus, refetch]);
+  }, [engine.saveStatus, refetchConfig]);
 
   // Hydrate the reducer slice from every fresh fetch. A dirty draft is
   // preserved (its rows win per trigger); a clean slice takes the

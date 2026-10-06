@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\ExchangeResult;
@@ -194,13 +195,14 @@ class RecEngineEndpoint {
 				$import_started = ( $this->on_connected )();
 				return new WP_REST_Response(
 					array(
-						'connected'     => true,
-						'tenantName'    => $result->tenant_name,
-						'tenantId'      => $result->tenant_id,
-						'engineVersion' => $result->engine_version,
-						'baseUrl'       => $result->engine_base_url,
-						'issuedAt'      => $result->issued_at,
-						'catalogImport' => $import_started ? 'started' : 'unchanged',
+						'connected'                 => true,
+						'tenantName'                => $result->tenant_name,
+						'tenantId'                  => $result->tenant_id,
+						'engineVersion'             => $result->engine_version,
+						'baseUrl'                   => $result->engine_base_url,
+						'issuedAt'                  => $result->issued_at,
+						'catalogImport'             => $import_started ? 'started' : 'unchanged',
+						'catalogImportDelaySeconds' => CatalogImportOnConnect::DELAY_SECONDS,
 					),
 					200
 				);

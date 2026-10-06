@@ -74,6 +74,7 @@ final class RecEngineCatalogImportOnConnectTest extends TestCase {
 
 		self::assertSame( 200, $response->get_status() );
 		self::assertSame( 'started', $response->get_data()['catalogImport'] );
+		self::assertSame( CatalogImportOnConnect::DELAY_SECONDS, $response->get_data()['catalogImportDelaySeconds'] );
 
 		$row = $this->read_products_row();
 		self::assertIsArray( $row, 'Connecting seeded the products import row.' );

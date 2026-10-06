@@ -28,6 +28,7 @@ const CONNECTED = {
   engineVersion: '1.9.1',
   baseUrl: 'https://engine.test',
   issuedAt: '2026-10-05T10:00:00Z',
+  catalogImportDelaySeconds: 180,
 };
 
 /** Step 4 driven by the real reducer, so a successful Connect flips the view. */

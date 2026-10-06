@@ -198,6 +198,7 @@ describe('Settings — engine automations join the WooCommerce tab save (T2.2)',
     await waitFor(() => {
       expect(configMock).toHaveBeenCalledTimes(2);
     });
+    expect(catalogMock).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Waiting for Smaily's confirmation")).toBeInTheDocument();
     expect(screen.getByText(/real sends requested — waiting for smaily/i)).toBeInTheDocument();
     expect(screen.queryByText('Live — real sends on')).not.toBeInTheDocument();

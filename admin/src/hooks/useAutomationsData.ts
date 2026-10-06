@@ -22,6 +22,8 @@ export interface UseAutomationsDataResult {
   failure: AutomationsFailure | null;
   /** Re-run both GETs (the Retry button). */
   refetch: () => void;
+  /** Re-read only the §12 config (after a save); the loaded catalog is kept. */
+  refetchConfig: () => void;
 }
 
 /**
@@ -38,9 +40,10 @@ export function useAutomationsData(enabled: boolean): UseAutomationsDataResult {
   const [data, setData] = useState<AutomationsData | null>(null);
   const [status, setStatus] = useState<AutomationsDataStatus>(enabled ? 'pending' : 'idle');
   const [failure, setFailure] = useState<AutomationsFailure | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const [request, setRequest] = useState({ attempt: 0, configOnly: false });
 
   const abortRef = useRef<AbortController | null>(null);
+  const catalogRef = useRef<AutomationsCatalogResponse | null>(null);
 
   useEffect(() => {
     if (!enabled) {
@@ -54,15 +57,18 @@ export function useAutomationsData(enabled: boolean): UseAutomationsDataResult {
     setStatus('pending');
     setFailure(null);
 
+    const knownCatalog = request.configOnly ? catalogRef.current : null;
+
     void (async () => {
       try {
         const [catalog, config] = await Promise.all([
-          getAutomationsCatalog(controller.signal),
+          knownCatalog ?? getAutomationsCatalog(controller.signal),
           getAutomationsConfig(controller.signal),
         ]);
         if (controller.signal.aborted) {
           return;
         }
+        catalogRef.current = catalog;
         setData({ catalog, configs: config.configs });
         setStatus('success');
       } catch (err) {
@@ -75,11 +81,15 @@ export function useAutomationsData(enabled: boolean): UseAutomationsDataResult {
     })();
 
     return () => controller.abort();
-  }, [enabled, attempt]);
+  }, [enabled, request]);
 
   const refetch = useCallback((): void => {
-    setAttempt((n) => n + 1);
+    setRequest((r) => ({ attempt: r.attempt + 1, configOnly: false }));
   }, []);
 
-  return { data, status, failure, refetch };
+  const refetchConfig = useCallback((): void => {
+    setRequest((r) => ({ attempt: r.attempt + 1, configOnly: true }));
+  }, []);
+
+  return { data, status, failure, refetch, refetchConfig };
 }

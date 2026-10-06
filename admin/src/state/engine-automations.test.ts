@@ -100,7 +100,7 @@ describe('convertAutomationMap — store-global mode conversion (T2.4/1)', () =>
 describe('buildRows — dynamic catalog-driven rows', () => {
   it('renders an unknown new trigger from the catalog with a fail-closed default row', () => {
     // A key this plugin has never heard of — must appear with no code change.
-    const rows = buildRows([catalogTrigger('brand_new_trigger_2027')], [], null, 'single');
+    const rows = buildRows([catalogTrigger('brand_new_trigger_2027')], [], null, 'single', []);
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toEqual(defaultRow('brand_new_trigger_2027', 'single'));
@@ -112,7 +112,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('derives per_language for default rows on multilingual sites', () => {
-    const rows = buildRows([catalogTrigger('t')], [], null, 'per_language');
+    const rows = buildRows([catalogTrigger('t')], [], null, 'per_language', []);
     expect(rows[0]?.language_mode).toBe('per_language');
   });
 
@@ -122,6 +122,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow({ daily_cap: 500 })],
       null,
       'single',
+      [],
     );
 
     expect(rows[0]?.daily_cap).toBe(500);
@@ -131,7 +132,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('strips the read-only §12 fields so they cannot reach the PUT body', () => {
-    const rows = buildRows([catalogTrigger('replenish_due')], [configuredRow()], null, 'single');
+    const rows = buildRows([catalogTrigger('replenish_due')], [configuredRow()], null, 'single', []);
 
     expect(rows[0]).not.toHaveProperty('configured_via');
     expect(rows[0]).not.toHaveProperty('updated_at');
@@ -143,6 +144,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow({ trigger_key: 'retired_trigger' })],
       null,
       'single',
+      [],
     );
 
     expect(rows.map((r) => r.trigger_key)).toEqual(['winback_risk']);
@@ -160,6 +162,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow()],
       [draft],
       'single',
+      [],
     );
 
     expect(rows[0]).toBe(draft);
@@ -174,6 +177,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow({ trigger_key: 'replenish_due', language_mode: 'single', automation_map: { id: '123' } })],
       null,
       'per_language',
+      [],
     );
 
     expect(rows.map((r) => r.language_mode)).toEqual(['per_language', 'per_language']);
@@ -193,6 +197,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       ],
       null,
       'single',
+      [],
     );
 
     expect(rows[0]?.language_mode).toBe('single');
@@ -235,6 +240,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow({ trigger_key: 'a' })],
       null,
       'single',
+      [],
     );
     expect(rows.map((r) => r.trigger_key)).toEqual(['b', 'a']);
   });
