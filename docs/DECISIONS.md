@@ -7607,6 +7607,34 @@ per-night retry ladder — not chosen (a retried list would be stale).
 PRO-1230 (the §3b remove flusher this mirrors), PRO-1893 (sending gate),
 PRO-2433..2437 (AS groups and the hourly verification), PRO-3884.
 
+### PRO-3824 — A Contact Form 7 signup may subscribe again a contact who unsubscribed (2026-10-06)
+
+**Context:** the Contact Form 7 integration starts its Smaily workflow through
+the legacy `Smaily_Client::trigger_automation()`, whose `force_opt_in`
+parameter defaults to `true`. The call passed no value, so it resubscribed by
+default. PRO-1716 removed forced opt-in from the store's automation triggers
+(welcome / first-order / abandoned cart), but the Contact Form 7 path was not
+part of that change, and nothing recorded whether it should resubscribe.
+**Decision (Erkki, 2026-10-06):** a Contact Form 7 submission may mark a
+contact who unsubscribed as subscribed again. `Public_Base::submit()` now
+passes `force_opt_in = true` explicitly. A Contact Form 7 form has no
+marketing-consent mode: every submission of an enabled form with a successful
+mail send is a signup, unchanged. The docs site says so (EN+ET), as it does for
+Elementor.
+**Rationale:** a form that the merchant enables for Smaily is a signup form,
+and a fresh signup is new consent — the same rule as the Elementor Pro action
+(PRO-3806). The automation triggers of PRO-1716 run without any action by the
+contact, so they never resubscribe; a form submission is the contact's own
+action. The explicit value means a later change of the legacy client's default
+cannot silently stop (or start) resubscribing.
+**Alternatives:** `force_opt_in = false` (the PRO-1716 rule) — rejected: a
+contact who signs up again through the form would stay unsubscribed.
+**Relationships:** PRO-3806 (Elementor Pro action, same consent rule — it sends
+`is_unsubscribed = 0` on the upsert and then triggers with `false`); PRO-1716
+(automation triggers never resubscribe). Pinned by
+`tests/Unit/Integrations/CF7/PublicBaseTest.php` with a client whose own
+default is `false`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
