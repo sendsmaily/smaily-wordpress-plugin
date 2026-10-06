@@ -838,6 +838,99 @@ final class RecEngineCatalogTest extends TestCase {
 	 * Seed a connected tenant pointed at the mock and build a Client from
 	 * the stored settings (api_key + base_url + endpoints map).
 	 */
+	public function test_unpublished_product_is_never_recommendable_and_republish_restores(): void {
+		// PRO-3884: only a published product is recommendable. A draft, private
+		// or pending product reaches the engine only as the in_stock=false
+		// removal a trashed product gets — whether it was never published or it
+		// moved away from publish — and publishing it again sends it normally.
+		// Driven through the real WC CRUD save, so Bootstrap's hooks fire.
+		$this->connected_client(); // seeds is_connected so the gate is open.
+		$queue = new IngestQueue();
+
+		// --- A never-published draft never reaches the engine as in stock ---
+		$draft = new \WC_Product_Simple();
+		$draft->set_name( 'Catalog Test PRO3884-DRAFT' );
+		$draft->set_status( 'draft' );
+		$draft->set_regular_price( '3.00' );
+		$draft->set_stock_status( 'instock' );
+		$draft_id                 = (int) $draft->save();
+		$this->created_products[] = $draft_id;
+
+		self::assertSame( array(), $queue->pending( 10, array( CatalogHookHandler::EVENT_CATALOG_UPSERT ) ), 'Saving a draft enqueues no upsert.' );
+		$this->flush_catalog( $queue );
+		self::assertFalse(
+			self::$engine->state()['last_catalog_in_stock'][ 'woo-' . $draft_id ] ?? null,
+			'A never-published draft is sent only as the in_stock=false removal.'
+		);
+
+		// --- Published, then moved to each unpublished status, then back ---
+		RecEngineMockServer::reset();
+		$product = $this->make_categorized_product( 'PRO3884-MOVE', '7.50' );
+		$pid     = (int) $product->get_id();
+		$sku     = 'woo-' . $pid;
+		$this->flush_catalog( $queue );
+		self::assertTrue( self::$engine->state()['last_catalog_in_stock'][ $sku ] ?? null, 'Precondition: the published product is sent in stock.' );
+
+		foreach ( array( 'draft', 'private', 'pending' ) as $status ) {
+			$this->save_with_status( $pid, $status );
+			self::assertSame( array(), $queue->pending( 10, array( CatalogHookHandler::EVENT_CATALOG_UPSERT ) ), "Moving to {$status} enqueues no upsert." );
+			self::assertCount(
+				1,
+				$queue->pending( 10, array( CatalogHookHandler::EVENT_CATALOG_DELETE ) ),
+				"Moving to {$status} enqueues the catalog.delete removal."
+			);
+			$this->flush_catalog( $queue );
+			self::assertFalse(
+				self::$engine->state()['last_catalog_in_stock'][ $sku ] ?? null,
+				"A product moved from publish to {$status} reaches the engine in_stock=false."
+			);
+
+			$this->save_with_status( $pid, 'publish' );
+			$this->flush_catalog( $queue );
+			self::assertTrue( self::$engine->state()['last_catalog_in_stock'][ $sku ] ?? null, "Publishing it again after {$status} sends it as a normal product." );
+		}
+
+		// --- A variable product follows its parent's status, variations too ---
+		$parent = new \WC_Product_Variable();
+		$parent->set_name( 'Catalog Test PRO3884-VAR' );
+		$parent->set_status( 'draft' );
+		$parent_id                = (int) $parent->save();
+		$this->created_products[] = $parent_id;
+		$variation                = new \WC_Product_Variation();
+		$variation->set_parent_id( $parent_id );
+		$variation->set_regular_price( '4.00' );
+		$variation->set_stock_status( 'instock' );
+		$variation_id             = (int) $variation->save();
+		$this->created_products[] = $variation_id;
+
+		$this->save_with_status( $parent_id, 'publish' );
+		$this->flush_catalog( $queue );
+		self::assertTrue( self::$engine->state()['last_catalog_in_stock'][ 'woo-' . $variation_id ] ?? null, 'Publishing the variable product sends its variation in stock.' );
+
+		$this->save_with_status( $parent_id, 'draft' );
+		$this->flush_catalog( $queue );
+		self::assertFalse(
+			self::$engine->state()['last_catalog_in_stock'][ 'woo-' . $variation_id ] ?? null,
+			'Drafting a variable product sends its variations in_stock=false, as trashing does.'
+		);
+	}
+
+	/**
+	 * Change a product's status through the WC CRUD save (fires the real
+	 * save_post_product hook), starting from an empty queue and a fresh
+	 * per-request dedupe set so each step is its own "request".
+	 */
+	private function save_with_status( int $product_id, string $status ): void {
+		CatalogHookHandler::reset_seen();
+		$this->truncate_queue();
+		RecEngineMockServer::reset();
+		$product = wc_get_product( $product_id );
+		self::assertInstanceOf( \WC_Product::class, $product );
+		$product->set_status( $status );
+		$product->save();
+		self::assertSame( $status, get_post_status( $product_id ) );
+	}
+
 	private function connected_client(): Client {
 		$base = (string) self::$engine->base_url();
 

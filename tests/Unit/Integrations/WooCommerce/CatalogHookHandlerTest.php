@@ -199,6 +199,104 @@ final class CatalogHookHandlerTest extends TestCase {
 		self::assertSame( CatalogHookHandler::EVENT_CATALOG_DELETE, $queue->enqueued[0]['type'] );
 	}
 
+	// --- only a published product is recommendable (PRO-3884) ----------------
+
+	/**
+	 * @return array<string, array{string}>
+	 */
+	public static function unpublished_statuses(): array {
+		return array(
+			'draft'   => array( 'draft' ),
+			'private' => array( 'private' ),
+			'pending' => array( 'pending' ),
+		);
+	}
+
+	/**
+	 * @dataProvider unpublished_statuses
+	 */
+	public function test_save_of_an_unpublished_product_enqueues_the_in_stock_false_removal( string $status ): void {
+		// A draft/private/pending product cannot be bought, so it must never
+		// reach the engine as recommendable. It goes out as the same removal a
+		// trashed product does — also when it was published before.
+		$queue   = $this->fake_queue();
+		$product = $this->fake_product( 100, 'DRAFT-1' );
+		$handler = $this->handler( $queue, true, array( 100 => $product ), array( $product ), null, array( 100 => $status ) );
+
+		$handler->on_save_product( 100 );
+
+		self::assertCount( 1, $queue->enqueued );
+		self::assertSame( CatalogHookHandler::EVENT_CATALOG_DELETE, $queue->enqueued[0]['type'], 'An unpublished product is sent as the in_stock=false removal, never as an upsert.' );
+		self::assertSame( '100', $queue->enqueued[0]['entity_id'] );
+		self::assertSame( 'DRAFT-1', $queue->enqueued[0]['payload']['object']['sku'] );
+	}
+
+	public function test_unpublished_variable_product_sends_every_variation_as_a_removal(): void {
+		$queue   = $this->fake_queue();
+		$parent  = $this->fake_product( 50, '' );
+		$v1      = $this->fake_product( 101, 'V-1', 'food/dry', 'https://shop.test/p', 50 );
+		$v2      = $this->fake_product( 102, 'V-2', 'food/dry', 'https://shop.test/p', 50 );
+		$handler = $this->handler( $queue, true, array( 50 => $parent ), array( $v1, $v2 ), null, array( 50 => 'draft' ) );
+
+		$handler->on_save_product( 50 );
+
+		self::assertSame( array( CatalogHookHandler::EVENT_CATALOG_DELETE, CatalogHookHandler::EVENT_CATALOG_DELETE ), array_column( $queue->enqueued, 'type' ) );
+		self::assertSame( array( '101', '102' ), array_column( $queue->enqueued, 'entity_id' ) );
+	}
+
+	public function test_variation_stock_change_under_an_unpublished_parent_enqueues_the_removal(): void {
+		// A variation's own post status is publish (or private when disabled);
+		// what counts is its variable product's status.
+		$queue     = $this->fake_queue();
+		$variation = $this->fake_product( 101, 'V-1', 'food/dry', 'https://shop.test/p', 50 );
+		$handler   = $this->handler( $queue, true, array( 101 => $variation ), array( $variation ), null, array( 50 => 'draft' ) );
+
+		$handler->on_stock_change( 101, 'outofstock', $variation );
+
+		self::assertCount( 1, $queue->enqueued );
+		self::assertSame( CatalogHookHandler::EVENT_CATALOG_DELETE, $queue->enqueued[0]['type'] );
+	}
+
+	public function test_published_translation_of_a_draft_canonical_stands_in_as_an_upsert(): void {
+		// Mirrors the catalog import: a published translation keeps the product
+		// recommendable even while its default-language post is a draft.
+		$queue     = $this->fake_queue();
+		$canonical = $this->fake_product( 100, '' );
+		$handler   = $this->handler(
+			$queue,
+			true,
+			array( 100 => $canonical ),
+			array( $canonical ),
+			$this->detector( array( 200 => 100 ) ),
+			array( 100 => 'draft' )
+		);
+
+		$handler->on_save_product( 200 );
+
+		self::assertCount( 1, $queue->enqueued );
+		self::assertSame( CatalogHookHandler::EVENT_CATALOG_UPSERT, $queue->enqueued[0]['type'] );
+	}
+
+	public function test_draft_translation_of_a_published_canonical_keeps_the_upsert(): void {
+		// Drafting a new translation must not hide the product (P4).
+		$queue     = $this->fake_queue();
+		$canonical = $this->fake_product( 100, '' );
+		$handler   = $this->handler(
+			$queue,
+			true,
+			array( 100 => $canonical ),
+			array( $canonical ),
+			$this->detector( array( 200 => 100 ) ),
+			array( 200 => 'draft' )
+		);
+
+		$handler->on_save_product( 200 );
+
+		self::assertCount( 1, $queue->enqueued );
+		self::assertSame( CatalogHookHandler::EVENT_CATALOG_UPSERT, $queue->enqueued[0]['type'] );
+		self::assertSame( '100', $queue->enqueued[0]['entity_id'] );
+	}
+
 	// --- always-sendable removal fallback (PRO-1498) --------------------------
 
 	public function test_delete_of_object_with_blank_category_path_is_enqueued_with_fallback(): void {
@@ -540,20 +638,31 @@ final class CatalogHookHandlerTest extends TestCase {
 		};
 	}
 
-	private function fake_product( int $id, string $sku, string $category_path = 'food/dry', string $product_url = 'https://shop.test/p' ): \WC_Product {
-		return new class( $id, $sku, $category_path, $product_url ) extends \WC_Product {
+	/**
+	 * @param int $parent_id > 0 makes the fake a variation of that parent.
+	 */
+	private function fake_product( int $id, string $sku, string $category_path = 'food/dry', string $product_url = 'https://shop.test/p', int $parent_id = 0 ): \WC_Product {
+		return new class( $id, $sku, $category_path, $product_url, $parent_id ) extends \WC_Product {
 			private int $id;
 			private string $sku;
 			private string $category_path;
 			private string $product_url;
-			public function __construct( int $id, string $sku, string $category_path, string $product_url ) {
+			private int $parent_id;
+			public function __construct( int $id, string $sku, string $category_path, string $product_url, int $parent_id ) {
 				$this->id            = $id;
 				$this->sku           = $sku;
 				$this->category_path = $category_path;
 				$this->product_url   = $product_url;
+				$this->parent_id     = $parent_id;
 			}
 			public function get_id( $context = 'view' ) {
 				return $this->id;
+			}
+			public function get_parent_id( $context = 'view' ) {
+				return $this->parent_id;
+			}
+			public function is_type( $type ) {
+				return 'variation' === $type && $this->parent_id > 0;
 			}
 			public function get_sku( $context = 'view' ) {
 				return $this->sku;
