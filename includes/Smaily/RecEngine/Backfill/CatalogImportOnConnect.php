@@ -33,9 +33,9 @@ final class CatalogImportOnConnect {
 	/** Hold-back window between connecting and the first batch being sent. */
 	public const DELAY_SECONDS = 180;
 
-	private ?BackfillJobInterface $job;
+	private ?AbstractBackfillJob $job;
 
-	public function __construct( ?BackfillJobInterface $job ) {
+	public function __construct( ?AbstractBackfillJob $job ) {
 		$this->job = $job;
 	}
 
@@ -44,7 +44,7 @@ final class CatalogImportOnConnect {
 	 *              already running (or there is no products job to start).
 	 */
 	public function start(): bool {
-		if ( $this->job === null || ! function_exists( 'as_schedule_single_action' ) || $this->is_running() ) {
+		if ( $this->job === null || ! function_exists( 'as_schedule_single_action' ) || $this->job->is_running() ) {
 			return false;
 		}
 
@@ -58,10 +58,5 @@ final class CatalogImportOnConnect {
 		);
 
 		return true;
-	}
-
-	private function is_running(): bool {
-		$row = AbstractBackfillJob::read_state( self::JOB_TYPE );
-		return is_array( $row ) && $row['status'] === BackfillJobInterface::STATUS_RUNNING;
 	}
 }
