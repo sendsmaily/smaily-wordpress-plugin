@@ -7383,10 +7383,12 @@ attributes as a landing capture) and onto `_smaily_visitor_token` order meta, so
 `OrderPayloadBuilder` sends it as `smaily_visitor_token`. A cookie outside the
 token shape is replaced, because the engine would never accept it. Nothing is
 stored when the cookie cannot be written (headers sent).
-**Token format — ASSUMPTION:** the contract does not yet define a store-created
-token. `vt_` + 32 lowercase hex from `random_bytes(16)` is inside
-`AttributionShape::is_visitor_token()` (`vt_` + 1–64 alphanumerics), so the
-order sender keeps it. The PRO-3844 contract sync confirms or changes it.
+**Token format — contract v1.11.0 §5 (engine PRO-3844, synced in PRO-3849):**
+`vs_` + exactly 22 characters `[A-Za-z0-9]`, each drawn with `random_int()`.
+`AttributionShape::is_visitor_token()` accepts it beside the engine's `vt_`
+shape, so the cookie read, the order sender and the §15 request keep it. (The
+first PRO-3845 build minted `vt_` + 32 hex as an assumption; v1.11.0 replaced
+it before release.)
 **Consent rule — an explicit yes only (Erkki, 2026-10-06; parity with the
 Magento plugin's PRO-3664 decision "consent only on an explicit yes"):** the
 WP Consent API's `wp_has_consent()` answers true when no consent plugin has set
