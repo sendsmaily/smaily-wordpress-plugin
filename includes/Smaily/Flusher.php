@@ -52,7 +52,9 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  *   - mark_sent on skip (missing email or no workflow mapped — a retry
  *     can't recover either, so we don't waste retry attempts)
  *   - mark_failed on TerminalDispatchException (unknown event_type,
- *     payload decode failure)
+ *     payload decode failure, an HTTP 200 reply whose Smaily code is 203
+ *     "invalid data" — RetryPolicy::permanent_envelope(), PRO-3750; any
+ *     other Smaily code on HTTP 200 still marks the row sent)
  *   - RetryPolicy::apply() on ApiException: a permanent refusal (4xx bar
  *     429) fails the row at once, anything else is retried with backoff
  *     until the attempt ceiling (PRO-1685)
@@ -117,6 +119,13 @@ final class Flusher {
 			try {
 				$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
 				$this->dispatch( $type, $payload );
+
+				// An HTTP 200 can still carry a refusal Smaily repeats for the
+				// same data (203 "invalid data") — fail it now (PRO-3750).
+				$refusal = RetryPolicy::permanent_envelope( $this->current_exchange );
+				if ( $refusal !== null ) {
+					throw new TerminalDispatchException( $refusal );
+				}
 
 				$this->queue->mark_sent( $id );
 				++$stats['sent'];

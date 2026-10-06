@@ -121,6 +121,47 @@ final class RetryPolicyTest extends TestCase {
 		self::assertStringContainsString( 'HTTP 503', $queue->marked_failed[0]['error'] );
 	}
 
+	public function test_an_invalid_data_envelope_is_permanent_with_smailys_answer(): void {
+		// PRO-3750: HTTP 200 with Smaily code 203 — the same data is rejected
+		// again, so the reason names the class and keeps Smaily's answer.
+		$reason = RetryPolicy::permanent_envelope(
+			array(
+				'request'  => array(),
+				'response' => array(
+					'http' => 200,
+					'body' => array(
+						'code'    => 203,
+						'message' => 'Invalid data',
+					),
+				),
+			)
+		);
+
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $reason );
+	}
+
+	/**
+	 * @dataProvider not_permanent_envelopes
+	 *
+	 * @param array<string, mixed>|null $exchange
+	 */
+	public function test_any_other_reply_is_not_a_permanent_envelope( ?array $exchange ): void {
+		self::assertNull( RetryPolicy::permanent_envelope( $exchange ) );
+	}
+
+	/**
+	 * @return array<string, array{0: array<string, mixed>|null}>
+	 */
+	public static function not_permanent_envelopes(): array {
+		return array(
+			'success'             => array( array( 'response' => array( 'http' => 200, 'body' => array( 'code' => 101, 'message' => 'OK' ) ) ) ),
+			'another error code'  => array( array( 'response' => array( 'http' => 200, 'body' => array( 'code' => 216, 'message' => 'Unknown error' ) ) ) ),
+			'no body code'        => array( array( 'response' => array( 'http' => 200, 'body' => array() ) ) ),
+			'transport error'     => array( array( 'response' => array( 'error' => 'timed out' ) ) ),
+			'nothing was sent'    => array( null ),
+		);
+	}
+
 	private function fake_queue(): EventQueue {
 		return new class() extends EventQueue {
 			/** @var array<int, array<string, mixed>> */

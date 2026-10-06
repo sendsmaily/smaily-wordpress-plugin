@@ -137,19 +137,90 @@ final class CartFlusherTest extends TestCase {
 
 		$queue = $this->fake_queue( array( $this->cart_event( 4 ) ) );
 
+		$body   = array(
+			'code'    => 221,
+			'message' => 'no such autoresponder',
+		);
 		$client = $this->createMock( Client::class );
-		$client->method( 'trigger_automation' )->willReturn(
+		$client->method( 'trigger_automation' )->willReturn( $body );
+		$client->method( 'last_exchange' )->willReturn(
 			array(
-				'code'    => 203,
-				'message' => 'no such autoresponder',
+				'request'  => array(),
+				'response' => array(
+					'http' => 200,
+					'body' => $body,
+				),
 			)
 		);
-		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
 
 		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
-		self::assertStringContainsString( 'smaily_response_code_203', $queue->marked_failed[0]['error'] );
+		self::assertSame( 'smaily_response_code_221', $queue->marked_failed[0]['error'] );
+	}
+
+	public function test_an_invalid_data_answer_on_the_fallback_names_its_class_and_smailys_answer(): void {
+		// PRO-3750: code 203 already failed at once here; it now carries the
+		// same class and answer as on the routed path and the main flusher.
+		$this->stub_status_option( 77 );
+
+		$queue = $this->fake_queue( array( $this->cart_event( 6 ) ) );
+
+		$body   = array(
+			'code'    => 203,
+			'message' => 'Invalid data',
+		);
+		$client = $this->createMock( Client::class );
+		$client->method( 'trigger_automation' )->willReturn( $body );
+		$client->method( 'last_exchange' )->willReturn(
+			array(
+				'request'  => array(),
+				'response' => array(
+					'http' => 200,
+					'body' => $body,
+				),
+			)
+		);
+
+		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client ) )->flush();
+
+		self::assertSame( 1, $stats['failed'] );
+		self::assertSame( array(), $queue->attempts );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $queue->marked_failed[0]['error'] );
+	}
+
+	public function test_an_invalid_data_answer_on_the_routed_path_fails_on_the_first_attempt(): void {
+		// PRO-3750: the router returns true whatever Smaily's HTTP 200 body
+		// says, so the flusher reads the code from the stored exchange.
+		$queue = $this->fake_queue( array( $this->cart_event( 7 ) ) );
+
+		$router = new class extends AutomationRouter {
+			public function __construct() {}
+
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+				return true;
+			}
+
+			public function last_exchange(): ?array {
+				return array(
+					'request'  => array( 'endpoint' => 'autoresponder' ),
+					'response' => array(
+						'http' => 200,
+						'body' => array(
+							'code'    => 203,
+							'message' => 'Invalid data',
+						),
+					),
+				);
+			}
+		};
+
+		$stats = ( new CartFlusher( $queue, $router, static fn () => null ) )->flush();
+
+		self::assertSame( 1, $stats['failed'] );
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertSame( array(), $queue->attempts );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $queue->marked_failed[0]['error'] );
 	}
 
 	public function test_api_exception_records_attempt_for_retry(): void {

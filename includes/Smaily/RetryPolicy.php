@@ -29,6 +29,10 @@ defined( 'ABSPATH' ) || exit;
  *
  *   - PERMANENT (4xx except 429): stop. mark_failed with a `permanent_http_*`
  *     reason, visible in the Event Log and countable by NotificationManager.
+ *   - PERMANENT envelope (HTTP 2xx whose `{code, message}` body is 203
+ *     "invalid data" — Smaily rejects identical data again): stop. The
+ *     flusher fails the row with the `permanent_envelope_203` reason from
+ *     permanent_envelope() (PRO-3750, Magento parity with PRO-1962).
  *   - TEMPORARY (5xx, 429, transport error / code 0): retry, spaced by
  *     BACKOFF (1m, 5m, 15m, 1h, 6h) — or by Smaily's own Retry-After when it
  *     sent one — until MAX_ATTEMPTS, then mark_failed with
@@ -64,6 +68,13 @@ final class RetryPolicy {
 	private const MAX_DELAY = 21600;
 
 	/**
+	 * Smaily's envelope code for "invalid data": a retry with the same data
+	 * is rejected again (PRO-3750). Every other envelope code is handled as
+	 * before.
+	 */
+	private const CODE_INVALID_DATA = 203;
+
+	/**
 	 * Can this failure ever succeed on a retry? 4xx (bar 429) says no —
 	 * the request itself is the problem. A transport error carries code 0
 	 * and is treated as temporary.
@@ -72,6 +83,30 @@ final class RetryPolicy {
 		$status = $e->getCode();
 
 		return $status >= 400 && $status < 500 && 429 !== $status;
+	}
+
+	/**
+	 * The failure reason when a Smaily reply that arrived as HTTP 2xx refuses
+	 * the request permanently in its `{code, message}` body, else null. The
+	 * reason keeps Smaily's answer behind a `permanent_envelope_<code>:`
+	 * class, the same shape `permanent_http_<code>:` has.
+	 *
+	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
+	 */
+	public static function permanent_envelope( ?array $exchange ): ?string {
+		$body = $exchange['response']['body'] ?? null;
+		if ( ! is_array( $body ) || ! isset( $body['code'] ) || ! is_numeric( $body['code'] ) ) {
+			return null;
+		}
+
+		$code = (int) $body['code'];
+		if ( $code !== self::CODE_INVALID_DATA ) {
+			return null;
+		}
+
+		$message = isset( $body['message'] ) && is_scalar( $body['message'] ) ? (string) $body['message'] : '';
+
+		return sprintf( 'permanent_envelope_%d: Smaily API returned code %d: %s', $code, $code, $message );
 	}
 
 	/**

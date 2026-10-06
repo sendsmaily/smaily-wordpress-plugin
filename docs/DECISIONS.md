@@ -7008,6 +7008,25 @@ context is per send, not stored on the contact.
 **Rejected:** sending `false` — a template tests `== "true"`, and the empty
 value is what every unused product slot already carries.
 
+### PRO-3750 — A Smaily "invalid data" answer (code 203) fails the row on the first attempt (2026-10-05)
+
+**Context:** Smaily can answer HTTP 200 with a `{code, message}` body that
+refuses the request; code 203 "invalid data" rejects the same data again on
+every retry. The Magento plugin retried it five times and fixed that
+(PRO-1962). Here the Client throws only on non-2xx, so the main Flusher and
+the cart flusher's routed path marked a 203 answer **sent**; only the cart's
+legacy-autoresponder fallback failed it (as `smaily_response_code_203`).
+**Decision:** both Smaily-queue flushers read the stored exchange after a
+dispatch; `RetryPolicy::permanent_envelope()` turns code 203 into a terminal
+failure `permanent_envelope_203: Smaily API returned code 203: <message>` —
+no attempt spent, Smaily's answer kept, the same class as Magento. Every
+other code on HTTP 200 keeps its handling (main flusher and routed cart path:
+sent; cart fallback: `smaily_response_code_<n>`). TransactionalFlusher
+already fails any non-101 at once and is unchanged.
+**Rejected:** making the Client throw on every non-101 envelope — it changes
+every other caller (backfill, consent writes) and every other code, which
+this issue does not cover.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

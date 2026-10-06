@@ -322,6 +322,79 @@ final class FlusherTest extends TestCase {
 		self::assertStringContainsString( 'permanent_http_401', $queue->marked_failed[0]['error'] );
 	}
 
+	public function test_an_invalid_data_answer_fails_the_contact_sync_on_the_first_attempt(): void {
+		// PRO-3750: HTTP 200 with Smaily code 203 "invalid data" — sending the
+		// same data again is rejected again, so the row fails at once with
+		// Smaily's answer, and no retry attempt is spent.
+		$queue = $this->fake_queue( array( $this->contact_sync_event( 21 ) ) );
+
+		$client = $this->client_answering( 203, 'Invalid data' );
+
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+
+		self::assertSame( 1, $stats['failed'] );
+		self::assertSame( 0, $stats['sent'] );
+		self::assertSame( 0, $stats['retried'] );
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertSame( array(), $queue->attempts );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $queue->marked_failed[0]['error'] );
+		self::assertStringContainsString( '"code":203', (string) $queue->exchanges[21]['response'], 'Smaily\'s reply is kept for the Event Log.' );
+	}
+
+	public function test_an_invalid_data_answer_fails_an_automation_on_the_first_attempt(): void {
+		$queue = $this->fake_queue(
+			array(
+				array(
+					'id'         => 22,
+					'event_type' => HookHandler::EVENT_AUTOMATION_WELCOME,
+					'payload'    => json_encode( array( 'email' => 'a@b.c', 'fields' => array() ) ),
+				),
+			)
+		);
+
+		$router = new class extends AutomationRouter {
+			public function __construct() {}
+
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+				return true;
+			}
+
+			public function last_exchange(): ?array {
+				return array(
+					'request'  => array( 'endpoint' => 'autoresponder' ),
+					'response' => array(
+						'http' => 200,
+						'body' => array(
+							'code'    => 203,
+							'message' => 'Invalid data',
+						),
+					),
+				);
+			}
+		};
+
+		$stats = ( new Flusher( $queue, $router, static fn () => null ) )->flush();
+
+		self::assertSame( 1, $stats['failed'] );
+		self::assertSame( array(), $queue->attempts );
+		self::assertStringStartsWith( 'permanent_envelope_203: ', $queue->marked_failed[0]['error'] );
+	}
+
+	public function test_another_smaily_error_code_keeps_todays_handling(): void {
+		// PRO-3750 changes code 203 only. Today an HTTP 200 reply with any
+		// other Smaily code leaves the row as sent, with the reply stored.
+		$queue = $this->fake_queue( array( $this->contact_sync_event( 23 ) ) );
+
+		$client = $this->client_answering( 216, 'Unknown error' );
+
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+
+		self::assertSame( 1, $stats['sent'] );
+		self::assertSame( array( 23 ), $queue->marked_sent );
+		self::assertSame( array(), $queue->marked_failed );
+		self::assertSame( array(), $queue->attempts );
+	}
+
 	public function test_the_retry_ceiling_fails_a_row_that_keeps_failing_transiently(): void {
 		$queue = $this->fake_queue(
 			array(
@@ -445,6 +518,40 @@ final class FlusherTest extends TestCase {
 				$this->exchanges[ $id ] = array( 'sent' => $sent_payload, 'response' => $last_response );
 			}
 		};
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function contact_sync_event( int $id ): array {
+		return array(
+			'id'         => $id,
+			'event_type' => HookHandler::EVENT_CONTACT_SYNC,
+			'payload'    => json_encode( array( 'email' => 'a@b.c', 'fields' => array() ) ),
+		);
+	}
+
+	/**
+	 * A Client whose contact upsert gets an HTTP 200 reply carrying $code.
+	 */
+	private function client_answering( int $code, string $message ): Client {
+		$body   = array(
+			'code'    => $code,
+			'message' => $message,
+		);
+		$client = $this->createMock( Client::class );
+		$client->method( 'upsert_subscribers' )->willReturn( $body );
+		$client->method( 'last_exchange' )->willReturn(
+			array(
+				'request'  => array( 'method' => 'POST', 'endpoint' => 'contact', 'body' => array( array( 'email' => 'a@b.c' ) ) ),
+				'response' => array(
+					'http' => 200,
+					'body' => $body,
+				),
+			)
+		);
+
+		return $client;
 	}
 
 	private function automation_router_returning_true(): AutomationRouter {
