@@ -407,6 +407,43 @@ class IngestQueue {
 	}
 
 	/**
+	 * Delete the rows of one event type for these entities that can still be
+	 * sent (Art 17, PRO-3906). Returns the number of rows deleted.
+	 *
+	 * "Can still be sent" is `pending` — due now, or parked for a retry
+	 * (`next_retry_at`) — and `failed`, which the Event Log's Retry revives
+	 * (reset_failed()). A `sent` row is never sent again. Customer and order
+	 * rows carry no data of their own: the flusher builds them from the
+	 * current user or order at send time, so a row left behind would send the
+	 * erased customer to the engine again. The ids go out in chunks so one
+	 * statement stays bounded for a customer with many orders.
+	 *
+	 * @param array<int, int|string> $entity_ids
+	 */
+	public function delete_unsent( string $event_type, array $entity_ids ): int {
+		global $wpdb;
+
+		$entity_ids = array_values( array_unique( array_map( 'strval', $entity_ids ) ) );
+		$table      = $this->table_name();
+		$deleted    = 0;
+
+		foreach ( array_chunk( $entity_ids, 500 ) as $chunk ) {
+			$placeholders = implode( ', ', array_fill( 0, count( $chunk ), '%s' ) );
+
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+			$deleted += (int) $wpdb->query(
+				$wpdb->prepare(
+					"DELETE FROM {$table} WHERE status IN ( %s, %s ) AND event_type = %s AND entity_id IN ( {$placeholders} )",
+					array_merge( array( self::STATUS_PENDING, self::STATUS_FAILED, $event_type ), $chunk )
+				)
+			);
+			// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		}
+
+		return $deleted;
+	}
+
+	/**
 	 * Make sure this queue's flush hooks have a pass queued after a re-drive.
 	 * Public so the /events/retry endpoint can call it right after
 	 * reset_failed(); the revived rows go out at the next scheduled pass

@@ -176,7 +176,7 @@ DELETE does not reach it.
 
 | Element | Where | What it is | Export (Art 15) | Erase (Art 17) |
 |---|---|---|---|---|
-| `smly_rec_event_queue` row | Merchant's own WordPress DB table | One queued engine event: `event_type`, `entity_id`, `payload`, `status`, timestamps, `sent_payload` + `last_response` (F3-44) | No | **Yes** — every row whose `sent_payload` carries the address is DELETED |
+| `smly_rec_event_queue` row | Merchant's own WordPress DB table | One queued engine event: `event_type`, `entity_id`, `payload`, `status`, timestamps, `sent_payload` + `last_response` (F3-44) | No | **Yes** — every row whose `sent_payload` carries the address is DELETED, and so is every customer/order update for the customer that can still be sent (PRO-3906) |
 
 **What erasure does here (PRO-2384).** `IngestQueue::delete_for_privacy_request()`,
 called by `GdprHandler`'s eraser whatever the engine connection state, deletes
@@ -185,8 +185,22 @@ typed, and as `wp_json_encode()` writes it (`\uXXXX` escapes for a non-ASCII
 character, PRO-2448). The address is lowercased as the payload builders write
 it, and the match is binary, so neither a longer address ending in the
 requester's nor an accented neighbour is touched. Deleting the row removes its
-`last_response` too. A row with no stored copy yet (a `pending` row not yet
-attempted) carries no address and is left. **Retention (code-derived —
+`last_response` too.
+
+**Waiting updates (PRO-3906).** A row not yet attempted has no stored copy,
+so the match above cannot see it — but the flusher builds a customer or order
+row from the current user or order at send time, so a waiting row would send
+the erased customer to the engine again after the §9 DELETE. Before the engine
+call, the eraser therefore also deletes, through
+`IngestQueue::delete_unsent()`, every `customer.upsert` row whose `entity_id`
+is the WP user with the address and every `order.upsert` row whose `entity_id`
+is an order billed to it (the same `wc_get_orders( billing_email )` lookup the
+order-meta erasure uses, run once). "Can still be sent" is `pending` (due, or
+parked for a retry) and `failed` (the Event Log's Retry revives it); a `sent`
+row is never sent again and is left to the match above. Catalog rows and other
+customers' rows are never touched. No lasting record of the erasure is kept: a
+later profile save or order is a new action and may send the customer again
+(Erkki, 2026-10-06). **Retention (code-derived —
 `QueueJanitor`):** terminal rows are otherwise pruned after 30 days (`sent`) or
 90 (`failed`).
 
@@ -267,7 +281,10 @@ Full deletion, asymmetric to export (export is conservative, erase is complete):
   tracker rows are deleted (PRO-1343); and in the Smaily event queue every
   still-sendable row is deleted while every already-`sent` row is anonymised in
   place, so the Event Log keeps the fact of the send and none of the person
-  (PRO-2383).
+  (PRO-2383); in the Campaign Intelligence queue every row whose stored copy
+  carries the address is deleted (PRO-2384), and so is every customer and
+  order update for the customer still waiting to be sent, so none of them
+  re-creates the customer in the engine (PRO-3906).
 
 ### Art 21 — Opt-out (profiling objection)
 
