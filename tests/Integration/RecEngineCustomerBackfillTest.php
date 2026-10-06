@@ -173,6 +173,7 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 
 		$job = $this->job();
 		$job->start();
+		$this->truncate_queue(); // Drop the live hook's row for the new user.
 		self::$engine->reset_request_count();
 
 		$this->cancel_through_rest( 'customers' );
