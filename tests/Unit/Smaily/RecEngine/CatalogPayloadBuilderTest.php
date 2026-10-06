@@ -73,6 +73,29 @@ final class CatalogPayloadBuilderTest extends TestCase {
 		self::assertSame( '12345', $payload['external_id'] );
 	}
 
+	public function test_manifest_item_carries_the_sku_and_stock_build_sends(): void {
+		$builder = new CatalogPayloadBuilder();
+		$in      = $this->fake_product( array( 'id' => 12345, 'sku' => 'ACA-DOG-3KG', 'price' => '1.00', 'in_stock' => true ) );
+		$out     = $this->fake_product( array( 'id' => 777, 'sku' => '', 'price' => '1.00', 'in_stock' => false ) );
+
+		$item = $builder->manifest_item( $in, false );
+		self::assertSame( array( 'sku', 'in_stock' ), array_keys( $item ), 'A §3c item carries exactly sku + in_stock.' );
+		self::assertSame( $builder->build( $in, 'u' )['sku'], $item['sku'], 'The manifest key IS the catalog key.' );
+		self::assertTrue( $item['in_stock'] );
+
+		self::assertSame( array( 'sku' => 'woo-777', 'in_stock' => false ), $builder->manifest_item( $out, false ) );
+		self::assertSame(
+			array( 'sku' => 'woo-12345', 'in_stock' => false ),
+			$builder->manifest_item( $in, true ),
+			'A trashed unit is out of stock in the manifest, as the catalog sync sends it.'
+		);
+		self::assertSame(
+			array( 'sku' => 'woo-55', 'in_stock' => false ),
+			$builder->manifest_item_unresolvable( 55 ),
+			'Same key build_unresolvable() sends.'
+		);
+	}
+
 	public function test_event_id_equals_supplied_queue_uuid(): void {
 		// Unit-level guard of the queue.event_uuid == body.event_id invariant
 		// (the integration test pins it end-to-end against the mock engine).

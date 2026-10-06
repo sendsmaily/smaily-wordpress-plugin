@@ -178,8 +178,9 @@ foreach ( $cron_hooks as $hook ) {
 // Action Scheduler jobs (Phase-2 fork + rec-engine flushers, PRO-1337). We
 // can't load the AS library from uninstall context cleanly, so we drop rows
 // directly via $wpdb. The table is created by AS itself; absent table = no-op.
-// `smly_rec_%` catches the four rec-engine recurring flush hooks
-// (smly_rec_flush_ingest/_customers/_orders/_catalog_remove, Bootstrap.php) —
+// `smly_rec_%` catches the rec-engine recurring hooks (the four flushers
+// smly_rec_flush_ingest/_customers/_orders/_catalog_remove and the nightly
+// smly_rec_catalog_manifest, Bootstrap.php) —
 // left unscheduled they'd keep firing on a class that no longer exists.
 $as_table = $wpdb->prefix . 'actionscheduler_actions';
 // phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared

@@ -109,12 +109,83 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	}
 
 	protected function enqueue_record( int $entity_id ): void {
+		$post = $this->units_to_send( $entity_id );
+		if ( $post === null ) {
+			return;
+		}
+		[ $is_trashed, $units ] = $post;
+
+		if ( $units === null ) {
+			$this->enqueue_unavailable_unresolvable( $entity_id );
+			return;
+		}
+
+		foreach ( $units as $unit ) {
+			if ( $is_trashed ) {
+				$this->enqueue_unavailable( $unit );
+				continue;
+			}
+			$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_UPSERT, (string) $unit->get_id(), array() );
+		}
+	}
+
+	/**
+	 * The §3c nightly manifest (PRO-3859): one `{sku, in_stock}` item per unit
+	 * this import sends — the same walk, the same multilingual collapse, the
+	 * same expansion into variations and the same keys — so the manifest can
+	 * never name a product the import would not send, nor leave one out. A
+	 * trashed product is in it as in_stock=false; drafts, private and pending
+	 * products are not, because the import does not enumerate them. Stops once
+	 * the list holds more than $limit items: the caller sends nothing then.
+	 *
+	 * @return array<int, array{sku: string, in_stock: bool}>
+	 */
+	public function manifest_items( int $limit ): array {
+		$items = array();
+		$after = 0;
+
+		do {
+			$ids = $this->fetch_ids_after( $after, $this->batch_size() );
+			foreach ( $ids as $entity_id ) {
+				$post = $this->units_to_send( $entity_id );
+				if ( $post === null ) {
+					continue;
+				}
+				[ $is_trashed, $units ] = $post;
+
+				if ( $units === null ) {
+					$items[] = $this->builder->manifest_item_unresolvable( $entity_id );
+				} else {
+					foreach ( $units as $unit ) {
+						$items[] = $this->builder->manifest_item( $unit, $is_trashed );
+					}
+				}
+
+				if ( count( $items ) > $limit ) {
+					return $items;
+				}
+			}
+			$after = $ids === array() ? $after : (int) end( $ids );
+		} while ( count( $ids ) === $this->batch_size() );
+
+		return $items;
+	}
+
+	/**
+	 * What this import sends for one enumerated parent post — the single
+	 * decision enqueue_record() and manifest_items() share.
+	 *
+	 * @return array{0: bool, 1: array<int, \WC_Product>|null}|null Null when
+	 *         nothing is sent for the post; else [is_trashed, units], units
+	 *         null for a trashed product WooCommerce cannot load.
+	 */
+	private function units_to_send( int $entity_id ): ?array {
 		$canonical_id = $this->detector->get_canonical_post_id( $entity_id );
 		if ( $canonical_id > 0 && $canonical_id !== $entity_id && $this->canonical_is_enumerated( $canonical_id ) ) {
 			// A translation whose canonical (default-language) post is itself a
 			// published product in this walk — the canonical enqueues itself on
 			// its own cursor step, so skip this one to avoid a duplicate SKU.
-			return;
+			return null;
 		}
 
 		// A trashed product stays in the catalog as in_stock=false (kept for the
@@ -139,21 +210,12 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 			// ours". Only the trashed branch needs a tombstone (PRO-1498, F3-43
 			// never-drop); a publish-status load failure is a separate, tracked
 			// upsert-side gap (CC.4) out of scope here.
-			if ( $is_trashed ) {
-				$this->enqueue_unavailable_unresolvable( $entity_id );
-			}
-			return;
+			return $is_trashed ? array( true, null ) : null;
 		}
 
 		// Same fan-out as the live hook: a variable product enqueues one row per
 		// variation unit; a simple product enqueues itself.
-		foreach ( $this->builder->expand( $product ) as $unit ) {
-			if ( $is_trashed ) {
-				$this->enqueue_unavailable( $unit );
-				continue;
-			}
-			$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_UPSERT, (string) $unit->get_id(), array() );
-		}
+		return array( $is_trashed, $this->builder->expand( $product ) );
 	}
 
 	/**
