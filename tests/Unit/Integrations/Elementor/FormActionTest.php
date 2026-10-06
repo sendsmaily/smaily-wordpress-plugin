@@ -41,6 +41,9 @@ final class FormActionTest extends TestCase {
 		);
 		Functions\when( 'sanitize_text_field' )->alias( static fn ( $value ): string => trim( (string) $value ) );
 		Functions\when( 'esc_url_raw' )->returnArg( 1 );
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
+		Functions\when( 'home_url' )->justReturn( 'https://shop.example.test' );
+		Functions\when( 'site_url' )->justReturn( 'https://shop.example.test' );
 		Functions\when( 'get_transient' )->justReturn( false );
 		Functions\when( 'set_transient' )->justReturn( true );
 		Functions\when( 'is_admin' )->justReturn( false );

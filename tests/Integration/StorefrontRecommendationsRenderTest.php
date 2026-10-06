@@ -14,6 +14,7 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Bootstrap;
+use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -157,5 +158,49 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		wp_set_current_user( $this->user_id );
 
 		self::assertSame( '', do_shortcode( '[smaily_recommendations]' ) );
+	}
+
+	/**
+	 * A page that shows one shopper's cards must not be stored by a page
+	 * cache and served to the next visitor (PRO-3832); a page with nothing
+	 * in the slot stays cacheable. The marking is recorded through the seam,
+	 * because a defined constant cannot be undefined inside one PHP process.
+	 */
+	public function test_a_render_with_cards_marks_the_page_not_to_be_cached(): void {
+		$renderer = $this->recording_renderer();
+
+		self::assertNotSame( '', $renderer->render( $this->user_id ) );
+		self::assertSame( 1, $renderer->marked );
+		self::assertTrue( defined( 'DONOTCACHEPAGE' ) && constant( 'DONOTCACHEPAGE' ) );
+	}
+
+	public function test_a_render_with_nothing_leaves_the_page_cacheable(): void {
+		$renderer = $this->recording_renderer();
+
+		self::assertSame( '', $renderer->render( 0 ), 'Logged out.' );
+		self::$engine->set_storefront_slots( (string) $this->user_id, array() );
+		self::assertSame( '', $renderer->render( $this->user_id ), 'An empty engine answer.' );
+		self::assertSame( 0, $renderer->marked );
+	}
+
+	/**
+	 * The production renderer (Bootstrap's collaborators), counting how often
+	 * it marks the page not to be cached.
+	 */
+	private function recording_renderer(): StorefrontRecommendations {
+		$bootstrap = Bootstrap::instance();
+
+		return new class(
+			$bootstrap->rec_engine_settings(),
+			$bootstrap->profiling_consent(),
+			static fn () => $bootstrap->rec_client( 1, StorefrontRecommendations::TIMEOUT_SECONDS )
+		) extends StorefrontRecommendations {
+			public int $marked = 0;
+
+			protected function mark_not_cacheable(): void {
+				++$this->marked;
+				parent::mark_not_cacheable();
+			}
+		};
 	}
 }
