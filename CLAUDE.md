@@ -71,7 +71,12 @@ a fresh worktree's wp-env there needed the CI job's prep first — `composer run
 after `start`: `npx @wordpress/env run cli wp plugin activate smaily-connect`
 and `npx @wordpress/env run cli wp config set WP_DEBUG_DISPLAY false --raw`.
 Without them 78 unrelated tests failed (missing build hash, hooks never
-registered). Port 8888 can be held by another local project (a Magento
+registered). A checkout whose gitignored builds are missing or stale also
+fails the render tests (LandingPageBlockRender, LandingPageShortcodeRender,
+StorefrontRecommendationsRender — 5 tests, 2026-10-06): run
+`composer run install-block-modules && composer run build` and
+`npm run build:admin` (it builds `sc-recs.js`) before reading those as yours.
+Port 8888 can be held by another local project (a Magento
 phpMyAdmin container): `WP_ENV_PORT=8898 WP_ENV_TESTS_PORT=8899` in the
 environment moves wp-env without touching `.wp-env.json`. `wp-env start`
 fails with "port is already allocated" when the port is taken — don't stop
