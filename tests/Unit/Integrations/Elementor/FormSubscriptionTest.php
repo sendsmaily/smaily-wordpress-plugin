@@ -33,6 +33,9 @@ final class FormSubscriptionTest extends TestCase {
 		);
 		Functions\when( 'sanitize_text_field' )->alias( static fn ( $value ): string => trim( strip_tags( (string) $value ) ) );
 		Functions\when( 'esc_url_raw' )->returnArg( 1 );
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
+		Functions\when( 'home_url' )->justReturn( 'https://shop.example.test' );
+		Functions\when( 'site_url' )->justReturn( 'https://shop.example.test' );
 		Functions\when( 'get_transient' )->alias(
 			fn ( string $key ) => $this->transients[ $key ]['value'] ?? false
 		);
@@ -96,6 +99,63 @@ final class FormSubscriptionTest extends TestCase {
 		);
 		self::assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $sent_at );
 		self::assertSame( array(), $client->triggers, 'No workflow is configured, so none is triggered.' );
+	}
+
+	public function test_a_page_address_on_the_store_host_is_sent_unchanged_whatever_its_case(): void {
+		$client = $this->fake_client();
+
+		$this->subscription( $client )->submit( $this->settings(), array( 'email' => 'visitor@example.test' ), 'https://SHOP.Example.test/contact/?ref=footer' );
+
+		self::assertSame( 'https://SHOP.Example.test/contact/?ref=footer', $client->upserts[0][0]['elementor_form_url'] );
+	}
+
+	public function test_a_page_address_on_the_wordpress_address_host_is_sent_when_it_differs_from_the_site_address(): void {
+		Functions\when( 'site_url' )->justReturn( 'https://wp.example.test/core' );
+		$client = $this->fake_client();
+
+		$this->subscription( $client )->submit( $this->settings(), array( 'email' => 'visitor@example.test' ), 'https://wp.example.test/landing/' );
+
+		self::assertSame( 'https://wp.example.test/landing/', $client->upserts[0][0]['elementor_form_url'] );
+	}
+
+	/**
+	 * The page address comes from the visitor's browser: one that is not on
+	 * the store's own host is left out, and the rest of the signup is sent
+	 * as before (PRO-3831).
+	 *
+	 * @dataProvider provide_page_addresses_off_the_store
+	 */
+	public function test_a_page_address_off_the_store_host_is_left_out_and_the_signup_still_goes_through( string $page_url ): void {
+		$client = $this->fake_client();
+
+		$outcome = $this->subscription( $client )->submit( $this->settings(), array( 'email' => 'visitor@example.test' ), $page_url );
+
+		self::assertSame( FormSubscription::OUTCOME_SUBSCRIBED, $outcome );
+		$contact = $client->upserts[0][0];
+		self::assertArrayNotHasKey( 'elementor_form_url', $contact );
+		self::assertSame( 'visitor@example.test', $contact['email'] );
+		self::assertSame( 0, $contact['is_unsubscribed'] );
+		self::assertSame( 'Newsletter', $contact['elementor_form_name'] );
+		self::assertArrayHasKey( 'elementor_form_submitted_at', $contact );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public function provide_page_addresses_off_the_store(): array {
+		return array(
+			'another host'                   => array( 'https://phish.example/login' ),
+			'store host as a subdomain'      => array( 'https://shop.example.test.evil.com/contact/' ),
+			'store host as a suffix'         => array( 'https://evilshop.example.test/contact/' ),
+			'store host as the user info'    => array( 'https://shop.example.test@evil.com/contact/' ),
+			'user info on the store host'    => array( 'https://user:pass@shop.example.test/contact/' ),
+			'scheme-relative, another host'  => array( '//evil.com/contact/' ),
+			'scheme-relative, store host'    => array( '//shop.example.test/contact/' ),
+			'javascript'                     => array( 'javascript:alert(1)//shop.example.test' ),
+			'another scheme on the store'    => array( 'ftp://shop.example.test/contact/' ),
+			'backslash before the user info' => array( 'https://evil.com\\@shop.example.test/' ),
+			'a path only'                    => array( '/contact/' ),
+		);
 	}
 
 	public function test_contact_mode_without_a_ticked_consent_field_sends_nothing(): void {

@@ -37,6 +37,8 @@ use Smaily\Connect\Support\DebugLog;
  *     trigger after a successful write is logged, not shown to the visitor.
  *   - A double submit of the same form + email inside DEDUPE_TTL triggers the
  *     workflow once (finite-TTL transient).
+ *   - The page address is sent only when it is on the store's own host
+ *     (PRO-3831): the visitor's browser supplies it.
  */
 final class FormSubscription {
 
@@ -209,7 +211,7 @@ final class FormSubscription {
 			$contact[ self::FIELD_FORM_NAME ] = $form_name;
 		}
 		$url = esc_url_raw( $page_url );
-		if ( $url !== '' ) {
+		if ( $url !== '' && self::is_store_page( $url ) ) {
 			$contact[ self::FIELD_FORM_URL ] = $url;
 		}
 		$contact[ self::FIELD_SUBMITTED_AT ] = gmdate( 'Y-m-d H:i:s' );
@@ -241,6 +243,40 @@ final class FormSubscription {
 		} catch ( ApiException $e ) {
 			DebugLog::write( sprintf( '[smaily-connect elementor-form] workflow %d not triggered: %s', $workflow_id, $e->getMessage() ) );
 		}
+	}
+
+	/**
+	 * Is this page address on the store's own host? The address comes from
+	 * the visitor's browser (Elementor's referrer), so an address on any other
+	 * host is left out: the field is documented as the store page the form
+	 * was sent from, and a merchant may put it into an email as a link
+	 * (PRO-3831).
+	 *
+	 * Whitespace, control characters and backslashes are refused outright —
+	 * that is where URL parsers disagree.
+	 */
+	private static function is_store_page( string $url ): bool {
+		if ( preg_match( '/[\x00-\x20\x7f\\\\]/', $url ) === 1 ) {
+			return false;
+		}
+
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) || ! isset( $parts['scheme'], $parts['host'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
+			return false;
+		}
+		if ( ! in_array( strtolower( (string) $parts['scheme'] ), array( 'http', 'https' ), true ) ) {
+			return false;
+		}
+
+		$store_hosts = array();
+		foreach ( array( home_url(), site_url() ) as $store_url ) {
+			$host = wp_parse_url( $store_url, PHP_URL_HOST );
+			if ( is_string( $host ) && $host !== '' ) {
+				$store_hosts[] = strtolower( $host );
+			}
+		}
+
+		return in_array( strtolower( (string) $parts['host'] ), $store_hosts, true );
 	}
 
 	/**

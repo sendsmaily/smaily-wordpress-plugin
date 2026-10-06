@@ -7249,6 +7249,26 @@ resubscribes on a routine sync — here the visitor's own form submission is the
 consent. A real Elementor Pro submission is human acceptance (no licensed
 Elementor Pro in the test environments).
 
+### PRO-3831 — `elementor_form_url` is sent only for a page on the store's own host (2026-10-06)
+
+**Context:** the 3.16.0 security delta audit (Low 1). Elementor Pro takes a
+submission's page URL from the form POST, so a visitor can put any `https://`
+address into `elementor_form_url`. The field is documented as "the page the
+form was sent from"; a merchant who puts it into the welcome workflow as a link
+would send an attacker's link from the merchant's own sender.
+**Decision:** `FormSubscription` sends the field only when the address is
+`http(s)`, has no user info, no whitespace / control characters / backslashes,
+and its host equals the host of `home_url()` or `site_url()` (case-insensitive,
+exact match — no subdomains). Otherwise the field is left out and the rest of
+the signup is sent unchanged (Smaily keeps any earlier value). The docs site
+says so (EN+ET).
+**Rationale:** keeps the field true to its name without losing the signup.
+**Alternatives:** store only the path — rejected: a different shape under a
+permanent, merchant-visible field name; accept the risk — rejected by Erkki
+(2026-10-06, fix before 3.16.0).
+**Relationships:** PRO-3806 (the action); the host rule mirrors
+`SetupExchange::is_allowed_engine_url()` (PRO-3623).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
