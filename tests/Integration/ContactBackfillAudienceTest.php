@@ -300,6 +300,67 @@ final class ContactBackfillAudienceTest extends TestCase {
 		self::assertSame( $expected_synced, (int) $row['synced_count'], 'Every audience member is counted as synced.' );
 	}
 
+	/**
+	 * PRO-3821: Action Scheduler had already claimed the next tick when the
+	 * merchant pressed Cancel. That tick must POST nobody to Smaily and leave
+	 * the contact import cancelled, not flip it back to running.
+	 */
+	public function test_a_tick_already_claimed_when_the_merchant_cancels_syncs_nobody(): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+		$this->make_user( 'bf-cancel', '1' );
+
+		$requests = 0;
+		$fake     = static function ( $pre, $args, $url ) use ( &$requests ) {
+			if ( strpos( (string) $url, 'testsub.sendsmaily.net' ) === false ) {
+				return $pre;
+			}
+			++$requests;
+			return array(
+				'headers'  => array(),
+				'body'     => '{}',
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
+				'cookies'  => array(),
+				'filename' => '',
+			);
+		};
+
+		$job = new BackfillJob( new Client( 'testsub', 'tester', 'pw' ) );
+
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$job->start();
+
+			RestRequestHelper::login_as_admin();
+			$cancel = RestRequestHelper::post( '/backfill/cancel', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) );
+			wp_set_current_user( 0 );
+			self::assertTrue( $cancel->get_data()['cancelled'] );
+
+			$result = $job->process_batch(); // The tick that was already claimed.
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertSame( 0, $requests, 'Nothing was sent to Smaily.' );
+		self::assertSame( 0, $result['processed'] );
+		self::assertTrue( $result['completed'], 'A cancelled import schedules no further tick.' );
+
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT status, processed_count FROM {$wpdb->prefix}smly_plus_backfill_job WHERE job_type = %s AND target = %s",
+				BackfillJob::BACKFILL_TYPE,
+				BackfillJob::BACKFILL_TARGET
+			),
+			ARRAY_A
+		);
+		self::assertSame( BackfillJobInterface::STATUS_CANCELLED, $row['status'] );
+		self::assertSame( 0, (int) $row['processed_count'] );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**

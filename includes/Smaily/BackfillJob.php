@@ -298,7 +298,7 @@ class BackfillJob implements BackfillJobInterface {
 		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
 		$state = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, cursor_value, processed_count, synced_count, total_count FROM {$table} WHERE job_type = %s AND target = %s",
+				"SELECT id, status, cursor_value, processed_count, synced_count, total_count FROM {$table} WHERE job_type = %s AND target = %s",
 				self::BACKFILL_TYPE,
 				self::BACKFILL_TARGET
 			),
@@ -312,6 +312,19 @@ class BackfillJob implements BackfillJobInterface {
 			return array(
 				'processed' => 0,
 				'remaining' => 0,
+				'completed' => true,
+			);
+		}
+
+		// The merchant cancelled the import after Action Scheduler had already
+		// claimed this tick: send nothing, leave the row cancelled, and stop
+		// the tick chain (PRO-3821).
+		$status = isset( $state['status'] ) ? (string) $state['status'] : '';
+		if ( $status === self::STATUS_CANCELLED ) {
+			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect backfill.batch] import was cancelled — tick sends nothing' );
+			return array(
+				'processed' => 0,
+				'remaining' => max( 0, (int) $state['total_count'] - (int) $state['processed_count'] ),
 				'completed' => true,
 			);
 		}
@@ -362,7 +375,8 @@ class BackfillJob implements BackfillJobInterface {
 						$e->getMessage()
 					)
 				);
-				$this->record_error( (int) $state['id'], $e->getMessage() );
+				$this->record_error( (int) $state['id'], $e->getMessage(), $status );
+				$status = self::STATUS_FAILED;
 				break;
 			}
 		}
@@ -397,9 +411,15 @@ class BackfillJob implements BackfillJobInterface {
 				'status'          => $completed ? 'completed' : 'running',
 				'completed_at'    => $completed ? current_time( 'mysql', true ) : null,
 			),
-			array( 'id' => (int) $state['id'] ),
+			// Written only while the status is still the one this batch left
+			// it in: a cancel that lands while the batch sends stays a cancel
+			// (PRO-3821).
+			array(
+				'id'     => (int) $state['id'],
+				'status' => $status,
+			),
 			array( '%d', '%d', '%s', '%s', '%s' ),
-			array( '%d' )
+			array( '%d', '%s' )
 		);
 
 		return array(
@@ -508,7 +528,11 @@ class BackfillJob implements BackfillJobInterface {
 		return $this->audience;
 	}
 
-	private function record_error( int $job_id, string $message ): void {
+	/**
+	 * @param string $expected_status The status this batch read; a row a cancel
+	 *                                changed meanwhile is left alone (PRO-3821).
+	 */
+	private function record_error( int $job_id, string $message, string $expected_status ): void {
 		global $wpdb;
 		$wpdb->update(
 			$this->table_name(),
@@ -516,9 +540,12 @@ class BackfillJob implements BackfillJobInterface {
 				'status'        => 'failed',
 				'error_message' => $message,
 			),
-			array( 'id' => $job_id ),
+			array(
+				'id'     => $job_id,
+				'status' => $expected_status,
+			),
 			array( '%s', '%s' ),
-			array( '%d' )
+			array( '%d', '%s' )
 		);
 	}
 

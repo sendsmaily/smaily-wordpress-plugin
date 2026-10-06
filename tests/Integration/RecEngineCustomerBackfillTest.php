@@ -22,6 +22,7 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
+use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
 
 /**
  * Proves the same backfill properties as catalog (resumability + bounded queue)
@@ -162,6 +163,63 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 		self::assertSame( '1', $sent[ strtolower( (string) get_userdata( 1 )->user_email ) ] ?? null, 'The admin is a customer too.' );
 	}
 
+	/**
+	 * PRO-3821: Action Scheduler had already claimed the next tick when the
+	 * merchant pressed Cancel (or Hold back). That tick must send nothing and
+	 * leave the import cancelled, not flip it back to running.
+	 */
+	public function test_a_tick_already_claimed_when_the_merchant_cancels_sends_nothing(): void {
+		$this->make_user( 'bf-cancel1@example.test', 'customer' );
+
+		$job = $this->job();
+		$job->start();
+		$this->truncate_queue(); // Drop the live hook's row for the new user.
+		self::$engine->reset_request_count();
+
+		$this->cancel_through_rest( 'customers' );
+		$result = $job->process_batch(); // The tick that was already claimed.
+
+		self::assertSame( 0, $result['processed'] );
+		self::assertTrue( $result['completed'], 'A cancelled import schedules no further tick.' );
+		self::assertSame( 0, $this->queue_row_count(), 'Nothing was enqueued.' );
+		self::assertSame( 0, self::$engine->request_count(), 'Nothing reached the engine.' );
+		$row = $this->read_backfill_row();
+		self::assertSame( 'cancelled', $row['status'] );
+		self::assertSame( 0, (int) $row['processed_count'] );
+	}
+
+	/**
+	 * PRO-3821: a cancel that lands while a batch is already sending. The batch
+	 * finishes what it started, but its progress write must not undo the
+	 * cancel, and the tick it reschedules sends nothing.
+	 */
+	public function test_a_cancel_that_lands_while_a_batch_sends_stays_cancelled(): void {
+		$this->make_user( 'bf-cancel2@example.test', 'customer' );
+		$this->make_user( 'bf-cancel3@example.test', 'customer' );
+
+		$cancelled = false;
+		$job       = $this->job(
+			2,
+			null,
+			function () use ( &$cancelled ): void {
+				if ( ! $cancelled ) {
+					$cancelled = true;
+					$this->cancel_through_rest( 'customers' );
+				}
+			}
+		);
+		$job->start();
+
+		$job->process_batch();
+		self::assertSame( 'cancelled', $this->read_backfill_row()['status'], 'The batch that was sending did not undo the cancel.' );
+
+		self::$engine->reset_request_count();
+		$next = $job->process_batch();
+		self::assertTrue( $next['completed'] );
+		self::assertSame( 0, self::$engine->request_count(), 'The rescheduled tick sent nothing.' );
+		self::assertSame( 'cancelled', $this->read_backfill_row()['status'] );
+	}
+
 	// --- helpers --------------------------------------------------------
 
 	/**
@@ -169,7 +227,7 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 	 * enumerator so the A-filter (no role filter) is assertable. No declared
 	 * return type so the anonymous subclass's `ids_after` stays visible.
 	 */
-	private function job( int $batch_size = 100, ?IngestQueue $queue = null ) {
+	private function job( int $batch_size = 100, ?IngestQueue $queue = null, ?callable $before_enqueue = null ) {
 		$settings = new RecEngineSettings();
 		$queue    = $queue ?? new IngestQueue();
 		$flusher  = new CustomerFlusher(
@@ -181,16 +239,27 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 			}
 		);
 
-		return new class( $queue, $flusher, $batch_size ) extends CustomerBackfillJob {
+		return new class( $queue, $flusher, $batch_size, $before_enqueue ) extends CustomerBackfillJob {
 			private int $bs;
 
-			public function __construct( IngestQueue $queue, CustomerFlusher $flusher, int $bs ) {
+			/** @var callable|null */
+			private $before_enqueue;
+
+			public function __construct( IngestQueue $queue, CustomerFlusher $flusher, int $bs, ?callable $before_enqueue ) {
 				parent::__construct( $queue, $flusher );
-				$this->bs = $bs;
+				$this->bs             = $bs;
+				$this->before_enqueue = $before_enqueue;
 			}
 
 			protected function batch_size(): int {
 				return $this->bs;
+			}
+
+			protected function enqueue_record( int $entity_id ): void {
+				if ( $this->before_enqueue !== null ) {
+					( $this->before_enqueue )();
+				}
+				parent::enqueue_record( $entity_id );
 			}
 
 			/**
@@ -225,6 +294,21 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 			wp_delete_user( (int) $id );
 		}
 		$this->created_users = array();
+	}
+
+	/** The merchant's Cancel / Hold back, through the real REST route. */
+	private function cancel_through_rest( string $job_type ): void {
+		RestRequestHelper::login_as_admin();
+		$response = RestRequestHelper::post( '/backfill/cancel', array( 'job_type' => $job_type ) );
+		wp_set_current_user( 0 );
+		self::assertSame( 200, $response->get_status() );
+		self::assertTrue( $response->get_data()['cancelled'] );
+	}
+
+	private function queue_row_count(): int {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}smly_rec_event_queue" );
 	}
 
 	private function truncate_queue(): void {

@@ -135,7 +135,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$state = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, cursor_value, processed_count, total_count FROM {$table} WHERE job_type = %s AND target = %s",
+				"SELECT id, status, cursor_value, processed_count, total_count FROM {$table} WHERE job_type = %s AND target = %s",
 				$this->job_type(),
 				self::TARGET
 			),
@@ -148,6 +148,19 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		}
 
 		$after = isset( $state['cursor_value'] ) ? (int) $state['cursor_value'] : 0;
+
+		// The merchant cancelled the import (Cancel / Hold back) after Action
+		// Scheduler had already claimed this tick: send nothing, leave the row
+		// cancelled, and stop the tick chain (PRO-3821).
+		if ( ( $state['status'] ?? '' ) === BackfillJobInterface::STATUS_CANCELLED ) {
+			return $this->batch_result(
+				0,
+				0,
+				0,
+				max( 0, (int) $state['total_count'] - (int) $state['processed_count'] ),
+				true
+			);
+		}
 
 		// The engine refused this account outright (contract §2
 		// `403 tenant_inactive`) — every row this batch enqueued would sit
@@ -179,6 +192,8 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		$cursor    = empty( $ids ) ? $after : (int) end( $ids );
 		$completed = count( $ids ) < $batch_size;
 
+		// Written only while the row is still running: a cancel that lands
+		// while this batch sends stays a cancel (PRO-3821).
 		$wpdb->update(
 			$table,
 			array(
@@ -187,9 +202,12 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 				'status'          => $completed ? 'completed' : 'running',
 				'completed_at'    => $completed ? current_time( 'mysql', true ) : null,
 			),
-			array( 'id' => (int) $state['id'] ),
+			array(
+				'id'     => (int) $state['id'],
+				'status' => BackfillJobInterface::STATUS_RUNNING,
+			),
 			array( '%d', '%s', '%s', '%s' ),
-			array( '%d' )
+			array( '%d', '%s' )
 		);
 
 		return $this->batch_result(

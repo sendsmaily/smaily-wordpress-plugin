@@ -330,8 +330,8 @@ final class RecEngineBrowseProxyTest extends TestCase {
 
 		self::assertSame( 200, $response->get_status() );
 		$received = self::$engine->state()['last_browse_events'] ?? array();
-		// The mock records an absent token as ''.
-		self::assertSame( '', $received[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( 'vt-2', $received[0]['event_id'] ?? null );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $received[0] ?? array() );
 	}
 
 	public function test_a_store_visitor_token_is_not_attached_without_marketing_consent(): void {
@@ -354,8 +354,8 @@ final class RecEngineBrowseProxyTest extends TestCase {
 		self::assertSame( 200, $response->get_status() );
 		self::assertSame( 1, $response->get_data()['processed'] );
 		$received = self::$engine->state()['last_browse_events'] ?? array();
-		// The mock records an absent token as ''.
-		self::assertSame( '', $received[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( 'vs-1', $received[0]['event_id'] ?? null );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $received[0] ?? array() );
 	}
 
 	public function test_a_store_visitor_token_is_attached_with_marketing_consent(): void {
@@ -396,6 +396,7 @@ final class RecEngineBrowseProxyTest extends TestCase {
 		self::assertSame( 1, $response->get_data()['processed'], 'Normal browse traffic is unaffected — the event still forwards.' );
 
 		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertSame( 'dep-1', $received[0]['event_id'] ?? null, 'The engine recorded the event, so the absence checks below are not vacuous.' );
 		self::assertArrayNotHasKey( 'smaily_rec_id', $received[0] ?? array() );
 		self::assertArrayNotHasKey( 'smaily_ctx', $received[0] ?? array() );
 	}
