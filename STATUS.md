@@ -30,15 +30,17 @@ _Last updated: 2026-10-06 (**3.16.0 release candidate — bumped on branch
 `release/3.16.0`, PR open, NOT tagged or published.** The tag, the GitHub
 release and `./release.sh` stay Erkki's one-way door (CLAUDE.md "Cutting a
 release ZIP"). **Release gate ran on the CI-built ZIP** (release.yml dry-run
-37442352646 on `2f8445e`): 943 209 B, SHA256 `4de73381…5fbf69`,
-verify-release-zip exit 0; PCP 0 ERRORS / 11 WARNINGS — 9 already accepted at
-3.15.0, **2 new for Erkki to accept** (`MarketingConsent.php:42` hook-name
-false positive; readme Changelog section over 5 000 characters). A PCP error
-from the #164 refactor (`RetryPolicy.php` exception message) was fixed on the
-branch (`2f8445e`, log-only `phpcs:ignore`). Gates: ci:strict exit 0 (unit
-1102, vitest 374); integration 369 OK on the Mac. Details: the 3.16.0
-release-gate row of `docs/audits/INDEX.md`. The tag build makes a new ZIP, so
-re-run `verify-release-zip` on the released asset.)_
+37443891817 on `f0f78ee`): 932 508 B, SHA256 `f1833e66…4ecc5812`,
+verify-release-zip exit 0; PCP 0 ERRORS / 10 WARNINGS, all accepted (the 3.15.0
+set + `MarketingConsent.php:42`, accepted by Erkki 2026-10-06). Fixed on the
+branch: a PCP error from the #164 refactor (`2f8445e`, log-only `phpcs:ignore`
+in `RetryPolicy.php`) and the readme changelog over 5 000 characters
+(`f0f78ee`: 3.16.0 and 3.15.0 only, plus a link to the GitHub releases page —
+which lists 3.11.2 onward and 1.x/2.0.0, not 3.0.0–3.11.1, released on the
+archived fork). Gates: ci:strict exit 0 (unit 1102, vitest 374); integration
+369 OK on the Mac. Details: the 3.16.0 release-gate row of
+`docs/audits/INDEX.md`. The tag build makes a new ZIP, so re-run
+`verify-release-zip` on the released asset.)_
 
 **3.16.0 — what it carries** (everything merged after 3.15.0, `3afff33..e1dcc18`;
 the merchant-facing list is the `= 3.16.0 =` changelog in `readme.txt`; the
