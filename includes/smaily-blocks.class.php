@@ -16,6 +16,7 @@ class Blocks {
 	public function register_hooks() {
 		add_action( 'init', array( $this, 'register_newsletter_signup_block' ) );
 		add_action( 'init', array( $this, 'register_landingpage_block' ) );
+		add_action( 'init', array( $this, 'register_recommendations_block' ) );
 
 		if ( Helper::is_woocommerce_active() ) {
 			add_action( 'init', array( $this, 'register_checkout_optin_block' ) );
@@ -119,6 +120,34 @@ class Blocks {
 		add_shortcode(
 			'smaily_landing_page',
 			array( 'Smaily_Connect\\Blocks\\Landing_Page\\Integration', 'render_shortcode' )
+		);
+	}
+
+	/**
+	 * Register the recommendations block and its shortcode.
+	 *
+	 * Neither is placed anywhere by the plugin: the merchant puts the block or
+	 * [smaily_recommendations] where they want the logged-in shopper's
+	 * recommendations to appear.
+	 *
+	 * @return void
+	 */
+	public function register_recommendations_block() {
+		register_block_type(
+			SMAILY_CONNECT_PLUGIN_PATH . '/blocks/recommendations/build',
+			array(
+				'render_callback' => array( 'Smaily_Connect\Blocks\Recommendations\Integration', 'render' ),
+			)
+		);
+		wp_set_script_translations(
+			'smaily-recommendations-editor-script',
+			'smaily-connect',
+			SMAILY_CONNECT_PLUGIN_PATH . 'languages'
+		);
+
+		add_shortcode(
+			'smaily_recommendations',
+			array( 'Smaily_Connect\\Blocks\\Recommendations\\Integration', 'render_shortcode' )
 		);
 	}
 }

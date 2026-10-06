@@ -138,6 +138,30 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 		self::assertSame( $total, (int) $row['processed_count'], 'Every user (incl. admin) processed.' );
 	}
 
+	/**
+	 * The engine answers a logged-in shopper's storefront recommendations by
+	 * the store's own customer id (contract §15 `customer_external_id`), which
+	 * it only knows from the `external_id` sent here — so a re-import must
+	 * carry it on every customer, not just on the live hook's.
+	 */
+	public function test_every_backfilled_customer_carries_the_wordpress_user_id(): void {
+		$first  = $this->make_user( 'bf-ext1@example.test', 'customer' );
+		$second = $this->make_user( 'bf-ext2@example.test', 'subscriber' );
+
+		$job = $this->job();
+		$job->start();
+		$job->process_batch();
+
+		$sent = array();
+		foreach ( (array) ( self::$engine->state()['last_customers_payload'] ?? array() ) as $customer ) {
+			$sent[ (string) $customer['email'] ] = $customer['external_id'] ?? null;
+		}
+
+		self::assertSame( (string) $first, $sent['bf-ext1@example.test'] ?? null );
+		self::assertSame( (string) $second, $sent['bf-ext2@example.test'] ?? null );
+		self::assertSame( '1', $sent[ strtolower( (string) get_userdata( 1 )->user_email ) ] ?? null, 'The admin is a customer too.' );
+	}
+
 	// --- helpers --------------------------------------------------------
 
 	/**

@@ -82,7 +82,7 @@ require languages/smaily-connect-et.mo
 # The admin bundle's script translations: WordPress requests this exact name
 # (md5 of "dist/admin/admin.js"), so a generically-named catalog is not loaded.
 require languages/smaily-connect-et-464ceaab21588225a35cae9f83dfa47d.json
-for block in checkout-optin landingpage newsletter-signup; do
+for block in checkout-optin landingpage newsletter-signup recommendations; do
 	require_glob "blocks/${block}/build/.+"
 done
 

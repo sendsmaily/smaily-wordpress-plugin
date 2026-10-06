@@ -116,7 +116,7 @@ single Action Scheduler actions and reported through `/backfill/status`.
 
 ## 4. Storefront pieces
 
-Three separate mechanisms — do not conflate them (F3-46/F3-49):
+Four separate mechanisms — do not conflate them (F3-46/F3-49):
 
 1. **Browse beacon** — `dist/public/js/sc-runtime.js` (source
    `public/js/beacon.ts` + `beacon-core.ts`), enqueued by
@@ -146,7 +146,9 @@ Three separate mechanisms — do not conflate them (F3-46/F3-49):
    three cookies and never sends anything, so it's safe to run consent-
    independently. Checkout stamps the cookies onto the order either way.
    **Consent-UNgated** by design (F3-46/PRO-1388) — first-party functional
-   signal, independent of the beacon toggle/consent gate.
+   signal, independent of the beacon toggle/consent gate. Contract v1.9.0's
+   context cookie rule lives in both writers: a `smaily_rec` landing without
+   a valid `smaily_ctx` clears `smaily_rec_ctx` (PRO-3788).
 3. **Identity merge** — two mechanisms bind a browse identity to a known
    customer: `Integrations\WooCommerce\IdentityHookHandler` on `wp_login`
    calls the engine's `/identity/merge` (§7) to bind an anonymous browse
@@ -161,6 +163,14 @@ Three separate mechanisms — do not conflate them (F3-46/F3-49):
    opted-out contact's events stay anonymous, never dropped. This is the one
    sanctioned server-side exception to F3-49 — the client itself still never
    sends `customer_email`.
+4. **Storefront recommendations** (PRO-3788, contract §15) — the
+   `smaily/recommendations` block and `[smaily_recommendations]` shortcode,
+   placed by the merchant. Rendered server-side by
+   `Integrations\WooCommerce\StorefrontRecommendations`: for a logged-in
+   shopper it asks the engine by the WP user id (one attempt, 1 s timeout,
+   1-hour per-shopper cache), then builds cards from the store's own
+   products, linked with `smaily_rec` + `smaily_ctx=storefront` so item 2
+   captures a storefront credit.
 
 **Consent model:** browse telemetry is **fail-closed on the WP Consent API**
 (F3-50): the JS sends only when `window.wp_has_consent(category) === true`

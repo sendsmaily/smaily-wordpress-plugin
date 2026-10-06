@@ -110,6 +110,10 @@ class Client {
 	// every existing connection, not just the rare pre-exchange call.
 	public const PATH_AUTOMATIONS_CATALOG = '/api/v1/automations/catalog';
 	public const PATH_AUTOMATIONS_CONFIG  = '/api/v1/automations/config';
+	// Storefront recommendations (contract v1.9.0, §15). Map key
+	// `recommendations_customer`; a connection exchanged before v1.9.0 has no
+	// such key, so this fallback serves every existing connection.
+	public const PATH_RECOMMENDATIONS_CUSTOMER = '/api/v1/recommendations/customer';
 
 	/** Default in-request retry ceiling — generous for one-shot calls (ping, setup). */
 	public const DEFAULT_MAX_ATTEMPTS = 5;
@@ -121,6 +125,9 @@ class Client {
 	 * same bound the Magento relay uses (PRO-3575).
 	 */
 	public const BROWSE_TIMEOUT_SECONDS = 3;
+
+	/** Default per-request HTTP timeout, in seconds. */
+	public const DEFAULT_TIMEOUT_SECONDS = 15;
 
 	private string $api_key;
 	private string $base_url;
@@ -135,6 +142,8 @@ class Client {
 	/** True while ingest_browse() runs: one short attempt, no retry, no wait. */
 	private bool $single_attempt = false;
 
+	private int $timeout_seconds;
+
 	/**
 	 * @param string                $api_key      Bearer key, e.g. "sk_8f3k2a...".
 	 * @param string                $base_url     Engine origin, e.g. "https://intelligence.smaily.com".
@@ -147,13 +156,17 @@ class Client {
 	 *                                            already retries at the row level via next_retry_at.
 	 * @param RecEngineSettings     $settings     Where a refusal is persisted (PRO-1893). Optional so
 	 *                                            no call site has to change.
+	 * @param int                   $timeout_seconds Per-request HTTP timeout. A storefront render
+	 *                                            passes a short one (§15: a slow engine must not
+	 *                                            hold up the shopper's page).
 	 */
-	public function __construct( string $api_key, string $base_url, array $endpoints = array(), int $max_attempts = self::DEFAULT_MAX_ATTEMPTS, ?RecEngineSettings $settings = null ) {
-		$this->api_key      = $api_key;
-		$this->base_url     = rtrim( $base_url, '/' );
-		$this->endpoints    = $endpoints;
-		$this->max_attempts = max( 1, $max_attempts );
-		$this->settings     = $settings ?? new RecEngineSettings();
+	public function __construct( string $api_key, string $base_url, array $endpoints = array(), int $max_attempts = self::DEFAULT_MAX_ATTEMPTS, ?RecEngineSettings $settings = null, int $timeout_seconds = self::DEFAULT_TIMEOUT_SECONDS ) {
+		$this->api_key         = $api_key;
+		$this->base_url        = rtrim( $base_url, '/' );
+		$this->endpoints       = $endpoints;
+		$this->max_attempts    = max( 1, $max_attempts );
+		$this->settings        = $settings ?? new RecEngineSettings();
+		$this->timeout_seconds = max( 1, $timeout_seconds );
 	}
 
 	/**
@@ -477,6 +490,28 @@ class Client {
 		return $this->request_url( 'PUT', $url, array( 'configs' => $configs ) );
 	}
 
+	/**
+	 * The current recommendations of one logged-in shopper, for the store to
+	 * show (§15) — `{slots: [...]}`, up to `$limit` slots, possibly empty. The
+	 * shopper is named by the store's own customer id (the `external_id` sent
+	 * on customers ingest), never by an email. Read-only on the engine side.
+	 *
+	 * @return array<string, mixed>
+	 *
+	 * @throws ApiException On 4xx, an exhausted retry budget, or a network failure.
+	 */
+	public function customer_recommendations( string $customer_external_id, int $limit ): array {
+		$url = $this->resolve_url( 'recommendations_customer', self::PATH_RECOMMENDATIONS_CUSTOMER );
+		return $this->request_url(
+			'POST',
+			$url,
+			array(
+				'customer_external_id' => $customer_external_id,
+				'limit'                => $limit,
+			)
+		);
+	}
+
 	// ---------------------------------------------------------------
 	// Private request engine.
 	// ---------------------------------------------------------------
@@ -556,7 +591,7 @@ class Client {
 
 			$args = array(
 				'method'  => $method,
-				'timeout' => $this->single_attempt ? self::BROWSE_TIMEOUT_SECONDS : 15,
+				'timeout' => $this->single_attempt ? self::BROWSE_TIMEOUT_SECONDS : $this->timeout_seconds,
 				'headers' => array(
 					'Authorization' => 'Bearer ' . $this->api_key,
 					'User-Agent'    => sprintf(

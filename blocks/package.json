@@ -6,7 +6,8 @@
   "workspaces": [
     "checkout-optin",
     "landingpage",
-    "newsletter-signup"
+    "newsletter-signup",
+    "recommendations"
   ],
   "scripts": {
     "build": "npm run build --workspaces",

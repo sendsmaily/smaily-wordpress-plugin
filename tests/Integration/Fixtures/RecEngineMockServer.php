@@ -150,6 +150,17 @@ final class RecEngineMockServer {
 		$this->write_state( array( 'tenant_inactive' => $inactive ) );
 	}
 
+	/**
+	 * Seed the §15 storefront answer for one shopper (the store's customer id).
+	 *
+	 * @param array<int, array<string, mixed>> $slots
+	 */
+	public function set_storefront_slots( string $customer_external_id, array $slots ): void {
+		$seeded                          = (array) ( $this->state()['storefront_slots'] ?? array() );
+		$seeded[ $customer_external_id ] = $slots;
+		$this->write_state( array( 'storefront_slots' => $seeded ) );
+	}
+
 	/** Zero the request counter so a test can assert "no request since here". */
 	public function reset_request_count(): void {
 		$this->write_state( array( 'request_count' => 0 ) );

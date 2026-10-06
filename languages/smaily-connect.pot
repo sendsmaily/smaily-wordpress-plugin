@@ -2715,6 +2715,7 @@ msgstr ""
 
 #: blocks/landingpage/src/block.json
 #: blocks/newsletter-signup/src/block.json
+#: blocks/recommendations/src/block.json
 msgctxt "block keyword"
 msgid "smaily"
 msgstr ""
@@ -2749,4 +2750,36 @@ msgstr ""
 #: blocks/newsletter-signup/src/block.json
 msgctxt "block keyword"
 msgid "form"
+msgstr ""
+
+#: includes/Integrations/WooCommerce/StorefrontRecommendations.php:124
+msgid "Recommended for you"
+msgstr ""
+
+#: blocks/recommendations/src/edit.js:13
+msgid "Smaily Recommendations"
+msgstr ""
+
+#: blocks/recommendations/src/edit.js:14
+msgid "Logged-in shoppers see their personal product recommendations here. Visitors who are not logged in see nothing."
+msgstr ""
+
+#: blocks/recommendations/src/block.json
+msgctxt "block title"
+msgid "Smaily Recommendations"
+msgstr ""
+
+#: blocks/recommendations/src/block.json
+msgctxt "block description"
+msgid "Shows logged-in shoppers their personal Smaily product recommendations."
+msgstr ""
+
+#: blocks/recommendations/src/block.json
+msgctxt "block keyword"
+msgid "recommendations"
+msgstr ""
+
+#: blocks/recommendations/src/block.json
+msgctxt "block keyword"
+msgid "products"
 msgstr ""

@@ -49,7 +49,7 @@ echo "2/6  make-pot (PHP + blocks + transpiled admin JS)"
 # from the checkout directory name, which is `smaily-connect` only inside the
 # container (the mounted plugin path) and whatever the clone is called on the host.
 wpc make-pot . languages/smaily-connect.pot --domain=smaily-connect --slug=smaily-connect \
-	--exclude=dist,tests,bin,node_modules,vendor,blocks/checkout-optin/build,blocks/landingpage/build,blocks/newsletter-signup/build
+	--exclude=dist,tests,bin,node_modules,vendor,blocks/checkout-optin/build,blocks/landingpage/build,blocks/newsletter-signup/build,blocks/recommendations/build
 
 echo "3/6  update-po (merge new strings into ${LANG}.po, preserving existing translations)"
 wpc update-po languages/smaily-connect.pot "languages/smaily-connect-${LANG}.po"

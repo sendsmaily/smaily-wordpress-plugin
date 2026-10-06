@@ -154,10 +154,17 @@ class LandingCapture {
 	 * Map a raw GET array to the attribution values worth persisting, keyed by
 	 * capture slot. Pure + side-effect-free so it can be unit-tested without
 	 * touching cookies/headers. An absent or malformed value is simply omitted
-	 * (last-touch overwrite only happens for values that are actually present).
+	 * (last-touch overwrite only happens for values that are actually present)
+	 * — with one exception, the context cookie rule (contract v1.9.0): a
+	 * landing that carries a valid `smaily_rec` but no valid `smaily_ctx`
+	 * resolves the context slot to '' (= clear the cookie), so the rec id and
+	 * the context always describe the same landing. Without it, an email click
+	 * after a storefront click would leave `storefront` standing and the
+	 * purchase would be credited to the store. The guarded `utm_content`
+	 * fallback carries no `smaily_rec`, so it never clears.
 	 *
 	 * @param array<string, mixed> $get Raw request query params.
-	 * @return array<string, string> slot => value.
+	 * @return array<string, string> slot => value ('' = delete that cookie).
 	 */
 	public function resolve( array $get ): array {
 		$out = array();
@@ -175,6 +182,8 @@ class LandingCapture {
 		$context = $this->clean( $get, self::URL_PARAM_CONTEXT );
 		if ( AttributionShape::is_context( $context ) ) {
 			$out[ self::SLOT_CONTEXT ] = $context;
+		} elseif ( RecId::is_valid( $this->clean( $get, self::URL_PARAM_REC_ID ) ) ) {
+			$out[ self::SLOT_CONTEXT ] = '';
 		}
 
 		return $out;
@@ -260,6 +269,12 @@ class LandingCapture {
 
 	private function set_cookie( string $name, string $value, int $ttl_days ): void {
 		if ( '' === $name ) {
+			return;
+		}
+		if ( '' === $value ) {
+			// An expiry in the past makes the browser delete the cookie.
+			$this->send_cookie( $name, '', time() - 86400 );
+			unset( $_COOKIE[ $name ] );
 			return;
 		}
 		$expires = time() + ( $ttl_days * 86400 );

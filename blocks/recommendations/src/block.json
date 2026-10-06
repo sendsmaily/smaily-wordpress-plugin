@@ -1,0 +1,15 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "smaily/recommendations",
+	"version": "1.0.0",
+	"title": "Smaily Recommendations",
+	"category": "widgets",
+	"description": "Shows logged-in shoppers their personal Smaily product recommendations.",
+	"keywords": [ "smaily", "recommendations", "products" ],
+	"supports": {
+		"html": false
+	},
+	"textdomain": "smaily-connect",
+	"editorScript": "file:./index.js"
+}

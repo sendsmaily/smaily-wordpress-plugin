@@ -73,7 +73,10 @@ and `npx @wordpress/env run cli wp config set WP_DEBUG_DISPLAY false --raw`.
 Without them 78 unrelated tests failed (missing build hash, hooks never
 registered). Port 8888 can be held by another local project (a Magento
 phpMyAdmin container): `WP_ENV_PORT=8898 WP_ENV_TESTS_PORT=8899` in the
-environment moves wp-env without touching `.wp-env.json`.
+environment moves wp-env without touching `.wp-env.json`. `wp-env start`
+fails with "port is already allocated" when the port is taken — don't stop
+someone else's container; pass the same variables to every later `wp-env
+run`/`stop`. The suite does not depend on the dev port.
 
 **Filtered/single-test integration runs:** prefer the wrapper — it passes
 extra args through to phpunit AND keeps the PRO-1240 smly_rec_* snapshot/
@@ -921,6 +924,40 @@ The click→land→buy→attribute round-trip (does the cookie set on a real lan
 test purchase carry `smaily_rec_id`, does the engine credit it via path-1) is a **manual
 pilot check** — like browse timing, the server path is unit+integration-proven but the
 browser moment isn't live-walk-coverable.
+
+### Storefront recommendations call the engine ON the page render — one attempt, 1 s, cached (PRO-3788)
+The `smaily/recommendations` block + `[smaily_recommendations]` shortcode
+(contract §15) are rendered server-side by
+`Integrations\WooCommerce\StorefrontRecommendations`, because the API key
+never reaches the browser. That puts an engine call on a shopper's page, so:
+the client comes from `Bootstrap::storefront_recommendations()` with
+`max_attempts = 1` and `StorefrontRecommendations::TIMEOUT_SECONDS` (the
+`Client` constructor's `$timeout_seconds`, default 15 for everything else) —
+never `rec_client()`, whose 2 attempts + Retry-After sleep would stall the
+page; the call is gated on a logged-in user, `sending_allowed()` and
+`ProfilingConsent::may_profile()`; the answer (empty included) is cached per
+shopper with a FINITE TTL; an error renders nothing and is not cached. Cards
+use the store's own product data (`is_visible()`), and links carry
+`smaily_rec` + `smaily_ctx=storefront`, which `LandingCapture` turns into a
+storefront credit. The engine finds the shopper by the customers-ingest
+`external_id` (the WP user id) — a store whose customers were never imported
+by this plugin gets empty answers until a Customers re-import.
+**Context cookie rule (v1.9.0):** a landing with a valid `smaily_rec` and no
+valid `smaily_ctx` CLEARS `smaily_rec_ctx` — in BOTH writers
+(`LandingCapture::resolve()` returns `''` for the context slot = delete;
+`attribution.ts` writes it with `Max-Age=0`). The `utm_content` fallback
+never clears. Change one writer, change the other in the same commit.
+
+### A new Gutenberg block is a new `blocks/` workspace — touch four places
+Adding `blocks/<name>/` (PRO-3788 added `recommendations`): (1) list it in
+`blocks/package.json` `workspaces` and run `npm install` in `blocks/` — the
+lockfile diff is just the workspace link + its package entry; (2) add it to
+`bin/verify-release-zip.sh`'s `for block in …` list; (3) add its `build/` to
+`bin/build-i18n.sh`'s make-pot `--exclude`; (4) require its
+`smaily-integration.class.php` in `includes/smaily.class.php` and register it
+in `includes/smaily-blocks.class.php`. A block with no stylesheet needs
+`lint:css` = `wp-scripts lint-style --allow-empty-input`, else stylelint fails
+on "no files".
 
 ### Browse events carry `smaily_visitor_token` for cold-start — NOT rec_id/email, NOT attribution (F3-49)
 Browse attribution rides ORDER signals, not browse (engine-confirmed 2026-07-03): the

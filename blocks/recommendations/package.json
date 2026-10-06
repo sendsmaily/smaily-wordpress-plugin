@@ -1,0 +1,22 @@
+{
+	"name": "smaily-recommendations-block",
+	"version": "1.0.0",
+	"description": "Smaily recommendations for the logged-in shopper.",
+	"author": "Smaily",
+	"license": "GPL-2.0-or-later",
+	"main": "build/index.js",
+	"scripts": {
+		"build": "wp-scripts build --webpack-copy-php",
+		"format": "wp-scripts format",
+		"lint:css": "wp-scripts lint-style --allow-empty-input",
+		"lint:js": "wp-scripts lint-js",
+		"packages-update": "wp-scripts packages-update",
+		"start": "wp-scripts start --webpack-copy-php",
+		"test:unit": "wp-scripts test-unit-js --passWithNoTests"
+	},
+	"devDependencies": {
+		"@wordpress/prettier-config": "^4.22.0",
+		"@wordpress/scripts": "^27"
+	},
+	"prettier": "@wordpress/prettier-config"
+}
