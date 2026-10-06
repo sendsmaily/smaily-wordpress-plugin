@@ -199,16 +199,8 @@ describe('RecEngineClient (3.4.1 transport)', () => {
     expect(lastFetchBody(fetchMock).events[0]?.session_id).toBe('sess-xyz');
   });
 
-  it('carries smaily_visitor_token from the visitor cookie when present (identity, not attribution — F3-49)', async () => {
+  it('never puts the visitor token on a browse event — /relay reads it from the cookie on the server (PRO-3860)', async () => {
     document.cookie = 'smaily_rec_uid=vt-abc';
-    client = new RecEngineClient(makeConfig());
-    client.track({ event_type: 'product_view', sku: 'A' });
-
-    await client.flush();
-    expect(lastFetchBody(fetchMock).events[0]?.smaily_visitor_token).toBe('vt-abc');
-  });
-
-  it('omits smaily_visitor_token when the visitor cookie is absent (never sent empty)', async () => {
     client = new RecEngineClient(makeConfig());
     client.track({ event_type: 'product_view', sku: 'A' });
 
@@ -229,7 +221,7 @@ describe('RecEngineClient (3.4.1 transport)', () => {
     expect(event).not.toHaveProperty('sku');
   });
 
-  it('never puts rec_id / ctx / email / external_id on a browse event (data-minimization — attribution rides orders)', async () => {
+  it('never puts rec_id / ctx / email / external_id / visitor token on a browse event (data-minimization — attribution rides orders)', async () => {
     document.cookie = 'smaily_rec_uid=vt-abc';
     document.cookie = 'smaily_rec_id=rec-1';
     document.cookie = 'smaily_rec_ctx=welcome';
@@ -239,14 +231,13 @@ describe('RecEngineClient (3.4.1 transport)', () => {
     await client.flush();
     const event = lastFetchBody(fetchMock).events[0];
     expect(event).toBeDefined();
-    // The ONE identity field we send.
-    expect(event?.smaily_visitor_token).toBe('vt-abc');
     // Deliberately excluded from browse events.
     expect(event).not.toHaveProperty('smaily_rec_id');
     expect(event).not.toHaveProperty('smaily_ctx');
     expect(event).not.toHaveProperty('customer_email');
-    // The browser asserts no identity of its own (PRO-3620: /relay strips it too).
+    // The browser asserts no identity of its own (PRO-3620, PRO-3860: /relay strips it too).
     expect(event).not.toHaveProperty('external_id');
+    expect(event).not.toHaveProperty('smaily_visitor_token');
   });
 
   it('flushes the buffer via sendBeacon on pagehide', () => {

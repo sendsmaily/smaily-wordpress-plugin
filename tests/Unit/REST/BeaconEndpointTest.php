@@ -75,22 +75,37 @@ final class BeaconEndpointTest extends TestCase {
 		// PRO-3620: on a browse event `external_id` is the platform user id the
 		// engine binds the event to — a client-supplied value would attach
 		// anonymous browsing to whichever customer's sequential WP user id was
-		// guessed. The browser asserts no identity; the visitor token it carries
-		// is engine-issued and stays.
+		// guessed. The browser asserts no identity.
 		$result = BeaconEndpoint::validate_batch(
 			array(
 				array(
-					'event_id'             => 'e1',
-					'event_type'           => 'product_view',
-					'external_id'          => '67',
-					'smaily_visitor_token' => 'vt_opaque_9',
+					'event_id'    => 'e1',
+					'event_type'  => 'product_view',
+					'external_id' => '67',
 				),
 			)
 		);
 
 		self::assertTrue( $result['valid'] );
 		self::assertArrayNotHasKey( 'external_id', $result['events'][0] );
-		self::assertSame( 'vt_opaque_9', $result['events'][0]['smaily_visitor_token'] );
+	}
+
+	public function test_client_supplied_visitor_token_is_stripped(): void {
+		// PRO-3860: the server reads the visitor token from the shopper's own
+		// cookie (and holds a store-created `vs_` token to marketing consent);
+		// a token in the request body never survives the whitelist.
+		$result = BeaconEndpoint::validate_batch(
+			array(
+				array(
+					'event_id'             => 'e1',
+					'event_type'           => 'product_view',
+					'smaily_visitor_token' => 'vt_fromthebody1',
+				),
+			)
+		);
+
+		self::assertTrue( $result['valid'] );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $result['events'][0] );
 	}
 
 	public function test_deprecated_attribution_hints_are_stripped(): void {

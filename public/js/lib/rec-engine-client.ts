@@ -152,14 +152,6 @@ interface WireEvent {
    * reaches the engine (the `/relay` whitelist has no `product_id` entry).
    */
   product_id?: string;
-  /**
-   * Persistent visitor token (from the campaign-click cookie), when present.
-   * Identity — NOT attribution: browse attribution rides ORDER signals (F3-49,
-   * engine-confirmed). Sent only so the engine can bind the browse row to the
-   * customer for future cold-start personalization. rec_id / email are
-   * deliberately NOT put on browse events (data-minimization, engine request).
-   */
-  smaily_visitor_token?: string;
 }
 
 type Logger = { log: (...args: unknown[]) => void; warn: (...args: unknown[]) => void };
@@ -416,14 +408,9 @@ export class RecEngineClient {
     if (event.dwell_seconds !== undefined) {
       wire.dwell_seconds = event.dwell_seconds;
     }
-    // Identity (not attribution): carry the visitor token when a campaign click
-    // left one, so the engine can bind this browse row to the customer for
-    // future cold-start personalization. Omitted when absent (most organic
-    // visitors have none) — never sent empty. F3-49.
-    const visitor = this.visitorToken();
-    if (visitor !== '') {
-      wire.smaily_visitor_token = visitor;
-    }
+    // No visitor token: `/relay` reads it from the visitor-token cookie on the
+    // server and drops one in the body (PRO-3860). The browser asserts no
+    // identity — no token, rec_id, ctx, email or external_id (F3-49).
     return wire;
   }
 
@@ -434,16 +421,6 @@ export class RecEngineClient {
    */
   private sessionId(): string {
     return this.readCookie(this.config.cookieNames.session);
-  }
-
-  /**
-   * Read the persistent visitor-token cookie (set by captureUrlParams from a
-   * campaign-click `smaily_vt`). Empty when absent — most organic visitors have
-   * none, so the field is omitted rather than sent empty. Identity for the
-   * engine's cold-start binding, NOT attribution (F3-49).
-   */
-  private visitorToken(): string {
-    return this.readCookie(this.config.cookieNames.visitor);
   }
 
   private readCookie(name: string): string {
