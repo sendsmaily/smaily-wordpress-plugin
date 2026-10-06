@@ -7022,7 +7022,8 @@ failure `permanent_envelope_203: Smaily API returned code 203: <message>` —
 no attempt spent, Smaily's answer kept, the same class as Magento. Every
 other code on HTTP 200 keeps its handling (main flusher and routed cart path:
 sent; cart fallback: `smaily_response_code_<n>`). TransactionalFlusher
-already fails any non-101 at once and is unchanged.
+already fails any non-101 at once and is unchanged. *(Superseded for the other
+codes by PRO-3862 below: none is marked sent any more.)*
 **Rejected:** making the Client throw on every non-101 envelope — it changes
 every other caller (backfill, consent writes) and every other code, which
 this issue does not cover.
@@ -7507,6 +7508,28 @@ necessarily the shopper's. Reading the cookie also drops a malformed value
 (neither `vt_` nor `vs_`) on both paths — the old code sent it raw.
 **Relationships:** PRO-3857 (same rule on the order + route), PRO-1486 (the
 strip-and-attach-on-server pattern), F3-49 (browse identity), F3-46.
+
+### PRO-3862 — Every refusing Smaily body code fails the row or retries it; none is "sent" (2026-10-06)
+
+**Context:** after PRO-3750 only code 203 on an HTTP 200 reply failed a row;
+the main Flusher and the cart's routed path marked any other refusing code
+**sent**, so the Event Log showed a request Smaily refused as delivered.
+**Decision:** `RetryPolicy::throw_if_refused_envelope()` reads every non-101
+body code, classified by Smaily's response-code table
+(https://smaily.com/help/api/general/response-codes/). 225 "Database insert
+failed" (Smaily's own database error) is the one transient code: it throws an
+`ApiException` and takes the retry ladder. Every other code — listed or not —
+fails at once as `permanent_envelope_<code>: Smaily API returned code <code>:
+<message>`. Flusher, CartFlusher (both paths; the fallback's own
+`smaily_response_code_<n>` check is gone) and TransactionalFlusher use it; a
+transactional reply with no body code at all stays `smaily_response_code_0`.
+**Rationale:** the other codes name the request (invalid data or email,
+missing fields, an unusable workflow), so a resend is refused again. 221 also
+covers "out of credit", which a top-up fixes, but the same code means "no such
+workflow"; unclear means permanent with Smaily's message, and the Event Log
+retry is the way back.
+**Relationships:** supersedes PRO-3750's "every other code keeps its
+handling"; PRO-1685 (the retry ladder), PRO-1504 (transactional terminal rule).
 
 ## How to keep this document going
 

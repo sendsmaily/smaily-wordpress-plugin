@@ -12,7 +12,9 @@ namespace Smaily\Connect\Tests\Unit\Integrations\WooCommerce;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Integrations\WooCommerce\GuestVisitorToken;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
+use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\AutomationMarker;
@@ -20,6 +22,7 @@ use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\ContactReconciler;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 use Smaily_Connect\Includes\Options;
 use Smaily_Connect\Integrations\WooCommerce\Profile_Settings;
 
@@ -630,6 +633,85 @@ final class HookHandlerTest extends TestCase {
 		( new HookHandler( $this->queue ) )->on_checkout_order_processed( 100 );
 
 		self::assertSame( 'vt_8f3k2aBz01', $order->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	/**
+	 * PRO-3863: a guest whose browser holds a malformed visitor cookie gets a
+	 * fresh store token at checkout (GuestVisitorToken). The attribution stamp
+	 * runs on the same checkout hook, so the two callbacks may run in either
+	 * order; the order must end up with the fresh token either way, never the
+	 * malformed cookie. It holds because the token is written to `$_COOKIE`
+	 * in the same request (a stamp after it copies the token) and the issuer
+	 * writes the order meta itself (an issue after the stamp overwrites it).
+	 *
+	 * @dataProvider checkout_callback_orders
+	 */
+	public function test_a_fresh_guest_token_wins_over_a_malformed_cookie_in_any_hook_order( bool $classic, bool $stamp_first ): void {
+		Functions\when( 'get_option' )->justReturn( false );
+		Functions\when( 'wp_doing_cron' )->justReturn( false );
+		Functions\when( 'is_user_logged_in' )->justReturn( false );
+
+		$order = $this->fake_order( 100, 'guest@example.test', 0, 1 );
+		Functions\when( 'wc_get_order' )->justReturn( $order );
+
+		$_COOKIE['smaily_rec_uid'] = 'not-a-token';
+
+		$handler = new class( $this->queue ) extends HookHandler {
+			protected function marketing_consent_given(): bool {
+				return true;
+			}
+		};
+		$cookies = new class( new FakeRecEngineSettings() ) extends LandingCapture {
+			protected function headers_already_sent(): bool {
+				return false; // PHPUnit's progress output makes the real one true.
+			}
+
+			protected function send_cookie( string $name, string $value, int $expires ): void {}
+		};
+		$issuer = new class( new FakeRecEngineSettings(), $cookies ) extends GuestVisitorToken {
+			protected function marketing_consent_given(): bool {
+				return true;
+			}
+		};
+
+		$stamp = $classic
+			? static function () use ( $handler ): void {
+				$handler->on_checkout_order_processed( 100 );
+			}
+			: static function () use ( $handler, $order ): void {
+				$handler->on_block_checkout_order_processed( $order );
+			};
+		$issue = $classic
+			? static function () use ( $issuer ): void {
+				$issuer->on_classic_checkout( 100 );
+			}
+			: static function () use ( $issuer, $order ): void {
+				$issuer->on_block_checkout( $order );
+			};
+
+		if ( $stamp_first ) {
+			$stamp();
+			$issue();
+		} else {
+			$issue();
+			$stamp();
+		}
+
+		$token = (string) $order->get_meta( '_smaily_visitor_token' );
+		self::assertMatchesRegularExpression( '/^vs_[A-Za-z0-9]{22}$/', $token );
+		self::assertSame( $_COOKIE['smaily_rec_uid'], $token, 'The order carries the token the guest received.' );
+	}
+
+	/**
+	 * @return array<string, array{0: bool, 1: bool}>
+	 */
+	public static function checkout_callback_orders(): array {
+		return array(
+			'classic, stamp first' => array( true, true ),
+			'classic, issue first' => array( true, false ),
+			'block, stamp first'   => array( false, true ),
+			'block, issue first'   => array( false, false ),
+		);
 	}
 
 	public function test_block_checkout_stamps_rec_attribution_onto_order(): void {

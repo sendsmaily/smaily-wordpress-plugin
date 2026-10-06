@@ -104,8 +104,14 @@ the engine creates a token binding from an order only for `vs_`.
   Pro in wp-env); one sandbox §15 guest request (expect 200 `{slots: []}` for a
   made-up `vt_…`) — not live-checked, the dev wp-env had no engine connection;
   cards for a returning guest buyer on a real store.
-- Follow-up candidates: other non-101 Smaily body codes on HTTP 200 are still
-  marked sent (PRO-3750 premise correction); PRO-3859 nightly manifest.
+- Follow-up candidates: PRO-3859 nightly manifest.
+
+**On branch `fix/smaily-refusals-and-checkout-token`, after the 3.16.0 cut:**
+- PRO-3862: every non-101 Smaily body code now fails the row as
+  `permanent_envelope_<code>` with Smaily's message, or (225 only) is retried;
+  none is marked sent. DECISIONS PRO-3862.
+- PRO-3863: a fresh guest token wins over a malformed visitor cookie in either
+  checkout-hook order — verified it cannot happen today; a unit test pins it.
 
 Also 2026-10-06 (**PRO-3822 docs + copy, on a PR branch:** the merchant docs
 say Campaign Intelligence is connected in Step 4 (not Step 1) and name the

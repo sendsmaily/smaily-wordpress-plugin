@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Smaily\ApiException;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RetryPolicy;
+use Smaily\Connect\Smaily\TerminalDispatchException;
 
 final class RetryPolicyTest extends TestCase {
 
@@ -141,24 +142,97 @@ final class RetryPolicyTest extends TestCase {
 	}
 
 	/**
-	 * @dataProvider not_permanent_envelopes
+	 * PRO-3862: every Smaily body code other than 101 fails the row at once
+	 * with Smaily's message — each code of the response-code table
+	 * (https://smaily.com/help/api/general/response-codes/) except 225, and a
+	 * code the table does not list.
+	 *
+	 * @dataProvider permanent_envelope_codes
+	 */
+	public function test_a_refusing_body_code_fails_the_row_with_smailys_message( int $code ): void {
+		$exchange = $this->exchange_answering( $code, 'Smaily said no' );
+
+		$expected = sprintf( 'permanent_envelope_%1$d: Smaily API returned code %1$d: Smaily said no', $code );
+		self::assertSame( $expected, RetryPolicy::permanent_envelope( $exchange ) );
+
+		$this->expectException( TerminalDispatchException::class );
+		$this->expectExceptionMessage( $expected );
+		RetryPolicy::throw_if_refused_envelope( $exchange );
+	}
+
+	/**
+	 * @return array<string, array{0: int}>
+	 */
+	public static function permanent_envelope_codes(): array {
+		$codes = array( 201, 203, 204, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 223, 224, 226, 227 );
+
+		$cases = array();
+		foreach ( $codes as $code ) {
+			$cases[ (string) $code ] = array( $code );
+		}
+		$cases['a code Smaily does not list'] = array( 299 );
+
+		return $cases;
+	}
+
+	public function test_a_database_insert_failure_is_retried_not_failed(): void {
+		// PRO-3862: 225 "Database insert failed" is Smaily's own database
+		// error — the same data can pass later, so it takes the retry ladder.
+		$exchange = $this->exchange_answering( 225, 'Database insert failed' );
+
+		self::assertNull( RetryPolicy::permanent_envelope( $exchange ) );
+
+		try {
+			RetryPolicy::throw_if_refused_envelope( $exchange );
+			self::fail( 'A refusing body code must never pass as sent.' );
+		} catch ( ApiException $e ) {
+			self::assertSame( 'Smaily API returned code 225: Database insert failed', $e->getMessage() );
+			self::assertSame( 225, $e->smaily_code() );
+			self::assertFalse( RetryPolicy::is_permanent( $e ) );
+
+			$queue = $this->fake_queue();
+			self::assertSame( 'retried', RetryPolicy::apply( $queue, 15, 0, $e ) );
+			self::assertSame( array(), $queue->marked_failed );
+		}
+	}
+
+	/**
+	 * @dataProvider not_refusing_replies
 	 *
 	 * @param array<string, mixed>|null $exchange
 	 */
-	public function test_any_other_reply_is_not_a_permanent_envelope( ?array $exchange ): void {
+	public function test_a_reply_without_a_refusing_body_code_passes( ?array $exchange ): void {
 		self::assertNull( RetryPolicy::permanent_envelope( $exchange ) );
+
+		RetryPolicy::throw_if_refused_envelope( $exchange );
+		$this->addToAssertionCount( 1 );
 	}
 
 	/**
 	 * @return array<string, array{0: array<string, mixed>|null}>
 	 */
-	public static function not_permanent_envelopes(): array {
+	public static function not_refusing_replies(): array {
 		return array(
 			'success'             => array( array( 'response' => array( 'http' => 200, 'body' => array( 'code' => 101, 'message' => 'OK' ) ) ) ),
-			'another error code'  => array( array( 'response' => array( 'http' => 200, 'body' => array( 'code' => 216, 'message' => 'Unknown error' ) ) ) ),
 			'no body code'        => array( array( 'response' => array( 'http' => 200, 'body' => array() ) ) ),
 			'transport error'     => array( array( 'response' => array( 'error' => 'timed out' ) ) ),
 			'nothing was sent'    => array( null ),
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function exchange_answering( int $code, string $message ): array {
+		return array(
+			'request'  => array(),
+			'response' => array(
+				'http' => 200,
+				'body' => array(
+					'code'    => $code,
+					'message' => $message,
+				),
+			),
 		);
 	}
 
