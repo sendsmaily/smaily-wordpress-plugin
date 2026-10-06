@@ -18,10 +18,15 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
+use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
+use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
+use Smaily\Connect\Tests\Integration\Support\QueueRowFixture;
 
 /**
  * The headline guarantee (the WC boundary): the rec-engine exporter surfaces
@@ -170,6 +175,62 @@ final class RecEngineGdprTest extends TestCase {
 		self::assertSame( '', (string) $plain->get_meta( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) );
 	}
 
+	public function test_erasure_drops_the_customers_waiting_updates_so_none_sends_them_again(): void {
+		// PRO-3906: a customer or order row waiting in the queue holds no copy
+		// yet (the flusher builds it at send time), so the PRO-2384 match on
+		// the stored copy cannot see it. Left behind, it would send the erased
+		// customer to the engine again right after the engine deleted them.
+		$target    = 'erase-waiting@example.com';
+		$bystander = 'keep-waiting@example.com';
+		$user      = $this->make_user( $target );
+		$other     = $this->make_user( $bystander );
+		$order_id  = $this->make_sale_order( $target );
+		$other_id  = $this->make_sale_order( $bystander );
+
+		// Start from an empty queue: the user and order hooks above queued rows of their own.
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . QueueRowFixture::table( IngestQueue::TABLE_SUFFIX ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+
+		$queue = new IngestQueue();
+		// The customer's waiting rows: due now, parked for a retry, and failed
+		// (the Event Log's Retry would send it again).
+		$due    = $this->enqueue( CustomerFlusher::EVENT_CUSTOMER_UPSERT, $user->ID );
+		$order  = $this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $order_id );
+		$parked = $this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $order_id );
+		$queue->record_attempt( $parked, 'http_503 unavailable', 3600 );
+		$failed = $this->enqueue( CustomerFlusher::EVENT_CUSTOMER_UPSERT, $user->ID );
+		$queue->mark_failed( $failed, 'http_503 unavailable' );
+		// Rows that stay: a sent row (never sent again), a catalog row whose
+		// product id happens to equal the user id, and the other customer's.
+		$sent = $this->enqueue( CustomerFlusher::EVENT_CUSTOMER_UPSERT, $user->ID );
+		$queue->mark_sent( $sent );
+		$catalog    = $this->enqueue( 'catalog.upsert', $user->ID );
+		$other_rows = array(
+			$this->enqueue( CustomerFlusher::EVENT_CUSTOMER_UPSERT, $other->ID ),
+			$this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $other_id ),
+		);
+
+		$result = $this->handler()->erase( $target );
+
+		self::assertTrue( $result['items_removed'] );
+
+		// The merchant presses Retry in the Event Log, then the flushers run.
+		$queue->reset_failed();
+		$this->customer_flusher()->flush();
+		$this->order_flusher()->flush();
+
+		$state = self::$engine->state();
+		self::assertSame( array( $bystander ), array_column( $state['last_customers_payload'] ?? array(), 'email' ), 'Only the other customer reaches the engine.' );
+		self::assertSame( array( $bystander ), array_column( $state['last_orders_payload'] ?? array(), 'customer_email' ), 'Only the other customer\'s order reaches the engine.' );
+
+		foreach ( array( $due, $order, $parked, $failed ) as $id ) {
+			self::assertFalse( QueueRowFixture::exists( IngestQueue::TABLE_SUFFIX, $id ), "Waiting row {$id} is dropped." );
+		}
+		foreach ( array_merge( array( $sent, $catalog ), $other_rows ) as $id ) {
+			self::assertTrue( QueueRowFixture::exists( IngestQueue::TABLE_SUFFIX, $id ), "Row {$id} is not the customer's waiting update." );
+		}
+	}
+
 	public function test_erase_is_idempotent_when_already_deleted(): void {
 		$email = 'gdpr-idem@example.test';
 
@@ -270,6 +331,46 @@ final class RecEngineGdprTest extends TestCase {
 		$id                     = (int) $order->save();
 		$this->created_orders[] = $id;
 		return $id;
+	}
+
+	/** An order the order flusher sends: a completed sale billed to $email. */
+	private function make_sale_order( string $email ): int {
+		$id    = $this->make_order_with_rec_meta( $email );
+		$order = wc_get_order( $id );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		$order->set_status( 'completed' );
+		$order->save();
+		return $id;
+	}
+
+	private function enqueue( string $event_type, int $entity_id ): int {
+		$id = ( new IngestQueue() )->enqueue( $event_type, (string) $entity_id, array() );
+		self::assertIsInt( $id );
+		return $id;
+	}
+
+	private function customer_flusher(): CustomerFlusher {
+		$settings = new RecEngineSettings();
+		return new CustomerFlusher(
+			new IngestQueue(),
+			new CustomerPayloadBuilder(),
+			$settings,
+			static function () use ( $settings ): Client {
+				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
+			}
+		);
+	}
+
+	private function order_flusher(): OrderFlusher {
+		$settings = new RecEngineSettings();
+		return new OrderFlusher(
+			new IngestQueue(),
+			new OrderPayloadBuilder(),
+			$settings,
+			static function () use ( $settings ): Client {
+				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
+			}
+		);
 	}
 
 	private function make_user( string $email ): \WP_User {

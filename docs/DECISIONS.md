@@ -7773,6 +7773,41 @@ it over-matches accented addresses.
 gap in the Smaily queue's fallback match — not changed here), F3-44 (stored
 exchange), F3-28 (engine erasure).
 
+### PRO-3906 — An erasure request drops the customer's waiting Campaign Intelligence updates (2026-10-06)
+
+**Context:** customer and order rows in `smly_rec_event_queue` enqueue an empty
+`payload`; the flusher builds them from the current WP user or WC order at send
+time. A row not yet attempted therefore holds no copy for the PRO-2384 match to
+find. Left in the queue after an erasure, it was sent after the engine's §9
+DELETE and could create the customer in the engine again (the WP user keeps its
+address, and an order keeps its billing address unless WooCommerce's own order
+eraser is switched on).
+**Decision (Erkki, 2026-10-06):** at erasure the customer's WAITING updates are
+dropped from the queue. A later profile save or order is a new action and may
+send the customer again; no lasting record of the erasure is kept.
+`IngestQueue::delete_unsent()` deletes the `customer.upsert` rows whose
+`entity_id` is the WP user with the address and the `order.upsert` rows whose
+`entity_id` is an order billed to it. "Waiting" is `pending` (due now, or
+parked for a retry) and `failed`, because the Event Log's Retry
+(`reset_failed()`) revives a failed row and the flusher then builds it fresh; a
+`sent` row is never sent again. The orders come from the
+`wc_get_orders( billing_email )` lookup the order-meta erasure already runs, now
+run once per erasure and shared; the DELETE runs in chunks of 500 ids on the
+`(status, …)` index. The drop runs before the engine call, so no waiting row is
+sent after the engine has forgotten the customer. Catalog rows and other
+customers' rows are never touched.
+**Rationale:** the engine creates a customer from any customer or order it
+receives, so a waiting row is a resend of the erased person, not history. The
+row holds nothing worth keeping — it is a pointer to data the store still has.
+**Alternatives:** a suppression list of erased addresses checked at send time —
+rejected by Erkki, it is a lasting record of the erasure and would also block
+the customer's own later orders; deleting rows by a text match — impossible, a
+waiting row holds no address. Not covered: a batch a flusher has already taken
+from the queue when the erasure runs, and an import still running whose cursor
+has not reached the customer — it enqueues them as a new row later.
+**Relationships:** PRO-2384 (the sent copies), PRO-2383 (the Smaily queue's
+sendable rows), F3-28 (engine erasure), 3.10.1 (Event Log Retry).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

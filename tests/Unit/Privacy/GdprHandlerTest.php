@@ -209,6 +209,41 @@ final class GdprHandlerTest extends TestCase {
 		self::assertSame( array( 'erase-me@example.test' ), $ingest->erase_calls );
 	}
 
+	public function test_erase_drops_the_waiting_updates_of_the_user_and_the_orders_billed_to_the_address(): void {
+		// PRO-3906: the WP user with the address, and its orders, by entity id.
+		Functions\when( 'get_user_by' )->alias(
+			static fn ( string $field, $value ) => $field === 'email' && $value === 'erase-me@example.test'
+				? new class() extends \WP_User {
+					public function __construct() {
+						$this->ID = 7;
+					}
+				}
+				: false
+		);
+		$ingest = $this->fake_ingest_queue( 0, 3 );
+		$orders = array( $this->fake_order( 11, '11', array() ), $this->fake_order( 12, '12', array() ) );
+
+		$result = $this->handler( $this->fake_store( array() ), null, $orders, $ingest )->erase( 'erase-me@example.test' );
+
+		self::assertTrue( $result['items_removed'] );
+		self::assertSame(
+			array(
+				array( 'customer.upsert', array( 7 ) ),
+				array( 'order.upsert', array( 11, 12 ) ),
+			),
+			$ingest->unsent_calls
+		);
+	}
+
+	public function test_erase_drops_no_waiting_update_when_no_user_or_order_has_the_address(): void {
+		$ingest = $this->fake_ingest_queue( 0, 5 );
+
+		$result = $this->handler( $this->fake_store( array() ), null, array(), $ingest )->erase( 'nobody@example.test' );
+
+		self::assertFalse( $result['items_removed'] );
+		self::assertSame( array(), $ingest->unsent_calls );
+	}
+
 	public function test_export_states_the_newsletter_consent_kept_on_each_marked_order(): void {
 		// PRO-3426: the block checkout keeps the tick as order meta (PRO-3406).
 		$marked  = $this->fake_order( 101, '1001', array( HookHandler::ORDER_META_NEWSLETTER_OPTIN => '1' ) );
@@ -381,20 +416,30 @@ final class GdprHandlerTest extends TestCase {
 		};
 	}
 
-	private function fake_ingest_queue( int $deleted ): IngestQueue {
-		return new class( $deleted ) extends IngestQueue {
+	private function fake_ingest_queue( int $deleted, int $unsent = 0 ): IngestQueue {
+		return new class( $deleted, $unsent ) extends IngestQueue {
 			private int $deleted;
+			private int $unsent;
 
 			/** @var array<int, string> */
 			public array $erase_calls = array();
 
-			public function __construct( int $deleted ) {
+			/** @var array<int, array{0: string, 1: array<int, int|string>}> */
+			public array $unsent_calls = array();
+
+			public function __construct( int $deleted, int $unsent ) {
 				$this->deleted = $deleted;
+				$this->unsent  = $unsent;
 			}
 
 			public function delete_for_privacy_request( string $email ): int {
 				$this->erase_calls[] = $email;
 				return $this->deleted;
+			}
+
+			public function delete_unsent( string $event_type, array $entity_ids ): int {
+				$this->unsent_calls[] = array( $event_type, $entity_ids );
+				return $this->unsent;
 			}
 		};
 	}

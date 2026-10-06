@@ -18,7 +18,9 @@ use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 
 /**
  * Registers a WP Privacy API exporter (Art 15) + eraser (Art 17) so the rec
@@ -49,7 +51,9 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
  *     PRO-2384) — its F3-44 copy of a sent customer or order carries the
  *     address and the customer fields. Erase deletes every row whose copy
  *     carries the address (IngestQueue::delete_for_privacy_request()),
- *     independent of the engine connection.
+ *     independent of the engine connection. It also deletes the customer's
+ *     customer and order updates still waiting to be sent, so none of them
+ *     sends the customer to the engine again (PRO-3906).
  *   - And the block-checkout newsletter consent marker
  *     (`_smaily_newsletter_optin` order meta, PRO-3406/PRO-3426) — exported as
  *     the consent given on that order, removed on erasure. The Smaily contact
@@ -173,8 +177,15 @@ class GdprHandler {
 	 * @return array{items_removed: bool, items_retained: bool, messages: array<int, string>, done: bool}
 	 */
 	public function erase( string $email, int $page = 1 ): array {
-		$removed = $this->erase_engine( $email );
-		if ( $this->erase_plugin_meta( $email ) ) {
+		$orders = $this->orders_for( $email );
+
+		// Before the engine call, so no update still waiting in the queue
+		// sends the customer to the engine again after it (PRO-3906).
+		$removed = $this->drop_waiting_updates( $email, $orders );
+		if ( $this->erase_engine( $email ) ) {
+			$removed = true;
+		}
+		if ( $this->erase_plugin_meta( $email, $orders ) ) {
 			$removed = true;
 		}
 		if ( $this->erase_cart_sessions( $email ) ) {
@@ -367,13 +378,40 @@ class GdprHandler {
 		}
 	}
 
-	private function erase_plugin_meta( string $email ): bool {
+	/**
+	 * Delete the customer's customer and order updates that are still waiting
+	 * in the Campaign Intelligence queue (PRO-3906): the WP user with this
+	 * address, and the orders billed to it. A row not yet attempted holds no
+	 * copy, so IngestQueue::delete_for_privacy_request() cannot see it.
+	 *
+	 * @param \WC_Order[] $orders The orders billed to the address.
+	 */
+	private function drop_waiting_updates( string $email, array $orders ): bool {
+		$deleted = 0;
+
+		$user_id = $this->user_id_for( $email );
+		if ( $user_id > 0 ) {
+			$deleted += $this->ingest_queue->delete_unsent( CustomerFlusher::EVENT_CUSTOMER_UPSERT, array( $user_id ) );
+		}
+
+		$order_ids = array_map( static fn ( \WC_Order $order ): int => (int) $order->get_id(), $orders );
+		if ( $order_ids !== array() ) {
+			$deleted += $this->ingest_queue->delete_unsent( OrderFlusher::EVENT_ORDER_UPSERT, $order_ids );
+		}
+
+		return $deleted > 0;
+	}
+
+	/**
+	 * @param \WC_Order[] $orders The orders billed to the address.
+	 */
+	private function erase_plugin_meta( string $email, array $orders ): bool {
 		$removed = false;
 
 		// The rec markers plus the newsletter consent marker (PRO-3426).
 		$order_keys = array_merge( self::ORDER_META_KEYS, array( HookHandler::ORDER_META_NEWSLETTER_OPTIN ) );
 
-		foreach ( $this->orders_for( $email ) as $order ) {
+		foreach ( $orders as $order ) {
 			$dirty = false;
 			foreach ( $order_keys as $key ) {
 				if ( (string) $order->get_meta( $key ) !== '' ) {
