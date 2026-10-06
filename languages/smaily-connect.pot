@@ -2211,6 +2211,18 @@ msgstr ""
 msgid "Requires marketing consent (WP Consent API / Cookiebot / Complianz / CookieYes)."
 msgstr ""
 
+#: admin/src/components/steps/Step4Recommendations.tsx:427
+msgid "Consent comes from your store's consent plugin: browse events are sent only for visitors who gave marketing consent."
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx:433
+msgid "Browse tracking sends nothing until a consent source is connected."
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx:442
+msgid "Get the WP Consent API plugin"
+msgstr ""
+
 #: admin/src/components/steps/Step4Recommendations.tsx:332
 msgid "Browsing telemetry only fires when the visitor has granted marketing consent. If your site doesn't have a consent banner installed, the beacon won't collect events."
 msgstr ""

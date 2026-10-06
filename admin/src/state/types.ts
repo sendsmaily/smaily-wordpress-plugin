@@ -272,6 +272,13 @@ export interface WizardState {
      * fixtures without it stay valid.
      */
     orderStatuses?: Array<{ slug: string; name: string }>;
+    /**
+     * Whether the WP Consent API is active (`wp_has_consent` exists,
+     * PRO-3673). Without it the browse tracker has no consent signal and
+     * sends nothing; the browse-tracking toggle says which case applies.
+     * Optional so pre-existing env fixtures stay valid; absent = not active.
+     */
+    consentApiPresent?: boolean;
   };
 
   /** Step 1 — Connect. */

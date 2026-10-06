@@ -64,3 +64,16 @@ describe('hydrateState — the subscriber-field ticks', () => {
     expect(s.syncFields).toEqual([...DEFAULT_SYNC_FIELDS]);
   });
 });
+
+describe('hydrateState — the consent API flag (PRO-3673)', () => {
+  it('carries the server-detected consent API into the env', () => {
+    const payload = boot(['first_name']);
+    payload.envSnapshot.consentApiPresent = true;
+
+    expect(hydrateState(payload, true).env.consentApiPresent).toBe(true);
+  });
+
+  it('reads an absent flag as no consent API', () => {
+    expect(hydrateState(boot(['first_name']), true).env.consentApiPresent).toBe(false);
+  });
+});

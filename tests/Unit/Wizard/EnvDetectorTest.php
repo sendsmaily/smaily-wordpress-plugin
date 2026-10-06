@@ -239,6 +239,18 @@ final class EnvDetectorTest extends TestCase {
 		self::assertSame( \Smaily\Connect\Constants::DOCS_URL, $snapshot['docsUrl'] );
 	}
 
+	public function test_snapshot_says_the_consent_api_is_absent_without_wp_has_consent(): void {
+		// PRO-3673: the browse-tracking toggle's consent sentence reads this.
+		// The unit runtime never defines wp_has_consent — same check as
+		// NotificationManager's consent advisory.
+		Functions\when( 'get_locale' )->justReturn( 'en_US' );
+
+		$snapshot = ( new EnvDetector() )->snapshot();
+
+		self::assertFalse( function_exists( 'wp_has_consent' ) );
+		self::assertFalse( $snapshot['consentApiPresent'] );
+	}
+
 	public function test_saved_settings_omits_password_field(): void {
 		\Smaily_Connect\Includes\Cypher::$decrypt_return = 'plain-pw';
 
