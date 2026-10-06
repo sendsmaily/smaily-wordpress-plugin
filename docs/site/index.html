@@ -1458,6 +1458,21 @@ td code{white-space:nowrap}
         <li><strong>Browse tracking collects nothing</strong> — browse events are gated on the <strong>WP Consent API</strong>. If your store has no consent framework, <code>wp_has_consent()</code> is undefined and the plugin fails closed (zero events, no error). Install the free <strong>WP Consent API</strong> plugin; most consent banners register into it — <strong>CookieYes</strong>, <strong>Complianz</strong> and <strong>Real Cookie Banner</strong> all do (map their marketing/advertising category to the WP Consent API <code>marketing</code> category). Turn on the banner's WP Consent API setting if it has one. Only the shopper's explicit yes counts: the consent banner must be connected to the WP Consent API and must have stored the shopper's yes for marketing. With no such banner, before the shopper answers, or after a no, nothing is sent and no recommendations are shown — also where the banner treats silence as consent. Smaily Connect shows an admin notice when browse tracking is on and connected but the WP Consent API plugin is not installed.</li>
         <li><strong>Multilingual routing</strong> — per‑language contact routing reads languages from <strong>WPML</strong>, <strong>Polylang</strong> or <strong>TranslatePress</strong>. Without one of them, the site locale is used.</li>
       </ul>
+      <h3>How consent works in each setup</h3>
+      <p>Three features wait for the shopper's marketing consent: <strong>browse tracking</strong>, the <strong>Recommendations block</strong>, and the <strong>visitor token</strong> a guest buyer gets at checkout. All three use the same rule: the WP Consent API must have stored <code>allow</code> for the <code>marketing</code> category. A consent banner stores it when the shopper says yes.</p>
+      <ul>
+        <li><strong>No WP Consent API and no banner</strong> — none of the three runs. The line under the browse‑tracking toggle says so. While browse tracking is on, an admin notice says so too.</li>
+        <li><strong>WP Consent API installed, but no banner records choices through it</strong> — none of the three runs, because no consent is ever stored. The admin notice cannot detect this case: the server cannot tell it apart from a banner that works only in the browser. Only the line under the browse‑tracking toggle reminds you that a yes in a connected banner is needed. This changed in this version: earlier versions tracked browsing on such a store.</li>
+        <li><strong>WP Consent API and a connected banner (for example CookieYes or Complianz)</strong> — when the shopper says yes to marketing, all three run: browse tracking and the Recommendations block start on the same page, and the visitor token is created at checkout. If the shopper refuses or does not answer, none of them runs. A logged‑in shopper who turned off personalised recommendations under <span class="path">My Account</span> gets no recommendations, even with consent.</li>
+        <li><strong>Outside the EU</strong> — the plugin does not look at the visitor's location. It counts only a stored <code>allow</code> for the <code>marketing</code> category. If your banner stores <code>allow</code> by default in an opt‑out region, all three run. If the banner only treats the visitor as allowed without storing a choice, none of them runs. This is stricter than some regions require; you can set up your banner to record consent there.</li>
+      </ul>
+      <p><strong>Not affected by this consent:</strong></p>
+      <ul>
+        <li><strong>Email‑link attribution</strong> — it is functional and always runs. The visitor token from a Smaily email link is stored, but the Recommendations block uses it only with consent.</li>
+        <li><strong>Contact sync to Smaily</strong> — it follows your consent preset (see <a href="#set-subscribers">Contacts</a>).</li>
+        <li><strong>Automated emails</strong> — they have their own settings.</li>
+        <li><strong>Orders and customers sent to Campaign Intelligence</strong> — they always sync. Smaily applies a shopper's profiling objection.</li>
+      </ul>
       <div class="note">
         <span class="k">WordPress, not app permissions</span>
         <p>Unlike an app‑store app, there are no OAuth permission prompts to approve. What a WordPress feature needs is either a capability you already have as an admin, or a companion plugin like the ones above.</p>
@@ -1468,6 +1483,21 @@ td code{white-space:nowrap}
       <ul>
         <li><strong>Sirvimise jälgimine ei kogu midagi</strong> — sirvimissündmused on <strong>WP Consent API</strong> väraval. Kui su poel pole nõusoleku‑raamistikku, on <code>wp_has_consent()</code> defineerimata ja plugin jääb fail‑closed (null sündmust, viga ei kuva). Paigalda tasuta <strong>WP Consent API</strong> plugin; enamik nõusoleku‑bännereid registreerib sinna — <strong>CookieYes</strong>, <strong>Complianz</strong> ja <strong>Real Cookie Banner</strong> kõik teevad (seo nende turunduse/reklaami kategooria WP Consent API <code>marketing</code>‑kategooriaga). Kui bänneril on WP Consent API seadistus, lülita see sisse. Arvesse läheb ainult ostja selgesõnaline "jah": nõusolekubänner peab olema WP Consent API‑ga ühendatud ja olema salvestanud ostja turundusele antud "jah". Sellise bännerita, enne kui ostja on vastanud, või pärast "ei"‑d ei saadeta midagi ega näidata soovitusi — ka seal, kus bänner loeb vaikimist nõusolekuks. Smaily Connect näitab haldusteadet, kui sirvimise jälgimine on sees ja ühendatud, aga WP Consent API pluginat pole paigaldatud.</li>
         <li><strong>Mitmekeelne suunamine</strong> — keelepõhine kontakti‑suunamine loeb keeled <strong>WPML‑ist</strong>, <strong>Polylangist</strong> või <strong>TranslatePressist</strong>. Kui ühtki neist pole, kasutatakse saidi lokaati.</li>
+      </ul>
+      <h3>Kuidas nõusolek eri seadistustes toimib</h3>
+      <p>Kolm funktsiooni ootavad ostja turundusnõusolekut: <strong>sirvimise jälgimine</strong>, <strong>soovituste plokk</strong> ja <strong>külastaja‑token</strong>, mille külalisostja kassas saab. Kõigil kolmel on sama reegel: WP Consent API peab olema salvestanud kategooriale <code>marketing</code> väärtuse <code>allow</code>. Nõusolekubänner salvestab selle, kui ostja ütleb "jah".</p>
+      <ul>
+        <li><strong>WP Consent API puudub ja bännerit pole</strong> — ükski kolmest ei tööta. Seda ütleb sirvimise jälgimise lüliti all olev rida. Kui sirvimise jälgimine on sees, ütleb seda ka haldusteade.</li>
+        <li><strong>WP Consent API on paigaldatud, aga ükski bänner ei salvesta valikuid selle kaudu</strong> — ükski kolmest ei tööta, sest nõusolekut ei salvestata kunagi. Haldusteade ei suuda seda olukorda tuvastada: server ei erista seda bännerist, mis töötab ainult brauseris. Ainult sirvimise jälgimise lüliti all olev rida tuletab meelde, et vaja on "jah"‑i ühendatud bänneris. See muutus selles versioonis: varasemad versioonid jälgisid sellises poes sirvimist.</li>
+        <li><strong>WP Consent API ja ühendatud bänner (näiteks CookieYes või Complianz)</strong> — kui ostja ütleb turundusele "jah", töötavad kõik kolm: sirvimise jälgimine ja soovituste plokk käivituvad samal lehel ning külastaja‑token luuakse kassas. Kui ostja keeldub või ei vasta, ei tööta ükski. Sisseloginud ostja, kes on <span class="path">My Account</span> all personaalsed soovitused välja lülitanud, ei saa soovitusi ka nõusolekuga.</li>
+        <li><strong>Väljaspool ELi</strong> — plugin ei vaata külastaja asukohta. Arvesse läheb ainult kategooriale <code>marketing</code> salvestatud <code>allow</code>. Kui su bänner salvestab opt‑out piirkonnas vaikimisi <code>allow</code>, töötavad kõik kolm. Kui bänner ainult käsitleb külastajat lubatuna, aga valikut ei salvesta, ei tööta ükski. See on rangem, kui mõni piirkond nõuab; saad bänneri seadistada nõusolekut seal salvestama.</li>
+      </ul>
+      <p><strong>Seda nõusolekut ei vaja:</strong></p>
+      <ul>
+        <li><strong>E‑kirja lingi atributsioon</strong> — see on funktsionaalne ja töötab alati. Smaily e‑kirja lingist tulnud külastaja‑token salvestatakse, aga soovituste plokk kasutab seda ainult nõusolekuga.</li>
+        <li><strong>Kontaktide sünkroonimine Smailysse</strong> — see järgib sinu nõusoleku eelseadistust (vt <a href="#set-subscribers">Kontaktid</a>).</li>
+        <li><strong>Automaatsed e‑kirjad</strong> — neil on oma seaded.</li>
+        <li><strong>Campaign Intelligence'isse saadetavad tellimused ja kliendid</strong> — need sünkivad alati. Ostja profileerimise vastuväidet rakendab Smaily.</li>
       </ul>
       <div class="note">
         <span class="k">WordPress, mitte äpi‑õigused</span>
