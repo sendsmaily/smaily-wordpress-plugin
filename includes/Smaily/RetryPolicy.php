@@ -121,7 +121,7 @@ final class RetryPolicy {
 	public static function throw_if_permanent_envelope( ?array $exchange ): void {
 		$refusal = self::permanent_envelope( $exchange );
 		if ( $refusal !== null ) {
-			throw new TerminalDispatchException( $refusal );
+			throw new TerminalDispatchException( $refusal ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message goes to the Event Log / debug log, never echoed to a browser.
 		}
 	}
 
