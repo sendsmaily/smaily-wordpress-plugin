@@ -151,6 +151,48 @@ class LandingCapture {
 	}
 
 	/**
+	 * The visitor token this browser already carries in the visitor-token
+	 * cookie, or '' when it carries none in the engine's shape.
+	 */
+	public function current_visitor_token(): string {
+		$name = $this->cookie_name( $this->settings->config(), self::SLOT_VISITOR );
+		if ( ! isset( $_COOKIE[ $name ] ) || ! is_scalar( $_COOKIE[ $name ] ) ) {
+			return '';
+		}
+		$value = trim( sanitize_text_field( wp_unslash( (string) $_COOKIE[ $name ] ) ) );
+		return AttributionShape::is_visitor_token( $value ) ? $value : '';
+	}
+
+	/**
+	 * Create a new visitor token and write it to the visitor-token cookie, with
+	 * the same name, TTL and attributes as a landing capture (PRO-3845).
+	 *
+	 * ASSUMPTION (PRO-3845, to be confirmed by the PRO-3844 contract sync): the
+	 * contract does not yet define a store-created token. `vt_` + 32 lowercase
+	 * hex (128 random bits) is inside the engine's visitor-token shape that
+	 * AttributionShape enforces, so the order sender keeps it.
+	 *
+	 * @return string The token, or '' when the response headers are already
+	 *                sent and the cookie could not be written.
+	 */
+	public function issue_visitor_token(): string {
+		if ( $this->headers_already_sent() ) {
+			DebugLog::write( '[smaily-connect landing-capture] visitor token not issued: headers already sent' );
+			return '';
+		}
+
+		$token  = 'vt_' . bin2hex( random_bytes( 16 ) );
+		$config = $this->settings->config();
+		$this->set_cookie(
+			$this->cookie_name( $config, self::SLOT_VISITOR ),
+			$token,
+			$this->cookie_ttl_days( $config, self::SLOT_VISITOR )
+		);
+
+		return $token;
+	}
+
+	/**
 	 * Map a raw GET array to the attribution values worth persisting, keyed by
 	 * capture slot. Pure + side-effect-free so it can be unit-tested without
 	 * touching cookies/headers. An absent or malformed value is simply omitted
