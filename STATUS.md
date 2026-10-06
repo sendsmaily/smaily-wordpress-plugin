@@ -50,6 +50,18 @@ human proofread before the docs site is published); docs site EN+ET updated
 licensed Elementor Pro in wp-env). Touches consent + external HTTP, so the next
 release's security delta re-audit must cover it.)_
 
+Also 2026-10-06 (**PRO-3857 on a PR branch, for 3.16.0:** closes the second
+3.16.0 security audit's M1 + L2 + L3 — a landing link takes only the engine
+`vt_` token (`is_engine_visitor_token()`; a `?smaily_vt=vs_…` is ignored in
+PHP and JS); a `vs_` token rides an order, and the route asks about a guest,
+only with `MarketingConsent::given()`; an engine timeout/5xx on §15 pauses
+every shopper's engine calls for 2 min. DECISIONS PRO-3857; docs site
+"returning guest" line EN+ET (ET awaits proofread). **Contract v1.12.0 synced
+byte-identical** to engine `15785a08a5db` (PRO-3763, md5 d4a98e3d…): new §3c
+nightly catalog manifest (optional, new behaviour not built); no wire shape we
+send changed. Gates: ci:strict exit=0 (unit 1090, vitest 375); integration
+364 OK on the Mac.)
+
 Also 2026-10-06 (**Contract v1.10.0 synced byte-identical** to engine
 `967287f541fa` (PRO-3834; md5 e4b739e0…): §15 also takes
 `smaily_visitor_token` in place of `customer_external_id` (customer id wins

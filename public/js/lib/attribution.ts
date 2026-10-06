@@ -69,12 +69,16 @@ export const REC_ID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-
 
 /**
  * The engine's visitor-token shape (`vt_` + alphanumerics) and the campaign
- * context slug, mirroring `LandingCapture::is_visitor_token()` /
+ * context slug, mirroring `AttributionShape::is_engine_visitor_token()` /
  * `::is_context()` verbatim. Two writers of the same cookies must accept the
  * same values (PRO-1896): before this, a crafted landing URL could plant an
  * arbitrary/oversized value in a 30/365-day cookie here that the strict PHP
  * writer would have refused — and PRO-1767 newly hands this writer to
  * browse-OFF stores, whose only writer used to be that strict one.
+ *
+ * Deliberately NOT the store-created `vs_` format (PRO-3857): an engine email
+ * link never carries one, so a `vs_` value in a link is one its sender chose,
+ * and the engine would bind it to this visitor at their next guest order.
  */
 export const VISITOR_TOKEN_PATTERN = /^vt_[A-Za-z0-9]{1,64}$/;
 export const CONTEXT_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;

@@ -108,6 +108,35 @@ final class LandingCaptureTest extends TestCase {
 		self::assertArrayNotHasKey( 'visitor', $out );
 	}
 
+	public function test_resolve_ignores_a_store_created_token_in_a_link(): void {
+		// PRO-3857: a link carries only the engine's `vt_` token. A well-formed
+		// `vs_` value in a link was chosen by whoever wrote the link; cookied,
+		// the engine would bind it to this visitor at their next guest order.
+		$out = $this->capture()->resolve( array( 'smaily_vt' => 'vs_0123456789ABCDEFabcdef' ) );
+		self::assertArrayNotHasKey( 'visitor', $out );
+	}
+
+	public function test_capture_writes_no_cookie_for_a_store_created_token_in_a_link(): void {
+		Functions\when( 'apply_filters' )->returnArg( 2 );
+		$_GET   = array( 'smaily_vt' => 'vs_0123456789ABCDEFabcdef' );
+		$writer = $this->recording_capture( true, array() );
+
+		$writer->capture();
+
+		self::assertArrayNotHasKey( 'smaily_rec_uid', $writer->written );
+		self::assertArrayNotHasKey( 'smaily_rec_uid', $_COOKIE );
+	}
+
+	public function test_capture_writes_the_cookie_for_an_engine_token_in_a_link(): void {
+		Functions\when( 'apply_filters' )->returnArg( 2 );
+		$_GET   = array( 'smaily_vt' => 'vt_0123456789ABCDEFabcdef' );
+		$writer = $this->recording_capture( true, array() );
+
+		$writer->capture();
+
+		self::assertSame( 'vt_0123456789ABCDEFabcdef', $writer->written['smaily_rec_uid'] ?? null );
+	}
+
 	public function test_resolve_captures_a_context_slug(): void {
 		$out = $this->capture()->resolve( array( 'smaily_ctx' => 'cart_abandoned' ) );
 		self::assertSame( 'cart_abandoned', $out['context'] );

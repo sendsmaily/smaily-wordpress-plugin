@@ -61,6 +61,15 @@ describe('captureAttributionParams (PRO-1767 attribution-only writer)', () => {
     expect(window.location.search).toBe('');
   });
 
+  it('refuses a store-created vs_ token in a link (PRO-3857 — a link carries the engine token only)', () => {
+    window.history.replaceState({}, '', '/landing?smaily_vt=vs_0123456789ABCDEFabcdef');
+
+    expect(captureAttributionParams(makeConfig())).toBe(false);
+
+    expect(document.cookie).not.toContain('smaily_rec_uid=');
+    expect(window.location.search).toBe('');
+  });
+
   it('refuses an oversized visitor token and context (>64 chars past the prefix)', () => {
     const long = 'a'.repeat(65);
     window.history.replaceState({}, '', `/landing?smaily_vt=vt_${long}&smaily_ctx=${long}`);

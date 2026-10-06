@@ -246,6 +246,99 @@ final class StorefrontRecommendationsTest extends TestCase {
 		self::assertSame( StorefrontRecommendations::FAILURE_CACHE_TTL, $this->transients[ $key ]['ttl'] );
 	}
 
+	/**
+	 * PRO-3857: a guest names its own cache key, so the per-shopper failure
+	 * cache bounds nothing per client. A timeout or 5xx pauses every shopper's
+	 * engine calls for a short, finite time.
+	 *
+	 * @dataProvider store_wide_failures
+	 */
+	public function test_a_timeout_or_5xx_pauses_every_shoppers_engine_calls_briefly( ApiException $failure ): void {
+		$this->answer = $failure;
+		$service      = $this->service();
+
+		$service->slots( 0, self::TOKEN );
+		self::assertSame( StorefrontRecommendations::PAUSE_TTL, $this->transients[ StorefrontRecommendations::PAUSE_KEY ]['ttl'] ?? null );
+		self::assertSame( 2 * MINUTE_IN_SECONDS, StorefrontRecommendations::PAUSE_TTL );
+
+		$this->answer = array( 'slots' => array() );
+		self::assertSame( array(), $service->slots( 0, 'vt_AnotherGuest1' ) );
+		self::assertSame( array(), $service->slots( 42, '' ) );
+		self::assertCount( 1, $this->calls, 'During the pause no shopper\'s cache miss calls the engine.' );
+	}
+
+	/**
+	 * @return array<string, array{0: ApiException}>
+	 */
+	public static function store_wide_failures(): array {
+		return array(
+			'timeout' => array( new ApiException( 0, 'network_error', 'timed out' ) ),
+			'500'     => array( new ApiException( 500, 'http_500', 'Engine returned HTTP 500' ) ),
+			'503'     => array( new ApiException( 503, 'http_503', 'Engine returned HTTP 503' ) ),
+		);
+	}
+
+	/**
+	 * @dataProvider shopper_only_answers
+	 *
+	 * @param array<string, mixed>|ApiException $answer
+	 */
+	public function test_an_answer_or_a_4xx_does_not_pause_the_store( $answer ): void {
+		$this->answer = $answer;
+		$service      = $this->service();
+
+		$service->slots( 0, self::TOKEN );
+
+		self::assertArrayNotHasKey( StorefrontRecommendations::PAUSE_KEY, $this->transients );
+		$this->answer = array( 'slots' => array() );
+		$service->slots( 0, 'vt_AnotherGuest1' );
+		self::assertCount( 2, $this->calls, 'The next shopper is still asked.' );
+	}
+
+	/**
+	 * @return array<string, array{0: array<string, mixed>|ApiException}>
+	 */
+	public static function shopper_only_answers(): array {
+		return array(
+			'an answer'       => array(
+				array(
+					'slots' => array(
+						array(
+							'rec_id'      => self::REC_A,
+							'sku'         => 'woo-1',
+							'external_id' => '1',
+						),
+					),
+				),
+			),
+			'an empty answer' => array( array( 'slots' => array() ) ),
+			'400'             => array( new ApiException( 400, 'validation_failed', 'visitor_token not accepted' ) ),
+			'429'             => array( new ApiException( 429, 'rate_limit_exceeded', 'slow down' ) ),
+		);
+	}
+
+	public function test_a_cached_answer_is_still_served_during_the_pause(): void {
+		$this->answer = array(
+			'slots' => array(
+				array(
+					'rec_id'      => self::REC_A,
+					'sku'         => 'woo-1',
+					'external_id' => '1',
+				),
+			),
+		);
+		$service      = $this->service();
+		$cached       = $service->slots( 42, '' );
+
+		$this->transients[ StorefrontRecommendations::PAUSE_KEY ] = array(
+			'value' => 1,
+			'ttl'   => StorefrontRecommendations::PAUSE_TTL,
+		);
+
+		self::assertSame( $cached, $service->slots( 42, '' ) );
+		self::assertCount( 1, $this->calls );
+	}
+
 	private function service( bool $sending_allowed = true, bool $may_profile = true ): StorefrontRecommendations {
 		$settings = new class( $sending_allowed ) extends RecEngineSettings {
 			private bool $allowed;

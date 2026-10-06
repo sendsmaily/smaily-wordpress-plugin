@@ -7449,6 +7449,41 @@ events and see no recommendation cards until the shopper says yes.
 fail-closed consent gate), PRO-3673 (the toggle line), PRO-3835 (the
 recommendations fetch).
 
+### PRO-3857 — A link carries only the engine visitor token; a store token travels only with consent; an engine outage pauses the storefront calls (2026-10-06)
+
+**Context:** the second 3.16.0 security audit
+(`docs/audits/SECURITY_DELTA_AUDIT_2026-10-06_3.16.0_PART2.md`) found one
+Medium and two Lows in the PRO-3835/3845 work. M1: widening
+`AttributionShape::is_visitor_token()` to the store `vs_` format also widened
+the landing-link capture, so a `?smaily_vt=vs_…` link could plant a token its
+sender knows; the engine binds it to the victim at their next guest order, and
+the sender then reads the victim's recommendations. L2: a `vs_` cookie rode
+every later order, and the route asked about a guest token, without a
+server-side consent check (contract §5: without consent, send none). L3: a
+guest names its own cache key, so under a hanging engine one address could
+hold ~20 PHP workers with fresh tokens. Erkki chose to fix all three before
+the release.
+**Decision:** (1) Two predicates: `is_engine_visitor_token()` (`vt_` only) for
+a LINK — `LandingCapture::resolve()`; the JS capture in `attribution.ts`
+already accepted `vt_` only and is now pinned — and `is_visitor_token()`
+(`vt_` or `vs_`) for the cookie read, order meta and send paths, unchanged.
+(2) `HookHandler::save_attribution_cookies_to_order()` stamps a `vs_` value
+only when `MarketingConsent::given()`; a `vt_` value stays ungated (F3-46,
+attribution). `RecommendationsEndpoint` passes a guest's token on only when
+`MarketingConsent::given()`; a logged-in shopper is unchanged (account +
+profiling check). (3) `StorefrontRecommendations`: an engine timeout, network
+failure or 5xx sets `smly_rec_storefront_paused` for 2 minutes (finite TTL =
+autoload off); while it stands, a cache miss of any shopper answers empty
+without a call. An answer (empty included) or a 4xx (429 too) does not pause.
+**Alternatives:** a lower client timeout or a separate miss ceiling (audit
+options 2 and 3) — not built; the pause alone bounds the outage case.
+**Open (engine team):** whether an unknown `vt_` value on an order creates a
+binding — §5 says so only for `vs_`; if it does, a link could plant an
+invented `vt_` the same way.
+**Relationships:** PRO-3835 (the route), PRO-3845 (the store token), PRO-3849
+(the consent rule), F3-46 (attribution stays consent-ungated), PRO-1942
+(`AttributionShape`).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
