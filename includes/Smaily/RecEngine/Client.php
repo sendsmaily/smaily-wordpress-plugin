@@ -35,6 +35,8 @@ defined( 'ABSPATH' ) || exit;
  *   - 5xx (500/502/503/504) → same backoff, max 5 attempts.
  *   - 4xx (non-429) → no retry, throw ApiException with the body's
  *     error_code so the caller can branch on `api_key_revoked` etc.
+ *   - Exception: ingest_browse() (the storefront `/relay` forward) makes
+ *     ONE short attempt and never retries or waits (PRO-3620).
  *
  * Version handling (contract §3): every response carries
  * `X-Engine-Version`. The client warns (error_log) on a major-version
@@ -112,6 +114,14 @@ class Client {
 	/** Default in-request retry ceiling — generous for one-shot calls (ping, setup). */
 	public const DEFAULT_MAX_ATTEMPTS = 5;
 
+	/**
+	 * The whole-request bound, connect included, on a browse forward
+	 * (PRO-3620). Browse is sent from inside a shopper's storefront request
+	 * (the `/relay` proxy), so it gets one attempt of at most this long — the
+	 * same bound the Magento relay uses (PRO-3575).
+	 */
+	public const BROWSE_TIMEOUT_SECONDS = 3;
+
 	private string $api_key;
 	private string $base_url;
 
@@ -121,6 +131,9 @@ class Client {
 	private int $max_attempts;
 
 	private RecEngineSettings $settings;
+
+	/** True while ingest_browse() runs: one short attempt, no retry, no wait. */
+	private bool $single_attempt = false;
 
 	/**
 	 * @param string                $api_key      Bearer key, e.g. "sk_8f3k2a...".
@@ -305,6 +318,13 @@ class Client {
 	 * acceptable). A wrapper-level failure (non-array / empty / >100) is a 400
 	 * and throws ApiException carrying the body's `details` (F3-18).
 	 *
+	 * PRO-3620: because the beacon proxy forwards from inside a shopper's
+	 * request, this is ONE attempt bounded by BROWSE_TIMEOUT_SECONDS, with no
+	 * redirect, no retry and no back-off or Retry-After wait — whatever
+	 * `$max_attempts` the client was built with. A slow, failing or
+	 * throttling engine costs the batch, never a storefront worker. Every
+	 * other call keeps the retry policy.
+	 *
 	 * @param array<int, array<string, mixed>> $events 1..100 browse-event objects.
 	 *
 	 * @return array<string, mixed> The decoded engine response (D6 shape).
@@ -313,7 +333,13 @@ class Client {
 	 */
 	public function ingest_browse( array $events ): array {
 		$url = $this->resolve_url( 'ingest_browse', self::PATH_INGEST_BROWSE );
-		return $this->request_url( 'POST', $url, array( 'events' => $events ) );
+
+		$this->single_attempt = true;
+		try {
+			return $this->request_url( 'POST', $url, array( 'events' => $events ) );
+		} finally {
+			$this->single_attempt = false;
+		}
 	}
 
 	/**
@@ -521,15 +547,16 @@ class Client {
 	 * @throws ApiException
 	 */
 	protected function request_url( string $method, string $url, ?array $body = null ): array {
-		$attempts = 0;
-		$backoff  = 1;
+		$attempts     = 0;
+		$backoff      = 1;
+		$max_attempts = $this->single_attempt ? 1 : $this->max_attempts;
 
 		while ( true ) {
 			++$attempts;
 
 			$args = array(
 				'method'  => $method,
-				'timeout' => 15,
+				'timeout' => $this->single_attempt ? self::BROWSE_TIMEOUT_SECONDS : 15,
 				'headers' => array(
 					'Authorization' => 'Bearer ' . $this->api_key,
 					'User-Agent'    => sprintf(
@@ -542,10 +569,14 @@ class Client {
 				$args['headers']['Content-Type'] = 'application/json';
 				$args['body']                    = (string) wp_json_encode( $body );
 			}
+			if ( $this->single_attempt ) {
+				// Each redirect hop would get its own timeout.
+				$args['redirection'] = 0;
+			}
 
 			$response = wp_remote_request( $url, $args );
 			if ( is_wp_error( $response ) ) {
-				if ( $attempts >= $this->max_attempts ) {
+				if ( $attempts >= $max_attempts ) {
 					throw new ApiException(
 						0,
 						'network_error',
@@ -569,7 +600,7 @@ class Client {
 			}
 
 			$is_retryable = ( $status === 429 || ( $status >= 500 && $status < 600 ) );
-			if ( $is_retryable && $attempts < $this->max_attempts ) {
+			if ( $is_retryable && $attempts < $max_attempts ) {
 				$retry_after = (int) wp_remote_retrieve_header( $response, 'retry-after' );
 				$sleep_for   = $retry_after > 0 ? $retry_after : $backoff;
 				$this->sleep_with_backoff( $sleep_for );

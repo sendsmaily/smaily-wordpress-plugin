@@ -71,6 +71,28 @@ final class BeaconEndpointTest extends TestCase {
 		self::assertArrayNotHasKey( 'customer_email', $result['events'][0] );
 	}
 
+	public function test_client_supplied_external_id_is_stripped(): void {
+		// PRO-3620: on a browse event `external_id` is the platform user id the
+		// engine binds the event to — a client-supplied value would attach
+		// anonymous browsing to whichever customer's sequential WP user id was
+		// guessed. The browser asserts no identity; the visitor token it carries
+		// is engine-issued and stays.
+		$result = BeaconEndpoint::validate_batch(
+			array(
+				array(
+					'event_id'             => 'e1',
+					'event_type'           => 'product_view',
+					'external_id'          => '67',
+					'smaily_visitor_token' => 'vt_opaque_9',
+				),
+			)
+		);
+
+		self::assertTrue( $result['valid'] );
+		self::assertArrayNotHasKey( 'external_id', $result['events'][0] );
+		self::assertSame( 'vt_opaque_9', $result['events'][0]['smaily_visitor_token'] );
+	}
+
 	public function test_deprecated_attribution_hints_are_stripped(): void {
 		// PRO-1712: contract v1.7.0 deprecated smaily_rec_id / smaily_ctx as
 		// browse-event attribution hints to accept-and-ignore (the engine dropped

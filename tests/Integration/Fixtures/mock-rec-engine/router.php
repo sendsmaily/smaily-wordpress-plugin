@@ -986,6 +986,14 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/browse' ) {
 		);
 	}
 
+	// A slow engine (PRO-3620): answer only after 5 s, longer than the relay's
+	// whole-request bound. Replies WITHOUT saving state — by the time it wakes
+	// the next test may already have reset the state file.
+	if ( strpos( $first_id, 'slow-' ) === 0 ) {
+		sleep( 5 );
+		reply( 200, array( 'ok' => true, 'processed' => count( $events ), 'deduplicated' => 0, 'errors' => array() ) );
+	}
+
 	// Transient 500 on the FIRST attempt only, then succeed on retry.
 	if ( strpos( $first_id, 'retry-500-' ) === 0 ) {
 		$counter_key           = 'browse_attempts_' . md5( $first_id );
@@ -1092,6 +1100,11 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/browse' ) {
 			);
 			if ( isset( $event['customer_email'] ) && (string) $event['customer_email'] !== '' ) {
 				$row['customer_email'] = (string) $event['customer_email'];
+			}
+			// Recorded when present so a test can prove the relay strips a
+			// browser-supplied one (PRO-3620).
+			if ( isset( $event['external_id'] ) ) {
+				$row['external_id'] = (string) $event['external_id'];
 			}
 			return $row;
 		},

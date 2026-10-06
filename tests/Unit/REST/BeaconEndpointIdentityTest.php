@@ -37,6 +37,9 @@ final class BeaconEndpointIdentityTest extends TestCase {
 		Functions\when( 'sanitize_text_field' )->returnArg( 1 );
 		Functions\when( 'wp_unslash' )->returnArg( 1 );
 		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+		// The per-IP rate-limit counter always runs (PRO-3620) — a fresh window.
+		Functions\when( 'get_transient' )->justReturn( false );
+		Functions\when( 'set_transient' )->justReturn( true );
 	}
 
 	protected function tearDown(): void {

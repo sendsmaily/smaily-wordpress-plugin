@@ -333,6 +333,76 @@ final class RecEngineBrowseProxyTest extends TestCase {
 		self::assertSame( 'vt_opaque_9', $received[0]['smaily_visitor_token'] ?? null, 'The identity hint the engine DOES read is untouched.' );
 	}
 
+	public function test_client_supplied_external_id_never_reaches_the_engine(): void {
+		// PRO-3620: on a browse event `external_id` is the platform user id the
+		// engine binds the event to (§6), so a browser-supplied one would attach
+		// anonymous browsing to a guessed customer. Stripped before forwarding;
+		// the engine-issued visitor token still goes through.
+		$this->enable_beacon();
+
+		$response = RestRequestHelper::post(
+			'/relay',
+			array(
+				'events' => array(
+					array( 'event_id' => 'ext-1', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z', 'smaily_visitor_token' => 'vt_opaque_9', 'external_id' => '1' ),
+				),
+			)
+		);
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( 1, $response->get_data()['processed'] );
+
+		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertArrayNotHasKey( 'external_id', $received[0] ?? array() );
+		self::assertSame( 'vt_opaque_9', $received[0]['smaily_visitor_token'] ?? null );
+	}
+
+	public function test_a_failing_engine_is_tried_once_and_the_relay_answers_at_once(): void {
+		// PRO-3620: the mock fails the first attempt with a 500 and accepts a
+		// retry — the relay must not retry (no back-off sleep in a shopper's
+		// request): one engine request, the batch is lost, 502 back.
+		$this->enable_beacon();
+		self::$engine->reset_request_count();
+
+		$started  = microtime( true );
+		$response = RestRequestHelper::post(
+			'/relay',
+			array(
+				'events' => array(
+					array( 'event_id' => 'retry-500-relay', 'event_type' => 'product_view', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z' ),
+				),
+			)
+		);
+		$elapsed = microtime( true ) - $started;
+
+		self::assertSame( 502, $response->get_status() );
+		self::assertSame( 1, self::$engine->request_count(), 'Exactly one request reached the engine — no retry.' );
+		self::assertLessThan( 1.0, $elapsed, 'No back-off wait (the old path slept 1 s before its retry).' );
+	}
+
+	public function test_a_slow_engine_is_abandoned_within_the_fixed_bound(): void {
+		// PRO-3620: the mock answers only after 5 s; the relay gives up at the
+		// whole-request bound and answers the browser instead of holding it.
+		$this->enable_beacon();
+		self::$engine->reset_request_count();
+
+		$started  = microtime( true );
+		$response = RestRequestHelper::post(
+			'/relay',
+			array(
+				'events' => array(
+					array( 'event_id' => 'slow-relay', 'event_type' => 'product_view', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z' ),
+				),
+			)
+		);
+		$elapsed = microtime( true ) - $started;
+
+		self::assertSame( 502, $response->get_status() );
+		self::assertSame( 'network_error', $response->get_data()['error'] );
+		self::assertLessThan( \Smaily\Connect\Smaily\RecEngine\Client::BROWSE_TIMEOUT_SECONDS + 1.0, $elapsed, 'The storefront request waited no longer than the bound.' );
+		self::assertSame( 1, self::$engine->request_count(), 'One attempt, no retry after the timeout.' );
+	}
+
 	public function test_resent_event_id_is_deduplicated(): void {
 		$this->enable_beacon();
 
@@ -412,6 +482,87 @@ final class RecEngineBrowseProxyTest extends TestCase {
 
 		remove_all_filters( 'smaily_connect_beacon_rate_limit_session' );
 		delete_transient( 'smly_beacon_rl_s_' . md5( (string) $_COOKIE['smaily_anon_sid'] ) );
+	}
+
+	public function test_spoofed_forwarding_headers_and_cookies_do_not_lift_the_ip_limit(): void {
+		// PRO-3620: the limit keys on the connection's own address. A client
+		// that sends a new X-Forwarded-For / X-Real-IP / Forwarded / Client-IP
+		// and a new session cookie on every request still hits it.
+		$this->enable_beacon();
+		$_SERVER['REMOTE_ADDR'] = '203.0.113.7';
+		$this->with_ip_ceiling( 2 );
+
+		try {
+			$statuses = array();
+			for ( $i = 1; $i <= 3; $i++ ) {
+				$this->spoof_headers( $i );
+				$statuses[] = RestRequestHelper::post( '/relay', $this->rl_batch( 'xff-' . $i ) )->get_status();
+			}
+			self::assertSame( array( 200, 200, 429 ), $statuses );
+		} finally {
+			$this->reset_ip_limit_state();
+		}
+	}
+
+	public function test_without_a_usable_address_fresh_cookies_do_not_lift_the_limit(): void {
+		// PRO-3620: with no REMOTE_ADDR the throttle can key on (missing, or a
+		// non-IP like `unix:`), a shared bucket still applies — the session
+		// counter alone would be keyed on a cookie the client chooses.
+		$this->enable_beacon();
+		unset( $_SERVER['REMOTE_ADDR'] );
+		$this->with_ip_ceiling( 2 );
+
+		try {
+			$statuses = array();
+			for ( $i = 1; $i <= 3; $i++ ) {
+				$this->spoof_headers( $i );
+				$statuses[] = RestRequestHelper::post( '/relay', $this->rl_batch( 'noip-' . $i ) )->get_status();
+			}
+			self::assertSame( array( 200, 200, 429 ), $statuses );
+		} finally {
+			$this->reset_ip_limit_state();
+		}
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function rl_batch( string $event_id ): array {
+		return array( 'events' => array( array( 'event_id' => $event_id, 'event_type' => 'product_view', 'session_id' => 'rl' ) ) );
+	}
+
+	private function spoof_headers( int $n ): void {
+		$fake                            = '192.0.2.' . $n;
+		$_SERVER['HTTP_X_FORWARDED_FOR'] = $fake;
+		$_SERVER['HTTP_X_REAL_IP']       = $fake;
+		$_SERVER['HTTP_CLIENT_IP']       = $fake;
+		$_SERVER['HTTP_FORWARDED']       = 'for=' . $fake;
+		$_COOKIE['smaily_anon_sid']      = 'spoof-session-' . $n;
+	}
+
+	private function with_ip_ceiling( int $max ): void {
+		$this->delete_ip_limit_transients();
+		add_filter(
+			'smaily_connect_beacon_rate_limit_ip',
+			static function () use ( $max ): int {
+				return $max;
+			}
+		);
+	}
+
+	private function reset_ip_limit_state(): void {
+		remove_all_filters( 'smaily_connect_beacon_rate_limit_ip' );
+		$this->delete_ip_limit_transients();
+		for ( $i = 1; $i <= 3; $i++ ) {
+			delete_transient( 'smly_beacon_rl_s_' . md5( 'spoof-session-' . $i ) );
+		}
+		unset( $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_X_FORWARDED_FOR'], $_SERVER['HTTP_X_REAL_IP'], $_SERVER['HTTP_CLIENT_IP'], $_SERVER['HTTP_FORWARDED'] );
+	}
+
+	private function delete_ip_limit_transients(): void {
+		foreach ( array( '', '203.0.113.7', '192.0.2.1', '192.0.2.2', '192.0.2.3' ) as $ip ) {
+			delete_transient( 'smly_beacon_rl_ip_' . md5( $ip ) );
+		}
 	}
 
 	// --- helpers --------------------------------------------------------

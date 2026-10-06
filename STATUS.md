@@ -26,7 +26,20 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3623 on a branch, unreleased:** a new
+_Last updated: 2026-10-05 (**PRO-3620 — the storefront browse relay is hardened
+as in Magento (PRO-3575)**, unreleased on main after 3.15.0, security-sensitive
+surface (the public `/relay` route): the relay no longer forwards a
+browser-supplied `external_id`; `Client::ingest_browse()` makes ONE attempt
+bounded at 3 s for the whole request — no retry, no back-off or Retry-After
+wait, no redirect — while every other engine call keeps its retries; and the
+per-IP rate limit (REMOTE_ADDR only, never a forwarding header) now always
+applies, with a shared bucket when the address is missing or not an IP.
+`attach_logged_in_identity()` (PRO-1389) unchanged. Unit + integration
+(mock engine: one request on a 500, gives up on a 5 s engine within the
+bound, spoofed X-Forwarded-For/cookies still 429). DECISIONS PRO-3620;
+CLAUDE.md relay notes.)_
+
+Prior: 2026-10-05 (**PRO-3623 on a branch, unreleased:** a new
 Campaign Intelligence connection is accepted only on
 `https://intelligence.smaily.com` — the setup link is refused before any
 request on any other host, and the engine's setup reply is stored only when its
@@ -37,7 +50,7 @@ strings (EN + ET in `.pot`/`-et.po`, ET awaits the human proofread before the
 docs site is published); docs site EN+ET updated. Gates: ci:strict exit=0
 (unit 938); integration 316 OK (1 skipped, pre-existing) on the Mac. This
 touches a security-sensitive surface (external HTTP, stored config), so the
-next release needs the security delta re-audit to cover it.)_
+next release needs the security delta re-audit to cover it.)
 
 Prior: 2026-10-05 (**PRO-3655 (+ the contract-copy criterion of
 PRO-3788) — contract re-synced byte-identical to engine `41fe5cb87f41`
@@ -102,7 +115,7 @@ tick, PRO-3335 product link from a real email, PRO-3190 with Prike's adapted
 template; CLIPRO-205 live-store check by Erkki (due 02.10); PRO-2393 closes
 once GitHub's Dependabot re-scan shows zero open alerts (lockfile already
 patched); then backlog candidates PRO-3435, PRO-3427, PRO-3408 (needs Erkki's
-decision), PRO-3405 (human ET proofread).)_
+decision), PRO-3405 (human ET proofread).)
 
 Prior: 2026-09-29 (**3.15.0 GitHub release published 2026-09-29
 (tag `3.15.0` → `8ca7678`, release.yml run 36626797184 green, asset verified:

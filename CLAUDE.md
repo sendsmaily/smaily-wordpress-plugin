@@ -936,9 +936,10 @@ is unchanged. **Since PRO-1486 `customer_email` is ALSO enforced SERVER-side**: 
 longer in `BeaconEndpoint::EVENT_FIELDS` at all, so a client-supplied value (spoofed
 attribution, or probing another contact's opt-out state by guessing emails) is stripped
 before forwarding, regardless of whether the JS ever tries to send it — see the PRO-1486
-addendum below. `smaily_rec_id`/`smaily_ctx` are still in the whitelist (client-side-only
-discipline, same spoofing class, unresolved — flagged as a PRO-1486 follow-up, not yet
-fixed). Profiling
+addendum below. `smaily_rec_id`/`smaily_ctx` left the whitelist in PRO-1712 and
+`external_id` (the platform user id the engine binds a browse event to) in PRO-3620 — the
+browser asserts no identity at all; only the visitor token and the server-side sources
+below remain. Profiling
 opt-out on the token path is **engine-side** (server-enforced): an opted-out contact's
 browse event is never bound to a customer; the plugin's email-based `ProfilingConsent` gate
 stays the first filter but can't map `visitor_token`→email (engine-issued token). Guest-browse
@@ -980,6 +981,22 @@ client-supplied email DIFFERING from the server-resolved one is gone (unreachabl
 client-supplied value is stripped) — the method keeps its loop/counter/logging shape as
 defense-in-depth against a future customer_email producer that skips its own consent
 check, but in the current single-producer graph it can no longer actually drop anything.
+
+**PRO-3620 addendum — the relay never holds a storefront request, and its limit is
+header-proof** (Magento's PRO-3575 hardening, mirrored). (1) `Client::ingest_browse()` is
+ONE attempt bounded by `Client::BROWSE_TIMEOUT_SECONDS` (3 s, the WHOLE request, connect
+included — WP's `timeout` is curl's total timeout), `redirection` 0, no retry, no back-off,
+no Retry-After wait — whatever `$max_attempts` the client was built with. It is the only
+browse call, and `/relay` its only caller; every other engine call keeps the retry policy
+(don't route a flusher/backfill through `ingest_browse`'s single-attempt mode, and don't
+"restore" retries on it). A failure is a 502 and a lost batch — by design. (2) The rate
+limit keys on `REMOTE_ADDR` only, never a forwarding header, and the per-IP counter ALWAYS
+runs — a missing or non-IP `REMOTE_ADDR` (e.g. `unix:` behind a socket proxy) counts
+against one shared bucket instead of skipping it, because the session counter's key is a
+cookie the client chooses. A store behind a CDN/reverse proxy that does not restore the
+client address in `REMOTE_ADDR` (nginx `real_ip`, Apache `mod_remoteip`) shares one 120/min
+bucket per proxy address — the fix is the server's real-IP config, there is deliberately no
+trust-this-header filter. (DECISIONS PRO-3620.)
 
 ### OrderBackfill — which storage path the tests actually cover (HPOS vs legacy)
 OrderBackfillJob (3.5.2) reads orders with a direct `WHERE id > cursor` query
