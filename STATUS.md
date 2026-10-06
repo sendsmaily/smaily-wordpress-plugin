@@ -26,290 +26,81 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-06 (**PRO-3849 on a branch, unreleased:** browse
-tracking, storefront recommendations and the guest visitor token count
-marketing consent only when the WP Consent API consent cookie for the category
-is `allow` (one TS helper for both storefront bundles, `MarketingConsent` on the
-server; replaces PRO-3845's consent-type rule, which missed CookieYes). Stores
-with the API but no banner storing consent stop sending browse events. Notice +
-toggle text EN+ET, docs site EN+ET (incl. "How consent works in each setup";
-ET awaits the proofread). Gates: ci:strict exit=0 (unit 1074); integration 361
-OK on the Mac. Consent surface: the 3.16.0 security delta
-re-audit must cover it. Contract synced to v1.11.0 (engine 5d66cce797a8,
-PRO-3844: store-created `vs_` visitor token on the order); the checkout token
-now mints `vs_` + 22 alphanumerics and `AttributionShape` accepts it. Then: **PRO-3806 on a branch, unreleased:** Elementor
-Pro forms get a native **Smaily** action under Actions After Submit (two modes:
-newsletter signup / contact form with marketing consent; only mapped fields are
-sent; a form signup sends `is_unsubscribed = 0` — fresh consent resubscribes;
-source fields `elementor_form_name` / `elementor_form_url` /
-`elementor_form_submitted_at`; optional workflow, 5-min double-submit guard;
-DECISIONS PRO-3806). 17 new strings (EN + ET in `.pot`/`-et.po`, ET awaits the
-human proofread before the docs site is published); docs site EN+ET updated
-(Integrations + Merge tags). Gates: ci:strict exit=0 (unit 960); integration
-318 OK on the Mac. A real Elementor Pro submission is human acceptance (no
-licensed Elementor Pro in wp-env). Touches consent + external HTTP, so the next
-release's security delta re-audit must cover it.)_
+_Last updated: 2026-10-06 (**3.16.0 release candidate — bumped on branch
+`release/3.16.0`, PR open, NOT tagged or published.** The tag, the GitHub
+release and `./release.sh` stay Erkki's one-way door (CLAUDE.md "Cutting a
+release ZIP"). The release-gate results (CI-built ZIP, `verify-release-zip`,
+PCP) are in the 3.16.0 release-gate row of `docs/audits/INDEX.md`.)_
 
-Also 2026-10-06 (**PRO-3857 on a PR branch, for 3.16.0:** closes the second
-3.16.0 security audit's M1 + L2 + L3 — a landing link takes only the engine
-`vt_` token (`is_engine_visitor_token()`; a `?smaily_vt=vs_…` is ignored in
-PHP and JS); a `vs_` token rides an order, and the route asks about a guest,
-only with `MarketingConsent::given()`; an engine timeout/5xx on §15 pauses
-every shopper's engine calls for 2 min. DECISIONS PRO-3857; docs site
-"returning guest" line EN+ET (ET awaits proofread). **Contract v1.12.0 synced
-byte-identical** to engine `15785a08a5db` (PRO-3763, md5 d4a98e3d…): new §3c
-nightly catalog manifest (optional, new behaviour not built); no wire shape we
-send changed. Gates: ci:strict exit=0 (unit 1090, vitest 375); integration
-364 OK on the Mac.)
+**3.16.0 — what it carries** (everything merged after 3.15.0, `3afff33..e1dcc18`;
+the merchant-facing list is the `= 3.16.0 =` changelog in `readme.txt`; the
+why of each item is in DECISIONS under the named issue):
+- **Storefront recommendations** (contract §15, v1.9.0 → v1.11.0): block
+  `smaily/recommendations` + `[smaily_recommendations]` shortcode (PRO-3788).
+  The page prints one empty, cacheable container; `sc-recs.js` (its own IIFE
+  pass) fetches the cards after load from the public
+  `GET /wp-json/smaily-connect/v1/recommendations` route, only with marketing
+  consent (PRO-3835). The route names a logged-in shopper by user id
+  (profiling-gated) and a guest by the visitor-token cookie; `no-store,
+  private`; `Sec-Fetch-Site` guard; 10 s engine timeout; answer cached 1 h,
+  failure 10 min; an engine timeout/5xx pauses every shopper's calls for
+  2 min (`smly_rec_storefront_paused`, PRO-3857). Context-cookie clear rule on
+  a `smaily_rec` landing without `smaily_ctx` (both writers).
+- **Guest visitor token** (PRO-3845, contract v1.11.0 §5): a guest buyer with
+  marketing consent and no token gets a store-created `vs_` + 22 token at
+  checkout (cookie + `_smaily_visitor_token` order meta).
+- **Marketing consent = explicit yes** (PRO-3849): `Support\MarketingConsent`
+  + `public/js/lib/marketing-consent.ts` — the WP Consent API consent cookie
+  for the category is `allow` AND `wp_has_consent()`. Behaviour change: a store
+  with the API but no banner storing consent stops sending browse events.
+- **Visitor-token hardening** (security audit parts 2–3, PRO-3857/PRO-3860): a
+  link takes only the engine `vt_` token; every send path (order, route, login
+  merge, `/relay`) reads the shape-checked cookie on the server and sends a
+  `vs_` token only with consent; `/relay` strips a body token.
+- **Elementor Pro "Smaily" form action** (PRO-3806; host check on
+  `elementor_form_url`, PRO-3831) + a step-by-step docs guide.
+- **Catalog import on connect** with a Hold back notice (PRO-3743);
+  **automations show the engine's stored state** — Off / Test mode / Waiting /
+  Live (PRO-3707); **soft opt-in requirements** named in the All-customers
+  warning (PRO-3609); **browse-toggle consent line** (PRO-3673).
+- **Smaily writes:** profiling choice + purchase marker only to an existing
+  contact (PRO-3627); code 203 fails the row at once (PRO-3750);
+  `over_10_products` written on every cart reminder (PRO-3796).
+- **Security:** new connections only on `https://intelligence.smaily.com`
+  (PRO-3623); `/relay` hardening — `external_id` stripped, one 3 s attempt,
+  per-IP limit always on (PRO-3620).
+- **Contract** synced byte-identical through v1.9.1 (engine `41fe5cb87f41`),
+  v1.10.0 (`967287f541fa`), v1.11.0 (`5d66cce797a8`) and **v1.12.0**
+  (`15785a08a5db`, md5 `d4a98e3d…`). v1.12.0 adds the §3c nightly catalog
+  manifest — not built (PRO-3859, after 3.16.0); no wire shape we send changed.
 
-Also 2026-10-06 (**3.16.0 security delta audit, part 2, `066724d..1fcae5d`:
-0 Blocking/Critical/High, 1 Medium, 2 Low, 8 Info — 3.16.0 may proceed once
-the Medium is fixed or Erkki accepts it.** Medium: `LandingCapture` takes a
-`vs_` token from `?smaily_vt=`, so a link can plant a known token that the
-victim's next guest order binds; fix: URL capture accepts `vt_` only. Lows: no
-server-side consent check before a `vs_` token is sent (orders, `/recommendations`);
-no store-wide breaker on the 10 s engine call —
-`docs/audits/SECURITY_DELTA_AUDIT_2026-10-06_3.16.0_PART2.md`. **Disposition:**
-M1, L2, L3 fixed before the cut in #172 (PRO-3857), Erkki 2026-10-06;
-follow-ups PRO-3860 (identity merge / relay token consent, fixing before
-3.16.0) and PRO-3859 (nightly manifest, after 3.16.0).)
+**Security delta audits for 3.16.0** (all in `docs/audits/`, rows in
+`INDEX.md`): part 1 `3afff33..066724d` — 0 Medium+, 2 Low (both fixed,
+PRO-3831/3832); part 2 `066724d..1fcae5d` — 1 Medium + 2 Low (all fixed,
+PRO-3857); part 3 `1fcae5d..e1dcc18` — **0 Medium+, 1 Low, 5 Info; 3.16.0
+may proceed.** Part 3's Low is engine-side and pre-existing (an invented `vt_`
+link token can still collect an attacker's browsing through retro-binding;
+fix proposed to the engine team); it also answers part 2's open question —
+the engine creates a token binding from an order only for `vs_`.
 
-Also 2026-10-06 (**PRO-3860 on a PR branch, for 3.16.0:** the login identity
-merge and `/relay` send a store `vs_` visitor token only with
-`MarketingConsent::given()` (`vt_` unchanged); `/relay` reads the token from
-the visitor-token cookie on the server and strips one from the request body
-(the JS stopped sending it). DECISIONS PRO-3860. Public route + consent: the
-3.16.0 security delta re-audit must cover it. Gates: ci:strict exit=0 (unit
-1102, vitest 374); integration 369 OK on the Mac.)
+**Owed after 3.16.0 ships:**
+- **MiuMjau needs a Customers re-import** (Import existing data → Customers);
+  only a handful of engine customers carry a store id, so most logged-in
+  shoppers see no cards until then. The readme Upgrade Notice says the same to
+  every store.
+- **Estonian proofread** of this cycle's new ET strings and docs-site text
+  before the docs site is published (PRO-1520 gate).
+- **Human acceptance:** a real Elementor Pro submission (no licensed Elementor
+  Pro in wp-env); one sandbox §15 guest request (expect 200 `{slots: []}` for a
+  made-up `vt_…`) — not live-checked, the dev wp-env had no engine connection;
+  cards for a returning guest buyer on a real store.
+- Follow-up candidates: other non-101 Smaily body codes on HTTP 200 are still
+  marked sent (PRO-3750 premise correction); PRO-3859 nightly manifest.
 
-Also 2026-10-06 (**Contract v1.10.0 synced byte-identical** to engine
-`967287f541fa` (PRO-3834; md5 e4b739e0…): §15 also takes
-`smaily_visitor_token` in place of `customer_external_id` (customer id wins
-when both are sent; unknown/expired/other-tenant token = the same empty
-answer); client timeout up to 10 s from a background request. No other wire
-shape changed.)
-
-Also 2026-10-06 (**PRO-3835 on a PR branch, 3.16.0 waits for it:** storefront
-recommendations load after the page — the block/shortcode print one empty
-container for every visitor (cacheable; PRO-3832's `DONOTCACHEPAGE` removed),
-and `sc-recs.js` (new IIFE pass) asks the public `GET /recommendations` route
-only with WP Consent API marketing consent; the route names a logged-in
-shopper by user id, a returning guest by the visitor-token cookie, else asks
-nothing; `no-store, private`; 10 s engine timeout (§15 v1.10.0); a failed
-engine call is cached empty for 10 min. Guest field `smaily_visitor_token`
-per contract v1.10.0 (synced above). **Not live-checked yet:** the dev wp-env
-had no engine connection — one sandbox §15 guest request (expect 200
-`{slots: []}` for a made-up `vt_…`) is still owed. DECISIONS PRO-3835; docs
-site EN+ET (ET awaits proofread). Gates: ci:strict exit=0; integration 353
-(1 env-dependent skip) on the Mac. New public route + cookie +
-external HTTP → the 3.16.0 security delta must cover it.)
-
-Also 2026-10-06 (**PRO-3806 docs, on a PR branch:** the merchant docs site
-has a step-by-step Elementor Pro guide (`#elementor-pro`, EN+ET, from Tanel's
-ET tutorial, facts checked against the code); publish waits for the ET
-proofread of the sentences changed from his text.)
-
-Also 2026-10-06 (**PRO-3845 on a PR branch, for 3.16.0:** a guest buyer who
-gave an explicit marketing yes and has no visitor token gets a store-created
-one at checkout (classic + block) — written to the visitor-token cookie and to
-`_smaily_visitor_token`, so the order sends it as `smaily_visitor_token`. An
-explicit yes = a consent plugin set a WP Consent API consent type AND
-`wp_has_consent()` is true (`Support\MarketingConsent`, Magento PRO-3664
-parity; browse + recommendations still read `wp_has_consent()` alone — a
-follow-up adopts the helper). DECISIONS PRO-3845. Token format `vs_` + 22
-alphanumerics per contract v1.11.0 (synced in PRO-3849). Docs site EN+ET + privacy
-template updated (ET awaits the proofread). Gates: ci:strict exit=0 (unit 1064); integration 361 OK (1 env-dependent skip) on the Mac. A new
-cookie + consent surface: the 3.16.0 security delta re-audit must cover it.)
-
-Also 2026-10-06 (**3.16.0 audit Lows — Erkki: fix both before the cut; on a
-PR branch:** PRO-3831 — the Elementor action sends `elementor_form_url` only
-for a page on the store's own host; PRO-3832 — a page that shows
-recommendation cards sets `DONOTCACHEPAGE` and no-cache headers, a page with
-no cards stays cacheable (DECISIONS PRO-3831 / PRO-3832; docs site EN+ET).)
-
-Also 2026-10-06 (**3.16.0 security delta audit, `3afff33..066724d`: 0
-Blocking/Critical/High/Medium, 2 Low, 10 Info — 3.16.0 may proceed;** both Lows
-await Erkki's disposition: Low 1 `elementor_form_url` is the visitor-supplied
-page URL (keep same-host only), Low 2 the recommendations block sets no
-`DONOTCACHEPAGE`. PCP still runs at the release gate on the CI-built ZIP —
-`docs/audits/SECURITY_DELTA_AUDIT_2026-10-06_3.16.0.md`.)
-
-Also 2026-10-06 (**refactor after the October 5 simplification review, no
-behaviour change, on its PR branch:** backfill status/tick constants and the
-state-row read moved to the job layer (`BackfillJobInterface`,
-`AbstractBackfillJob::read_state()`); `Bootstrap::catalog_import_on_connect()`;
-Smaily `Client::has_contact()` + `Client::CODE_OK`; the permanent-envelope
-check is `RetryPolicy::throw_if_permanent_envelope()`; the browse relay's
-single attempt is a per-call `request_url()` option; the Elementor workflow
-dropdown's label + editor gate live in `Form_Action`; the setup exchange
-returns `catalogImportDelaySeconds` and the hold-back copy renders from it;
-a save re-reads only §12. Gates: ci:strict exit=0; blocks green; integration
-346 OK on the Mac.)
-
-Prior: 2026-10-05 (**PRO-3609 (unreleased on main):** soft opt-in verified (Erkki,
-2026-10-02) — Smaily creates a new contact sent without `is_unsubscribed` as
-subscribed; `docs/CONTACT_SYNC_MODES.md` § 5 no longer marks it an
-assumption (DECISIONS PRO-3609). The "All customers" warning in Step 2
-(wizard + Settings) now names the soft opt-in requirements; new string in
-`.pot`/`-et.po` by hand; merchant docs updated EN+ET (ET proofread before
-publish). No sync behaviour change.)
-
-Prior: 2026-10-05 (**PRO-3707 — the engine-run automations screen
-shows what the engine stored.** After every save the section re-reads §12;
-each card's label is Off / Test mode / Waiting for Smaily's confirmation /
-Live — real sends on, and the go-live step says Smaily switches real sends
-on after the merchant's confirmation (support link). "Waiting" comes from the
-plugin's own last save in the page session — §12 cannot show a request
-(DECISIONS PRO-3707). The mock engine now stores a real-sends request in test
-mode unless the test seeds the operator switch. Unreleased.)
-
-Prior: 2026-10-05 (**PRO-3743 — connecting Campaign Intelligence
-starts the catalog import** (unreleased on main once merged): a successful
-setup exchange starts the products backfill with its first batch 3 minutes
-out; the Campaign Intelligence screen shows "Catalog import started" with
-**Hold back** (= the existing products cancel, nothing sent when pressed in
-time); a catalog import already queued or running is not restarted;
-customers/orders unchanged. Integration `RecEngineCatalogImportOnConnectTest`
-(5) + vitest; merchant docs EN+ET (Step 4, Settings, Importing) — ET text
-awaits the human proofread before the docs site is published. DECISIONS
-PRO-3743.)
-
-Prior: 2026-10-05 (**PRO-3627 (unreleased on main once merged):** Smaily creates a
-contact sent without a status as subscribed, so a profiling choice and the
-abandoned-cart purchase marker now go only to a contact Smaily already has
-(contact read first). A missing contact: the profiling choice stays in the
-store; the marker row closes as a skip with its reason in the Event Log. A
-failed read writes nothing (profiling: logged, reconciled on the next
-read-back; marker row: normal RetryPolicy ladder). DECISIONS PRO-3627.
-Readme changelog line belongs to the next bump. Mirrors Magento PRO-3619.)
-
-Prior: 2026-10-05 (**PRO-3788 — storefront recommendations
-(contract v1.9.0 §15), unreleased on its PR branch.** New
-`smaily/recommendations` block + `[smaily_recommendations]` shortcode
-(merchant-placed only, `blocks/recommendations/` workspace): server-rendered
-by `Integrations\WooCommerce\StorefrontRecommendations` for a logged-in
-shopper — gated on `sending_allowed()` + `ProfilingConsent::may_profile()`,
-`Client::customer_recommendations()` with ONE attempt and a 1 s timeout
-(new `Client` constructor arg `$timeout_seconds`), answer cached 1 h per
-shopper (tenant + md5 of the user id), 4 cards from the store's own product
-data, links `?smaily_rec=…&smaily_ctx=storefront`; renders nothing on any
-gate, error or empty answer. Context cookie rule (v1.9.0): both writers
-(`LandingCapture` + `attribution.ts`) now CLEAR `smaily_rec_ctx` on a
-`smaily_rec` landing without a valid `smaily_ctx` (the `utm_content`
-fallback never clears). Why 30/75 pilot orders had a rec id but no context:
-the engine's email links for intent-less (cold-start) slots carried no
-`smaily_ctx` before engine commit `7e7a6e7` — not a plugin gap (DECISIONS
-PRO-3788). Customers already carry `external_id` = WP user id on every path
-(builder, live hook, backfill); now pinned by an integration test. **After
-release MiuMjau needs a Customers re-import** (only 5 of ~6,000 engine
-customers carry a store id). Mock engine serves §15 + the
-`recommendations_customer` map key. Gates: `ci:strict` exit 0; integration
-321/321 green (wp-env on the Mac, dev port 8890 — 8888 was taken); blocks
-build + lint green. Not live-walked: the dev wp-env was not connected.
-New ET strings (block + "Sulle soovitatud") and the docs-site section need
-the human ET proofread before publishing. Contract copy synced by PR #152.)
-
-Prior: 2026-10-05 (**PRO-3673 (Magento parity with PRO-3664)** — a line under the
-browse-tracking toggle (Step 4 / Settings, connected view) says where consent
-comes from: "Consent comes from your store's consent plugin…" when the WP
-Consent API is active, otherwise "Browse tracking sends nothing until a
-consent source is connected." + a link to the plugin on wordpress.org. Data:
-`EnvDetector` `consentApiPresent` → `hydrate.ts` env. Admin notice unchanged.
-Three new strings (EN + ET by hand in `.pot`/`-et.po`, ET awaits the human
-proofread); docs site EN+ET; DECISIONS PRO-3673. Unit `EnvDetectorTest`,
-vitest `Step4Recommendations`/`hydrate`. **Unreleased on main.**)
-
-Prior: 2026-10-05 (**PRO-3750 (Magento parity with PRO-1962)** — a Smaily HTTP 200
-answer with code 203 "invalid data" now fails the Smaily-queue row on the
-first attempt as `permanent_envelope_203: <Smaily's answer>`, in the main
-Flusher (contact sync, welcome, first order) and in CartFlusher (routed and
-legacy-fallback paths), via `RetryPolicy::permanent_envelope()`. **Premise
-correction:** the WooCommerce plugin never retried a 203 five times — the
-Client throws only on non-2xx, so a 203 (like any non-101 code on HTTP 200)
-was marked **sent**; other codes still are (follow-up candidate). Unit
-`RetryPolicyTest`/`FlusherTest`/`CartFlusherTest` (red without the change)
-+ integration `SmailyInvalidDataAnswerTest` (real Client + queue table);
-merchant docs EN+ET (Event Log error); DECISIONS PRO-3750. **Unreleased on
-main** (readme changelog line belongs to the next bump).)
-
-Prior: 2026-10-05 (**PRO-3796 (Magento parity with PRO-1957)** — the abandoned-cart
-reminder now writes `over_10_products` on every send: `true` past 10
-products, empty otherwise (prefilled like the product slots in
-`CartPayloadBuilder`), so a smaller cart's reminder clears a larger cart's
-flag from the Smaily contact. Order emails unchanged. Unit
-`CartPayloadBuilderTest` (11 → 1 → 10 products, red without the change) +
-`CartPipelineTest` assert; merchant docs EN+ET; DECISIONS PRO-3796.
-**Unreleased on main** (readme changelog line belongs to the next bump).)
-
-Prior: 2026-10-05 (**PRO-3620 — the storefront browse relay is hardened
-as in Magento (PRO-3575)**, unreleased on main after 3.15.0, security-sensitive
-surface (the public `/relay` route): the relay no longer forwards a
-browser-supplied `external_id`; `Client::ingest_browse()` makes ONE attempt
-bounded at 3 s for the whole request — no retry, no back-off or Retry-After
-wait, no redirect — while every other engine call keeps its retries; and the
-per-IP rate limit (REMOTE_ADDR only, never a forwarding header) now always
-applies, with a shared bucket when the address is missing or not an IP.
-`attach_logged_in_identity()` (PRO-1389) unchanged. Unit + integration
-(mock engine: one request on a 500, gives up on a 5 s engine within the
-bound, spoofed X-Forwarded-For/cookies still 429). DECISIONS PRO-3620;
-CLAUDE.md relay notes.)
-
-Prior: 2026-10-05 (**PRO-3623 on a branch, unreleased:** a new
-Campaign Intelligence connection is accepted only on
-`https://intelligence.smaily.com` — the setup link is refused before any
-request on any other host, and the engine's setup reply is stored only when its
-base URL and every endpoint pass the same check; connections stored earlier are
-not re-checked. Test seam: `SMAILY_CONNECT_TEST_ENGINE_HOST`, defined only in
-the integration bootstrap (DECISIONS PRO-3623). Two new merchant-visible
-strings (EN + ET in `.pot`/`-et.po`, ET awaits the human proofread before the
-docs site is published); docs site EN+ET updated. Gates: ci:strict exit=0
-(unit 938); integration 316 OK (1 skipped, pre-existing) on the Mac. This
-touches a security-sensitive surface (external HTTP, stored config), so the
-next release needs the security delta re-audit to cover it.)
-
-Prior: 2026-10-05 (**PRO-3655 (+ the contract-copy criterion of
-PRO-3788) — contract re-synced byte-identical to engine `41fe5cb87f41`
-(md5 `d50b289e…`) — v1.8.1 → v1.9.1, CC-8 pass.** Ends the daily red
-`Contract staleness` run (red since 2026-10-03). Six engine commits touched
-the contract since our `bfebf942` sync; **what changed, and the
-follow-through call on each:**
-  1. **§4 `language` (`0869f018e`)** — when absent, the engine no longer
-     overwrites the Smaily contact `language` with the tenant default.
-     Already what we send: `CustomerPayloadBuilder` omits an empty
-     `language`. No change.
-  2. **§6/§7 one customer per visitor token (v1.8.2, PRO-3649)** — a bound
-     token never binds to a different customer; shapes unchanged, the
-     skipped part reports `0` in the existing counts. Nothing sender-side.
-  3. **§13 real sends switched on by the engine operator only (v1.8.2
-     clarification, PRO-3705)** — `enabled:true` + `test_mode:false` is
-     stored as `test_mode:true` unless the trigger already sends for real;
-     response unchanged. Plugin UI should show the §12 state, not its own
-     request → **PRO-3707**, not built here.
-  4. **§3/§3b catalog sync lifecycle (v1.8.3, PRO-3740)** — full import at
-     setup, then changes only, manual full import; no scheduled full
-     re-sync; a change re-sends the whole row (UPSERT clears an omitted
-     optional field). We already work this way (no recurring catalog
-     re-sync job). No change.
-  5. **§15 `POST /api/v1/recommendations/customer` + endpoints-map key
-     `recommendations_customer` (v1.9.0, PRO-3781)** — additive; storefront
-     slot links carry `smaily_ctx=storefront`; email slots without an intent
-     now carry `smaily_ctx=email`. Not built → **PRO-3788**.
-  6. **Context cookie rule + §5 `smaily_rec_ctx` now decides the channel
-     (v1.9.0)** — a landing with `smaily_rec` must set `smaily_rec_ctx` to
-     the URL's `smaily_ctx` or CLEAR it when absent. **Today we only
-     overwrite on a present value** (`LandingCapture::resolve()` and
-     `attribution.ts` both skip an absent `smaily_ctx`), so a stale
-     `storefront` context could survive a later email click. Latent until
-     the plugin renders storefront links → belongs with **PRO-3788**.
-     `smaily_rec_ctx` is already forwarded on the order; both values pass
-     the existing context shape check.
-  7. **§1 `recommendations_preview` / `recommendations_issue` deprecated
-     (v1.9.1, PRO-3793)** — the plugin never calls them (only the mock and
-     `EnvSeed` list them, as the engine's setup response still does). No
-     change.
-**Mock follow-through: none required.** No shape the plugin sends today
-changed (no wrapper key, required field, enum or removed field). Gate: `bash
-bin/check-contract-staleness.sh` against the engine main copy **green**.)
+**Outcome gauges (2026-10-06, before the 3.16.0 publish):** wordpress.org
+version 3.15.0, active installs 2000 (bucketed; flat since 2026-09-24 — two
+weeks flat, say so at the scribe pass); releases 3.15.0 (2026-09-29), 3.14.0
+(2026-09-24), 3.13.0 (2026-09-10), 3.12.1 (2026-09-08), 3.12.0 (2026-09-07).
 
 Prior: 2026-09-29 (**3.15.0 is LIVE on wordpress.org** — published
 2026-09-29: GitHub release `3.15.0` → `8ca7678` (PR #149, release.yml run
