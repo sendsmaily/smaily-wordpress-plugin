@@ -46,7 +46,7 @@ final class GuestVisitorTokenTest extends TestCase {
 		$this->issuer( true )->on_block_checkout( $order );
 
 		$token = $this->written['smaily_rec_uid'] ?? '';
-		self::assertMatchesRegularExpression( '/^vt_[0-9a-f]{32}$/', $token );
+		self::assertMatchesRegularExpression( '/^vs_[A-Za-z0-9]{22}$/', $token );
 		self::assertTrue( AttributionShape::is_visitor_token( $token ) );
 		self::assertSame( $token, $order->get_meta( '_smaily_visitor_token' ) );
 		self::assertSame( 1, $order->saved );
@@ -104,28 +104,42 @@ final class GuestVisitorTokenTest extends TestCase {
 		self::assertTrue( AttributionShape::is_visitor_token( $this->written['smaily_rec_uid'] ?? '' ) );
 	}
 
-	public function test_a_consent_plugin_yes_issues_a_token(): void {
-		$order = $this->order( 0 );
+	public function test_a_consent_cookie_allow_issues_a_token(): void {
+		// What a banner stores through wp_set_consent( 'marketing', 'allow' ).
+		$_COOKIE['wp_consent_marketing'] = 'allow';
+		$order                           = $this->order( 0 );
 
-		$this->issuer_with_signals( 'optin', true )->on_block_checkout( $order );
+		$this->issuer_with_signals( true )->on_block_checkout( $order );
 
 		self::assertTrue( AttributionShape::is_visitor_token( (string) $order->get_meta( '_smaily_visitor_token' ) ) );
 	}
 
-	public function test_no_consent_type_means_no_token_even_when_wp_has_consent_is_true(): void {
-		// The WP Consent API answers true when no consent plugin set a type.
+	public function test_no_consent_cookie_means_no_token_even_when_wp_has_consent_is_true(): void {
+		// The WP Consent API answers true when no consent plugin set a type,
+		// and in an opt-out region until the visitor opts out (PRO-3849).
 		$order = $this->order( 0 );
 
-		$this->issuer_with_signals( '', true )->on_block_checkout( $order );
+		$this->issuer_with_signals( true )->on_block_checkout( $order );
 
 		self::assertSame( array(), $this->written );
 		self::assertSame( '', $order->get_meta( '_smaily_visitor_token' ) );
 	}
 
-	public function test_a_consent_type_without_a_yes_means_no_token(): void {
-		$order = $this->order( 0 );
+	public function test_a_consent_cookie_deny_means_no_token(): void {
+		$_COOKIE['wp_consent_marketing'] = 'deny';
+		$order                           = $this->order( 0 );
 
-		$this->issuer_with_signals( 'optin', false )->on_block_checkout( $order );
+		$this->issuer_with_signals( true )->on_block_checkout( $order );
+
+		self::assertSame( array(), $this->written );
+		self::assertSame( '', $order->get_meta( '_smaily_visitor_token' ) );
+	}
+
+	public function test_a_consent_cookie_allow_without_a_wp_has_consent_yes_means_no_token(): void {
+		$_COOKIE['wp_consent_marketing'] = 'allow';
+		$order                           = $this->order( 0 );
+
+		$this->issuer_with_signals( false )->on_block_checkout( $order );
 
 		self::assertSame( array(), $this->written );
 		self::assertSame( '', $order->get_meta( '_smaily_visitor_token' ) );
@@ -230,32 +244,31 @@ final class GuestVisitorTokenTest extends TestCase {
 	}
 
 	/**
-	 * An issuer whose consent seam runs the real rule on the two WP Consent
-	 * API answers a test gives.
+	 * An issuer whose consent seam runs the real rule on the consent cookie
+	 * the test put in $_COOKIE and the wp_has_consent() answer it gives.
 	 *
-	 * @param mixed $consent_type What wp_get_consent_type() would return.
-	 * @param mixed $has_consent  What wp_has_consent() would return.
+	 * @param mixed $has_consent What wp_has_consent() would return.
 	 */
-	private function issuer_with_signals( $consent_type, $has_consent ): GuestVisitorToken {
-		return new class( $this->settings( true, array() ), $this->writer( array() ), $consent_type, $has_consent ) extends GuestVisitorToken {
-			/** @var mixed */
-			private $consent_type;
+	private function issuer_with_signals( $has_consent ): GuestVisitorToken {
+		Functions\when( 'apply_filters' )->returnArg( 2 );
 
+		return new class( $this->settings( true, array() ), $this->writer( array() ), $has_consent ) extends GuestVisitorToken {
 			/** @var mixed */
 			private $has_consent;
 
 			/**
-			 * @param mixed $consent_type
 			 * @param mixed $has_consent
 			 */
-			public function __construct( RecEngineSettings $settings, LandingCapture $cookies, $consent_type, $has_consent ) {
+			public function __construct( RecEngineSettings $settings, LandingCapture $cookies, $has_consent ) {
 				parent::__construct( $settings, $cookies );
-				$this->consent_type = $consent_type;
-				$this->has_consent  = $has_consent;
+				$this->has_consent = $has_consent;
 			}
 
 			protected function marketing_consent_given(): bool {
-				return MarketingConsent::decide( $this->consent_type, $this->has_consent );
+				return MarketingConsent::decide(
+					$this->has_consent,
+					MarketingConsent::stored_consent( MarketingConsent::category() )
+				);
 			}
 		};
 	}

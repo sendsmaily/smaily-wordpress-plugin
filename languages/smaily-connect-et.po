@@ -1796,12 +1796,12 @@ msgid "Requires marketing consent (WP Consent API / Cookiebot / Complianz / Cook
 msgstr "Nõuab turundusnõusolekut (WP Consent API / Cookiebot / Complianz / CookieYes)."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:427
-msgid "Consent comes from your store's consent plugin: browse events are sent only for visitors who gave marketing consent."
-msgstr "Nõusolek tuleb sinu poe nõusolekupluginast: sirvimissündmused saadetakse ainult turundusnõusoleku andnud külastajate kohta."
+msgid "Consent comes from your consent banner through the WP Consent API: browse events are sent only for visitors who said yes to marketing in that banner."
+msgstr "Nõusolek tuleb sinu nõusolekubännerist WP Consent API kaudu: sirvimissündmused saadetakse ainult nende külastajate kohta, kes ütlesid selles bänneris turundusele jah."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:433
-msgid "Browse tracking sends nothing until a consent source is connected."
-msgstr "Sirvimise jälgimine ei saada midagi enne, kui nõusoleku allikas on ühendatud."
+msgid "Browse tracking sends nothing until a consent banner is connected to the WP Consent API."
+msgstr "Sirvimise jälgimine ei saada midagi enne, kui nõusolekubänner on WP Consent API-ga ühendatud."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:442
 msgid "Get the WP Consent API plugin"
@@ -2136,8 +2136,8 @@ msgid "Checkout opt-in only"
 msgstr "Ainult kassas turunduskirjade nõusoleku andnud kontaktid"
 
 #: includes/Notifications/NotificationManager.php:416
-msgid "Smaily Connect: browse tracking is on, but no cookie-consent signal was found, so no browse data is being collected. Install the free WP Consent API plugin so your consent banner (CookieYes, Complianz, Real Cookie Banner, …) can tell Smaily when a visitor consents."
-msgstr "Smaily Connect: sirvimise jälgimine on sees, aga küpsiste-nõusoleku signaali ei leitud, seega sirvimisandmeid ei koguta. Paigalda tasuta WP Consent API plugin, et sinu nõusolekubänner (CookieYes, Complianz, Real Cookie Banner, …) saaks Smailyle edastada, millal külastaja nõustub."
+msgid "Smaily Connect: browse tracking is on, but the WP Consent API plugin is not installed, so no browse data is being collected. Install the free plugin and connect your consent banner (CookieYes, Complianz, Real Cookie Banner, …) to it: only a visitor's yes in that banner counts as consent."
+msgstr "Smaily Connect: sirvimise jälgimine on sees, aga WP Consent API plugin pole paigaldatud, seega sirvimisandmeid ei koguta. Paigalda see tasuta plugin ja ühenda oma nõusolekubänner (CookieYes, Complianz, Real Cookie Banner, …) sellega: nõusolekuks loetakse ainult külastaja „jah” selles bänneris."
 
 #: includes/Notifications/NotificationManager.php:467
 msgid "Install WP Consent API"

@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.10
+# Smaily Recommendation Engine — API Contract v1.11
 
-**Version**: 1.10.0
+**Version**: 1.11.0
 **Published**: 2026-05-19
-**Last updated**: 2026-10-06 (v1.10.0 — §15 storefront recommendations also accept the visitor token (`smaily_visitor_token`) in place of the store's customer id, so a returning guest shopper gets their recommendations; when both are sent, the customer id wins. MINOR bump: new optional field — PRO-3834)
+**Last updated**: 2026-10-06 (v1.11.0 — a store may create a visitor token (`vs_` + 22 letters/digits) at checkout for a shopper who gave marketing consent and send it on the order's existing `smaily_visitor_token` field (§5); the engine binds it to the order's customer, so §15 recognises a returning guest buyer. A token carried on an order lives 365 days from the latest such order. MINOR bump: new accepted token format, no new field — PRO-3844)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -86,7 +86,7 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
 - Tenant IDs: UUID v4
 - Customer IDs: UUID v4 (generated engine-side from the first customer ingest)
 - Recommendation IDs: UUID v4
-- Visitor tokens: opaque string, 8–12 characters, prefix `vt_`
+- Visitor tokens: opaque string. Engine-issued (email links): prefix `vt_`, 8–12 characters. Store-created at checkout (v1.11.0, [§5](#store-created-visitor-token)): `vs_` + exactly 22 characters `[A-Za-z0-9]`
 - Order `external_id`: text, plugin/platform-defined
 - SKU: text, max 64 characters
 
@@ -934,7 +934,7 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 | `currency` | string (ISO 4217) | NO | Default `EUR`. Stored **as sent** — not strictly ISO-validated. |
 | `status` | enum | YES | `completed` / `processing` / `cancelled` / `refunded`. **Required** — a missing or out-of-enum `status` is a per-item `errors[]` entry. |
 | `smaily_rec_id` | UUID v4 string | NO | Attribution: which recommendation was clicked pre-purchase (from cookie). Stored; consumed by the async attribution cron (see below). **UUID-validated — a malformed value rejects the whole order** (see below). |
-| `smaily_visitor_token` | string | NO | Attribution: visitor token (from cookie). Stored; async. |
+| `smaily_visitor_token` | string | NO | Visitor token from the visitor-token cookie: an engine-issued `vt_` token, or a token the store created at checkout (`vs_`, v1.11.0 — [below](#store-created-visitor-token)). Stored; attribution is async. Also binds the token to the order's customer (below). |
 | `smaily_rec_ctx` | string | NO | Attribution: context (from the `smaily_rec_ctx` cookie). Never decides *which* recommendation matches. Since v1.9.0 it decides the **channel**: `storefront` with a cookie match = a storefront credit (§15). Forward it on every order that carries `smaily_rec_id`. |
 | `session_id` | string | NO | Accept-and-ignore (PRO-1544): stored on the order, but no longer read by the attribution matcher — the browse-event/`session_id` matching step it used to feed was removed in PRO-1524. Kept accepting it so senders don't need a plugin update. |
 | `items[]` | array | YES | Order line items |
@@ -999,6 +999,18 @@ Matching steps (run by the cron; PRO-1524, 2026-07-23 — a former 4th-priority
 4. No match → `rec_attribution` with `attribution_type='control_purchase'`, `outcome_score=0.0` (a softer `assisted_open` tier may also apply here — see `lib/engine/attribution/match-purchase-to-rec.ts`).
 
 `smaily_rec_ctx` never decides which recommendation matches. Since v1.9.0 it decides the channel of a step-1 (cookie) match: when the order carries `smaily_rec_ctx: "storefront"`, the purchase is credited to the storefront (§15) — no email click time and no email campaign — else to the email. Detailed logic lives in `lib/engine/attribution/`.
+
+<a id="store-created-visitor-token"></a>
+**Store-created visitor token** (v1.11.0, PRO-3844). An engine `vt_` token exists only for a shopper who clicked a Smaily email link. So that a **guest buyer** can be recognised on a later visit ([§15](#15-post-apiv1recommendationscustomer)), the store may create a token itself at checkout and send it on this order's existing `smaily_visitor_token` field. There is no new field.
+
+- **Format.** `vs_` followed by exactly 22 characters from `[A-Za-z0-9]`, from a cryptographically secure random source (for example 16 random bytes, base62). The prefix shows in the data that the store created the token.
+- **Consent.** Create and send a `vs_` token **only for a shopper who gave marketing consent** at checkout. Without consent, create no token and send none.
+- **Cookie.** Store the token in the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)). A cookie the **server sets** (`Set-Cookie` header) is recommended: Safari deletes cookies set by page JavaScript after 7 days. When the shopper already has a visitor-token cookie (an engine `vt_` token from an email link), keep it and send that value — do not replace it with a new token.
+- **What the engine does.** When the order is written, the engine binds the token to the order's customer (the `customer_email` customer). An unknown `vs_` token is created for that customer. A token that is already bound to the **same** customer is renewed. A token that is already bound to **another** customer does not move — the [one-customer-per-token rule](#one-customer-per-visitor-token) — and the order is still written. A customer who objected to profiling ([§10](#10-post-apiv1customeremailopt-out)) is not bound.
+- **Lifetime.** A token carried on an order lives **365 days from that order**. Every later order that carries the same token renews it to 365 days from that order; a token is never shortened. An engine `vt_` token that is never carried on an order keeps its 90 days from issue.
+- **An invalid value is ignored, never rejected.** A value that starts with `vs_` but does not match the format is stored on the order like any other value and creates no binding; the order is written normally and there is no `errors[]` entry.
+- **No credit by itself.** A store-created token names the shopper; it carries no recommendation, so it never makes a purchase an email or storefront credit. Purchase credit still comes from `smaily_rec_id` / `smaily_rec_ctx` and email clicks, as above.
+- **Response.** The binding is not reported in the response; the response shape does not change.
 
 <a id="rec-id-uuid-validation"></a>
 **`smaily_rec_id` is UUID-validated, and a bad value costs the order — not just the field.** The value is a `recommendations.rec_id`, so the route types it as a UUID (`z.string().uuid()`). A present-but-malformed value (a truncated cookie, a `rec_abc123`-style placeholder, an empty string) fails per-order validation: that order lands in `errors[]` with `field: "smaily_rec_id"` and is **not written** — the order's revenue is lost to the engine, not merely its attribution. This is the standard per-order rejection path described above: the rest of the batch still processes, the rejected order's `event_id` is not registered, and a corrected retry writes it normally. **Sender rule**: omit the field entirely when there is no cookie or the cookie value is not a well-formed UUID. Omitted (or `null`) is always safe — the order then attributes through the visitor-token or email-click mechanism, or as `control_purchase`. Do not send `""`.
@@ -1873,10 +1885,12 @@ A returning guest shopper (no store customer account), named by the visitor toke
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `customer_external_id` | string | ONE OF | The **store's own customer id** of the logged-in shopper — the `external_id` the plugin sends on [`POST /api/v1/ingest/customers`](#4-post-apiv1ingestcustomers) (WooCommerce user id, Shopify customer id, Magento customer id). 1–255 characters. |
-| `smaily_visitor_token` | string | ONE OF | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)) — the `smaily_vt` value of an engine link. 1–255 characters. Send it for a shopper who has no store customer id, so a guest shopper can be shown their recommendations. |
+| `smaily_visitor_token` | string | ONE OF | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)) — the `smaily_vt` value of an engine link, or the token the store created at checkout and sent on the order (v1.11.0, [§5](#store-created-visitor-token)). 1–255 characters. Send it for a shopper who has no store customer id, so a guest shopper can be shown their recommendations. |
 | `limit` | integer | NO | Default `9`, max `9`. A value above 9 is clamped, not rejected. |
 
 **At least one of `customer_external_id` and `smaily_visitor_token` is required.** When the request carries both, **`customer_external_id` wins and the token is ignored entirely** — the engine does not fall back to the token when the customer id finds nobody, because on a shared browser the cookie can belong to a different person than the logged-in shopper.
+
+**Which customer a token names** (v1.11.0). An engine `vt_` token names the customer the engine issued it for, for 90 days from issue. A token carried on an order — a store-created `vs_` token or a `vt_` token — names the order's customer for 365 days from the latest order that carried it ([§5](#store-created-visitor-token)). The empty-answer rules below are the same for both.
 
 **Which customer a visitor token names.** The customer the engine issued the token for, in this tenant, while the token is valid: a token is valid for 90 days after the engine issued it, even though the cookie lives longer. An expired token, a token issued for another tenant, and a value the engine never issued are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
 
@@ -2231,6 +2245,15 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **Same answer rules.** A token names the customer the engine issued it for, in this tenant, for 90 days after issue. That customer gets the same slots the customer id gives, under the same empty-answer rules. An expired, other-tenant or unknown token gets the same `{"slots": []}` as an unknown customer id, and the answer does not say which case applies.
 - **Timeouts.** Ask from a background request after the page has loaded. The 1-second client timeout no longer applies; use at most 10 seconds (the engine ends a request after 10 seconds).
 - **What the plugin does.** For a shopper without a store customer id who has given marketing consent, send `smaily_visitor_token` from the visitor-token cookie. A plugin that sends only `customer_external_id` keeps working unchanged.
+
+**v1.11.0** (2026-10-06) — **§5: a store may create a visitor token at checkout; a guest buyer is recognised on a later visit**. MINOR bump per the [Versioning](#versioning) rule (a new accepted token format on an existing field; no new field, no shape change — a v1.10.x order is still valid and is written the same). PRO-3844, Erkki's decision 2026-10-06:
+- **The gap.** v1.10.0 lets §15 name a guest shopper by a visitor token, but the engine issued tokens only on email links. A guest buyer who never clicked a Smaily email had no token, so the store could not show them their recommendations.
+- **The format.** `vs_` + exactly 22 characters `[A-Za-z0-9]`, created by the store from a secure random source. Engine tokens keep `vt_`.
+- **Where it travels.** On the order's existing `smaily_visitor_token` field ([§5](#store-created-visitor-token)). Create and send it only for a shopper who gave marketing consent. A server-set cookie is recommended (Safari deletes script-set cookies after 7 days); an existing visitor-token cookie is kept, not replaced.
+- **What the engine does.** It binds the token to the order's customer: an unknown `vs_` token is created, a token of the same customer is renewed, a token of another customer does not move (one-customer-per-token rule), and the order is written in every case. A customer who objected to profiling is not bound. An invalid `vs_` value is ignored, not rejected.
+- **Lifetime.** A token carried on an order lives 365 days from the latest order that carries it. A `vt_` token never carried on an order keeps 90 days from issue.
+- **§15.** Unchanged in shape. The token now also names a guest buyer; the customer id still wins when both are sent; the empty-answer rules are unchanged.
+- **What the plugin does.** At checkout, for a guest shopper who gave marketing consent and has no visitor-token cookie: create a `vs_` token, set it in the visitor-token cookie (server-set), and send it on the order's `smaily_visitor_token`. On later visits, send the cookie value to §15 as in v1.10.0. A plugin that does none of this keeps working unchanged.
 
 ### Appendix F: Migration notes
 

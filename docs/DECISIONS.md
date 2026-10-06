@@ -7383,10 +7383,12 @@ attributes as a landing capture) and onto `_smaily_visitor_token` order meta, so
 `OrderPayloadBuilder` sends it as `smaily_visitor_token`. A cookie outside the
 token shape is replaced, because the engine would never accept it. Nothing is
 stored when the cookie cannot be written (headers sent).
-**Token format — ASSUMPTION:** the contract does not yet define a store-created
-token. `vt_` + 32 lowercase hex from `random_bytes(16)` is inside
-`AttributionShape::is_visitor_token()` (`vt_` + 1–64 alphanumerics), so the
-order sender keeps it. The PRO-3844 contract sync confirms or changes it.
+**Token format — contract v1.11.0 §5 (engine PRO-3844, synced in PRO-3849):**
+`vs_` + exactly 22 characters `[A-Za-z0-9]`, each drawn with `random_int()`.
+`AttributionShape::is_visitor_token()` accepts it beside the engine's `vt_`
+shape, so the cookie read, the order sender and the §15 request keep it. (The
+first PRO-3845 build minted `vt_` + 32 hex as an assumption; v1.11.0 replaced
+it before release.)
 **Consent rule — an explicit yes only (Erkki, 2026-10-06; parity with the
 Magento plugin's PRO-3664 decision "consent only on an explicit yes"):** the
 WP Consent API's `wp_has_consent()` answers true when no consent plugin has set
@@ -7400,6 +7402,12 @@ exactly `true` for `smaily_connect_beacon_consent_category` (default
 wrong type = no consent. The rule lives in one helper (`decide()` is the pure
 rule) because browse tracking and the recommendations fetch are to adopt it in
 a follow-up — they still read `wp_has_consent()` alone in the browser today.
+**Superseded by PRO-3849 (2026-10-06):** the rule moved from "a consent type is
+set" to "the WP Consent API consent cookie for the category is `allow`" (plus
+`wp_has_consent()` true). CookieYes sets the consent type only in the browser,
+so on the server `wp_get_consent_type()` stayed empty and a consenting guest on
+a CookieYes store never got a token; and a set type let the opt-out-region
+default (no choice stored) count as a yes.
 **Rationale:** the checkout is the one moment a guest's order and browser meet.
 Logged-in buyers are already named by their account, so they get no token.
 **Alternatives:** a token for logged-in buyers too — not built (not asked; the
@@ -7407,6 +7415,39 @@ account identifies them).
 **Relationships:** F3-46 / LandingCapture (the other writer of the cookie),
 F3-49 (what the token is for), F3-50 (the consent gate), PRO-1942
 (`AttributionShape`), `GdprHandler` (already exports and erases the meta).
+
+### PRO-3849 — Browse tracking and storefront recommendations count only a stored marketing yes (2026-10-06)
+
+**Context:** in the browser, browse tracking and the recommendations fetch read
+`wp_has_consent( category )` alone. The WP Consent API answers true when no
+consent plugin has set a consent type, and in an opt-out region until the
+visitor opts out — so a store with the API but no banner using it tracked every
+visitor. The PRO-3845 server rule (a consent type is set) had a second gap:
+CookieYes sets the type only in the browser (`window.wp_consent_type`), never
+through the server `wp_get_consent_type` filter.
+**Decision (Erkki, 2026-10-06; parity with Magento PRO-3664 "otherwise there is
+no consent"):** consent is given only when the WP Consent API's consent cookie
+for the category — the cookie a banner writes through `wp_set_consent()`,
+`<prefix>_<category>` with the API's `wp_consent_cookie_prefix` (default
+`wp_consent`) — holds exactly `allow`, AND `wp_has_consent( category )` is
+true. The consent type is not required. No API, no cookie, `deny`, or an
+unreadable value = no consent. One rule on both sides:
+`Support\MarketingConsent` (`given()` / `stored_consent()` / `decide()`, used by
+`GuestVisitorToken`) and `public/js/lib/marketing-consent.ts` (reads the cookie
+with the prefix the API prints in `consent_api.cookie_prefix`, used by both
+`sc-runtime.js` and `sc-recs.js`). The beacon's `consentOverride` hatch still
+decides when present (F3-50). Both scripts re-check on
+`wp_listen_for_consent_change` and on `wp_consent_type_defined`. CookieYes was
+verified to store its choice through `wp_set_consent()`, so it keeps working.
+The admin check stays "is the WP Consent API installed" (the server cannot see
+a browser-only consent type); the notice and the browse-toggle line now state
+the rule.
+**Behaviour change:** a store with the API but no banner storing consent through
+it, and visitors in an opt-out region who never answered, stop sending browse
+events and see no recommendation cards until the shopper says yes.
+**Relationships:** PRO-3845 (rule superseded, entry annotated), F3-50 (the
+fail-closed consent gate), PRO-3673 (the toggle line), PRO-3835 (the
+recommendations fetch).
 
 ## How to keep this document going
 

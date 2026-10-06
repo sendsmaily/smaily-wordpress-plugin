@@ -26,7 +26,18 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-06 (**PRO-3806 on a branch, unreleased:** Elementor
+_Last updated: 2026-10-06 (**PRO-3849 on a branch, unreleased:** browse
+tracking, storefront recommendations and the guest visitor token count
+marketing consent only when the WP Consent API consent cookie for the category
+is `allow` (one TS helper for both storefront bundles, `MarketingConsent` on the
+server; replaces PRO-3845's consent-type rule, which missed CookieYes). Stores
+with the API but no banner storing consent stop sending browse events. Notice +
+toggle text EN+ET, docs site EN+ET (incl. "How consent works in each setup";
+ET awaits the proofread). Gates: ci:strict exit=0 (unit 1074); integration 361
+OK on the Mac. Consent surface: the 3.16.0 security delta
+re-audit must cover it. Contract synced to v1.11.0 (engine 5d66cce797a8,
+PRO-3844: store-created `vs_` visitor token on the order); the checkout token
+now mints `vs_` + 22 alphanumerics and `AttributionShape` accepts it. Then: **PRO-3806 on a branch, unreleased:** Elementor
 Pro forms get a native **Smaily** action under Actions After Submit (two modes:
 newsletter signup / contact form with marketing consent; only mapped fields are
 sent; a form signup sends `is_unsubscribed = 0` — fresh consent resubscribes;
@@ -73,8 +84,8 @@ one at checkout (classic + block) — written to the visitor-token cookie and to
 explicit yes = a consent plugin set a WP Consent API consent type AND
 `wp_has_consent()` is true (`Support\MarketingConsent`, Magento PRO-3664
 parity; browse + recommendations still read `wp_has_consent()` alone — a
-follow-up adopts the helper). DECISIONS PRO-3845. Token format `vt_` + 32 hex
-is an ASSUMPTION until the PRO-3844 contract sync. Docs site EN+ET + privacy
+follow-up adopts the helper). DECISIONS PRO-3845. Token format `vs_` + 22
+alphanumerics per contract v1.11.0 (synced in PRO-3849). Docs site EN+ET + privacy
 template updated (ET awaits the proofread). Gates: ci:strict exit=0 (unit 1064); integration 361 OK (1 env-dependent skip) on the Mac. A new
 cookie + consent surface: the 3.16.0 security delta re-audit must cover it.)
 

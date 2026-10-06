@@ -6,8 +6,9 @@
  * the page asks the engine nothing and may stay in a full-page cache.
  * StorefrontRecommendations prints `window.smailyConnectRecs = { url, consent }`
  * just before this script. After the page has loaded, and only when the
- * shopper has given marketing consent through the WP Consent API (the same
- * category as the browse runtime; no signal = no request), this asks the
+ * shopper has given marketing consent — a consent banner stored the shopper's
+ * yes in the WP Consent API's consent cookie for the category (the same rule
+ * and category as the browse runtime, PRO-3849; no signal = no request) — this asks the
  * store's own route ONCE and puts the cards it answers into every container.
  * An empty answer, an error or a timeout leaves the containers empty — the
  * shopper never sees an error.
@@ -19,6 +20,12 @@
  * Exports functions only, for vitest; the entry (recs.ts) holds the boot.
  */
 
+import {
+  CONSENT_CHANGE_EVENT,
+  CONSENT_TYPE_DEFINED_EVENT,
+  marketingConsentGiven,
+} from './lib/marketing-consent';
+
 export interface RecsBoot {
   /** The store's GET route (RecommendationsEndpoint). */
   url: string;
@@ -29,18 +36,15 @@ declare global {
   interface Window {
     /** Boot blob printed by StorefrontRecommendations just before this script. */
     smailyConnectRecs?: RecsBoot;
-    /** WP Consent API JS global (CookieYes / Complianz / Real Cookie Banner). */
-    wp_has_consent?: (category: string) => boolean | undefined;
   }
 }
 
 /** The containers the block and the shortcode print. */
 export const SLOT_SELECTOR = '[data-smaily-connect-recs]';
 
-/** Marketing consent through the WP Consent API — fail-closed without it. */
+/** Marketing consent by the store's consent rule — fail-closed without it. */
 export function hasConsent(boot: RecsBoot): boolean {
-  return typeof window.wp_has_consent === 'function'
-    && window.wp_has_consent(boot.consent.category) === true;
+  return marketingConsentGiven(boot.consent.category);
 }
 
 /** Ask the store and fill the containers; anything but cards shows nothing. */
@@ -72,7 +76,8 @@ export async function fill(boot: RecsBoot, slots: Element[]): Promise<void> {
 
 /**
  * Boot from `window.smailyConnectRecs`: ask now when consent is already
- * given, else when the shopper gives it (the WP Consent API's change event).
+ * given, else when the shopper gives it or a banner sets the consent type
+ * late (the WP Consent API's change and consent-type events).
  * Never more than once per page.
  */
 export function init(): void {
@@ -95,5 +100,6 @@ export function init(): void {
   };
 
   ask();
-  document.addEventListener('wp_listen_for_consent_change', ask);
+  document.addEventListener(CONSENT_CHANGE_EVENT, ask);
+  document.addEventListener(CONSENT_TYPE_DEFINED_EVENT, ask);
 }

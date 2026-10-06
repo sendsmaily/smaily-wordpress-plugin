@@ -4,13 +4,22 @@ import { hasConsent, init, type RecsBoot } from './recs-core';
 /**
  * PRO-3835: the storefront recommendations script asks the store only with
  * marketing consent (fail-closed), at most once per page, and shows nothing
- * unless the store answers with cards.
+ * unless the store answers with cards. PRO-3849: consent counts only when a
+ * consent banner stored a yes in the WP Consent API's consent cookie.
  */
 
 const BOOT: RecsBoot = {
   url: '/wp-json/smaily-connect/v1/recommendations',
   consent: { category: 'marketing' },
 };
+
+/** The WP Consent API's consent cookies; an empty value removes them. */
+function setConsentCookies(value: string): void {
+  const expires = value === '' ? '; expires=Thu, 01 Jan 1970 00:00:00 GMT' : '';
+  for (const category of ['marketing', 'statistics']) {
+    document.cookie = `wp_consent_${category}=${value}${expires}; path=/`;
+  }
+}
 
 const CARDS = '<section class="smaily-connect-recommendations">cards</section>';
 
@@ -39,6 +48,10 @@ describe('recs-core', () => {
 
   beforeEach(() => {
     window.smailyConnectRecs = BOOT;
+    // A consent banner stored the shopper's yes through the WP Consent API
+    // (PRO-3849); wp_has_consent() then decides per test.
+    window.consent_api = { cookie_prefix: 'wp_consent' };
+    setConsentCookies('allow');
     listeners = vi.spyOn(document, 'addEventListener');
   });
 
@@ -51,6 +64,8 @@ describe('recs-core', () => {
     listeners.mockRestore();
     delete window.smailyConnectRecs;
     delete window.wp_has_consent;
+    delete window.consent_api;
+    setConsentCookies('');
     document.body.innerHTML = '';
     vi.unstubAllGlobals();
   });
@@ -74,6 +89,48 @@ describe('recs-core', () => {
     await settle();
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing when the WP Consent API says yes but no banner stored a yes (PRO-3849)', async () => {
+    const fetchMock = answer({ html: CARDS });
+    setConsentCookies('');
+    window.wp_has_consent = vi.fn(() => true);
+    slot();
+
+    init();
+    await settle();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing when the banner stored a no (PRO-3849)', async () => {
+    const fetchMock = answer({ html: CARDS });
+    setConsentCookies('deny');
+    window.wp_has_consent = vi.fn(() => true);
+    slot();
+
+    init();
+    await settle();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks once a consent banner stores a yes late in the page load (PRO-3849)', async () => {
+    const fetchMock = answer({ html: CARDS });
+    setConsentCookies('');
+    window.wp_has_consent = vi.fn(() => true);
+    const el = slot();
+
+    init();
+    await settle();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    setConsentCookies('allow');
+    document.dispatchEvent(new CustomEvent('wp_consent_type_defined'));
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(el.innerHTML).toBe(CARDS);
   });
 
   it('checks the configured consent category', () => {

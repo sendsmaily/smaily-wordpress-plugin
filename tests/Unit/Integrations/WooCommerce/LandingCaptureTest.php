@@ -254,7 +254,7 @@ final class LandingCaptureTest extends TestCase {
 
 		$token = $writer->issue_visitor_token();
 
-		self::assertMatchesRegularExpression( '/^vt_[0-9a-f]{32}$/', $token );
+		self::assertMatchesRegularExpression( '/^vs_[A-Za-z0-9]{22}$/', $token );
 		self::assertSame( $token, $writer->written['acme_vt'] ?? null );
 		self::assertEqualsWithDelta( time() + 10 * 86400, $writer->expires['acme_vt'], 5 );
 		self::assertSame( $token, $writer->current_visitor_token() );
@@ -264,6 +264,33 @@ final class LandingCaptureTest extends TestCase {
 		$_COOKIE['smaily_rec_uid'] = 'visitor-abc';
 
 		self::assertSame( '', $this->recording_capture( true, array() )->current_visitor_token() );
+	}
+
+	public function test_current_visitor_token_keeps_a_store_created_token(): void {
+		// Contract v1.11.0 §5: `vs_` + exactly 22 alphanumerics.
+		$_COOKIE['smaily_rec_uid'] = 'vs_0123456789ABCDEFabcdef';
+
+		self::assertSame( 'vs_0123456789ABCDEFabcdef', $this->recording_capture( true, array() )->current_visitor_token() );
+	}
+
+	/**
+	 * @dataProvider malformed_store_tokens
+	 */
+	public function test_current_visitor_token_ignores_a_malformed_store_created_token( string $value ): void {
+		$_COOKIE['smaily_rec_uid'] = $value;
+
+		self::assertSame( '', $this->recording_capture( true, array() )->current_visitor_token() );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function malformed_store_tokens(): array {
+		return array(
+			'21 characters'    => array( 'vs_0123456789ABCDEFabcde' ),
+			'23 characters'    => array( 'vs_0123456789ABCDEFabcdefg' ),
+			'non-alphanumeric' => array( 'vs_0123456789ABCDEF-bcdef' ),
+		);
 	}
 
 	/**

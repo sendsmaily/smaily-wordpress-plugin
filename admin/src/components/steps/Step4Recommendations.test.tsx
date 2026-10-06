@@ -88,7 +88,7 @@ describe('Step4Recommendations — the browse-tracking toggle says where consent
     render(<Step4Recommendations state={connected} dispatch={vi.fn()} />);
 
     expect(
-      screen.getByText('Browse tracking sends nothing until a consent source is connected.', {
+      screen.getByText('Browse tracking sends nothing until a consent banner is connected to the WP Consent API.', {
         exact: false,
       }),
     ).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe('Step4Recommendations — the browse-tracking toggle says where consent
       'href',
       'https://wordpress.org/plugins/wp-consent-api/',
     );
-    expect(screen.queryByText(/Consent comes from your store's consent plugin/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Consent comes from your consent banner/)).not.toBeInTheDocument();
   });
 
   it("says consent comes from the store's consent plugin when the consent API is active", () => {
@@ -109,10 +109,10 @@ describe('Step4Recommendations — the browse-tracking toggle says where consent
 
     expect(
       screen.getByText(
-        "Consent comes from your store's consent plugin: browse events are sent only for visitors who gave marketing consent.",
+        "Consent comes from your consent banner through the WP Consent API: browse events are sent only for visitors who said yes to marketing in that banner.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/sends nothing until a consent source is connected/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/sends nothing until a consent banner is connected/)).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Get the WP Consent API plugin' })).not.toBeInTheDocument();
   });
 });

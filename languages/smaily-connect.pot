@@ -97,7 +97,7 @@ msgid "Smaily Connect: your Smaily Campaign Intelligence account has been deacti
 msgstr ""
 
 #: includes/Notifications/NotificationManager.php:416
-msgid "Smaily Connect: browse tracking is on, but no cookie-consent signal was found, so no browse data is being collected. Install the free WP Consent API plugin so your consent banner (CookieYes, Complianz, Real Cookie Banner, …) can tell Smaily when a visitor consents."
+msgid "Smaily Connect: browse tracking is on, but the WP Consent API plugin is not installed, so no browse data is being collected. Install the free plugin and connect your consent banner (CookieYes, Complianz, Real Cookie Banner, …) to it: only a visitor's yes in that banner counts as consent."
 msgstr ""
 
 #: includes/Notifications/NotificationManager.php:446
@@ -2267,11 +2267,11 @@ msgid "Requires marketing consent (WP Consent API / Cookiebot / Complianz / Cook
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:427
-msgid "Consent comes from your store's consent plugin: browse events are sent only for visitors who gave marketing consent."
+msgid "Consent comes from your consent banner through the WP Consent API: browse events are sent only for visitors who said yes to marketing in that banner."
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:433
-msgid "Browse tracking sends nothing until a consent source is connected."
+msgid "Browse tracking sends nothing until a consent banner is connected to the WP Consent API."
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:442

@@ -33,7 +33,7 @@ use Smaily\Connect\Tests\Integration\Support\EnvSeed;
 final class RecEngineOrdersTest extends TestCase {
 
 	/** WP Consent API answers of a consent plugin that recorded a yes. */
-	private const CONSENT_YES = array( 'optin', true );
+	private const CONSENT_YES = array( true, 'allow' );
 
 	/** A genuine engine-issued rec id shape (the engine validates it as a uuid). */
 	private const REC_UUID = '11111111-2222-4333-8444-555555555555';
@@ -409,7 +409,7 @@ final class RecEngineOrdersTest extends TestCase {
 		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES );
 
 		$token = (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' );
-		self::assertMatchesRegularExpression( '/^vt_[0-9a-f]{32}$/', $token );
+		self::assertMatchesRegularExpression( '/^vs_[A-Za-z0-9]{22}$/', $token );
 		self::assertSame( $token, $cookies['smaily_rec_uid'] ?? null, 'The same token went to the visitor-token cookie.' );
 
 		$stats = $this->flusher()->flush();
@@ -434,7 +434,7 @@ final class RecEngineOrdersTest extends TestCase {
 		$product  = $this->make_product( 'ORD-VT-NOCONSENT', '15.00' );
 		$order_id = $this->make_order( 'vt-noconsent@example.test', 'completed', $product );
 
-		$cookies = $this->guest_checkout( $order_id, array( 'optin', false ) );
+		$cookies = $this->guest_checkout( $order_id, array( true, 'deny' ) );
 
 		self::assertSame( array(), $cookies );
 		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
@@ -445,13 +445,14 @@ final class RecEngineOrdersTest extends TestCase {
 		self::assertArrayNotHasKey( 'smaily_visitor_token', $payloads[0] );
 	}
 
-	public function test_a_guest_buyer_gets_no_visitor_token_when_no_consent_plugin_set_a_consent_type(): void {
+	public function test_a_guest_buyer_gets_no_visitor_token_when_no_banner_stored_a_yes(): void {
 		// The WP Consent API answers wp_has_consent() true when no consent
-		// plugin set a type; that is not a yes from the shopper (Magento PRO-3664).
+		// plugin set a type, and in an opt-out region until the visitor opts
+		// out; neither is a yes from the shopper (Magento PRO-3664, PRO-3849).
 		$product  = $this->make_product( 'ORD-VT-NOTYPE', '15.00' );
 		$order_id = $this->make_order( 'vt-notype@example.test', 'completed', $product );
 
-		$cookies = $this->guest_checkout( $order_id, array( '', true ) );
+		$cookies = $this->guest_checkout( $order_id, array( true, null ) );
 
 		self::assertSame( array(), $cookies );
 		self::assertSame( '', (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' ) );
@@ -760,7 +761,7 @@ final class RecEngineOrdersTest extends TestCase {
 	 * issuer. The consent rule is the real one, run on the two WP Consent API
 	 * answers the test gives (the test site has no WP Consent API).
 	 *
-	 * @param array{0: string, 1: bool} $consent wp_get_consent_type() and wp_has_consent() answers.
+	 * @param array{0: bool, 1: ?string} $consent wp_has_consent() answer and the consent cookie value.
 	 * @param array<string, string>     $cookies The browser's cookies.
 	 * @param int                       $user_id The user logged in during checkout.
 	 * @return array<string, string> The cookies the issuer wrote.
@@ -769,11 +770,11 @@ final class RecEngineOrdersTest extends TestCase {
 		$_COOKIE = $cookies;
 		$writer  = $this->recording_cookies();
 		$issuer  = new class( new RecEngineSettings(), $writer, $consent ) extends GuestVisitorToken {
-			/** @var array{0: string, 1: bool} */
+			/** @var array{0: bool, 1: ?string} */
 			private array $consent;
 
 			/**
-			 * @param array{0: string, 1: bool} $consent
+			 * @param array{0: bool, 1: ?string} $consent
 			 */
 			public function __construct( RecEngineSettings $settings, LandingCapture $cookies, array $consent ) {
 				parent::__construct( $settings, $cookies );
