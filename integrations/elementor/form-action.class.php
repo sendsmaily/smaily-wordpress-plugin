@@ -133,25 +133,34 @@ class Form_Action extends Action_Base {
 			)
 		);
 
+		// Every row field needs an explicit default. A raw repeater field skips
+		// the control-type default that Elementor\Repeater::add_control() adds,
+		// so a new row's value is undefined. The editor JSON-clones the row
+		// before it renders the title template, which drops the key, and
+		// `{{{ smaily_field }}}` then throws a ReferenceError. The row is not
+		// added, and the whole Smaily section renders blank after that.
 		$widget->add_control(
 			'smaily_fields',
 			array(
-				'label'       => __( 'Other fields', 'smaily-connect' ),
-				'type'        => Controls_Manager::REPEATER,
-				'description' => __( 'Optional. Only the fields listed here are sent. Smaily field names use lowercase letters, digits and _.', 'smaily-connect' ),
-				'fields'      => array(
+				'label'         => __( 'Other fields', 'smaily-connect' ),
+				'type'          => Controls_Manager::REPEATER,
+				'description'   => __( 'Optional. Only the fields listed here are sent. Smaily field names use lowercase letters, digits and _.', 'smaily-connect' ),
+				'fields'        => array(
 					array(
-						'name'  => 'form_field',
-						'label' => __( 'Form field ID', 'smaily-connect' ),
-						'type'  => Controls_Manager::TEXT,
+						'name'    => 'form_field',
+						'label'   => __( 'Form field ID', 'smaily-connect' ),
+						'type'    => Controls_Manager::TEXT,
+						'default' => '',
 					),
 					array(
-						'name'  => 'smaily_field',
-						'label' => __( 'Smaily field', 'smaily-connect' ),
-						'type'  => Controls_Manager::TEXT,
+						'name'    => 'smaily_field',
+						'label'   => __( 'Smaily field', 'smaily-connect' ),
+						'type'    => Controls_Manager::TEXT,
+						'default' => '',
 					),
 				),
-				'title_field' => '{{{ smaily_field }}}',
+				'prevent_empty' => false,
+				'title_field'   => '{{{ smaily_field }}}',
 			)
 		);
 
