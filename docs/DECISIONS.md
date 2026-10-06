@@ -7548,6 +7548,23 @@ get it bundled with the larger features in one update. Erkki, 2026-10-06.
 **Relationships:** the release checklist in CLAUDE.md ("Cutting a release ZIP
 + GH release"), step 7d is skipped for this version.
 
+### PRO-3817 — A background engine call waits at most 60 seconds on a Retry-After (2026-10-06)
+
+**Context:** `Client::request_url()` waited out the engine's Retry-After on a
+429 or 5xx with no upper bound. A background call (a flusher, a backfill, the
+health probe, a GDPR call) runs in an Action Scheduler worker, so one long
+requested wait held that worker for as long as the engine asked. Found while
+hardening the browse relay (PRO-3620); the Magento connector caps the wait at
+60 seconds for all calls.
+**Decision:** the wait is `min( Retry-After, Client::MAX_RETRY_AFTER_SECONDS )`
+with the constant at 60. Attempt counts and the exponential back-off (used when
+no Retry-After comes) are unchanged. The browse relay keeps its single attempt
+with no wait (PRO-3620). The client still reads only the delta-seconds form of
+Retry-After; an HTTP-date value falls back to the back-off, as before.
+**Rationale:** the durable queue retries a failed row later (`next_retry_at`),
+so a shorter in-request wait loses nothing; the cap matches Magento.
+**Relationships:** PRO-3620 (browse relay), `ClientRetryAfterCapTest`.
+
 ### PRO-3859 — The store sends its complete product list to the engine once a night (2026-10-06)
 
 **Context:** contract v1.12.0 §3c adds `POST /api/v1/ingest/catalog/manifest`.

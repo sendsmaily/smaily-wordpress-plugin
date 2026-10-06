@@ -30,7 +30,8 @@ defined( 'ABSPATH' ) || exit;
  * the real wp_remote_post body for each.
  *
  * Retry policy (RECENGINE_API_CONTRACT.md §6):
- *   - 429 + Retry-After header → respect the header, exponential
+ *   - 429 + Retry-After header → respect the header (waiting at most
+ *     MAX_RETRY_AFTER_SECONDS, PRO-3817), exponential
  *     backoff (1s, 2s, 4s, 8s, 16s), max 5 attempts.
  *   - 5xx (500/502/503/504) → same backoff, max 5 attempts.
  *   - 4xx (non-429) → no retry, throw ApiException with the body's
@@ -132,6 +133,14 @@ class Client {
 
 	/** Default per-request HTTP timeout, in seconds. */
 	public const DEFAULT_TIMEOUT_SECONDS = 15;
+
+	/**
+	 * The longest wait, in seconds, on an engine Retry-After before the next
+	 * attempt (PRO-3817). A longer requested wait would hold the background
+	 * worker for as long as the engine asks; the Magento connector uses the
+	 * same cap.
+	 */
+	public const MAX_RETRY_AFTER_SECONDS = 60;
 
 	private string $api_key;
 	private string $base_url;
@@ -682,7 +691,7 @@ class Client {
 			$is_retryable = ( $status === 429 || ( $status >= 500 && $status < 600 ) );
 			if ( $is_retryable && $attempts < $max_attempts ) {
 				$retry_after = (int) wp_remote_retrieve_header( $response, 'retry-after' );
-				$sleep_for   = $retry_after > 0 ? $retry_after : $backoff;
+				$sleep_for   = $retry_after > 0 ? min( $retry_after, self::MAX_RETRY_AFTER_SECONDS ) : $backoff;
 				$this->sleep_with_backoff( $sleep_for );
 				$backoff *= 2;
 				continue;
