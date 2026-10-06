@@ -20,7 +20,8 @@ use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * The ONE public, unauthenticated route in the plugin.
+ * One of the plugin's two public, unauthenticated routes (the other is
+ * RecommendationsEndpoint, PRO-3835).
  *
  * Why public: browse events come from anonymous storefront visitors, so the
  * route cannot be `manage_options`-gated like the rest of the rec-engine

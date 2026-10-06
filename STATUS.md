@@ -39,6 +39,18 @@ human proofread before the docs site is published); docs site EN+ET updated
 licensed Elementor Pro in wp-env). Touches consent + external HTTP, so the next
 release's security delta re-audit must cover it.)_
 
+Also 2026-10-06 (**PRO-3835 on a PR branch, 3.16.0 waits for it:** storefront
+recommendations load after the page — the block/shortcode print one empty
+container for every visitor (cacheable; PRO-3832's `DONOTCACHEPAGE` removed),
+and `sc-recs.js` (new IIFE pass) asks the public `GET /recommendations` route
+only with WP Consent API marketing consent; the route names a logged-in
+shopper by user id, a returning guest by the visitor-token cookie, else asks
+nothing; `no-store, private`; 3 s engine timeout. **Guest path ASSUMES engine
+PRO-3834's `visitor_token` field** — confirm on the contract sync + one live
+request. DECISIONS PRO-3835; docs site EN+ET (ET awaits proofread). Gates:
+ci:strict exit=0; integration 352 OK on the Mac. New public route + cookie +
+external HTTP → the 3.16.0 security delta must cover it.)
+
 Also 2026-10-06 (**3.16.0 audit Lows — Erkki: fix both before the cut; on a
 PR branch:** PRO-3831 — the Elementor action sends `elementor_form_url` only
 for a page on the store's own host; PRO-3832 — a page that shows

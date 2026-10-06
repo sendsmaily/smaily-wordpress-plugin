@@ -163,14 +163,18 @@ Four separate mechanisms — do not conflate them (F3-46/F3-49):
    opted-out contact's events stay anonymous, never dropped. This is the one
    sanctioned server-side exception to F3-49 — the client itself still never
    sends `customer_email`.
-4. **Storefront recommendations** (PRO-3788, contract §15) — the
+4. **Storefront recommendations** (PRO-3788, PRO-3835, contract §15) — the
    `smaily/recommendations` block and `[smaily_recommendations]` shortcode,
-   placed by the merchant. Rendered server-side by
-   `Integrations\WooCommerce\StorefrontRecommendations`: for a logged-in
-   shopper it asks the engine by the WP user id (one attempt, 1 s timeout,
-   1-hour per-shopper cache), then builds cards from the store's own
-   products, linked with `smaily_rec` + `smaily_ctx=storefront` so item 2
-   captures a storefront credit.
+   placed by the merchant. The page gets an empty container (the same for
+   every visitor, cacheable); after load, with marketing consent, `sc-recs.js`
+   asks `GET /smaily-connect/v1/recommendations`
+   (`REST\RecommendationsEndpoint`), which names the shopper from server
+   state — the WP user id from the auth cookie, else the engine visitor-token
+   cookie — and answers the cards
+   `Integrations\WooCommerce\StorefrontRecommendations` builds (one engine
+   attempt, 3 s timeout, 1-hour per-shopper cache, `no-store` to the browser)
+   from the store's own products, linked with `smaily_rec` +
+   `smaily_ctx=storefront` so item 2 captures a storefront credit.
 
 **Consent model:** browse telemetry is **fail-closed on the WP Consent API**
 (F3-50): the JS sends only when `window.wp_has_consent(category) === true`

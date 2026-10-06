@@ -7042,6 +7042,11 @@ admin notice and how consent is decided are unchanged.
 
 ### PRO-3788 — Storefront recommendations: a server-rendered block + shortcode, and the context cookie rule (2026-10-05)
 
+> **Changed by PRO-3835 (2026-10-06):** the cards are no longer rendered on
+> the page — a consent-gated script asks a store route after the page loads;
+> returning guests are asked about by the visitor token; the timeout is 3 s.
+> The context cookie rule below is unchanged.
+
 **Context:** contract v1.9.0 (§15) lets the store ask the engine for a
 logged-in shopper's current recommendations by the store's own customer id,
 and makes `smaily_rec_ctx` decide the channel of a purchase (`storefront` =
@@ -7271,6 +7276,12 @@ permanent, merchant-visible field name; accept the risk — rejected by Erkki
 
 ### PRO-3832 — A page that shows recommendation cards is marked not to be cached (2026-10-06)
 
+> **SUPERSEDED by PRO-3835 (2026-10-06):** the page no longer carries any
+> shopper's cards — it prints the same empty container for every visitor and
+> the cards come from a separate `no-store, private` answer — so the
+> `DONOTCACHEPAGE` / `nocache_headers()` marking and its `headers_already_sent()`
+> seam are removed. Kept below as the record of why it existed.
+
 **Context:** the 3.16.0 security delta audit (Low 2). The recommendations block
 and shortcode print one shopper's cards (and their `rec_id`s) into the page
 HTML with no do-not-cache signal. A cache that does not skip logged-in visitors
@@ -7289,6 +7300,60 @@ stays on the server); accept the risk — rejected by Erkki (2026-10-06, fix
 before 3.16.0).
 **Relationships:** PRO-3788 (the block); WooCommerce marks its own cart and
 checkout pages the same way.
+
+### PRO-3835 — Storefront recommendations load after the page, for logged-in shoppers and returning guests (2026-10-06)
+
+**Context:** the PRO-3788 block asked the engine on the page render and only
+for a logged-in shopper. On the pilot almost every buyer checks out as a guest
+(a handful of customer accounts), pages already take seconds, and the store
+runs behind a full-page cache — so the block showed nothing to almost everyone
+while adding up to a second to the render, and PRO-3832 then had to keep the
+pages that did show cards out of the cache.
+**Decision (design approved by Erkki, 2026-10-06):** (1) the block and the
+shortcode print one empty container, the same for every visitor, and enqueue
+`sc-recs.js` (its own IIFE Vite pass, `--mode recs`); no engine call and no
+per-shopper data during the page render, so the page may be cached and the
+PRO-3832 marking is removed. (2) After the `load` event, and only when
+`window.wp_has_consent(category) === true` (the browse runtime's category and
+filter `smaily_connect_beacon_consent_category`, fail-closed), the script asks
+`GET /wp-json/smaily-connect/v1/recommendations` once and puts the returned
+`{html}` into the container; empty, error or timeout shows nothing. (3) The
+route (`REST\RecommendationsEndpoint`) is public: 404 unless
+`sending_allowed()`; a per-address limit through `RequestThrottle` (shared
+with `/relay`, 120 per 60 s); an empty answer to a request another site makes
+(`Sec-Fetch-Site: cross-site`/`same-site` — WordPress sends credentialed CORS
+headers for any origin); `Cache-Control: no-store, private` on every answer.
+(4) It names the shopper from server state only: the WP user id from the
+`logged_in` cookie (validated directly, like `/relay`), else the engine
+visitor token from the `tracking_cookie_name` cookie (`smaily_rec_uid`), else
+nobody — then no engine call. A token in the request is ignored. An opted-out
+logged-in shopper (ProfilingConsent) is never asked about, not by the token
+either; for a guest the engine applies the opt-out on the token path. (5) The
+cache key is tenant + md5(identifier type + value), one hour, as before.
+(6) The engine client timeout is 3 s, still one attempt and no Retry-After
+wait.
+**ASSUMPTION — engine Story PRO-3834 is not built yet:** §15 accepts
+`visitor_token` (string) in place of `customer_external_id`, with the same
+response shape and the same empty-answer rules. `Client::visitor_recommendations()`
+and the mock (`storefront_visitor_slots`; exactly one of the two fields, else
+400) are built on that. Until the engine accepts it, a guest request fails and
+shows nothing. Confirm with the contract sync and one live request before
+release.
+**Rationale:** the card markup stays server-rendered and escaped (the route
+returns it as HTML, the same markup as before) — a smaller change than
+building cards in the browser. §15's 1 s timeout protected the page render;
+the call now runs after the page has loaded, so a slower engine delays only
+the cards, and 3 s lets a slow answer still reach the shopper. Consent gates
+the request because asking for a guest's recommendations by a tracking
+token is a marketing use of that token.
+**Alternatives:** keep server rendering and add the token there — rejected:
+the page would still wait for the engine and carry per-shopper data, so it
+could not be cached; a page-embedded REST nonce — rejected: shared under
+full-page caching (PRO-1388); JSON cards built in JS — rejected: duplicates
+the markup and its escaping.
+**Relationships:** supersedes PRO-3832; changes PRO-3788 (rendering,
+timeout, who is asked); engine PRO-3834 (the `visitor_token` request);
+`/relay` (BeaconEndpoint) for the auth-cookie and throttle patterns.
 
 ## How to keep this document going
 

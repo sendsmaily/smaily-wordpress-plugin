@@ -672,12 +672,13 @@ they are no longer how the released asset is produced. Full sequence (verified
    `tests/phpstan-bootstrap.php` (else ConstantsTest fails). Commit FIRST so
    `package:hash` stamps a clean (non-`-dirty`) build-hash.
 2. `npm run build:admin` → `dist/admin/*`,
-   `dist/public/js/sc-runtime.js` + `dist/public/js/sc-landing.js` — THREE
-   chained single-entry IIFE passes (`admin` → `runtime` → `landing`, PRO-2391)
+   `dist/public/js/sc-runtime.js` + `dist/public/js/sc-landing.js` +
+   `dist/public/js/sc-recs.js` — FOUR chained single-entry IIFE passes
+   (`admin` → `runtime` → `landing` → `recs`, PRO-2391 / PRO-3835)
    followed by `check:bundle-scope`, which fails the build if any bundle is not
    an IIFE or leaks a global (see "Every shipped bundle is an IIFE" above). If a
    bundle is missing from `dist/`, its pass didn't run. ONE command builds all
-   three: the old `build:client` was a duplicate of `build:admin` (there is no
+   four: the old `build:client` was a duplicate of `build:admin` (there is no
    `client` vite mode) and was removed in PRO-1949.
 3. `composer run install-block-modules && composer run build` → `blocks/*/build/*`
    (the first installs `blocks/node_modules`; without it `wp-scripts` is missing).
@@ -696,7 +697,7 @@ they are no longer how the released asset is produced. Full sequence (verified
    exits non-zero on any failure (CI runs the same script): version string;
    required present
    (`dist/admin/admin.js`, `dist/public/js/sc-runtime.js`,
-   `dist/public/js/sc-landing.js`, `blocks/*/build/*`,
+   `dist/public/js/sc-landing.js`, `dist/public/js/sc-recs.js`, `blocks/*/build/*`,
    `vendor/autoload.php`, `languages/*.mo`, `build-hash.txt` at the root);
    NOT present (`tests`, `docs`, any `*.ts` source, any `*.map`,
    `node_modules`, `admin/src`, dev vendor pkgs). `.zipignore`
@@ -817,9 +818,10 @@ Two facts that must stay true when you touch it:
   and nothing else) — that minimalism is why it can load consent-independently.
 
 ### Every shipped bundle is an IIFE — never `es` output for a classic `<script>` (PRO-2391)
-`admin.js`, `sc-runtime.js` and `sc-landing.js` are all enqueued as CLASSIC
-scripts, so each is built in its OWN Vite pass (`--mode admin` default,
-`--mode runtime`, `--mode landing`; `npm run build:admin` chains all three)
+`admin.js`, `sc-runtime.js`, `sc-landing.js` and `sc-recs.js` are all
+enqueued as CLASSIC scripts, so each is built in its OWN Vite pass (`--mode
+admin` default, `--mode runtime`, `--mode landing`, `--mode recs`;
+`npm run build:admin` chains all four)
 with `output.format: 'iife'` — Rollup allows `iife` only for a single-entry
 build. The scar (MiuMjau, 2026-09-08): the admin + runtime entries shared one
 pass, which forces `es` output = NO wrapper, so the minified top-level
@@ -925,23 +927,33 @@ test purchase carry `smaily_rec_id`, does the engine credit it via path-1) is a 
 pilot check** — like browse timing, the server path is unit+integration-proven but the
 browser moment isn't live-walk-coverable.
 
-### Storefront recommendations call the engine ON the page render — one attempt, 1 s, cached (PRO-3788)
+### Storefront recommendations load AFTER the page, through a store route — never on the render (PRO-3835)
 The `smaily/recommendations` block + `[smaily_recommendations]` shortcode
-(contract §15) are rendered server-side by
-`Integrations\WooCommerce\StorefrontRecommendations`, because the API key
-never reaches the browser. That puts an engine call on a shopper's page, so:
-the client comes from `Bootstrap::storefront_recommendations()` with
-`max_attempts = 1` and `StorefrontRecommendations::TIMEOUT_SECONDS` (the
-`Client` constructor's `$timeout_seconds`, default 15 for everything else) —
-never `rec_client()`, whose 2 attempts + Retry-After sleep would stall the
-page; the call is gated on a logged-in user, `sending_allowed()` and
-`ProfilingConsent::may_profile()`; the answer (empty included) is cached per
-shopper with a FINITE TTL; an error renders nothing and is not cached. Cards
-use the store's own product data (`is_visible()`), and links carry
-`smaily_rec` + `smaily_ctx=storefront`, which `LandingCapture` turns into a
-storefront credit. The engine finds the shopper by the customers-ingest
-`external_id` (the WP user id) — a store whose customers were never imported
-by this plugin gets empty answers until a Customers re-import.
+(contract §15) print `StorefrontRecommendations::placeholder()`: one empty
+`[data-smaily-connect-recs]` container, the SAME for every visitor, and they
+enqueue `dist/public/js/sc-recs.js` (source `public/js/recs.ts` +
+`recs-core.ts`, boot blob `window.smailyConnectRecs = {url, consent}`). Never
+put an engine call or per-shopper data back into the render — the pilot runs
+behind a full-page cache, and PRO-3832's `DONOTCACHEPAGE` marking is gone
+because the page no longer needs it. After `load`, and only with
+`wp_has_consent(<beacon category>) === true` (fail-closed), the script asks
+`GET /wp-json/smaily-connect/v1/recommendations` (`REST\RecommendationsEndpoint`,
+public; 404 unless `sending_allowed()`; `RequestThrottle` per-address limit
+shared with `/relay`; empty answer on `Sec-Fetch-Site: cross-site|same-site`;
+`Cache-Control: no-store, private` on every answer) and injects its `{html}`
+(cards built and escaped by `StorefrontRecommendations::cards()`). Who is asked
+about comes from SERVER state only: the WP user id from the `logged_in` cookie
+(validated directly — no REST nonce, it would be cached), else the engine
+visitor token from the `tracking_cookie_name` cookie (`smaily_rec_uid`), else
+nobody (no engine call); never a value from the request. An opted-out
+logged-in shopper is never asked about, not by the token either. The client is
+`Bootstrap::storefront_recommendations()` → `rec_client( 1, 3 )`: one attempt,
+3 s, no Retry-After sleep — never plain `rec_client()`. Cache: tenant +
+md5(type|id), one hour, empty answers included, errors not cached.
+**The guest request is an ASSUMPTION** until engine PRO-3834 lands in the
+contract: §15 takes `visitor_token` in place of `customer_external_id`
+(`Client::visitor_recommendations()`, mock `storefront_visitor_slots`). On the
+sync, check the field name and live-walk one guest request.
 **Context cookie rule (v1.9.0):** a landing with a valid `smaily_rec` and no
 valid `smaily_ctx` CLEARS `smaily_rec_ctx` — in BOTH writers
 (`LandingCapture::resolve()` returns `''` for the context slot = delete;
