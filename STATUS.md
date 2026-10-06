@@ -39,6 +39,13 @@ human proofread before the docs site is published); docs site EN+ET updated
 licensed Elementor Pro in wp-env). Touches consent + external HTTP, so the next
 release's security delta re-audit must cover it.)_
 
+Also 2026-10-06 (**3.16.0 security delta audit, `3afff33..066724d`: 0
+Blocking/Critical/High/Medium, 2 Low, 9 Info — 3.16.0 may proceed;** both Lows
+await Erkki's disposition: Low 1 `elementor_form_url` is the visitor-supplied
+page URL (keep same-host only), Low 2 the recommendations block sets no
+`DONOTCACHEPAGE`. PCP still runs at the release gate on the CI-built ZIP —
+`docs/audits/SECURITY_DELTA_AUDIT_2026-10-06_3.16.0.md`.)
+
 Also 2026-10-06 (**refactor after the October 5 simplification review, no
 behaviour change, on its PR branch:** backfill status/tick constants and the
 state-row read moved to the job layer (`BackfillJobInterface`,
