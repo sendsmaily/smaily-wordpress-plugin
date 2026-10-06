@@ -129,9 +129,10 @@ final class BootstrapTest extends TestCase {
 					: $default;
 			}
 		);
+		Functions\when( 'wp_timezone' )->justReturn( new \DateTimeZone( 'UTC' ) );
 		// Every recurring job is checked, and the missing ones re-armed.
-		Functions\expect( 'as_has_scheduled_action' )->times( 11 )->andReturn( false );
-		Functions\expect( 'as_schedule_recurring_action' )->times( 11 );
+		Functions\expect( 'as_has_scheduled_action' )->times( 12 )->andReturn( false );
+		Functions\expect( 'as_schedule_recurring_action' )->times( 12 );
 		Functions\expect( 'update_option' )
 			->once()
 			->with( Bootstrap::OPTION_AS_JOBS_VERIFIED, \Mockery::type( 'int' ), false );

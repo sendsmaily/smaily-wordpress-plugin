@@ -117,6 +117,38 @@ final class ClientTest extends TestCase {
 		);
 	}
 
+	public function test_catalog_manifest_posts_products_wrapper_to_engine_map_url(): void {
+		$client = $this->capturing_client(
+			'sk_live',
+			'https://base.test',
+			array( 'ingest_catalog_manifest' => 'https://engine.test/api/v1/ingest/catalog/manifest' )
+		);
+
+		$items = array(
+			array(
+				'sku'      => 'woo-101',
+				'in_stock' => true,
+			),
+			array(
+				'sku'      => 'woo-102',
+				'in_stock' => false,
+			),
+		);
+		$client->catalog_manifest( $items );
+
+		self::assertSame( 'POST', $client->captured['method'] );
+		self::assertSame( 'https://engine.test/api/v1/ingest/catalog/manifest', $client->captured['url'] );
+		self::assertSame( array( 'products' => $items ), $client->captured['body'], '§3c wrapper key is `products`, items carry only sku + in_stock.' );
+	}
+
+	public function test_catalog_manifest_falls_back_to_constant_path_without_map(): void {
+		$client = $this->capturing_client( 'sk_live', 'https://base.test' );
+
+		$client->catalog_manifest( array() );
+
+		self::assertSame( 'https://base.test' . Client::PATH_INGEST_CATALOG_MANIFEST, $client->captured['url'] );
+	}
+
 	public function test_ingest_customers_posts_customers_wrapper_to_engine_map_url(): void {
 		$client = $this->capturing_client(
 			'sk_live',

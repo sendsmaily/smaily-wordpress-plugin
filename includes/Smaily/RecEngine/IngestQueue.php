@@ -192,6 +192,31 @@ class IngestQueue {
 		return is_array( $rows ) ? $rows : array();
 	}
 
+	/**
+	 * Whether any row of these event types still waits to be sent — due now
+	 * or parked for a later retry (pending() leaves the parked ones out).
+	 *
+	 * @param array<int, string> $event_types
+	 */
+	public function has_pending( array $event_types ): bool {
+		global $wpdb;
+
+		$table        = $this->table_name();
+		$placeholders = implode( ', ', array_fill( 0, count( $event_types ), '%s' ) );
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		$found = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE status = %s AND event_type IN ( {$placeholders} ) LIMIT 1",
+				self::STATUS_PENDING,
+				...array_values( $event_types )
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		return $found !== null;
+	}
+
 	public function mark_sent( int $id ): void {
 		global $wpdb;
 		$wpdb->update(

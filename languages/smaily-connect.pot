@@ -161,6 +161,12 @@ msgstr ""
 msgid "Smaily Connect data"
 msgstr ""
 
+#. translators: %s: the most products the nightly product list can hold, e.g. "50,000".
+#: includes/Smaily/RecEngine/CatalogManifest.php:131
+#, php-format
+msgid "Not sent: the store has more than %s products, the most the nightly product list can hold."
+msgstr ""
+
 #. translators: %d: number of queued Smaily messages deleted.
 #: includes/Privacy/GdprHandler.php:387
 #, php-format
