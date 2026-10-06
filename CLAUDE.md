@@ -284,6 +284,12 @@ hook (NOT D6: response has no per-item errors[]; `not_found` is a success). A
 single VARIATION's hard-delete keeps the per-SKU soft path — §3b would tombstone
 its surviving siblings — and trash still never fires §3b. After any change here
 the pilot needs a catalog re-backfill.
+**Draft, private and pending go the same way as trash (PRO-3884):** any parent
+status but `publish` is sent as the `catalog.delete` (`in_stock=false`) removal on
+save and on a stock change — a never-published draft too — and publishing again
+upserts. Only a published product is recommendable, matching the import and the
+nightly manifest; don't let a new enqueue path upsert without that check
+(`CatalogHookHandler::enqueue_sync()`).
 
 ### A `catalog.delete` tombstone is ALWAYS force-filled and sent — never silently skipped (PRO-1498)
 F3-39/F3-40 originally SKIPPED a captured removal object whose `category_path`

@@ -2143,7 +2143,8 @@ was a second, independent source of empty-`category_path` catalog rows, one
 that Fix A cannot fully help either (the recovery is the row never having been
 enqueued, not a fallback name). Plain `draft` status was left unchanged
 (out of scope — a merchant explicitly saving a draft is a real action, and
-Fix A now covers a draft's possibly-still-empty category too). The mock's
+Fix A now covers a draft's possibly-still-empty category too). *(Superseded by
+PRO-3884: a draft is now sent as the `in_stock=false` removal, never upserted.)* The mock's
 strict empty-`category_path` rejection (the ADDENDUM's mock-divergence fix)
 is UNCHANGED and still correct — it now guards the narrower fail-loud edge
 Fix A's fallback doesn't reach.
@@ -2196,7 +2197,8 @@ per language (idempotent on the engine's SKU upsert). After deploy the pilot nee
 
 **Alternatives:** (a) include all non-publish statuses (draft/private) — rejected,
 drafts are not real sales and would add noise; trash is the precise, merchant-driven
-"discontinued" signal. (b) a wire-level `in_stock=false` stamp in the flusher for any
+"discontinued" signal. *(The import still reads publish + trash only; since PRO-3884
+the LIVE sync also sends draft/private/pending as the in_stock=false removal.)* (b) a wire-level `in_stock=false` stamp in the flusher for any
 non-publish row — rejected, the `catalog.delete` event already carries that semantics
 cleanly. (c) guard `on_save_product` on the canonical product's status instead of the
 saved post's — rejected, it drops a published translation whose canonical is trashed.
@@ -7564,6 +7566,30 @@ Retry-After; an HTTP-date value falls back to the back-off, as before.
 **Rationale:** the durable queue retries a failed row later (`next_retry_at`),
 so a shorter in-request wait loses nothing; the cap matches Magento.
 **Relationships:** PRO-3620 (browse relay), `ClientRetryAfterCapTest`.
+
+### PRO-3884 — Only a published product is recommendable in the live catalog sync (2026-10-06)
+
+**Context:** the live sync sent every product except trashed ones and auto-drafts,
+so a draft, private or pending product reached the engine `in_stock=true` and could
+be recommended although a shopper cannot buy it. The catalog import already reads
+only `publish` + `trash` (F3-40), and Erkki decided on 2026-10-06 that the nightly
+manifest (PRO-3859) leaves those products out — a live sync that kept sending them
+would move a product between live and removed every day.
+**Decision:** `CatalogHookHandler` sends a product whose PARENT post is not
+`publish` through the existing `catalog.delete` removal (`in_stock=false`,
+`ensure_valid_removal()` force-fill) — on save, on a stock change and on the
+translation re-sync of the delete paths; publishing it again sends a normal upsert.
+A never-published draft gets the same tombstone (no "was it sent before" state; a
+removal for a SKU the engine never had is harmless). On save, a published saved
+post also counts, so a published translation of a draft canonical stands in, as in
+the import. The `trash` and `auto-draft` early returns stay.
+**Alternatives:** (a) send nothing for an unpublished product — rejected, a product
+that moves away from publish must be marked unavailable, and telling the two apart
+needs stored send state; (b) a status check in the flusher's upsert branch —
+rejected, the removal event already carries this meaning (F3-40 alternative b).
+**Relationships:** reverses F3-40 alternative (a) and PRO-1491's "plain draft left
+unchanged" for the live path; F3-40 (trash), PRO-1498 (always-sendable removal),
+PRO-3859 (manifest).
 
 ## How to keep this document going
 
