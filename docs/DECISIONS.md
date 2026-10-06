@@ -7531,6 +7531,23 @@ retry is the way back.
 **Relationships:** supersedes PRO-3750's "every other code keeps its
 handling"; PRO-1685 (the retry ladder), PRO-1504 (transactional terminal rule).
 
+### PRO-3872 — 3.16.1 ships as a GitHub release only (2026-10-06)
+
+**Context:** a customer needs the Elementor Pro form-action fix (PRO-3872)
+now, and installs the plugin ZIP by hand. The next wordpress.org release is a
+larger feature release that is not ready yet.
+**Decision:** 3.16.1 (the fixes merged after 3.16.0: PRO-3821, PRO-3862,
+PRO-3872, PRO-3873) is tagged and published as a GitHub release, with the
+CI-built ZIP, and is NOT pushed to wordpress.org (`./release.sh` is not run
+for it). wordpress.org stays on 3.16.0. The next wordpress.org release carries
+a version higher than 3.16.1 (e.g. 3.17.0) and keeps the `= 3.16.1 =`
+changelog entry, so stores that update from wordpress.org see these fixes.
+**Rationale:** the customer gets the fix at once; the stores on wordpress.org
+get it bundled with the larger features in one update. Erkki, 2026-10-06.
+**Alternatives:** publish 3.16.1 to wordpress.org as well — not chosen.
+**Relationships:** the release checklist in CLAUDE.md ("Cutting a release ZIP
++ GH release"), step 7d is skipped for this version.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
