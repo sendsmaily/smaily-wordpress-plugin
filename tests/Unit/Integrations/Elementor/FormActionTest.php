@@ -168,6 +168,37 @@ final class FormActionTest extends TestCase {
 		self::assertStringNotContainsString( 'secret-password', (string) json_encode( $widget->calls ) );
 	}
 
+	public function test_the_workflow_dropdown_lists_the_workflows_for_a_site_editor(): void {
+		Functions\when( 'is_admin' )->justReturn( true );
+		Functions\when( 'current_user_can' )->justReturn( true );
+
+		$client            = $this->fake_client();
+		$client->workflows = array(
+			array(
+				'id'   => 42,
+				'name' => 'Welcome series',
+			),
+		);
+
+		self::assertSame(
+			array(
+				''   => 'No workflow',
+				'42' => 'Welcome series',
+			),
+			$this->workflow_control_options( $client )
+		);
+	}
+
+	public function test_the_workflow_dropdown_never_calls_smaily_for_a_visitor(): void {
+		Functions\when( 'is_admin' )->justReturn( true );
+		Functions\when( 'current_user_can' )->justReturn( false );
+
+		$client = $this->fake_client();
+
+		self::assertSame( array( '' => 'No workflow' ), $this->workflow_control_options( $client ) );
+		self::assertSame( 0, $client->list_calls );
+	}
+
 	public function test_export_drops_the_account_specific_workflow(): void {
 		$exported = $this->action( $this->fake_client() )->on_export(
 			array(
@@ -186,6 +217,30 @@ final class FormActionTest extends TestCase {
 			),
 			$exported
 		);
+	}
+
+	/**
+	 * @return array<string, string>
+	 */
+	private function workflow_control_options( Client $client ): array {
+		$widget = new class() {
+			/** @var array<string, string> */
+			public array $options = array();
+
+			public function start_controls_section( string $id, array $args ): void {}
+
+			public function add_control( string $id, array $args ): void {
+				if ( $id === 'smaily_workflow_id' ) {
+					$this->options = $args['options'];
+				}
+			}
+
+			public function end_controls_section(): void {}
+		};
+
+		$this->action( $client )->register_settings_section( $widget );
+
+		return $widget->options;
 	}
 
 	private function action( Client $client ): Form_Action {
@@ -263,6 +318,9 @@ final class FormActionTest extends TestCase {
 			/** @var array<int, array<int, array<string, mixed>>> */
 			public array $upserts = array();
 			public ?ApiException $upsert_throw = null;
+			/** @var array<int, array<string, mixed>> */
+			public array $workflows = array();
+			public int $list_calls  = 0;
 
 			public function __construct() {
 				parent::__construct( 'demo', 'user', 'secret-password' );
@@ -274,6 +332,11 @@ final class FormActionTest extends TestCase {
 					throw $this->upsert_throw;
 				}
 				return array( 'code' => 101 );
+			}
+
+			public function list_autoresponders(): array {
+				++$this->list_calls;
+				return $this->workflows;
 			}
 		};
 	}

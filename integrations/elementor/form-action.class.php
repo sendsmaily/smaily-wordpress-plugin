@@ -161,12 +161,28 @@ class Form_Action extends Action_Base {
 				'label'       => __( 'Workflow', 'smaily-connect' ),
 				'type'        => Controls_Manager::SELECT,
 				'default'     => '',
-				'options'     => $this->subscription->workflow_options(),
+				'options'     => $this->workflow_options(),
 				'description' => __( 'Optional. The Smaily workflow to trigger after the signup.', 'smaily-connect' ),
 			)
 		);
 
 		$widget->end_controls_section();
+	}
+
+	/**
+	 * The editor's workflow dropdown: '' (none) plus the account's workflows.
+	 * Only a site editor in the admin reaches Smaily, never a visitor's
+	 * submission.
+	 *
+	 * @return array<string, string>
+	 */
+	private function workflow_options(): array {
+		$options = array( '' => __( 'No workflow', 'smaily-connect' ) );
+		if ( ! is_admin() || ! current_user_can( 'edit_posts' ) ) {
+			return $options;
+		}
+
+		return $options + $this->subscription->workflows();
 	}
 
 	/**
