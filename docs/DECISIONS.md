@@ -7079,6 +7079,45 @@ per-shopper data to page caches); automatic placement (Erkki: the merchant
 decides); defaulting a missing context to `email` on the order (the contract
 forwards the cookie, it never invents one).
 
+### PRO-3627 — A profiling choice and the purchase marker go only to a contact Smaily already has (2026-10-05)
+
+**Context:** Smaily creates a contact that is sent without a subscription
+status as **subscribed** — its soft opt-in default (Erkki, 2026-10-02, found
+in the Magento plugin, PRO-3619). Two writes upserted the contact without a
+status: the My Account profiling choice (`ProfilingConsent::opt_out()` /
+`opt_in()`), and the abandoned-cart purchase marker
+(`abandoned_cart_purchased_at`, PRO-1723). For an address Smaily did not
+have, each created a subscribed contact for someone who never subscribed.
+The PRO-1723 guard (the marker goes only after a delivered reminder) does
+not prove that Smaily has the contact.
+**Decision (Erkki, 2026-10-05):** both writes first read the contact
+(`Client::get_contact_consent()`, the same `GET contact` the profiling
+read-back uses) and write only when Smaily has it.
+- **Profiling choice** (synchronous, no queue row): a contact Smaily does not
+  have keeps the choice store-side only — the durable opt-out registry, the
+  caches and the engine opt-out/opt-in are unchanged. A failed read writes
+  nothing; as with a failed write before, it is logged and the next read-back
+  reconciles (a durable opt-out is carried to a found contact by the PRO-3191
+  path, which already wrote only to a found contact and skips the extra read).
+- **Purchase marker** (a `contact.sync` queue row): `Flusher` reads the
+  contact before the upsert. A contact Smaily does not have closes the row as
+  a terminal skip (`mark_sent` + `last_response` `{outcome: skipped, note}`,
+  no `sent_payload`) — never retried. A failed read throws into the normal
+  `RetryPolicy` ladder (temporary: 1m/5m/15m/1h, given up after 5 attempts;
+  4xx bar 429: failed at once), and the stored exchange shows the read.
+- Neither write sends `is_unsubscribed`, and nothing else on the contact
+  changes.
+**Rationale:** the store must not subscribe a person through a side channel;
+a lost marker or a store-only profiling choice costs far less than an
+unwanted subscription. One read per write is cheap at these volumes (a My
+Account submit; a purchase after a reminder).
+**Not done:** sending a status with the write — it would still create a
+contact for an unknown address, and the approved design sends no status
+change either way; caching the existence answer (Magento caches it for a
+day; these writes are rare enough to read each time).
+**Relationships:** PRO-1723 (the purchase marker), PRO-3191/PRO-3192 (the
+profiling carry-over), Magento PRO-3619 (the same fix).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

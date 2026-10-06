@@ -86,7 +86,7 @@ final class AbandonedCartPurchaseMarkerTest extends TestCase {
 		$order_id = $this->store->make_order( $user_id );
 		do_action( 'woocommerce_store_api_checkout_order_processed', wc_get_order( $order_id ) );
 
-		$marker = $this->marker_row( PipelineFixture::flush( EventQueue::FLUSH_HOOK ) );
+		$marker = $this->marker_row( PipelineFixture::flush( EventQueue::FLUSH_HOOK, self::smaily_has_the_contact( $email ) ) );
 
 		self::assertNotNull( $marker, 'The purchase must reach the shopper\'s Smaily contact.' );
 		self::assertSame( $email, $marker['email'] );
@@ -100,6 +100,63 @@ final class AbandonedCartPurchaseMarkerTest extends TestCase {
 			$this->sweep_and_flush_reminders(),
 			'A cart the shopper has paid for must never produce another reminder.'
 		);
+	}
+
+	/**
+	 * PRO-3627: Smaily creates a contact sent without a status as subscribed,
+	 * so the marker goes only to a contact Smaily already has. A reminded
+	 * shopper Smaily does not have gets nothing, and the Event Log row reads
+	 * as a skip with its reason — closed for good, never retried.
+	 */
+	public function test_a_reminded_shopper_smaily_does_not_have_gets_no_marker(): void {
+		$user_id = $this->store->make_user( 'notacontact' );
+
+		$this->track_cart_for( $user_id );
+		self::assertNotSame( array(), $this->sweep_and_flush_reminders(), 'The reminder must go out for this case to mean anything.' );
+
+		$order_id = $this->store->make_order( $user_id );
+		do_action( 'woocommerce_store_api_checkout_order_processed', wc_get_order( $order_id ) );
+
+		$bodies = PipelineFixture::flush( EventQueue::FLUSH_HOOK, self::smaily_answers( array( 'code' => 206, 'message' => 'Could not find requested email address' ) ) );
+
+		self::assertNull( $this->marker_row( $bodies ), 'The marker would create the contact as a subscriber.' );
+		$row = $this->marker_queue_row( $order_id );
+		self::assertSame( 'sent', $row['status'], 'The skip is terminal — it must not be retried.' );
+		self::assertSame( '0', (string) $row['attempts'] );
+		self::assertNull( $row['sent_payload'], 'Nothing was POSTed, so the row must not claim a request.' );
+		self::assertStringContainsString( '"outcome":"skipped"', (string) $row['last_response'] );
+		self::assertStringContainsString( 'Smaily does not have this contact', (string) $row['last_response'] );
+	}
+
+	public function test_the_marker_waits_for_a_retry_when_smaily_cannot_be_read(): void {
+		$user_id = $this->store->make_user( 'unreadable' );
+		$email   = PipelineFixture::email_of( $user_id );
+
+		$this->track_cart_for( $user_id );
+		self::assertNotSame( array(), $this->sweep_and_flush_reminders(), 'The reminder must go out for this case to mean anything.' );
+
+		$order_id = $this->store->make_order( $user_id );
+		do_action( 'woocommerce_store_api_checkout_order_processed', wc_get_order( $order_id ) );
+
+		$bodies = PipelineFixture::flush(
+			EventQueue::FLUSH_HOOK,
+			static fn (): array => array(
+				'headers'  => array(),
+				'body'     => '',
+				'response' => array( 'code' => 503, 'message' => 'Service Unavailable' ),
+				'cookies'  => array(),
+				'filename' => '',
+			)
+		);
+
+		self::assertNull( $this->marker_row( $bodies ), 'Nothing is written blind while Smaily cannot say whether it has the contact.' );
+		$row = $this->marker_queue_row( $order_id );
+		self::assertSame( 'pending', $row['status'], 'A failed read keeps the row on the normal retry ladder.' );
+		self::assertSame( '1', (string) $row['attempts'] );
+
+		// The retry, once Smaily answers, delivers the marker.
+		$this->make_due( (int) $row['id'] );
+		self::assertNotNull( $this->marker_row( PipelineFixture::flush( EventQueue::FLUSH_HOOK, self::smaily_has_the_contact( $email ) ) ) );
 	}
 
 	public function test_a_shopper_the_plugin_never_reminded_gets_no_marker(): void {
@@ -155,6 +212,56 @@ final class AbandonedCartPurchaseMarkerTest extends TestCase {
 	}
 
 	// --- helpers -------------------------------------------------------------
+
+	/** A contact read that finds the contact. */
+	private static function smaily_has_the_contact( string $email ): callable {
+		return self::smaily_answers( array( 'email' => $email, 'is_unsubscribed' => '0' ) );
+	}
+
+	/**
+	 * A contact read answering HTTP 200 with this body.
+	 *
+	 * @param array<string, mixed> $body
+	 */
+	private static function smaily_answers( array $body ): callable {
+		return static fn (): array => array(
+			'headers'  => array(),
+			'body'     => (string) wp_json_encode( $body ),
+			'response' => array( 'code' => 200, 'message' => 'OK' ),
+			'cookies'  => array(),
+			'filename' => '',
+		);
+	}
+
+	/**
+	 * This order's purchase-marker row in the Smaily queue.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function marker_queue_row( int $order_id ): array {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$row = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT id, status, attempts, sent_payload, last_response FROM {$wpdb->prefix}smly_plus_event_queue WHERE entity_id = %s",
+				'order:' . $order_id . ':cart-purchase'
+			),
+			ARRAY_A
+		);
+
+		self::assertIsArray( $row, 'The purchase must have enqueued a marker row.' );
+
+		return $row;
+	}
+
+	/** Lift a row's retry park so the next flush picks it up. */
+	private function make_due( int $id ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}smly_plus_event_queue SET next_retry_at = NULL WHERE id = %d", $id ) );
+	}
 
 	/** Track a live cart for a logged-in shopper through the real hook handler. */
 	private function track_cart_for( int $user_id ): void {

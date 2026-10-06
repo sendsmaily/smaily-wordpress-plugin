@@ -49,8 +49,9 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  * Error model — three terminal states:
  *
  *   - mark_sent on success
- *   - mark_sent on skip (missing email or no workflow mapped — a retry
- *     can't recover either, so we don't waste retry attempts)
+ *   - mark_sent on skip (missing email, no workflow mapped, or an
+ *     abandoned-cart purchase marker for an address Smaily does not have —
+ *     a retry can't recover any of them, so we don't waste retry attempts)
  *   - mark_failed on TerminalDispatchException (unknown event_type,
  *     payload decode failure, an HTTP 200 reply whose Smaily code is 203
  *     "invalid data" — RetryPolicy::permanent_envelope(), PRO-3750; any
@@ -66,6 +67,9 @@ final class Flusher {
 	/** Cap (chars) on each stored exchange field so the queue stays bounded (F3-44). */
 	private const EXCHANGE_MAX = 10000;
 
+	/** The Event Log note on a purchase-marker row closed without sending (PRO-3627). */
+	public const NOTE_NOT_A_CONTACT = 'Smaily does not have this contact, and the abandoned-cart purchase marker would create it as a subscriber — nothing was sent';
+
 	private EventQueue $queue;
 	private AutomationRouter $router;
 
@@ -80,6 +84,12 @@ final class Flusher {
 	 * @var array<string, mixed>|null
 	 */
 	private ?array $current_exchange = null;
+
+	/**
+	 * Why the event currently being dispatched was closed without a send,
+	 * when the generic skip note does not say it. Null otherwise.
+	 */
+	private ?string $skip_note = null;
 
 	/**
 	 * @param callable(string $account_key): Client $client_factory
@@ -115,6 +125,7 @@ final class Flusher {
 
 			// Reset so the stored exchange reflects THIS event (F3-44).
 			$this->current_exchange = null;
+			$this->skip_note        = null;
 
 			try {
 				$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
@@ -205,12 +216,38 @@ final class Flusher {
 		}
 
 		$client = ( $this->client_factory )( 'default' );
+
+		// Smaily creates a contact sent without a status as SUBSCRIBED, so the
+		// abandoned-cart purchase marker goes only to a contact Smaily already
+		// has (PRO-3627): the reminder that scopes it (PRO-1723) does not prove
+		// Smaily kept the contact. A missing contact closes the row as a skip.
+		if ( isset( $fields[ AutomationMarker::FIELD_ABANDONED_CART_PURCHASED ] ) && ! $this->smaily_has_contact( $client, $email ) ) {
+			$this->skip_note = self::NOTE_NOT_A_CONTACT;
+			return;
+		}
+
 		try {
 			$client->upsert_subscribers( array( $row ) );
 		} finally {
 			// Capture even when upsert throws — the Client records the exchange
 			// before throwing (F3-44).
 			$this->current_exchange = $client->last_exchange();
+		}
+	}
+
+	/**
+	 * Whether Smaily has a contact for this address. A read that fails throws,
+	 * so the row takes the normal retry path and nothing is written blind;
+	 * its request is kept for the Event Log (F3-44).
+	 *
+	 * @throws ApiException When Smaily cannot be read.
+	 */
+	private function smaily_has_contact( Client $client, string $email ): bool {
+		try {
+			return $client->get_contact_consent( $email )['found'];
+		} catch ( ApiException $e ) {
+			$this->current_exchange = $client->last_exchange();
+			throw $e;
 		}
 	}
 
@@ -260,7 +297,8 @@ final class Flusher {
 	/**
 	 * Persist the just-dispatched row's exchange (F3-44): the request body +
 	 * Smaily reply captured in $current_exchange, or a "skipped" marker when
-	 * nothing was POSTed (missing email, no workflow mapped, or a decode failure).
+	 * nothing was POSTed (missing email, no workflow mapped, a decode failure,
+	 * or a purchase marker for an address Smaily does not have).
 	 */
 	private function record_exchange( int $id ): void {
 		if ( $this->current_exchange === null ) {
@@ -270,7 +308,7 @@ final class Flusher {
 				(string) wp_json_encode(
 					array(
 						'outcome' => EventQueue::OUTCOME_SKIPPED,
-						'note'    => 'no API call (missing email, no workflow mapped, or payload decode failure) — nothing was sent',
+						'note'    => $this->skip_note ?? 'no API call (missing email, no workflow mapped, or payload decode failure) — nothing was sent',
 					)
 				)
 			);

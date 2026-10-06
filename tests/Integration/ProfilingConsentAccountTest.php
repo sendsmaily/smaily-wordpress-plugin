@@ -4,7 +4,8 @@
  * only where Campaign Intelligence is live (PRO-2513) — whether or not the
  * email setup wizard is finished — and its "couldn't load" state offers an
  * opt-out button that works without a Smaily client (PRO-3189) — and that
- * opt-out survives a later read of a contact with no preference (PRO-3191).
+ * opt-out survives a later read of a contact with no preference (PRO-3191) —
+ * and a choice is written only to a contact Smaily already has (PRO-3627).
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -226,6 +227,83 @@ final class ProfilingConsentAccountTest extends TestCase {
 			$prop->setAccessible( true );
 			$prop->setValue( Bootstrap::instance(), array() );
 		}
+	}
+
+	/**
+	 * PRO-3627: Smaily creates a contact sent without a status as subscribed,
+	 * so a shopper's choice is written only to a contact Smaily already has.
+	 * The real wiring (Bootstrap's resolver, the real Smaily client) with
+	 * Smaily and the engine faked at the pre_http_request seam.
+	 *
+	 * @dataProvider contact_reads
+	 *
+	 * @param array<string, mixed> $read   What the contact read answers.
+	 * @param int                  $status Its HTTP status.
+	 */
+	public function test_a_choice_is_written_only_to_a_contact_smaily_has( string $choice, array $read, int $status, bool $written ): void {
+		EnvSeed::connect();
+		update_option(
+			'smaily_connect_api_credentials',
+			array(
+				'subdomain' => 'testsub',
+				'username'  => 'tester',
+				'password'  => \Smaily_Connect\Includes\Cypher::encrypt( 'test-password' ),
+			)
+		);
+		update_option( SetupState::OPTION_SETUP_COMPLETED, true );
+
+		$smaily_calls = array();
+		$fake_http    = static function ( $pre, array $args, string $url ) use ( &$smaily_calls, $read, $status ) {
+			$body = array( 'ok' => true, 'opt_out_status' => true ); // the engine's reply.
+			$code = 200;
+			if ( strpos( $url, '.sendsmaily.net/api/contact.php' ) !== false ) {
+				$smaily_calls[] = $args['method'] ?? '';
+				$is_read        = ( $args['method'] ?? '' ) === 'GET';
+				$body           = $is_read ? $read : array( 'code' => 101, 'message' => 'OK' );
+				$code           = $is_read ? $status : 200;
+			}
+			return array(
+				'headers'  => array(),
+				'body'     => wp_json_encode( $body ),
+				'response' => array( 'code' => $code, 'message' => 'OK' ),
+				'cookies'  => array(),
+			);
+		};
+		add_filter( 'pre_http_request', $fake_http, 10, 3 );
+
+		try {
+			$consent = Bootstrap::instance()->profiling_consent();
+			if ( $choice === 'opt_out' ) {
+				$consent->opt_out( 'pro2513@example.test' );
+			} else {
+				$consent->opt_in( 'pro2513@example.test' );
+			}
+		} finally {
+			remove_filter( 'pre_http_request', $fake_http, 10 );
+			$prop = new \ReflectionProperty( Bootstrap::instance(), 'smaily_clients' );
+			$prop->setAccessible( true );
+			$prop->setValue( Bootstrap::instance(), array() );
+		}
+
+		self::assertSame( $written ? array( 'GET', 'POST' ) : array( 'GET' ), $smaily_calls );
+		// The store keeps the choice either way.
+		self::assertSame( $choice === 'opt_in', Bootstrap::instance()->profiling_consent()->may_profile( 'pro2513@example.test' ) );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: array<string, mixed>, 2: int, 3: bool}>
+	 */
+	public static function contact_reads(): array {
+		$found   = array( 'email' => 'pro2513@example.test', 'is_unsubscribed' => '0' );
+		$missing = array( 'code' => 206, 'message' => 'Could not find requested email address' );
+		return array(
+			'opt-out, contact exists'  => array( 'opt_out', $found, 200, true ),
+			'opt-out, contact missing' => array( 'opt_out', $missing, 200, false ),
+			'opt-out, read fails'      => array( 'opt_out', array(), 500, false ),
+			'opt-in, contact exists'   => array( 'opt_in', $found, 200, true ),
+			'opt-in, contact missing'  => array( 'opt_in', $missing, 200, false ),
+			'opt-in, read fails'       => array( 'opt_in', array(), 500, false ),
+		);
 	}
 
 	public function test_no_section_when_the_engine_account_was_deactivated(): void {

@@ -143,7 +143,7 @@ class ProfilingConsent {
 						// Carry the opt-out to the contact that lacks it or holds
 						// the older answer. Never for a not-found contact: the
 						// upsert would create one.
-						$carried_at = $this->write( $email, false );
+						$carried_at = $this->write( $email, false, true );
 					}
 				}
 				$this->remember( $email, $allowed, $carried_at );
@@ -226,8 +226,8 @@ class ProfilingConsent {
 	}
 
 	/**
-	 * WP-side opt-out: write `smaily_rec_profiling = 0` + the timestamp to Smaily,
-	 * update the cache immediately, and opt the customer out of the engine. The
+	 * WP-side opt-out: write `smaily_rec_profiling = 0` + the timestamp to the
+	 * Smaily contact (when Smaily has one, PRO-3627), update the cache immediately, and opt the customer out of the engine. The
 	 * working opt-out path the opt-out model requires (transparency + a real way
 	 * to say no).
 	 */
@@ -236,7 +236,7 @@ class ProfilingConsent {
 		$this->engine_opt_out( $email );
 	}
 
-	/** WP-side opt back in: write `1` + timestamp, cache, re-include in the engine. */
+	/** WP-side opt back in: write `1` + timestamp (to an existing contact only), cache, re-include in the engine. */
 	public function opt_in( string $email ): void {
 		$this->write( $email, true );
 		$this->remember( $email, true );
@@ -246,18 +246,29 @@ class ProfilingConsent {
 	/**
 	 * Returns the moment stamped on the write (also when no write happened),
 	 * so the caller records the same moment Smaily was sent.
+	 *
+	 * The choice goes only to a contact Smaily already has (PRO-3627): the
+	 * write is an upsert, and Smaily creates a contact sent without a status
+	 * as SUBSCRIBED — so writing a choice for an address Smaily does not have
+	 * would subscribe someone who never subscribed. Unless the caller has just
+	 * read the contact (`$contact_known`), Smaily is asked first; a contact it
+	 * does not have keeps the choice store-side only, and a read that fails
+	 * writes nothing.
 	 */
-	private function write( string $email, bool $may_profile ): int {
+	private function write( string $email, bool $may_profile, bool $contact_known = false ): int {
 		$now    = time();
 		$client = ( $this->smaily_client_factory )();
 		if ( ! $client instanceof SmailyClient ) {
 			return $now;
 		}
 		try {
-			$client->write_profiling_consent( $email, $may_profile, IsoDate::to_z( $now ) );
+			if ( $contact_known || $client->get_contact_consent( $email )['found'] ) {
+				$client->write_profiling_consent( $email, $may_profile, IsoDate::to_z( $now ) );
+			}
 		} catch ( \Throwable $e ) {
-			// A failed write is non-fatal here; the cache still reflects the WP
-			// intent, and the next read-back reconciles against Smaily.
+			// A failed read or write is non-fatal here; the cache still
+			// reflects the WP intent, and the next read-back reconciles
+			// against Smaily.
 			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] write failed: ' . $e->getMessage() );
 		}
 		return $now;

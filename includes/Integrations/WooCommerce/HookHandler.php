@@ -385,7 +385,8 @@ class HookHandler {
 	 * written to their Smaily contact as `abandoned_cart_purchased_at`, which
 	 * is what lets the merchant's workflow exit the follow-up letters. The
 	 * marker is written ONLY for an address the queue still proves a reminder
-	 * was delivered to — see docs/DECISIONS.md, PRO-1723.
+	 * was delivered to — see docs/DECISIONS.md, PRO-1723 — and the Flusher
+	 * sends it only to a contact Smaily already has (PRO-3627).
 	 */
 	private function maybe_mark_abandoned_cart_purchase( \WC_Order $order ): void {
 		if ( $this->gate_closed() ) {

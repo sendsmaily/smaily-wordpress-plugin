@@ -49,11 +49,20 @@ final class PipelineFixture {
 	 * Drain a queue through a mocked Smaily transport, collecting EVERY POST
 	 * body (one flush can send several rows).
 	 *
+	 * @param (callable(): mixed)|null $answer_read What a contact read (GET) answers —
+	 *                                             a reply array or a WP_Error. Null
+	 *                                             answers it like a POST, with a
+	 *                                             status payload, which Smaily
+	 *                                             sends for an unknown contact.
+	 *
 	 * @return array<int, mixed>
 	 */
-	public static function flush( string $hook ): array {
+	public static function flush( string $hook, ?callable $answer_read = null ): array {
 		$bodies = array();
-		$fake   = static function ( $pre, $args ) use ( &$bodies ) {
+		$fake   = static function ( $pre, $args ) use ( &$bodies, $answer_read ) {
+			if ( $answer_read !== null && ( $args['method'] ?? '' ) === 'GET' ) {
+				return $answer_read();
+			}
 			$bodies[] = isset( $args['body'] ) ? $args['body'] : null;
 			return array(
 				'headers'  => array(),

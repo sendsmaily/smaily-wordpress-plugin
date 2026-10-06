@@ -13,6 +13,7 @@ use Brain\Monkey;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Smaily\ApiException;
+use Smaily\Connect\Smaily\AutomationMarker;
 use Smaily\Connect\Smaily\AutomationRouter;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\EventQueue;
@@ -451,6 +452,110 @@ final class FlusherTest extends TestCase {
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertSame( 0, $stats['retried'] );
+	}
+
+	// --- the abandoned-cart purchase marker never creates a contact (PRO-3627)
+
+	private function marker_queue( int $id ): EventQueue {
+		return $this->fake_queue(
+			array(
+				array(
+					'id'         => $id,
+					'event_type' => HookHandler::EVENT_CONTACT_SYNC,
+					'attempts'   => 0,
+					'payload'    => json_encode(
+						array(
+							'email'  => 'a@b.c',
+							'fields' => array( AutomationMarker::FIELD_ABANDONED_CART_PURCHASED => '2026-10-05 10:00:00' ),
+						)
+					),
+				),
+			)
+		);
+	}
+
+	public function test_purchase_marker_goes_to_a_contact_smaily_has(): void {
+		$queue  = $this->marker_queue( 21 );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::once() )
+			->method( 'get_contact_consent' )
+			->with( 'a@b.c' )
+			->willReturn( array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => null, 'smaily_rec_profiling_ts' => null ) );
+		$client->expects( self::once() )
+			->method( 'upsert_subscribers' )
+			->with(
+				array(
+					array(
+						'email'                                         => 'a@b.c',
+						AutomationMarker::FIELD_ABANDONED_CART_PURCHASED => '2026-10-05 10:00:00',
+					),
+				)
+			)
+			->willReturn( array( 'code' => 101 ) );
+
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+
+		self::assertSame( 1, $stats['sent'] );
+		self::assertSame( array( 21 ), $queue->marked_sent );
+	}
+
+	public function test_purchase_marker_for_an_address_smaily_does_not_have_is_skipped(): void {
+		$queue  = $this->marker_queue( 22 );
+		$client = $this->createMock( Client::class );
+		$client->method( 'get_contact_consent' )->willReturn(
+			array( 'found' => false, 'is_unsubscribed' => null, 'smaily_rec_profiling' => null, 'smaily_rec_profiling_ts' => null )
+		);
+		// Smaily would create the contact as a subscriber.
+		$client->expects( self::never() )->method( 'upsert_subscribers' );
+
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+
+		self::assertSame( array( 22 ), $queue->marked_sent, 'A skip is terminal — never retried.' );
+		self::assertSame( array(), $queue->attempts );
+		self::assertSame( 0, $stats['failed'] );
+		self::assertNull( $queue->exchanges[22]['sent'], 'Nothing was POSTed, so the row claims no request.' );
+		self::assertStringContainsString( '"outcome":"skipped"', (string) $queue->exchanges[22]['response'] );
+		self::assertStringContainsString( 'Smaily does not have this contact', (string) $queue->exchanges[22]['response'] );
+	}
+
+	public function test_purchase_marker_waits_for_a_retry_when_the_contact_check_fails(): void {
+		$queue  = $this->marker_queue( 23 );
+		$client = $this->createMock( Client::class );
+		$client->method( 'get_contact_consent' )->willThrowException( new ApiException( 'server error', 500 ) );
+		$client->method( 'last_exchange' )->willReturn(
+			array(
+				'request'  => array( 'method' => 'GET', 'endpoint' => 'contact', 'body' => array( 'email' => 'a@b.c' ) ),
+				'response' => array( 'http' => 500, 'body' => null ),
+			)
+		);
+		$client->expects( self::never() )->method( 'upsert_subscribers' );
+
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+
+		self::assertSame( 1, $stats['retried'] );
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertSame( 23, $queue->attempts[0]['id'] );
+		self::assertStringContainsString( '"method":"GET"', (string) $queue->exchanges[23]['sent'] );
+		self::assertStringContainsString( '"http":500', (string) $queue->exchanges[23]['response'] );
+	}
+
+	public function test_an_ordinary_contact_sync_does_not_read_the_contact_first(): void {
+		$queue  = $this->fake_queue(
+			array(
+				array(
+					'id'         => 24,
+					'event_type' => HookHandler::EVENT_CONTACT_SYNC,
+					'payload'    => json_encode( array( 'email' => 'a@b.c', 'fields' => array( 'first_name' => 'Alice' ) ) ),
+				),
+			)
+		);
+		$client = $this->createMock( Client::class );
+		$client->expects( self::never() )->method( 'get_contact_consent' );
+		$client->expects( self::once() )->method( 'upsert_subscribers' )->willReturn( array() );
+
+		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+
+		self::assertSame( array( 24 ), $queue->marked_sent );
 	}
 
 	public function test_flush_excludes_the_cart_event_type_from_its_drain(): void {
