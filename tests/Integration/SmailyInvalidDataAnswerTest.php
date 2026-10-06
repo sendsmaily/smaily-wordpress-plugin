@@ -1,7 +1,7 @@
 <?php
 /**
- * Integration: a Smaily "invalid data" answer (HTTP 200, code 203) fails the
- * queue row on the first attempt (PRO-3750).
+ * Integration: a Smaily refusal on HTTP 200 (code 203 and the rest) fails the
+ * queue row on the first attempt, or retries it for code 225 (PRO-3750, PRO-3862).
  *
  * Drives the REAL flush hook, the REAL Smaily Client and the REAL queue table
  * with only the Smaily transport faked, so the code is read from the exchange
@@ -53,11 +53,23 @@ final class SmailyInvalidDataAnswerTest extends TestCase {
 		self::assertStringContainsString( '"code":203', (string) $row['last_response'], 'Smaily\'s answer stays readable in the Event Log.' );
 	}
 
-	public function test_another_smaily_error_code_keeps_todays_handling(): void {
-		$row = $this->sync_one_contact_answered_with( 216, 'Unknown error' );
+	public function test_another_refusing_code_fails_the_row_instead_of_marking_it_sent(): void {
+		// PRO-3862: no request Smaily refused is shown as sent.
+		$row = $this->sync_one_contact_answered_with( 204, 'Invalid email address provided' );
 
-		self::assertSame( EventQueue::STATUS_SENT, $row['status'], 'Only code 203 changed; other codes are handled as before.' );
+		self::assertSame( EventQueue::STATUS_FAILED, $row['status'] );
 		self::assertSame( 0, (int) $row['attempts'] );
+		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204: Invalid email address provided', $row['last_error'] );
+	}
+
+	public function test_a_smaily_database_error_is_retried_instead_of_marked_sent(): void {
+		// PRO-3862: 225 is Smaily's own database error — the row stays pending
+		// for a spaced retry, with Smaily's answer as the last error.
+		$row = $this->sync_one_contact_answered_with( 225, 'Database insert failed' );
+
+		self::assertSame( EventQueue::STATUS_PENDING, $row['status'] );
+		self::assertSame( 1, (int) $row['attempts'] );
+		self::assertSame( 'Smaily API returned code 225: Database insert failed', $row['last_error'] );
 	}
 
 	/**
