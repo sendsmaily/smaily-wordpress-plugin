@@ -436,6 +436,78 @@ final class ContactBackfillAudienceTest extends TestCase {
 		self::assertContains( $emails[ $after ], $sent, 'The customer after the failure on that page is synced on retry.' );
 	}
 
+	/**
+	 * PRO-3904: Smaily can refuse a contact in the body code of an HTTP 200
+	 * answer. The contact import reads that code the way the queued sends do
+	 * (PRO-3862): the refused contact is not counted as synced and the import
+	 * stops failed (PRO-3868) with Smaily's message — for 225 too, because
+	 * the import fails on every error a queued send would retry.
+	 *
+	 * @dataProvider refusing_codes
+	 */
+	public function test_a_contact_smaily_refuses_in_a_successful_answer_fails_the_import( int $smaily_code ): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+		PipelineFixture::seed_credentials();
+
+		$first   = $this->make_user( 'bf-refused-first', '1' );
+		$refused = $this->make_user( 'bf-refused', '1' );
+		$after   = $this->make_user( 'bf-refused-after', '1' );
+		$email   = get_userdata( $refused )->user_email;
+
+		$fake = static function ( $pre, $args, $url ) use ( $email, $smaily_code ) {
+			if ( strpos( (string) $url, 'sendsmaily.net' ) === false ) {
+				return $pre;
+			}
+			$refuse = (string) ( $args['body'][0]['email'] ?? '' ) === $email;
+			return array(
+				'headers'  => array(),
+				'body'     => $refuse
+					? (string) wp_json_encode(
+						array(
+							'code'    => $smaily_code,
+							'message' => 'Refused by the test',
+						)
+					)
+					: '{"code":101,"message":"OK"}',
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
+				'cookies'  => array(),
+				'filename' => '',
+			);
+		};
+
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			RestRequestHelper::login_as_admin();
+			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
+			$this->run_one_tick();
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+			wp_set_current_user( 0 );
+		}
+
+		$row = $this->contact_job_row();
+		self::assertSame( BackfillJobInterface::STATUS_FAILED, $row['status'], 'A refusing body code must not let the import finish.' );
+		self::assertStringContainsString( sprintf( 'code %d: Refused by the test', $smaily_code ), (string) $row['error_message'], 'The import keeps Smaily\'s answer.' );
+		self::assertSame( 0, (int) $row['synced_count'], 'The refused contact is not counted as synced.' );
+		self::assertSame( '', get_user_meta( $refused, BackfillJob::META_KEY, true ), 'The refused contact is not marked synced, so the next run sends it again.' );
+		self::assertNotSame( '', get_user_meta( $first, BackfillJob::META_KEY, true ), 'The contact Smaily accepted is marked synced.' );
+		self::assertLessThan( $after, (int) $row['cursor_value'], 'The import does not move past the refused contact.' );
+		self::assertSame( array(), $this->pending_ticks(), 'A failed import schedules no further batch.' );
+	}
+
+	/**
+	 * @return array<string, array{int}>
+	 */
+	public static function refusing_codes(): array {
+		return array(
+			'203 invalid data (fails a queued send at once)' => array( 203 ),
+			'225 database insert failed (retried by a queued send)' => array( 225 ),
+		);
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**
@@ -468,7 +540,7 @@ final class ContactBackfillAudienceTest extends TestCase {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT status, cursor_value, error_message FROM {$wpdb->prefix}smly_plus_backfill_job WHERE job_type = %s AND target = %s",
+				"SELECT status, cursor_value, synced_count, error_message FROM {$wpdb->prefix}smly_plus_backfill_job WHERE job_type = %s AND target = %s",
 				BackfillJob::BACKFILL_TYPE,
 				BackfillJob::BACKFILL_TARGET
 			),
