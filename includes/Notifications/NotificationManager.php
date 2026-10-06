@@ -16,6 +16,7 @@ namespace Smaily\Connect\Notifications;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\REST\BeaconEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
@@ -400,7 +401,7 @@ final class NotificationManager {
 		$active = $this->needs_consent_api_notice(
 			(bool) get_option( BeaconEndpoint::OPTION_TRACK_BROWSING, false ),
 			$sending_allowed,
-			function_exists( 'wp_has_consent' )
+			StorefrontBeacon::consent_api_present()
 		);
 		if ( ! $active ) {
 			return;

@@ -22,12 +22,7 @@ class Integration {
 	 * @return string
 	 */
 	public static function render( $attributes, $content ) {
-		$user_id = get_current_user_id();
-		if ( $user_id <= 0 ) {
-			return '';
-		}
-
-		return Bootstrap::instance()->storefront_recommendations()->render( $user_id );
+		return Bootstrap::instance()->storefront_recommendations()->render( get_current_user_id() );
 	}
 
 	/**
