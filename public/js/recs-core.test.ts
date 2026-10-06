@@ -4,7 +4,8 @@ import { hasConsent, init, type RecsBoot } from './recs-core';
 /**
  * PRO-3835: the storefront recommendations script asks the store only with
  * marketing consent (fail-closed), at most once per page, and shows nothing
- * unless the store answers with cards.
+ * unless the store answers with cards. PRO-3849: consent counts only when a
+ * consent banner set a WP Consent API consent type.
  */
 
 const BOOT: RecsBoot = {
@@ -39,6 +40,8 @@ describe('recs-core', () => {
 
   beforeEach(() => {
     window.smailyConnectRecs = BOOT;
+    // A consent banner set a WP Consent API consent type (PRO-3849).
+    window.wp_consent_type = 'optin';
     listeners = vi.spyOn(document, 'addEventListener');
   });
 
@@ -51,6 +54,7 @@ describe('recs-core', () => {
     listeners.mockRestore();
     delete window.smailyConnectRecs;
     delete window.wp_has_consent;
+    delete window.wp_consent_type;
     document.body.innerHTML = '';
     vi.unstubAllGlobals();
   });
@@ -74,6 +78,36 @@ describe('recs-core', () => {
     await settle();
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing when no consent banner set a consent type, although the WP Consent API says yes (PRO-3849)', async () => {
+    const fetchMock = answer({ html: CARDS });
+    delete window.wp_consent_type;
+    window.wp_has_consent = vi.fn(() => true);
+    slot();
+
+    init();
+    await settle();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('asks once a consent banner sets the consent type late in the page load (PRO-3849)', async () => {
+    const fetchMock = answer({ html: CARDS });
+    delete window.wp_consent_type;
+    window.wp_has_consent = vi.fn(() => true);
+    const el = slot();
+
+    init();
+    await settle();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    window.wp_consent_type = 'optin';
+    document.dispatchEvent(new CustomEvent('wp_consent_type_defined'));
+    await settle();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(el.innerHTML).toBe(CARDS);
   });
 
   it('checks the configured consent category', () => {

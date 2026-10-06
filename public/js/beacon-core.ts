@@ -23,6 +23,11 @@ import {
   type RecEngineClientConfig,
   type TrackingEvent,
 } from './lib/rec-engine-client';
+import {
+  CONSENT_CHANGE_EVENT,
+  CONSENT_TYPE_DEFINED_EVENT,
+  marketingConsentGiven,
+} from './lib/marketing-consent';
 
 interface PageContext {
   pageType: string;
@@ -53,27 +58,24 @@ type JQueryStatic = (selector: unknown) => JQueryCollection;
 declare global {
   interface Window {
     smailyConnectBeacon?: BeaconBoot;
-    /** WP Consent API JS global (CookieYes / Complianz / Real Cookie Banner). */
-    wp_has_consent?: (category: string) => boolean | undefined;
     /** WooCommerce ships jQuery on storefront pages; absent ⇒ no cart events. */
     jQuery?: JQueryStatic;
   }
 }
 
 /**
- * Resolve marketing consent. Order: site override → WP Consent API → fail-safe
- * DENY. No consent signal means no tracking — matching the admin promise that a
- * site without a consent banner collects no events.
+ * Resolve marketing consent. Order: site override → the store's consent rule
+ * (a consent banner set a WP Consent API consent type AND the visitor said yes
+ * to the category, PRO-3849) → fail-safe DENY. No consent signal means no
+ * tracking — matching the admin promise that a site without a consent banner
+ * collects no events.
  */
 export function detectConsent(boot: BeaconBoot): boolean {
   const override = window.smailyConnectBeacon?.consentOverride;
   if (typeof override === 'function') {
     return override() === true;
   }
-  if (typeof window.wp_has_consent === 'function') {
-    return window.wp_has_consent(boot.consent.category) === true;
-  }
-  return false;
+  return marketingConsentGiven(boot.consent.category);
 }
 
 /** Map a storefront page type to its §6 event_type (null = no page-view event). */
@@ -190,10 +192,12 @@ export function init(): RecEngineClient | null {
   };
 
   // Fire now if consent is already granted; otherwise wait for the visitor to
-  // grant it. The WP Consent API dispatches a native CustomEvent on document.
+  // grant it, or for a banner that sets the consent type late in the page load.
+  // The WP Consent API dispatches native events on document for both.
   start();
   if (typeof document !== 'undefined') {
-    document.addEventListener('wp_listen_for_consent_change', start);
+    document.addEventListener(CONSENT_CHANGE_EVENT, start);
+    document.addEventListener(CONSENT_TYPE_DEFINED_EVENT, start);
   }
 
   return client;

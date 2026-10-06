@@ -47,6 +47,7 @@ describe('beacon-core: detectConsent', () => {
   afterEach(() => {
     delete window.smailyConnectBeacon;
     delete window.wp_has_consent;
+    delete window.wp_consent_type;
   });
 
   it('uses the site override when present', () => {
@@ -55,12 +56,28 @@ describe('beacon-core: detectConsent', () => {
     expect(detectConsent(boot)).toBe(true);
   });
 
-  it('falls back to the WP Consent API', () => {
+  it('lets the site override decide even when no consent banner set a consent type', () => {
+    const boot = makeBoot({ consentOverride: () => false });
+    window.smailyConnectBeacon = boot;
+    window.wp_consent_type = 'optin';
+    window.wp_has_consent = vi.fn(() => true);
+    expect(detectConsent(boot)).toBe(false);
+  });
+
+  it('falls back to the WP Consent API when a consent banner set a consent type', () => {
     const boot = makeBoot();
     window.smailyConnectBeacon = boot;
+    window.wp_consent_type = 'optin';
     window.wp_has_consent = vi.fn((category: string) => category === 'marketing');
     expect(detectConsent(boot)).toBe(true);
     expect(window.wp_has_consent).toHaveBeenCalledWith('marketing');
+  });
+
+  it('denies when no consent banner set a consent type, although the WP Consent API says yes (PRO-3849)', () => {
+    const boot = makeBoot();
+    window.smailyConnectBeacon = boot;
+    window.wp_has_consent = vi.fn(() => true);
+    expect(detectConsent(boot)).toBe(false);
   });
 
   it('fails safe to DENY when no consent signal exists', () => {
@@ -109,6 +126,7 @@ describe('beacon-core: init', () => {
   afterEach(() => {
     delete window.smailyConnectBeacon;
     delete window.wp_has_consent;
+    delete window.wp_consent_type;
     vi.unstubAllGlobals();
     for (const n of ['smaily_rec_uid', 'smaily_anon_sid', 'smaily_rec_id', 'smaily_rec_ctx']) {
       document.cookie = `${n}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
@@ -181,6 +199,24 @@ describe('beacon-core: init', () => {
     // Visitor accepts → the WP Consent API fires a native event.
     consent = true;
     document.dispatchEvent(new Event('wp_listen_for_consent_change'));
+
+    await client?.flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(lastEvents(fetchMock)[0]).toMatchObject({ event_type: 'product_view' });
+  });
+
+  it('starts when a consent banner sets the consent type late in the page load (PRO-3849)', async () => {
+    window.smailyConnectBeacon = makeBoot();
+    window.wp_has_consent = vi.fn(() => true);
+    const client = init();
+
+    // The API says yes, but no banner has set a consent type yet → nothing.
+    await client?.flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    // The banner sets the consent type and tells the page.
+    window.wp_consent_type = 'optin';
+    document.dispatchEvent(new Event('wp_consent_type_defined'));
 
     await client?.flush();
     expect(fetchMock).toHaveBeenCalledTimes(1);
