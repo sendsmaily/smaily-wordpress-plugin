@@ -7636,6 +7636,11 @@ contact who signs up again through the form would stay unsubscribed.
 (automation triggers never resubscribe). Pinned by
 `tests/Unit/Integrations/CF7/PublicBaseTest.php` with a client whose own
 default is `false`.
+**Addendum (PRO-3889, 2026-10-06):** the legacy client's `force_opt_in` default
+is now `false`, like the newer `Client` (PRO-1716), so a future caller that
+omits it never resubscribes. No behaviour change: every caller passes the
+value (Contact Form 7 `true`, the legacy abandoned-cart cron `false`). Pinned by
+`tests/Unit/LegacySmailyClientTest.php`.
 
 ### PRO-3884 — Only a published product is recommendable in the live catalog sync (2026-10-06)
 
