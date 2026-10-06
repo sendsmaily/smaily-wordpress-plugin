@@ -167,10 +167,9 @@ class LandingCapture {
 	 * Create a new visitor token and write it to the visitor-token cookie, with
 	 * the same name, TTL and attributes as a landing capture (PRO-3845).
 	 *
-	 * ASSUMPTION (PRO-3845, to be confirmed by the PRO-3844 contract sync): the
-	 * contract does not yet define a store-created token. `vt_` + 32 lowercase
-	 * hex (128 random bits) is inside the engine's visitor-token shape that
-	 * AttributionShape enforces, so the order sender keeps it.
+	 * The format is the contract's store-created token (v1.11.0 §5): `vs_` +
+	 * exactly 22 characters `[A-Za-z0-9]`, each from a cryptographically
+	 * secure random source (about 131 random bits).
 	 *
 	 * @return string The token, or '' when the response headers are already
 	 *                sent and the cookie could not be written.
@@ -181,7 +180,11 @@ class LandingCapture {
 			return '';
 		}
 
-		$token  = 'vt_' . bin2hex( random_bytes( 16 ) );
+		$alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+		$token    = 'vs_';
+		for ( $i = 0; $i < 22; $i++ ) {
+			$token .= $alphabet[ random_int( 0, 61 ) ];
+		}
 		$config = $this->settings->config();
 		$this->set_cookie(
 			$this->cookie_name( $config, self::SLOT_VISITOR ),

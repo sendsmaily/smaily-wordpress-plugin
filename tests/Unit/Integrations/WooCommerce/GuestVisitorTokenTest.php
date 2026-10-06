@@ -46,7 +46,7 @@ final class GuestVisitorTokenTest extends TestCase {
 		$this->issuer( true )->on_block_checkout( $order );
 
 		$token = $this->written['smaily_rec_uid'] ?? '';
-		self::assertMatchesRegularExpression( '/^vt_[0-9a-f]{32}$/', $token );
+		self::assertMatchesRegularExpression( '/^vs_[A-Za-z0-9]{22}$/', $token );
 		self::assertTrue( AttributionShape::is_visitor_token( $token ) );
 		self::assertSame( $token, $order->get_meta( '_smaily_visitor_token' ) );
 		self::assertSame( 1, $order->saved );

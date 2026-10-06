@@ -409,7 +409,7 @@ final class RecEngineOrdersTest extends TestCase {
 		$cookies = $this->guest_checkout( $order_id, self::CONSENT_YES );
 
 		$token = (string) wc_get_order( $order_id )->get_meta( '_smaily_visitor_token' );
-		self::assertMatchesRegularExpression( '/^vt_[0-9a-f]{32}$/', $token );
+		self::assertMatchesRegularExpression( '/^vs_[A-Za-z0-9]{22}$/', $token );
 		self::assertSame( $token, $cookies['smaily_rec_uid'] ?? null, 'The same token went to the visitor-token cookie.' );
 
 		$stats = $this->flusher()->flush();

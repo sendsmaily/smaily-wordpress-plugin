@@ -34,11 +34,20 @@ final class AttributionShape {
 	/** Engine visitor-token format: `vt_` + alphanumerics (re: visitor-tokens/manager.ts). */
 	private const VISITOR_TOKEN_PATTERN = '/^vt_[A-Za-z0-9]{1,64}$/';
 
+	/** Store-created visitor-token format (contract v1.11.0 §5): `vs_` + exactly 22 alphanumerics. */
+	private const STORE_VISITOR_TOKEN_PATTERN = '/^vs_[A-Za-z0-9]{22}$/';
+
 	/** Intent slug (welcome / cart_abandoned / cross_sell / …), also the session-id bound. */
 	private const CONTEXT_PATTERN = '/^[A-Za-z0-9._-]{1,64}$/';
 
+	/** An engine `vt_` token or a store-created `vs_` token (contract v1.11.0). */
 	public static function is_visitor_token( string $value ): bool {
-		return 1 === preg_match( self::VISITOR_TOKEN_PATTERN, $value );
+		return 1 === preg_match( self::VISITOR_TOKEN_PATTERN, $value )
+			|| self::is_store_visitor_token( $value );
+	}
+
+	private static function is_store_visitor_token( string $value ): bool {
+		return 1 === preg_match( self::STORE_VISITOR_TOKEN_PATTERN, $value );
 	}
 
 	public static function is_context( string $value ): bool {
