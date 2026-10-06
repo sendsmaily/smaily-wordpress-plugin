@@ -169,6 +169,20 @@ final class FormActionTest extends TestCase {
 		);
 		self::assertSame( 'end', $widget->calls[ count( $widget->calls ) - 1 ][0] );
 		self::assertStringNotContainsString( 'secret-password', (string) json_encode( $widget->calls ) );
+
+		// The editor drops a row key whose default is undefined before it
+		// renders the row title, and `{{{ smaily_field }}}` then throws a
+		// ReferenceError that blanks the whole section. Each row field must
+		// have a string default.
+		$repeater = array_values(
+			array_filter( $widget->calls, static fn ( array $call ): bool => $call[1] === 'smaily_fields' )
+		)[0][2];
+		self::assertFalse( $repeater['prevent_empty'] );
+		foreach ( $repeater['fields'] as $field ) {
+			self::assertArrayHasKey( 'default', $field, $field['name'] );
+			self::assertSame( '', $field['default'], $field['name'] );
+		}
+		self::assertSame( '{{{ smaily_field }}}', $repeater['title_field'] );
 	}
 
 	public function test_the_workflow_dropdown_lists_the_workflows_for_a_site_editor(): void {

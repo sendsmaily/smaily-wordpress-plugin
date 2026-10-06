@@ -988,6 +988,16 @@ for `PAUSE_TTL` (2 min): every shopper's cache miss answers empty with no call;
 an answer or a 4xx never pauses. An integration test that trips it must
 `delete_transient()` it (EnvScrub does not sweep transients).
 
+### An Elementor repeater row field needs an explicit `default` (PRO-3872)
+A repeater whose `fields` are raw arrays (not `Elementor\Repeater::add_control()`)
+skips the control-type default, so a new row's value is `undefined`. The editor
+JSON-clones the row before it renders `title_field`, which drops the key, and a
+`{{{ name }}}` title throws `ReferenceError: name is not defined`: "Add Item" adds
+nothing, and once a broken row is saved the whole section renders blank. Give
+every raw row field `'default' => ''` (or the type's empty value). A unit test
+with a fake widget cannot see this; only a real editor can, and Elementor Pro is
+not in wp-env.
+
 ### A new Gutenberg block is a new `blocks/` workspace — touch four places
 Adding `blocks/<name>/` (PRO-3788 added `recommendations`): (1) list it in
 `blocks/package.json` `workspaces` and run `npm install` in `blocks/` — the
