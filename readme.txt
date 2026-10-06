@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.16.0
+Stable tag: 3.16.1
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -176,6 +176,12 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.16.1 =
+* Fixed: in the Elementor Pro form editor, "Add Item" under "Other fields" in the Smaily action now adds a row, and the Smaily section no longer goes blank.
+* Fixed: when Smaily refuses a request with a response code other than 203, the Event Log row now fails at once with Smaily's message instead of showing as sent. Code 225, a temporary Smaily database error, is retried.
+* Fixed: Cancel or Hold back on an import now holds even when the import's next batch had already started; the import no longer switches back to running.
+* Changed: once the initial setup is finished, the "Smaily Connect" admin menu opens Settings. The setup wizard stays available under "Run setup again".
+
 = 3.16.0 =
 * New: a "Smaily Recommendations" block and the `[smaily_recommendations]` shortcode show a shopper's personal product recommendations in your store, for logged-in customers and for returning guests. The cards load after the page, so the page stays fast and can stay in your page cache, and they appear only for shoppers who accepted marketing cookies.
 * New: a guest buyer who accepted marketing cookies gets a visitor cookie at checkout, so their recommendations can be shown on a later visit.
@@ -194,22 +200,13 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Security & privacy: the Elementor form action records the page address only for a page on your own store.
 * Updated to the Smaily Campaign Intelligence API contract v1.12.0.
 
-= 3.15.0 =
-* New: order confirmation, shipping confirmation and abandoned-cart emails can link each product to its page with the new `product_url_1` … `product_url_10` merge tags.
-* New: order and shipping confirmations now also carry the subtotal, tax and shipping (formatted with currency and as plain numbers), the order status name and code, the payment and shipping method codes, and each product's coupon discount as a percent.
-* New: a "Customer details → Include addresses, phone and order note" switch on the WooCommerce tab adds the billing and delivery address, the delivery name, the phone number and the customer's order note to both confirmations. It is off by default. Developers can add store-specific fields with the `smaily_connect_transactional_email_fields` and `smaily_connect_transactional_email_product_fields` filters.
-* Fixed: in the "Subscribers only (consent)" contact mode, a customer who ticks the newsletter box at checkout (logged in or creating an account, classic or block checkout) or when registering in My Account now reaches Smaily as subscribed.
-* Fixed: a shopper's newest personalised-recommendations choice now wins over an older opt-in stored on their Smaily contact, and a malformed or future-dated value on the contact can no longer undo an opt-out.
-* Improved: the WordPress personal-data export now includes the newsletter consent kept on block-checkout orders, and the eraser removes it.
-* Improved: the FAQ now says the customer import covers registered customer accounts, not buyers who only ever checked out as guests.
-
 == Upgrade Notice ==
+
+= 3.16.1 =
+Fixes the Elementor Pro form action's "Other fields" editor, Smaily refusals shown as sent and cancelled imports that restarted; after setup, the Smaily Connect menu opens Settings. Safe update.
 
 = 3.16.0 =
 Adds store recommendations and an Elementor Pro form action; browse tracking and recommendations now need a yes stored by a consent banner through the WP Consent API, and if you use Campaign Intelligence, run Import existing data → Customers once after updating.
-
-= 3.15.0 =
-Product links and more order details for confirmation and abandoned-cart emails, an optional switch for addresses, phone and order note, and fixes for checkout newsletter consent and the recommendations opt-out. Safe update.
 
 == Screenshots ==
 
