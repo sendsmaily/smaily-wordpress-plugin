@@ -32,7 +32,9 @@ marketing consent only when the WP Consent API consent cookie for the category
 is `allow` (one TS helper for both storefront bundles, `MarketingConsent` on the
 server; replaces PRO-3845's consent-type rule, which missed CookieYes). Stores
 with the API but no banner storing consent stop sending browse events. Notice +
-toggle text EN+ET, docs site EN+ET. Consent surface: the 3.16.0 security delta
+toggle text EN+ET, docs site EN+ET (incl. "How consent works in each setup";
+ET awaits the proofread). Gates: ci:strict exit=0 (unit 1070); integration 361
+OK on the Mac. Consent surface: the 3.16.0 security delta
 re-audit must cover it. Then: **PRO-3806 on a branch, unreleased:** Elementor
 Pro forms get a native **Smaily** action under Actions After Submit (two modes:
 newsletter signup / contact form with marketing consent; only mapped fields are
