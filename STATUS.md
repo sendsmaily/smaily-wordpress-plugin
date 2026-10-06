@@ -66,6 +66,16 @@ has a step-by-step Elementor Pro guide (`#elementor-pro`, EN+ET, from Tanel's
 ET tutorial, facts checked against the code); publish waits for the ET
 proofread of the sentences changed from his text.)
 
+Also 2026-10-06 (**PRO-3845 on a PR branch, for 3.16.0:** a guest buyer who
+gave marketing consent through the WP Consent API and has no visitor token gets
+a store-created one at checkout (classic + block) — written to the
+visitor-token cookie and to `_smaily_visitor_token`, so the order sends it as
+`smaily_visitor_token` (DECISIONS PRO-3845). Token format `vt_` + 32 hex is an
+ASSUMPTION until the PRO-3844 contract sync. Docs site EN+ET + privacy template
+updated (ET awaits the proofread). Gates: ci:strict exit=0 (unit 1037);
+integration 355 OK on the Mac. A new cookie + consent surface: the 3.16.0
+security delta re-audit must cover it.)
+
 Also 2026-10-06 (**3.16.0 audit Lows — Erkki: fix both before the cut; on a
 PR branch:** PRO-3831 — the Elementor action sends `elementor_form_url` only
 for a page on the store's own host; PRO-3832 — a page that shows

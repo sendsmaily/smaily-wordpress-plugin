@@ -7365,6 +7365,41 @@ timeout, who is asked); engine PRO-3834 / contract v1.10.0 (the
 `smaily_visitor_token` request);
 `/relay` (BeaconEndpoint) for the auth-cookie and throttle patterns.
 
+### PRO-3845 — A consenting guest buyer gets a store-created visitor token at checkout (2026-10-06)
+
+**Context:** the storefront recommendations ask the engine for a guest by the
+visitor-token cookie, and only an email-link landing (LandingCapture / the JS
+capture) wrote that cookie. A guest who came any other way could not be
+recognised after buying. The engine will bind a store-created token on an order
+to that order's customer (engine PRO-3844).
+**Decision:** `GuestVisitorToken` listens on both checkout hooks
+(`woocommerce_checkout_order_processed`, `woocommerce_store_api_checkout_order_processed`).
+It creates a token only when the engine is connected, the request is not cron
+or WP-CLI, the buyer is a guest (no account on the order and nobody logged in),
+the WP Consent API answers `wp_has_consent()` true for the beacon's category
+(`smaily_connect_beacon_consent_category`, default `marketing`; no API = no
+token), and the browser has no token in the engine's shape. It writes the token
+through `LandingCapture::issue_visitor_token()` (same cookie name, TTL and
+attributes as a landing capture) and onto `_smaily_visitor_token` order meta, so
+`OrderPayloadBuilder` sends it as `smaily_visitor_token`. A cookie outside the
+token shape is replaced, because the engine would never accept it. Nothing is
+stored when the cookie cannot be written (headers sent).
+**Token format — ASSUMPTION:** the contract does not yet define a store-created
+token. `vt_` + 32 lowercase hex from `random_bytes(16)` is inside
+`AttributionShape::is_visitor_token()` (`vt_` + 1–64 alphanumerics), so the
+order sender keeps it. The PRO-3844 contract sync confirms or changes it.
+**Consent semantics:** server-side `wp_has_consent()` is the WP Consent API's
+own answer, the same one the browse beacon reads in the browser. Per that API,
+a site with the API installed but no consent plugin registering a consent type
+answers true (and an opt-out region answers true until the visitor opts out).
+**Rationale:** the checkout is the one moment a guest's order and browser meet.
+Logged-in buyers are already named by their account, so they get no token.
+**Alternatives:** a token for logged-in buyers too — not built (not asked; the
+account identifies them).
+**Relationships:** F3-46 / LandingCapture (the other writer of the cookie),
+F3-49 (what the token is for), F3-50 (the consent gate), PRO-1942
+(`AttributionShape`), `GdprHandler` (already exports and erases the meta).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
