@@ -507,13 +507,11 @@ class Client {
 	/**
 	 * The current recommendations of a returning guest, named by the
 	 * engine-issued visitor token (the `smaily_rec_uid` cookie) — the same
-	 * §15 route as customer_recommendations().
-	 *
-	 * ASSUMPTION (PRO-3835, waiting on engine Story PRO-3834 and its contract
-	 * sync): §15 accepts `visitor_token` (string) IN PLACE OF
-	 * `customer_external_id`, and the response shape and the empty-answer
-	 * rules are the same as for a customer id. Confirm against the synced
-	 * contract and one live request before release.
+	 * §15 route as customer_recommendations() (contract v1.10.0): the body
+	 * carries `smaily_visitor_token` IN PLACE OF `customer_external_id`. Never
+	 * send both — the engine then uses the customer id and ignores the token.
+	 * The answer and its empty-answer rules are the customer id's; an unknown,
+	 * expired or other-tenant token gets the same `{slots: []}`.
 	 *
 	 * @return array<string, mixed>
 	 *
@@ -525,8 +523,8 @@ class Client {
 			'POST',
 			$url,
 			array(
-				'visitor_token' => $visitor_token,
-				'limit'         => $limit,
+				'smaily_visitor_token' => $visitor_token,
+				'limit'                => $limit,
 			)
 		);
 	}

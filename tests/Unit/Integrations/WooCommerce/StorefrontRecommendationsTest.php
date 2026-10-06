@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the storefront recommendations (contract v1.9.0, §15, and the
- * visitor-token request PRO-3835 assumes): who the engine may be asked about,
+ * visitor-token request of v1.10.0): who the engine may be asked about,
  * what is cached, and which slots survive to the render. The product cards
  * and the page placeholder need WooCommerce and are covered by the
  * integration suite.
@@ -229,6 +229,12 @@ final class StorefrontRecommendationsTest extends TestCase {
 		$key = (string) array_key_first( $this->transients );
 		self::assertSame( array(), $this->transients[ $key ]['value'] );
 		self::assertSame( 10 * MINUTE_IN_SECONDS, $this->transients[ $key ]['ttl'], 'A failure is kept for 10 minutes, not the hour an answer gets.' );
+	}
+
+	public function test_the_engine_gets_the_ten_seconds_section_15_allows_a_background_request(): void {
+		// §15 v1.10.0: the engine ends a request after 10 s; ask from the
+		// background with a client timeout of at most 10 s.
+		self::assertSame( 10, StorefrontRecommendations::TIMEOUT_SECONDS );
 	}
 
 	public function test_a_timeout_is_cached_briefly_too(): void {

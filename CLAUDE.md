@@ -947,15 +947,17 @@ about comes from SERVER state only: the WP user id from the `logged_in` cookie
 visitor token from the `tracking_cookie_name` cookie (`smaily_rec_uid`), else
 nobody (no engine call); never a value from the request. An opted-out
 logged-in shopper is never asked about, not by the token either. The client is
-`Bootstrap::storefront_recommendations()` → `rec_client( 1, 3 )`: one attempt,
-3 s, no Retry-After sleep — never plain `rec_client()`. Cache: tenant +
+`Bootstrap::storefront_recommendations()` → `rec_client( 1, 10 )`: one attempt,
+10 s (§15 v1.10.0's ceiling for a background request), no Retry-After sleep —
+never plain `rec_client()`. Cache: tenant +
 md5(type|id), one hour, empty answers included; a FAILED call (error,
 timeout, 4xx/5xx) is cached as empty for 10 minutes (`FAILURE_CACHE_TTL`), so
 an engine that cannot answer gets one call per shopper per 10 minutes.
-**The guest request is an ASSUMPTION** until engine PRO-3834 lands in the
-contract: §15 takes `visitor_token` in place of `customer_external_id`
-(`Client::visitor_recommendations()`, mock `storefront_visitor_slots`). On the
-sync, check the field name and live-walk one guest request.
+**Guest wire shape (contract v1.10.0):** `smaily_visitor_token` IN PLACE OF
+`customer_external_id` (`Client::visitor_recommendations()`, mock
+`storefront_visitor_slots`) — never both; with both the engine uses the
+customer id and ignores the token. Not `visitor_token`: that was this change's
+first guess, corrected by the sync — the CC-8 lesson again.
 **Context cookie rule (v1.9.0):** a landing with a valid `smaily_rec` and no
 valid `smaily_ctx` CLEARS `smaily_rec_ctx` — in BOTH writers
 (`LandingCapture::resolve()` returns `''` for the context slot = delete;

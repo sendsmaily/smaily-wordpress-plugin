@@ -52,10 +52,13 @@ container for every visitor (cacheable; PRO-3832's `DONOTCACHEPAGE` removed),
 and `sc-recs.js` (new IIFE pass) asks the public `GET /recommendations` route
 only with WP Consent API marketing consent; the route names a logged-in
 shopper by user id, a returning guest by the visitor-token cookie, else asks
-nothing; `no-store, private`; 3 s engine timeout; a failed engine call is cached empty for 10 min. **Guest path ASSUMES engine
-PRO-3834's `visitor_token` field** — confirm on the contract sync + one live
-request. DECISIONS PRO-3835; docs site EN+ET (ET awaits proofread). Gates:
-ci:strict exit=0; integration 352 OK on the Mac. New public route + cookie +
+nothing; `no-store, private`; 10 s engine timeout (§15 v1.10.0); a failed
+engine call is cached empty for 10 min. Guest field `smaily_visitor_token`
+per contract v1.10.0 (synced above). **Not live-checked yet:** the dev wp-env
+had no engine connection — one sandbox §15 guest request (expect 200
+`{slots: []}` for a made-up `vt_…`) is still owed. DECISIONS PRO-3835; docs
+site EN+ET (ET awaits proofread). Gates: ci:strict exit=0; integration 353
+(1 env-dependent skip) on the Mac. New public route + cookie +
 external HTTP → the 3.16.0 security delta must cover it.)
 
 Also 2026-10-06 (**3.16.0 audit Lows — Erkki: fix both before the cut; on a

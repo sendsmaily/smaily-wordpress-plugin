@@ -159,8 +159,8 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		self::assertStringContainsString( 'Grain-free adult food 3 kg', $html );
 		self::assertSame(
 			array(
-				'visitor_token' => $this->token,
-				'limit'         => 4,
+				'smaily_visitor_token' => $this->token,
+				'limit'                => 4,
 			),
 			self::$engine->state()['last_recommendations_request'] ?? null
 		);
@@ -169,7 +169,7 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 	public function test_a_visitor_with_neither_an_account_nor_a_token_gets_nothing_and_the_engine_is_not_asked(): void {
 		self::$engine->reset_request_count();
 
-		self::assertSame( '', $this->cards( array( 'visitor_token' => $this->token ) ), 'A token in the query does not count.' );
+		self::assertSame( '', $this->cards( array( 'smaily_visitor_token' => $this->token ) ), 'A token in the query does not count.' );
 		self::assertSame( 0, self::$engine->request_count() );
 	}
 

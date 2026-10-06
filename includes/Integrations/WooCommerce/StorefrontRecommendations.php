@@ -72,12 +72,12 @@ class StorefrontRecommendations {
 	public const LIMIT = 4;
 
 	/**
-	 * Client timeout for the §15 call, in seconds. §15 asks for a hard 1 s
-	 * because its call used to sit on the page render; since PRO-3835 it runs
-	 * in a background request after the page has loaded, so a slow answer
-	 * delays only the cards. Still one attempt.
+	 * Client timeout for the §15 call, in seconds: the call runs in a
+	 * background request after the page has loaded, so a slow answer delays
+	 * only the cards, and §15 v1.10.0 allows at most 10 s for that — the
+	 * engine ends a request after 10 s. Still one attempt.
 	 */
-	public const TIMEOUT_SECONDS = 3;
+	public const TIMEOUT_SECONDS = 10;
 
 	/** Per-shopper cache lifetime, in seconds: one hour, as §15 advises (Erkki, 2026-10-05). */
 	public const CACHE_TTL = HOUR_IN_SECONDS;

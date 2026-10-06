@@ -172,7 +172,7 @@ Four separate mechanisms — do not conflate them (F3-46/F3-49):
    state — the WP user id from the auth cookie, else the engine visitor-token
    cookie — and answers the cards
    `Integrations\WooCommerce\StorefrontRecommendations` builds (one engine
-   attempt, 3 s timeout, 1-hour per-shopper cache, `no-store` to the browser)
+   attempt, 10 s timeout, 1-hour per-shopper cache, `no-store` to the browser)
    from the store's own products, linked with `smaily_rec` +
    `smaily_ctx=storefront` so item 2 captures a storefront credit.
 

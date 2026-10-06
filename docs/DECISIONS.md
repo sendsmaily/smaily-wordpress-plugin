@@ -7044,7 +7044,7 @@ admin notice and how consent is decided are unchanged.
 
 > **Changed by PRO-3835 (2026-10-06):** the cards are no longer rendered on
 > the page — a consent-gated script asks a store route after the page loads;
-> returning guests are asked about by the visitor token; the timeout is 3 s.
+> returning guests are asked about by the visitor token; the timeout is 10 s.
 > The context cookie rule below is unchanged.
 
 **Context:** contract v1.9.0 (§15) lets the store ask the engine for a
@@ -7332,23 +7332,27 @@ either; for a guest the engine applies the opt-out on the token path. (5) The
 cache key is tenant + md5(identifier type + value), one hour, as before. A
 failed engine call (error, timeout, 4xx/5xx) is cached as an empty answer for
 10 minutes (`FAILURE_CACHE_TTL`): it bounds load on an engine that cannot answer
-yet (a guest request before PRO-3834) and covers the engine outage PRO-3819
+yet (an engine before contract v1.10.0) and covers the engine outage PRO-3819
 names — one call per shopper per 10 minutes instead of one per page view.
-(6) The engine client timeout is 3 s, still one attempt and no Retry-After
-wait.
-**ASSUMPTION — engine Story PRO-3834 is not built yet:** §15 accepts
-`visitor_token` (string) in place of `customer_external_id`, with the same
-response shape and the same empty-answer rules. `Client::visitor_recommendations()`
-and the mock (`storefront_visitor_slots`; exactly one of the two fields, else
-400) are built on that. Until the engine accepts it, a guest request fails (and
-the failure is cached for 10 minutes) and
-shows nothing. Confirm with the contract sync and one live request before
-release.
+(6) The engine client timeout is 10 s (§15 v1.10.0: at most 10 s from a
+background request; the engine ends a request after 10 s), still one attempt
+and no Retry-After wait.
+**Wire shape (contract v1.10.0, engine `967287f541fa`, PRO-3834):** a guest is
+named by `smaily_visitor_token` in place of `customer_external_id` on the same
+§15 route and map key; the plugin never sends both (the engine would use the
+customer id and ignore the token). The answer and its empty-answer rules are
+the customer id's; an unknown, expired (90 days) or other-tenant token gets
+the same `{slots: []}`. The first cut of this change assumed the field name
+`visitor_token`; the sync corrected it before merge. The mock mirrors v1.10.0
+(customer id wins when both are sent; neither = 400 under
+`customer_external_id`).
 **Rationale:** the card markup stays server-rendered and escaped (the route
 returns it as HTML, the same markup as before) — a smaller change than
 building cards in the browser. §15's 1 s timeout protected the page render;
 the call now runs after the page has loaded, so a slower engine delays only
-the cards, and 3 s lets a slow answer still reach the shopper. Consent gates
+the cards, and 10 s — the engine's own limit — lets a slow answer still reach
+the shopper; the per-address rate limit and the 10-minute failure cache bound
+how many PHP workers a slow engine can hold. Consent gates
 the request because asking for a guest's recommendations by a tracking
 token is a marketing use of that token.
 **Alternatives:** keep server rendering and add the token there — rejected:
@@ -7357,7 +7361,8 @@ could not be cached; a page-embedded REST nonce — rejected: shared under
 full-page caching (PRO-1388); JSON cards built in JS — rejected: duplicates
 the markup and its escaping.
 **Relationships:** supersedes PRO-3832; changes PRO-3788 (rendering,
-timeout, who is asked); engine PRO-3834 (the `visitor_token` request);
+timeout, who is asked); engine PRO-3834 / contract v1.10.0 (the
+`smaily_visitor_token` request);
 `/relay` (BeaconEndpoint) for the auth-cookie and throttle patterns.
 
 ## How to keep this document going

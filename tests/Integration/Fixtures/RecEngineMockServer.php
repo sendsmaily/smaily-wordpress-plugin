@@ -163,7 +163,7 @@ final class RecEngineMockServer {
 
 	/**
 	 * Seed the §15 storefront answer for one returning guest, named by the
-	 * engine's visitor token (PRO-3835 — the assumed PRO-3834 request field).
+	 * engine's visitor token (`smaily_visitor_token`, contract v1.10.0).
 	 *
 	 * @param array<int, array<string, mixed>> $slots
 	 */
@@ -174,8 +174,8 @@ final class RecEngineMockServer {
 	}
 
 	/**
-	 * Play an engine that does not take the visitor token yet (before
-	 * PRO-3834): a guest request is answered 400 `validation_failed`.
+	 * Play an engine that refuses the visitor token (one before contract
+	 * v1.10.0): a guest request is answered 400 `validation_failed`.
 	 */
 	public function set_storefront_visitor_token_unsupported( bool $unsupported ): void {
 		$this->write_state( array( 'storefront_visitor_token_unsupported' => $unsupported ) );

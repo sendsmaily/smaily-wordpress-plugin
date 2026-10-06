@@ -1525,18 +1525,16 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 	reply( 200, array( 'ok' => true, 'upserted' => count( $rows_to_save ) ) );
 }
 
-// Storefront recommendations (§15, contract v1.9.0). Read-only. The shopper is
-// named by `customer_external_id` (a 1–255 char string); `limit` is an optional
-// positive integer, clamped to 9. A test seeds the answers in the state file
-// under `storefront_slots` (external id => slots); anyone else gets the same
-// `{slots: []}` the live engine gives an unknown/holdout/opted-out customer.
-// The request body is recorded so a test can prove no email was sent.
-//
-// ASSUMPTION (PRO-3835, until engine Story PRO-3834 is synced into the
-// contract): a returning guest is named by `visitor_token` IN PLACE OF
-// `customer_external_id` — exactly one of the two, else 400 — with the same
-// response shape and the same empty answer for an unknown token. Seeded under
-// `storefront_visitor_slots` (token => slots).
+// Storefront recommendations (§15, contract v1.9.0 / v1.10.0). Read-only. The
+// shopper is named by `customer_external_id` or, for a returning guest,
+// `smaily_visitor_token` (each a 1–255 char string; at least one required, else
+// 400 reported under `customer_external_id`; with both, the customer id wins and
+// the token is ignored). `limit` is an optional positive integer, clamped to 9.
+// A test seeds the answers in the state file under `storefront_slots` (external
+// id => slots) and `storefront_visitor_slots` (token => slots); anyone else gets
+// the same `{slots: []}` the live engine gives an unknown/holdout/opted-out
+// customer or an unknown/expired token. The request body is recorded so a test
+// can prove no email was sent.
 if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 	require_bearer_auth();
 
@@ -1545,9 +1543,9 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 		reply( 400, array( 'error' => 'invalid_json', 'message' => 'Request body is not valid JSON.' ) );
 	}
 
-	// Play today's engine, which does not take the visitor token yet: answer
-	// a guest request the 400 a missing `customer_external_id` gets.
-	if ( ! empty( $state['storefront_visitor_token_unsupported'] ) && array_key_exists( 'visitor_token', $body ) ) {
+	// Play an engine that refuses the visitor token (one before v1.10.0): a
+	// guest request gets the 400 a missing `customer_external_id` gets.
+	if ( ! empty( $state['storefront_visitor_token_unsupported'] ) && ! array_key_exists( 'customer_external_id', $body ) ) {
 		reply(
 			400,
 			array(
@@ -1557,13 +1555,10 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 		);
 	}
 
-	$by_visitor  = array_key_exists( 'visitor_token', $body );
-	$identifier  = $by_visitor ? 'visitor_token' : 'customer_external_id';
+	$by_visitor  = ! array_key_exists( 'customer_external_id', $body ) && array_key_exists( 'smaily_visitor_token', $body );
+	$identifier  = $by_visitor ? 'smaily_visitor_token' : 'customer_external_id';
 	$external_id = $body[ $identifier ] ?? null;
-	if (
-		( $by_visitor && array_key_exists( 'customer_external_id', $body ) )
-		|| ! is_string( $external_id ) || strlen( $external_id ) < 1 || strlen( $external_id ) > 255
-	) {
+	if ( ! is_string( $external_id ) || strlen( $external_id ) < 1 || strlen( $external_id ) > 255 ) {
 		reply(
 			400,
 			array(

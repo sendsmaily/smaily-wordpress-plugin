@@ -97,7 +97,7 @@ final class RecommendationsEndpointTest extends TestCase {
 
 	public function test_a_visitor_token_in_the_request_itself_is_ignored(): void {
 		$request = new WP_REST_Request();
-		$request->set_param( 'visitor_token', 'vt_Someone' );
+		$request->set_param( 'smaily_visitor_token', 'vt_Someone' );
 		$request->set_param( 'smaily_rec_uid', 'vt_Someone' );
 
 		$this->endpoint( 0 )->handle( $request );
