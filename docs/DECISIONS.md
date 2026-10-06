@@ -7172,6 +7172,27 @@ proper fix is the engine exposing the request in §12 (follow-up).
 **Relationships:** F3-51, F3-52 (going live is a confirmed separate act —
 now a request).
 
+### PRO-3609 — "All customers" is the EU soft opt-in, and the admin says what it requires (2026-10-05)
+
+**Context:** PRO-3407 recorded as unverified that Smaily creates a brand-new
+contact sent without `is_unsubscribed` as subscribed — the behaviour the
+legitimate-interest preset relies on (`docs/CONTACT_SYNC_MODES.md` § 5).
+**Decision (Erkki, 2026-10-02, across the Smaily plugins):** verified — Smaily
+does. The legitimate-interest ("All customers") preset means the EU soft
+opt-in: a customer new to Smaily becomes a subscriber, a customer who
+unsubscribed stays unsubscribed, for the import and the live sync alike. The
+Woo behaviour (omit the status for non-subscribers) is unchanged. Where the
+merchant picks the preset (Step 2, wizard and Settings), the warning banner
+names what soft opt-in requires: marketing only about products similar to
+what the customer bought, a clear way to refuse marketing at purchase, and the
+merchant's own responsibility for the legal basis.
+**Rationale:** the plugin provides the mechanism; the merchant carries the
+legal basis (§ 10). Naming the three conditions once, where the choice is
+made, is the least a merchant needs — no further legal advice.
+**Relationships:** F3-48 (the presets); PRO-3407 (the assumption); PRO-3408
+(decided 2026-10-05: the preset keeps syncing every WordPress user, staff and
+admins included — no role filter).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

@@ -2109,6 +2109,10 @@ msgstr "Töövoogude laadimine ebaõnnestus"
 msgid "This sends every customer to Smaily regardless of marketing consent. Make sure you have a lawful basis (legitimate interest)."
 msgstr "See valik sünkroniseerib Smailysse kõik kontaktid sõltumata turundusnõusolekust. Veendu, et sul on õiguslik alus (õigustatud huvi)."
 
+#: admin/src/components/steps/Step2Subscribers.tsx:116
+msgid "Under the EU soft opt-in, email these customers only about products similar to what they bought, and give them a clear way to refuse marketing when they buy. The legal basis is your responsibility."
+msgstr "ELi pehme nõusoleku (soft opt-in) reeglite järgi saada neile klientidele turunduskirju ainult ostetuga sarnaste toodete kohta ja anna neile ostu tegemisel selge võimalus turundusest keelduda. Õigusliku aluse eest vastutad sina."
+
 #: admin/src/components/steps/Step2Subscribers.tsx:122
 msgid "Also sync guest-order email addresses"
 msgstr "Sünkroniseeri ka külalisostude kontaktid"

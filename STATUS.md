@@ -26,14 +26,22 @@
 If this file and your memory disagree, trust this file and fix it. The roadmap
 table in README is a high-level view; this is the working register.
 
-_Last updated: 2026-10-05 (**PRO-3707 — the engine-run automations screen
+_Last updated: 2026-10-05 (**PRO-3609 (unreleased on main):** soft opt-in verified (Erkki,
+2026-10-02) — Smaily creates a new contact sent without `is_unsubscribed` as
+subscribed; `docs/CONTACT_SYNC_MODES.md` § 5 no longer marks it an
+assumption (DECISIONS PRO-3609). The "All customers" warning in Step 2
+(wizard + Settings) now names the soft opt-in requirements; new string in
+`.pot`/`-et.po` by hand; merchant docs updated EN+ET (ET proofread before
+publish). No sync behaviour change.)_
+
+Prior: 2026-10-05 (**PRO-3707 — the engine-run automations screen
 shows what the engine stored.** After every save the section re-reads §12;
 each card's label is Off / Test mode / Waiting for Smaily's confirmation /
 Live — real sends on, and the go-live step says Smaily switches real sends
 on after the merchant's confirmation (support link). "Waiting" comes from the
 plugin's own last save in the page session — §12 cannot show a request
 (DECISIONS PRO-3707). The mock engine now stores a real-sends request in test
-mode unless the test seeds the operator switch. Unreleased.)_
+mode unless the test seeds the operator switch. Unreleased.)
 
 Prior: 2026-10-05 (**PRO-3743 — connecting Campaign Intelligence
 starts the catalog import** (unreleased on main once merged): a successful
