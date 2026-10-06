@@ -10,7 +10,7 @@ The repository carries the legacy 1.x code alongside the new 2.x/3.x architectur
 
 ## Features
 
-- **Smaily email sync** — subscriber sync, abandoned-cart and order-based triggers, Contact Form 7 + Elementor signup widgets, a checkout opt-in block, and the product RSS feed for email templates (all carried over from the 1.x line, the RSS URL builder rebuilt into the new UI).
+- **Smaily email sync** — subscriber sync, abandoned-cart and order-based triggers, Contact Form 7 + Elementor signup widgets, a checkout opt-in block, and the product RSS feed for email templates (all carried over from the 1.x line, the RSS URL builder rebuilt into the new UI), plus a new "Smaily" action for Elementor Pro forms.
 - **Modern admin** — a React + Tailwind, mobile-first setup wizard and Settings UI that replaces the legacy admin pages.
 - **Campaign Intelligence integration** — sends product catalog, customers, orders, and consent-gated browse activity to Smaily Campaign Intelligence so it can produce personalized recommendations, with a full attribution flow (`product_url` + UTM + recommendation tokens) and one-click backfill of existing data. A recommendations block / `[smaily_recommendations]` shortcode shows a logged-in shopper their own recommendations in the store.
 - **Built to be reliable** — Action Scheduler (not WP-Cron) for background work; idempotent ingestion with per-record `event_id`s so retries never duplicate; a durable queue with per-item error handling; an **Event Log** with per-row retry and the stored request/response for each row; proactive admin health notices.

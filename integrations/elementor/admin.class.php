@@ -15,6 +15,7 @@ class Admin {
 		add_action( 'elementor/frontend/after_register_styles', array( $this, 'register_frontend_styles' ) );
 		add_action( 'elementor/frontend/after_enqueue_styles', array( $this, 'enqueue_frontend_styles' ) );
 		add_action( 'elementor/widgets/register', array( $this, 'register_widgets' ) );
+		add_action( 'elementor_pro/forms/actions/register', array( $this, 'register_form_actions' ) );
 	}
 
 	/**
@@ -47,6 +48,25 @@ class Admin {
 
 		$widgets_manager->register( new Newsletter_Widget() );
 		$widgets_manager->register( new Landingpage_Widget() );
+	}
+
+	/**
+	 * Register the "Smaily" action under Elementor Pro's Actions After Submit.
+	 *
+	 * Elementor Pro fires this hook only with its Forms module loaded; the
+	 * class check keeps a store without it from loading a class that extends
+	 * a missing parent.
+	 *
+	 * @param \ElementorPro\Modules\Forms\Registrars\Form_Actions_Registrar $form_actions_registrar The Elementor Pro form actions registrar.
+	 */
+	public function register_form_actions( $form_actions_registrar ) {
+		if ( ! class_exists( 'ElementorPro\Modules\Forms\Classes\Action_Base' ) ) {
+			return;
+		}
+
+		require_once __DIR__ . '/form-action.class.php';
+
+		$form_actions_registrar->register( new Form_Action() );
 	}
 
 	/**
