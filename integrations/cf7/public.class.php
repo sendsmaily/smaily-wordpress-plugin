@@ -111,9 +111,12 @@ class Public_Base {
 
 		$payload = Helper::sanitize_array( $payload );
 
-		$request          = new Smaily_Client( $this->options );
+		// A Smaily form is a signup form: the submission is fresh consent, so it
+		// subscribes again a contact who unsubscribed earlier (PRO-3824, as the
+		// Elementor Pro action does). Sent explicitly, never left to the default.
+		$request          = $this->smaily_client();
 		$autoresponder_id = isset( $form_settings['autoresponder_id'] ) ? (int) $form_settings['autoresponder_id'] : 0;
-		$response         = $request->trigger_automation( $autoresponder_id, array( $payload ) );
+		$response         = $request->trigger_automation( $autoresponder_id, array( $payload ), true );
 
 		if ( empty( $response['body'] ) ) {
 			$error_message = esc_html__( 'Something went wrong', 'smaily-connect' );
@@ -137,6 +140,15 @@ class Public_Base {
 		if ( isset( $error_message ) ) {
 			$this->set_wpcf7_error( $error_message );
 		}
+	}
+
+	/**
+	 * The Smaily client the submission is sent through. A unit test replaces it.
+	 *
+	 * @return Smaily_Client
+	 */
+	protected function smaily_client() {
+		return new Smaily_Client( $this->options );
 	}
 
 	/**
