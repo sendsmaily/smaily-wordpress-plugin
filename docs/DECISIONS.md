@@ -6994,6 +6994,20 @@ restore the client address shares one bucket per proxy address (unchanged
 behavior), and the fix there is the server's real-IP configuration.
 `smaily_rec_id`/`smaily_ctx` needed nothing: PRO-1712 already removed them.
 
+### PRO-3796 — The abandoned-cart reminder writes `over_10_products` on every send (2026-10-05)
+
+**Context:** the reminder set `over_10_products = true` only past 10 products
+and otherwise left the field out. Smaily keeps an absent field and overwrites
+an empty one, so a larger cart's `true` stayed on the contact and the next,
+smaller cart's reminder still claimed further items.
+**Decision:** prefill the flag `''` together with the product slots in
+`CartPayloadBuilder`; past 10 products it is `true`, as before. Same rule as
+the Magento plugin (PRO-1957). Field name and `true` value unchanged (legacy
+template parity). Order and shipping confirmations are unchanged: their
+context is per send, not stored on the contact.
+**Rejected:** sending `false` — a template tests `== "true"`, and the empty
+value is what every unused product slot already carries.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

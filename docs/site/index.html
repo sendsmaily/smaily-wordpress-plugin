@@ -878,7 +878,7 @@ td code{white-space:nowrap}
             <tr><td><code>product_price_N</code></td><td>The product's current price, formatted with currency (the sale price while on sale).</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>The product's regular price, formatted with currency.</td></tr>
             <tr><td><code>product_url_N</code></td><td>A plain link to the product's page (for a product sold in variations, with the variation in the cart selected) — the same tag as in the order and shipping confirmations. Empty when the product is no longer published.</td></tr>
-            <tr><td><code>over_10_products</code></td><td><code>true</code> only when the cart holds more than 10 products.</td></tr>
+            <tr><td><code>over_10_products</code></td><td><code>true</code> when the cart holds more than 10 products, otherwise sent empty — so a smaller cart's reminder clears the flag a larger cart left on the contact.</td></tr>
           </tbody>
         </table>
       </div>
@@ -968,7 +968,7 @@ td code{white-space:nowrap}
             <tr><td><code>product_price_N</code></td><td>Toote praegune hind koos valuutaga (soodushinna ajal soodushind).</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>Toote tavahind koos valuutaga.</td></tr>
             <tr><td><code>product_url_N</code></td><td>Lihtne link toote lehele (variatsioonidega toote puhul on valitud korvis olev variatsioon) — sama märgend nagu tellimuse kinnituses ja saatmisteates. Tühi, kui toode pole enam avaldatud.</td></tr>
-            <tr><td><code>over_10_products</code></td><td><code>true</code> ainult siis, kui korvis on üle 10 toote.</td></tr>
+            <tr><td><code>over_10_products</code></td><td><code>true</code>, kui korvis on üle 10 toote, muidu saadetakse tühjana — nii kustutab väiksema korvi meeldetuletus kontaktilt suurema korvi jäetud märke.</td></tr>
           </tbody>
         </table>
       </div>

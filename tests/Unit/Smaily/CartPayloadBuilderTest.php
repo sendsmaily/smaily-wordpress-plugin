@@ -96,7 +96,7 @@ final class CartPayloadBuilderTest extends TestCase {
 				self::assertSame( '', $payload['fields'][ $key . '_' . $i ] );
 			}
 		}
-		self::assertArrayNotHasKey( 'over_10_products', $payload['fields'] );
+		self::assertSame( '', $payload['fields']['over_10_products'], 'The over-10 flag is prefilled empty like the slots (PRO-3796).' );
 	}
 
 	public function test_fresh_install_defaults_fill_every_product_field_with_escaped_values(): void {
@@ -183,6 +183,33 @@ final class CartPayloadBuilderTest extends TestCase {
 		self::assertNotNull( $payload );
 		self::assertSame( 'true', $payload['fields']['over_10_products'] );
 		self::assertSame( 'Toode 10', $payload['fields']['product_name_10'] );
+	}
+
+	public function test_a_larger_carts_over_10_flag_is_cleared_by_the_next_smaller_carts_reminder(): void {
+		// PRO-3796: Smaily keeps an absent field and overwrites an empty one,
+		// so the flag rides every reminder — 'true' past 10 products, '' at
+		// 10 or fewer — or a larger cart's 'true' stays on the contact.
+		$items = array();
+		for ( $i = 1; $i <= 11; $i++ ) {
+			$this->products[ $i ] = $this->product( 'Toode ' . $i );
+			$items[]              = array(
+				'product_id' => $i,
+				'quantity'   => 1,
+			);
+		}
+		$builder = $this->builder();
+
+		$large       = $builder->build( $this->row( (string) json_encode( $items ) ) );
+		$smaller     = $builder->build( $this->row( (string) json_encode( array_slice( $items, 0, 1 ) ) ) );
+		$exactly_ten = $builder->build( $this->row( (string) json_encode( array_slice( $items, 0, 10 ) ) ) );
+
+		self::assertNotNull( $large );
+		self::assertNotNull( $smaller );
+		self::assertNotNull( $exactly_ten );
+		self::assertSame( 'true', $large['fields']['over_10_products'] );
+		self::assertArrayHasKey( 'over_10_products', $smaller['fields'], 'The flag is written, not left out, so it overwrites the earlier true.' );
+		self::assertSame( '', $smaller['fields']['over_10_products'] );
+		self::assertSame( '', $exactly_ten['fields']['over_10_products'], 'Ten products fill every slot without tripping the flag.' );
 	}
 
 	public function test_poison_items_and_missing_products_are_skipped_item_level(): void {

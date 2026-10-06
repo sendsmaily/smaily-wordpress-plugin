@@ -20,7 +20,7 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  * SAME merchant-built Smaily autoresponder templates the legacy pass fed
  * (`is_abandoned_cart`, `store`, `first_name`/`last_name`, and the
  * `product_<field>_1..10` matrix with all slots prefilled empty + the
- * `over_10_products` flag). The `store`/`language` selection comes from the
+ * `over_10_products` flag, also prefilled empty — PRO-3796). The `store`/`language` selection comes from the
  * same `smaily_connect_abandoned_cart_fields` option, so an upgrading store's
  * templates keep rendering without reconfiguration. PRO-1681 adds the
  * `abandoned_cart_automation_at` run marker on top — purely additive, the
@@ -214,14 +214,15 @@ class CartPayloadBuilder {
 	 * Smaily API requires all fields updated every send — that is what clears
 	 * the previous cart from the contact), EVERY product field filled per item
 	 * (PRO-1680: no merchant-facing selection), `over_10_products` flagged past
-	 * slot 10.
+	 * slot 10. The flag is prefilled '' like the slots (PRO-3796), so a
+	 * smaller cart's reminder clears a larger cart's flag from the contact.
 	 *
 	 * @param array<int, mixed> $items Own-shape cart items.
 	 *
 	 * @return array<string, string>
 	 */
 	private function product_fields( array $items ): array {
-		$fields = ProductMatrixBuilder::prefill( self::PRODUCT_KEYS );
+		$fields = ProductMatrixBuilder::prefill( self::PRODUCT_KEYS ) + array( 'over_10_products' => '' );
 
 		if ( ! function_exists( 'wc_get_product' ) ) {
 			return $fields;
