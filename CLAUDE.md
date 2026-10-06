@@ -1234,7 +1234,12 @@ restored `tenant_name`, warning loudly on `MiuMjau`/fixture. An intentionally
 DISCONNECTED dev site is left alone (no auto-reconnect). **Since PRO-1256 the
 guard is a shared library, not wrapper-internal:** `bin/lib-smly-snapshot.sh`
 (sourced by the wrapper; also executable — `snapshot`/`restore` subcommands,
-always exit 0 so a guard problem never fails the guarded run). Walk scripts
+always exit 0 so a guard problem never fails the guarded run). **Since
+PRO-3888 `snapshot` pings the engine before it saves** (`bin/probe-smly-rec-
+connection.php`, piped over STDIN into `wp eval-file -`): a key the engine
+refuses (401/403) is never saved over the durable snapshot — the guard prints
+"tenant '…': connection refused (http=…) — mint a fresh SANDBOX setup token" — while an
+unreachable engine still saves, with a note that the key is unverified. Walk scripts
 opt in via `require('./lib-smly-snapshot.cjs').guardSmlyRec()` at the top —
 snapshot now + restore on process exit, crash included. **The wired example
 is `bin/walk-3.1.cjs` — the only existing walk that writes/deletes the
