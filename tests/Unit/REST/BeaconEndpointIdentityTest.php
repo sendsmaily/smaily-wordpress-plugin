@@ -212,15 +212,86 @@ final class BeaconEndpointIdentityTest extends TestCase {
 		self::assertSame( array(), $profiling->calls, 'A stripped client-supplied email triggers no profiling lookup at all.' );
 	}
 
+	/**
+	 * PRO-3860: the visitor token comes from the shopper's own cookie, read on
+	 * the server — a token in the request body never reaches the engine.
+	 */
+	public function test_the_cookie_token_reaches_the_engine_and_a_body_token_does_not(): void {
+		$_COOKIE['smaily_rec_uid'] = 'vt_fromthecookie1';
+		$client                    = $this->recording_client();
+		$endpoint                  = $this->endpoint( '', $client, null );
+
+		$events                            = $this->one_event();
+		$events[0]['smaily_visitor_token'] = 'vt_fromthebody1';
+		$response                          = $endpoint->handle( $this->request( $events ) );
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( 'vt_fromthecookie1', $client->received[0]['smaily_visitor_token'] ?? null );
+	}
+
+	public function test_a_body_token_without_a_cookie_never_reaches_the_engine(): void {
+		$client   = $this->recording_client();
+		$endpoint = $this->endpoint( '', $client, null, true );
+
+		$events                            = $this->one_event();
+		$events[0]['smaily_visitor_token'] = 'vt_fromthebody1';
+		$response                          = $endpoint->handle( $this->request( $events ) );
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $client->received[0] ?? array() );
+	}
+
+	public function test_an_engine_token_is_attached_without_marketing_consent(): void {
+		$_COOKIE['smaily_rec_uid'] = 'vt_fromemaillink123';
+		$client                    = $this->recording_client();
+		$endpoint                  = $this->endpoint( '', $client, null, false );
+
+		$endpoint->handle( $this->request( $this->one_event() ) );
+
+		self::assertSame( 'vt_fromemaillink123', $client->received[0]['smaily_visitor_token'] ?? null );
+	}
+
+	public function test_a_store_token_is_not_attached_without_marketing_consent(): void {
+		$_COOKIE['smaily_rec_uid'] = 'vs_0123456789ABCDEFabcdef';
+		$client                    = $this->recording_client();
+		$endpoint                  = $this->endpoint( '', $client, null, false );
+
+		$response = $endpoint->handle( $this->request( $this->one_event() ) );
+
+		self::assertSame( 1, $response->get_data()['processed'], 'The event still forwards — anonymous.' );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $client->received[0] ?? array() );
+	}
+
+	public function test_a_store_token_is_attached_with_marketing_consent(): void {
+		$_COOKIE['smaily_rec_uid'] = 'vs_0123456789ABCDEFabcdef';
+		$client                    = $this->recording_client();
+		$endpoint                  = $this->endpoint( '', $client, null, true );
+
+		$endpoint->handle( $this->request( $this->one_event() ) );
+
+		self::assertSame( 'vs_0123456789ABCDEFabcdef', $client->received[0]['smaily_visitor_token'] ?? null );
+	}
+
+	public function test_a_cookie_value_in_neither_token_format_is_not_attached(): void {
+		$_COOKIE['smaily_rec_uid'] = 'vs_short';
+		$client                    = $this->recording_client();
+		$endpoint                  = $this->endpoint( '', $client, null, true );
+
+		$endpoint->handle( $this->request( $this->one_event() ) );
+
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $client->received[0] ?? array() );
+	}
+
 	// --- doubles ----------------------------------------------------------
 
-	private function endpoint( string $resolved_email, Client $client, ?ProfilingConsent $profiling ): BeaconEndpoint {
+	private function endpoint( string $resolved_email, Client $client, ?ProfilingConsent $profiling, bool $consent = false ): BeaconEndpoint {
 		$settings = new FakeRecEngineSettings();
 
-		return new class( $settings, $client, $profiling, $resolved_email ) extends BeaconEndpoint {
+		return new class( $settings, $client, $profiling, $resolved_email, $consent ) extends BeaconEndpoint {
 			private string $test_email;
+			private bool $test_consent;
 
-			public function __construct( RecEngineSettings $settings, Client $client, ?ProfilingConsent $profiling, string $test_email ) {
+			public function __construct( RecEngineSettings $settings, Client $client, ?ProfilingConsent $profiling, string $test_email, bool $test_consent ) {
 				parent::__construct(
 					$settings,
 					static function () use ( $client ): Client {
@@ -228,11 +299,16 @@ final class BeaconEndpointIdentityTest extends TestCase {
 					},
 					$profiling
 				);
-				$this->test_email = $test_email;
+				$this->test_email   = $test_email;
+				$this->test_consent = $test_consent;
 			}
 
 			protected function resolve_logged_in_email(): string {
 				return $this->test_email;
+			}
+
+			protected function marketing_consent_given(): bool {
+				return $this->test_consent;
 			}
 		};
 	}

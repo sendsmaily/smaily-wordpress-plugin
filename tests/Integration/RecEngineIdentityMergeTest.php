@@ -32,6 +32,9 @@ final class RecEngineIdentityMergeTest extends TestCase {
 	private const SESSION_COOKIE = 'smaily_anon_sid';
 	private const VISITOR_COOKIE = 'smaily_rec_uid';
 
+	/** A store-created token (contract v1.11.0 §5). */
+	private const STORE_TOKEN = 'vs_0123456789ABCDEFabcdef';
+
 	private static ?RecEngineMockServer $engine = null;
 
 	/** @var int[] */
@@ -84,6 +87,45 @@ final class RecEngineIdentityMergeTest extends TestCase {
 
 		// Dedup marker stored.
 		self::assertSame( 'anon-sess-123', get_user_meta( (int) $user->ID, IdentityHookHandler::MERGED_META_KEY, true ) );
+	}
+
+	public function test_a_store_token_is_not_sent_without_marketing_consent(): void {
+		// PRO-3860 / contract §5: without consent the store sends no `vs_`
+		// token. The real consent check runs: the test site has no WP Consent
+		// API, so it fails closed. The anon session is still merged.
+		self::assertFalse( function_exists( 'wp_has_consent' ), 'Precondition: no WP Consent API on the test site.' );
+		$_COOKIE[ self::SESSION_COOKIE ] = 'anon-vs-noconsent';
+		$_COOKIE[ self::VISITOR_COOKIE ] = self::STORE_TOKEN;
+		$user                            = $this->make_user( 'merge-vs-noconsent@example.test' );
+
+		$this->handler()->on_login( $user->user_login, $user );
+
+		$received = self::$engine->state()['last_merge_received'] ?? null;
+		self::assertIsArray( $received );
+		self::assertSame( 'anon-vs-noconsent', $received['anon_session_id'] );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $received );
+	}
+
+	public function test_a_store_token_is_sent_with_marketing_consent(): void {
+		$_COOKIE[ self::VISITOR_COOKIE ] = self::STORE_TOKEN;
+		$user                            = $this->make_user( 'merge-vs-consent@example.test' );
+		$settings                        = new RecEngineSettings();
+		$handler                         = new class(
+			$settings,
+			static function () use ( $settings ): Client {
+				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
+			}
+		) extends IdentityHookHandler {
+			protected function marketing_consent_given(): bool {
+				return true;
+			}
+		};
+
+		$handler->on_login( $user->user_login, $user );
+
+		$received = self::$engine->state()['last_merge_received'] ?? null;
+		self::assertIsArray( $received );
+		self::assertSame( self::STORE_TOKEN, $received['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_repeat_login_on_same_session_is_deduped(): void {

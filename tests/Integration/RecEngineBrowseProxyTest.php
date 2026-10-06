@@ -12,6 +12,8 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\REST\BeaconEndpoint;
+use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -37,6 +39,11 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  */
 final class RecEngineBrowseProxyTest extends TestCase {
 
+	private const VISITOR_COOKIE = 'smaily_rec_uid';
+
+	/** A store-created token (contract v1.11.0 §5). */
+	private const STORE_TOKEN = 'vs_0123456789ABCDEFabcdef';
+
 	private static ?RecEngineMockServer $engine = null;
 
 	/** @var array<int, int> */
@@ -50,7 +57,7 @@ final class RecEngineBrowseProxyTest extends TestCase {
 		parent::setUp();
 		EnvScrub::reset();
 		RecEngineMockServer::reset();
-		unset( $_COOKIE['smaily_anon_sid'], $_COOKIE[ LOGGED_IN_COOKIE ] );
+		unset( $_COOKIE['smaily_anon_sid'], $_COOKIE[ LOGGED_IN_COOKIE ], $_COOKIE[ self::VISITOR_COOKIE ] );
 		update_option( BeaconEndpoint::OPTION_TRACK_BROWSING, false );
 	}
 
@@ -59,7 +66,7 @@ final class RecEngineBrowseProxyTest extends TestCase {
 			wp_delete_post( $product_id, true );
 		}
 		$this->created_products = array();
-		unset( $_COOKIE['smaily_anon_sid'], $_COOKIE[ LOGGED_IN_COOKIE ] );
+		unset( $_COOKIE['smaily_anon_sid'], $_COOKIE[ LOGGED_IN_COOKIE ], $_COOKIE[ self::VISITOR_COOKIE ] );
 		update_option( BeaconEndpoint::OPTION_TRACK_BROWSING, false );
 		parent::tearDown();
 	}
@@ -286,14 +293,18 @@ final class RecEngineBrowseProxyTest extends TestCase {
 		self::assertSame( 'woo-123', $received[0]['sku'] ?? null, 'resolve_cart_product_skus() is scoped to cart_add/cart_remove only — product_view already resolves server-side in StorefrontBeacon.' );
 	}
 
-	public function test_visitor_token_survives_the_whitelist_and_reaches_engine(): void {
+	public function test_the_cookie_visitor_token_reaches_the_engine_and_a_body_token_does_not(): void {
+		// PRO-3860: the server reads the visitor token from the shopper's own
+		// cookie; a token in the request body never reaches the engine. An
+		// engine `vt_` token is attribution and needs no consent (F3-49, F3-46).
 		$this->enable_beacon();
+		$_COOKIE[ self::VISITOR_COOKIE ] = 'vt_fromthecookie1';
 
 		$response = RestRequestHelper::post(
 			'/relay',
 			array(
 				'events' => array(
-					array( 'event_id' => 'vt-1', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z', 'smaily_visitor_token' => 'vt_opaque_9' ),
+					array( 'event_id' => 'vt-1', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z', 'smaily_visitor_token' => 'vt_fromthebody1' ),
 				),
 			)
 		);
@@ -301,25 +312,80 @@ final class RecEngineBrowseProxyTest extends TestCase {
 		self::assertSame( 200, $response->get_status() );
 		self::assertSame( 1, $response->get_data()['processed'] );
 
-		// The identity field survived the §6 field-whitelist and reached the
-		// engine — F3-49: browse carries visitor_token for the engine's cold-start
-		// binding (NOT attribution), rec_id/email are never added client-side.
 		$received = self::$engine->state()['last_browse_events'] ?? array();
-		self::assertSame( 'vt_opaque_9', $received[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( 'vt_fromthecookie1', $received[0]['smaily_visitor_token'] ?? null );
 	}
 
-	public function test_deprecated_attribution_hints_never_reach_the_engine(): void {
-		// PRO-1712: v1.7.0 deprecated smaily_rec_id / smaily_ctx on browse to
-		// accept-and-ignore, so a client-supplied value is pure spoofing surface
-		// (PRO-1486's class). It is stripped before forwarding; the rest of the
-		// event — including the legitimate visitor token — still goes through.
+	public function test_a_body_visitor_token_without_a_cookie_never_reaches_the_engine(): void {
 		$this->enable_beacon();
 
 		$response = RestRequestHelper::post(
 			'/relay',
 			array(
 				'events' => array(
-					array( 'event_id' => 'dep-1', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z', 'smaily_visitor_token' => 'vt_opaque_9', 'smaily_rec_id' => 'aa11bb22-cc33-dd44-ee55-ff6677889900', 'smaily_ctx' => 'spoofed_campaign' ),
+					array( 'event_id' => 'vt-2', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z', 'smaily_visitor_token' => 'vt_fromthebody1' ),
+				),
+			)
+		);
+
+		self::assertSame( 200, $response->get_status() );
+		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $received[0] ?? array() );
+	}
+
+	public function test_a_store_visitor_token_is_not_attached_without_marketing_consent(): void {
+		// Contract §5: without marketing consent the store sends no `vs_`
+		// token. The real consent check runs: the test site has no WP Consent
+		// API, so it fails closed. The event still forwards, anonymous.
+		self::assertFalse( function_exists( 'wp_has_consent' ), 'Precondition: no WP Consent API on the test site.' );
+		$this->enable_beacon();
+		$_COOKIE[ self::VISITOR_COOKIE ] = self::STORE_TOKEN;
+
+		$response = RestRequestHelper::post(
+			'/relay',
+			array(
+				'events' => array(
+					array( 'event_id' => 'vs-1', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z' ),
+				),
+			)
+		);
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( 1, $response->get_data()['processed'] );
+		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $received[0] ?? array() );
+	}
+
+	public function test_a_store_visitor_token_is_attached_with_marketing_consent(): void {
+		$this->enable_beacon();
+		$_COOKIE[ self::VISITOR_COOKIE ] = self::STORE_TOKEN;
+
+		$request = new \WP_REST_Request( 'POST', '/smaily-connect/v1' . BeaconEndpoint::ROUTE );
+		$request->set_param(
+			'events',
+			array(
+				array( 'event_id' => 'vs-2', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z' ),
+			)
+		);
+		$response = $this->consenting_endpoint()->handle( $request );
+
+		self::assertSame( 200, $response->get_status() );
+		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertSame( self::STORE_TOKEN, $received[0]['smaily_visitor_token'] ?? null );
+	}
+
+	public function test_deprecated_attribution_hints_never_reach_the_engine(): void {
+		// PRO-1712: v1.7.0 deprecated smaily_rec_id / smaily_ctx on browse to
+		// accept-and-ignore, so a client-supplied value is pure spoofing surface
+		// (PRO-1486's class). It is stripped before forwarding; the rest of the
+		// event still goes through.
+		$this->enable_beacon();
+
+		$response = RestRequestHelper::post(
+			'/relay',
+			array(
+				'events' => array(
+					array( 'event_id' => 'dep-1', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z', 'smaily_rec_id' => 'aa11bb22-cc33-dd44-ee55-ff6677889900', 'smaily_ctx' => 'spoofed_campaign' ),
 				),
 			)
 		);
@@ -330,21 +396,19 @@ final class RecEngineBrowseProxyTest extends TestCase {
 		$received = self::$engine->state()['last_browse_events'] ?? array();
 		self::assertArrayNotHasKey( 'smaily_rec_id', $received[0] ?? array() );
 		self::assertArrayNotHasKey( 'smaily_ctx', $received[0] ?? array() );
-		self::assertSame( 'vt_opaque_9', $received[0]['smaily_visitor_token'] ?? null, 'The identity hint the engine DOES read is untouched.' );
 	}
 
 	public function test_client_supplied_external_id_never_reaches_the_engine(): void {
 		// PRO-3620: on a browse event `external_id` is the platform user id the
 		// engine binds the event to (§6), so a browser-supplied one would attach
-		// anonymous browsing to a guessed customer. Stripped before forwarding;
-		// the engine-issued visitor token still goes through.
+		// anonymous browsing to a guessed customer. Stripped before forwarding.
 		$this->enable_beacon();
 
 		$response = RestRequestHelper::post(
 			'/relay',
 			array(
 				'events' => array(
-					array( 'event_id' => 'ext-1', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z', 'smaily_visitor_token' => 'vt_opaque_9', 'external_id' => '1' ),
+					array( 'event_id' => 'ext-1', 'event_type' => 'product_view', 'sku' => 'ACA-1', 'session_id' => 's1', 'event_ts' => '2026-06-06T10:00:00Z', 'external_id' => '1' ),
 				),
 			)
 		);
@@ -354,7 +418,6 @@ final class RecEngineBrowseProxyTest extends TestCase {
 
 		$received = self::$engine->state()['last_browse_events'] ?? array();
 		self::assertArrayNotHasKey( 'external_id', $received[0] ?? array() );
-		self::assertSame( 'vt_opaque_9', $received[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_a_failing_engine_is_tried_once_and_the_relay_answers_at_once(): void {
@@ -759,6 +822,25 @@ final class RecEngineBrowseProxyTest extends TestCase {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
 		}
 		wp_delete_user( $user_id );
+	}
+
+	/**
+	 * The relay as a shopper with a marketing yes reaches it: the real
+	 * handler and engine call, with only the consent answer given — the test
+	 * site has no WP Consent API, and defining its functions here would leak
+	 * into every later test of the process.
+	 */
+	private function consenting_endpoint(): BeaconEndpoint {
+		return new class(
+			new RecEngineSettings(),
+			static function ( string $api_key, string $base_url ): Client {
+				return new Client( $api_key, $base_url );
+			}
+		) extends BeaconEndpoint {
+			protected function marketing_consent_given(): bool {
+				return true;
+			}
+		};
 	}
 
 	private function enable_beacon(): void {
