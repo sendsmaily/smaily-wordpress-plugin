@@ -84,7 +84,7 @@
 
 ## Verdict
 
-**0 Blocking, 0 Critical, 0 High, 0 Medium. 2 Low, 9 Info. RESULT: 3.16.0
+**0 Blocking, 0 Critical, 0 High, 0 Medium. 2 Low, 10 Info. RESULT: 3.16.0
 may proceed.** Both Lows need a disposition from Erkki (fix before the cut, or
 accept); neither blocks.
 
@@ -433,6 +433,22 @@ prefixes in `contact()`, and pin it in `FormSubscriptionTest`.
   nothing new is exposed. Capture stays consent-ungated and connection-gated,
   as decided in F3-46.
 
+## 12. INFO — open Dependabot alerts on `blocks/package-lock.json` (build tooling, not shipped, not new)
+
+GitHub reports 10 open Dependabot alerts on `main` (1 critical, 5 high, 2
+moderate, 2 low), all `npm`, all in `blocks/package-lock.json`, all
+**development** scope: `form-data` (critical), `tar-fs` ×4 and `ws` (high),
+`webpack-dev-server` ×2 (moderate), `on-headers` and `cookie` (low). They come
+through the blocks' `@wordpress/scripts` build chain. None of them is in the
+release ZIP: `.zipignore` drops `blocks/node_modules`, and only
+`blocks/*/build/*` ships. The delta did not add them; its lockfile change is
+the `recommendations` workspace link, and the new workspace declares the same
+`@wordpress/scripts` `^27` range the other blocks already use. They run on
+developer machines and in the CI build jobs (`npm ci --prefix blocks`), where
+the dev server and the tar extraction paths these advisories describe are not
+used. **Optional, separate from the release:** bump `@wordpress/scripts` (or
+add `overrides`) in the blocks workspace and close the alerts.
+
 ---
 
 ## Confirmed clean (checked, nothing to report)
@@ -507,3 +523,5 @@ suite and PCP were not run here. The release gate covers them (CI-built ZIP,
    a double opt-in workflow in the Elementor docs (EN+ET).
 7. **Finding 7 (Info, optional):** refuse the `smaily_rec_` and
    `abandoned_cart_` prefixes as mapping targets.
+8. **Finding 12 (Info, optional):** close the 10 dev-scope Dependabot alerts
+   in the blocks workspace (bump `@wordpress/scripts` or add `overrides`).
