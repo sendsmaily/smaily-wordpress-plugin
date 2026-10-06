@@ -7636,6 +7636,11 @@ contact who signs up again through the form would stay unsubscribed.
 (automation triggers never resubscribe). Pinned by
 `tests/Unit/Integrations/CF7/PublicBaseTest.php` with a client whose own
 default is `false`.
+**Addendum (PRO-3889, 2026-10-06):** the legacy client's `force_opt_in` default
+is now `false`, like the newer `Client` (PRO-1716), so a future caller that
+omits it never resubscribes. No behaviour change: every caller passes the
+value (Contact Form 7 `true`, the legacy abandoned-cart cron `false`). Pinned by
+`tests/Unit/LegacySmailyClientTest.php`.
 
 ### PRO-3884 — Only a published product is recommendable in the live catalog sync (2026-10-06)
 
@@ -7660,6 +7665,36 @@ rejected, the removal event already carries this meaning (F3-40 alternative b).
 **Relationships:** reverses F3-40 alternative (a) and PRO-1491's "plain draft left
 unchanged" for the live path; F3-40 (trash), PRO-1498 (always-sendable removal),
 PRO-3859 (manifest).
+
+### PRO-3890 / PRO-3886 — A Campaign Intelligence import that hits an error or has nothing driving it shows as stopped (2026-10-06)
+
+**Context:** `AbstractBackfillJob::process_batch()` handled only the engine's
+own errors (inside the flusher). Any other Throwable in a batch — a database
+error, a product that cannot be built — ended the Action Scheduler tick before
+it scheduled the next one, so the row stayed `running` forever and the panel
+never showed a failure. A row can also stay `running` with nothing driving it
+after deactivation (which cancels the queued batch, PRO-2433) or a fatal error,
+and since PRO-3859 such a row skipped the nightly manifest every night.
+**Decision (Erkki, 2026-10-06):** (1) a Throwable inside the batch marks the
+import `failed` with compare-and-set on `running` (PRO-3821), stores
+`<class> at <file>:<line>` — never the message, which can carry an email — and
+ends the tick chain; a stray tick on a failed import sends nothing (as for the
+contact import, PRO-3868). (2) A `running` import with no pending or in-progress
+tick action for its job_type that started more than `STALL_GRACE_SECONDS`
+(10 min) ago is STALLED: `is_running()` is false (so the manifest and
+import-on-connect stop waiting for it), and `/backfill/status` reports it
+`failed`, so the panel shows it stopped with Import now. Nothing rewrites the
+row or restarts the import — Start import does. The contact import is untouched.
+**Rationale:** the approved design was "no progress for 2 hours", but the job
+row stores no progress time and a schema change was not wanted; the Action
+Scheduler queue is the direct signal for "nothing drives it". The grace covers
+the moment between start() writing the row and its first batch being queued;
+ten minutes keeps a just-started import from ever reading as stopped.
+**Alternatives:** a 2 h progress bound on a new `updated_at` column — dropped
+(schema change); `started_at` + a bound — rejected, a large import runs for
+hours; auto-restarting a stalled import — rejected, the merchant decides.
+**Relationships:** PRO-3821 (compare-and-set), PRO-3868 (contact import
+failure), PRO-3859 (manifest skip), PRO-2433 (deactivation cancels AS groups).
 
 ## How to keep this document going
 

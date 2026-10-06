@@ -387,7 +387,12 @@ multilingual collapse and `expand()` — and each item from
 detector, trashed ⇒ `in_stock=false`). A new filter or key rule on the import
 therefore changes the manifest too; never build the list from a separate
 query. Skip rules (nothing sent, debug log only): not `sending_allowed()`,
-the products import `running` (incl. the import-on-connect wait), any
+the products import `running` (incl. the import-on-connect wait — but
+`AbstractBackfillJob::is_running()` is false for a STALLED import: running,
+no batch of it queued or running in Action Scheduler, started over
+`STALL_GRACE_SECONDS` = 10 min ago, PRO-3886 — so an import that
+deactivation or a crashed batch left `running` no longer skips every night;
+the status route reports it `failed` and nothing restarts it), any
 pending catalog.* row in the ingest queue (`IngestQueue::has_pending`, parked
 retries included), or a Throwable while building. Over 50,000 items: no send,
 a FAILED `catalog.manifest` Event Log row with a plain reason. Otherwise one

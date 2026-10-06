@@ -73,10 +73,12 @@ class Smaily_Client {
 	 *
 	 * @param int   $autoresponder_id Autoresponder ID.
 	 * @param array $addresses        Email addresses.
-	 * @param bool  $force_opt_in     Trigger opt-in.
+	 * @param bool  $force_opt_in     Subscribe again a contact who unsubscribed.
+	 *                                Default false: a caller that omits it
+	 *                                never resubscribes (PRO-3889, PRO-1716).
 	 * @return array
 	 */
-	public function trigger_automation( int $autoresponder_id, $addresses, $force_opt_in = true ) {
+	public function trigger_automation( int $autoresponder_id, $addresses, $force_opt_in = false ) {
 		return $this->post(
 			'autoresponder',
 			array(
