@@ -368,7 +368,10 @@ precedent). Live-walked against the sandbox engine
 `Smaily\RecEngine\CatalogManifest` runs on the recurring AS hook
 `smly_rec_catalog_manifest` (group `smaily-rec-catalog-manifest`, listed in
 `Deactivation::AS_GROUPS`; registered in `register_action_scheduler_jobs`,
-first run at the next 03:00 site time, then every 24 h) and POSTs the store's
+first run at the next 03:00 site time, then every 24 h — so after a
+daylight-saving change it runs an hour off 03:00; don't "fix" it with
+`as_schedule_cron_action()`, which evaluates the cron expression in UTC, not
+the site timezone, verified in AS 3.9.3) and POSTs the store's
 complete `{sku, in_stock}` list to contract §3c in ONE request. The engine
 tombstones every sku missing from it, so the list must be exactly what the
 catalog sync sends: it comes from `CatalogBackfillJob::manifest_items()` —

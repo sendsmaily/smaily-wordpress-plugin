@@ -7574,7 +7574,11 @@ that product changed again or the merchant ran a full import.
 (`smly_rec_catalog_manifest`, group `smaily-rec-catalog-manifest`, in
 `Deactivation::AS_GROUPS`) runs daily at 03:00 store time (the site
 timezone; a fixed 24 h interval from the first run, so after a
-daylight-saving change it runs an hour off 03:00). No merchant setting: it
+daylight-saving change it runs an hour off 03:00 — Action Scheduler's cron
+schedule cannot fix that: its `as_schedule_cron_action()` evaluates the
+expression in UTC (`as_get_datetime_object()` at creation and on every
+repeat; verified in AS 3.9.3 source and in wp-env, where `0 3 * * *` under
+Europe/Tallinn gave 03:00 UTC). No merchant setting: it
 sends whenever `sending_allowed()`. The list is exactly what the products
 import sends — published products plus trashed ones as `in_stock=false`;
 drafts, private and pending products are left out (PRO-3884 aligns the live
