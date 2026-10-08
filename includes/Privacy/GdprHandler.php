@@ -55,7 +55,10 @@ use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
  *     carries the address (IngestQueue::delete_for_privacy_request()),
  *     independent of the engine connection. It also deletes the customer's
  *     customer and order updates still waiting to be sent, so none of them
- *     sends the customer to the engine again (PRO-3906).
+ *     sends the customer to the engine again (PRO-3906) — once in our eraser,
+ *     before the engine call, and once more after every eraser has run,
+ *     because WooCommerce's customer eraser saves the profile after ours and
+ *     that save queues a new customer update (PRO-3986).
  *   - And the block-checkout newsletter consent marker
  *     (`_smaily_newsletter_optin` order meta, PRO-3406/PRO-3426) — exported as
  *     the consent given on that order, removed on erasure. The Smaily contact
@@ -126,6 +129,26 @@ class GdprHandler {
 	public function register(): void {
 		add_filter( 'wp_privacy_personal_data_exporters', array( $this, 'register_exporter' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( $this, 'register_eraser' ) );
+		add_action( 'wp_privacy_personal_data_erased', array( $this, 'after_erasure' ) );
+	}
+
+	/**
+	 * `wp_privacy_personal_data_erased` — WordPress fires it once every eraser
+	 * of the request has finished. WooCommerce's customer eraser runs after
+	 * ours and saves the profile; the save fires `profile_update`, which
+	 * queues a new customer update (CustomerHookHandler). Dropping the
+	 * waiting updates again here keeps that row, or one any other eraser
+	 * queued, from sending the erased customer to the engine (PRO-3986).
+	 *
+	 * @param int|string $request_id The erasure request's post id.
+	 */
+	public function after_erasure( $request_id ): void {
+		$request = wp_get_user_request( (int) $request_id );
+		if ( ! $request instanceof \WP_User_Request || $request->action_name !== 'remove_personal_data' ) {
+			return;
+		}
+
+		$this->drop_waiting_updates( $request->email, $this->orders_for( $request->email ) );
 	}
 
 	/**
@@ -297,7 +320,7 @@ class GdprHandler {
 			}
 		}
 
-		$user = get_user_by( 'email', $email );
+		$user = $this->user_for( $email );
 		if ( $user instanceof \WP_User ) {
 			$merged = (string) get_user_meta( $user->ID, IdentityHookHandler::MERGED_META_KEY, true );
 			if ( $merged !== '' ) {
@@ -427,7 +450,7 @@ class GdprHandler {
 			}
 		}
 
-		$user = get_user_by( 'email', $email );
+		$user = $this->user_for( $email );
 		if ( $user instanceof \WP_User && (string) get_user_meta( $user->ID, IdentityHookHandler::MERGED_META_KEY, true ) !== '' ) {
 			delete_user_meta( $user->ID, IdentityHookHandler::MERGED_META_KEY );
 			$removed = true;
@@ -488,8 +511,22 @@ class GdprHandler {
 	 * to a row keyed by user_id (see rows_for_privacy_request()).
 	 */
 	private function user_id_for( string $email ): int {
-		$user = get_user_by( 'email', $email );
+		$user = $this->user_for( $email );
 		return $user instanceof \WP_User ? (int) $user->ID : 0;
+	}
+
+	/**
+	 * The WP user with exactly this address (any letter case), or null.
+	 * get_user_by() compares under the column's collation, which on the usual
+	 * databases ignores accents too, so a request for jane@… would get the
+	 * account of jäne@… — another person (PRO-3986).
+	 */
+	private function user_for( string $email ): ?\WP_User {
+		$user = get_user_by( 'email', $email );
+		if ( ! $user instanceof \WP_User ) {
+			return null;
+		}
+		return strtolower( trim( (string) $user->user_email ) ) === strtolower( trim( $email ) ) ? $user : null;
 	}
 
 	/**
@@ -497,7 +534,8 @@ class GdprHandler {
 	 * both legacy posts and HPOS, and gives us $order->get_meta for the rec-meta).
 	 * The ids come from the active order table with no status filter, so an
 	 * order with a custom status (registered or not) or in the trash is found
-	 * too, and the address matches in any letter case (PRO-3908) —
+	 * too, and the address matches in any letter case (PRO-3908) but not
+	 * across accents (PRO-3986) —
 	 * `wc_get_orders()` sees only the registered statuses.
 	 * Protected as a unit-test seam: defining `wc_get_order` in the unit suite
 	 * would leak into every later test that relies on it being absent.
@@ -526,16 +564,18 @@ class GdprHandler {
 	/**
 	 * The query for the ids of the orders billed to one address (one `%s`) in
 	 * the active order table: `wc_orders.billing_email` under HPOS, the
-	 * `_billing_email` post meta under legacy storage. No status filter, and
-	 * LOWER() on both sides, so the match does not depend on the collation.
-	 * PURE (no DB) so both storage paths are unit-testable.
+	 * `_billing_email` post meta under legacy storage. No status filter. Both
+	 * sides are lowercased and then compared as bytes: `LOWER( col ) =
+	 * LOWER( %s )` alone still compares under the column's collation, which on
+	 * the usual databases ignores accents, so jane@… would find jäne@…'s
+	 * orders (PRO-3986). PURE (no DB) so both storage paths are unit-testable.
 	 */
 	public static function order_ids_sql( bool $hpos, string $prefix ): string {
 		$spec = OrderBackfillJob::table_spec( $hpos, $prefix );
 		if ( $hpos ) {
-			return "SELECT {$spec['id_col']} FROM {$spec['table']} WHERE LOWER( billing_email ) = LOWER( %s ) ORDER BY {$spec['id_col']} ASC";
+			return "SELECT {$spec['id_col']} FROM {$spec['table']} WHERE CAST( LOWER( billing_email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) ORDER BY {$spec['id_col']} ASC";
 		}
-		return "SELECT p.{$spec['id_col']} FROM {$spec['table']} p INNER JOIN {$prefix}postmeta m ON m.post_id = p.{$spec['id_col']} WHERE m.meta_key = '_billing_email' AND LOWER( m.meta_value ) = LOWER( %s ) ORDER BY p.{$spec['id_col']} ASC";
+		return "SELECT p.{$spec['id_col']} FROM {$spec['table']} p INNER JOIN {$prefix}postmeta m ON m.post_id = p.{$spec['id_col']} WHERE m.meta_key = '_billing_email' AND CAST( LOWER( m.meta_value ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) ORDER BY p.{$spec['id_col']} ASC";
 	}
 
 	/**
