@@ -37,6 +37,13 @@
 #   1 — at least one test failed (or the --restore-only restore failed)
 #   2 — wp-env not running (start it with `npx @wordpress/env start`)
 #   3 — --restore-only found no usable snapshot
+#   4 — SMAILY_CONNECT_TEST_ORDER_STORAGE is set to something other than
+#       legacy or hpos
+#
+# SMAILY_CONNECT_TEST_ORDER_STORAGE=legacy|hpos (optional, PRO-3435) is passed
+# into the container; the suite bootstrap then refuses to run unless that is
+# the active WooCommerce order storage. Unset, the suite prints the storage it
+# runs on and runs on it. CI sets it per matrix leg after switching storage.
 #
 
 set -euo pipefail
@@ -48,6 +55,16 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${PROJECT_DIR}/bin/lib-smly-snapshot.sh"
 
 PLUGIN_PATH_IN_CONTAINER="$SMLY_PLUGIN_PATH_IN_CONTAINER"
+
+ORDER_STORAGE_ENV=""
+case "${SMAILY_CONNECT_TEST_ORDER_STORAGE:-}" in
+  '') ;;
+  legacy|hpos) ORDER_STORAGE_ENV="-e SMAILY_CONNECT_TEST_ORDER_STORAGE=${SMAILY_CONNECT_TEST_ORDER_STORAGE}" ;;
+  *)
+    echo "SMAILY_CONNECT_TEST_ORDER_STORAGE must be legacy or hpos." >&2
+    exit 4
+    ;;
+esac
 
 if ! CONTAINER_NAME=$(smly_find_cli_container); then
   echo "wp-env does not appear to be running. Start it first:" >&2
@@ -86,7 +103,7 @@ done
 # -d memory_limit: WP 7.0 core is heavier than 6.9 — the suite exhausted
 # the container's 128M default during in-process REST dispatch when the
 # baseline moved to WP 7.0 (2026-06-11). 512M gives ample headroom.
-CMD="docker exec \"$CONTAINER_NAME\" \
+CMD="docker exec ${ORDER_STORAGE_ENV} \"$CONTAINER_NAME\" \
   php -d memory_limit=512M \"$PLUGIN_PATH_IN_CONTAINER/vendor/bin/phpunit\" \
     --configuration \"$PLUGIN_PATH_IN_CONTAINER/phpunit.integration.xml.dist\" \
     ${QUOTED_ARGS}"

@@ -157,7 +157,7 @@ final class RecEngineGdprTest extends TestCase {
 
 	public function test_newsletter_consent_marker_is_exported_and_erased(): void {
 		// PRO-3426: the block-checkout consent evidence (PRO-3406) through the
-		// real order storage (HPOS in this env; the eraser goes via the order API).
+		// active order storage (CI runs legacy and HPOS; the eraser goes via the order API).
 		$email     = 'shopper@example.test';
 		$marked_id = $this->make_order_with_rec_meta( $email );
 		$plain_id  = $this->make_order_with_rec_meta( $email );
