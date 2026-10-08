@@ -43,7 +43,10 @@ defined( 'ABSPATH' ) || exit;
  * allows it. A store with more than MAX_PRODUCTS items sends nothing (the
  * contract forbids a partial list), and a list that fails to build is never
  * sent; both mark the row failed with a plain reason, because only the
- * merchant can see it there. So does an unexpected error during the send.
+ * merchant can see it there. So does an unexpected error during the send,
+ * and so does PHP stopping the run (PRO-3989): while the run works on its
+ * row, a `shutdown` hook marks a row it left open failed with how and where
+ * PHP stopped it.
  * The stored exchange (F3-44) holds the request (trimmed to ~10 KB) and the
  * engine's answer (removed, stock_fixed, guard_tripped, …). A failed row
  * the merchant retries goes back to pending, and the next night's manifest
@@ -78,9 +81,19 @@ class CatalogManifest {
 	/** The engine's answer fields the Event Log keeps. */
 	private const RESPONSE_FIELDS = array( 'products_in_manifest', 'removed', 'stock_fixed', 'missing_in_engine', 'guard_tripped', 'guard_reason', 'would_remove' );
 
+	private const PHASE_BUILD = 'build';
+	private const PHASE_SEND  = 'send';
+
 	private IngestQueue $queue;
 	private RecEngineSettings $settings;
 	private CatalogBackfillJob $catalog;
+
+	/**
+	 * The row a run is working on, for on_shutdown(); null outside a run.
+	 *
+	 * @var array{id: int, phase: string, sent: ?string}|null
+	 */
+	private ?array $in_flight = null;
 
 	/** @var callable(): Client */
 	private $client_factory;
@@ -124,6 +137,116 @@ class CatalogManifest {
 
 		$this->raise_time_limit();
 
+		// While the run works on its row, a PHP stop (the time limit, the memory
+		// limit, another fatal error, exit) marks it failed instead of leaving it
+		// pending with no reason (PRO-3989). Removed once the run returns.
+		$this->in_flight = array(
+			'id'    => $id,
+			'phase' => self::PHASE_BUILD,
+			'sent'  => null,
+		);
+
+		$hook = \Closure::fromCallable( array( $this, 'on_shutdown' ) );
+		add_action( 'shutdown', $hook );
+		try {
+			$this->build_and_send( $id );
+		} finally {
+			$this->in_flight = null;
+			remove_action( 'shutdown', $hook );
+		}
+	}
+
+	/**
+	 * WordPress's `shutdown` action, hooked only while run() works on its row
+	 * (PRO-3989). A run reaches it with the row still open only when PHP
+	 * stopped it — a fatal error such as the host's time or memory limit, or
+	 * an exit. The row is then marked failed with how and where it stopped,
+	 * never the error message (PRO-3890). A process the host kills outright
+	 * runs no shutdown code; that row stays pending, as before.
+	 */
+	public function on_shutdown(): void {
+		if ( $this->in_flight === null ) {
+			return;
+		}
+		$row             = $this->in_flight;
+		$this->in_flight = null;
+		$how             = self::stopped_by( $this->last_error() );
+
+		if ( $row['phase'] === self::PHASE_SEND ) {
+			$this->queue->mark_failed(
+				$row['id'],
+				sprintf(
+					/* translators: %s: how the run was stopped and where, e.g. "PHP time limit at Client.php:210". */
+					__( 'The run was stopped while it sent the product list (%s). The engine may not have received it.', 'smaily-connect' ),
+					$how
+				)
+			);
+			$this->queue->store_exchange(
+				$row['id'],
+				$row['sent'],
+				(string) wp_json_encode(
+					array(
+						'outcome' => 'error',
+						'reason'  => 'run_stopped',
+					)
+				)
+			);
+			return;
+		}
+
+		$this->queue->mark_failed(
+			$row['id'],
+			sprintf(
+				/* translators: %s: how the run was stopped and where, e.g. "PHP time limit at CatalogBackfillJob.php:144". */
+				__( 'Not sent: the run was stopped while it built the product list (%s).', 'smaily-connect' ),
+				$how
+			)
+		);
+		$this->queue->store_exchange(
+			$row['id'],
+			null,
+			(string) wp_json_encode(
+				array(
+					'outcome' => 'skipped',
+					'reason'  => 'run_stopped',
+				)
+			)
+		);
+	}
+
+	/**
+	 * Seam: tests stand in for the error PHP stopped on.
+	 *
+	 * @return array{type: int, message: string, file: string, line: int}|null
+	 */
+	protected function last_error(): ?array {
+		return error_get_last();
+	}
+
+	/**
+	 * How PHP stopped the run and where, from error_get_last(): the time or
+	 * memory limit, another fatal error, or an exit with no fatal error. The
+	 * message is read only to tell the two limits apart and is never shown.
+	 *
+	 * @param array{type: int, message: string, file: string, line: int}|null $error
+	 */
+	private static function stopped_by( ?array $error ): string {
+		$fatal = array( E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR );
+		if ( $error === null || ! in_array( $error['type'], $fatal, true ) ) {
+			return 'exit without a PHP error';
+		}
+		if ( strpos( $error['message'], 'Maximum execution time' ) === 0 ) {
+			$kind = 'PHP time limit';
+		} elseif ( strpos( $error['message'], 'Allowed memory size' ) === 0 ) {
+			$kind = 'PHP memory limit';
+		} else {
+			$kind = 'PHP fatal error';
+		}
+		return sprintf( '%s at %s:%d', $kind, basename( $error['file'] ), $error['line'] );
+	}
+
+	/** The walk and the send for the night's row $id. */
+	private function build_and_send( int $id ): void {
 		$limit = $this->max_products();
 		try {
 			$products = $this->catalog->manifest_items( $limit );
@@ -174,6 +297,10 @@ class CatalogManifest {
 		}
 
 		$sent = self::stored_request( $products );
+		if ( $this->in_flight !== null ) {
+			$this->in_flight['phase'] = self::PHASE_SEND;
+			$this->in_flight['sent']  = $sent;
+		}
 		try {
 			$response = ( $this->client_factory )()->catalog_manifest( $products );
 		} catch ( ApiException $e ) {

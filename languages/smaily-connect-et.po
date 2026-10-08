@@ -2809,6 +2809,18 @@ msgstr "Saatmata: tooteloendi koostamine peatus ootamatu vea tõttu (%s)."
 msgid "The send stopped on an unexpected error (%s)."
 msgstr "Saatmine peatus ootamatu vea tõttu (%s)."
 
+#. translators: %s: how the run was stopped and where, e.g. "PHP time limit at Client.php:210".
+#: includes/Smaily/RecEngine/CatalogManifest.php:180
+#, php-format
+msgid "The run was stopped while it sent the product list (%s). The engine may not have received it."
+msgstr "Töö peatati tooteloendi saatmise ajal (%s). Mootor ei pruukinud seda kätte saada."
+
+#. translators: %s: how the run was stopped and where, e.g. "PHP time limit at CatalogBackfillJob.php:144".
+#: includes/Smaily/RecEngine/CatalogManifest.php:201
+#, php-format
+msgid "Not sent: the run was stopped while it built the product list (%s)."
+msgstr "Saatmata: töö peatati tooteloendi koostamise ajal (%s)."
+
 #. translators: %d: number of queued Smaily messages deleted.
 #: includes/Privacy/GdprHandler.php:387
 #, php-format
