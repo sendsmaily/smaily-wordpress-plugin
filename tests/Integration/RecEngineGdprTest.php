@@ -51,6 +51,8 @@ final class RecEngineGdprTest extends TestCase {
 	private array $created_users = array();
 	/** @var int[] */
 	private array $created_requests = array();
+	/** @var array<string, int> Pages each eraser took in the last run_wordpress_erasure(). */
+	private array $eraser_pages = array();
 
 	public static function setUpBeforeClass(): void {
 		self::$engine = RecEngineMockServer::start();
@@ -559,7 +561,87 @@ final class RecEngineGdprTest extends TestCase {
 		self::assertSame( array( $neighbour ), array_column( $store->rows_for_privacy_request( 'jäne@example.com' ), 'cart_token' ), 'The other person\'s cart stays.' );
 	}
 
+	public function test_the_eraser_works_through_many_orders_page_by_page(): void {
+		// PRO-3997: the eraser loaded every order of the address in one
+		// request. It now takes ten orders a page, as WooCommerce's own
+		// eraser does, and does everything else once, on the first page.
+		$email  = 'erase-many-orders@example.com';
+		$orders = $this->make_orders_with_rec_meta( $email, 21 );
+		$before = self::$engine->request_count();
+
+		$messages = $this->run_wordpress_erasure( $email );
+
+		self::assertSame( 3, $this->eraser_pages['smaily-connect-rec-engine'] ?? null, 'Ten orders a page: 21 orders take three pages.' );
+		foreach ( $orders as $id ) {
+			$order = wc_get_order( $id );
+			self::assertInstanceOf( \WC_Order::class, $order );
+			self::assertSame( '', (string) $order->get_meta( '_smaily_rec_id' ), "Order {$id} lost its rec meta." );
+		}
+		self::assertCount(
+			1,
+			array_keys( $messages, 'This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed.', true ),
+			'The work that is not about orders runs once.'
+		);
+		self::assertSame( 1, self::$engine->request_count() - $before, 'The engine is asked to delete the customer once.' );
+	}
+
+	public function test_the_exporter_works_through_many_orders_page_by_page(): void {
+		// PRO-3997: the same paging for the exporter.
+		$email  = 'export-many-orders@example.com';
+		$orders = $this->make_orders_with_rec_meta( $email, 21 );
+		$before = self::$engine->request_count();
+
+		$export = $this->run_wordpress_export( $email );
+
+		self::assertSame( 3, $export['pages'], 'Ten orders a page: 21 orders take three pages.' );
+		$order_items = array();
+		$profiles    = 0;
+		foreach ( $export['data'] as $item ) {
+			if ( $item['group_label'] === 'Recommendation attribution (order meta)' ) {
+				$order_items[] = $item['item_id'];
+			}
+			if ( $item['group_label'] === 'Recommendation profile' ) {
+				++$profiles;
+			}
+		}
+		self::assertSame(
+			array_map( static fn ( int $id ): string => 'smaily-connect-rec-engine-order-' . $id, $orders ),
+			$order_items,
+			'Every order is exported once.'
+		);
+		self::assertSame( 1, $profiles, 'The engine record is exported once.' );
+		self::assertSame( 1, self::$engine->request_count() - $before, 'The engine is asked for the export once.' );
+	}
+
 	// --- helpers --------------------------------------------------------
+
+	/**
+	 * Run the plugin's exporter the way WordPress does: one admin-ajax
+	 * request per page (wp_ajax_wp_privacy_export_personal_data()), the
+	 * page number going up until the exporter answers `done`. The answers
+	 * are collected here instead of in the request's export file.
+	 *
+	 * @return array{data: array<int, array<string, mixed>>, pages: int}
+	 */
+	private function run_wordpress_export( string $email ): array {
+		$exporters = apply_filters( 'wp_privacy_personal_data_exporters', array() );
+		self::assertArrayHasKey( 'smaily-connect-rec-engine', $exporters );
+
+		$data = array();
+		$page = 1;
+		do {
+			$response = call_user_func( $exporters['smaily-connect-rec-engine']['callback'], $email, $page );
+			self::assertIsArray( $response['data'] );
+			self::assertIsBool( $response['done'] );
+			$data = array_merge( $data, $response['data'] );
+			++$page;
+		} while ( ! $response['done'] && $page < 100 );
+
+		return array(
+			'data'  => $data,
+			'pages' => $page - 1,
+		);
+	}
 
 	/**
 	 * Run an erasure request the way WordPress does: wp_ajax_wp_privacy_erase_personal_data()
@@ -583,7 +665,7 @@ final class RecEngineGdprTest extends TestCase {
 
 		$index    = 0;
 		$messages = array();
-		foreach ( $erasers as $eraser ) {
+		foreach ( $erasers as $key => $eraser ) {
 			++$index;
 			$page = 1;
 			do {
@@ -594,7 +676,8 @@ final class RecEngineGdprTest extends TestCase {
 				$messages = array_merge( $messages, $response['messages'] );
 				$response = wp_privacy_process_personal_data_erasure_page( $response, $index, $email, $page, $request_id );
 				++$page;
-			} while ( empty( $response['done'] ) );
+			} while ( empty( $response['done'] ) && $page < 100 );
+			$this->eraser_pages[ $key ] = $page - 1;
 		}
 
 		$request = wp_get_user_request( $request_id );
@@ -699,6 +782,26 @@ final class RecEngineGdprTest extends TestCase {
 		$id                     = (int) $order->save();
 		$this->created_orders[] = $id;
 		return $id;
+	}
+
+	/**
+	 * Orders billed to $email, each carrying the rec meta. No line items:
+	 * the meta is what the exporter and eraser read.
+	 *
+	 * @return int[] The order ids, ascending.
+	 */
+	private function make_orders_with_rec_meta( string $email, int $count ): array {
+		$ids = array();
+		for ( $i = 0; $i < $count; $i++ ) {
+			$order = wc_create_order();
+			$order->set_billing_email( $email );
+			$order->update_meta_data( '_smaily_rec_id', 'rec-many-' . $i );
+			$order->update_meta_data( '_smaily_visitor_token', 'vt_many' );
+			$id                     = (int) $order->save();
+			$this->created_orders[] = $id;
+			$ids[]                  = $id;
+		}
+		return $ids;
 	}
 
 	/** An order the order flusher sends: a completed sale billed to $email. */

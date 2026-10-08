@@ -6371,7 +6371,7 @@ fold `contact_key()` uses), so an address typed in another case
 still matches. The same mechanics as PRO-2384's
 `IngestQueue::delete_for_privacy_request()`; that PR was still open, so the
 match lives in `EventQueue` alone and a shared helper is a follow-up once both
-have merged. The `contact_key` path is unaffected: it compares a lowercase
+have merged (done: `Privacy\AddressMatch`, PRO-3909). The `contact_key` path is unaffected: it compares a lowercase
 sha256 hex string, which no collation folds into another address's hash.
 Rejected: `COLLATE utf8mb4_bin` (names a charset a legacy `utf8` table does not
 have); `mb_strtolower` (the stored `\uXXXX` escapes cannot be case-folded in
@@ -7870,7 +7870,8 @@ also one no plugin registers any more — or in the trash was not found, and it
 kept its rec markers, its newsletter consent marker and its waiting
 `order.upsert` row after the erasure. Pilot stores use custom shipping statuses.
 The address match depended on the column collation.
-**Decision (Erkki, 2026-10-08):** `GdprHandler::orders_for()` reads the ids
+**Decision (Erkki, 2026-10-08):** `GdprHandler::orders_for()` (since PRO-3997
+`order_ids_for()` + a page of `load_order()`) reads the ids
 from the active order table with no status filter —
 `wc_orders.billing_email` under HPOS, the `_billing_email` post meta under
 legacy storage (`OrderBackfillJob::table_spec()` names the table, OrderUtil
@@ -7979,7 +7980,8 @@ invisible to them. 600 s covers a walk of up to 50,000 products plus the 60 s
 send where the host lets PHP extend.
 **Alternatives:** splitting the walk across several actions — out of scope;
 marking the row failed from a shutdown handler when PHP dies — not done (a
-killed run's row stays pending, which is already visible).
+killed run's row stays pending, which is already visible). Superseded by PRO-3989: a
+shutdown hook now marks that row failed.
 **Relationships:** PRO-3859 (the manifest), PRO-3899 (its memory), PRO-3890
 (the reason rule).
 
@@ -8074,6 +8076,113 @@ from later Smaily syncs. The erasure covers the data held at that moment; a
 later order, profile save or the weekly refresh is a new action and may sync
 the surviving account again (same reasoning as PRO-3906). No lasting erasure
 marker is kept.
+
+### PRO-3909 — One address match for every personal-data lookup (2026-10-09)
+
+**Context:** the exporter's and eraser's address match was written four times:
+the JSON-string match in `EventQueue::privacy_request_where()` (PRO-2448) and
+`IngestQueue::delete_for_privacy_request()` (PRO-2384), and the column
+comparison in `GdprHandler::order_ids_sql()` (PRO-3986) and
+`CartSessionStore::privacy_request_where()` (PRO-3993). A later fix to one copy
+could miss the others.
+**Decision:** `Privacy\AddressMatch` holds the rule, in the two shapes the
+stores really have. `column_equals( $column )` returns
+`CAST( LOWER( col ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY )` for a column
+that holds the address alone (order billing address, cart `email`).
+`json_string( $column, $email, $prefixes )` returns the parenthesised
+`col LIKE CAST( %s AS BINARY )` chain and its patterns for an address stored as
+a whole JSON string — trimmed and lowercased, as typed and as
+`wp_json_encode()` writes it, `esc_like()`d, after each prefix (`"email":` /
+`"to":` for the Smaily queue, none for the Campaign Intelligence queue); null
+for an empty address. The caller passes the column expression, so each store
+keeps exactly its old SQL: the Smaily queue lowers its `payload`
+(`LOWER( payload )`), the Campaign Intelligence queue matches its
+`sent_payload` as written (its payload builders lowercase the address). No
+result changes; the existing privacy tests of all four stores pass unchanged
+and `tests/Unit/Privacy/AddressMatchTest.php` pins the helper.
+**Rationale:** one place to change the rule. Two shapes, not one: a JSON-blob
+`LIKE` and a column equality are different SQL, and forcing one onto the other
+would change results.
+**Alternatives:** one method for both shapes — rejected, see above; lowering
+`sent_payload` too — rejected here, it would change what the eraser deletes
+(out of scope).
+**Relationships:** PRO-2448, PRO-2384, PRO-3986, PRO-3993 (the four copies).
+
+### PRO-3997 — The exporter and eraser take the orders ten a page (2026-10-09)
+
+**Context:** since PRO-3908 the exporter and eraser find the requester's orders
+in every status and loaded all of them as `WC_Order` objects in one request,
+answering `done` on page 1. WooCommerce's own order eraser takes ten a page. A
+customer with very many orders could make that one request slow or run out of
+memory on a small host.
+**Decision:** both callbacks honour the `$page` WordPress passes.
+`GdprHandler::order_ids_for()` reads only the ids (ascending, the PRO-3908
+query unchanged); each page loads and handles the next
+`GdprHandler::ORDERS_PER_PAGE` = 10 of them (`load_order()`), and the answer is
+`done` once the page holds the last one (page 1 with no orders included). The
+work that is not about one order runs once, on page 1: the exporter's engine
+record (one §8 call), identity marker, cart sessions and Smaily queue rows; the
+eraser's drop of waiting updates, engine §9 call, identity marker, cart
+sessions, both queues, the refused list and the messages (the PRO-3995 one
+included). The eraser drops the waiting `order.upsert` rows of EVERY order on
+page 1, from the ids alone, before the engine call — dropping them page by page
+would leave later pages' rows sendable after the engine has deleted the
+customer (PRO-3906). Later pages only remove order markers;
+`after_erasure()` drops the waiting updates again from the ids, so a row an
+order save on any page queued is caught (PRO-3986).
+**Rationale:** the memory cost is the loaded order objects, not the ids, so the
+ids are read once per call and only a page of orders is loaded. Sliced by
+position in the ascending id list: an order placed during the request only
+joins the last page, and erasing markers does not change the billing address,
+so no order moves between pages.
+**Alternatives:** `LIMIT`/`OFFSET` in the SQL — rejected, page 1 needs every id
+for the drop before the engine call anyway, and the slice keeps
+`order_ids_sql()` and its unit pins unchanged; running the non-order work on
+the last page — rejected, the drop must precede the engine call.
+**Relationships:** PRO-3908 (which orders), PRO-3906 / PRO-3986 (the waiting
+updates), PRO-3995 (the message), PRO-3986's `run_wordpress_erasure()` (the
+integration test drives 21 orders through it: three pages).
+
+### PRO-3989 — A nightly product list run that PHP stops is marked failed (2026-10-09)
+
+**Context:** since PRO-3987 the night's `catalog.manifest` row is written
+before the walk. A run that PHP stopped (the time limit, the memory limit,
+another fatal error, an exit) left that row `pending` with no reason, so the
+merchant could not tell a stopped run from one still in progress. The walk
+time of a large catalog was not measured.
+**Decision:** while `CatalogManifest::run()` works on its row it hooks
+WordPress's `shutdown` action (a closure, removed in `finally` once the run
+returns). If the hook finds the row still open, PHP stopped the run: the row
+is marked failed with how and where — `PHP time limit` / `PHP memory limit` /
+`PHP fatal error` at basename:line from `error_get_last()`, or `exit without
+a PHP error` — never the error message (PRO-3890; the message is read only to
+tell the two limits apart). A stop during the send keeps the stored request
+and says the engine may not have received the list (`outcome: error`,
+`reason: run_stopped`); a stop during the walk stores no request
+(`outcome: skipped`). The failed row is not reused; the next night writes a
+new one.
+**Rationale:** the hook knows its row id and phase directly and runs under
+every runner, including the admin "Run" link, which does not attach Action
+Scheduler's fatal-error monitor. WordPress's own fatal-error handler runs
+first but calls `wp_die()` with `exit => false`, so the `shutdown` action
+still fires (checked in WP 7.1 source).
+**Measured (CI run 37847888284, ubuntu-26.04 runner, wp-env PHP 8.3,
+MariaDB, simple products seeded by `bin/measure-manifest-walk.php`, no
+time or memory limit set):** 10,000 products — walk 7.1 s, encode 0.003 s,
+body 0.35 MB, peak +5.1 MB; 50,000 — walk 35.6 s, encode 0.013 s, body
+1.8 MB, peak +22.8 MB. On that hardware the 600 s limit leaves about 17×
+headroom at the cap. Not measured: variable products (each variation is an
+item and a product load), translated catalogs, or a slow shared host.
+**Alternatives:** Action Scheduler's `action_scheduler_unexpected_shutdown`
+— not chosen: it reports only the AS action id, fires only when AS's monitor
+is attached, and only on fatal errors; marking a still-pending row failed at
+the next night's start — not chosen: a day late, and a killed run's pending
+row cannot be told from one the merchant retried. Not covered: a process the
+host kills outright (SIGKILL, php-fpm `request_terminate_timeout`) runs no
+shutdown code, so its row stays pending as before; a memory-limit stop may
+also lack the memory for the write. Splitting the walk — out of scope.
+**Relationships:** PRO-3987 (its "shutdown handler — not done" is superseded
+here), PRO-3859, PRO-3899, PRO-3890.
 
 ### PRO-3435 — CI runs the integration suite on legacy AND HPOS order storage (2026-10-09)
 

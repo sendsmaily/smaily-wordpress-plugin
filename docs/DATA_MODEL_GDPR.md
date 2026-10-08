@@ -75,12 +75,20 @@ address is the requested address in any letter case — both sides lowercased an
 then compared as bytes, so an address that differs only by an accent is another
 person's (PRO-3986: `LOWER()` alone still compares under the column's
 accent-insensitive collation) — in **every** status — a custom status, also one no plugin registers any more,
-and the trash included. `GdprHandler::orders_for()` reads their ids straight
+and the trash included. `GdprHandler::order_ids_for()` reads their ids straight
 from the active order table (`wc_orders.billing_email` under HPOS, the
 `_billing_email` post meta under legacy storage — `OrderBackfillJob::table_spec()`
-names the table) and loads each through `wc_get_order()`, so reading and
+names the table; the address match is the shared `Privacy\AddressMatch`,
+PRO-3909) and loads each through `wc_get_order()`, so reading and
 deleting the meta goes through the order API in both storage modes.
-`wc_get_orders()` is not used: it sees only the registered statuses. A guest
+`wc_get_orders()` is not used: it sees only the registered statuses.
+The exporter and the eraser load the orders ten a page
+(`GdprHandler::ORDERS_PER_PAGE`, as WooCommerce's order eraser), one page per
+call WordPress makes, and answer `done` on the last page (PRO-3997). The work
+that is not about one order — the engine call, the identity marker, the cart
+sessions, both queues, the refused list, the messages — runs once, on page 1;
+the eraser also drops the waiting `order.upsert` rows of every order there,
+from the ids alone, before the engine call. A guest
 order billed to a different address is not the requester's order. The WP user
 is the requester's only when its `user_email` is the requested address in any
 letter case: `get_user_by( 'email' )` matches accent-blind too, so

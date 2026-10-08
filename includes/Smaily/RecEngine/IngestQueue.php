@@ -11,6 +11,8 @@ namespace Smaily\Connect\Smaily\RecEngine;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Privacy\AddressMatch;
+
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
 /**
@@ -378,31 +380,22 @@ class IngestQueue {
 	 * `customer_email` plus its customer fields. `last_response` is the reply
 	 * to that same copy, so deleting the row takes it too. The table has no
 	 * contact key (Erkki, 2026-10-06: no schema change), so the match is on the
-	 * text — the address as a whole JSON string, both as typed and as
-	 * wp_json_encode() writes it (`\uXXXX` for a non-ASCII character, `\/` for
-	 * a slash — PRO-2448). The quotes keep `xjane@…` out of an erasure of
-	 * `jane@…`. The match is binary, because the column's accent-blind
-	 * collation would also count `jane@…` as `jäne@…`; the address is
-	 * lowercased the way the payload builders lowercase it.
+	 * text — the shared AddressMatch::json_string() (PRO-2448, PRO-3909): the
+	 * address as a whole JSON string, compared binary. The stored copy is
+	 * matched as written; the payload builders lowercase the address.
 	 */
 	public function delete_for_privacy_request( string $email ): int {
 		global $wpdb;
 
-		$email = strtolower( trim( $email ) );
-		if ( $email === '' ) {
+		$where = AddressMatch::json_string( 'sent_payload', $email );
+		if ( $where === null ) {
 			return 0;
 		}
 
-		$patterns = array();
-		foreach ( array_unique( array( '"' . $email . '"', (string) wp_json_encode( $email ) ) ) as $form ) {
-			$patterns[] = '%' . $wpdb->esc_like( $form ) . '%';
-		}
-
 		$table = $this->table_name();
-		$where = implode( ' OR ', array_fill( 0, count( $patterns ), 'sent_payload LIKE CAST( %s AS BINARY )' ) );
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE {$where}", $patterns ) );
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE {$where[0]}", $where[1] ) );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 	}
 
