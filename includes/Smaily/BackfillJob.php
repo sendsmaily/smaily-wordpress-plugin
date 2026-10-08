@@ -40,13 +40,13 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *      first user again (PRO-3868). Any other error in a batch stops the
  *      import the same way, with the error class and line as its reason
  *      (PRO-3902).
- *   4. A refusing body code that is about ONE contact — Smaily refused that
- *      contact for good while accepting another on the same page — skips the
- *      contact instead (PRO-3988): it is recorded with its user id and
+ *   4. A permanent refusing body code (TerminalDispatchException) skips
+ *      that contact instead (PRO-3988): it is recorded with its user id and
  *      Smaily's reason in OPTION_REFUSED, not marked or counted as synced,
  *      and the walk goes on. Each upsert carries one contact, so the answer
- *      names the refused contact. A page whose every sent contact (two or
- *      more) is refused is about the request, and stops the import as 3.
+ *      names the refused contact. A page where Smaily refuses every contact
+ *      it sends, two or more, is about the request, and stops the import as
+ *      in 3.
  *
  * The Smaily API call itself is delegated to a Client instance supplied
  * via constructor injection so tests don't need wp_remote_post mocks.
