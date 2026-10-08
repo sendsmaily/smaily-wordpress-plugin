@@ -1391,7 +1391,7 @@ td code{white-space:nowrap}
         </table>
       </div>
       <p>If the engine rejected some records, a Products, Customers or Orders import also shows <em>N records failed to sync — see the Event Log for details.</em> Open the Event Log to see exactly which records and why (see <a href="#err-retry">Failed events &amp; retry</a>).</p>
-      <p>An import that stops on an error, or that has nothing driving it any more (for example after the plugin was deactivated during the import), shows <strong>Backfill failed:</strong> — in the second case with the reason <em>The import stopped running in the background.</em>; <strong>Start import</strong> (Contacts) or <strong>Import now</strong> (Products, Customers, Orders) runs it again.</p>
+      <p>An import that stops on an error, or that has nothing driving it any more (for example after the plugin was deactivated during the import), shows <strong>Backfill failed:</strong> — in the second case with the reason <em>The import stopped running in the background.</em>; <strong>Start import</strong> (Contacts) or <strong>Import now</strong> (Products, Customers, Orders) runs it again. A Contacts import that stopped either way also starts again on its own with the next once-a-day contact sync.</p>
     </div>
     <div data-lang="et">
       <p>Töö ajal on <strong>Contacts</strong> impordi nupul <strong>Töötab…</strong> ja edenemisriba all rida <em>N kontakti M-st kontrollitud — N kontakti imporditud.</em>; <strong>Products</strong>, <strong>Customers</strong> või <strong>Orders</strong> impordi nupul on <strong>Impordin…</strong> ja rida <em>Sünkroonitud N tooted · P% valmis</em> (teistel kahel kliendid või tellimused). Sünkroonitud arv loeb kirjeid, mille sihtkoht päriselt vastu võttis, mitte lihtsalt loetud kirjeid. Impordi lõppedes tähendab olekurida:</p>
@@ -1408,7 +1408,7 @@ td code{white-space:nowrap}
         </table>
       </div>
       <p>Kui mootor mõne kirje tagasi lükkas, näitab Products, Customers või Orders import ka rida <em>N kirjet ei sünkroonitud — vaata üksikasju sündmuste logist.</em> Ava sündmuste logi, et näha, millised kirjed täpselt ja miks (vt <a href="#err-retry">Ebaõnnestunud sündmused &amp; kordus</a>).</p>
-      <p>Import, mis peatub vea tõttu või mida miski enam edasi ei vii (näiteks kui plugin impordi ajal deaktiveeriti), näitab <strong>Import ebaõnnestus:</strong> — teisel juhul põhjusega <em>Import lakkas taustal töötamast.</em>; <strong>Alusta importi</strong> (Contacts) või <strong>Impordi kohe</strong> (Products, Customers, Orders) käivitab selle uuesti.</p>
+      <p>Import, mis peatub vea tõttu või mida miski enam edasi ei vii (näiteks kui plugin impordi ajal deaktiveeriti), näitab <strong>Import ebaõnnestus:</strong> — teisel juhul põhjusega <em>Import lakkas taustal töötamast.</em>; <strong>Alusta importi</strong> (Contacts) või <strong>Impordi kohe</strong> (Products, Customers, Orders) käivitab selle uuesti. Kontaktide import, mis peatus kummalgi viisil, käivitub ka ise uuesti järgmise igapäevase kontaktide sünkroonimisega.</p>
     </div>
   </div>
   <hr class="secend">

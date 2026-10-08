@@ -17,8 +17,10 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Smaily\ApiException;
 use Smaily\Connect\Smaily\BackfillJob;
+use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\ContactSyncMode;
+use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 
 final class BackfillJobTest extends TestCase {
 
@@ -318,12 +320,42 @@ final class BackfillJobTest extends TestCase {
 	}
 
 	public function test_should_start_refresh_false_while_a_walk_is_running(): void {
-		$GLOBALS['wpdb'] = $this->fake_wpdb_for_process_batch( array( 'status' => 'running' ) );
+		$this->batch_queued( true );
+		$GLOBALS['wpdb'] = $this->fake_wpdb_for_process_batch( $this->running_since( 3600 ) );
 
 		self::assertFalse(
 			( new BackfillJob( $this->createMock( Client::class ) ) )->should_start_refresh(),
 			'Restarting a running walk would reset its cursor.'
 		);
+	}
+
+	public function test_should_start_refresh_false_for_a_walk_started_within_the_grace_period(): void {
+		$this->batch_queued( false );
+		$GLOBALS['wpdb'] = $this->fake_wpdb_for_process_batch( $this->running_since( 60 ) );
+
+		self::assertFalse(
+			( new BackfillJob( $this->createMock( Client::class ) ) )->should_start_refresh(),
+			'A just-started walk whose first batch is not queued yet is not stalled.'
+		);
+	}
+
+	/**
+	 * PRO-3981: a running walk that nothing drives any more is restarted by the
+	 * daily refresh, the way a failed one is.
+	 */
+	public function test_should_start_refresh_true_when_a_running_walk_has_stalled(): void {
+		$this->batch_queued( false );
+		$GLOBALS['wpdb'] = $this->fake_wpdb_for_process_batch(
+			$this->running_since( AbstractBackfillJob::STALL_GRACE_SECONDS + 600 )
+		);
+
+		self::assertTrue( ( new BackfillJob( $this->createMock( Client::class ) ) )->should_start_refresh() );
+	}
+
+	public function test_should_start_refresh_true_after_a_failed_walk(): void {
+		$GLOBALS['wpdb'] = $this->fake_wpdb_for_process_batch( array( 'status' => 'failed' ) );
+
+		self::assertTrue( ( new BackfillJob( $this->createMock( Client::class ) ) )->should_start_refresh() );
 	}
 
 	public function test_should_start_refresh_false_when_recently_completed(): void {
@@ -488,6 +520,29 @@ final class BackfillJobTest extends TestCase {
 	 * @param int[]                     $user_ids  The page the cursor query
 	 *                                             (`WHERE ID > cursor`) returns.
 	 */
+	/**
+	 * Whether Action Scheduler holds a contact-import batch, as is_stalled() asks.
+	 */
+	private function batch_queued( bool $queued ): void {
+		Functions\when( 'as_has_scheduled_action' )->alias(
+			static function ( string $hook, ?array $args = null ) use ( $queued ): bool {
+				self::assertSame( BackfillJobInterface::TICK_HOOK, $hook );
+				self::assertSame( array( 'job_type' => BackfillJob::BACKFILL_TYPE ), $args );
+				return $queued;
+			}
+		);
+	}
+
+	/**
+	 * @return array<string, string> A running state row that started $seconds ago.
+	 */
+	private function running_since( int $seconds ): array {
+		return array(
+			'status'     => 'running',
+			'started_at' => gmdate( 'Y-m-d H:i:s', time() - $seconds ),
+		);
+	}
+
 	private function fake_wpdb_for_process_batch( ?array $state_row, array $user_ids = array() ): object {
 		return new class( $state_row, $user_ids ) {
 			public string $prefix         = 'wp_';

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
@@ -569,8 +570,9 @@ final class ContactBackfillAudienceTest extends TestCase {
 	 * PRO-3902: a contact import left `running` with no batch queued or
 	 * running — deactivation cancelled it, or a batch died on a fatal error —
 	 * reads as stopped once the grace period after its start has passed, like
-	 * a Campaign Intelligence import (PRO-3886). Nothing restarts or rewrites
-	 * it; Start import runs it again.
+	 * a Campaign Intelligence import (PRO-3886). Reading the status rewrites
+	 * and restarts nothing; Start import runs it again (and so does the daily
+	 * contact refresh, PRO-3981 — next test).
 	 */
 	public function test_a_running_contact_import_with_nothing_driving_it_shows_as_stopped(): void {
 		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
@@ -597,12 +599,61 @@ final class ContactBackfillAudienceTest extends TestCase {
 			self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'], 'The Settings screen shows it stopped.' );
 			self::assertSame( 'The import stopped running in the background.', $status['error'], 'The Settings screen says why (PRO-3881).' );
 			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->contact_job_row()['status'], 'Nothing rewrites the row.' );
-			self::assertSame( array(), $this->pending_ticks(), 'It is not restarted automatically.' );
+			self::assertSame( array(), $this->pending_ticks(), 'Reading the status restarts nothing.' );
 
 			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
 			$status = $this->contact_status();
 			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $status['status'], 'Start import runs it again.' );
 			self::assertNull( $status['error'], 'A running import has no failure reason.' );
+		} finally {
+			as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK );
+			wp_set_current_user( 0 );
+		}
+	}
+
+	/**
+	 * PRO-3981: the daily contact refresh restarts a stalled contact import the
+	 * way it restarts a failed one, and leaves an import that is running
+	 * normally alone — a batch queued, or started within the grace period.
+	 * Legitimate-interest mode, so the tick's consent reconcile calls nobody.
+	 */
+	public function test_the_daily_contact_refresh_restarts_a_stalled_import_but_not_a_running_one(): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_LEGITIMATE_INTEREST );
+		PipelineFixture::seed_credentials();
+		$this->make_user( 'bf-refresh', null );
+		// After the user exists, so its registration is not live-synced.
+		update_option( SetupState::OPTION_SETUP_COMPLETED, true );
+
+		RestRequestHelper::login_as_admin();
+		try {
+			self::assertSame( 200, RestRequestHelper::post( '/backfill/start', array( 'job_type' => BackfillJob::BACKFILL_TYPE ) )->get_status() );
+
+			// Running normally: its batch is queued, however long ago it started.
+			$this->backdate_contact_start( HOUR_IN_SECONDS );
+			$started = $this->contact_job_row()['started_at'];
+			$ticks   = $this->pending_ticks();
+			do_action( 'smly_plus_contact_sync' );
+			self::assertSame( $started, $this->contact_job_row()['started_at'], 'A driven import is not started again.' );
+			self::assertSame( $ticks, $this->pending_ticks(), 'No second batch is queued.' );
+
+			// Just started, its first batch not queued yet: not stalled.
+			as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK );
+			$this->backdate_contact_start( 60 );
+			$started = $this->contact_job_row()['started_at'];
+			do_action( 'smly_plus_contact_sync' );
+			self::assertSame( $started, $this->contact_job_row()['started_at'], 'An import within the grace period is not started again.' );
+			self::assertSame( array(), $this->pending_ticks() );
+
+			// Stalled: nothing drives it, and it started 20 minutes ago.
+			$this->backdate_contact_start( 20 * MINUTE_IN_SECONDS );
+			self::assertSame( BackfillJobInterface::STATUS_FAILED, $this->contact_status()['status'], 'Precondition: the import reads as stopped.' );
+			do_action( 'smly_plus_contact_sync' );
+
+			$row = $this->contact_job_row();
+			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $row['status'] );
+			self::assertGreaterThan( time() - MINUTE_IN_SECONDS, strtotime( $row['started_at'] . ' UTC' ), 'A new import starts.' );
+			self::assertNotSame( array(), $this->pending_ticks(), 'Its first batch is queued.' );
+			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->contact_status()['status'], 'The Settings screen shows it running again.' );
 		} finally {
 			as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK );
 			wp_set_current_user( 0 );
@@ -673,7 +724,7 @@ final class ContactBackfillAudienceTest extends TestCase {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT status, cursor_value, synced_count, error_message FROM {$wpdb->prefix}smly_plus_backfill_job WHERE job_type = %s AND target = %s",
+				"SELECT status, cursor_value, synced_count, error_message, started_at FROM {$wpdb->prefix}smly_plus_backfill_job WHERE job_type = %s AND target = %s",
 				BackfillJob::BACKFILL_TYPE,
 				BackfillJob::BACKFILL_TARGET
 			),
