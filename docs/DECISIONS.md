@@ -8142,6 +8142,33 @@ the last page — rejected, the drop must precede the engine call.
 updates), PRO-3995 (the message), PRO-3986's `run_wordpress_erasure()` (the
 integration test drives 21 orders through it: three pages).
 
+### PRO-3435 — CI runs the integration suite on legacy AND HPOS order storage (2026-10-09)
+
+**Context:** the order import (`OrderBackfillJob::table_spec()`) and the
+personal-data exporter/eraser (`GdprHandler::order_ids_sql()`) read orders
+straight from the active table — `wp_posts` (legacy) or `wc_orders` (HPOS).
+CLAUDE.md said the test env runs HPOS; CI's fresh wp-env (WC 10.7) actually
+starts legacy, with no HPOS tables at all (run 37847363394), so CI had covered
+only legacy, and the HPOS path only on local envs someone had switched.
+**Decision:** the "Integration suite (wp-env)" job became a two-leg matrix
+(`order-storage: legacy, hpos`); each leg switches with `wp wc hpos enable
+--ignore-plugin-compatibility` / `wp wc hpos disable` and sets sync off. The
+suite bootstrap prints the active storage on every run and exits 1 when
+`SMAILY_CONNECT_TEST_ORDER_STORAGE` names another one (CI sets it; the wrapper
+passes it into the container).
+**Rationale:** pilot stores run legacy, newer stores HPOS; both reach real
+customers, and the storage must be a stated input of a run, not an accident of
+how the env started. Sync off keeps each leg on its own table.
+**Alternatives:** switching inside the bootstrap (it would rewrite the dev
+site's storage on every local run); running the suite twice in one job (one
+check name, but twice the job time and one red check for two different
+causes); `wp option update` instead of the WooCommerce command (does not create
+the HPOS tables on a legacy start).
+**Relationships:** PRO-3426 (the local legacy observation), PRO-3908/PRO-3986
+(the eraser's table read), CLAUDE.md "Order storage: CI runs the integration
+suite on BOTH legacy and HPOS". Check names changed; `main` requires no status
+check by name.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
