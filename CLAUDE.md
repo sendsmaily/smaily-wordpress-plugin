@@ -389,7 +389,7 @@ therefore changes the manifest too; never build the list from a separate
 query. The walk releases each batch's loaded posts before the next batch
 (PRO-3899: `wp_cache_flush_runtime()` when `wp_cache_supports(
 'flush_runtime' )`, else `wp_cache_delete_multiple()` of the batch's posts +
-meta — never `wp_cache_flush()` or `clean_post_cache()`). Skip rules (nothing sent, debug log only): not `sending_allowed()`,
+meta — never `wp_cache_flush()` or `clean_post_cache()`). Skip rules (nothing sent, no row, debug log only): not `sending_allowed()`,
 the products import `running` (incl. the import-on-connect wait — but
 `AbstractBackfillJob::is_running()` is false for a STALLED import: running,
 no batch of it queued or running in Action Scheduler, started over
@@ -397,9 +397,13 @@ no batch of it queued or running in Action Scheduler, started over
 deactivation or a crashed batch left `running` no longer skips every night;
 the status route reports it `failed` and nothing restarts it), any
 pending catalog.* row in the ingest queue (`IngestQueue::has_pending`, parked
-retries included), or a Throwable while building. Over 50,000 items: no send,
-a FAILED `catalog.manifest` Event Log row with a plain reason. Otherwise one
-`catalog.manifest` row per night with the F3-44 exchange. No flusher drains
+retries included). Past those, the night's ONE `catalog.manifest` row is
+written BEFORE the walk (PRO-3987 — a run the host kills mid-walk leaves it
+`pending`, and the next night reuses it) and the run raises its PHP time
+limit to `TIME_LIMIT_SECONDS` (only when the current limit is lower and not
+0). Over 50,000 items, a Throwable while building, or a non-API Throwable
+while sending: that row is marked FAILED with a plain reason (error class +
+file:line, never the message). Otherwise it carries the F3-44 exchange. No flusher drains
 that event type — a row the merchant retries waits as pending and the next
 night sends under it. **The dev wp-env is connected to a real tenant:** with
 this code checked out its AS runner sends a real manifest after 03:00 site
