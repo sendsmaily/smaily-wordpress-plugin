@@ -584,6 +584,17 @@ slow"):
 (Verify exact paths/scripts against the repo — this list is the working set as
 of orders ingest; update if the build evolves.)
 
+### Dev-tool security updates: targeted, then `overrides` — two npm traps (PRO-3858)
+Dependabot alerts here are all in dev tools (three lockfiles: root,
+`blocks/`, `composer.lock`). Fix them in-range and check the built output
+afterwards (DECISIONS "PRO-3858"). Two traps:
+- **`npm audit fix` in `blocks/` also moves the `@wordpress/*` editor
+  packages** (one run: +88 / −34 lockfile packages, unrelated to any alert).
+  Use `npm update <vulnerable-pkg> …` for exactly the flagged packages instead.
+- **A new `overrides` entry is not applied by a plain `npm install`** when the
+  lockfile already satisfies the parent ("up to date"). Run `npm update
+  <overridden-pkg>` to re-resolve it, then confirm with a fresh `npm ci`.
+
 ### Merchant docs site lives in `docs/site/index.html` — one bilingual HTML file
 The user-facing documentation (install, wizard, settings, imports, errors, FAQ,
 privacy) is a **single self-contained HTML page** at `docs/site/index.html`,
