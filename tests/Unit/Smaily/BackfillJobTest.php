@@ -61,6 +61,8 @@ final class BackfillJobTest extends TestCase {
 				return $key === ContactSyncMode::OPTION_SYNC_ENABLED ? $default : null;
 			}
 		);
+		// start() clears the run's refused-contact list (PRO-3988).
+		Functions\when( 'delete_option' )->justReturn( true );
 		Functions\when( 'get_site_url' )->justReturn( 'http://example.test' );
 		Functions\when( 'get_bloginfo' )->justReturn( 'Example Shop' );
 	}
@@ -264,6 +266,149 @@ final class BackfillJobTest extends TestCase {
 	}
 
 	/**
+	 * PRO-3988: Smaily refuses one contact for good in its body code while it
+	 * accepts the others. The contact is skipped — not marked or counted as
+	 * synced — and recorded with its user id and Smaily's reason (address
+	 * masked); the rest of the page is sent and the walk goes on.
+	 */
+	public function test_process_batch_skips_a_contact_smaily_refuses_and_records_it(): void {
+		$wpdb            = $this->fake_wpdb_for_process_batch(
+			array(
+				'id'              => 77,
+				'status'          => 'running',
+				'cursor_value'    => '0',
+				'processed_count' => '0',
+				'synced_count'    => '0',
+				'total_count'     => '3',
+			),
+			array( 1, 2, 3 )
+		);
+		$GLOBALS['wpdb'] = $wpdb;
+
+		Functions\when( 'get_users' )->justReturn(
+			array(
+				$this->fake_user( 1, 'a@example.com' ),
+				$this->fake_user( 2, 'bad@example.com' ),
+				$this->fake_user( 3, 'c@example.com' ),
+			)
+		);
+		$marked = array();
+		Functions\when( 'update_user_meta' )->alias(
+			static function ( int $user_id ) use ( &$marked ): bool {
+				$marked[] = $user_id;
+				return true;
+			}
+		);
+		$stored = array();
+		Functions\when( 'update_option' )->alias(
+			static function ( string $key, $value, $autoload = null ) use ( &$stored ): bool {
+				$stored[ $key ] = array( $value, $autoload );
+				return true;
+			}
+		);
+
+		$result = ( new BackfillJob( $this->client_refusing( array( 'bad@example.com' ) ) ) )->process_batch( 10 );
+
+		self::assertSame( array( 1, 3 ), $marked, 'Only the contacts Smaily accepted are marked synced.' );
+		self::assertCount( 1, $wpdb->updates );
+		self::assertSame( 'completed', $wpdb->updates[0]['data']['status'], 'One refused contact does not stop the import.' );
+		self::assertSame( 2, $wpdb->updates[0]['data']['synced_count'], 'The refused contact is not counted as synced.' );
+		self::assertSame( '3', $wpdb->updates[0]['data']['cursor_value'], 'The walk moves past the refused contact.' );
+		self::assertSame( 2, $result['processed'] );
+		self::assertSame(
+			array(
+				array(
+					'count'    => 1,
+					'contacts' => array(
+						array(
+							'user_id' => 2,
+							'reason'  => 'permanent_envelope_204: Smaily API returned code 204: Invalid email [email]',
+						),
+					),
+				),
+				false,
+			),
+			$stored[ BackfillJob::OPTION_REFUSED ] ?? null,
+			'The refused contact is recorded by user id, with Smaily\'s reason and no address, autoload off.'
+		);
+	}
+
+	/**
+	 * PRO-3988: on the daily refresh a page often sends just one contact. A
+	 * refusal of that single contact is still that contact's, not the
+	 * request's — the import goes on.
+	 */
+	public function test_process_batch_skips_the_only_contact_a_page_sends_when_smaily_refuses_it(): void {
+		$wpdb            = $this->fake_wpdb_for_process_batch(
+			array(
+				'id'              => 77,
+				'status'          => 'running',
+				'cursor_value'    => '0',
+				'processed_count' => '0',
+				'total_count'     => '200',
+			),
+			array( 1 )
+		);
+		$GLOBALS['wpdb'] = $wpdb;
+
+		Functions\when( 'get_users' )->justReturn( array( $this->fake_user( 1, 'bad@example.com' ) ) );
+		$recorded = array();
+		Functions\when( 'update_option' )->alias(
+			static function ( string $key, $value ) use ( &$recorded ): bool {
+				$recorded = $value;
+				return true;
+			}
+		);
+
+		( new BackfillJob( $this->client_refusing( array( 'bad@example.com' ) ) ) )->process_batch( 1 );
+
+		self::assertSame( 1, $recorded['count'] ?? null, 'The refused contact is recorded.' );
+		self::assertCount( 1, $wpdb->updates );
+		self::assertSame( 'running', $wpdb->updates[0]['data']['status'], 'The import goes on to the next page.' );
+		self::assertSame( '1', $wpdb->updates[0]['data']['cursor_value'] );
+	}
+
+	/**
+	 * PRO-3988: when Smaily refuses every contact a page sends (two or more),
+	 * the refusal is about the request, not a contact: the import stops
+	 * failed as before (PRO-3868), with Smaily's answer, the cursor before
+	 * the page and no refused-contact list written.
+	 */
+	public function test_process_batch_stops_failed_when_smaily_refuses_every_contact_of_a_page(): void {
+		$wpdb            = $this->fake_wpdb_for_process_batch(
+			array(
+				'id'              => 77,
+				'status'          => 'running',
+				'cursor_value'    => '0',
+				'processed_count' => '0',
+				'total_count'     => '2',
+			),
+			array( 1, 2 )
+		);
+		$GLOBALS['wpdb'] = $wpdb;
+
+		Functions\when( 'get_users' )->justReturn(
+			array(
+				$this->fake_user( 1, 'a@example.com' ),
+				$this->fake_user( 2, 'b@example.com' ),
+			)
+		);
+		Functions\when( 'update_option' )->alias(
+			static function (): bool {
+				throw new \LogicException( 'A request-level refusal records no refused contacts.' );
+			}
+		);
+
+		$result = ( new BackfillJob( $this->client_refusing( array( 'a@example.com', 'b@example.com' ) ) ) )->process_batch( 10 );
+
+		self::assertCount( 1, $wpdb->updates, 'Only the error is written — the cursor stays before the page.' );
+		self::assertSame( 'failed', $wpdb->updates[0]['data']['status'] );
+		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204: Invalid email b@example.com', $wpdb->updates[0]['data']['error_message'] );
+		self::assertSame( 'running', $wpdb->updates[0]['where']['status'] );
+		self::assertTrue( $result['completed'], 'A failed import schedules no further tick.' );
+	}
+
+	/**
 	 * PRO-3868: a tick that reads a failed import — one Action Scheduler had
 	 * already claimed — sends nothing and leaves the row failed, like a
 	 * cancelled one (PRO-3821).
@@ -456,6 +601,44 @@ final class BackfillJobTest extends TestCase {
 			static function ( array $subscribers ) use ( &$captured ): array {
 				$captured = is_array( $subscribers[0] ?? null ) ? $subscribers[0] : array();
 				return array();
+			}
+		);
+
+		return $client;
+	}
+
+	/**
+	 * Client mock that answers HTTP 200 with Smaily's code 204 for the given
+	 * addresses and 101 for every other contact.
+	 *
+	 * @param string[] $refused
+	 */
+	private function client_refusing( array $refused ): Client {
+		$last   = '';
+		$client = $this->createMock( Client::class );
+		$client->method( 'upsert_subscribers' )->willReturnCallback(
+			static function ( array $subscribers ) use ( &$last ): array {
+				$last = (string) ( $subscribers[0]['email'] ?? '' );
+				return array();
+			}
+		);
+		$client->method( 'last_exchange' )->willReturnCallback(
+			static function () use ( &$last, $refused ): array {
+				$body = in_array( $last, $refused, true )
+					? array(
+						'code'    => 204,
+						'message' => 'Invalid email ' . $last,
+					)
+					: array(
+						'code'    => 101,
+						'message' => 'OK',
+					);
+				return array(
+					'response' => array(
+						'http' => 200,
+						'body' => $body,
+					),
+				);
 			}
 		);
 

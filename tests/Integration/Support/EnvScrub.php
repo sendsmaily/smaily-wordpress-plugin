@@ -144,6 +144,9 @@ final class EnvScrub {
 			// registry (ProfilingConsent::OPTION_OPTOUTS, private) is
 			// autoload=false and asserted on by ProfilingConsentAccountTest.
 			'smly_profiling_optouts',
+			// Same class again (PRO-3988): the contact import's refused-contact
+			// list is autoload=false and asserted on by ContactBackfillAudienceTest.
+			\Smaily\Connect\Smaily\BackfillJob::OPTION_REFUSED,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

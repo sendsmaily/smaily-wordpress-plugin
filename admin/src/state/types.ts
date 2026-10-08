@@ -82,6 +82,25 @@ export interface BackfillProgress {
   completedAt: string | null;
   /** Contacts job, non-running only: the sync mode's audience size (F3-55). */
   audienceEstimate: number | null;
+  /** Contacts job: the customers Smaily refused for good in this run (PRO-3988). */
+  refused?: BackfillRefusals | null;
+}
+
+/** One customer Smaily refused in the contact import (PRO-3988). */
+export interface BackfillRefusedContact {
+  user_id: number;
+  /** The address with only its first character before the `@`; null for a deleted user. */
+  email: string | null;
+  /** The user's profile screen, or null. */
+  edit_url: string | null;
+  /** Smaily's answer, addresses masked. */
+  reason: string;
+}
+
+/** The contact import's refused customers: the total and up to 20 of them. */
+export interface BackfillRefusals {
+  count: number;
+  contacts: BackfillRefusedContact[];
 }
 
 /**

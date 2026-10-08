@@ -40,6 +40,13 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *      first user again (PRO-3868). Any other error in a batch stops the
  *      import the same way, with the error class and line as its reason
  *      (PRO-3902).
+ *   4. A permanent refusing body code (TerminalDispatchException) skips
+ *      that contact instead (PRO-3988): it is recorded with its user id and
+ *      Smaily's reason in OPTION_REFUSED, not marked or counted as synced,
+ *      and the walk goes on. Each upsert carries one contact, so the answer
+ *      names the refused contact. A page where Smaily refuses every contact
+ *      it sends, two or more, is about the request, and stops the import as
+ *      in 3.
  *
  * The Smaily API call itself is delegated to a Client instance supplied
  * via constructor injection so tests don't need wp_remote_post mocks.
@@ -59,6 +66,17 @@ class BackfillJob implements BackfillJobInterface {
 
 	public const TABLE_SUFFIX = 'smly_plus_backfill_job';
 	public const META_KEY     = '_smaily_synced_at';
+
+	/**
+	 * The contacts Smaily refused for good in the current run (PRO-3988):
+	 * `{count: int, contacts: list<{user_id: int, reason: string}>}`, the list
+	 * capped at MAX_LISTED_REFUSALS. Cleared by start(). Autoload off; the
+	 * reason never holds an email address.
+	 */
+	public const OPTION_REFUSED = 'smly_plus_contact_import_refused';
+
+	/** How many refused contacts OPTION_REFUSED lists; `count` keeps the total. */
+	public const MAX_LISTED_REFUSALS = 20;
 
 	/**
 	 * Default freshness window — users synced within this many seconds are
@@ -104,6 +122,9 @@ class BackfillJob implements BackfillJobInterface {
 		$total  = (int) $counts['total_users'];
 
 		$table = $this->table_name();
+
+		// A new run lists only its own refused contacts (PRO-3988).
+		delete_option( self::OPTION_REFUSED );
 
 		// PRO-1715: with an empty audience the walk has nothing to POST, so the
 		// run is recorded as finished right here rather than as 'running' with
@@ -394,6 +415,8 @@ class BackfillJob implements BackfillJobInterface {
 
 		$fresh_skips    = 0;
 		$audience_skips = 0;
+		$refused        = array();
+		$last_refusal   = '';
 		foreach ( $users as $user ) {
 			// F3-48: only sync the mode's audience (consent → opted-in only;
 			// legitimate interest → all; checkout-only → none). Walked-past but
@@ -413,11 +436,30 @@ class BackfillJob implements BackfillJobInterface {
 				$this->client->upsert_subscribers( array( $payload ) );
 				// An HTTP 200 can still carry a refusal in Smaily's body code:
 				// it throws like the queued sends (PRO-3862), so the contact
-				// is not counted as synced and the import fails (PRO-3904).
+				// is not counted as synced (PRO-3904). A permanent code skips
+				// the contact (PRO-3988); 225 stops the import.
 				RetryPolicy::throw_if_refused_envelope( $this->client->last_exchange() );
 				update_user_meta( (int) $user->ID, self::META_KEY, time() );
 				++$synced;
-			} catch ( ApiException | TerminalDispatchException $e ) {
+			} catch ( TerminalDispatchException $e ) {
+				// Smaily refused this contact for good (PRO-3988): skip it and
+				// go on, so one contact cannot stop every later one in every
+				// run. Whether the refusal is about the request instead is
+				// decided once the page is done, below. The reason is stored
+				// without the address.
+				\Smaily\Connect\Support\DebugLog::write(
+					sprintf(
+						'[smaily-connect backfill.batch] user_id=%d refused: %s',
+						(int) $user->ID,
+						$e->getMessage()
+					)
+				);
+				$last_refusal = $e->getMessage();
+				$refused[]    = array(
+					'user_id' => (int) $user->ID,
+					'reason'  => (string) preg_replace( '/[^\s@]+@[^\s@]+/', '[email]', $e->getMessage() ),
+				);
+			} catch ( ApiException $e ) {
 				\Smaily\Connect\Support\DebugLog::write(
 					sprintf(
 						'[smaily-connect backfill.batch] user_id=%d upsert_failed: %s',
@@ -438,6 +480,21 @@ class BackfillJob implements BackfillJobInterface {
 				);
 			}
 		}
+
+		// Smaily refused every contact this page sent, and more than one: the
+		// refusal is about the request, not about a contact, so the import
+		// stops failed as for any other Smaily error (PRO-3988). A single
+		// refused contact on a page is that contact's — on the daily refresh
+		// it is often the only one a page sends.
+		if ( count( $refused ) > 1 && $synced === 0 ) {
+			$this->record_error( (int) $state['id'], $last_refusal, $status );
+			return array(
+				'processed' => 0,
+				'remaining' => max( 0, (int) $state['total_count'] - (int) $state['processed_count'] ),
+				'completed' => true,
+			);
+		}
+		$this->record_refusals( $refused );
 
 		\Smaily\Connect\Support\DebugLog::write(
 			sprintf(
@@ -584,6 +641,30 @@ class BackfillJob implements BackfillJobInterface {
 			$this->audience = new ContactAudience();
 		}
 		return $this->audience;
+	}
+
+	/**
+	 * Add this page's refused contacts to the run's list (PRO-3988).
+	 *
+	 * @param array<int, array{user_id: int, reason: string}> $refused
+	 */
+	private function record_refusals( array $refused ): void {
+		if ( $refused === array() ) {
+			return;
+		}
+
+		$stored   = get_option( self::OPTION_REFUSED );
+		$count    = is_array( $stored ) ? (int) ( $stored['count'] ?? 0 ) : 0;
+		$contacts = is_array( $stored ) && is_array( $stored['contacts'] ?? null ) ? $stored['contacts'] : array();
+
+		update_option(
+			self::OPTION_REFUSED,
+			array(
+				'count'    => $count + count( $refused ),
+				'contacts' => array_slice( array_merge( $contacts, $refused ), 0, self::MAX_LISTED_REFUSALS ),
+			),
+			false
+		);
 	}
 
 	/**

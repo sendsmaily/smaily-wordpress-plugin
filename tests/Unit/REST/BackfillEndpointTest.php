@@ -238,6 +238,108 @@ final class BackfillEndpointTest extends TestCase {
 	}
 
 	/**
+	 * PRO-3988: the panel lists the contacts Smaily refused for good, so the
+	 * merchant can find them: user id, the address with only its first
+	 * character shown, a profile link and Smaily's reason without the
+	 * internal prefix. The total counts refusals past the listed ones.
+	 */
+	public function test_status_lists_the_contacts_smaily_refused(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'contacts' );
+
+		Functions\when( 'get_option' )->alias(
+			static function ( $key, $default = false ) {
+				if ( $key === BackfillJob::OPTION_REFUSED ) {
+					return array(
+						'count'    => 21,
+						'contacts' => array(
+							array(
+								'user_id' => 42,
+								'reason'  => 'permanent_envelope_204: Smaily API returned code 204: Invalid email [email]',
+							),
+							array(
+								'user_id' => 43,
+								'reason'  => 'permanent_envelope_203: Smaily API returned code 203: Invalid data',
+							),
+						),
+					);
+				}
+				return $key === 'smly_plus_contact_sync_mode' ? 'checkout_optin' : $default;
+			}
+		);
+		Functions\when( 'get_userdata' )->alias(
+			static function ( int $user_id ) {
+				if ( $user_id !== 42 ) {
+					return false; // Deleted since the run.
+				}
+				$user             = new \WP_User();
+				$user->user_email = 'jane.doe@example.com';
+				return $user;
+			}
+		);
+		Functions\when( 'get_edit_user_link' )->alias(
+			static fn ( int $user_id ) => 'http://example.test/wp-admin/user-edit.php?user_id=' . $user_id
+		);
+
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 80,
+				'status'          => BackfillJobInterface::STATUS_COMPLETED,
+				'processed_count' => '200',
+				'total_count'     => '200',
+				'started_at'      => '2026-10-08 10:00:00',
+				'completed_at'    => '2026-10-08 10:05:00',
+				'error_message'   => null,
+			)
+		);
+
+		$endpoint = new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) );
+		$data     = $endpoint->status( $request )->get_data();
+
+		self::assertSame(
+			array(
+				'count'    => 21,
+				'contacts' => array(
+					array(
+						'user_id'  => 42,
+						'email'    => 'j***@example.com',
+						'edit_url' => 'http://example.test/wp-admin/user-edit.php?user_id=42',
+						'reason'   => 'Smaily API returned code 204: Invalid email [email]',
+					),
+					array(
+						'user_id'  => 43,
+						'email'    => null,
+						'edit_url' => null,
+						'reason'   => 'Smaily API returned code 203: Invalid data',
+					),
+				),
+			),
+			$data['refused']
+		);
+	}
+
+	public function test_status_has_no_refused_list_when_smaily_refused_nobody(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'contacts' );
+
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 81,
+				'status'          => BackfillJobInterface::STATUS_COMPLETED,
+				'processed_count' => '200',
+				'total_count'     => '200',
+				'started_at'      => '2026-10-08 10:00:00',
+				'completed_at'    => '2026-10-08 10:05:00',
+				'error_message'   => null,
+			)
+		);
+
+		$data = ( new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) ) )->status( $request )->get_data();
+
+		self::assertNull( $data['refused'] );
+	}
+
+	/**
 	 * PRO-3881: a Campaign Intelligence import nothing drives any more reads
 	 * as failed (PRO-3886) and says so — its row stores no reason.
 	 */

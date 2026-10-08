@@ -163,4 +163,72 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
       await screen.findByText('Backfill failed: Smaily API returned HTTP 500 for POST contact'),
     ).toBeInTheDocument();
   });
+
+  /**
+   * PRO-3988: the customers Smaily refused for good were skipped. The panel
+   * names them — user id, masked address, Smaily's reason, a profile link —
+   * and says how many more were refused than it lists.
+   */
+  it('lists the customers Smaily refused', async () => {
+    vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(
+      status({
+        status: 'completed',
+        processed: 30000,
+        synced: 16000,
+        total: 30000,
+        percent: 100,
+        started_at: '2026-10-08 10:00:00',
+        completed_at: '2026-10-08 11:00:00',
+        refused: {
+          count: 21,
+          contacts: [
+            {
+              user_id: 42,
+              email: 'j***@example.com',
+              edit_url: 'https://shop.example.com/wp-admin/user-edit.php?user_id=42',
+              reason: 'Smaily API returned code 204: Invalid email',
+            },
+            {
+              user_id: 43,
+              email: null,
+              edit_url: null,
+              reason: 'Smaily API returned code 203: Invalid data',
+            },
+          ],
+        },
+      }),
+    );
+
+    render(<Step2Subscribers state={state} dispatch={vi.fn()} />);
+
+    expect(
+      await screen.findByText(/Smaily refused 21 customers, so they were not imported\./),
+    ).toBeInTheDocument();
+    const link = screen.getByRole('link', {
+      name: 'User 42 (j***@example.com): Smaily API returned code 204: Invalid email',
+    });
+    expect(link).toHaveAttribute('href', 'https://shop.example.com/wp-admin/user-edit.php?user_id=42');
+    expect(screen.getByText('User 43 (–): Smaily API returned code 203: Invalid data')).toBeInTheDocument();
+    expect(screen.getByText('…and 19 more.')).toBeInTheDocument();
+  });
+
+  it('lists no refused customers when Smaily refused none', async () => {
+    vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(
+      status({
+        status: 'completed',
+        processed: 30000,
+        synced: 16012,
+        total: 30000,
+        percent: 100,
+        started_at: '2026-10-08 10:00:00',
+        completed_at: '2026-10-08 11:00:00',
+        refused: null,
+      }),
+    );
+
+    render(<Step2Subscribers state={state} dispatch={vi.fn()} />);
+
+    expect(await screen.findByText(/Done — 16012 contacts synced/)).toBeInTheDocument();
+    expect(screen.queryByText(/Smaily refused/)).not.toBeInTheDocument();
+  });
 });

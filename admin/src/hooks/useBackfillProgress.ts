@@ -112,6 +112,7 @@ export function useBackfillProgress(options: UseBackfillProgressOptions = {}): U
           startedAt: response.started_at,
           completedAt: response.completed_at,
           audienceEstimate: response.audience_estimate,
+          refused: response.refused ?? null,
         });
       } catch {
         // Soft-fail: stay on idleProgress. The Start-backfill button still
@@ -143,6 +144,7 @@ export function useBackfillProgress(options: UseBackfillProgressOptions = {}): U
         startedAt: response.started_at,
         completedAt: response.completed_at,
         audienceEstimate: response.audience_estimate,
+        refused: response.refused ?? null,
       });
       setPollError(null);
 
