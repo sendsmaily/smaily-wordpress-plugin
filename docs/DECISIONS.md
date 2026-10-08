@@ -7870,7 +7870,8 @@ also one no plugin registers any more — or in the trash was not found, and it
 kept its rec markers, its newsletter consent marker and its waiting
 `order.upsert` row after the erasure. Pilot stores use custom shipping statuses.
 The address match depended on the column collation.
-**Decision (Erkki, 2026-10-08):** `GdprHandler::orders_for()` reads the ids
+**Decision (Erkki, 2026-10-08):** `GdprHandler::orders_for()` (since PRO-3997
+`order_ids_for()` + a page of `load_order()`) reads the ids
 from the active order table with no status filter —
 `wc_orders.billing_email` under HPOS, the `_billing_email` post meta under
 legacy storage (`OrderBackfillJob::table_spec()` names the table, OrderUtil
@@ -8105,6 +8106,41 @@ would change results.
 `sent_payload` too — rejected here, it would change what the eraser deletes
 (out of scope).
 **Relationships:** PRO-2448, PRO-2384, PRO-3986, PRO-3993 (the four copies).
+
+### PRO-3997 — The exporter and eraser take the orders ten a page (2026-10-09)
+
+**Context:** since PRO-3908 the exporter and eraser find the requester's orders
+in every status and loaded all of them as `WC_Order` objects in one request,
+answering `done` on page 1. WooCommerce's own order eraser takes ten a page. A
+customer with very many orders could make that one request slow or run out of
+memory on a small host.
+**Decision:** both callbacks honour the `$page` WordPress passes.
+`GdprHandler::order_ids_for()` reads only the ids (ascending, the PRO-3908
+query unchanged); each page loads and handles the next
+`GdprHandler::ORDERS_PER_PAGE` = 10 of them (`load_order()`), and the answer is
+`done` once the page holds the last one (page 1 with no orders included). The
+work that is not about one order runs once, on page 1: the exporter's engine
+record (one §8 call), identity marker, cart sessions and Smaily queue rows; the
+eraser's drop of waiting updates, engine §9 call, identity marker, cart
+sessions, both queues, the refused list and the messages (the PRO-3995 one
+included). The eraser drops the waiting `order.upsert` rows of EVERY order on
+page 1, from the ids alone, before the engine call — dropping them page by page
+would leave later pages' rows sendable after the engine has deleted the
+customer (PRO-3906). Later pages only remove order markers;
+`after_erasure()` drops the waiting updates again from the ids, so a row an
+order save on any page queued is caught (PRO-3986).
+**Rationale:** the memory cost is the loaded order objects, not the ids, so the
+ids are read once per call and only a page of orders is loaded. Sliced by
+position in the ascending id list: an order placed during the request only
+joins the last page, and erasing markers does not change the billing address,
+so no order moves between pages.
+**Alternatives:** `LIMIT`/`OFFSET` in the SQL — rejected, page 1 needs every id
+for the drop before the engine call anyway, and the slice keeps
+`order_ids_sql()` and its unit pins unchanged; running the non-order work on
+the last page — rejected, the drop must precede the engine call.
+**Relationships:** PRO-3908 (which orders), PRO-3906 / PRO-3986 (the waiting
+updates), PRO-3995 (the message), PRO-3986's `run_wordpress_erasure()` (the
+integration test drives 21 orders through it: three pages).
 
 ## How to keep this document going
 

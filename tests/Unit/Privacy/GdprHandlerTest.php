@@ -308,6 +308,73 @@ final class GdprHandlerTest extends TestCase {
 		self::assertSame( array( 'shopper@example.test' ), $handler->order_lookups );
 	}
 
+	public function test_the_eraser_takes_ten_orders_a_page_and_does_the_rest_once_on_page_one(): void {
+		// PRO-3997: one page of orders per call; the work that is not about
+		// one order runs on page 1 only, and the waiting updates of EVERY
+		// order are dropped there, before any later page.
+		$orders = array();
+		for ( $id = 1; $id <= 12; $id++ ) {
+			$orders[] = $this->fake_order( $id, (string) $id, array( '_smaily_rec_id' => 'rec-' . $id ) );
+		}
+		$store   = $this->fake_store( array() );
+		$queue   = $this->fake_queue();
+		$ingest  = $this->fake_ingest_queue( 0 );
+		$handler = $this->handler( $store, $queue, $orders, $ingest );
+
+		$first = $handler->erase( 'shopper@example.com', 1 );
+
+		self::assertFalse( $first['done'], 'Two orders are left for page 2.' );
+		self::assertTrue( $first['items_removed'] );
+		self::assertSame( range( 1, 10 ), $handler->loaded, 'Page 1 loads the first ten orders only.' );
+		self::assertSame( array( array( 'order.upsert', range( 1, 12 ) ) ), $ingest->unsent_calls, 'Every order\'s waiting update is dropped on page 1.' );
+		self::assertContains( 'This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed.', $first['messages'] );
+
+		$second = $handler->erase( 'shopper@example.com', 2 );
+
+		self::assertTrue( $second['done'] );
+		self::assertTrue( $second['items_removed'] );
+		self::assertSame( array(), $second['messages'], 'The messages come once, with page 1.' );
+		self::assertSame( range( 1, 12 ), $handler->loaded, 'Page 2 loads the last two orders.' );
+		foreach ( $orders as $order ) {
+			self::assertSame( '', $order->get_meta( '_smaily_rec_id' ), 'Order ' . $order->get_id() . ' lost its marker.' );
+		}
+		self::assertCount( 1, $ingest->unsent_calls, 'Page 2 drops nothing again.' );
+		self::assertCount( 1, $ingest->erase_calls, 'The queue copies are deleted once.' );
+		self::assertCount( 1, $queue->erase_calls, 'The Smaily queue is erased once.' );
+		self::assertCount( 1, $store->delete_calls, 'The cart sessions are deleted once.' );
+	}
+
+	public function test_the_exporter_takes_ten_orders_a_page_and_exports_the_rest_once_on_page_one(): void {
+		$orders = array();
+		for ( $id = 1; $id <= 12; $id++ ) {
+			$orders[] = $this->fake_order( $id, (string) $id, array( '_smaily_rec_id' => 'rec-' . $id ) );
+		}
+		$store   = $this->fake_store( array() );
+		$queue   = $this->fake_queue();
+		$handler = $this->handler( $store, $queue, $orders );
+
+		$first  = $handler->export( 'shopper@example.com', 1 );
+		$second = $handler->export( 'shopper@example.com', 2 );
+
+		self::assertFalse( $first['done'] );
+		self::assertTrue( $second['done'] );
+		self::assertCount( 10, $first['data'] );
+		self::assertSame(
+			array( 'smaily-connect-rec-engine-order-11', 'smaily-connect-rec-engine-order-12' ),
+			array_column( $second['data'], 'item_id' ),
+			'Page 2 holds the last two orders and nothing else.'
+		);
+		self::assertCount( 1, $store->lookup_calls, 'The cart sessions are read once.' );
+		self::assertCount( 1, $queue->lookup_calls, 'The Smaily queue is read once.' );
+	}
+
+	public function test_an_address_with_no_orders_takes_one_page(): void {
+		$handler = $this->handler( $this->fake_store( array() ) );
+
+		self::assertTrue( $handler->erase( 'nobody@example.com' )['done'] );
+		self::assertTrue( $handler->export( 'nobody@example.com' )['done'] );
+	}
+
 	public function test_hpos_order_lookup_reads_wc_orders_in_every_status_and_any_letter_case(): void {
 		// PRO-3908: no status filter, LOWER() on both sides. PRO-3986: then
 		// compared as bytes, so an accent is a different address. The
@@ -399,23 +466,33 @@ final class GdprHandlerTest extends TestCase {
 			$ingest ?? $this->fake_ingest_queue( 0 ),
 			$orders
 		) extends GdprHandler {
-			/** @var \WC_Order[] */
-			private array $orders;
+			/** @var array<int, \WC_Order> */
+			private array $orders = array();
 
 			/** @var array<int, string> */
 			public array $order_lookups = array();
+
+			/** @var array<int, int> */
+			public array $loaded = array();
 
 			/**
 			 * @param \WC_Order[] $orders
 			 */
 			public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue, IngestQueue $ingest_queue, array $orders ) {
 				parent::__construct( $settings, $client_factory, $cart_store, $event_queue, $ingest_queue );
-				$this->orders = $orders;
+				foreach ( $orders as $order ) {
+					$this->orders[ (int) $order->get_id() ] = $order;
+				}
 			}
 
-			protected function orders_for( string $email ): array {
+			protected function order_ids_for( string $email ): array {
 				$this->order_lookups[] = $email;
-				return $this->orders;
+				return array_keys( $this->orders );
+			}
+
+			protected function load_order( int $id ): ?\WC_Order {
+				$this->loaded[] = $id;
+				return $this->orders[ $id ] ?? null;
 			}
 		};
 	}

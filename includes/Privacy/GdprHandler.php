@@ -77,6 +77,12 @@ class GdprHandler {
 	private const ERASER_ID   = 'smaily-connect-rec-engine';
 	private const EXPORTER_ID = 'smaily-connect-rec-engine';
 
+	/**
+	 * Orders the exporter and eraser handle per page — what WooCommerce's
+	 * own order eraser takes (PRO-3997).
+	 */
+	public const ORDERS_PER_PAGE = 10;
+
 	/** The plugin's rec-specific order meta (read off an order, never the order itself). */
 	private const ORDER_META_KEYS = array(
 		'_smaily_rec_id',
@@ -156,7 +162,7 @@ class GdprHandler {
 			return;
 		}
 
-		$this->drop_waiting_updates( $request->email, $this->orders_for( $request->email ) );
+		$this->drop_waiting_updates( $request->email, $this->order_ids_for( $request->email ) );
 		$this->event_queue->erase_for_privacy_request( $request->email );
 	}
 
@@ -187,39 +193,72 @@ class GdprHandler {
 	}
 
 	/**
-	 * Art 15 exporter callback.
+	 * Art 15 exporter callback. WordPress calls it page by page, from page 1,
+	 * until it answers `done` (PRO-3997): every page exports the next
+	 * ORDERS_PER_PAGE orders, and page 1 also exports everything that is not
+	 * about one order — the engine record (one engine call), the identity
+	 * marker, the cart sessions and the Smaily queue rows.
 	 *
 	 * @return array{data: array<int, array<string, mixed>>, done: bool}
 	 */
 	public function export( string $email, int $page = 1 ): array {
-		$items = array_merge(
-			$this->engine_export_items( $email ),
-			$this->plugin_meta_export_items( $email ),
-			$this->cart_session_export_items( $email ),
-			$this->event_queue_export_items( $email )
-		);
+		$page      = max( 1, $page );
+		$order_ids = $this->order_ids_for( $email );
+		$items     = $this->order_export_items( $this->orders_on_page( $order_ids, $page ) );
+
+		if ( $page === 1 ) {
+			$items = array_merge(
+				$this->engine_export_items( $email ),
+				$items,
+				$this->identity_marker_export_items( $email ),
+				$this->cart_session_export_items( $email ),
+				$this->event_queue_export_items( $email )
+			);
+		}
 
 		return array(
 			'data' => $items,
-			'done' => true, // Single page — pilot volumes are modest (paginate later if needed).
+			'done' => self::is_last_page( $order_ids, $page ),
 		);
 	}
 
 	/**
-	 * Art 17 eraser callback.
+	 * Art 17 eraser callback. WordPress calls it page by page, from page 1,
+	 * until it answers `done` (PRO-3997). Every page removes the markers of
+	 * the next ORDERS_PER_PAGE orders. Page 1 also does, once, everything
+	 * that is not about one order: it drops the waiting updates of the WP
+	 * user and of EVERY order billed to the address (ids only, nothing
+	 * loaded) before the engine call, so no order on a later page sends the
+	 * customer to the engine again after it (PRO-3906); then the engine
+	 * call, the identity marker, the cart sessions, both queues, the refused
+	 * list and the messages.
 	 *
 	 * @return array{items_removed: bool, items_retained: bool, messages: array<int, string>, done: bool}
 	 */
 	public function erase( string $email, int $page = 1 ): array {
-		$orders = $this->orders_for( $email );
+		$page      = max( 1, $page );
+		$order_ids = $this->order_ids_for( $email );
+		$orders    = $this->orders_on_page( $order_ids, $page );
+
+		if ( $page > 1 ) {
+			return array(
+				'items_removed'  => $this->erase_order_meta( $orders ),
+				'items_retained' => false,
+				'messages'       => array(),
+				'done'           => self::is_last_page( $order_ids, $page ),
+			);
+		}
 
 		// Before the engine call, so no update still waiting in the queue
 		// sends the customer to the engine again after it (PRO-3906).
-		$removed = $this->drop_waiting_updates( $email, $orders );
+		$removed = $this->drop_waiting_updates( $email, $order_ids );
 		if ( $this->erase_engine( $email ) ) {
 			$removed = true;
 		}
-		if ( $this->erase_plugin_meta( $email, $orders ) ) {
+		if ( $this->erase_order_meta( $orders ) ) {
+			$removed = true;
+		}
+		if ( $this->erase_identity_marker( $email ) ) {
 			$removed = true;
 		}
 		if ( $this->erase_cart_sessions( $email ) ) {
@@ -244,7 +283,7 @@ class GdprHandler {
 			// Nothing personal is kept back: the rows that stay are anonymised.
 			'items_retained' => false,
 			'messages'       => $messages,
-			'done'           => true,
+			'done'           => self::is_last_page( $order_ids, $page ),
 		);
 	}
 
@@ -302,12 +341,14 @@ class GdprHandler {
 	}
 
 	/**
+	 * @param \WC_Order[] $orders One page of the orders billed to the address.
+	 *
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function plugin_meta_export_items( string $email ): array {
+	private function order_export_items( array $orders ): array {
 		$items = array();
 
-		foreach ( $this->orders_for( $email ) as $order ) {
+		foreach ( $orders as $order ) {
 			$pairs = array();
 			foreach ( self::ORDER_META_KEYS as $key ) {
 				// $order->get_meta is storage-agnostic (HPOS-safe); get_post_meta
@@ -334,6 +375,15 @@ class GdprHandler {
 				);
 			}
 		}
+
+		return $items;
+	}
+
+	/**
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function identity_marker_export_items( string $email ): array {
+		$items = array();
 
 		$user = $this->user_for( $email );
 		if ( $user instanceof \WP_User ) {
@@ -424,9 +474,9 @@ class GdprHandler {
 	 * address, and the orders billed to it. A row not yet attempted holds no
 	 * copy, so IngestQueue::delete_for_privacy_request() cannot see it.
 	 *
-	 * @param \WC_Order[] $orders The orders billed to the address.
+	 * @param int[] $order_ids The ids of every order billed to the address.
 	 */
-	private function drop_waiting_updates( string $email, array $orders ): bool {
+	private function drop_waiting_updates( string $email, array $order_ids ): bool {
 		$deleted = 0;
 
 		$user_id = $this->user_id_for( $email );
@@ -434,7 +484,6 @@ class GdprHandler {
 			$deleted += $this->ingest_queue->delete_unsent( CustomerFlusher::EVENT_CUSTOMER_UPSERT, array( $user_id ) );
 		}
 
-		$order_ids = array_map( static fn ( \WC_Order $order ): int => (int) $order->get_id(), $orders );
 		if ( $order_ids !== array() ) {
 			$deleted += $this->ingest_queue->delete_unsent( OrderFlusher::EVENT_ORDER_UPSERT, $order_ids );
 		}
@@ -443,9 +492,9 @@ class GdprHandler {
 	}
 
 	/**
-	 * @param \WC_Order[] $orders The orders billed to the address.
+	 * @param \WC_Order[] $orders One page of the orders billed to the address.
 	 */
-	private function erase_plugin_meta( string $email, array $orders ): bool {
+	private function erase_order_meta( array $orders ): bool {
 		$removed = false;
 
 		// The rec markers plus the newsletter consent marker (PRO-3426).
@@ -464,6 +513,12 @@ class GdprHandler {
 				$order->save();
 			}
 		}
+
+		return $removed;
+	}
+
+	private function erase_identity_marker( string $email ): bool {
+		$removed = false;
 
 		$user = $this->user_for( $email );
 		if ( $user instanceof \WP_User && (string) get_user_meta( $user->ID, IdentityHookHandler::MERGED_META_KEY, true ) !== '' ) {
@@ -579,19 +634,17 @@ class GdprHandler {
 	}
 
 	/**
-	 * The customer's orders as WC_Order objects (storage-agnostic — works under
-	 * both legacy posts and HPOS, and gives us $order->get_meta for the rec-meta).
-	 * The ids come from the active order table with no status filter, so an
-	 * order with a custom status (registered or not) or in the trash is found
-	 * too, and the address matches in any letter case (PRO-3908) but not
-	 * across accents (PRO-3986) —
-	 * `wc_get_orders()` sees only the registered statuses.
-	 * Protected as a unit-test seam: defining `wc_get_order` in the unit suite
-	 * would leak into every later test that relies on it being absent.
+	 * The ids of the customer's orders, ascending. They come from the active
+	 * order table with no status filter, so an order with a custom status
+	 * (registered or not) or in the trash is found too, and the address
+	 * matches in any letter case (PRO-3908) but not across accents
+	 * (PRO-3986) — `wc_get_orders()` sees only the registered statuses.
+	 * Only the ids: the orders are loaded a page at a time (PRO-3997).
+	 * Protected as a unit-test seam, like load_order().
 	 *
-	 * @return \WC_Order[]
+	 * @return int[]
 	 */
-	protected function orders_for( string $email ): array {
+	protected function order_ids_for( string $email ): array {
 		global $wpdb;
 		if ( ! function_exists( 'wc_get_order' ) ) {
 			return array();
@@ -600,14 +653,50 @@ class GdprHandler {
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The SQL holds table names only; the address is prepare()d.
 		$ids = $wpdb->get_col( $wpdb->prepare( self::order_ids_sql( $hpos, $wpdb->prefix ), $email ) );
+
+		return array_map( 'intval', $ids );
+	}
+
+	/**
+	 * One order as a WC_Order (storage-agnostic — works under both legacy
+	 * posts and HPOS, and gives us $order->get_meta for the rec-meta), or
+	 * null. Protected as a unit-test seam: defining `wc_get_order` in the
+	 * unit suite would leak into every later test that relies on it being
+	 * absent.
+	 */
+	protected function load_order( int $id ): ?\WC_Order {
+		$order = wc_get_order( $id );
+		return $order instanceof \WC_Order ? $order : null;
+	}
+
+	/**
+	 * The orders on one page (1-based) of the exporter or eraser: the next
+	 * ORDERS_PER_PAGE ids in ascending order, loaded. An order placed while
+	 * the request runs gets a higher id, so it only joins the last page.
+	 *
+	 * @param int[] $order_ids
+	 *
+	 * @return \WC_Order[]
+	 */
+	private function orders_on_page( array $order_ids, int $page ): array {
 		$out = array();
-		foreach ( $ids as $id ) {
-			$order = wc_get_order( (int) $id );
+		foreach ( array_slice( $order_ids, ( $page - 1 ) * self::ORDERS_PER_PAGE, self::ORDERS_PER_PAGE ) as $id ) {
+			$order = $this->load_order( $id );
 			if ( $order instanceof \WC_Order ) {
 				$out[] = $order;
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * Whether this page holds the last of the orders (page 1 with no orders
+	 * at all is the last page).
+	 *
+	 * @param int[] $order_ids
+	 */
+	private static function is_last_page( array $order_ids, int $page ): bool {
+		return count( $order_ids ) <= $page * self::ORDERS_PER_PAGE;
 	}
 
 	/**
