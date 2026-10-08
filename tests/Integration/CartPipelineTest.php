@@ -440,6 +440,64 @@ final class CartPipelineTest extends TestCase {
 		}
 	}
 
+	public function test_an_order_clears_the_buyers_carts_but_not_an_accented_address(): void {
+		// PRO-3996: the order's address removal compared `email = %s` under
+		// the column's accent-blind collation, so jane@'s order also removed
+		// jäne@'s cart — and jäne@ got no reminder. Letter case still does
+		// not matter.
+		$store = new CartSessionStore();
+		$store->upsert( 'pro3996-own', 0, 'jane@example.com', '', '', array() );
+		$store->upsert( 'pro3996-case', 0, 'JANE@Example.com', '', '', array() );
+		$store->upsert( 'pro3996-accent', 0, 'jäne@example.com', '', '', array() );
+
+		$order = wc_create_order();
+		$order->set_billing_email( 'jane@example.com' );
+		$order->save();
+
+		try {
+			( new CartHookHandler( $store ) )->on_order_processed( $order->get_id() );
+		} finally {
+			$order->delete( true ); // wp_delete_post is an HPOS no-op — always delete via the order object.
+		}
+
+		self::assertSame( array( 'pro3996-accent' ), $this->tracker_tokens(), 'Only the buyer\'s carts go, whatever their letter case; the accented address keeps its cart.' );
+	}
+
+	public function test_a_login_clears_the_guest_cart_but_not_an_accented_address(): void {
+		// PRO-3996: the login's guest-remnant removal had the same
+		// accent-blind `email = %s` match.
+		$user_id = wp_insert_user(
+			array(
+				'user_login' => 'smly_cart_pro3996_' . wp_generate_password( 6, false ),
+				'user_email' => 'jane-pro3996@example.com',
+				'user_pass'  => wp_generate_password( 20 ),
+			)
+		);
+		self::assertIsInt( $user_id );
+		$this->created_users[] = $user_id;
+
+		$store = new CartSessionStore();
+		$store->upsert( 'pro3996-guest', 0, 'jane-pro3996@example.com', '', '', array() );
+		$store->upsert( 'pro3996-case', 0, 'JANE-PRO3996@Example.com', '', '', array() );
+		$store->upsert( 'pro3996-accent', 0, 'jäne-pro3996@example.com', '', '', array() );
+
+		wp_set_current_user( $user_id );
+		$product_id = $this->make_product( 'Login Product', 2.00 );
+		$this->boot_wc_cart();
+		WC()->cart->add_to_cart( $product_id, 1 );
+
+		( new CartHookHandler( $store ) )->on_cart_updated();
+
+		$own = $this->tracker_row();
+		self::assertNotNull( $own );
+		self::assertSame( 'jane-pro3996@example.com', $own['email'] );
+		self::assertSame(
+			array( 'pro3996-accent', (string) $own['cart_token'] ),
+			$this->tracker_tokens(),
+			'The guest remnant goes, whatever its letter case; the accented address keeps its cart.'
+		);
+	}
+
 	public function test_cart_hooks_are_registered_by_bootstrap(): void {
 		self::assertNotFalse( has_action( 'woocommerce_cart_updated' ), 'Bootstrap must bind the cart tracker to woocommerce_cart_updated.' );
 		self::assertNotFalse( has_action( 'woocommerce_checkout_update_order_review' ), 'Guest identity capture (classic checkout) must be bound.' );
@@ -596,6 +654,15 @@ final class CartPipelineTest extends TestCase {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$row = $wpdb->get_row( "SELECT * FROM {$wpdb->prefix}smly_plus_cart_session ORDER BY id DESC LIMIT 1", ARRAY_A );
 		return is_array( $row ) ? $row : null;
+	}
+
+	/**
+	 * @return array<int, string> Every tracker row's token, oldest first.
+	 */
+	private function tracker_tokens(): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return array_map( 'strval', (array) $wpdb->get_col( "SELECT cart_token FROM {$wpdb->prefix}smly_plus_cart_session ORDER BY id ASC" ) );
 	}
 
 	private function rewind_tracker_row( int $id, int $seconds ): void {
