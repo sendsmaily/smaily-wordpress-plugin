@@ -126,6 +126,9 @@ class HookHandler {
 	/** @var bool Per-request guard so the closed-gate notice logs at most once. */
 	private static bool $gate_logged = false;
 
+	/** @var array<int, bool> users WooCommerce's customer eraser is erasing in this request (PRO-3995). */
+	private static array $erasing = array();
+
 	private EventQueue $queue;
 
 	private ?\Smaily\Connect\Smaily\SubscriberPayloadBuilder $builder = null;
@@ -165,6 +168,11 @@ class HookHandler {
 	}
 
 	public function on_profile_update( int $user_id ): void {
+		// The profile save of a privacy erasure is not a change to send (PRO-3995).
+		if ( isset( self::$erasing[ $user_id ] ) ) {
+			return;
+		}
+
 		if ( $this->gate_closed() ) {
 			return;
 		}
@@ -187,6 +195,27 @@ class HookHandler {
 			(string) $user_id,
 			$this->build_contact_payload( $user )
 		);
+	}
+
+	/**
+	 * `woocommerce_privacy_erase_customer_personal_data_props` — WooCommerce's
+	 * customer eraser applies it just before it blanks the customer's billing
+	 * and shipping data and saves the profile. The save fires profile_update
+	 * with the account's unchanged address; sent to Smaily, it would create a
+	 * contact the merchant already deleted there again, as subscribed. Remember
+	 * the user for this request so on_profile_update() skips it (PRO-3995).
+	 *
+	 * @param mixed $props The props to erase, returned unchanged.
+	 * @param mixed $customer
+	 *
+	 * @return mixed
+	 */
+	public function on_customer_erasure( $props, $customer ) {
+		if ( $customer instanceof \WC_Customer ) {
+			self::$erasing[ (int) $customer->get_id() ] = true;
+		}
+
+		return $props;
 	}
 
 	/**
@@ -538,13 +567,14 @@ class HookHandler {
 	}
 
 	/**
-	 * Reset the per-request dedupe set. Tests use this between cases;
-	 * production code never calls it — the static is request-scoped and
-	 * PHP discards it at request end.
+	 * Reset the per-request dedupe set and erasure marks. Tests use this
+	 * between cases; production code never calls it — the statics are
+	 * request-scoped and PHP discards them at request end.
 	 */
 	public static function reset_seen(): void {
 		self::$seen        = array();
 		self::$gate_logged = false;
+		self::$erasing     = array();
 	}
 
 	/**

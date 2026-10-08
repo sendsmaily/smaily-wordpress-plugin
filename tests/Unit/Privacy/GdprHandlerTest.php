@@ -32,6 +32,8 @@ final class GdprHandlerTest extends TestCase {
 		Monkey\setUp();
 		Functions\when( 'get_user_meta' )->justReturn( '' );
 		Functions\when( 'get_user_by' )->justReturn( false );
+		Functions\when( 'get_option' )->justReturn( false );
+		Functions\when( '__' )->returnArg( 1 );
 		Functions\when( '_n' )->alias(
 			static fn ( string $single, string $plural, int $number ): string => 1 === $number ? $single : $plural
 		);
@@ -185,6 +187,7 @@ final class GdprHandlerTest extends TestCase {
 			array(
 				'Removed 2 Smaily messages that were still queued for this address.',
 				'Anonymised 1 already-sent Smaily record in the event log.',
+				'This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed.',
 			),
 			$result['messages']
 		);

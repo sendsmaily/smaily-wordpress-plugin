@@ -195,6 +195,10 @@ msgid_plural "Anonymised %d already-sent Smaily records in the event log."
 msgstr[0] ""
 msgstr[1] ""
 
+#: includes/Privacy/GdprHandler.php:240
+msgid "This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed."
+msgstr ""
+
 #: includes/Privacy/ProfilingConsentAccount.php:112
 msgid "Your recommendation preferences have been saved."
 msgstr ""
