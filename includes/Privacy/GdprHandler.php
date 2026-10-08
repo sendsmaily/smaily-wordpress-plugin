@@ -11,12 +11,14 @@ namespace Smaily\Connect\Privacy;
 
 defined( 'ABSPATH' ) || exit;
 
+use Automattic\WooCommerce\Utilities\OrderUtil;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
+use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
@@ -493,28 +495,47 @@ class GdprHandler {
 	/**
 	 * The customer's orders as WC_Order objects (storage-agnostic — works under
 	 * both legacy posts and HPOS, and gives us $order->get_meta for the rec-meta).
-	 * Protected as a unit-test seam: defining `wc_get_orders` in the unit suite
+	 * The ids come from the active order table with no status filter, so an
+	 * order with a custom status (registered or not) or in the trash is found
+	 * too, and the address matches in any letter case (PRO-3908) —
+	 * `wc_get_orders()` sees only the registered statuses.
+	 * Protected as a unit-test seam: defining `wc_get_order` in the unit suite
 	 * would leak into every later test that relies on it being absent.
 	 *
 	 * @return \WC_Order[]
 	 */
 	protected function orders_for( string $email ): array {
-		if ( ! function_exists( 'wc_get_orders' ) ) {
+		global $wpdb;
+		if ( ! function_exists( 'wc_get_order' ) ) {
 			return array();
 		}
-		$orders = wc_get_orders(
-			array(
-				'limit'         => -1,
-				'billing_email' => $email,
-			)
-		);
-		$out    = array();
-		foreach ( ( is_array( $orders ) ? $orders : array() ) as $order ) {
+		$hpos = class_exists( OrderUtil::class ) && OrderUtil::custom_orders_table_usage_is_enabled();
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The SQL holds table names only; the address is prepare()d.
+		$ids = $wpdb->get_col( $wpdb->prepare( self::order_ids_sql( $hpos, $wpdb->prefix ), $email ) );
+		$out = array();
+		foreach ( $ids as $id ) {
+			$order = wc_get_order( (int) $id );
 			if ( $order instanceof \WC_Order ) {
 				$out[] = $order;
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * The query for the ids of the orders billed to one address (one `%s`) in
+	 * the active order table: `wc_orders.billing_email` under HPOS, the
+	 * `_billing_email` post meta under legacy storage. No status filter, and
+	 * LOWER() on both sides, so the match does not depend on the collation.
+	 * PURE (no DB) so both storage paths are unit-testable.
+	 */
+	public static function order_ids_sql( bool $hpos, string $prefix ): string {
+		$spec = OrderBackfillJob::table_spec( $hpos, $prefix );
+		if ( $hpos ) {
+			return "SELECT {$spec['id_col']} FROM {$spec['table']} WHERE LOWER( billing_email ) = LOWER( %s ) ORDER BY {$spec['id_col']} ASC";
+		}
+		return "SELECT p.{$spec['id_col']} FROM {$spec['table']} p INNER JOIN {$prefix}postmeta m ON m.post_id = p.{$spec['id_col']} WHERE m.meta_key = '_billing_email' AND LOWER( m.meta_value ) = LOWER( %s ) ORDER BY p.{$spec['id_col']} ASC";
 	}
 
 	/**
