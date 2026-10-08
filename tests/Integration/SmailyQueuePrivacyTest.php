@@ -66,8 +66,9 @@ final class SmailyQueuePrivacyTest extends TestCase {
 		self::assertNull( $this->row( $pending ), 'A message still queued for the subject is gone.' );
 		self::assertNull( $this->row( $failed ), 'So is a failed one — the Event Log Retry could still send it.' );
 		// The wording is pinned in GdprHandlerTest; here only that the requester
-		// is told about the deletion at all.
-		self::assertCount( 1, $result['messages'] );
+		// is told about the deletion at all, next to the note about the
+		// contact in Smaily (PRO-3995).
+		self::assertCount( 2, $result['messages'] );
 	}
 
 	public function test_a_sent_row_survives_the_erasure_carrying_nothing_personal(): void {
@@ -119,8 +120,9 @@ final class SmailyQueuePrivacyTest extends TestCase {
 		// the delivered reminder it was.
 		self::assertStringContainsString( '"outcome":"sent"', (string) $row['last_response'] );
 		// The wording is pinned in GdprHandlerTest; here only that the
-		// anonymisation is reported back as its own outcome.
-		self::assertCount( 1, $result['messages'] );
+		// anonymisation is reported back as its own outcome, next to the note
+		// about the contact in Smaily (PRO-3995).
+		self::assertCount( 2, $result['messages'] );
 	}
 
 	public function test_a_redacted_row_still_lists_in_the_event_log(): void {
@@ -266,7 +268,7 @@ final class SmailyQueuePrivacyTest extends TestCase {
 
 		$result = $this->run_eraser( self::SUBJECT );
 
-		self::assertSame( array(), $result['messages'] );
+		self::assertCount( 1, $result['messages'], 'Only the note about the contact in Smaily (PRO-3995), nothing about the queue.' );
 	}
 
 	public function test_the_exporter_lists_this_contacts_rows_and_no_one_elses(): void {

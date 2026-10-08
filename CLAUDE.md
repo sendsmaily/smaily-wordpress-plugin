@@ -176,6 +176,11 @@ PHP 8.2+ deprecation, and PHPUnit marks the test risky (= `ci:strict` exit 1) on
 where the PHP build displays deprecations — green on the Linux box, red on the
 Homebrew PHP Mac. The unit `WP_User` shim declares only `ID`/`user_email`/
 `first_name`/`last_name`; a double that also sets e.g. `roles` declares it itself.
+**Never declare a global `WC_Customer` shim in the unit suite** (PRO-3995): the
+unit run is one process, and `CustomerPayloadBuilderTest` relies on the class
+being ABSENT (`class_exists` → no country/phone) — a minimal shim from another
+test file broke 8 of its tests. Code that needs a real `WC_Customer` is pinned
+by an integration test instead.
 
 ### Use SkuResolver for the engine product key — ALWAYS `woo-<id>`, NEVER the merchant SKU (PRO-1224)
 The engine keys catalog, order items, AND browse events on `sku`, but the

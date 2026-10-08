@@ -27,6 +27,8 @@ defined( 'ABSPATH' ) || exit;
  *     My Account; profile_update may or may not fire alongside it
  *     depending on which fields changed — registering both ensures we
  *     don't miss e.g. an email change)
+ *   - woocommerce_privacy_erase_customer_personal_data_props
+ *                                                → on_customer_erasure (PRO-3995)
  *   - woocommerce_created_customer               → on_woocommerce_created_customer
  *   - woocommerce_checkout_order_processed       → on_checkout_order_processed
  *
@@ -41,6 +43,8 @@ final class Hooks {
 		add_action( 'user_register', array( $handler, 'on_user_register' ), 10, 1 );
 		add_action( 'profile_update', array( $handler, 'on_profile_update' ), 10, 1 );
 		add_action( 'woocommerce_save_account_details', array( $handler, 'on_profile_update' ), 10, 1 );
+		// WooCommerce's customer eraser saves the profile; that save is skipped (PRO-3995).
+		add_filter( 'woocommerce_privacy_erase_customer_personal_data_props', array( $handler, 'on_customer_erasure' ), 10, 2 );
 		add_action( 'woocommerce_created_customer', array( $handler, 'on_woocommerce_created_customer' ), 10, 1 );
 		// 2 args: $order_id + $posted_data (the classic-checkout newsletter checkbox).
 		add_action( 'woocommerce_checkout_order_processed', array( $handler, 'on_checkout_order_processed' ), 10, 2 );

@@ -2825,6 +2825,10 @@ msgid_plural "Anonymised %d already-sent Smaily records in the event log."
 msgstr[0] ""
 msgstr[1] ""
 
+#: includes/Privacy/GdprHandler.php:240
+msgid "This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed."
+msgstr "See päring ei eemalda kontakti sinu Smaily kontolt. Vajaduse korral eemalda see ka Smailys."
+
 #: integrations/elementor/landingpage-widget.class.php:60
 msgid "embed"
 msgstr "manustus"

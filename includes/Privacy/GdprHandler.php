@@ -15,6 +15,7 @@ use Automattic\WooCommerce\Utilities\OrderUtil;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
@@ -48,7 +49,11 @@ use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
  *     other local store that holds a contact's address, inside the queued
  *     payload and the F3-44 send-time exchange. Export lists what was queued
  *     and when; erase deletes what could still send and redacts what already
- *     did (EventQueue::erase_for_privacy_request()).
+ *     did (EventQueue::erase_for_privacy_request()) — once in our eraser
+ *     and once more after every eraser has run, so a contact update
+ *     queued after ours is removed too (PRO-3995). The contact in the
+ *     merchant's Smaily account is not removed; the eraser's result
+ *     tells the admin to remove it there if needed.
  *   - And the Campaign Intelligence ingest queue (`smly_rec_event_queue`,
  *     PRO-2384) — its F3-44 copy of a sent customer or order carries the
  *     address and the customer fields. Erase deletes every row whose copy
@@ -139,6 +144,9 @@ class GdprHandler {
 	 * queues a new customer update (CustomerHookHandler). Dropping the
 	 * waiting updates again here keeps that row, or one any other eraser
 	 * queued, from sending the erased customer to the engine (PRO-3986).
+	 * The same goes for a Smaily contact update still waiting in the Smaily
+	 * queue (PRO-3995); HookHandler already skips the one WooCommerce's
+	 * profile save would queue.
 	 *
 	 * @param int|string $request_id The erasure request's post id.
 	 */
@@ -149,6 +157,7 @@ class GdprHandler {
 		}
 
 		$this->drop_waiting_updates( $request->email, $this->orders_for( $request->email ) );
+		$this->event_queue->erase_for_privacy_request( $request->email );
 	}
 
 	/**
@@ -219,10 +228,16 @@ class GdprHandler {
 		if ( $this->ingest_queue->delete_for_privacy_request( $email ) > 0 ) {
 			$removed = true;
 		}
+		if ( $this->erase_refused_contact( $email ) ) {
+			$removed = true;
+		}
 
 		$queue    = $this->event_queue->erase_for_privacy_request( $email );
 		$messages = $this->event_queue_messages( $queue );
 		$removed  = $removed || $messages !== array();
+
+		// The plugin has no call that deletes a Smaily contact (PRO-3995).
+		$messages[] = __( 'This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed.', 'smaily-connect' );
 
 		return array(
 			'items_removed'  => $removed,
@@ -457,6 +472,40 @@ class GdprHandler {
 		}
 
 		return $removed;
+	}
+
+	/**
+	 * Remove the WP user with the address from the contact import's list of
+	 * contacts Smaily refused (PRO-3988), lowering its total by as many.
+	 */
+	private function erase_refused_contact( string $email ): bool {
+		$user_id = $this->user_id_for( $email );
+		$stored  = $user_id > 0 ? get_option( BackfillJob::OPTION_REFUSED ) : false;
+		if ( ! is_array( $stored ) || ! is_array( $stored['contacts'] ?? null ) ) {
+			return false;
+		}
+
+		$kept    = array_values(
+			array_filter(
+				$stored['contacts'],
+				static fn ( $entry ): bool => ! is_array( $entry ) || (int) ( $entry['user_id'] ?? 0 ) !== $user_id
+			)
+		);
+		$dropped = count( $stored['contacts'] ) - count( $kept );
+		if ( $dropped === 0 ) {
+			return false;
+		}
+
+		update_option(
+			BackfillJob::OPTION_REFUSED,
+			array(
+				'count'    => max( 0, (int) ( $stored['count'] ?? 0 ) - $dropped ),
+				'contacts' => $kept,
+			),
+			false
+		);
+
+		return true;
 	}
 
 	private function erase_cart_sessions( string $email ): bool {
