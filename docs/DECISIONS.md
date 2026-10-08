@@ -7858,6 +7858,34 @@ has not reached the customer — it enqueues them as a new row later.
 **Relationships:** PRO-2384 (the sent copies), PRO-2383 (the Smaily queue's
 sendable rows), F3-28 (engine erasure), 3.10.1 (Event Log Retry).
 
+### PRO-3908 — The eraser finds the customer's orders in every status and any letter case (2026-10-08)
+
+**Context:** the eraser (and the exporter) found the requester's orders through
+`wc_get_orders( billing_email )`. That lookup sees only the statuses
+WooCommerce has registered, so an order with a store's custom shipping status —
+also one no plugin registers any more — or in the trash was not found, and it
+kept its rec markers, its newsletter consent marker and its waiting
+`order.upsert` row after the erasure. Pilot stores use custom shipping statuses.
+The address match depended on the column collation.
+**Decision (Erkki, 2026-10-08):** `GdprHandler::orders_for()` reads the ids
+from the active order table with no status filter —
+`wc_orders.billing_email` under HPOS, the `_billing_email` post meta under
+legacy storage (`OrderBackfillJob::table_spec()` names the table, OrderUtil
+detects the mode) — with `LOWER()` on both sides, and loads each order through
+`wc_get_order()`. What the eraser does to each order is unchanged. The query is
+`GdprHandler::order_ids_sql()`, pure, unit-pinned for both storage modes.
+**Rationale:** an erasure request is about a person, not about an order state;
+every order billed to the address carries the same data. A status filter is the
+same blind spot as LESSONS §2.16. `LOWER()` makes the match independent of the
+collation (on the default `_ci` collations `=` already ignores case; a binary
+collation does not).
+**Alternatives:** pass every status to `wc_get_orders()` — rejected, an
+unregistered status cannot be named there. Matching on the `_ci` collation
+alone — rejected, a store's tables can use a binary one.
+Not covered: a guest order billed to a different address.
+**Relationships:** PRO-3906 (the waiting updates, dropped by these order ids),
+PRO-3426 (newsletter marker), F3-42 (custom statuses go through), LESSONS §2.16.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

@@ -70,6 +70,17 @@ returns **these meta values**; it does **not** export the order itself (line
 items, totals, address) — that is WooCommerce's exporter's job. The plugin reads
 rec-meta off the order; it does not re-export Woo data.
 
+**Which orders (PRO-3908).** The requester's orders are the orders whose billing
+address is the requested address in any letter case (`LOWER()` on both sides),
+in **every** status — a custom status, also one no plugin registers any more,
+and the trash included. `GdprHandler::orders_for()` reads their ids straight
+from the active order table (`wc_orders.billing_email` under HPOS, the
+`_billing_email` post meta under legacy storage — `OrderBackfillJob::table_spec()`
+names the table) and loads each through `wc_get_order()`, so reading and
+deleting the meta goes through the order API in both storage modes.
+`wc_get_orders()` is not used: it sees only the registered statuses. A guest
+order billed to a different address is not the requester's order.
+
 ### Smaily-held (consent authority)
 
 | Element | What it is | GDPR role |
@@ -194,8 +205,8 @@ the erased customer to the engine again after the §9 DELETE. Before the engine
 call, the eraser therefore also deletes, through
 `IngestQueue::delete_unsent()`, every `customer.upsert` row whose `entity_id`
 is the WP user with the address and every `order.upsert` row whose `entity_id`
-is an order billed to it (the same `wc_get_orders( billing_email )` lookup the
-order-meta erasure uses, run once). "Can still be sent" is `pending` (due, or
+is an order billed to it (the same status-blind order lookup the order-meta
+erasure uses, run once — PRO-3908). "Can still be sent" is `pending` (due, or
 parked for a retry) and `failed` (the Event Log's Retry revives it); a `sent`
 row is never sent again and is left to the match above. Catalog rows and other
 customers' rows are never touched. No lasting record of the erasure is kept: a
@@ -210,9 +221,9 @@ later profile save or order is a new action and may send the customer again
 |---|---|---|---|---|
 | `_smaily_newsletter_optin` | order-meta (value `1`) | Written by `HookHandler` on a block-checkout order when the buyer ticked the newsletter box (PRO-3406): it hands the tick to the order-processed hook and stays on the order as the store's evidence of that consent. Absent when the box was not ticked | **Yes** — one item per marked order: the order number and "Newsletter consent given at checkout: Yes" | **Removed** from every order of the requester; orders without it are not touched |
 
-Found through the same order lookup as the rec markers (`wc_get_orders` by
-billing email, read and deleted through the order API, so HPOS and legacy
-storage alike). Removing it on erasure is Erkki's decision (DECISIONS
+Found through the same order lookup as the rec markers (every status, any
+letter case — PRO-3908), read and deleted through the order API, so HPOS and
+legacy storage alike. Removing it on erasure is Erkki's decision (DECISIONS
 PRO-3426): the Smaily contact keeps its own consent history, which the
 merchant's Smaily account answers for.
 
