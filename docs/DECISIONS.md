@@ -8069,6 +8069,11 @@ erased customer from later syncs — the account survives, so a later save,
 order or the weekly refresh may sync it again (a product decision for Erkki).
 **Relationships:** PRO-3986 (its "Not covered" closed here), PRO-2383 /
 PRO-2448 (the Smaily-queue eraser), PRO-3988 (the refused list), PRO-3994.
+**Follow-up decision (Erkki, 2026-10-08):** an erased customer is NOT excluded
+from later Smaily syncs. The erasure covers the data held at that moment; a
+later order, profile save or the weekly refresh is a new action and may sync
+the surviving account again (same reasoning as PRO-3906). No lasting erasure
+marker is kept.
 
 ## How to keep this document going
 

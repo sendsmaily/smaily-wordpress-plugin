@@ -135,12 +135,14 @@ final class RetryPolicy {
 
 		$refusal = self::envelope_refusal( $exchange );
 		if ( $refusal !== null ) {
-			throw new ApiException( // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message goes to the Event Log / debug log, never echoed to a browser.
+			// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is never rendered as HTML (the Event Log and the admin show it as plain text); escaping it would double-encode it.
+			throw new ApiException(
 				sprintf( 'Smaily API returned code %d: %s', $refusal['code'], $refusal['message'] ),
 				(int) ( $exchange['response']['http'] ?? 200 ),
 				null,
 				$refusal['code']
 			);
+			// phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 		}
 	}
 
