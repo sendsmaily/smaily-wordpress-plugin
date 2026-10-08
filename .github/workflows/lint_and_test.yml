@@ -168,12 +168,6 @@ jobs:
       - name: PHPUnit integration suite
         run: composer run test:integration
 
-      # PRO-3989 one-off measurement; removed again before the merge.
-      - name: Measure the nightly product list walk (temporary)
-        run: |
-          npx @wordpress/env run cli wp eval-file wp-content/plugins/smaily-connect/bin/measure-manifest-walk.php 10000
-          npx @wordpress/env run cli wp eval-file wp-content/plugins/smaily-connect/bin/measure-manifest-walk.php 50000
-
   blocks:
     name: Gutenberg blocks (lint + test)
     runs-on: ubuntu-26.04
