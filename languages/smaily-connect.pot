@@ -1170,6 +1170,26 @@ msgstr ""
 msgid "Backfill cancelled. Re-run when ready."
 msgstr ""
 
+#. translators: %d is the number of customers Smaily refused.
+#: admin/src/components/steps/Step2Subscribers.tsx:296
+#, js-format
+msgid "Smaily refused %d customer, so it was not imported. Fix it and run the import again:"
+msgid_plural "Smaily refused %d customers, so they were not imported. Fix them and run the import again:"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is Smaily's reason.
+#: admin/src/components/steps/Step2Subscribers.tsx:306
+#, js-format
+msgid "User %1$d (%2$s): %3$s"
+msgstr ""
+
+#. translators: %d is the number of refused customers not listed.
+#: admin/src/components/steps/Step2Subscribers.tsx:322
+#, js-format
+msgid "…and %d more."
+msgstr ""
+
 #. translators: %d: number of records that failed to sync.
 #: admin/src/components/BackfillPanel.tsx:90
 #, js-format

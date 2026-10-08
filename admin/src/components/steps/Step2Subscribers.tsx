@@ -1,6 +1,6 @@
 import { useEffect, type Dispatch } from 'react';
 
-import { __, sprintf } from '@admin/lib/i18n';
+import { __, _n, sprintf } from '@admin/lib/i18n';
 import { useBackfillProgress } from '../../hooks/useBackfillProgress';
 import { DEFAULT_SYNC_FIELDS, type ContactSyncMode, type WizardAction, type WizardState } from '../../state/types';
 import { cn } from '../../utils/cn';
@@ -283,6 +283,49 @@ export function Step2Subscribers({
                 : __( 'Backfill failed.', 'smaily-connect' ))}
               {wasCancelled && __( 'Backfill cancelled. Re-run when ready.', 'smaily-connect' )}
             </p>
+            {/* PRO-3988: the customers Smaily refused for good were skipped;
+                name them so the merchant can fix them and import again. */}
+            {progress.refused && progress.refused.count > 0 && (
+              <div className="mt-2 text-xs text-text-secondary">
+                <p>
+                  {sprintf(
+                    // translators: %d is the number of customers Smaily refused.
+                    _n(
+                      'Smaily refused %d customer, so it was not imported. Fix it and run the import again:',
+                      'Smaily refused %d customers, so they were not imported. Fix them and run the import again:',
+                      progress.refused.count,
+                      'smaily-connect',
+                    ),
+                    progress.refused.count,
+                  )}
+                </p>
+                <ul className="mt-1 list-disc pl-5">
+                  {progress.refused.contacts.map((contact) => {
+                    const label = sprintf(
+                      // translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is Smaily's reason.
+                      __( 'User %1$d (%2$s): %3$s', 'smaily-connect' ),
+                      contact.user_id,
+                      contact.email ?? '–',
+                      contact.reason,
+                    );
+                    return (
+                      <li key={contact.user_id}>
+                        {contact.edit_url ? <a href={contact.edit_url}>{label}</a> : label}
+                      </li>
+                    );
+                  })}
+                </ul>
+                {progress.refused.count > progress.refused.contacts.length && (
+                  <p className="mt-1">
+                    {sprintf(
+                      // translators: %d is the number of refused customers not listed.
+                      __( '…and %d more.', 'smaily-connect' ),
+                      progress.refused.count - progress.refused.contacts.length,
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
             {(isComplete || wasCancelled || hasFailed) && progress.completedAt && (
               <p className="mt-1 text-xs text-text-tertiary">
                 {sprintf(

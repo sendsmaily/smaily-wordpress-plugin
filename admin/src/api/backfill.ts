@@ -1,3 +1,4 @@
+import { type BackfillRefusals } from '../state/types';
 import { apiRequest } from './client';
 
 export type BackfillJobType = 'contacts' | 'products' | 'customers' | 'orders';
@@ -31,6 +32,11 @@ export interface BackfillStatusResponse {
    * server. Null unless the status is 'failed'.
    */
   error: string | null;
+  /**
+   * Contacts job: the customers Smaily refused for good in this run, which the
+   * import skipped (PRO-3988). Null when none was refused.
+   */
+  refused?: BackfillRefusals | null;
   /** MySQL DATETIME in UTC, or null when the job has never been started. */
   started_at: string | null;
   /** Set once the job reaches a terminal status; null while running/idle. */
