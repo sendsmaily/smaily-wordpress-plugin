@@ -835,6 +835,18 @@ gates still run before you open a PR:
 `npm run ci:strict` (unit + static + JS) and
 `sg docker -c "composer run test:integration"` (real WP+WC via wp-env).
 
+**Runner image: every job of every workflow (`lint_and_test.yml`,
+`release.yml`, `contract-staleness.yml`) runs on the explicit `ubuntu-26.04`
+label, never `ubuntu-latest`** (PRO-3982, 2026-10-08). GitHub moves
+`ubuntu-latest` from 24.04 to 26.04 between 2026-10-19 and 2026-11-19
+(actions/runner-images#14748); an explicit label means that switch, and any
+later one, never lands on us unannounced — a release day included. The label
+comes from the runner-images README, and before the switch the PR checks and a
+`release.yml` dispatch ran green on it (PR #205). A new job gets the same
+label. If an image update breaks a job and the fix is not quick, pin that
+job to `ubuntu-24.04` (still supported) and file the break as its own issue;
+moving to a newer image is a deliberate change with its own green run.
+
 ### Browse beacon ships as `sc-runtime.js` + `/relay` — NOT "beacon" (ad-block lists)
 The storefront beacon's two browser-visible names are deliberately neutral: the
 script is `dist/public/js/sc-runtime.js` (vite entry key `public/js/sc-runtime`,
