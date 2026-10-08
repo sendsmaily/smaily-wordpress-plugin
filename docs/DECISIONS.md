@@ -8211,6 +8211,39 @@ the HPOS tables on a legacy start).
 suite on BOTH legacy and HPOS". Check names changed; `main` requires no status
 check by name.
 
+### PRO-3858 — npm overrides close the dev-tool security alerts that need no major upgrade (2026-10-09)
+
+**Context:** GitHub's re-scan (PRO-3823) opened 157 Dependabot alerts (5
+critical, 70 high, 66 medium, 16 low), all in development tools: the block
+build (`blocks/package-lock.json`, `@wordpress/scripts` 27), the admin bundle's
+build and tests (`package-lock.json`, Vite 5 / Vitest 3) and the PHP lint tools
+(`composer.lock`). None ships in the ZIP. In-range updates closed most of them;
+the rest sit under a parent that pins the vulnerable version.
+**Decision:** in-range updates first (`npm audit fix` without `--force` at the
+root, targeted `npm update <pkg>` in `blocks/`, `composer update <pkg>
+--with-dependencies`). Where only the parent's next major would move a child,
+an `overrides` entry forces the patched child: root `tinypool ^2.1.2` (Vitest 3
+asks for ^1.1.1) and `postcss-selector-parser ^7.1.6` (Tailwind 3 asks for
+^6); in `blocks/package.json` `adm-zip ^0.6.1`, `minimatch` under
+`@typescript-eslint/typescript-estree@6` and `markdownlint-cli@0.31`,
+`markdown-it` under `markdownlint@0.25`, `serialize-javascript` under
+`copy-webpack-plugin@10`, `postcss-selector-parser ^7.1.6` and
+`uuid@<11.1.1 → ^11.1.1`. Each override was accepted only when the gates
+stayed green and the built output kept its behaviour: admin, storefront and
+CSS bundles byte-identical; block bundles keep the same literals, properties
+and dependency lists (only the webpack 5.111 runtime changed).
+**Rationale:** the alternative for these children is `@wordpress/scripts` 36,
+Vite 6+ or Vitest 4 — majors that change how the plugin is built (PRO-3444 for
+the block tools). An override is a reversible lockfile change.
+**Not fixed here (left open, with a reason):** Vite 5 → 6 (`vite`, `esbuild`
+dev-server advisories) and Vitest 3 → 4 (`vitest`, `@vitest/mocker`) are
+majors of the admin build/test tools; `extract-zip`, `showdown` and
+`sprintf-js` have no patched release at all.
+**Relationships:** PRO-2393 (the first `blocks/` overrides — `webpack-dev-server
+^5.2.1` etc.), PRO-3444 (the `@wordpress/scripts` major; remove the
+`blocks/` overrides it makes unnecessary). Overrides go stale silently: when a
+parent moves, re-check whether its entry is still needed.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
