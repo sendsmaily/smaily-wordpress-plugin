@@ -269,7 +269,10 @@ class BackfillEndpoint {
 	 * — what Smaily answered for the contact import, the error class and line
 	 * for a Campaign Intelligence import (PRO-3890) — with anything shaped like
 	 * an email address masked, or a plain sentence for an import that nothing
-	 * drives any more (PRO-3886). Null for any other status.
+	 * drives any more (PRO-3886). Null for any other status. A Smaily refusal
+	 * is stored with the queue's `permanent_envelope_<code>:` class in front
+	 * (RetryPolicy::permanent_envelope(), PRO-3904); the screen shows only
+	 * Smaily's answer after it (PRO-3907).
 	 *
 	 * @param array<string, mixed> $row
 	 */
@@ -287,7 +290,9 @@ class BackfillEndpoint {
 			return null;
 		}
 
-		return (string) preg_replace( '/[^\s@]+@[^\s@]+/', '[email]', $stored );
+		$reason = (string) preg_replace( '/^permanent_envelope_\d+:\s*/', '', $stored );
+
+		return (string) preg_replace( '/[^\s@]+@[^\s@]+/', '[email]', $reason );
 	}
 
 	/**
