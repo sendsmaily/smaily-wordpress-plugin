@@ -27,8 +27,8 @@ use Smaily\Connect\Tests\Integration\Support\EnvSeed;
  * Beyond the shared backfill properties (resumability + bounded queue), orders
  * add the STATUS FILTER: the backfill must enumerate only orders in a sale
  * state (mapped status), the same cohort OrderHookHandler enqueues — and the
- * progress denominator is mapped orders, not all orders. The HPOS path is
- * unit-tested (OrderBackfillJobTest); this exercises the active legacy path.
+ * progress denominator is mapped orders, not all orders. It runs on whichever
+ * order storage is active; CI runs the suite on both (PRO-3435).
  */
 final class RecEngineOrderBackfillTest extends TestCase {
 

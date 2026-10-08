@@ -836,14 +836,18 @@ workflow, not a signal about those releases).
   catalog-correctness work (e.g. e22a26b, 2026-06-12) until 2026-09-29.
 - **Admin bundle**: typecheck, ESLint, vitest + coverage, Vite build, dist
   artefacts, the 250 KB gzip budget.
-- **Integration suite (wp-env)**: builds the admin bundle + build-hash, installs
+- **Integration suite (wp-env, legacy|hpos order storage)** — two legs since
+  PRO-3435: builds the admin bundle + build-hash, installs
   and builds the Gutenberg block workspaces (PRO-3428, PR #142 — without the
   block build the landing-page render tests fail), starts wp-env, activates the
-  plugin, runs `composer run test:integration` — the real WP + WC suite (313
-  tests on 2026-09-29).
+  plugin, switches WooCommerce order storage to the leg's value (a fresh env
+  starts legacy), runs `composer run test:integration` — the real WP + WC
+  suite (313 tests on 2026-09-29; 408 on each leg on 2026-10-08) — which
+  refuses to run on the wrong storage (see "Order
+  storage: CI runs the integration suite on BOTH legacy and HPOS").
 - **Gutenberg blocks**: lint + test.
 
-All four jobs are expected GREEN. A red job now means something broke — read
+All four jobs (every matrix leg) are expected GREEN. A red job now means something broke — read
 it as a real failure of your change (or of `main`), not as background noise;
 the old "don't read red as 'I broke something'" advice is retired. The local
 gates still run before you open a PR:
@@ -1179,31 +1183,44 @@ client address in `REMOTE_ADDR` (nginx `real_ip`, Apache `mod_remoteip`) shares 
 bucket per proxy address — the fix is the server's real-IP config, there is deliberately no
 trust-this-header filter. (DECISIONS PRO-3620.)
 
-### OrderBackfill — which storage path the tests actually cover (HPOS vs legacy)
+### Order storage: CI runs the integration suite on BOTH legacy and HPOS (PRO-3435)
 OrderBackfillJob (3.5.2) reads orders with a direct `WHERE id > cursor` query
 against whichever table is active — `wc_orders` (HPOS) or `wp_posts` (legacy) —
 detected via `OrderUtil::custom_orders_table_usage_is_enabled()`. The table +
-column mapping is a pure method (`OrderBackfillJob::table_spec`).
+column mapping is a pure method (`OrderBackfillJob::table_spec`). The
+personal-data exporter/eraser does the same since PRO-3908/PRO-3986
+(`GdprHandler::order_ids_sql()`). The PILOT is WC 6.9.4 → **legacy storage**;
+newer stores run HPOS (the default since WC 8.2). Both paths reach real stores.
 
-**The wp-env test env runs WC 10.7 with HPOS ENABLED** (orders in `wc_orders`,
-zero in `wp_posts`). So:
-- the **HPOS path is INTEGRATION-tested** (RecEngineOrderBackfillTest runs
-  against real `wc_orders`);
-- the **legacy path is UNIT-tested only** (`OrderBackfillJobTest::table_spec`) —
-  it is structurally identical (same WHERE shape, different table/columns) but
-  is NOT exercised against real `wp_posts` orders in this env.
-
-The PILOT is WC 6.9.4 → **legacy storage** (HPOS only defaults at WC 8.2+). So
-the pilot's actual path is the unit-tested-only one. Low risk (the SQL is the
-same shape, table_spec-verified), but if a legacy-storage order-backfill issue
-surfaces, reproduce it against a LEGACY WC env — the HPOS-mode wp-env won't show
-it. Do NOT assume "integration green" covers the legacy order path.
-**But a FRESH wp-env is not HPOS** (observed 2026-09-29, PRO-3426, on a new
-worktree's wp-env on the Mac): `woocommerce_custom_orders_table_enabled` came
-up `no`, so that run exercised LEGACY storage. Check it before claiming which
-path a run covered (`wp option get woocommerce_custom_orders_table_enabled`);
-`wp option update woocommerce_custom_orders_table_enabled yes` switched an
-order-less env to HPOS. Whether CI's fresh wp-env is the same is unverified.
+**Which storage a run covers is set, not inherited.** A fresh wp-env does not
+reliably start on one storage (a new worktree's env on the Mac came up legacy,
+2026-09-29, PRO-3426; CI's fresh env too — HPOS off and its tables not even
+created, run 37847363394, 2026-10-08 — so every CI integration run before
+PRO-3435 covered LEGACY only). So:
+- **CI** runs the "Integration suite" job twice — matrix `order-storage:
+  [legacy, hpos]`, check names "Integration suite (wp-env, legacy order
+  storage)" / "… (wp-env, hpos order storage)". Each leg switches storage with
+  `wp wc hpos enable --ignore-plugin-compatibility` / `wp wc hpos disable`,
+  sets `woocommerce_custom_orders_table_data_sync_enabled` to `no` (via the
+  option: `wp wc hpos compatibility-mode disable` errors on a legacy env whose
+  HPOS tables were never created), and prints `wp wc hpos status` before and
+  after. Both legs must be green — one leg red is a storage-specific bug.
+- **The suite bootstrap** (`tests/Integration/bootstrap.php`) prints
+  `WooCommerce order storage: legacy|hpos (…), sync on|off` on every run, and
+  when `SMAILY_CONNECT_TEST_ORDER_STORAGE=legacy|hpos` is set (CI sets it per
+  leg; `bin/run-integration-tests.sh` passes it into the container, exit 4 on
+  any other value) it exits 1 unless that is the active storage.
+- **A local run** covers ONE storage — whatever the dev site is on; read the
+  bootstrap line. To cover the other, switch the dev site (`npx @wordpress/env
+  run cli wp wc hpos enable --ignore-plugin-compatibility` or `… disable`; on
+  an env WITH orders, WooCommerce refuses until they are synced) and run again
+  with the variable set. Don't claim "integration green" for a storage the run
+  didn't print.
+- `OrderBackfillJobTest::table_spec` still pins both table mappings in the unit
+  suite.
+The legacy CI leg runs on WC 10.7 legacy storage, not the pilot's WC 6.9.4 —
+a pilot-only bug still needs the pilot-stack override (see "Integration
+baseline is WP 7.1" below).
 
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with
