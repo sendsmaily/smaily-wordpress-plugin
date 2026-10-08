@@ -613,18 +613,20 @@ class GdprHandler {
 	/**
 	 * The query for the ids of the orders billed to one address (one `%s`) in
 	 * the active order table: `wc_orders.billing_email` under HPOS, the
-	 * `_billing_email` post meta under legacy storage. No status filter. Both
-	 * sides are lowercased and then compared as bytes: `LOWER( col ) =
-	 * LOWER( %s )` alone still compares under the column's collation, which on
-	 * the usual databases ignores accents, so jane@… would find jäne@…'s
-	 * orders (PRO-3986). PURE (no DB) so both storage paths are unit-testable.
+	 * `_billing_email` post meta under legacy storage. No status filter. The
+	 * address matches through AddressMatch::column_equals() — any letter
+	 * case, but bytes after lowering: `LOWER( col ) = LOWER( %s )` alone
+	 * still compares under the column's collation, which on the usual
+	 * databases ignores accents, so jane@… would find jäne@…'s orders
+	 * (PRO-3986, PRO-3909). PURE (no DB) so both storage paths are
+	 * unit-testable.
 	 */
 	public static function order_ids_sql( bool $hpos, string $prefix ): string {
 		$spec = OrderBackfillJob::table_spec( $hpos, $prefix );
 		if ( $hpos ) {
-			return "SELECT {$spec['id_col']} FROM {$spec['table']} WHERE CAST( LOWER( billing_email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) ORDER BY {$spec['id_col']} ASC";
+			return "SELECT {$spec['id_col']} FROM {$spec['table']} WHERE " . AddressMatch::column_equals( 'billing_email' ) . " ORDER BY {$spec['id_col']} ASC";
 		}
-		return "SELECT p.{$spec['id_col']} FROM {$spec['table']} p INNER JOIN {$prefix}postmeta m ON m.post_id = p.{$spec['id_col']} WHERE m.meta_key = '_billing_email' AND CAST( LOWER( m.meta_value ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) ORDER BY p.{$spec['id_col']} ASC";
+		return "SELECT p.{$spec['id_col']} FROM {$spec['table']} p INNER JOIN {$prefix}postmeta m ON m.post_id = p.{$spec['id_col']} WHERE m.meta_key = '_billing_email' AND " . AddressMatch::column_equals( 'm.meta_value' ) . " ORDER BY p.{$spec['id_col']} ASC";
 	}
 
 	/**

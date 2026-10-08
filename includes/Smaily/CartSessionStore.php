@@ -11,6 +11,8 @@ namespace Smaily\Connect\Smaily;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Privacy\AddressMatch;
+
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- Custom plugin table: the interpolated name is $wpdb->prefix + a class constant; every value goes through $wpdb->prepare(). Object-cache is N/A for a write-through tracker.
 
 /**
@@ -327,19 +329,19 @@ class CartSessionStore {
 	/**
 	 * The shared match condition for both privacy-request methods above, so
 	 * the lookup and the delete can never drift apart on what counts as "this
-	 * subject's rows". The address is compared as bytes after lowering both
-	 * sides (PRO-3993, the PRO-3986 comparison): letter case does not matter,
-	 * but the column's collation would also ignore accents, and `jäne@` is
-	 * someone else's mailbox than `jane@`.
+	 * subject's rows". The address is matched by the shared
+	 * AddressMatch::column_equals() (PRO-3993, PRO-3909): letter case does
+	 * not matter, an accent does — `jäne@` is someone else's mailbox than
+	 * `jane@`.
 	 *
 	 * @return array{0: string, 1: array<int, string|int>}|null
 	 */
 	private function privacy_request_where( string $email, int $user_id ): ?array {
 		if ( $email !== '' && $user_id > 0 ) {
-			return array( 'CAST( LOWER( email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) OR user_id = %d', array( $email, $user_id ) );
+			return array( AddressMatch::column_equals( 'email' ) . ' OR user_id = %d', array( $email, $user_id ) );
 		}
 		if ( $email !== '' ) {
-			return array( 'CAST( LOWER( email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY )', array( $email ) );
+			return array( AddressMatch::column_equals( 'email' ), array( $email ) );
 		}
 		if ( $user_id > 0 ) {
 			return array( 'user_id = %d', array( $user_id ) );

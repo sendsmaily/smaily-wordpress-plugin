@@ -6371,7 +6371,7 @@ fold `contact_key()` uses), so an address typed in another case
 still matches. The same mechanics as PRO-2384's
 `IngestQueue::delete_for_privacy_request()`; that PR was still open, so the
 match lives in `EventQueue` alone and a shared helper is a follow-up once both
-have merged. The `contact_key` path is unaffected: it compares a lowercase
+have merged (done: `Privacy\AddressMatch`, PRO-3909). The `contact_key` path is unaffected: it compares a lowercase
 sha256 hex string, which no collation folds into another address's hash.
 Rejected: `COLLATE utf8mb4_bin` (names a charset a legacy `utf8` table does not
 have); `mb_strtolower` (the stored `\uXXXX` escapes cannot be case-folded in
@@ -8074,6 +8074,37 @@ from later Smaily syncs. The erasure covers the data held at that moment; a
 later order, profile save or the weekly refresh is a new action and may sync
 the surviving account again (same reasoning as PRO-3906). No lasting erasure
 marker is kept.
+
+### PRO-3909 — One address match for every personal-data lookup (2026-10-09)
+
+**Context:** the exporter's and eraser's address match was written four times:
+the JSON-string match in `EventQueue::privacy_request_where()` (PRO-2448) and
+`IngestQueue::delete_for_privacy_request()` (PRO-2384), and the column
+comparison in `GdprHandler::order_ids_sql()` (PRO-3986) and
+`CartSessionStore::privacy_request_where()` (PRO-3993). A later fix to one copy
+could miss the others.
+**Decision:** `Privacy\AddressMatch` holds the rule, in the two shapes the
+stores really have. `column_equals( $column )` returns
+`CAST( LOWER( col ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY )` for a column
+that holds the address alone (order billing address, cart `email`).
+`json_string( $column, $email, $prefixes )` returns the parenthesised
+`col LIKE CAST( %s AS BINARY )` chain and its patterns for an address stored as
+a whole JSON string — trimmed and lowercased, as typed and as
+`wp_json_encode()` writes it, `esc_like()`d, after each prefix (`"email":` /
+`"to":` for the Smaily queue, none for the Campaign Intelligence queue); null
+for an empty address. The caller passes the column expression, so each store
+keeps exactly its old SQL: the Smaily queue lowers its `payload`
+(`LOWER( payload )`), the Campaign Intelligence queue matches its
+`sent_payload` as written (its payload builders lowercase the address). No
+result changes; the existing privacy tests of all four stores pass unchanged
+and `tests/Unit/Privacy/AddressMatchTest.php` pins the helper.
+**Rationale:** one place to change the rule. Two shapes, not one: a JSON-blob
+`LIKE` and a column equality are different SQL, and forcing one onto the other
+would change results.
+**Alternatives:** one method for both shapes — rejected, see above; lowering
+`sent_payload` too — rejected here, it would change what the eraser deletes
+(out of scope).
+**Relationships:** PRO-2448, PRO-2384, PRO-3986, PRO-3993 (the four copies).
 
 ## How to keep this document going
 
