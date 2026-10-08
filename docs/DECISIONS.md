@@ -7820,8 +7820,8 @@ keeps the two from drifting.
 duplicate `is_stalled()` and its grace constant.
 **Relationships:** PRO-3890 / PRO-3886 (the Campaign Intelligence rules),
 PRO-3868 (contact import failure), PRO-3881 (failure reason on screen),
-F3-48.3 (the daily contact refresh — its `should_start_refresh()` still reads a
-stalled `running` row as running; not changed here).
+F3-48.3 (the daily contact refresh — its `should_start_refresh()` still read a
+stalled `running` row as running; changed by PRO-3981).
 
 ### PRO-3906 — An erasure request drops the customer's waiting Campaign Intelligence updates (2026-10-06)
 
@@ -7857,6 +7857,30 @@ from the queue when the erasure runs, and an import still running whose cursor
 has not reached the customer — it enqueues them as a new row later.
 **Relationships:** PRO-2384 (the sent copies), PRO-2383 (the Smaily queue's
 sendable rows), F3-28 (engine erasure), 3.10.1 (Event Log Retry).
+
+### PRO-3981 — The daily contact refresh restarts a stalled contact import (2026-10-08)
+
+**Context:** since PRO-3902 a contact import that stops on an error reads
+`failed`, and one that nothing drives any more (running, no batch queued or
+running, started over `STALL_GRACE_SECONDS` ago) reads as stopped. The daily
+contact refresh (F3-48.3, `BackfillJob::should_start_refresh()`) already
+restarted a `failed` import, but it read a stalled `running` row as running and
+left it alone, so the import waited until the merchant pressed Start import.
+**Decision (Erkki, 2026-10-08):** the daily contact refresh restarts a stalled
+contact import the same way it restarts a failed one. `should_start_refresh()`
+answers a `running` row with `AbstractBackfillJob::is_stalled()` — the existing
+check and constant, not a second definition — so an import with a batch queued
+or running, or one started within the grace period, is never started twice.
+The restart is the refresh's usual `start( false )`: it keeps the freshness
+markers and re-sends only contacts outside the freshness window.
+**Rationale:** re-sending is safe, because Smaily updates a contact by email;
+an import that nothing drives would otherwise wait for a merchant who may not
+look at the Settings screen for weeks.
+**Alternatives:** leave it to the merchant (PRO-3902's state) — rejected by
+Erkki. The Campaign Intelligence imports are not covered: nothing restarts them
+on a schedule, and PRO-3886's "the merchant decides" still holds for them.
+**Relationships:** PRO-3902 (the contact import's stall rule), PRO-3886
+(`is_stalled()`), PRO-3868 (failed contact import), F3-48.3 (the daily refresh).
 
 ## How to keep this document going
 
