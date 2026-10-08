@@ -32,7 +32,8 @@ use WP_REST_Response;
  *                            → {"status": "running|completed|failed|idle",
  *                               "processed": int, "total": int,
  *                               "percent": int, "eta_seconds": int|null,
- *                               "error": string|null}
+ *                               "error": string|null,
+ *                               "refused": {count, contacts}|null}
  *
  *   POST   /backfill/cancel  body: {"job_type": "contacts"}
  *                            → {"cancelled": bool}
@@ -202,6 +203,7 @@ class BackfillEndpoint {
 					'percent'           => 0,
 					'eta_seconds'       => null,
 					'error'             => null,
+					'refused'           => null,
 					'started_at'        => null,
 					'completed_at'      => null,
 					'audience_estimate' => $this->contact_audience_estimate( $job_type, 'idle' ),
@@ -257,6 +259,7 @@ class BackfillEndpoint {
 				'percent'           => min( 100, max( 0, $percent ) ),
 				'eta_seconds'       => $this->estimate_eta( $row, $processed, $total ),
 				'error'             => $this->failure_reason( $status, $row, $stalled ),
+				'refused'           => $job_type === BackfillJob::BACKFILL_TYPE ? $this->contact_refusals() : null,
 				'started_at'        => isset( $row['started_at'] ) ? (string) $row['started_at'] : null,
 				'completed_at'      => isset( $row['completed_at'] ) ? (string) $row['completed_at'] : null,
 				'audience_estimate' => $this->contact_audience_estimate( $job_type, $status ),
@@ -291,9 +294,65 @@ class BackfillEndpoint {
 			return null;
 		}
 
-		$reason = (string) preg_replace( '/^permanent_envelope_\d+:\s*/', '', $stored );
+		return $this->screen_reason( $stored );
+	}
+
+	/**
+	 * A stored Smaily reason as the panel shows it: without the queue's
+	 * `permanent_envelope_<code>:` class (PRO-3907) and with anything shaped
+	 * like an email address masked (PRO-3881).
+	 */
+	private function screen_reason( string $stored ): string {
+		$reason = (string) preg_replace( '/^permanent_envelope_\d+:\s*/', '', trim( $stored ) );
 
 		return (string) preg_replace( '/[^\s@]+@[^\s@]+/', '[email]', $reason );
+	}
+
+	/**
+	 * The contacts Smaily refused for good in the contact import's current run
+	 * (PRO-3988), so the merchant can find and fix them: the total, and for up
+	 * to BackfillJob::MAX_LISTED_REFUSALS of them the WordPress user id, the
+	 * address with only its first character before the `@` shown, a link to
+	 * the user's profile, and Smaily's reason. Null when none was refused.
+	 *
+	 * @return array{count: int, contacts: array<int, array{user_id: int, email: string|null, edit_url: string|null, reason: string}>}|null
+	 */
+	private function contact_refusals(): ?array {
+		$stored = get_option( BackfillJob::OPTION_REFUSED );
+		if ( ! is_array( $stored ) || (int) ( $stored['count'] ?? 0 ) <= 0 ) {
+			return null;
+		}
+
+		$contacts = array();
+		foreach ( is_array( $stored['contacts'] ?? null ) ? $stored['contacts'] : array() as $entry ) {
+			$user_id    = is_array( $entry ) ? (int) ( $entry['user_id'] ?? 0 ) : 0;
+			$user       = $user_id > 0 ? get_userdata( $user_id ) : false;
+			$edit_url   = $user instanceof \WP_User ? get_edit_user_link( $user_id ) : '';
+			$contacts[] = array(
+				'user_id'  => $user_id,
+				'email'    => $user instanceof \WP_User ? $this->masked_email( (string) $user->user_email ) : null,
+				'edit_url' => $edit_url !== '' ? $edit_url : null,
+				'reason'   => $this->screen_reason( is_array( $entry ) ? (string) ( $entry['reason'] ?? '' ) : '' ),
+			);
+		}
+
+		return array(
+			'count'    => (int) $stored['count'],
+			'contacts' => $contacts,
+		);
+	}
+
+	/**
+	 * `jane@example.com` → `j***@example.com`: enough to recognise the
+	 * customer, not the whole address.
+	 */
+	private function masked_email( string $email ): string {
+		$at = strrpos( $email, '@' );
+		if ( $at === false || $at === 0 ) {
+			return '***';
+		}
+
+		return mb_substr( substr( $email, 0, $at ), 0, 1 ) . '***' . substr( $email, $at );
 	}
 
 	/**

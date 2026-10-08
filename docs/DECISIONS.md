@@ -7577,6 +7577,8 @@ no further batch runs, and **Start import** is the retry. 225 lands on the same
 path: the import has no retry ladder and already fails on every error a queued
 send would retry (a 500, a 429, a transport error).
 **Relationships:** addendum to PRO-3862; PRO-3868 (the import's failed state).
+Partly superseded by PRO-3988: a permanent code now skips that one contact
+instead of stopping the import; 225 still stops it.
 
 ### PRO-3872 — 3.16.1 ships as a GitHub release only (2026-10-06)
 
@@ -7980,6 +7982,42 @@ marking the row failed from a shutdown handler when PHP dies — not done (a
 killed run's row stays pending, which is already visible).
 **Relationships:** PRO-3859 (the manifest), PRO-3899 (its memory), PRO-3890
 (the reason rule).
+
+### PRO-3988 — The contact import skips a contact Smaily refuses for good (2026-10-08)
+
+**Context:** since PRO-3868 and PRO-3904 any refusing body code stopped the
+contact import `failed` before the page, and since PRO-3981 the daily refresh
+restarts a failed import — which stopped again at the same contact. Customers
+after it were never refreshed, and the screen reason (address masked, no user
+id) did not say which customer to fix (audit 2026-10-08, M3).
+**Decision (Erkki, 2026-10-08: fix before 3.17.0):** the import sends one
+contact per `contact.php` request, so a refusal names its contact; no
+one-at-a-time re-send is needed. A permanent refusing body code in an HTTP 200
+answer (`TerminalDispatchException`) skips that contact — not marked or
+counted as synced — and the walk goes on. The skipped contacts are stored in
+the option `smly_plus_contact_import_refused` (user id + Smaily's reason with
+addresses masked; total + up to 20 listed; autoload off; cleared by
+`start()`), and `/backfill/status` returns them with a masked address
+(`j***@domain`), a profile link and the reason without the
+`permanent_envelope_<code>:` prefix (PRO-3907). The panel lists them. A page
+whose every sent contact — two or more — is refused is a request-level
+refusal: the import stops `failed` as before. HTTP errors, transport errors
+and 225 stop it as before.
+**Rationale:** one bad address must not block every later customer in every
+run. A request-level refusal hits every contact, so a page with no accepted
+contact and more than one refusal is read as one. A single refusal stays the
+contact's: on the daily refresh a page often sends only that contact, and
+reading it as request-level would bring the bug back.
+**Alternatives:** keep the stop and put the user id in the stored reason (M3
+option b) — rejected, the import still never passes the contact; a list of
+"per-contact" Smaily codes (203/204) — rejected, how Smaily answers a bad
+contact is not verified live (PRO-1734); a new table or column — rejected, an
+option holds a capped list.
+Not covered: a request-level refusal that arrives on pages sending one contact
+each is recorded per contact (visible in the list) instead of stopping.
+**Relationships:** partly supersedes PRO-3904 (permanent codes); PRO-3868
+(failed state), PRO-3981 (daily restart), PRO-3881 / PRO-3907 (reason on
+screen), PRO-1734 (live check of Smaily's answers).
 
 ## How to keep this document going
 
