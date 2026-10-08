@@ -17,7 +17,10 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Privacy\GdprHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Settings\SetupState;
+use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\CartSessionStore;
+use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Client;
@@ -318,6 +321,113 @@ final class RecEngineGdprTest extends TestCase {
 		self::assertSame( array(), array_column( self::$engine->state()['last_customers_payload'] ?? array(), 'email' ), 'The erased customer does not reach the engine again.' );
 	}
 
+	public function test_an_erasure_sends_no_smaily_contact_update(): void {
+		// PRO-3995: WooCommerce's customer eraser saves the profile; the save
+		// fired profile_update, and HookHandler queued a Smaily contact update
+		// under the unchanged account address. A contact the merchant had
+		// already deleted in Smaily was created again, subscribed.
+		$email = 'erase-smaily@example.com';
+		$user  = $this->make_smaily_contact( $email );
+
+		// WooCommerce's customer eraser on its own — the step that saves the profile.
+		$erasers = apply_filters( 'wp_privacy_personal_data_erasers', array() );
+		HookHandler::reset_seen();
+		call_user_func( $erasers['woocommerce-customer-data']['callback'], $email, 1 );
+		self::assertSame( '', (string) get_user_meta( $user->ID, 'billing_first_name', true ), 'WooCommerce erased the profile.' );
+		self::assertSame( 0, $this->waiting_contact_updates( $user->ID ), 'Its profile save queues no Smaily contact update.' );
+
+		// The whole request, as WordPress runs it.
+		$messages = $this->run_wordpress_erasure( $email );
+
+		self::assertSame( 0, $this->waiting_contact_updates( $user->ID ), 'No Smaily contact update is left after every eraser has run.' );
+		self::assertContains(
+			'This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed.',
+			$messages,
+			'The result tells the admin to remove the contact in Smaily too.'
+		);
+	}
+
+	public function test_a_smaily_contact_update_waiting_when_the_erasure_finishes_is_removed(): void {
+		// PRO-3995 backstop: a row any eraser queued after ours is still
+		// removed when WordPress reports the whole request finished.
+		require_once ABSPATH . 'wp-admin/includes/privacy-tools.php';
+		$email = 'erase-smaily-waiting@example.com';
+		$user  = $this->make_smaily_contact( $email );
+		$other = $this->make_smaily_contact( 'keep-smaily-waiting@example.com' );
+
+		$queue = new EventQueue();
+		$queue->enqueue( HookHandler::EVENT_CONTACT_SYNC, (string) $user->ID, array( 'email' => $email ) );
+		$queue->enqueue( HookHandler::EVENT_CONTACT_SYNC, (string) $other->ID, array( 'email' => 'keep-smaily-waiting@example.com' ) );
+		self::assertSame( 1, $this->waiting_contact_updates( $user->ID ) );
+
+		$request_id = wp_create_user_request( $email, 'remove_personal_data', array(), 'confirmed' );
+		self::assertIsInt( $request_id );
+		$this->created_requests[] = $request_id;
+		do_action( 'wp_privacy_personal_data_erased', $request_id );
+
+		self::assertSame( 0, $this->waiting_contact_updates( $user->ID ), 'The waiting Smaily contact update is removed.' );
+		self::assertSame( 1, $this->waiting_contact_updates( $other->ID ), 'Another customer\'s update stays.' );
+	}
+
+	public function test_a_profile_save_outside_an_erasure_still_updates_the_smaily_contact(): void {
+		$erased = 'erase-smaily-neighbour@example.com';
+		$this->make_smaily_contact( $erased );
+		$user = $this->make_smaily_contact( 'keep-smaily-save@example.com' );
+
+		// Another customer's erasure earlier in the same request changes nothing for this one.
+		$erasers = apply_filters( 'wp_privacy_personal_data_erasers', array() );
+		HookHandler::reset_seen();
+		call_user_func( $erasers['woocommerce-customer-data']['callback'], $erased, 1 );
+
+		wp_update_user(
+			array(
+				'ID'         => $user->ID,
+				'first_name' => 'Mari',
+			)
+		);
+
+		self::assertSame( 1, $this->waiting_contact_updates( $user->ID ), 'A normal profile save is queued as before.' );
+	}
+
+	public function test_the_erasure_removes_the_customer_from_the_contact_imports_refused_list(): void {
+		// PRO-3988 keeps the WordPress user id of a contact Smaily refused.
+		$email = 'erase-refused@example.com';
+		$user  = $this->make_user( $email );
+		update_option(
+			BackfillJob::OPTION_REFUSED,
+			array(
+				'count'    => 5,
+				'contacts' => array(
+					array(
+						'user_id' => $user->ID,
+						'reason'  => 'Invalid data',
+					),
+					array(
+						'user_id' => 999001,
+						'reason'  => 'Invalid data',
+					),
+				),
+			),
+			false
+		);
+
+		$result = $this->handler()->erase( $email );
+
+		self::assertTrue( $result['items_removed'] );
+		self::assertSame(
+			array(
+				'count'    => 4,
+				'contacts' => array(
+					array(
+						'user_id' => 999001,
+						'reason'  => 'Invalid data',
+					),
+				),
+			),
+			get_option( BackfillJob::OPTION_REFUSED )
+		);
+	}
+
 	public function test_an_address_that_differs_only_by_an_accent_belongs_to_someone_else(): void {
 		// PRO-3986: the database compares addresses accent-blind, so a lookup
 		// for jane@ also found jäne@'s orders and WP user. WordPress and
@@ -428,9 +538,12 @@ final class RecEngineGdprTest extends TestCase {
 	 * calls each registered eraser page by page, one admin-ajax request per
 	 * page, and passes every answer to wp_privacy_process_personal_data_erasure_page(),
 	 * which marks the request completed and fires wp_privacy_personal_data_erased
-	 * after the last eraser's last page.
+	 * after the last eraser's last page. Returns every message the erasers
+	 * reported.
+	 *
+	 * @return array<int, string>
 	 */
-	private function run_wordpress_erasure( string $email ): void {
+	private function run_wordpress_erasure( string $email ): array {
 		require_once ABSPATH . 'wp-admin/includes/privacy-tools.php';
 
 		$request_id = wp_create_user_request( $email, 'remove_personal_data', array(), 'confirmed' );
@@ -440,14 +553,17 @@ final class RecEngineGdprTest extends TestCase {
 		$erasers = apply_filters( 'wp_privacy_personal_data_erasers', array() );
 		self::assertArrayHasKey( 'woocommerce-customer-data', $erasers, 'WooCommerce\'s own customer eraser takes part.' );
 
-		$index = 0;
+		$index    = 0;
+		$messages = array();
 		foreach ( $erasers as $eraser ) {
 			++$index;
 			$page = 1;
 			do {
-				// A new admin-ajax request starts with an empty per-request dedupe.
+				// A new admin-ajax request starts with empty per-request state.
 				CustomerHookHandler::reset_seen();
+				HookHandler::reset_seen();
 				$response = call_user_func( $eraser['callback'], $email, $page );
+				$messages = array_merge( $messages, $response['messages'] );
 				$response = wp_privacy_process_personal_data_erasure_page( $response, $index, $email, $page, $request_id );
 				++$page;
 			} while ( empty( $response['done'] ) );
@@ -456,6 +572,34 @@ final class RecEngineGdprTest extends TestCase {
 		$request = wp_get_user_request( $request_id );
 		self::assertInstanceOf( \WP_User_Request::class, $request );
 		self::assertSame( 'request-completed', $request->status, 'WordPress marked the request completed.' );
+
+		return $messages;
+	}
+
+	/**
+	 * A registered customer whose profile saves reach Smaily: the setup
+	 * wizard finished, contact sync on (the default) and, in the default
+	 * consent mode, the newsletter opt-in. Starts from an empty Smaily queue.
+	 */
+	private function make_smaily_contact( string $email ): \WP_User {
+		update_option( SetupState::OPTION_SETUP_COMPLETED, true );
+		$user = $this->make_user( $email );
+		update_user_meta( $user->ID, ContactAudience::OPTIN_META, 1 );
+		update_user_meta( $user->ID, 'billing_first_name', 'Jane' );
+		update_user_meta( $user->ID, 'billing_email', $email );
+
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . QueueRowFixture::table( EventQueue::TABLE_SUFFIX ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+
+		return $user;
+	}
+
+	/** Smaily contact updates for one WP user that can still be sent. */
+	private function waiting_contact_updates( int $user_id ): int {
+		global $wpdb;
+		$table = QueueRowFixture::table( EventQueue::TABLE_SUFFIX );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE event_type = %s AND entity_id = %s AND status IN ( 'pending', 'failed' )", HookHandler::EVENT_CONTACT_SYNC, (string) $user_id ) );
 	}
 
 	/** Rows of one event type for one entity that can still be sent. */
