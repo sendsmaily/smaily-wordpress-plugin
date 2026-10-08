@@ -180,6 +180,27 @@ called by `GdprHandler`'s eraser:
   address), compared binary so a neighbour differing only by accents is never
   hit (PRO-2448).
 
+**The erasure's own profile save (PRO-3995).** WooCommerce's customer eraser
+runs after ours: it blanks the billing and shipping data and saves the
+profile, which fires `profile_update` under the account's unchanged
+`user_email`. That save is not sent to Smaily: the eraser's
+`woocommerce_privacy_erase_customer_personal_data_props` filter (same request,
+before the save; WooCommerce 6.9.4 and 10.7 alike) marks the user for the
+request and `HookHandler::on_profile_update()` skips a marked user. When
+WordPress fires `wp_privacy_personal_data_erased` after the last eraser,
+`EventQueue::erase_for_privacy_request()` runs once more for the address, so a
+row any eraser left waiting is deleted (or redacted, if a flush already sent
+it). The contact in the merchant's Smaily account is NOT removed — the plugin
+has no call that deletes a Smaily contact — and the eraser's result tells the
+admin to remove it there if needed. A later profile save, order or the weekly
+contact refresh is a new action and may sync the contact again.
+
+### Plugin-held — contact import's refused-contacts list (PRO-3988)
+
+| Element | Where | What it is | Export (Art 15) | Erase (Art 17) |
+|---|---|---|---|---|
+| `smly_plus_contact_import_refused` option | `wp_options` (autoload off) | The contacts Smaily refused for good in the contact import's current run: `count` (total) and up to 20 `{user_id, reason}` entries (the reason holds no address) | No | **Yes** — the eraser removes the requester's entries and lowers `count` by as many (PRO-3995); `BackfillJob::start()` clears the whole list on every new run |
+
 ### Plugin-held — Campaign Intelligence ingest queue (PRO-2384)
 
 The local queue of what the store sends to the engine. Rows in
@@ -300,7 +321,11 @@ Full deletion, asymmetric to export (export is conservative, erase is complete):
   tracker rows are deleted (PRO-1343); and in the Smaily event queue every
   still-sendable row is deleted while every already-`sent` row is anonymised in
   place, so the Event Log keeps the fact of the send and none of the person
-  (PRO-2383); in the Campaign Intelligence queue every row whose stored copy
+  (PRO-2383) — once more after every eraser has run, and WooCommerce's
+  erasure profile save is not sent to Smaily (PRO-3995; the contact in the
+  merchant's Smaily account is not removed, the result tells the admin);
+  the contact import's refused-contacts list loses the requester's entries
+  (PRO-3995); in the Campaign Intelligence queue every row whose stored copy
   carries the address is deleted (PRO-2384), and so is every customer and
   order update for the customer still waiting to be sent, so none of them
   re-creates the customer in the engine (PRO-3906).

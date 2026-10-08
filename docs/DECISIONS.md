@@ -7927,7 +7927,7 @@ erasure request is about one person; an address with an accent is a different
 mailbox.
 **Not covered:** the Smaily `contact.sync` that the same `profile_update`
 queues through `HookHandler` — Smaily is the merchant's own email service,
-outside PRO-3906's scope. A later profile save or order after the request is a
+outside PRO-3906's scope (covered since by PRO-3995). A later profile save or order after the request is a
 new action (PRO-3906). The cart-session store still matches its `email` column
 under the collation (`email = %s`) — a separate issue.
 **Relationships:** PRO-3906, PRO-3908 (corrected above), PRO-2384 (the same
@@ -8018,6 +8018,40 @@ each is recorded per contact (visible in the list) instead of stopping.
 **Relationships:** partly supersedes PRO-3904 (permanent codes); PRO-3868
 (failed state), PRO-3981 (daily restart), PRO-3881 / PRO-3907 (reason on
 screen), PRO-1734 (live check of Smaily's answers).
+
+### PRO-3995 — An erasure sends the customer to Smaily no more (2026-10-08)
+
+**Context:** spike PRO-3994. WooCommerce's customer eraser runs after ours,
+blanks the billing and shipping data and saves the profile; the save fires
+`profile_update` under the unchanged `user_email`, and `HookHandler` queued an
+ordinary Smaily `contact.sync`. The values were unchanged, but a contact the
+merchant had already deleted in Smaily was created again as subscribed, and a
+new Event Log row with the name and address appeared right after our eraser
+reported the queue cleared (contradicting the docs site).
+**Decision (Erkki, 2026-10-08, option a: fix before 3.17.0):** skip that save.
+`HookHandler::on_customer_erasure()` on WooCommerce's
+`woocommerce_privacy_erase_customer_personal_data_props` filter — applied in
+the same request just before the save, with the `WC_Customer`; the same in
+WooCommerce 6.9.4 and 10.7 — marks the user id in a request-scoped static, and
+`on_profile_update()` returns early for a marked user. Backstop:
+`GdprHandler::after_erasure()` also runs `EventQueue::erase_for_privacy_request()`
+(PRO-2383/PRO-2448, no second matching) for the request's address. Our
+eraser's result adds one message: the contact in the Smaily account is not
+removed; remove it in Smaily too if needed. The eraser also removes the
+requester's entries from `smly_plus_contact_import_refused` (PRO-3988) and
+lowers its `count` by as many.
+**Rationale:** the save carries nothing Smaily needs (the weekly refresh sends
+the same data); the filter is same-request and independent of eraser and
+plugin load order, and leaves no state behind an abandoned run.
+**Alternatives:** checking the admin-ajax action (depends on core's action
+name, misses other routes); a flag set by our eraser (load-order dependent,
+needs a TTL); the backstop alone (races the async flush); sending an
+unsubscribe or deleting the Smaily contact — rejected/out of scope (an erasure
+is not an opt-out; the client has no delete call). Not covered: excluding an
+erased customer from later syncs — the account survives, so a later save,
+order or the weekly refresh may sync it again (a product decision for Erkki).
+**Relationships:** PRO-3986 (its "Not covered" closed here), PRO-2383 /
+PRO-2448 (the Smaily-queue eraser), PRO-3988 (the refused list), PRO-3994.
 
 ## How to keep this document going
 
