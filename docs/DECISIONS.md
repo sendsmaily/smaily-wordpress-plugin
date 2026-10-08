@@ -8211,6 +8211,22 @@ the HPOS tables on a legacy start).
 suite on BOTH legacy and HPOS". Check names changed; `main` requires no status
 check by name.
 
+### PRO-3996 — An order or a login removes the buyer's carts, not an accented address's (2026-10-09)
+
+**Context:** when an order completes, `CartHookHandler::clear_for_order()`
+calls `CartSessionStore::delete_by_email()`; when a shopper logs in, the cart
+update calls `delete_other_rows_for_email()` (the guest remnant). Both compared
+`email = %s` under the column's accent-blind collation, so `jane@…`'s order or
+login also removed `jäne@…`'s cart, and that shopper got no abandoned-cart
+reminder. PRO-3993 had fixed the same comparison for the exporter and eraser
+only.
+**Decision:** both removals use `AddressMatch::column_equals( 'email' )`
+(PRO-3909). Letter case still does not matter, as under the collation before.
+The other address comparisons on the table are already the helper's
+(`privacy_request_where()`, PRO-3993); `due_rows()` checks `email != ''` only.
+**Rationale:** an address is one mailbox everywhere the plugin matches it.
+**Relationships:** PRO-3993, PRO-3909, PRO-1195 (the tracker).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
