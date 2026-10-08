@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Integration;
 
+use Automattic\WooCommerce\Utilities\OrderUtil;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
@@ -17,6 +18,7 @@ use Smaily\Connect\Privacy\GdprHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
@@ -231,6 +233,61 @@ final class RecEngineGdprTest extends TestCase {
 		}
 	}
 
+	public function test_erasure_finds_the_customers_orders_in_every_status_and_any_letter_case(): void {
+		// PRO-3908: the lookup through wc_get_orders() saw only the registered
+		// statuses, so an order with a store's custom shipping status (here one
+		// no plugin registers any more) or in the trash kept its data and its
+		// waiting update. The address matches in any letter case.
+		$email   = 'erase-any-status@example.com';
+		$custom  = $this->make_order_with_rec_meta( $email );
+		$trashed = $this->make_order_with_rec_meta( $email );
+		$cased   = $this->make_order_with_rec_meta( 'Erase-Any-Status@Example.COM' );
+		$other   = $this->make_order_with_rec_meta( 'keep-any-status@example.com' );
+		$this->set_stored_status( $custom, 'wc-label-printed' );
+		$order = wc_get_order( $trashed );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		$order->delete( false );
+
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . QueueRowFixture::table( IngestQueue::TABLE_SUFFIX ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+		$waiting = array(
+			$this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $custom ),
+			$this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $trashed ),
+			$this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $cased ),
+		);
+		$kept    = $this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $other );
+
+		$result = $this->handler()->erase( $email );
+
+		self::assertTrue( $result['items_removed'] );
+		foreach ( array( $custom, $trashed, $cased ) as $id ) {
+			$order = wc_get_order( $id );
+			self::assertInstanceOf( \WC_Order::class, $order );
+			self::assertSame( '', (string) $order->get_meta( '_smaily_rec_id' ), "Order {$id} lost its rec meta." );
+			self::assertSame( '', (string) $order->get_meta( '_smaily_visitor_token' ), "Order {$id} lost its visitor token." );
+		}
+		foreach ( $waiting as $id ) {
+			self::assertFalse( QueueRowFixture::exists( IngestQueue::TABLE_SUFFIX, $id ), "Waiting row {$id} is dropped." );
+		}
+		self::assertTrue( QueueRowFixture::exists( IngestQueue::TABLE_SUFFIX, $kept ), 'The other customer\'s update stays.' );
+		$order = wc_get_order( $other );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		self::assertSame( 'rec-abc123', (string) $order->get_meta( '_smaily_rec_id' ), 'The other customer\'s order is untouched.' );
+
+		// The erasure leaves each order's status as it was.
+		self::assertSame( 'wc-label-printed', $this->stored_status( $custom ) );
+		self::assertSame( 'trash', $this->stored_status( $trashed ) );
+
+		// Remove the orders here and prove it from the table: a leaked order
+		// with an unregistered status breaks other suites' counts (LESSONS §2.16).
+		foreach ( array( $custom, $trashed, $cased, $other ) as $id ) {
+			$order = wc_get_order( $id );
+			self::assertInstanceOf( \WC_Order::class, $order );
+			$order->delete( true );
+			self::assertNull( $this->stored_status( $id ), "Order {$id} is gone from the order table." );
+		}
+	}
+
 	public function test_erase_is_idempotent_when_already_deleted(): void {
 		$email = 'gdpr-idem@example.test';
 
@@ -341,6 +398,35 @@ final class RecEngineGdprTest extends TestCase {
 		$order->set_status( 'completed' );
 		$order->save();
 		return $id;
+	}
+
+	/**
+	 * Write a status straight into the active order table, the way a store's
+	 * own shipping plugin leaves it — WC_Order::set_status() turns a status it
+	 * does not know into `pending`.
+	 */
+	private function set_stored_status( int $order_id, string $status ): void {
+		global $wpdb;
+		$spec = $this->order_table();
+		$wpdb->update( $spec['table'], array( $spec['status_col'] => $status ), array( $spec['id_col'] => $order_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		wp_cache_flush(); // The cached order object still holds the old status.
+	}
+
+	/** The status in the active order table, or null when the row is gone. */
+	private function stored_status( int $order_id ): ?string {
+		global $wpdb;
+		$spec = $this->order_table();
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$status = $wpdb->get_var( $wpdb->prepare( "SELECT {$spec['status_col']} FROM {$spec['table']} WHERE {$spec['id_col']} = %d", $order_id ) );
+		return $status === null ? null : (string) $status;
+	}
+
+	/**
+	 * @return array{table: string, id_col: string, type_col: string, status_col: string}
+	 */
+	private function order_table(): array {
+		global $wpdb;
+		return OrderBackfillJob::table_spec( OrderUtil::custom_orders_table_usage_is_enabled(), $wpdb->prefix );
 	}
 
 	private function enqueue( string $event_type, int $entity_id ): int {

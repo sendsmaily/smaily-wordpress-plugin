@@ -282,6 +282,22 @@ final class GdprHandlerTest extends TestCase {
 		self::assertSame( array( 'shopper@example.test' ), $handler->order_lookups );
 	}
 
+	public function test_hpos_order_lookup_reads_wc_orders_in_every_status_and_any_letter_case(): void {
+		// PRO-3908: no status filter, LOWER() on both sides. The integration
+		// site runs legacy storage, so this is the HPOS path's only pin.
+		self::assertSame(
+			'SELECT id FROM wp_wc_orders WHERE LOWER( billing_email ) = LOWER( %s ) ORDER BY id ASC',
+			GdprHandler::order_ids_sql( true, 'wp_' )
+		);
+	}
+
+	public function test_legacy_order_lookup_reads_the_billing_email_meta_in_every_status_and_any_letter_case(): void {
+		self::assertSame(
+			"SELECT p.ID FROM wp_posts p INNER JOIN wp_postmeta m ON m.post_id = p.ID WHERE m.meta_key = '_billing_email' AND LOWER( m.meta_value ) = LOWER( %s ) ORDER BY p.ID ASC",
+			GdprHandler::order_ids_sql( false, 'wp_' )
+		);
+	}
+
 	// --- helpers -------------------------------------------------------
 
 	/**
