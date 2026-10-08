@@ -16,6 +16,7 @@ use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
+use Smaily\Connect\Smaily\RetryPolicy;
 use WP_REST_Request;
 
 final class BackfillEndpointTest extends TestCase {
@@ -194,6 +195,46 @@ final class BackfillEndpointTest extends TestCase {
 
 		self::assertSame( BackfillJobInterface::STATUS_FAILED, $data['status'] );
 		self::assertSame( 'Smaily HTTP transport error: cURL error 6 for [email]', $data['error'] );
+	}
+
+	/**
+	 * PRO-3907: a contact import Smaily refused stores the queue's reason,
+	 * `permanent_envelope_<code>: …` (PRO-3904). The screen shows Smaily's
+	 * answer without that internal prefix, still with addresses masked.
+	 */
+	public function test_status_shows_a_smaily_refusal_without_the_internal_prefix(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'contacts' );
+
+		$stored = RetryPolicy::permanent_envelope(
+			array(
+				'response' => array(
+					'http' => 200,
+					'body' => array(
+						'code'    => 203,
+						'message' => 'Invalid data submitted for jane.doe@example.com',
+					),
+				),
+			)
+		);
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data submitted for jane.doe@example.com', $stored );
+
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 79,
+				'status'          => BackfillJobInterface::STATUS_FAILED,
+				'processed_count' => '100',
+				'total_count'     => '200',
+				'started_at'      => '2026-10-06 10:00:00',
+				'completed_at'    => null,
+				'error_message'   => $stored,
+			)
+		);
+
+		$endpoint = new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) );
+		$data     = $endpoint->status( $request )->get_data();
+
+		self::assertSame( 'Smaily API returned code 203: Invalid data submitted for [email]', $data['error'] );
 	}
 
 	/**

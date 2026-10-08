@@ -20,7 +20,7 @@ jobs:
       WP_CLI_BIN: vendor/bin/wp
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Check the release tag matches the plugin version
       if: github.event_name == 'release'
@@ -49,7 +49,7 @@ jobs:
       run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
     - name: Cache PHP packages
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ steps.composer-cache.outputs.dir }}
         key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -58,7 +58,7 @@ jobs:
           ${{ runner.os }}-
 
     - name: Set up Node environment
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: 22
 
@@ -67,7 +67,7 @@ jobs:
       run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
 
     - name: Cache Node modules
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ steps.node-cache.outputs.dir }}
         key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -123,14 +123,14 @@ jobs:
 
     - name: Upload release assets
       if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         files: ${{ env.WP_PLUGIN_NAME }}.zip
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload the package as a workflow artifact
       if: github.event_name != 'release'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ env.WP_PLUGIN_NAME }}-zip
         path: ${{ env.WP_PLUGIN_NAME }}.zip
