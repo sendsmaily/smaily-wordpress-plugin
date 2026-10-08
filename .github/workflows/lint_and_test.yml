@@ -108,8 +108,18 @@ jobs:
           test "$size" -lt 256000 || (echo "Bundle exceeded 250KB gzipped budget" && exit 1)
 
   integration:
-    name: Integration suite (wp-env)
+    name: Integration suite (wp-env, ${{ matrix.order-storage }} order storage)
     runs-on: ubuntu-26.04
+    # PRO-3435: the order backfill and the personal-data exporter/eraser read
+    # orders straight from the active WooCommerce order table, and a fresh
+    # wp-env does not reliably start with the same one. Each leg switches the
+    # storage explicitly and the suite bootstrap refuses to run on any other
+    # (SMAILY_CONNECT_TEST_ORDER_STORAGE). Pilot stores run legacy, newer
+    # stores HPOS, so both legs must pass.
+    strategy:
+      fail-fast: false
+      matrix:
+        order-storage: ['legacy', 'hpos']
     # Sub-PR 3.0: real-WP integration tests catch route-404, dbDelta,
     # save/read key-mismatch, and other piiri-region bugs that mock
     # unit tests cannot. Job is must-pass for the plugin-side
@@ -165,7 +175,28 @@ jobs:
           npx @wordpress/env run cli wp plugin activate smaily-connect
           npx @wordpress/env run cli wp config set WP_DEBUG_DISPLAY false --raw
 
+      # Compatibility mode (the posts <-> wc_orders sync) is off on both legs,
+      # so each leg writes and reads only its own table. It is set through the
+      # option because `wp wc hpos compatibility-mode disable` errors when the
+      # HPOS tables were never created (a legacy start). The env has no orders
+      # yet, so the switch needs no migration. --ignore-plugin-compatibility:
+      # that check is about third-party plugins, not about this suite.
+      - name: Switch WooCommerce order storage to ${{ matrix.order-storage }}
+        run: |
+          echo "Order storage of the fresh wp-env:"
+          npx @wordpress/env run cli wp wc hpos status || true
+          if [ "${{ matrix.order-storage }}" = "hpos" ]; then
+            npx @wordpress/env run cli wp wc hpos enable --ignore-plugin-compatibility
+          else
+            npx @wordpress/env run cli wp wc hpos disable
+          fi
+          npx @wordpress/env run cli wp option update woocommerce_custom_orders_table_data_sync_enabled no
+          echo "Order storage the suite runs on:"
+          npx @wordpress/env run cli wp wc hpos status || true
+
       - name: PHPUnit integration suite
+        env:
+          SMAILY_CONNECT_TEST_ORDER_STORAGE: ${{ matrix.order-storage }}
         run: composer run test:integration
 
   blocks:

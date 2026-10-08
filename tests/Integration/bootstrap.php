@@ -74,6 +74,33 @@ define( 'SMAILY_CONNECT_TEST_ENGINE_HOST', '127.0.0.1' );
 
 require_once $wp_load;
 
+// WooCommerce order storage the suite runs on (PRO-3435). The order backfill
+// and the personal-data exporter/eraser read orders straight from the active
+// table — wc_orders (HPOS) or wp_posts (legacy) — so a run covers only the
+// storage that is active, and a fresh wp-env does not reliably start with the
+// same one. Print it on every run; when SMAILY_CONNECT_TEST_ORDER_STORAGE is
+// set (CI sets it per matrix leg), refuse to run on any other storage.
+$smaily_connect_order_storage = ( class_exists( \Automattic\WooCommerce\Utilities\OrderUtil::class )
+	&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled() ) ? 'hpos' : 'legacy';
+fwrite(
+	STDOUT,
+	sprintf(
+		"WooCommerce order storage: %s (%s), sync %s\n",
+		$smaily_connect_order_storage,
+		'hpos' === $smaily_connect_order_storage ? 'wc_orders' : 'wp_posts',
+		'yes' === get_option( 'woocommerce_custom_orders_table_data_sync_enabled' ) ? 'on' : 'off'
+	)
+);
+$smaily_connect_expected_storage = (string) getenv( 'SMAILY_CONNECT_TEST_ORDER_STORAGE' );
+if ( '' !== $smaily_connect_expected_storage && $smaily_connect_expected_storage !== $smaily_connect_order_storage ) {
+	fwrite(
+		STDERR,
+		"SMAILY_CONNECT_TEST_ORDER_STORAGE={$smaily_connect_expected_storage}, but the active WooCommerce order storage is {$smaily_connect_order_storage}.\n" .
+		"Switch it first: wp wc hpos enable --ignore-plugin-compatibility | wp wc hpos disable\n"
+	);
+	exit( 1 );
+}
+
 // Activate the plugin if WP hasn't done so yet. Idempotent — WP's
 // activate_plugin() is a no-op for an already-active plugin and we
 // suppress the redirect side-effect by passing $silent=true.
