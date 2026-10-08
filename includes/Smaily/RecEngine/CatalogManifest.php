@@ -33,15 +33,19 @@ defined( 'ABSPATH' ) || exit;
  *
  * A partial or premature list would tombstone real products, so the night is
  * skipped — nothing sent — when the engine refuses the store (PRO-1893), the
- * products import runs or waits to start, catalog changes still wait in the
- * queue, or building the list fails. Those skips go to the debug log only. A
- * store with more than MAX_PRODUCTS items also sends nothing (the contract
- * forbids a partial list), and that skip IS an Event Log row, marked failed
- * with a plain reason, because only the merchant can see it there.
+ * products import runs or waits to start, or catalog changes still wait in
+ * the queue. Those skips write no row and go to the debug log only.
  *
  * Each night that gets past the skips is ONE `catalog.manifest` Event Log
- * row: the stored exchange (F3-44) holds the request (trimmed to ~10 KB) and
- * the engine's answer (removed, stock_fixed, guard_tripped, …). A failed row
+ * row, written BEFORE the walk (PRO-3987): a run the host kills mid-walk
+ * leaves it pending instead of leaving no trace, and the next night reuses
+ * it. Before the walk the run also raises its PHP time limit where the host
+ * allows it. A store with more than MAX_PRODUCTS items sends nothing (the
+ * contract forbids a partial list), and a list that fails to build is never
+ * sent; both mark the row failed with a plain reason, because only the
+ * merchant can see it there. So does an unexpected error during the send.
+ * The stored exchange (F3-44) holds the request (trimmed to ~10 KB) and the
+ * engine's answer (removed, stock_fixed, guard_tripped, …). A failed row
  * the merchant retries goes back to pending, and the next night's manifest
  * is sent under it instead of a new row.
  *
@@ -64,6 +68,12 @@ class CatalogManifest {
 	 * body than a 100-item ingest batch, and the job runs in the background.
 	 */
 	public const TIMEOUT_SECONDS = 60;
+
+	/**
+	 * PHP time limit the run sets before the walk, where the host allows it:
+	 * the walk over up to MAX_PRODUCTS products plus the one send.
+	 */
+	public const TIME_LIMIT_SECONDS = 600;
 
 	/** The engine's answer fields the Event Log keeps. */
 	private const RESPONSE_FIELDS = array( 'products_in_manifest', 'removed', 'stock_fixed', 'missing_in_engine', 'guard_tripped', 'guard_reason', 'would_remove' );
@@ -104,17 +114,39 @@ class CatalogManifest {
 			return;
 		}
 
+		// The row comes first (PRO-3987): a run the host stops mid-walk then
+		// leaves a pending row in the Event Log instead of nothing.
+		$id = $this->row_id();
+		if ( $id === null ) {
+			$this->log_skip( 'the Event Log row could not be written' );
+			return;
+		}
+
+		$this->raise_time_limit();
+
 		$limit = $this->max_products();
 		try {
 			$products = $this->catalog->manifest_items( $limit );
 		} catch ( \Throwable $e ) {
 			$this->log_skip( 'building the product list failed: ' . $e->getMessage() );
-			return;
-		}
-
-		$id = $this->row_id();
-		if ( $id === null ) {
-			$this->log_skip( 'the Event Log row could not be written' );
+			$this->queue->mark_failed(
+				$id,
+				sprintf(
+					/* translators: %s: the error type and where it happened, e.g. "RuntimeException at CatalogBackfillJob.php:144". */
+					__( 'Not sent: building the product list stopped on an unexpected error (%s).', 'smaily-connect' ),
+					self::where( $e )
+				)
+			);
+			$this->queue->store_exchange(
+				$id,
+				null,
+				(string) wp_json_encode(
+					array(
+						'outcome' => 'skipped',
+						'reason'  => 'build_failed',
+					)
+				)
+			);
 			return;
 		}
 
@@ -148,6 +180,18 @@ class CatalogManifest {
 			$this->queue->mark_failed( $id, IngestQueue::http_error_message( $e ) );
 			$this->queue->store_exchange( $id, $sent, IngestQueue::http_error_response( $e ) );
 			return;
+		} catch ( \Throwable $e ) {
+			$this->log_skip( 'the send failed: ' . $e->getMessage() );
+			$this->queue->mark_failed(
+				$id,
+				sprintf(
+					/* translators: %s: the error type and where it happened, e.g. "TypeError at Client.php:210". */
+					__( 'The send stopped on an unexpected error (%s).', 'smaily-connect' ),
+					self::where( $e )
+				)
+			);
+			$this->queue->store_exchange( $id, $sent, (string) wp_json_encode( array( 'outcome' => 'error' ) ) );
+			return;
 		}
 
 		$this->queue->mark_sent( $id );
@@ -164,6 +208,31 @@ class CatalogManifest {
 				)
 			)
 		);
+	}
+
+	/**
+	 * A whole-catalog walk can outlast a host's default PHP time limit. Where
+	 * the host allows it, the run gets TIME_LIMIT_SECONDS from here on. A
+	 * limit that is already off (0, e.g. WP-CLI) or higher is left alone —
+	 * this only ever raises it.
+	 */
+	private function raise_time_limit(): void {
+		$current = (int) ini_get( 'max_execution_time' );
+		if ( $current === 0 || $current >= self::TIME_LIMIT_SECONDS ) {
+			return;
+		}
+		if ( function_exists( 'set_time_limit' ) ) {
+			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- A whole-catalog walk in a background run; Bootstrap's upgrade does the same.
+			set_time_limit( self::TIME_LIMIT_SECONDS );
+		}
+	}
+
+	/**
+	 * The error type and where it was thrown, never the message (PRO-3890):
+	 * a message can carry store data.
+	 */
+	private static function where( \Throwable $e ): string {
+		return sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() );
 	}
 
 	/** Why tonight's manifest must not be sent, or '' when it may. */
