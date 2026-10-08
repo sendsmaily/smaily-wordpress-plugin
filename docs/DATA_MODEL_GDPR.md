@@ -136,7 +136,8 @@ abandoned-cart toggle (`CartHookHandler`, `CartAbandonmentSweeper`).
 (`includes/Privacy/GdprHandler.php`) registers the plugin's only WP Privacy
 exporter/eraser, and it now covers `smly_plus_cart_session` rows in addition
 to rec-engine data + the plugin's rec-meta (above): a subject-access request
-surfaces any in-flight row matched by the requester's e-mail (plus, as a
+surfaces any in-flight row matched by the requester's e-mail (letter case
+ignored, but an accented letter is a different address — PRO-3993) (plus, as a
 defensive belt-and-suspenders match, a row keyed to their WP user id even if
 its `email` column were ever empty), and an erasure request deletes those
 same rows — independent of the rec-engine connection, since this tracker has
