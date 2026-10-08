@@ -11,6 +11,8 @@ namespace Smaily\Connect\Smaily;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Privacy\AddressMatch;
+
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
 /**
@@ -447,35 +449,22 @@ class EventQueue {
 	 * is `to`). Those fall back to a payload text match on the two recipient
 	 * keys — unindexable, and that is why the checkout path refuses it
 	 * (PRO-1723), but an erasure request is an admin-triggered one-off where
-	 * completeness beats speed. The address is matched as a whole JSON string,
-	 * both as typed and as wp_json_encode() stores it (`\uXXXX` for a
-	 * non-ASCII character, `\/` for a slash — PRO-2448); the closing quote
-	 * keeps a longer address out. The match is binary, because the column's
-	 * accent-blind collation would also count `jane@…` as `jäne@…`; both sides
-	 * are lowercased, the way contact_key() normalises the address.
+	 * completeness beats speed. The text match is the shared
+	 * AddressMatch::json_string() (PRO-2448, PRO-3909) after `"email":` or
+	 * `"to":`, over the lowercased payload — both sides lowercased, the way
+	 * contact_key() normalises the address.
 	 *
 	 * @return array{0: string, 1: array<int, string>}|null
 	 */
 	private function privacy_request_where( string $email ): ?array {
-		global $wpdb;
-
-		$email = strtolower( trim( $email ) );
-		if ( $email === '' ) {
+		$fallback = AddressMatch::json_string( 'LOWER( payload )', $email, array( '"email":', '"to":' ) );
+		if ( $fallback === null ) {
 			return null;
 		}
 
-		$patterns = array();
-		foreach ( array( '"email":', '"to":' ) as $key ) {
-			foreach ( array_unique( array( '"' . $email . '"', (string) wp_json_encode( $email ) ) ) as $form ) {
-				$patterns[] = '%' . $wpdb->esc_like( $key . $form ) . '%';
-			}
-		}
-
-		$fallback = implode( ' OR ', array_fill( 0, count( $patterns ), 'LOWER( payload ) LIKE CAST( %s AS BINARY )' ) );
-
 		return array(
-			"( contact_key = %s OR ( contact_key IS NULL AND ( {$fallback} ) ) )",
-			array_merge( array( self::contact_key( $email ) ), $patterns ),
+			"( contact_key = %s OR ( contact_key IS NULL AND {$fallback[0]} ) )",
+			array_merge( array( self::contact_key( $email ) ), $fallback[1] ),
 		);
 	}
 
