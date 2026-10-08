@@ -408,7 +408,13 @@ written BEFORE the walk (PRO-3987 — a run the host kills mid-walk leaves it
 limit to `TIME_LIMIT_SECONDS` (only when the current limit is lower and not
 0). Over 50,000 items, a Throwable while building, or a non-API Throwable
 while sending: that row is marked FAILED with a plain reason (error class +
-file:line, never the message). Otherwise it carries the F3-44 exchange. No flusher drains
+file:line, never the message). PHP stopping the run (time/memory limit,
+another fatal, exit) is caught by a `shutdown` hook that exists only while
+the run works on its row (PRO-3989) and fails the row the same way; a
+process the host kills outright still leaves it `pending`. Measured walk
+time: 50,000 simple products ≈ 36 s on a CI runner
+(`bin/measure-manifest-walk.php <N>`, run with `wp eval-file`; it seeds by
+SQL, sends nothing and deletes what it seeded). Otherwise it carries the F3-44 exchange. No flusher drains
 that event type — a row the merchant retries waits as pending and the next
 night sends under it. **The dev wp-env is connected to a real tenant:** with
 this code checked out its AS runner sends a real manifest after 03:00 site

@@ -176,6 +176,148 @@ final class CatalogManifestTest extends TestCase {
 		self::assertSame( '{"outcome":"error"}', $queue->exchanges[1]['response'] );
 	}
 
+	/**
+	 * PHP stopping a run mid-walk (PRO-3989): the shutdown hook marks the open
+	 * row failed with how and where, never the message.
+	 */
+	public function test_php_stopping_the_run_during_the_walk_fails_the_row_with_how_and_where(): void {
+		$cases = array(
+			'time limit'   => array(
+				array(
+					'type'    => E_ERROR,
+					'message' => 'Maximum execution time of 600 seconds exceeded',
+					'file'    => '/srv/wp-includes/class-wp-query.php',
+					'line'    => 3100,
+				),
+				'PHP time limit at class-wp-query.php:3100',
+			),
+			'memory limit' => array(
+				array(
+					'type'    => E_ERROR,
+					'message' => 'Allowed memory size of 268435456 bytes exhausted (tried to allocate 20480 bytes)',
+					'file'    => '/srv/wp-includes/meta.php',
+					'line'    => 1200,
+				),
+				'PHP memory limit at meta.php:1200',
+			),
+			'other fatal'  => array(
+				array(
+					'type'    => E_ERROR,
+					'message' => 'Uncaught Error: secret@example.com',
+					'file'    => '/srv/plugins/x/x.php',
+					'line'    => 7,
+				),
+				'PHP fatal error at x.php:7',
+			),
+			'exit'         => array(
+				array(
+					'type'    => E_WARNING,
+					'message' => 'Undefined index secret@example.com',
+					'file'    => '/srv/plugins/x/x.php',
+					'line'    => 9,
+				),
+				'exit without a PHP error',
+			),
+			'no error'     => array( null, 'exit without a PHP error' ),
+		);
+
+		foreach ( $cases as $label => [ $error, $how ] ) {
+			$queue    = $this->fake_queue();
+			$manifest = null;
+			$seen     = array();
+			$walk     = static function () use ( &$manifest, &$seen, $queue ): void {
+				$seen['hooked'] = has_action( 'shutdown' );
+				$manifest->on_shutdown();
+				$seen['failed']   = $queue->failed;
+				$seen['exchange'] = $queue->exchanges[1] ?? null;
+			};
+			$manifest = $this->manifest(
+				$queue,
+				$this->client(),
+				null,
+				array(
+					'on_walk'    => $walk,
+					'last_error' => $error,
+				)
+			);
+
+			$manifest->run();
+
+			self::assertNotFalse( $seen['hooked'], $label . ': the hook is on during the walk.' );
+			self::assertSame(
+				array(
+					array(
+						'id'    => 1,
+						'error' => 'Not sent: the run was stopped while it built the product list (' . $how . ').',
+					),
+				),
+				$seen['failed'],
+				$label
+			);
+			self::assertStringNotContainsString( 'secret@example.com', $seen['failed'][0]['error'], $label );
+			self::assertSame(
+				array(
+					'sent'     => null,
+					'response' => '{"outcome":"skipped","reason":"run_stopped"}',
+				),
+				$seen['exchange'],
+				$label
+			);
+		}
+	}
+
+	public function test_php_stopping_the_run_during_the_send_fails_the_row_and_keeps_the_request(): void {
+		$queue    = $this->fake_queue();
+		$manifest = null;
+		$seen     = array();
+		$send     = static function () use ( &$manifest, &$seen, $queue ): void {
+			$manifest->on_shutdown();
+			$seen['failed']   = $queue->failed;
+			$seen['exchange'] = $queue->exchanges[1] ?? null;
+		};
+		$manifest = $this->manifest(
+			$queue,
+			$this->client( array( 'ok' => true ), null, $send ),
+			null,
+			array(
+				'last_error' => array(
+					'type'    => E_ERROR,
+					'message' => 'Maximum execution time of 600 seconds exceeded',
+					'file'    => '/srv/wp-includes/Requests/src/Transport/Curl.php',
+					'line'    => 210,
+				),
+			)
+		);
+
+		$manifest->run();
+
+		self::assertSame( 'The run was stopped while it sent the product list (PHP time limit at Curl.php:210). The engine may not have received it.', $seen['failed'][0]['error'] );
+		self::assertSame( (string) wp_json_encode( array( 'products' => self::ITEMS ) ), $seen['exchange']['sent'] );
+		self::assertSame( '{"outcome":"error","reason":"run_stopped"}', $seen['exchange']['response'] );
+	}
+
+	public function test_the_shutdown_hook_is_off_once_the_run_returns(): void {
+		foreach ( array( 'sent' => array(), 'build failed' => array( 'throw' => true ) ) as $label => $opts ) {
+			$queue    = $this->fake_queue();
+			$manifest = $this->manifest( $queue, $this->client(), null, $opts + array( 'last_error' => null ) );
+
+			$manifest->run();
+			$failed = $queue->failed;
+			$manifest->on_shutdown();
+
+			self::assertFalse( has_action( 'shutdown' ), $label );
+			self::assertSame( $failed, $queue->failed, $label . ': a later shutdown leaves the finished row alone.' );
+		}
+	}
+
+	public function test_a_skipped_night_hooks_nothing(): void {
+		$manifest = $this->manifest( $this->fake_queue(), $this->client(), null, array( 'import_active' => true ) );
+
+		$manifest->run();
+
+		self::assertFalse( has_action( 'shutdown' ) );
+	}
+
 	public function test_over_the_limit_sends_nothing_and_says_why_on_a_failed_row(): void {
 		$queue  = $this->fake_queue();
 		$client = $this->client();
@@ -267,7 +409,7 @@ final class CatalogManifestTest extends TestCase {
 	// --- doubles -------------------------------------------------------------
 
 	/**
-	 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void} $opts
+	 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} $opts
 	 */
 	private function manifest( IngestQueue $queue, Client $client, ?RecEngineSettings $settings = null, array $opts = array() ): CatalogManifest {
 		$catalog = new class( ! empty( $opts['throw'] ), $opts['items'] ?? null, $opts['on_walk'] ?? null ) extends CatalogBackfillJob {
@@ -299,11 +441,11 @@ final class CatalogManifestTest extends TestCase {
 		};
 
 		return new class( $queue, $settings ?? new FakeRecEngineSettings(), static fn (): Client => $client, $catalog, $opts ) extends CatalogManifest {
-			/** @var array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void} */
+			/** @var array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} */
 			private array $opts;
 
 			/**
-			 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void} $opts
+			 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} $opts
 			 */
 			public function __construct( IngestQueue $queue, RecEngineSettings $settings, callable $client_factory, CatalogBackfillJob $catalog, array $opts ) {
 				parent::__construct( $queue, $settings, $client_factory, $catalog );
@@ -321,28 +463,42 @@ final class CatalogManifestTest extends TestCase {
 			protected function max_products(): int {
 				return $this->opts['limit'] ?? parent::max_products();
 			}
+
+			protected function last_error(): ?array {
+				return array_key_exists( 'last_error', $this->opts ) ? $this->opts['last_error'] : parent::last_error();
+			}
 		};
 	}
 
 	/**
-	 * @param array<string, mixed> $response
+	 * @param array<string, mixed>   $response
+	 * @param (callable(): void)|null $on_send Runs as the request goes out.
 	 */
-	private function client( array $response = array( 'ok' => true ), ?\Throwable $error = null ): Client {
-		return new class( $response, $error ) extends Client {
+	private function client( array $response = array( 'ok' => true ), ?\Throwable $error = null, ?callable $on_send = null ): Client {
+		return new class( $response, $error, $on_send ) extends Client {
 			/** @var array<int, array<int, array<string, mixed>>> */
 			public array $sent = array();
 			/** @var array<string, mixed> */
 			private array $response;
 			private ?\Throwable $error;
+			/** @var (callable(): void)|null */
+			private $on_send;
 
-			/** @param array<string, mixed> $response */
-			public function __construct( array $response, ?\Throwable $error ) {
+			/**
+			 * @param array<string, mixed>   $response
+			 * @param (callable(): void)|null $on_send
+			 */
+			public function __construct( array $response, ?\Throwable $error, ?callable $on_send ) {
 				parent::__construct( 'sk_test', 'https://e.test' );
 				$this->response = $response;
 				$this->error    = $error;
+				$this->on_send  = $on_send;
 			}
 
 			public function catalog_manifest( array $products ): array {
+				if ( $this->on_send !== null ) {
+					( $this->on_send )();
+				}
 				if ( $this->error !== null ) {
 					throw $this->error;
 				}

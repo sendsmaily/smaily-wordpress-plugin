@@ -7979,7 +7979,8 @@ invisible to them. 600 s covers a walk of up to 50,000 products plus the 60 s
 send where the host lets PHP extend.
 **Alternatives:** splitting the walk across several actions — out of scope;
 marking the row failed from a shutdown handler when PHP dies — not done (a
-killed run's row stays pending, which is already visible).
+killed run's row stays pending, which is already visible). Superseded by PRO-3989: a
+shutdown hook now marks that row failed.
 **Relationships:** PRO-3859 (the manifest), PRO-3899 (its memory), PRO-3890
 (the reason rule).
 
@@ -8074,6 +8075,47 @@ from later Smaily syncs. The erasure covers the data held at that moment; a
 later order, profile save or the weekly refresh is a new action and may sync
 the surviving account again (same reasoning as PRO-3906). No lasting erasure
 marker is kept.
+
+### PRO-3989 — A nightly product list run that PHP stops is marked failed (2026-10-09)
+
+**Context:** since PRO-3987 the night's `catalog.manifest` row is written
+before the walk. A run that PHP stopped (the time limit, the memory limit,
+another fatal error, an exit) left that row `pending` with no reason, so the
+merchant could not tell a stopped run from one still in progress. The walk
+time of a large catalog was not measured.
+**Decision:** while `CatalogManifest::run()` works on its row it hooks
+WordPress's `shutdown` action (a closure, removed in `finally` once the run
+returns). If the hook finds the row still open, PHP stopped the run: the row
+is marked failed with how and where — `PHP time limit` / `PHP memory limit` /
+`PHP fatal error` at basename:line from `error_get_last()`, or `exit without
+a PHP error` — never the error message (PRO-3890; the message is read only to
+tell the two limits apart). A stop during the send keeps the stored request
+and says the engine may not have received the list (`outcome: error`,
+`reason: run_stopped`); a stop during the walk stores no request
+(`outcome: skipped`). The failed row is not reused; the next night writes a
+new one.
+**Rationale:** the hook knows its row id and phase directly and runs under
+every runner, including the admin "Run" link, which does not attach Action
+Scheduler's fatal-error monitor. WordPress's own fatal-error handler runs
+first but calls `wp_die()` with `exit => false`, so the `shutdown` action
+still fires (checked in WP 7.1 source).
+**Measured (CI run 37847888284, ubuntu-26.04 runner, wp-env PHP 8.3,
+MariaDB, simple products seeded by `bin/measure-manifest-walk.php`, no
+time or memory limit set):** 10,000 products — walk 7.1 s, encode 0.003 s,
+body 0.35 MB, peak +5.1 MB; 50,000 — walk 35.6 s, encode 0.013 s, body
+1.8 MB, peak +22.8 MB. On that hardware the 600 s limit leaves about 17×
+headroom at the cap. Not measured: variable products (each variation is an
+item and a product load), translated catalogs, or a slow shared host.
+**Alternatives:** Action Scheduler's `action_scheduler_unexpected_shutdown`
+— not chosen: it reports only the AS action id, fires only when AS's monitor
+is attached, and only on fatal errors; marking a still-pending row failed at
+the next night's start — not chosen: a day late, and a killed run's pending
+row cannot be told from one the merchant retried. Not covered: a process the
+host kills outright (SIGKILL, php-fpm `request_terminate_timeout`) runs no
+shutdown code, so its row stays pending as before; a memory-limit stop may
+also lack the memory for the write. Splitting the walk — out of scope.
+**Relationships:** PRO-3987 (its "shutdown handler — not done" is superseded
+here), PRO-3859, PRO-3899, PRO-3890.
 
 ### PRO-3435 — CI runs the integration suite on legacy AND HPOS order storage (2026-10-09)
 
