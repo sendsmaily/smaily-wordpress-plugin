@@ -212,7 +212,8 @@ class BackfillEndpoint {
 
 		// An import that nothing drives any more reads as stopped, so the
 		// panel offers to start it again (PRO-3886; the contact import too,
-		// PRO-3902). The row itself is left alone — nothing restarts it.
+		// PRO-3902). The route leaves the row alone; only the daily contact
+		// refresh restarts a stalled contact import (PRO-3981).
 		$status  = (string) $row['status'];
 		$stalled = AbstractBackfillJob::is_stalled( $job_type, $row );
 		if ( $stalled ) {

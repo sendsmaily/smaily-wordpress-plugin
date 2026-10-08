@@ -11,6 +11,7 @@ namespace Smaily\Connect\Smaily;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Support\ContactLanguageResolver;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
@@ -237,7 +238,9 @@ class BackfillJob implements BackfillJobInterface {
 	 * while a walk is already draining — restarting would reset its cursor — and
 	 * for one freshness window after the last completion, so each contact is
 	 * re-synced about once per window instead of re-walked every daily tick.
-	 * True when no walk has ever run.
+	 * True when no walk has ever run, after a failed walk, and for a `running`
+	 * walk that nothing drives any more (AbstractBackfillJob::is_stalled(),
+	 * PRO-3981) — re-sending is safe, Smaily updates a contact by email.
 	 */
 	public function should_start_refresh(): bool {
 		$state = $this->current_state();
@@ -247,7 +250,7 @@ class BackfillJob implements BackfillJobInterface {
 
 		$status = isset( $state['status'] ) ? (string) $state['status'] : '';
 		if ( $status === 'running' ) {
-			return false;
+			return AbstractBackfillJob::is_stalled( self::BACKFILL_TYPE, $state );
 		}
 
 		if ( $status === 'completed' && ! empty( $state['completed_at'] ) ) {
@@ -261,7 +264,7 @@ class BackfillJob implements BackfillJobInterface {
 	}
 
 	/**
-	 * @return array<string, mixed>|null Backfill state row (status + completed_at), or null.
+	 * @return array<string, mixed>|null Backfill state row (status, started_at, completed_at), or null.
 	 */
 	private function current_state(): ?array {
 		global $wpdb;
@@ -274,7 +277,7 @@ class BackfillJob implements BackfillJobInterface {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT status, completed_at FROM {$table} WHERE job_type = %s AND target = %s",
+				"SELECT status, started_at, completed_at FROM {$table} WHERE job_type = %s AND target = %s",
 				self::BACKFILL_TYPE,
 				self::BACKFILL_TARGET
 			),

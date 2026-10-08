@@ -360,7 +360,8 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 * batch that dies on a fatal error schedules none. Read-only: the row is
 	 * not rewritten and the import is not restarted — Import now does that.
 	 * The status route asks this for the contact import as well (PRO-3902):
-	 * it runs on the same tick hook, keyed by its job_type.
+	 * it runs on the same tick hook, keyed by its job_type. The daily contact
+	 * refresh restarts a stalled contact import (PRO-3981).
 	 *
 	 * @param array<string, mixed> $row A state row from read_state().
 	 */
