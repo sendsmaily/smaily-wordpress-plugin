@@ -101,7 +101,8 @@ final class GdprHandlerTest extends TestCase {
 			static fn ( string $field, $value ) => $field === 'email' && $value === 'shopper@example.test'
 				? new class() extends \WP_User {
 					public function __construct() {
-						$this->ID = 7;
+						$this->ID         = 7;
+						$this->user_email = 'Shopper@Example.test'; // Any letter case is the same address.
 					}
 				}
 				: false
@@ -215,7 +216,8 @@ final class GdprHandlerTest extends TestCase {
 			static fn ( string $field, $value ) => $field === 'email' && $value === 'erase-me@example.test'
 				? new class() extends \WP_User {
 					public function __construct() {
-						$this->ID = 7;
+						$this->ID         = 7;
+						$this->user_email = 'erase-me@example.test';
 					}
 				}
 				: false
@@ -233,6 +235,27 @@ final class GdprHandlerTest extends TestCase {
 			),
 			$ingest->unsent_calls
 		);
+	}
+
+	public function test_a_wp_user_whose_address_differs_by_an_accent_is_not_the_requester(): void {
+		// PRO-3986: get_user_by() matches accent-blind on the usual collations.
+		Functions\when( 'get_user_by' )->alias(
+			static fn ( string $field, $value ) => $field === 'email'
+				? new class() extends \WP_User {
+					public function __construct() {
+						$this->ID         = 8;
+						$this->user_email = 'jäne@example.com';
+					}
+				}
+				: false
+		);
+		$store  = $this->fake_store( array() );
+		$ingest = $this->fake_ingest_queue( 0, 1 );
+
+		$this->handler( $store, null, array(), $ingest )->erase( 'jane@example.com' );
+
+		self::assertSame( array(), $ingest->unsent_calls, 'The other person\'s waiting updates stay.' );
+		self::assertSame( 0, $store->delete_calls[0]['user_id'] ?? null, 'The other person\'s cart is not matched by user id.' );
 	}
 
 	public function test_erase_drops_no_waiting_update_when_no_user_or_order_has_the_address(): void {
@@ -283,17 +306,19 @@ final class GdprHandlerTest extends TestCase {
 	}
 
 	public function test_hpos_order_lookup_reads_wc_orders_in_every_status_and_any_letter_case(): void {
-		// PRO-3908: no status filter, LOWER() on both sides. The integration
-		// site runs legacy storage, so this is the HPOS path's only pin.
+		// PRO-3908: no status filter, LOWER() on both sides. PRO-3986: then
+		// compared as bytes, so an accent is a different address. The
+		// integration site runs legacy storage, so this is the HPOS path's
+		// only pin.
 		self::assertSame(
-			'SELECT id FROM wp_wc_orders WHERE LOWER( billing_email ) = LOWER( %s ) ORDER BY id ASC',
+			'SELECT id FROM wp_wc_orders WHERE CAST( LOWER( billing_email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) ORDER BY id ASC',
 			GdprHandler::order_ids_sql( true, 'wp_' )
 		);
 	}
 
 	public function test_legacy_order_lookup_reads_the_billing_email_meta_in_every_status_and_any_letter_case(): void {
 		self::assertSame(
-			"SELECT p.ID FROM wp_posts p INNER JOIN wp_postmeta m ON m.post_id = p.ID WHERE m.meta_key = '_billing_email' AND LOWER( m.meta_value ) = LOWER( %s ) ORDER BY p.ID ASC",
+			"SELECT p.ID FROM wp_posts p INNER JOIN wp_postmeta m ON m.post_id = p.ID WHERE m.meta_key = '_billing_email' AND CAST( LOWER( m.meta_value ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) ORDER BY p.ID ASC",
 			GdprHandler::order_ids_sql( false, 'wp_' )
 		);
 	}

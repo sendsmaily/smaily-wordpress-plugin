@@ -71,15 +71,20 @@ items, totals, address) — that is WooCommerce's exporter's job. The plugin rea
 rec-meta off the order; it does not re-export Woo data.
 
 **Which orders (PRO-3908).** The requester's orders are the orders whose billing
-address is the requested address in any letter case (`LOWER()` on both sides),
-in **every** status — a custom status, also one no plugin registers any more,
+address is the requested address in any letter case — both sides lowercased and
+then compared as bytes, so an address that differs only by an accent is another
+person's (PRO-3986: `LOWER()` alone still compares under the column's
+accent-insensitive collation) — in **every** status — a custom status, also one no plugin registers any more,
 and the trash included. `GdprHandler::orders_for()` reads their ids straight
 from the active order table (`wc_orders.billing_email` under HPOS, the
 `_billing_email` post meta under legacy storage — `OrderBackfillJob::table_spec()`
 names the table) and loads each through `wc_get_order()`, so reading and
 deleting the meta goes through the order API in both storage modes.
 `wc_get_orders()` is not used: it sees only the registered statuses. A guest
-order billed to a different address is not the requester's order.
+order billed to a different address is not the requester's order. The WP user
+is the requester's only when its `user_email` is the requested address in any
+letter case: `get_user_by( 'email' )` matches accent-blind too, so
+`GdprHandler::user_for()` checks the address it returns (PRO-3986).
 
 ### Smaily-held (consent authority)
 
@@ -209,9 +214,12 @@ is an order billed to it (the same status-blind order lookup the order-meta
 erasure uses, run once — PRO-3908). "Can still be sent" is `pending` (due, or
 parked for a retry) and `failed` (the Event Log's Retry revives it); a `sent`
 row is never sent again and is left to the match above. Catalog rows and other
-customers' rows are never touched. No lasting record of the erasure is kept: a
-later profile save or order is a new action and may send the customer again
-(Erkki, 2026-10-06). **Retention (code-derived —
+customers' rows are never touched. The same drop runs once more after the whole
+request (`wp_privacy_personal_data_erased`, fired by WordPress after the last
+eraser), because WooCommerce's customer eraser runs after ours and saves the
+profile, and that save queues a new `customer.upsert` (PRO-3986). No lasting
+record of the erasure is kept: a later profile save or order is a new action
+and may send the customer again (Erkki, 2026-10-06). **Retention (code-derived —
 `QueueJanitor`):** terminal rows are otherwise pruned after 30 days (`sent`) or
 90 (`failed`).
 

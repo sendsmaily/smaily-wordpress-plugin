@@ -12,6 +12,7 @@ namespace Smaily\Connect\Tests\Integration;
 
 use Automattic\WooCommerce\Utilities\OrderUtil;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Privacy\GdprHandler;
@@ -45,6 +46,8 @@ final class RecEngineGdprTest extends TestCase {
 	private array $created_orders = array();
 	/** @var int[] */
 	private array $created_users = array();
+	/** @var int[] */
+	private array $created_requests = array();
 
 	public static function setUpBeforeClass(): void {
 		self::$engine = RecEngineMockServer::start();
@@ -84,8 +87,12 @@ final class RecEngineGdprTest extends TestCase {
 		foreach ( $this->created_users as $id ) {
 			wp_delete_user( $id );
 		}
-		$this->created_orders = array();
-		$this->created_users  = array();
+		foreach ( $this->created_requests as $id ) {
+			wp_delete_post( $id, true );
+		}
+		$this->created_orders   = array();
+		$this->created_users    = array();
+		$this->created_requests = array();
 		parent::tearDown();
 	}
 
@@ -288,6 +295,76 @@ final class RecEngineGdprTest extends TestCase {
 		}
 	}
 
+	public function test_no_customer_update_is_left_waiting_after_wordpress_runs_every_eraser(): void {
+		// PRO-3986: our eraser runs before WooCommerce's. WooCommerce's
+		// customer eraser then blanks the profile and saves it; the save fires
+		// profile_update, which queued a new customer update that sent the
+		// erased customer to the engine again. Driven the way WordPress runs an
+		// erasure request: every registered eraser, page by page, each page its
+		// own admin-ajax request, then the request is marked completed.
+		$email = 'erase-every-eraser@example.com';
+		$user  = $this->make_user( $email );
+		update_user_meta( $user->ID, 'billing_first_name', 'Jane' );
+		update_user_meta( $user->ID, 'billing_email', $email );
+
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . QueueRowFixture::table( IngestQueue::TABLE_SUFFIX ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+		$this->enqueue( CustomerFlusher::EVENT_CUSTOMER_UPSERT, $user->ID );
+
+		$this->run_wordpress_erasure( $email );
+
+		self::assertSame( 0, $this->waiting_rows( CustomerFlusher::EVENT_CUSTOMER_UPSERT, $user->ID ), 'No customer update is left waiting after every eraser has run.' );
+		$this->customer_flusher()->flush();
+		self::assertSame( array(), array_column( self::$engine->state()['last_customers_payload'] ?? array(), 'email' ), 'The erased customer does not reach the engine again.' );
+	}
+
+	public function test_an_address_that_differs_only_by_an_accent_belongs_to_someone_else(): void {
+		// PRO-3986: the database compares addresses accent-blind, so a lookup
+		// for jane@ also found jäne@'s orders and WP user. WordPress and
+		// WooCommerce refuse such an address on their forms, so it is written
+		// straight into the tables, as an import would leave it.
+		$email     = 'jane@example.com';
+		$accented  = 'jäne@example.com';
+		$own       = $this->make_order_with_rec_meta( $email );
+		$other     = $this->make_order_with_rec_meta( 'jane-other@example.com' );
+		$neighbour = $this->make_user( 'jane-other@example.com' );
+		$this->set_stored_billing_email( $other, $accented );
+		$this->set_stored_user_email( $neighbour->ID, $accented );
+		update_user_meta( $neighbour->ID, IdentityHookHandler::MERGED_META_KEY, 'anon-neighbour' );
+
+		global $wpdb;
+		$wpdb->query( 'TRUNCATE TABLE ' . QueueRowFixture::table( IngestQueue::TABLE_SUFFIX ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+		$own_row   = $this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $own );
+		$kept_rows = array(
+			$this->enqueue( OrderFlusher::EVENT_ORDER_UPSERT, $other ),
+			$this->enqueue( CustomerFlusher::EVENT_CUSTOMER_UPSERT, $neighbour->ID ),
+		);
+
+		$export = $this->handler()->export( $email );
+		$found  = array();
+		foreach ( $export['data'] as $item ) {
+			if ( $item['group_label'] === 'Recommendation attribution (order meta)' ) {
+				$found[] = $item['item_id'];
+			}
+		}
+		self::assertSame( array( 'smaily-connect-rec-engine-order-' . $own ), $found, 'The export lists the requester\'s own order only.' );
+		self::assertNotContains( IdentityHookHandler::MERGED_META_KEY, $this->export_field_names( $export ), 'The other person\'s marker is not exported.' );
+
+		$this->handler()->erase( $email );
+
+		self::assertFalse( QueueRowFixture::exists( IngestQueue::TABLE_SUFFIX, $own_row ), 'The requester\'s waiting order update is dropped.' );
+		foreach ( $kept_rows as $id ) {
+			self::assertTrue( QueueRowFixture::exists( IngestQueue::TABLE_SUFFIX, $id ), "Row {$id} belongs to the other person." );
+		}
+		$order = wc_get_order( $own );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		self::assertSame( '', (string) $order->get_meta( '_smaily_rec_id' ), 'The requester\'s order lost its rec meta.' );
+		$order = wc_get_order( $other );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		self::assertSame( 'rec-abc123', (string) $order->get_meta( '_smaily_rec_id' ), 'The other person\'s order is untouched.' );
+		self::assertSame( 'anon-neighbour', (string) get_user_meta( $neighbour->ID, IdentityHookHandler::MERGED_META_KEY, true ), 'The other person\'s marker stays.' );
+	}
+
 	public function test_erase_is_idempotent_when_already_deleted(): void {
 		$email = 'gdpr-idem@example.test';
 
@@ -345,6 +422,68 @@ final class RecEngineGdprTest extends TestCase {
 	}
 
 	// --- helpers --------------------------------------------------------
+
+	/**
+	 * Run an erasure request the way WordPress does: wp_ajax_wp_privacy_erase_personal_data()
+	 * calls each registered eraser page by page, one admin-ajax request per
+	 * page, and passes every answer to wp_privacy_process_personal_data_erasure_page(),
+	 * which marks the request completed and fires wp_privacy_personal_data_erased
+	 * after the last eraser's last page.
+	 */
+	private function run_wordpress_erasure( string $email ): void {
+		require_once ABSPATH . 'wp-admin/includes/privacy-tools.php';
+
+		$request_id = wp_create_user_request( $email, 'remove_personal_data', array(), 'confirmed' );
+		self::assertIsInt( $request_id );
+		$this->created_requests[] = $request_id;
+
+		$erasers = apply_filters( 'wp_privacy_personal_data_erasers', array() );
+		self::assertArrayHasKey( 'woocommerce-customer-data', $erasers, 'WooCommerce\'s own customer eraser takes part.' );
+
+		$index = 0;
+		foreach ( $erasers as $eraser ) {
+			++$index;
+			$page = 1;
+			do {
+				// A new admin-ajax request starts with an empty per-request dedupe.
+				CustomerHookHandler::reset_seen();
+				$response = call_user_func( $eraser['callback'], $email, $page );
+				$response = wp_privacy_process_personal_data_erasure_page( $response, $index, $email, $page, $request_id );
+				++$page;
+			} while ( empty( $response['done'] ) );
+		}
+
+		$request = wp_get_user_request( $request_id );
+		self::assertInstanceOf( \WP_User_Request::class, $request );
+		self::assertSame( 'request-completed', $request->status, 'WordPress marked the request completed.' );
+	}
+
+	/** Rows of one event type for one entity that can still be sent. */
+	private function waiting_rows( string $event_type, int $entity_id ): int {
+		global $wpdb;
+		$table = QueueRowFixture::table( IngestQueue::TABLE_SUFFIX );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE event_type = %s AND entity_id = %s AND status IN ( 'pending', 'failed' )", $event_type, (string) $entity_id ) );
+	}
+
+	/** Write a billing address straight into the active order table. */
+	private function set_stored_billing_email( int $order_id, string $email ): void {
+		global $wpdb;
+		if ( OrderUtil::custom_orders_table_usage_is_enabled() ) {
+			$wpdb->update( $wpdb->prefix . 'wc_orders', array( 'billing_email' => $email ), array( 'id' => $order_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		} else {
+			$wpdb->update( $wpdb->postmeta, array( 'meta_value' => $email ), array( 'post_id' => $order_id, 'meta_key' => '_billing_email' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_value, WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		}
+		wp_cache_flush();
+	}
+
+	/** Write a user's address straight into the users table. */
+	private function set_stored_user_email( int $user_id, string $email ): void {
+		global $wpdb;
+		clean_user_cache( $user_id );
+		$wpdb->update( $wpdb->users, array( 'user_email' => $email ), array( 'ID' => $user_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		wp_cache_flush();
+	}
 
 	private function handler(): GdprHandler {
 		$settings = new RecEngineSettings();

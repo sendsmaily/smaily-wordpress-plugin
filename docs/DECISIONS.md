@@ -7879,15 +7879,59 @@ detects the mode) — with `LOWER()` on both sides, and loads each order through
 `GdprHandler::order_ids_sql()`, pure, unit-pinned for both storage modes.
 **Rationale:** an erasure request is about a person, not about an order state;
 every order billed to the address carries the same data. A status filter is the
-same blind spot as LESSONS §2.16. `LOWER()` makes the match independent of the
-collation (on the default `_ci` collations `=` already ignores case; a binary
-collation does not).
+same blind spot as LESSONS §2.16. `LOWER()` on both sides makes the match
+ignore letter case on a binary collation too (on the default `_ci` collations
+`=` already ignores case). **Corrected by PRO-3986:** `LOWER()` does NOT make
+the match independent of the collation — the result keeps the column's
+collation, which on the usual databases also ignores accents, so `jane@…` found
+`jäne@…`'s orders. The comparison is now bytes after lowering.
 **Alternatives:** pass every status to `wc_get_orders()` — rejected, an
 unregistered status cannot be named there. Matching on the `_ci` collation
 alone — rejected, a store's tables can use a binary one.
 Not covered: a guest order billed to a different address.
 **Relationships:** PRO-3906 (the waiting updates, dropped by these order ids),
 PRO-3426 (newsletter marker), F3-42 (custom statuses go through), LESSONS §2.16.
+
+### PRO-3986 — The waiting updates are dropped again after every eraser, and an accent is another address (2026-10-08)
+
+**Context:** two gaps in PRO-3906 / PRO-3908, found by the 2026-10-08 audits
+(code quality M1, security L1). (1) Our eraser runs before WooCommerce's: the
+plugin loads first and both register on `wp_privacy_personal_data_erasers` at
+priority 10. WooCommerce's customer eraser then blanks the profile and calls
+`$customer->save()`, which runs `wp_update_user()` and fires `profile_update`;
+`CustomerHookHandler` queued a new `customer.upsert`, and the flusher sent the
+erased customer to the engine again after the §9 DELETE — on every erasure of a
+registered customer on a connected store. (2) `LOWER( col ) = LOWER( %s )`
+still compares under the column's collation (`utf8mb4_unicode_520_ci` and the
+other usual ones ignore accents), so an erasure or export for `jane@…` found
+`jäne@…`'s orders; `get_user_by( 'email' )` did the same for the WP user. The
+export listed the other person's markers, and the erasure removed them and
+dropped that person's waiting updates. Integration tests reproduced both
+before the change.
+**Decision (Erkki, 2026-10-08):** (1) `GdprHandler::after_erasure()` runs on
+`wp_privacy_personal_data_erased`, which WordPress fires once the last eraser
+of a request has finished, and calls the same `drop_waiting_updates()` for the
+request's address — no second matching implementation. Our eraser still drops
+them first, before the engine call. (2) The order lookup compares
+`CAST( LOWER( col ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY )`: the database
+lowercases both sides, then compares bytes (MySQL and MariaDB, both storage
+modes; the queue eraser already uses `CAST( … AS BINARY )`, PRO-2384). The WP
+user is used only when its `user_email` equals the address after `strtolower()`
+(`GdprHandler::user_for()`, for the waiting updates, the cart sessions and the
+identity marker).
+**Rationale:** the post-erasure hook catches a row WooCommerce's eraser — or
+any later eraser — queued, without depending on the plugin load order. Moving
+our eraser after WooCommerce's was rejected: WooCommerce's opt-in order eraser
+anonymises `billing_email`, after which the order lookup finds nothing. An
+erasure request is about one person; an address with an accent is a different
+mailbox.
+**Not covered:** the Smaily `contact.sync` that the same `profile_update`
+queues through `HookHandler` — Smaily is the merchant's own email service,
+outside PRO-3906's scope. A later profile save or order after the request is a
+new action (PRO-3906). The cart-session store still matches its `email` column
+under the collation (`email = %s`) — a separate issue.
+**Relationships:** PRO-3906, PRO-3908 (corrected above), PRO-2384 (the same
+binary comparison in the queue eraser).
 
 ### PRO-3981 — The daily contact refresh restarts a stalled contact import (2026-10-08)
 
