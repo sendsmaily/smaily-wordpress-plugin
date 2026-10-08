@@ -421,6 +421,34 @@ final class RecEngineGdprTest extends TestCase {
 		self::assertSame( array(), $store->rows_for_privacy_request( '', $user->ID ) );
 	}
 
+	public function test_a_cart_session_of_an_accented_address_belongs_to_someone_else(): void {
+		// PRO-3993: the cart-session match compared `email = %s` under the
+		// column's accent-blind collation, so a request for jane@ also found
+		// jäne@'s cart. Letter case still does not matter.
+		$store     = new CartSessionStore();
+		$own_token = 'tok-' . wp_generate_uuid4();
+		$neighbour = 'tok-' . wp_generate_uuid4();
+		$store->upsert( $own_token, 0, 'Jane@Example.com', 'Jane', 'Doe', array() );
+		$store->upsert( $neighbour, 0, 'jäne@example.com', 'Jäne', 'Doe', array() );
+
+		$tokens = array();
+		foreach ( $this->handler()->export( 'jane@example.com' )['data'] as $item ) {
+			if ( $item['group_label'] === 'Abandoned-cart session' ) {
+				foreach ( $item['data'] as $pair ) {
+					if ( $pair['name'] === 'cart_token' ) {
+						$tokens[] = $pair['value'];
+					}
+				}
+			}
+		}
+		self::assertSame( array( $own_token ), $tokens, 'The export lists the requester\'s own cart only, whatever its letter case.' );
+
+		$this->handler()->erase( 'jane@example.com' );
+
+		self::assertSame( array(), $store->rows_for_privacy_request( 'Jane@Example.com' ), 'The requester\'s cart is deleted.' );
+		self::assertSame( array( $neighbour ), array_column( $store->rows_for_privacy_request( 'jäne@example.com' ), 'cart_token' ), 'The other person\'s cart stays.' );
+	}
+
 	// --- helpers --------------------------------------------------------
 
 	/**
