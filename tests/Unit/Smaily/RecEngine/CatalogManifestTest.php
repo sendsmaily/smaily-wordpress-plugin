@@ -35,14 +35,19 @@ final class CatalogManifestTest extends TestCase {
 		),
 	);
 
+	/** The process's own PHP time limit, restored after each test. */
+	private int $time_limit = 0;
+
 	protected function setUp(): void {
 		parent::setUp();
+		$this->time_limit = (int) ini_get( 'max_execution_time' );
 		Monkey\setUp();
 		Functions\when( '__' )->returnArg();
 		Functions\when( 'number_format_i18n' )->alias( static fn ( $n ) => number_format( (float) $n ) );
 	}
 
 	protected function tearDown(): void {
+		set_time_limit( $this->time_limit );
 		Monkey\tearDown();
 		parent::tearDown();
 	}
@@ -107,14 +112,68 @@ final class CatalogManifestTest extends TestCase {
 		self::assertSame( array(), $queue->enqueued );
 	}
 
-	public function test_a_list_that_fails_to_build_is_never_sent(): void {
+	public function test_a_list_that_fails_to_build_is_never_sent_and_the_row_says_why(): void {
 		$queue  = $this->fake_queue();
 		$client = $this->client();
 
 		$this->manifest( $queue, $client, null, array( 'throw' => true ) )->run();
 
 		self::assertSame( array(), $client->sent );
-		self::assertSame( array(), $queue->enqueued );
+		self::assertSame( array( CatalogManifest::EVENT_TYPE ), $queue->enqueued );
+		self::assertSame( 1, $queue->failed[0]['id'] );
+		self::assertStringStartsWith( 'Not sent: building the product list stopped on an unexpected error (RuntimeException at CatalogManifestTest.php:', $queue->failed[0]['error'] );
+		self::assertStringNotContainsString( 'out of memory', $queue->failed[0]['error'], 'The class and place, never the message.' );
+		self::assertSame( array(), $queue->sent );
+		self::assertNull( $queue->exchanges[1]['sent'] );
+		self::assertStringContainsString( '"reason":"build_failed"', (string) $queue->exchanges[1]['response'] );
+	}
+
+	public function test_the_row_exists_and_the_time_limit_is_raised_before_the_walk(): void {
+		$queue = $this->fake_queue();
+		$seen  = array();
+		$walk  = static function () use ( $queue, &$seen ): void {
+			$seen = array(
+				'rows'       => $queue->enqueued,
+				'time_limit' => ini_get( 'max_execution_time' ),
+			);
+		};
+		// phpcs:ignore WordPress.PHP.IniSet.Risky -- A host's 30 s limit, restored in tearDown().
+		ini_set( 'max_execution_time', '30' );
+
+		$this->manifest( $queue, $this->client(), null, array( 'on_walk' => $walk ) )->run();
+
+		self::assertSame( array( CatalogManifest::EVENT_TYPE ), $seen['rows'], 'The Event Log row is written before the walk begins.' );
+		self::assertSame( (string) CatalogManifest::TIME_LIMIT_SECONDS, $seen['time_limit'], 'The time limit is raised before the walk begins.' );
+		self::assertSame( array( 1 ), $queue->sent );
+	}
+
+	public function test_an_unlimited_or_higher_time_limit_is_left_alone(): void {
+		foreach ( array( '0', '900' ) as $limit ) {
+			$seen = null;
+			$walk = static function () use ( &$seen ): void {
+				$seen = ini_get( 'max_execution_time' );
+			};
+			// phpcs:ignore WordPress.PHP.IniSet.Risky -- Restored in tearDown().
+			ini_set( 'max_execution_time', $limit );
+
+			$this->manifest( $this->fake_queue(), $this->client(), null, array( 'on_walk' => $walk ) )->run();
+
+			self::assertSame( $limit, $seen );
+		}
+	}
+
+	public function test_an_unexpected_error_during_the_send_fails_the_row_with_a_plain_reason(): void {
+		$queue  = $this->fake_queue();
+		$client = $this->client( array(), new \TypeError( 'secret@example.com' ) );
+
+		$this->manifest( $queue, $client )->run();
+
+		self::assertSame( array(), $queue->sent );
+		self::assertSame( 1, $queue->failed[0]['id'] );
+		self::assertStringStartsWith( 'The send stopped on an unexpected error (TypeError at CatalogManifestTest.php:', $queue->failed[0]['error'] );
+		self::assertStringNotContainsString( 'secret@example.com', $queue->failed[0]['error'] );
+		self::assertSame( (string) wp_json_encode( array( 'products' => self::ITEMS ) ), $queue->exchanges[1]['sent'] );
+		self::assertSame( '{"outcome":"error"}', $queue->exchanges[1]['response'] );
 	}
 
 	public function test_over_the_limit_sends_nothing_and_says_why_on_a_failed_row(): void {
@@ -208,21 +267,30 @@ final class CatalogManifestTest extends TestCase {
 	// --- doubles -------------------------------------------------------------
 
 	/**
-	 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>} $opts
+	 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void} $opts
 	 */
 	private function manifest( IngestQueue $queue, Client $client, ?RecEngineSettings $settings = null, array $opts = array() ): CatalogManifest {
-		$catalog = new class( ! empty( $opts['throw'] ), $opts['items'] ?? null ) extends CatalogBackfillJob {
+		$catalog = new class( ! empty( $opts['throw'] ), $opts['items'] ?? null, $opts['on_walk'] ?? null ) extends CatalogBackfillJob {
 			private bool $throw;
 			/** @var array<int, array{sku: string, in_stock: bool}>|null */
 			private ?array $items;
+			/** @var (callable(): void)|null */
+			private $on_walk;
 
-			/** @param array<int, array{sku: string, in_stock: bool}>|null $items */
-			public function __construct( bool $throw, ?array $items ) {
-				$this->throw = $throw;
-				$this->items = $items;
+			/**
+			 * @param array<int, array{sku: string, in_stock: bool}>|null $items
+			 * @param (callable(): void)|null                            $on_walk
+			 */
+			public function __construct( bool $throw, ?array $items, ?callable $on_walk ) {
+				$this->throw   = $throw;
+				$this->items   = $items;
+				$this->on_walk = $on_walk;
 			}
 
 			public function manifest_items( int $limit ): array {
+				if ( $this->on_walk !== null ) {
+					( $this->on_walk )();
+				}
 				if ( $this->throw ) {
 					throw new \RuntimeException( 'out of memory' );
 				}
@@ -231,11 +299,11 @@ final class CatalogManifestTest extends TestCase {
 		};
 
 		return new class( $queue, $settings ?? new FakeRecEngineSettings(), static fn (): Client => $client, $catalog, $opts ) extends CatalogManifest {
-			/** @var array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>} */
+			/** @var array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void} */
 			private array $opts;
 
 			/**
-			 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>} $opts
+			 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void} $opts
 			 */
 			public function __construct( IngestQueue $queue, RecEngineSettings $settings, callable $client_factory, CatalogBackfillJob $catalog, array $opts ) {
 				parent::__construct( $queue, $settings, $client_factory, $catalog );
@@ -259,16 +327,16 @@ final class CatalogManifestTest extends TestCase {
 	/**
 	 * @param array<string, mixed> $response
 	 */
-	private function client( array $response = array( 'ok' => true ), ?ApiException $error = null ): Client {
+	private function client( array $response = array( 'ok' => true ), ?\Throwable $error = null ): Client {
 		return new class( $response, $error ) extends Client {
 			/** @var array<int, array<int, array<string, mixed>>> */
 			public array $sent = array();
 			/** @var array<string, mixed> */
 			private array $response;
-			private ?ApiException $error;
+			private ?\Throwable $error;
 
 			/** @param array<string, mixed> $response */
-			public function __construct( array $response, ?ApiException $error ) {
+			public function __construct( array $response, ?\Throwable $error ) {
 				parent::__construct( 'sk_test', 'https://e.test' );
 				$this->response = $response;
 				$this->error    = $error;

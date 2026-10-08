@@ -7636,7 +7636,8 @@ walk, collapse and expansion, keyed through `CatalogPayloadBuilder::
 manifest_item()` (SkuResolver, the builder's detector). The night is skipped
 (nothing sent, debug log only) when the engine refuses the store, the
 products import is running or waits to start, catalog.* rows still wait in
-the ingest queue (due or parked), or building the list throws. More than
+the ingest queue (due or parked), or building the list throws (superseded by
+PRO-3987: a build failure now marks the night's row failed). More than
 50,000 items sends nothing and writes a FAILED `catalog.manifest` Event Log
 row whose error says why in plain words. Every other night is one
 `catalog.manifest` row with the F3-44 exchange (request trimmed to ~10 KB,
@@ -7911,6 +7912,32 @@ Erkki. The Campaign Intelligence imports are not covered: nothing restarts them
 on a schedule, and PRO-3886's "the merchant decides" still holds for them.
 **Relationships:** PRO-3902 (the contact import's stall rule), PRO-3886
 (`is_stalled()`), PRO-3868 (failed contact import), F3-48.3 (the daily refresh).
+
+### PRO-3987 — The nightly product list leaves an Event Log row even when its run dies (2026-10-08)
+
+**Context:** the 2026-10-08 code-quality audit (M2, L5): `CatalogManifest::run()`
+walks the whole catalog in one Action Scheduler action with no time-limit raise
+and wrote its `catalog.manifest` row only after the walk, so a host's PHP time
+limit could stop it every night with nothing in the Event Log; a build failure
+went to the debug log only, and a non-API Throwable during the send left the row
+`pending` with no reason.
+**Decision (Erkki, 2026-10-08 — minimal fix before 3.17.0):** once a night
+passes the skip rules (which still write no row), its row is written before the
+walk. A run the host kills leaves it `pending`; the next night reuses it. Before
+the walk the run raises its PHP time limit to `TIME_LIMIT_SECONDS` = 600 with
+the guarded `set_time_limit()` the upgrade already uses — only when the current
+limit is lower and not 0, so WP-CLI's unlimited run is never limited. A
+Throwable while building the list and a non-`ApiException` Throwable while
+sending mark the row failed with a plain reason: error class + file:line, never
+the message (the PRO-3890 rule). The over-50,000 row is that same row.
+**Rationale:** the row is the merchant's only trace; a build failure used to be
+invisible to them. 600 s covers a walk of up to 50,000 products plus the 60 s
+send where the host lets PHP extend.
+**Alternatives:** splitting the walk across several actions — out of scope;
+marking the row failed from a shutdown handler when PHP dies — not done (a
+killed run's row stays pending, which is already visible).
+**Relationships:** PRO-3859 (the manifest), PRO-3899 (its memory), PRO-3890
+(the reason rule).
 
 ### PRO-3988 — The contact import skips a contact Smaily refuses for good (2026-10-08)
 
