@@ -7927,7 +7927,7 @@ mailbox.
 queues through `HookHandler` — Smaily is the merchant's own email service,
 outside PRO-3906's scope. A later profile save or order after the request is a
 new action (PRO-3906). The cart-session store still matches its `email` column
-under the collation (`email = %s`) — a separate issue.
+under the collation (`email = %s`) — a separate issue, closed by PRO-3993.
 **Relationships:** PRO-3906, PRO-3908 (corrected above), PRO-2384 (the same
 binary comparison in the queue eraser).
 
@@ -7980,6 +7980,23 @@ marking the row failed from a shutdown handler when PHP dies — not done (a
 killed run's row stays pending, which is already visible).
 **Relationships:** PRO-3859 (the manifest), PRO-3899 (its memory), PRO-3890
 (the reason rule).
+
+### PRO-3993 — The abandoned-cart match treats an accent as another address (2026-10-08)
+
+**Context:** the exporter and eraser find the requester's abandoned-cart
+session rows through `CartSessionStore::privacy_request_where()`, which
+compared `email = %s` under the column's collation. The usual collations ignore
+accents, so a request for `jane@…` also exported and deleted the cart of
+`jäne@…` (PRO-3986's "Not covered").
+**Decision (Erkki, 2026-10-08 — fix before 3.17.0):** the same comparison as
+PRO-3986: `CAST( LOWER( email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY )`.
+Letter case still does not matter. The `user_id` branch is unchanged (the WP
+user is already matched strictly, PRO-3986). The legacy abandoned-cart table
+needs no change: neither the exporter nor the eraser reads it.
+**Rationale:** an erasure request is about one mailbox; one comparison for
+every privacy match in the plugin.
+**Relationships:** PRO-3986, PRO-3908, PRO-1343 (the cart rows in the
+exporter and eraser).
 
 ## How to keep this document going
 

@@ -327,16 +327,19 @@ class CartSessionStore {
 	/**
 	 * The shared match condition for both privacy-request methods above, so
 	 * the lookup and the delete can never drift apart on what counts as "this
-	 * subject's rows".
+	 * subject's rows". The address is compared as bytes after lowering both
+	 * sides (PRO-3993, the PRO-3986 comparison): letter case does not matter,
+	 * but the column's collation would also ignore accents, and `jäne@` is
+	 * someone else's mailbox than `jane@`.
 	 *
 	 * @return array{0: string, 1: array<int, string|int>}|null
 	 */
 	private function privacy_request_where( string $email, int $user_id ): ?array {
 		if ( $email !== '' && $user_id > 0 ) {
-			return array( 'email = %s OR user_id = %d', array( $email, $user_id ) );
+			return array( 'CAST( LOWER( email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) OR user_id = %d', array( $email, $user_id ) );
 		}
 		if ( $email !== '' ) {
-			return array( 'email = %s', array( $email ) );
+			return array( 'CAST( LOWER( email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY )', array( $email ) );
 		}
 		if ( $user_id > 0 ) {
 			return array( 'user_id = %d', array( $user_id ) );
