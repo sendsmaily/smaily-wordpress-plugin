@@ -2772,10 +2772,22 @@ msgid "Send again"
 msgstr "Saada uuesti"
 
 #. translators: %s: the most products the nightly product list can hold, e.g. "50,000".
-#: includes/Smaily/RecEngine/CatalogManifest.php:131
+#: includes/Smaily/RecEngine/CatalogManifest.php:158
 #, php-format
 msgid "Not sent: the store has more than %s products, the most the nightly product list can hold."
 msgstr "Saatmata: poes on üle %s toote — see on suurim arv, mida öine tooteloend mahutab."
+
+#. translators: %s: the error type and where it happened, e.g. "RuntimeException at CatalogBackfillJob.php:144".
+#: includes/Smaily/RecEngine/CatalogManifest.php:136
+#, php-format
+msgid "Not sent: building the product list stopped on an unexpected error (%s)."
+msgstr "Saatmata: tooteloendi koostamine peatus ootamatu vea tõttu (%s)."
+
+#. translators: %s: the error type and where it happened, e.g. "TypeError at Client.php:210".
+#: includes/Smaily/RecEngine/CatalogManifest.php:189
+#, php-format
+msgid "The send stopped on an unexpected error (%s)."
+msgstr "Saatmine peatus ootamatu vea tõttu (%s)."
 
 #. translators: %d: number of queued Smaily messages deleted.
 #: includes/Privacy/GdprHandler.php:387

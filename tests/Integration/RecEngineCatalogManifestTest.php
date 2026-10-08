@@ -200,7 +200,7 @@ final class RecEngineCatalogManifestTest extends TestCase {
 		self::assertSame( array(), $this->manifest_rows(), 'A skipped night writes no row.' );
 	}
 
-	public function test_a_list_that_fails_to_build_is_never_sent(): void {
+	public function test_a_list_that_fails_to_build_is_never_sent_and_the_event_log_says_why(): void {
 		$this->simple( 'a', 'instock' );
 		$this->simple( 'b', 'instock' );
 		$this->forget_live_events();
@@ -216,7 +216,15 @@ final class RecEngineCatalogManifestTest extends TestCase {
 		}
 
 		self::assertSame( 0, self::$engine->request_count() );
-		self::assertSame( array(), $this->manifest_rows() );
+		// PRO-3987: the row is written before the walk, so a walk that stops
+		// leaves a failed row with a plain reason — the class and place, never
+		// the message.
+		$rows = $this->manifest_rows();
+		self::assertCount( 1, $rows );
+		self::assertSame( 'failed', $rows[0]['status'] );
+		self::assertStringStartsWith( 'Not sent: building the product list stopped on an unexpected error (RuntimeException at RecEngineCatalogManifestTest.php:', $rows[0]['last_error'] );
+		self::assertStringNotContainsString( 'stock lookup failed', $rows[0]['last_error'] );
+		self::assertStringContainsString( '"reason":"build_failed"', $this->detail( (int) $rows[0]['id'] )['last_response'] );
 	}
 
 	public function test_the_job_runs_daily_at_three_store_time_and_deactivation_cancels_it(): void {
