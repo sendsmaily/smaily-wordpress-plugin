@@ -39,7 +39,7 @@ concurrency:
 jobs:
   check:
     name: RECENGINE_API_CONTRACT.md vs engine main
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - uses: actions/checkout@v7
