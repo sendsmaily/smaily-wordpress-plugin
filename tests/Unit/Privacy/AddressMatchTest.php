@@ -46,6 +46,23 @@ final class AddressMatchTest extends TestCase {
 		);
 	}
 
+	public function test_the_indexed_match_puts_a_plain_comparison_before_the_exact_one(): void {
+		// PRO-4004: the plain `email = %s` lets idx_email narrow the rows;
+		// the exact match still decides.
+		self::assertSame(
+			array(
+				'( email = %s AND CAST( LOWER( email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) )',
+				array( 'Jane@Example.com', 'Jane@Example.com' ),
+			),
+			AddressMatch::column_equals_indexed( 'email', 'Jane@Example.com' )
+		);
+	}
+
+	public function test_the_indexed_match_of_an_empty_address_matches_nothing(): void {
+		self::assertNull( AddressMatch::column_equals_indexed( 'email', '' ) );
+		self::assertNull( AddressMatch::column_equals_indexed( 'email', '  ' ) );
+	}
+
 	public function test_a_json_string_match_takes_the_address_after_each_prefix(): void {
 		$match = AddressMatch::json_string( 'LOWER( payload )', '  Jane@Example.com ', array( '"email":', '"to":' ) );
 

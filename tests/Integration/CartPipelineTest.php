@@ -498,6 +498,55 @@ final class CartPipelineTest extends TestCase {
 		);
 	}
 
+	public function test_both_address_removals_narrow_the_rows_through_the_email_index(): void {
+		// PRO-4004: `CAST( LOWER( email ) … )` alone cannot use idx_email, so
+		// every cart update with a known address read and locked the whole
+		// tracker. The database's own plan for the DELETE each removal sends
+		// must name idx_email.
+		global $wpdb;
+		$table = $wpdb->prefix . 'smly_plus_cart_session';
+		$store = new CartSessionStore();
+		for ( $i = 0; $i < 40; $i++ ) {
+			$store->upsert( 'pro4004-other-' . $i, 0, 'other-' . $i . '@example.com', '', '', array() );
+		}
+		$seed_buyer = static function () use ( $store ): void {
+			$store->upsert( 'pro4004-own', 0, 'jane-pro4004@example.com', '', '', array() );
+			$store->upsert( 'pro4004-case', 0, 'JANE-PRO4004@Example.com', '', '', array() );
+			$store->upsert( 'pro4004-accent', 0, 'jäne-pro4004@example.com', '', '', array() );
+		};
+
+		$sent    = array();
+		$capture = static function ( $query ) use ( &$sent, $table ) {
+			if ( is_string( $query ) && strpos( $query, "DELETE FROM {$table} " ) === 0 ) {
+				$sent[] = $query;
+			}
+			return $query;
+		};
+		add_filter( 'query', $capture );
+		try {
+			$seed_buyer();
+			$store->delete_other_rows_for_email( 'jane-pro4004@example.com', 'pro4004-own' );
+			self::assertNotContains( 'pro4004-case', $this->tracker_tokens(), 'The letter-case variant still goes.' );
+			self::assertContains( 'pro4004-own', $this->tracker_tokens(), 'The kept session stays.' );
+			self::assertContains( 'pro4004-accent', $this->tracker_tokens(), 'The accented address still counts as another person.' );
+
+			$store->delete_by_email( 'jane-pro4004@example.com' );
+			self::assertNotContains( 'pro4004-own', $this->tracker_tokens(), 'The order removal still takes the buyer\'s row.' );
+			self::assertContains( 'pro4004-accent', $this->tracker_tokens(), 'The accented address still counts as another person.' );
+		} finally {
+			remove_filter( 'query', $capture );
+		}
+
+		self::assertCount( 2, $sent, 'Each removal sends one DELETE.' );
+		$seed_buyer();
+		foreach ( $sent as $delete ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- EXPLAIN of the statement the store itself prepared.
+			$plan = $wpdb->get_row( 'EXPLAIN ' . $delete, ARRAY_A );
+			self::assertIsArray( $plan, 'EXPLAIN answered: ' . $wpdb->last_error );
+			self::assertSame( 'idx_email', $plan['key'] ?? null, 'The DELETE must use idx_email, not scan the table: ' . wp_json_encode( $plan ) );
+		}
+	}
+
 	public function test_cart_hooks_are_registered_by_bootstrap(): void {
 		self::assertNotFalse( has_action( 'woocommerce_cart_updated' ), 'Bootstrap must bind the cart tracker to woocommerce_cart_updated.' );
 		self::assertNotFalse( has_action( 'woocommerce_checkout_update_order_review' ), 'Guest identity capture (classic checkout) must be bound.' );
