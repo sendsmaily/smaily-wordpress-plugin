@@ -820,6 +820,8 @@ they are no longer how the released asset is produced. Full sequence (verified
       `git fetch origin --tags`. Skip that and it dies with
       `pathspec '<tag>' did not match`, which is harmless — it stops before
       copying anything into SVN, so a re-run after the fetch is safe.
+      On Erkki's Mac that separate clone is `~/smaily-release` (remote
+      already `sendsmaily`; it needs `git fetch origin --tags` before each run).
       Confirm the publish afterwards via
       `https://api.wordpress.org/plugins/info/1.0/smaily-connect.json` →
       `version`.
