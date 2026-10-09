@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.17.0
+Stable tag: 3.17.1
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -178,6 +178,11 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.17.1 =
+* Improved: personal-data export and erasure go through a customer's orders ten at a time, so many orders no longer risk a timeout.
+* Improved: if PHP stops the nightly product list, its Event Log row shows as failed and where it stopped.
+* Fixed: an order or a login no longer removes the abandoned cart of an address that differs only by accented letters, without slowing cart updates.
+
 = 3.17.0 =
 * New: once a night your store sends Campaign Intelligence its full product list with stock status, so removed products and missed stock changes are corrected.
 * Changed: only published products are recommended. A draft, private or pending product is removed, like a trashed one, until you publish it again.
@@ -208,6 +213,9 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Updated to the Smaily Campaign Intelligence API contract v1.12.0.
 
 == Upgrade Notice ==
+
+= 3.17.1 =
+Includes all of 3.17.0: a nightly product list, published-only recommendations, import errors on Settings and stricter personal-data erasure. Also pages privacy requests through orders, fails a stopped product list visibly and keeps accented addresses' carts. Safe update.
 
 = 3.17.0 =
 Adds a nightly product list for Campaign Intelligence, keeps unpublished products out of recommendations, shows why an import stopped, skips contacts Smaily refuses and tightens personal-data erasure. Safe update.
