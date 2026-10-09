@@ -8260,6 +8260,21 @@ The other address comparisons on the table are already the helper's
 **Rationale:** an address is one mailbox everywhere the plugin matches it.
 **Relationships:** PRO-3993, PRO-3909, PRO-1195 (the tracker).
 
+### PRO-4001 — 3.17.0 ships GitHub-only; wordpress.org gets 3.17.1 with #215–#219 (2026-10-09)
+
+**Context:** 3.17.0 was released on GitHub on 2026-10-08 and was not yet on
+wordpress.org. After the tag, #215–#219 merged on main (PRO-3435, PRO-3909 +
+PRO-3997, PRO-3989, PRO-3996, PRO-3858).
+**Decision:** 3.17.0 stays a GitHub-only release, like 3.16.1. The next
+wordpress.org release is 3.17.1, which carries #215–#219 and keeps the
+`= 3.17.0 =` changelog entry. `./release.sh` is not run for 3.17.0.
+**Rationale:** stores that update from wordpress.org get the post-tag fixes in
+the same update. Erkki, 2026-10-09.
+**Alternatives:** publish 3.17.0 to wordpress.org first — not chosen.
+**Relationships:** PRO-3872 (3.16.1 GitHub-only) is the precedent; PRO-4001
+carries the 3.17.1 tag/release approval. CLAUDE.md release checklist step 7d
+is skipped for 3.17.0.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
