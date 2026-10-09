@@ -180,18 +180,23 @@ class CartSessionStore {
 	/**
 	 * Drop every session row of this address. Letter case does not matter;
 	 * an accent does (`jäne@…` is another shopper — PRO-3996, AddressMatch).
+	 * `idx_email` narrows the rows first, so the DELETE reads and locks only
+	 * this address's rows, not the whole table (PRO-4004).
 	 */
 	public function delete_by_email( string $email ): void {
 		global $wpdb;
-		if ( $email === '' ) {
+		$match = AddressMatch::column_equals_indexed( 'email', $email );
+		if ( $match === null ) {
 			return;
 		}
+		// phpcs:disable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- The %s placeholders come from AddressMatch::column_equals_indexed(), with its arguments.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$this->table_name()} WHERE " . AddressMatch::column_equals( 'email' ),
-				$email
+				"DELETE FROM {$this->table_name()} WHERE {$match[0]}",
+				...$match[1]
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 	}
 
 	/**
@@ -199,20 +204,23 @@ class CartSessionStore {
 	 * case: a guest entered their email at checkout, then logged in — the
 	 * login migrates the cart to a new session token and the old guest row
 	 * would double-remind the same address). Same address match as
-	 * delete_by_email() (PRO-3996).
+	 * delete_by_email() (PRO-3996), through `idx_email` (PRO-4004): this
+	 * runs on every tracked cart update with a known address.
 	 */
 	public function delete_other_rows_for_email( string $email, string $keep_token ): void {
 		global $wpdb;
-		if ( $email === '' || $keep_token === '' ) {
+		$match = AddressMatch::column_equals_indexed( 'email', $email );
+		if ( $match === null || $keep_token === '' ) {
 			return;
 		}
+		// phpcs:disable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- The address %s placeholders come from AddressMatch::column_equals_indexed(), with its arguments.
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$this->table_name()} WHERE " . AddressMatch::column_equals( 'email' ) . ' AND cart_token != %s',
-				$email,
-				$keep_token
+				"DELETE FROM {$this->table_name()} WHERE {$match[0]} AND cart_token != %s",
+				...array_merge( $match[1], array( $keep_token ) )
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 	}
 
 	/**

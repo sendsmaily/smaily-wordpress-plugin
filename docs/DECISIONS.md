@@ -8247,8 +8247,9 @@ parent moves, re-check whether its entry is still needed.
 ### PRO-3996 — An order or a login removes the buyer's carts, not an accented address's (2026-10-09)
 
 **Context:** when an order completes, `CartHookHandler::clear_for_order()`
-calls `CartSessionStore::delete_by_email()`; when a shopper logs in, the cart
-update calls `delete_other_rows_for_email()` (the guest remnant). Both compared
+calls `CartSessionStore::delete_by_email()`; every tracked cart update with a
+known address calls `delete_other_rows_for_email()` (it removes the guest
+remnant a login leaves). Both compared
 `email = %s` under the column's accent-blind collation, so `jane@…`'s order or
 login also removed `jäne@…`'s cart, and that shopper got no abandoned-cart
 reminder. PRO-3993 had fixed the same comparison for the exporter and eraser
@@ -8274,6 +8275,34 @@ the same update. Erkki, 2026-10-09.
 **Relationships:** PRO-3872 (3.16.1 GitHub-only) is the precedent; PRO-4001
 carries the 3.17.1 tag/release approval. CLAUDE.md release checklist step 7d
 is skipped for 3.17.0.
+
+### PRO-4004 — The cart tracker's address removals go through `idx_email` (2026-10-09)
+
+**Context:** since PRO-3996 `CartSessionStore::delete_by_email()` and
+`delete_other_rows_for_email()` matched with `AddressMatch::column_equals()`
+alone. A function on the column keeps MySQL and MariaDB from using
+`idx_email`, so each removal read the whole tracker table and, under InnoDB
+REPEATABLE READ, locked every row it read. `delete_other_rows_for_email()`
+runs on every tracked cart update with a known address (audit 2026-10-09 M1),
+so one shopper's checkout field change held up other shoppers' cart writes.
+Nothing wrong was deleted.
+**Decision:** a new `AddressMatch::column_equals_indexed( $column, $email )`
+returns `( col = %s AND <column_equals> )` and both arguments (null for a
+blank address). Both cart removals use it. The plain comparison lets the index
+narrow the rows; the binary match still decides, so an accented address is
+still another person and letter case still does not matter.
+`CartPipelineTest` checks the database's own plan (`EXPLAIN` of the DELETE
+each removal sends) names `idx_email`.
+**Rationale:** under the case- and accent-insensitive collations WordPress
+tables use, `col = %s` returns a superset of the binary match, so the result is
+unchanged. On a case-sensitive collation (`utf8mb4_bin`) letter case would
+matter again, as it did before PRO-3996 — accepted, WordPress does not create
+such tables by default.
+**Alternatives:** changing `column_equals()` itself — rejected here, the
+privacy exporter / eraser and the order lookup use it and are out of scope (the
+HPOS order lookup could take the new helper later); a generated lower-case
+column with its own index — a schema change for no gain over the prefilter.
+**Relationships:** PRO-3996, PRO-3909, PRO-1195 (migration 009's `idx_email`).
 
 ## How to keep this document going
 

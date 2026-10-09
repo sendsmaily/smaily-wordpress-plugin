@@ -20,7 +20,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * Two shapes, because the stores keep the address in two ways:
  * - column_equals(): a column that holds the address alone (an order's
- *   billing address, the cart tracker's `email`);
+ *   billing address, the cart tracker's `email`); column_equals_indexed()
+ *   adds a prefilter its index can serve;
  * - json_string(): a stored JSON blob that holds the address as one string
  *   value (the Smaily queue's `payload`, the Campaign Intelligence queue's
  *   `sent_payload`).
@@ -35,6 +36,34 @@ final class AddressMatch {
 	 */
 	public static function column_equals( string $column ): string {
 		return "CAST( LOWER( {$column} ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY )";
+	}
+
+	/**
+	 * column_equals() behind a plain `$column = %s`, for an indexed column
+	 * on a hot path (PRO-4004). A function on the column keeps the database
+	 * from using its index, so column_equals() alone reads — and in a DELETE
+	 * locks — every row. The plain comparison lets the index narrow the rows
+	 * first; under the case- and accent-insensitive collation WordPress
+	 * tables use it is a superset of the exact match, so the result is
+	 * column_equals()'s. On a case-sensitive collation (`utf8mb4_bin`) the
+	 * plain comparison also makes letter case matter, as it did before
+	 * PRO-3996.
+	 *
+	 * @param string $column A column name from code, never from a request.
+	 * @param string $email  The address as given.
+	 *
+	 * @return array{0: string, 1: array<int, string>}|null The parenthesised
+	 *         condition and its arguments; null for an empty address.
+	 */
+	public static function column_equals_indexed( string $column, string $email ): ?array {
+		if ( trim( $email ) === '' ) {
+			return null;
+		}
+
+		return array(
+			"( {$column} = %s AND " . self::column_equals( $column ) . ' )',
+			array( $email, $email ),
+		);
 	}
 
 	/**
