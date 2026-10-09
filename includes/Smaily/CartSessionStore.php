@@ -177,19 +177,29 @@ class CartSessionStore {
 		$wpdb->delete( $this->table_name(), array( 'user_id' => $user_id ), array( '%d' ) );
 	}
 
+	/**
+	 * Drop every session row of this address. Letter case does not matter;
+	 * an accent does (`jäne@…` is another shopper — PRO-3996, AddressMatch).
+	 */
 	public function delete_by_email( string $email ): void {
 		global $wpdb;
 		if ( $email === '' ) {
 			return;
 		}
-		$wpdb->delete( $this->table_name(), array( 'email' => $email ), array( '%s' ) );
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$this->table_name()} WHERE " . AddressMatch::column_equals( 'email' ),
+				$email
+			)
+		);
 	}
 
 	/**
 	 * Drop other session rows that carry the same email (the guest-remnant
 	 * case: a guest entered their email at checkout, then logged in — the
 	 * login migrates the cart to a new session token and the old guest row
-	 * would double-remind the same address).
+	 * would double-remind the same address). Same address match as
+	 * delete_by_email() (PRO-3996).
 	 */
 	public function delete_other_rows_for_email( string $email, string $keep_token ): void {
 		global $wpdb;
@@ -198,7 +208,7 @@ class CartSessionStore {
 		}
 		$wpdb->query(
 			$wpdb->prepare(
-				"DELETE FROM {$this->table_name()} WHERE email = %s AND cart_token != %s",
+				"DELETE FROM {$this->table_name()} WHERE " . AddressMatch::column_equals( 'email' ) . ' AND cart_token != %s',
 				$email,
 				$keep_token
 			)
