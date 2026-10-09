@@ -633,16 +633,23 @@ Facts that must stay true when you touch it:
   email field is documented in this page alone.
 
 **Publishing it live (FTPS).** The live copy at `https://smaily.com/connect-woo/`
-is published over FTPS — Erkki places a 3-line credentials file (host /
-username / password) at `/tmp/smaily-connect-woo-ftp` on request (secret-safe
-convention: never committed, never echoed). The account is chrooted directly
-into the connect-woo web root (contains `index.html` only). Working upload
-recipe: curl with explicit TLS, cert check relaxed (the FTP service cert
-doesn't match the hostname), passive-mode workaround, and credentials via a
-runtime-built `-K` config file (never on the command line):
+is published over FTPS. The credentials file lives PERMANENTLY at
+`~/smaily_ftp_woo` on Erkki's Mac (3 lines: host / username / password; since
+2026-10-09 — the old "`/tmp/smaily-connect-woo-ftp` on request" convention is
+retired). Erkki keeps that file: agents use it, never print its contents,
+never commit, copy or delete it, and never ask for a new `/tmp` file. The
+account is chrooted directly into the connect-woo web root (contains
+`index.html` only). Working upload recipe: curl with explicit TLS, cert check
+relaxed (the FTP service cert doesn't match the hostname), passive-mode
+workaround, and credentials via a `-K` config file built at runtime from
+`~/smaily_ftp_woo` in a private temp file (`umask 077` + `mktemp`) — never on
+the command line — and deleted right after the upload:
 ```
 curl --ssl-reqd -k --disable-epsv -K <cfg> -T docs/site/index.html ftp://smaily.com/index.html
 ```
+Verify the publish: the md5 of the live page
+(`curl -s https://smaily.com/connect-woo/ | md5`) must equal the md5 of
+`docs/site/index.html` on `main` (`git show origin/main:docs/site/index.html | md5`).
 **Publish only after the Estonian proofread of changed content** — the
 PRO-1520-established human gate; don't push a language pair live unfiltered.
 
