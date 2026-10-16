@@ -2630,7 +2630,7 @@ msgid "Customer details"
 msgstr ""
 
 #: admin/src/components/steps/TransactionalTriggersSection.tsx
-msgid "Personal data sent with both confirmation emails. Off by default — switch it on only if your email template shows these details."
+msgid "Personal data sent with the transactional emails. Off by default — switch it on only if your email template shows these details."
 msgstr ""
 
 #: admin/src/components/steps/TransactionalTriggersSection.tsx
@@ -3025,4 +3025,66 @@ msgstr ""
 
 #: admin/src/components/settings/EventLog.tsx:320
 msgid "skipped"
+msgstr ""
+
+#. translators: 1: the shortest delay in days, 2: the longest.
+#: includes/REST/SettingsEndpoint.php
+#, php-format
+msgid "The follow-up email delay must be a whole number of days from %1$d to %2$d."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Follow-up email"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Sent a set number of days after an order reaches a ticked status — a feedback request, say."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Days to wait"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "From 1 to 90 days after the order reaches a ticked status."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Starts the wait"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Order statuses that start the follow-up email’s wait. It is sent only if the order is still at one of them when the wait ends, and never for a cancelled, refunded or failed order."
+msgstr ""
+
+#. translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
+#: admin/src/components/steps/TransactionalStatusLine.tsx
+#, js-format
+msgid "No order in the last 30 days reached a status ticked for the follow-up email. Recent orders are at: %s. Nothing is sent until orders reach a ticked status."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalStatusLine.tsx
+msgid "This email goes out through Smaily’s transactional sending: the plugin waits the number of days you set here, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, each follow-up still waiting, and each one that could not be sent, is listed in the Event Log."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts
+msgid "The order no longer exists."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts
+msgid "The order was cancelled, refunded or failed before the follow-up email was due."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts
+msgid "When the wait ended, the order was no longer at a status ticked for the follow-up email."
+msgstr ""
+
+#: admin/src/components/settings/EventLog.tsx
+msgid "scheduled"
+msgstr ""
+
+#. translators: %s is the date and time the follow-up email will be sent.
+#: admin/src/components/settings/EventLog.tsx
+#, js-format
+msgid "Sends on %s."
 msgstr ""

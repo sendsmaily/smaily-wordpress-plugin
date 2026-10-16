@@ -2413,8 +2413,8 @@ msgid "Customer details"
 msgstr "Kliendi andmed"
 
 #: admin/src/components/steps/TransactionalTriggersSection.tsx
-msgid "Personal data sent with both confirmation emails. Off by default — switch it on only if your email template shows these details."
-msgstr "Isikuandmed, mis saadetakse mõlema kinnituskirjaga. Vaikimisi väljas — lülita sisse ainult siis, kui su kirjapõhi neid andmeid näitab."
+msgid "Personal data sent with the transactional emails. Off by default — switch it on only if your email template shows these details."
+msgstr "Isikuandmed, mis saadetakse tehinguliste kirjadega. Vaikimisi väljas — lülita sisse ainult siis, kui su kirjapõhi neid andmeid näitab."
 
 #: admin/src/components/steps/TransactionalTriggersSection.tsx
 msgid "Include addresses, phone and order note"
@@ -3026,3 +3026,65 @@ msgstr "See kiri saadetakse Smaily tehingulise saatmise kaudu: Smaily saadab val
 #: admin/src/components/settings/EventLog.tsx:320
 msgid "skipped"
 msgstr "vahele jäetud"
+
+#. translators: 1: the shortest delay in days, 2: the longest.
+#: includes/REST/SettingsEndpoint.php
+#, php-format
+msgid "The follow-up email delay must be a whole number of days from %1$d to %2$d."
+msgstr "Järelkirja ooteaeg peab olema täisarv päevi vahemikus %1$d kuni %2$d."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Follow-up email"
+msgstr "Järelkiri"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Sent a set number of days after an order reaches a ticked status — a feedback request, say."
+msgstr "Saadetakse määratud arvu päevade järel pärast seda, kui tellimus jõuab märgitud olekusse — näiteks tagasiside palve."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Days to wait"
+msgstr "Ooteaeg päevades"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "From 1 to 90 days after the order reaches a ticked status."
+msgstr "1 kuni 90 päeva pärast seda, kui tellimus jõuab märgitud olekusse."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Starts the wait"
+msgstr "Käivitab ooteaja"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx
+msgid "Order statuses that start the follow-up email’s wait. It is sent only if the order is still at one of them when the wait ends, and never for a cancelled, refunded or failed order."
+msgstr "Tellimuse olekud, mis käivitavad järelkirja ooteaja. Kiri saadetakse ainult siis, kui tellimus on ooteaja lõppedes endiselt mõnes neist olekutest, ja mitte kunagi tühistatud, tagastatud või ebaõnnestunud tellimusele."
+
+#. translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
+#: admin/src/components/steps/TransactionalStatusLine.tsx
+#, js-format
+msgid "No order in the last 30 days reached a status ticked for the follow-up email. Recent orders are at: %s. Nothing is sent until orders reach a ticked status."
+msgstr "Viimase 30 päeva jooksul ei jõudnud ükski tellimus järelkirja jaoks märgitud olekusse. Hiljutised tellimused on olekus: %s. Midagi ei saadeta, kuni tellimused jõuavad märgitud olekusse."
+
+#: admin/src/components/steps/TransactionalStatusLine.tsx
+msgid "This email goes out through Smaily’s transactional sending: the plugin waits the number of days you set here, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, each follow-up still waiting, and each one that could not be sent, is listed in the Event Log."
+msgstr "See kiri saadetakse Smaily tehingulise saatmise kaudu: plugin ootab siin määratud arvu päevi, seejärel saadab Smaily valitud töövoo kirja kohe, seega töövoos seatud viivitused ei kehti ja töövoog ei näita käivitusi. Iga saatmine, iga veel ootel järelkiri ja iga järelkiri, mida ei saanud saata, on kirjas Sündmuste logis."
+
+#: admin/src/lib/transactional-reasons.ts
+msgid "The order no longer exists."
+msgstr "Tellimust enam ei ole."
+
+#: admin/src/lib/transactional-reasons.ts
+msgid "The order was cancelled, refunded or failed before the follow-up email was due."
+msgstr "Tellimus tühistati, raha tagastati või tellimus ebaõnnestus enne järelkirja saatmise aega."
+
+#: admin/src/lib/transactional-reasons.ts
+msgid "When the wait ended, the order was no longer at a status ticked for the follow-up email."
+msgstr "Ooteaja lõppedes ei olnud tellimus enam järelkirja jaoks märgitud olekus."
+
+#: admin/src/components/settings/EventLog.tsx
+msgid "scheduled"
+msgstr "ajastatud"
+
+#. translators: %s is the date and time the follow-up email will be sent.
+#: admin/src/components/settings/EventLog.tsx
+#, js-format
+msgid "Sends on %s."
+msgstr "Saadetakse %s."

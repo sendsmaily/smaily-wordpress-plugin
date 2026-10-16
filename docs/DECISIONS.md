@@ -8436,6 +8436,63 @@ writer) and PRO-1716 (`force_opt_in=false`). Pinned by
 `tests/Integration/WelcomeTriggerAudienceTest.php` (real hooks, real queue and
 flusher, transport faked) and the PRO-4093 section of `HookHandlerTest`.
 
+### PRO-4095 — A follow-up email goes out a set number of days after a ticked order status (2026-10-16)
+
+**Context:** merchants want a feedback request a few days after an order is
+completed. The confirmations go through Smaily's transactional sending
+(`message/send`), so a delay set in the Smaily workflow does not apply — the
+plugin has to do the waiting.
+**Decision (Erkki, 2026-10-16):** a third transactional trigger,
+`follow_up` ("Follow-up email"), with its own switch, workflow rows, counting
+statuses (default `completed`) and a delay in days (integer 1–90, default 7;
+the Settings save refuses anything else with a 400 and writes nothing). Like
+the other two it has no marketing-consent gate. The shipping confirmation
+keeps sending at once; one status change can do both.
+- **Scheduling:** on `woocommerce_order_status_changed` into a ticked status,
+  with the gate open and the once-per-order meta guard
+  (`_smly_plus_transactional_follow_up_status`) empty,
+  `TransactionalFlusher::schedule_follow_up()` sets the guard to `queued` and
+  writes ONE `transactional.follow_up` row through
+  `EventQueue::enqueue_scheduled()` — `pending` with `next_retry_at` = now +
+  delay, the park `pending()` already honours (PRO-1685). The transactional
+  flusher's recurring 60-second pass sends it once due; no extra Action
+  Scheduler action and no schema change. The row carries the recipient (so
+  the Art 17 erasure still finds and deletes it) and `due_at`, but no merge
+  tags.
+- **At due time** (`follow_up_at_due()`): the order is re-read and the gate
+  re-evaluated. Not sent, and the row is finished as skipped
+  (`EventQueue::mark_skipped()`, the PRO-4091 shape) with a plain reason, when
+  the order is gone (`order_missing`), the gate is closed (its own reason),
+  the order is cancelled/refunded/failed/trashed (`order_closed`), it is no
+  longer at a ticked status (`status_not_counting`), or it has no billing
+  email. Otherwise the payload is rebuilt from the order and the workflow as
+  they are then, and sent. The guard stays set either way: at most one
+  follow-up per order.
+- **Failures:** handled like the other two (transient → retried, refused →
+  `failed`), but with NO WooCommerce fallback — there is no native email to
+  re-fire, so `fail_open()` returns early and a failed follow-up stays
+  retryable (`TransactionalRetryGuard`). The one-hour retry ceiling
+  (PRO-1519) counts from `due_at`, not from the day the row was queued.
+- **Admin:** a third card with the PRO-4091 status line (its own "no recent
+  order reached a ticked status" warning; `TransactionalGate::
+  counting_statuses()` feeds it), and the Event Log shows a waiting row as
+  "scheduled" with its due time (`scheduled_for`, from `next_retry_at`).
+**Rationale:** the queue already knows how to hold a row until a time and the
+transactional flusher already drains it every minute, so the delay needs no
+new table, column or scheduler. Re-checking at due time is what makes a
+cancelled or refunded order safe: the merchant's settings and the order can
+both change over a week.
+**Alternatives:** an Action Scheduler single action per follow-up — rejected,
+a second mechanism for a row the recurring pass already picks up; storing the
+merge tags at schedule time — rejected, they would be a week stale and keep
+personal data in the queue longer than needed; a new queue status
+`scheduled` — rejected for the reasons PRO-4091 gives.
+**Relationships:** PRO-1504 (the gate, the once-per-order guard), PRO-4091
+(status line, skipped rows), PRO-1519 (retry ceiling), PRO-1685
+(`next_retry_at`), PRO-2383 (erasure). Pinned by the follow-up tests in
+`tests/Integration/TransactionalEmailsPipelineTest.php` (real WC status
+transitions) and `tests/Unit/Smaily/TransactionalFlusherTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
