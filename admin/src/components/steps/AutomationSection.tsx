@@ -226,6 +226,18 @@ function AutomationRow({
 
   const value = mapping?.workflowId ?? '';
 
+  // The list carries only ACTIVE workflows. A saved id missing from it
+  // gets its own entry: with no matching option the browser would show
+  // the first workflow as chosen while the saved id stays stored, and
+  // picking that shown workflow fires no change event (PRO-4092).
+  if (status === 'success' && value !== '' && !options.some((o) => o.value === value)) {
+    options.unshift({
+      value,
+      label: `#${value} — ${ __( 'inactive', 'smaily-connect' ) }`,
+      hint: undefined,
+    });
+  }
+
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>): void => {
     const workflowId = event.target.value;
     if (workflowId === '') {
