@@ -2426,7 +2426,7 @@ msgstr "Arveldus- ja tarneaadress, saaja nimi, telefoninumber ja kliendi märkus
 
 #: admin/src/components/steps/TransactionalTriggersSection.tsx:53
 msgid "Counts as shipped"
-msgstr ""
+msgstr "Loetakse saadetuks"
 
 #: admin/src/components/steps/TransactionalTriggersSection.tsx:54
 msgid "Order statuses that trigger the shipping-confirmation email."
@@ -3017,7 +3017,7 @@ msgstr "Viimase 30 päeva jooksul pole midagi saadetud."
 #: admin/src/components/steps/TransactionalStatusLine.tsx:70
 #, js-format
 msgid "No order in the last 30 days reached a status ticked under “Counts as shipped”. Recent orders are at: %s. Nothing is sent until orders reach a ticked status."
-msgstr "Viimase 30 päeva jooksul ei jõudnud ükski tellimus olekusse, mis on märgitud valiku „Counts as shipped“ all. Hiljutised tellimused on olekus: %s. Midagi ei saadeta, kuni tellimused jõuavad märgitud olekusse."
+msgstr "Viimase 30 päeva jooksul ei jõudnud ükski tellimus olekusse, mis on märgitud valiku „Loetakse saadetuks“ all. Hiljutised tellimused on olekus: %s. Midagi ei saadeta, kuni tellimused jõuavad märgitud olekusse."
 
 #: admin/src/components/steps/TransactionalStatusLine.tsx:79
 msgid "This email goes out through Smaily’s transactional sending: Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, and each confirmation that could not be sent, is listed in the Event Log."
