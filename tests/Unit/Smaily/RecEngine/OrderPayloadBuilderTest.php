@@ -246,6 +246,49 @@ final class OrderPayloadBuilderTest extends TestCase {
 		self::assertArrayNotHasKey( 'session_id', $a );
 	}
 
+	/**
+	 * Contract v1.12.1 §5 (PRO-4051): a later sync of the same order keeps an
+	 * attribution field it omits. `null` on one of the four rejects the whole
+	 * order, and `""` either rejects it (`smaily_rec_id`) or overwrites the
+	 * value an earlier sync stored. So meta that is stored but blank must be
+	 * omitted, never sent as `""` or `null`.
+	 *
+	 * @dataProvider blank_meta_values
+	 *
+	 * @param mixed $blank The stored meta value.
+	 */
+	public function test_blank_attribution_meta_is_omitted_never_sent_as_null_or_empty( $blank ): void {
+		$order = $this->mock_order(
+			array(
+				'status' => 'completed',
+				'meta'   => array(
+					'_smaily_rec_id'          => $blank,
+					'_smaily_visitor_token'   => $blank,
+					'_smaily_rec_ctx'         => $blank,
+					'_smaily_anon_session_id' => $blank,
+				),
+			)
+		);
+
+		$payload = ( new OrderPayloadBuilder() )->build( $order, 'u' );
+
+		foreach ( array( 'smaily_rec_id', 'smaily_rec_ctx', 'smaily_visitor_token', 'session_id' ) as $field ) {
+			self::assertArrayNotHasKey( $field, $payload, "A blank {$field} is omitted, so a later sync keeps the stored value." );
+		}
+		self::assertSame( 'completed', $payload['status'], 'The order itself still ships.' );
+	}
+
+	/**
+	 * @return array<string, array{0:mixed}>
+	 */
+	public static function blank_meta_values(): array {
+		return array(
+			'empty string' => array( '' ),
+			'whitespace'   => array( "  \t" ),
+			'null'         => array( null ),
+		);
+	}
+
 	public function test_a_non_uuid_rec_id_is_dropped_and_the_order_still_ships(): void {
 		// PRO-1710 send-side defence: a store that cookied a junk rec_id BEFORE
 		// the capture-side fix still carries it on order meta. The engine

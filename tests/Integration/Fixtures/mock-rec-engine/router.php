@@ -928,6 +928,28 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/orders' ) {
 			continue;
 		}
 
+		// Contract v1.12.1 §5 (PRO-4051): the four attribution fields are
+		// optional strings, so `null` on any of them fails per-order validation
+		// — the order lands in errors[] and is not written. A sender keeps a
+		// stored value by OMITTING the field. `isset()` below is false for
+		// null, so this check comes first.
+		$null_field = '';
+		foreach ( array( 'smaily_rec_id', 'smaily_rec_ctx', 'smaily_visitor_token', 'session_id' ) as $attribution_field ) {
+			if ( array_key_exists( $attribution_field, $order ) && $order[ $attribution_field ] === null ) {
+				$null_field = $attribution_field;
+				break;
+			}
+		}
+		if ( $null_field !== '' ) {
+			$errors[] = array(
+				'index'             => $index,
+				'external_order_id' => $external_id,
+				'field'             => $null_field,
+				'message'           => 'Expected string, received null',
+			);
+			continue;
+		}
+
 		// Live-engine Zod: `smaily_rec_id: z.string().uuid().optional()`, and
 		// orders validate PER ORDER (D6) — a non-uuid rejects THAT order while
 		// its batch mates go through. The mock not checking it is what let
