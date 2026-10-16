@@ -49,7 +49,8 @@ use Smaily\Connect\Support\MarketingConsent;
  *
  *   - the "Sync contacts to Smaily" switch — on by default (PLUGIN.md §5
  *     step 2), read through ContactSyncMode::sync_enabled()
- *   - smly_plus_welcome_enabled         — off (opt-in via Settings UI)
+ *   - smly_plus_welcome_enabled         — off (opt-in via Settings UI); the
+ *     welcome also needs the contact sync to send the contact (PRO-4093)
  *   - smly_plus_first_order_enabled     — off (opt-in via Settings UI)
  */
 class HookHandler {
@@ -59,16 +60,20 @@ class HookHandler {
 	public const EVENT_AUTOMATION_FIRST_ORDER = 'automation.first_order';
 
 	/**
-	 * Filter deciding whether a newly created account is enrolled in the welcome
-	 * automation (PRO-1682). Default: true for an account WooCommerce created
-	 * (`woocommerce_created_customer` — checkout, My Account registration),
-	 * false for a bare `user_register` (wp-admin staff accounts, accounts an
-	 * unrelated plugin creates). Receives ( bool $eligible, int $user_id,
-	 * string $source ), so a store can widen or narrow it per source — e.g.
-	 * return true on `user_register` to welcome accounts a shop-specific
-	 * registration plugin creates outside WooCommerce's own flows.
+	 * Filter deciding whether a shopper's marketing opt-in in the store starts
+	 * the welcome automation (PRO-4093). Consulted only for an opt-in that
+	 * would start it — the welcome toggle on, the contact sync sending the
+	 * contact. Receives ( bool $eligible = true, int $user_id (0 for a guest),
+	 * string $source ), where $source is the storefront act: one of the
+	 * SOURCE_* constants below. Return false to start no welcome for it.
 	 */
 	public const FILTER_WELCOME_ELIGIBLE = 'smaily_connect_welcome_eligible';
+
+	/** The storefront acts a shopper opts in with (PRO-4093) — the filter's $source. */
+	public const SOURCE_CHECKOUT       = 'checkout';
+	public const SOURCE_BLOCK_CHECKOUT = 'block_checkout';
+	public const SOURCE_REGISTRATION   = 'registration';
+	public const SOURCE_MY_ACCOUNT     = 'my_account';
 
 	private const OPTION_WELCOME_ENABLED     = 'smly_plus_welcome_enabled';
 	private const OPTION_FIRST_ORDER_ENABLED = 'smly_plus_first_order_enabled';
@@ -129,6 +134,18 @@ class HookHandler {
 	/** @var array<int, bool> users WooCommerce's customer eraser is erasing in this request (PRO-3995). */
 	private static array $erasing = array();
 
+	/** @var string|null the storefront act writing the consent record right now, else null (PRO-4093). */
+	private static ?string $storefront_optin = null;
+
+	/**
+	 * @var array<int, string> user id => storefront act: an account's tick in a
+	 * mode that keeps no consent record, waiting for the welcome (PRO-4093).
+	 */
+	private static array $optins_without_record = array();
+
+	/** @var array<string, bool> addresses the welcome was enqueued for in this request (PRO-4093). */
+	private static array $welcomed = array();
+
 	private EventQueue $queue;
 
 	private ?\Smaily\Connect\Smaily\SubscriberPayloadBuilder $builder = null;
@@ -162,9 +179,6 @@ class HookHandler {
 				$this->build_contact_payload( $user )
 			);
 		}
-
-		// A bare user_register is NOT a shopper signal — see maybe_enqueue_welcome.
-		$this->maybe_enqueue_welcome( $user, 'user_register', false );
 	}
 
 	public function on_profile_update( int $user_id ): void {
@@ -254,56 +268,104 @@ class HookHandler {
 		// dedupes, so this doesn't double-enqueue.
 		$this->on_user_register( $customer_id );
 
-		// The welcome, however, fires ONLY from here: this hook is WooCommerce's
-		// own "a shopper got an account" signal (PRO-1682).
+		// An account is not an opt-in, so creating one starts no welcome
+		// (PRO-4093). A tick on the My Account registration form was recorded
+		// by Profile_Settings on this same hook, at an earlier priority.
+		$this->welcome_optins_without_record();
+	}
+
+	/**
+	 * Start the welcome for a shopper's own marketing opt-in in the store
+	 * (PRO-4093) — the checkout box, the My Account registration form or
+	 * Account details. Never for an account alone, a staff edit in wp-admin,
+	 * an import or a Smaily-side change: those reach Smaily as consent, but
+	 * nobody asked for the welcome. The caller has decided that the contact
+	 * sync sends this contact; this adds the welcome's own toggle and filter.
+	 */
+	private function maybe_enqueue_welcome( \WP_User $user, string $source ): void {
+		if ( ! $this->welcome_allowed( (int) $user->ID, $source ) ) {
+			return;
+		}
+
+		$this->enqueue_welcome( (string) $user->ID, $this->build_automation_payload( $user, 'welcome' ) );
+	}
+
+	/** The guest twin of maybe_enqueue_welcome(): the order's billing contact. */
+	private function maybe_enqueue_guest_welcome( \WC_Order $order, string $source ): void {
+		if ( (string) $order->get_billing_email() === '' || ! $this->welcome_allowed( 0, $source ) ) {
+			return;
+		}
+
+		$payload           = $this->build_guest_payload( $order );
+		$payload['fields'] = array_merge( $payload['fields'], AutomationMarker::stamp( 'welcome' ) );
+
+		$this->enqueue_welcome( 'order:' . $order->get_id(), $payload );
+	}
+
+	private function welcome_allowed( int $user_id, string $source ): bool {
+		if ( $this->gate_closed() || ! $this->is_enabled( self::OPTION_WELCOME_ENABLED, false ) ) {
+			return false;
+		}
+
+		/** This filter is documented on HookHandler::FILTER_WELCOME_ELIGIBLE. */
+		return (bool) apply_filters( self::FILTER_WELCOME_ELIGIBLE, true, $user_id, $source );
+	}
+
+	/**
+	 * One welcome per address per request: an account created at a checkout
+	 * with the box ticked reaches the welcome from more than one hook.
+	 *
+	 * @param array<string, mixed> $payload
+	 */
+	private function enqueue_welcome( string $entity_id, array $payload ): void {
+		$email = strtolower( (string) $payload['email'] );
+		if ( isset( self::$welcomed[ $email ] ) ) {
+			return;
+		}
+		self::$welcomed[ $email ] = true;
+
+		$this->maybe_enqueue( self::EVENT_AUTOMATION_WELCOME, $entity_id, $payload );
+	}
+
+	/**
+	 * A ticked checkout box (PRO-4093): welcome the contact the order path
+	 * sends — a guest, or anyone in checkout-only mode — and an account whose
+	 * tick the store keeps no record of. In consent mode an account's tick is
+	 * the consent record's change, which starts the welcome in
+	 * handle_newsletter_change().
+	 */
+	private function maybe_welcome_checkout_optin( \WC_Order $order, string $source ): void {
 		if ( $this->gate_closed() ) {
 			return;
 		}
 
-		$user = get_userdata( $customer_id );
-		if ( $user === false ) {
-			return;
+		$customer_id = (int) $order->get_customer_id();
+		if ( $this->audience()->should_sync_order_email( $customer_id, true ) ) {
+			$user = $customer_id > 0 ? get_userdata( $customer_id ) : false;
+			if ( $user instanceof \WP_User ) {
+				$this->maybe_enqueue_welcome( $user, $source );
+			} else {
+				$this->maybe_enqueue_guest_welcome( $order, $source );
+			}
 		}
 
-		$this->maybe_enqueue_welcome( $user, 'woocommerce_created_customer', true );
+		$this->welcome_optins_without_record();
 	}
 
 	/**
-	 * Enrol a newly created account in the welcome automation — when the account
-	 * is a shopper's (PRO-1682).
-	 *
-	 * The welcome trigger used to fire on any `user_register`, so a staff account
-	 * created in wp-admin or an account an unrelated plugin created (membership,
-	 * forum) became an opted-in marketing contact — with no customer relationship
-	 * to rest a legitimate-interest basis on. Enrolment can't be undone once the
-	 * trigger fires, so WHO triggers is the only lever.
-	 *
-	 * The signal is the FLOW, not the role: `woocommerce_created_customer` fires
-	 * only for an account WooCommerce itself created — checkout, My Account
-	 * registration, order-confirmation "create an account" — and never for
-	 * wp-admin's Add New User or a plain wp_insert_user(). Keying on the flow
-	 * also leaves custom shopper roles (wholesale, VIP) working: a plugin can
-	 * swap the role through the `woocommerce_new_customer_data` filter and the
-	 * hook still fires, so a role check is never consulted.
-	 *
-	 * @param string $source           Hook the account arrived through.
-	 * @param bool   $eligible_default Whether that hook is a shopper signal.
+	 * Welcome the accounts record_newsletter_optin() noted in a mode that keeps
+	 * no consent record — when the contact sync sends them (legitimate
+	 * interest: yes; checkout-only: no, accounts are not contacts there).
 	 */
-	private function maybe_enqueue_welcome( \WP_User $user, string $source, bool $eligible_default ): void {
-		if ( ! $this->is_enabled( self::OPTION_WELCOME_ENABLED, false ) ) {
-			return;
-		}
+	private function welcome_optins_without_record(): void {
+		foreach ( self::$optins_without_record as $user_id => $source ) {
+			unset( self::$optins_without_record[ $user_id ] );
 
-		/** This filter is documented on HookHandler::FILTER_WELCOME_ELIGIBLE. */
-		if ( ! (bool) apply_filters( self::FILTER_WELCOME_ELIGIBLE, $eligible_default, (int) $user->ID, $source ) ) {
-			return;
+			$user = get_userdata( $user_id );
+			if ( $user instanceof \WP_User && $this->audience()->should_sync_user( $user ) ) {
+				$this->maybe_enqueue_welcome( $user, $source );
+			}
 		}
-
-		$this->maybe_enqueue(
-			self::EVENT_AUTOMATION_WELCOME,
-			(string) $user->ID,
-			$this->build_automation_payload( $user, 'welcome' )
-		);
 	}
 
 	/**
@@ -334,6 +396,9 @@ class HookHandler {
 		// checkout uses on_checkout_block_optin instead.
 		$opted_in = isset( $posted_data['user_newsletter'] ) && (int) $posted_data['user_newsletter'] === 1;
 		$this->sync_order_contact( $order, $opted_in );
+		if ( $opted_in ) {
+			$this->maybe_welcome_checkout_optin( $order, self::SOURCE_CHECKOUT );
+		}
 
 		$this->maybe_enqueue_first_order( $order );
 		$this->maybe_mark_abandoned_cart_purchase( $order );
@@ -380,7 +445,8 @@ class HookHandler {
 	 *
 	 * A registered buyer's tick is recorded here (PRO-3406), not in the
 	 * request hook: an account created at this checkout gets its customer id
-	 * only after that hook has run.
+	 * only after that hook has run. The welcome for the tick starts here too
+	 * (PRO-4093), for the same reason.
 	 */
 	public function on_block_checkout_order_processed( \WC_Order $order ): void {
 		$this->save_attribution_cookies_to_order( $order );
@@ -388,27 +454,58 @@ class HookHandler {
 		$this->maybe_mark_abandoned_cart_purchase( $order );
 
 		if ( $order->get_meta( self::ORDER_META_NEWSLETTER_OPTIN ) === '1' ) {
-			self::record_newsletter_optin( (int) $order->get_customer_id() );
+			self::record_newsletter_optin( (int) $order->get_customer_id(), self::SOURCE_BLOCK_CHECKOUT );
+			$this->maybe_welcome_checkout_optin( $order, self::SOURCE_BLOCK_CHECKOUT );
 		}
 	}
 
 	/**
 	 * Save a registered customer's explicit newsletter tick as the store's
 	 * consent record, `user_newsletter = 1` (PRO-3406). Writing the meta fires
-	 * handle_newsletter_change(), which sends the contact to Smaily subscribed.
+	 * handle_newsletter_change(), which sends the contact to Smaily subscribed
+	 * and, as $source is a storefront act, starts the welcome (PRO-4093).
 	 * Only ever writes 1 — an unticked box is not an opt-out — and only in
 	 * consent mode after the wizard: legitimate interest and checkout-only do
 	 * not use the record, and before the wizard the legacy sync owns the tick.
+	 * In those two modes the tick is noted for the welcome instead, which the
+	 * handler starts later in the same request (welcome_optins_without_record).
+	 *
+	 * @param string $source The storefront act, one of the SOURCE_* constants.
 	 */
-	public static function record_newsletter_optin( int $user_id ): void {
+	public static function record_newsletter_optin( int $user_id, string $source ): void {
 		if ( $user_id <= 0 || ! SetupState::completed() ) {
 			return;
 		}
 		if ( ( new ContactSyncMode() )->mode() !== ContactSyncMode::MODE_CONSENT ) {
+			self::$optins_without_record[ $user_id ] = $source;
 			return;
 		}
 
-		update_user_meta( $user_id, ContactAudience::OPTIN_META, '1' );
+		self::run_as_storefront_optin(
+			$source,
+			static function () use ( $user_id ): void {
+				update_user_meta( $user_id, ContactAudience::OPTIN_META, '1' );
+			}
+		);
+	}
+
+	/**
+	 * Run $write as the shopper's own opt-in in the store (PRO-4093): a change
+	 * of the consent record to opted-in that $write makes starts the welcome.
+	 * Restores the previous value after (nesting-safe), like
+	 * ContactReconciler::run_suppressed().
+	 *
+	 * @param string          $source The storefront act, one of the SOURCE_* constants.
+	 * @param callable():void $write
+	 */
+	public static function run_as_storefront_optin( string $source, callable $write ): void {
+		$previous               = self::$storefront_optin;
+		self::$storefront_optin = $source;
+		try {
+			$write();
+		} finally {
+			self::$storefront_optin = $previous;
+		}
 	}
 
 	/**
@@ -531,31 +628,8 @@ class HookHandler {
 			return;
 		}
 
-		$user = $customer_id > 0 ? get_userdata( $customer_id ) : false;
-		if ( $user instanceof \WP_User ) {
-			$payload = $this->build_contact_payload( $user );
-		} else {
-			// Guest (no WP_User): a minimal payload, enriched with the billing
-			// name the order already carries so the contact isn't email-only.
-			$fields = array( 'store' => function_exists( 'get_site_url' ) ? (string) get_site_url() : '' );
-			$first  = trim( (string) $order->get_billing_first_name() );
-			$last   = trim( (string) $order->get_billing_last_name() );
-			if ( $first !== '' ) {
-				$fields['first_name'] = $first;
-			}
-			if ( $last !== '' ) {
-				$fields['last_name'] = $last;
-			}
-
-			$payload  = array(
-				'email'  => $email,
-				'fields' => $fields,
-			);
-			$language = $this->detect_language_for_order( $order );
-			if ( $language !== '' ) {
-				$payload['language'] = $language;
-			}
-		}
+		$user    = $customer_id > 0 ? get_userdata( $customer_id ) : false;
+		$payload = $user instanceof \WP_User ? $this->build_contact_payload( $user ) : $this->build_guest_payload( $order );
 
 		// An explicit checkout opt-in subscribes (consent / checkout-only); under
 		// legitimate interest Smaily owns consent, so is_unsubscribed is omitted.
@@ -567,14 +641,45 @@ class HookHandler {
 	}
 
 	/**
-	 * Reset the per-request dedupe set and erasure marks. Tests use this
-	 * between cases; production code never calls it — the statics are
-	 * request-scoped and PHP discards them at request end.
+	 * Guest (no WP_User): a minimal payload, enriched with the billing name the
+	 * order already carries so the contact isn't email-only.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function build_guest_payload( \WC_Order $order ): array {
+		$fields = array( 'store' => function_exists( 'get_site_url' ) ? (string) get_site_url() : '' );
+		$first  = trim( (string) $order->get_billing_first_name() );
+		$last   = trim( (string) $order->get_billing_last_name() );
+		if ( $first !== '' ) {
+			$fields['first_name'] = $first;
+		}
+		if ( $last !== '' ) {
+			$fields['last_name'] = $last;
+		}
+
+		$payload  = array(
+			'email'  => (string) $order->get_billing_email(),
+			'fields' => $fields,
+		);
+		$language = $this->detect_language_for_order( $order );
+		if ( $language !== '' ) {
+			$payload['language'] = $language;
+		}
+
+		return $payload;
+	}
+
+	/**
+	 * Reset the per-request dedupe sets, erasure marks and noted opt-ins.
+	 * Tests use this between cases; production code never calls it — the
+	 * statics are request-scoped and PHP discards them at request end.
 	 */
 	public static function reset_seen(): void {
-		self::$seen        = array();
-		self::$gate_logged = false;
-		self::$erasing     = array();
+		self::$seen                  = array();
+		self::$gate_logged           = false;
+		self::$erasing               = array();
+		self::$optins_without_record = array();
+		self::$welcomed              = array();
 	}
 
 	/**
@@ -697,6 +802,11 @@ class HookHandler {
 	 * has no accounts. The regular data sync (on_profile_update) never sends
 	 * is_unsubscribed — so a routine profile edit can't resurrect a Smaily
 	 * unsubscribe between reconciles; only an actual opt-state transition does.
+	 *
+	 * An opt-in the shopper makes in the store (run_as_storefront_optin) also
+	 * starts the welcome, after the subscribe — in consent mode, and under
+	 * legitimate interest, where the contact sync sends every account
+	 * (PRO-4093).
 	 */
 	private function handle_newsletter_change( int $user_id, int $old_value, int $new_value ): void {
 		// The reconciler's own Smaily→WP write fires this hook — don't echo it
@@ -710,7 +820,10 @@ class HookHandler {
 		if ( ! ContactSyncMode::sync_enabled() ) {
 			return;
 		}
-		if ( $this->mode()->mode() !== ContactSyncMode::MODE_CONSENT ) {
+
+		$consent_mode = $this->mode()->mode() === ContactSyncMode::MODE_CONSENT;
+		$storefront   = self::$storefront_optin;
+		if ( ! $consent_mode && ( $new_value !== 1 || $storefront === null ) ) {
 			return;
 		}
 
@@ -719,8 +832,21 @@ class HookHandler {
 			return;
 		}
 
+		if ( ! $consent_mode ) {
+			// The record is still the old value here (the hook fires before the
+			// write), so this asks the mode alone — which only legitimate
+			// interest answers yes without an opt-in.
+			if ( $this->audience()->should_sync_user( $user ) ) {
+				$this->maybe_enqueue_welcome( $user, $storefront );
+			}
+			return;
+		}
+
 		if ( $new_value === 1 ) {
 			$this->enqueue_consent_change( $user, 0 );
+			if ( $storefront !== null ) {
+				$this->maybe_enqueue_welcome( $user, $storefront );
+			}
 		} elseif ( $old_value === 1 ) {
 			$this->enqueue_consent_change( $user, 1 );
 		}

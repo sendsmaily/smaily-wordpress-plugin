@@ -150,7 +150,15 @@ class Profile_Settings {
 	 */
 	public function smaily_save_wc_account_fields( $customer_id ) {
 		$sanitized_data = $this->sanitize_request_smaily_account_fields( 'save-account-details-nonce', 'save_account_details' );
-		$this->save_account_fields( $customer_id, $sanitized_data );
+
+		// The shopper's own save in the store: a newsletter tick here starts
+		// the welcome (PRO-4093). The wp-admin save below does not.
+		HookHandler::run_as_storefront_optin(
+			HookHandler::SOURCE_MY_ACCOUNT,
+			function () use ( $customer_id, $sanitized_data ) {
+				$this->save_account_fields( $customer_id, $sanitized_data );
+			}
+		);
 	}
 
 	/**
@@ -169,7 +177,7 @@ class Profile_Settings {
 			return;
 		}
 
-		HookHandler::record_newsletter_optin( (int) $customer_id );
+		HookHandler::record_newsletter_optin( (int) $customer_id, HookHandler::SOURCE_CHECKOUT );
 	}
 
 	/**
@@ -195,7 +203,7 @@ class Profile_Settings {
 			return;
 		}
 
-		HookHandler::record_newsletter_optin( (int) $customer_id );
+		HookHandler::record_newsletter_optin( (int) $customer_id, HookHandler::SOURCE_REGISTRATION );
 	}
 
 	/**

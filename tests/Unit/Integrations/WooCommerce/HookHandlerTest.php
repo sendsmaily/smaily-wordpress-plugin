@@ -14,6 +14,7 @@ use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\GuestVisitorToken;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
+use Smaily\Connect\Integrations\WooCommerce\Hooks;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -1586,6 +1587,15 @@ final class HookHandlerTest extends TestCase {
 				|| ( $nonce === 'account-nonce' && $action === 'save_account_details' )
 				|| ( $nonce === 'admin-nonce' && str_starts_with( (string) $action, 'update-user_' ) ) ? 1 : false
 		);
+	}
+
+	public function test_the_handler_reads_a_registration_tick_after_profile_settings_records_it(): void {
+		$handler = new HookHandler( $this->queue );
+
+		Hooks::register( $handler );
+
+		// Profile_Settings records the tick at priority 10 on the same hook (PRO-4093).
+		self::assertGreaterThan( 10, has_action( 'woocommerce_created_customer', array( $handler, 'on_woocommerce_created_customer' ) ) );
 	}
 
 	/**
