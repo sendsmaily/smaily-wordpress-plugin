@@ -5,6 +5,7 @@ namespace Smaily_Connect\Blocks\Checkout_Optin;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily_Connect\Includes\Options;
+use Smaily_Connect\Integrations\WooCommerce\Profile_Settings;
 use Automattic\WooCommerce\Blocks\Integrations\IntegrationInterface;
 
 define( 'SMAILY_CHECKOUT_OPTIN_VERSION', '1.0.0' );
@@ -58,6 +59,9 @@ class Integration implements IntegrationInterface {
 
 		$data = array(
 			'smailyCheckoutOptinActive' => $enabled,
+			// The block hides the box from a subscribed customer, as the
+			// classic checkout does (PRO-4097).
+			'customerSubscribed'        => Profile_Settings::current_user_subscribed(),
 			'optInDefaultText'          => __( 'Subscribe to newsletter', 'smaily-connect' ),
 		);
 
