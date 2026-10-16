@@ -227,7 +227,6 @@ function AutomationRow({
       ? workflows.map((w) => ({
           value: w.id,
           label: w.name,
-          hint: w.status === 'INACTIVE' ? __( 'inactive', 'smaily-connect' ) : undefined,
         }))
       : [];
 
@@ -241,7 +240,6 @@ function AutomationRow({
     options.unshift({
       value,
       label: `#${value} — ${ __( 'inactive', 'smaily-connect' ) }`,
-      hint: undefined,
     });
   }
 
