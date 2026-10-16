@@ -146,6 +146,61 @@ final class TransactionalGateTest extends TestCase {
 		self::assertSame( array( array( 'order_confirmation', null ) ), $resolver->calls );
 	}
 
+	// --- why the gate is closed (PRO-4091) ---------------------------------
+
+	public function test_closed_reason_is_empty_when_every_condition_holds(): void {
+		$gate = new TransactionalGate(
+			$this->credentials_with( new CredentialSet( 'sub', 'user', 'pass' ) ),
+			$this->resolver_returning( new WorkflowMatch( 1, 'transactional' ) )
+		);
+
+		self::assertSame( '', $gate->closed_reason( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) );
+	}
+
+	public function test_closed_reason_names_the_master_switch_before_anything_else(): void {
+		$this->options['smly_plus_transactional_emails_enabled'] = false;
+		$this->options['smly_plus_order_confirmation_enabled']   = false;
+
+		$gate = new TransactionalGate( $this->credentials_with( null ), $this->resolver_returning( null ) );
+
+		self::assertSame( TransactionalGate::REASON_SWITCHED_OFF, $gate->closed_reason( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) );
+	}
+
+	public function test_closed_reason_names_the_trigger_toggle(): void {
+		$this->options['smly_plus_shipping_confirmation_enabled'] = false;
+
+		$gate = new TransactionalGate( $this->credentials_with( null ), $this->resolver_returning( null ) );
+
+		self::assertSame( TransactionalGate::REASON_TRIGGER_OFF, $gate->closed_reason( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ) );
+	}
+
+	public function test_closed_reason_names_a_missing_workflow(): void {
+		$gate = new TransactionalGate( $this->credentials_with( null ), $this->resolver_returning( null ) );
+
+		self::assertSame( TransactionalGate::REASON_NO_WORKFLOW, $gate->closed_reason( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) );
+	}
+
+	public function test_closed_reason_names_an_incomplete_connection(): void {
+		$gate = new TransactionalGate(
+			$this->credentials_with( new CredentialSet( 'sub', '', '' ) ),
+			$this->resolver_returning( new WorkflowMatch( 1, 'transactional' ) )
+		);
+
+		self::assertSame( TransactionalGate::REASON_CONNECTION_INCOMPLETE, $gate->closed_reason( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) );
+	}
+
+	public function test_closed_reason_names_a_stored_password_that_no_longer_decrypts(): void {
+		// The site's SECURE_AUTH_KEY changed: the stored password is still
+		// there, but it decrypts to '' — the merchant must re-enter it.
+		$gate = new TransactionalGate(
+			$this->credentials_with( new CredentialSet( 'sub', 'user', '' ), true ),
+			$this->resolver_returning( new WorkflowMatch( 1, 'transactional' ) )
+		);
+
+		self::assertSame( TransactionalGate::REASON_PASSWORD_UNREADABLE, $gate->closed_reason( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) );
+		self::assertNull( $gate->resolve_if_open( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ), 'Same rule, same answer: the gate stays closed.' );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	private function resolver_returning( ?WorkflowMatch $match ): WorkflowResolverInterface {
@@ -190,14 +245,19 @@ final class TransactionalGateTest extends TestCase {
 		return $order;
 	}
 
-	private function credentials_with( ?CredentialSet $set ): Credentials {
-		return new class( $set ) extends Credentials {
+	private function credentials_with( ?CredentialSet $set, bool $password_unreadable = false ): Credentials {
+		return new class( $set, $password_unreadable ) extends Credentials {
 			private ?CredentialSet $set;
-			public function __construct( ?CredentialSet $set ) {
-				$this->set = $set;
+			private bool $password_unreadable;
+			public function __construct( ?CredentialSet $set, bool $password_unreadable ) {
+				$this->set                 = $set;
+				$this->password_unreadable = $password_unreadable;
 			}
 			public function get( string $account_key = self::DEFAULT_ACCOUNT_KEY ): ?CredentialSet {
 				return $this->set;
+			}
+			public function password_unreadable( string $account_key = self::DEFAULT_ACCOUNT_KEY ): bool {
+				return $this->password_unreadable;
 			}
 		};
 	}

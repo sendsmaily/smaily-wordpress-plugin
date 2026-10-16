@@ -117,6 +117,36 @@ final class CredentialsTest extends TestCase {
 		);
 	}
 
+	public function test_password_unreadable_when_a_stored_password_decrypts_to_nothing(): void {
+		// PRO-4091: the site's keys changed, so the saved password can no
+		// longer be read — the merchant must re-enter it.
+		\Smaily_Connect\Includes\Cypher::$decrypt_return = '';
+		Functions\when( 'get_option' )->justReturn(
+			array(
+				'subdomain' => 'demo',
+				'username'  => 'alice',
+				'password'  => 'enc',
+			)
+		);
+
+		self::assertTrue( ( new Credentials() )->password_unreadable( 'transactional' ) );
+	}
+
+	public function test_password_not_unreadable_when_none_is_stored_or_it_decrypts(): void {
+		Functions\when( 'get_option' )->justReturn(
+			array(
+				'subdomain' => 'demo',
+				'username'  => 'alice',
+				'password'  => '',
+			)
+		);
+		self::assertFalse( ( new Credentials() )->password_unreadable( 'transactional' ), 'Nothing stored is an incomplete connection, not an unreadable password.' );
+
+		\Smaily_Connect\Includes\Cypher::$decrypt_return = 'pw';
+		Functions\when( 'get_option' )->justReturn( array( 'password' => 'enc' ) );
+		self::assertFalse( ( new Credentials() )->password_unreadable( 'transactional' ) );
+	}
+
 	public function test_has_default_returns_false_when_credentials_missing(): void {
 		Functions\when( 'get_option' )->justReturn( array() );
 

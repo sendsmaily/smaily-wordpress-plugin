@@ -43,6 +43,17 @@ class TransactionalGate {
 	public const TRIGGER_ORDER_CONFIRMATION    = 'order_confirmation';
 	public const TRIGGER_SHIPPING_CONFIRMATION = 'shipping_confirmation';
 
+	/**
+	 * Why the gate is closed — closed_reason()'s answer, one per condition
+	 * below (PRO-4091). The admin screen words them; stored in an Event Log
+	 * skipped row's last_response, so they are stable wire values.
+	 */
+	public const REASON_SWITCHED_OFF          = 'switched_off';
+	public const REASON_TRIGGER_OFF           = 'trigger_off';
+	public const REASON_NO_WORKFLOW           = 'no_workflow';
+	public const REASON_CONNECTION_INCOMPLETE = 'connection_incomplete';
+	public const REASON_PASSWORD_UNREADABLE   = 'password_unreadable';
+
 	private const OPTION_ENABLED = 'smly_plus_transactional_emails_enabled';
 
 	/** Bare WC status slugs (no 'wc-' prefix) treated as "shipped" — Settings persists this option. */
@@ -104,25 +115,48 @@ class TransactionalGate {
 	 * order (or on a one-language store) the lookup is language-less.
 	 */
 	public function resolve_if_open( string $trigger_type, ?\WC_Order $order = null ): ?WorkflowMatch {
+		return $this->evaluate( $trigger_type, $order )[1];
+	}
+
+	/**
+	 * Why the gate is closed for $trigger_type — the FIRST condition that
+	 * fails, as a REASON_* code — or '' when it is open (PRO-4091). The
+	 * same evaluation resolve_if_open() runs, so the merchant-facing status
+	 * and the Event Log's skipped rows can never state a rule the send
+	 * itself doesn't follow.
+	 */
+	public function closed_reason( string $trigger_type, ?\WC_Order $order = null ): string {
+		return $this->evaluate( $trigger_type, $order )[0];
+	}
+
+	/**
+	 * The four conditions, in order.
+	 *
+	 * @return array{0: string, 1: ?WorkflowMatch} [ REASON_* or '', the match when open ]
+	 */
+	private function evaluate( string $trigger_type, ?\WC_Order $order ): array {
 		if ( ! (bool) get_option( self::OPTION_ENABLED, false ) ) {
-			return null;
+			return array( self::REASON_SWITCHED_OFF, null );
 		}
 
 		if ( ! (bool) get_option( self::config( $trigger_type )['toggle_option'], false ) ) {
-			return null;
+			return array( self::REASON_TRIGGER_OFF, null );
 		}
 
 		$match = $this->resolver->resolve_workflow( $trigger_type, $this->order_language( $order ) );
 		if ( $match === null ) {
-			return null;
+			return array( self::REASON_NO_WORKFLOW, null );
 		}
 
 		$set = $this->credentials->get( $match->account_key );
 		if ( $set === null || ! $set->is_complete() ) {
-			return null;
+			return array(
+				$this->credentials->password_unreadable( $match->account_key ) ? self::REASON_PASSWORD_UNREADABLE : self::REASON_CONNECTION_INCOMPLETE,
+				null,
+			);
 		}
 
-		return $match;
+		return array( '', $match );
 	}
 
 	/**
