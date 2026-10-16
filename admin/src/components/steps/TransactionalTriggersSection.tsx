@@ -1,7 +1,11 @@
 import { type Dispatch } from 'react';
 
 import { __ } from '@admin/lib/i18n';
-import { type WizardAction, type WizardState } from '../../state/types';
+import {
+  FALLBACK_FOLLOW_UP_DELAY_LIMITS,
+  type WizardAction,
+  type WizardState,
+} from '../../state/types';
 import { Card, Checkbox, Label, NumberInput, Toggle } from '../primitives';
 import { AutomationSection } from './AutomationSection';
 import { TransactionalStatusLine } from './TransactionalStatusLine';
@@ -35,6 +39,8 @@ export function TransactionalTriggersSection({
   if (state.transactionalConnection.kind !== 'success') {
     return null;
   }
+
+  const delayLimits = state.env.followUpDelayLimits ?? FALLBACK_FOLLOW_UP_DELAY_LIMITS;
 
   return (
     <div className="space-y-4 border-t border-border-subtle pt-6">
@@ -126,8 +132,8 @@ export function TransactionalTriggersSection({
                   id="smly-follow-up-delay"
                   value={state.followUpDelayDays}
                   onChange={(e) => dispatch({ type: 'SET_FOLLOW_UP_DELAY_DAYS', payload: Number(e.target.value) })}
-                  min={1}
-                  max={90}
+                  min={delayLimits.min}
+                  max={delayLimits.max}
                   step={1}
                 />
               </div>

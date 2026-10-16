@@ -547,12 +547,7 @@ class EventQueue {
 				'attempts'      => 0,
 				'status'        => self::STATUS_SENT,
 				'sent_payload'  => null,
-				'last_response' => (string) wp_json_encode(
-					array(
-						'outcome' => self::OUTCOME_SKIPPED,
-						'reason'  => $reason,
-					)
-				),
+				'last_response' => self::skipped_response( $reason ),
 			),
 			array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
 		);
@@ -573,16 +568,24 @@ class EventQueue {
 			array(
 				'status'        => self::STATUS_SENT,
 				'sent_payload'  => null,
-				'last_response' => (string) wp_json_encode(
-					array(
-						'outcome' => self::OUTCOME_SKIPPED,
-						'reason'  => $reason,
-					)
-				),
+				'last_response' => self::skipped_response( $reason ),
 			),
 			array( 'id' => $id ),
 			array( '%s', '%s', '%s' ),
 			array( '%d' )
+		);
+	}
+
+	/**
+	 * The `last_response` a skipped row stores — record_skipped() and
+	 * mark_skipped() write the same shape, which skip_reason() reads.
+	 */
+	private static function skipped_response( string $reason ): string {
+		return (string) wp_json_encode(
+			array(
+				'outcome' => self::OUTCOME_SKIPPED,
+				'reason'  => $reason,
+			)
 		);
 	}
 

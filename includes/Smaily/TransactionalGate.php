@@ -55,6 +55,18 @@ class TransactionalGate {
 	public const REASON_CONNECTION_INCOMPLETE = 'connection_incomplete';
 	public const REASON_PASSWORD_UNREADABLE   = 'password_unreadable';
 
+	/**
+	 * Why a follow-up that fell due may not go out although the gate is
+	 * open (PRO-4095) — follow_up_due_reason()'s answer: the order was
+	 * cancelled/refunded/failed (or trashed), or it no longer sits in a
+	 * status ticked for the follow-up.
+	 */
+	public const REASON_ORDER_CLOSED        = 'order_closed';
+	public const REASON_STATUS_NOT_COUNTING = 'status_not_counting';
+
+	/** Order statuses a follow-up never goes out on, whatever is ticked. */
+	private const FOLLOW_UP_CLOSED_STATUSES = array( 'cancelled', 'refunded', 'failed', 'trash' );
+
 	private const OPTION_ENABLED = 'smly_plus_transactional_emails_enabled';
 
 	/** Bare WC status slugs (no 'wc-' prefix) treated as "shipped" — Settings persists this option. */
@@ -83,26 +95,33 @@ class TransactionalGate {
 	 * constants can be defined AS a reference into this map, rather than a
 	 * second literal copy of the same wire strings.
 	 *
-	 * @var array<string, array{toggle_option: string, event_type: string, meta_key: string}>
+	 * `statuses_option` names the option holding the bare WC status slugs the
+	 * trigger counts (read by counting_statuses()); null for a trigger that
+	 * counts no status.
+	 *
+	 * @var array<string, array{toggle_option: string, event_type: string, meta_key: string, statuses_option: ?string}>
 	 */
 	public const TRIGGERS = array(
 		self::TRIGGER_ORDER_CONFIRMATION    => array(
-			'toggle_option' => 'smly_plus_order_confirmation_enabled',
-			'event_type'    => 'transactional.order_confirmation',
+			'toggle_option'   => 'smly_plus_order_confirmation_enabled',
+			'event_type'      => 'transactional.order_confirmation',
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- config value only, consumed as a per-order-id meta guard key (get/update_meta_data by order id), never a WP_Query meta_query; WPCS flags any 'meta_key' array key regardless of context.
-			'meta_key'      => '_smly_plus_transactional_order_confirmation_status',
+			'meta_key'        => '_smly_plus_transactional_order_confirmation_status',
+			'statuses_option' => null,
 		),
 		self::TRIGGER_SHIPPING_CONFIRMATION => array(
-			'toggle_option' => 'smly_plus_shipping_confirmation_enabled',
-			'event_type'    => 'transactional.shipping_confirmation',
+			'toggle_option'   => 'smly_plus_shipping_confirmation_enabled',
+			'event_type'      => 'transactional.shipping_confirmation',
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- config value only, consumed as a per-order-id meta guard key (get/update_meta_data by order id), never a WP_Query meta_query; WPCS flags any 'meta_key' array key regardless of context.
-			'meta_key'      => '_smly_plus_transactional_shipping_confirmation_status',
+			'meta_key'        => '_smly_plus_transactional_shipping_confirmation_status',
+			'statuses_option' => self::OPTION_SHIPPED_STATUSES,
 		),
 		self::TRIGGER_FOLLOW_UP             => array(
-			'toggle_option' => 'smly_plus_follow_up_enabled',
-			'event_type'    => 'transactional.follow_up',
+			'toggle_option'   => 'smly_plus_follow_up_enabled',
+			'event_type'      => 'transactional.follow_up',
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- config value only, consumed as a per-order-id meta guard key (get/update_meta_data by order id), never a WP_Query meta_query; WPCS flags any 'meta_key' array key regardless of context.
-			'meta_key'      => '_smly_plus_transactional_follow_up_status',
+			'meta_key'        => '_smly_plus_transactional_follow_up_status',
+			'statuses_option' => self::OPTION_FOLLOW_UP_STATUSES,
 		),
 	);
 
@@ -179,6 +198,23 @@ class TransactionalGate {
 	}
 
 	/**
+	 * The order-status rules a due follow-up checks after evaluate() opens
+	 * (PRO-4095): never for a cancelled/refunded/failed/trashed order, and
+	 * only while the order still sits in a status ticked for the follow-up.
+	 * Returns the REASON_* code, or '' when the follow-up may go out.
+	 */
+	public function follow_up_due_reason( \WC_Order $order ): string {
+		$status = (string) $order->get_status();
+		if ( in_array( $status, self::FOLLOW_UP_CLOSED_STATUSES, true ) ) {
+			return self::REASON_ORDER_CLOSED;
+		}
+		if ( ! in_array( $status, self::follow_up_statuses(), true ) ) {
+			return self::REASON_STATUS_NOT_COUNTING;
+		}
+		return '';
+	}
+
+	/**
 	 * Whether a closed gate's $reason earns an Event Log skipped row
 	 * (PRO-4091). A switched-off email stays silent — a row per order on
 	 * every store that doesn't use it would flood the Event Log; a
@@ -250,8 +286,7 @@ class TransactionalGate {
 	 * @return string[]
 	 */
 	public static function shipped_statuses(): array {
-		$statuses = get_option( self::OPTION_SHIPPED_STATUSES, array( 'completed' ) );
-		return is_array( $statuses ) ? array_map( 'strval', $statuses ) : array( 'completed' );
+		return self::counting_statuses( self::TRIGGER_SHIPPING_CONFIRMATION );
 	}
 
 	/**
@@ -262,25 +297,26 @@ class TransactionalGate {
 	 * @return string[]
 	 */
 	public static function follow_up_statuses(): array {
-		$statuses = get_option( self::OPTION_FOLLOW_UP_STATUSES, array( 'completed' ) );
-		return is_array( $statuses ) ? array_map( 'strval', $statuses ) : array( 'completed' );
+		return self::counting_statuses( self::TRIGGER_FOLLOW_UP );
 	}
 
 	/**
 	 * The statuses a trigger counts — what the card's "no recent order
 	 * reached a ticked status" warning checks. Empty for the order
-	 * confirmation, which counts no status.
+	 * confirmation, which counts no status. The one reader of every
+	 * trigger's `statuses_option`, so all of them share the ['completed']
+	 * default.
 	 *
 	 * @return string[]
 	 */
 	public static function counting_statuses( string $trigger_type ): array {
-		if ( $trigger_type === self::TRIGGER_SHIPPING_CONFIRMATION ) {
-			return self::shipped_statuses();
+		$option = self::config( $trigger_type )['statuses_option'];
+		if ( $option === null ) {
+			return array();
 		}
-		if ( $trigger_type === self::TRIGGER_FOLLOW_UP ) {
-			return self::follow_up_statuses();
-		}
-		return array();
+
+		$statuses = get_option( $option, array( 'completed' ) );
+		return is_array( $statuses ) ? array_map( 'strval', $statuses ) : array( 'completed' );
 	}
 
 	/**
@@ -311,7 +347,7 @@ class TransactionalGate {
 	}
 
 	/**
-	 * @return array{toggle_option: string, event_type: string, meta_key: string}
+	 * @return array{toggle_option: string, event_type: string, meta_key: string, statuses_option: ?string}
 	 */
 	private static function config( string $trigger_type ): array {
 		return self::TRIGGERS[ $trigger_type ] ?? self::TRIGGERS[ self::TRIGGER_ORDER_CONFIRMATION ];

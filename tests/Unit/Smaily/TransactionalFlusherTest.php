@@ -50,7 +50,7 @@ final class TransactionalFlusherTest extends TestCase {
 	public function test_flush_scopes_pending_to_the_transactional_event_types(): void {
 		$queue = $this->fake_queue( array() );
 
-		( new TransactionalFlusher( $queue, static fn () => null ) )->flush();
+		$this->flusher( $queue, static fn () => null )->flush();
 
 		self::assertSame(
 			array(
@@ -77,7 +77,7 @@ final class TransactionalFlusherTest extends TestCase {
 			array( 'request' => array( 'endpoint' => 'message/send' ), 'response' => array( 'http' => 200, 'body' => array( 'code' => 101 ) ) )
 		);
 
-		$flusher = new TransactionalFlusher( $queue, static fn () => $client );
+		$flusher = $this->flusher( $queue, static fn () => $client );
 		$flusher->send_now(
 			TransactionalGate::TRIGGER_ORDER_CONFIRMATION,
 			$order,
@@ -97,7 +97,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$client = $this->createMock( Client::class );
 		$client->expects( self::never() )->method( 'send_message' );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->send_now(
+		$this->flusher( $queue, static fn () => $client )->send_now(
 			TransactionalGate::TRIGGER_ORDER_CONFIRMATION,
 			$order,
 			new WorkflowMatch( 1, 'transactional' ),
@@ -115,7 +115,7 @@ final class TransactionalFlusherTest extends TestCase {
 
 	public function test_record_skip_writes_one_row_per_order_and_trigger_within_a_request(): void {
 		$queue   = $this->fake_queue( array() );
-		$flusher = new TransactionalFlusher( $queue, static fn () => null );
+		$flusher = $this->flusher( $queue, static fn () => null );
 
 		$flusher->record_skip( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, 7, TransactionalGate::REASON_NO_WORKFLOW );
 		$flusher->record_skip( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, 7, TransactionalGate::REASON_NO_WORKFLOW );
@@ -143,7 +143,7 @@ final class TransactionalFlusherTest extends TestCase {
 
 		$fired = $this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->send_now(
+		$this->flusher( $queue, static fn () => $client )->send_now(
 			TransactionalGate::TRIGGER_ORDER_CONFIRMATION,
 			$order,
 			new WorkflowMatch( 1, 'transactional' ),
@@ -167,7 +167,7 @@ final class TransactionalFlusherTest extends TestCase {
 
 		$fired = $this->stub_native_mailer( 'WC_Email_Customer_Completed_Order' );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->send_now(
+		$this->flusher( $queue, static fn () => $client )->send_now(
 			TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION,
 			$order,
 			new WorkflowMatch( 1, 'transactional' ),
@@ -191,7 +191,7 @@ final class TransactionalFlusherTest extends TestCase {
 
 		$fired = $this->stub_native_mailer( 'WC_Email_Customer_Completed_Order' );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->send_now(
+		$this->flusher( $queue, static fn () => $client )->send_now(
 			TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION,
 			$order,
 			new WorkflowMatch( 1, 'transactional' ),
@@ -224,7 +224,7 @@ final class TransactionalFlusherTest extends TestCase {
 
 		$fired = $this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->flush();
+		$this->flusher( $queue, static fn () => $client )->flush();
 
 		self::assertSame( array(), $fired->calls, 'Already failed-open once — a manual retry must not double-fire the native email.' );
 	}
@@ -238,7 +238,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$client->method( 'send_message' )->willThrowException( new ApiException( 'rate limited', 429 ) );
 		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 429 ) ) );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->send_now(
+		$this->flusher( $queue, static fn () => $client )->send_now(
 			TransactionalGate::TRIGGER_ORDER_CONFIRMATION,
 			$order,
 			new WorkflowMatch( 1, 'transactional' ),
@@ -283,7 +283,7 @@ final class TransactionalFlusherTest extends TestCase {
 		);
 		$this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->send_now(
+		$this->flusher( $queue, static fn () => $client )->send_now(
 			TransactionalGate::TRIGGER_ORDER_CONFIRMATION,
 			$order,
 			new WorkflowMatch( 1, 'transactional' ),
@@ -312,12 +312,12 @@ final class TransactionalFlusherTest extends TestCase {
 		$queue = $this->fake_queue( array() );
 		$this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
 
-		( new TransactionalFlusher(
+		$this->flusher(
 			$queue,
 			static function (): Client {
 				throw new \RuntimeException( 'Smaily credentials are not configured' );
 			}
-		) )->send_now(
+		)->send_now(
 			TransactionalGate::TRIGGER_ORDER_CONFIRMATION,
 			$order,
 			new WorkflowMatch( 1, 'transactional' ),
@@ -354,7 +354,7 @@ final class TransactionalFlusherTest extends TestCase {
 
 		$fired = $this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
 
-		$stats = ( new TransactionalFlusher( $queue, static fn () => $client ) )->flush();
+		$stats = $this->flusher( $queue, static fn () => $client )->flush();
 
 		self::assertSame( array( 'id' => 21, 'error' => 'retry_ceiling_exceeded' ), $queue->marked_failed[0] );
 		self::assertSame( array(), $queue->attempts, 'A ceiling-expired row must not be recorded as another transient attempt.' );
@@ -385,7 +385,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$client->expects( self::once() )->method( 'send_message' )->willThrowException( new ApiException( 'temporary outage', 503 ) );
 		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 503 ) ) );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->flush();
+		$this->flusher( $queue, static fn () => $client )->flush();
 
 		self::assertSame( array(), $queue->marked_failed );
 		self::assertSame( 22, $queue->attempts[0]['id'] );
@@ -412,7 +412,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$client->expects( self::once() )->method( 'send_message' )->willThrowException( new ApiException( 'temporary outage', 503 ) );
 		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 503 ) ) );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->flush();
+		$this->flusher( $queue, static fn () => $client )->flush();
 
 		self::assertSame( array(), $queue->marked_failed, 'A non-transactional-type row must never be force-failed by the ceiling.' );
 		self::assertSame( 23, $queue->attempts[0]['id'] );
@@ -425,7 +425,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$order = $this->fake_order( 701, 'buyer@example.test' );
 
 		$queue   = $this->fake_queue( array() );
-		$flusher = new TransactionalFlusher(
+		$flusher = $this->flusher(
 			$queue,
 			static function (): Client {
 				self::fail( 'Scheduling sends nothing — the send waits for the delay.' );
@@ -451,7 +451,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$order = $this->fake_order( 702, '' );
 		$queue = $this->fake_queue( array() );
 
-		( new TransactionalFlusher( $queue, static fn () => null ) )->schedule_follow_up( $order, new WorkflowMatch( 1, 'transactional' ), 'completed' );
+		$this->flusher( $queue, static fn () => null )->schedule_follow_up( $order, new WorkflowMatch( 1, 'transactional' ), 'completed' );
 
 		self::assertSame( array(), $queue->scheduled );
 		self::assertSame( array( array( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP, '702', TransactionalFlusher::REASON_NO_BILLING_EMAIL ) ), $queue->skipped );
@@ -591,6 +591,16 @@ final class TransactionalFlusherTest extends TestCase {
 	}
 
 	private function follow_up_flusher( EventQueue $queue, Client $client, TransactionalGate $gate ): TransactionalFlusher {
+		return $this->flusher( $queue, static fn () => $client, $gate );
+	}
+
+	/**
+	 * The flusher under test. The gate and builder are only read when a
+	 * follow-up falls due; a test that never reaches one gets a gate matching nothing.
+	 *
+	 * @param callable(string $account_key): Client $client_factory
+	 */
+	private function flusher( EventQueue $queue, callable $client_factory, ?TransactionalGate $gate = null ): TransactionalFlusher {
 		$builder = new class() extends TransactionalPayloadBuilder {
 			public function __construct() {}
 			public function build( \WC_Order $order, string $trigger = '' ): array {
@@ -598,7 +608,7 @@ final class TransactionalFlusherTest extends TestCase {
 			}
 		};
 
-		return new TransactionalFlusher( $queue, static fn () => $client, $gate, $builder );
+		return new TransactionalFlusher( $queue, $client_factory, $gate ?? $this->gate_answering( '', null ), $builder );
 	}
 
 	private function gate_answering( string $reason, ?WorkflowMatch $match ): TransactionalGate {
@@ -712,7 +722,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$this->orders[601] = $order;
 
 		$queue   = $this->fake_queue( array() );
-		$flusher = new TransactionalFlusher(
+		$flusher = $this->flusher(
 			$queue,
 			static function (): Client {
 				self::fail( 'enqueue_resend() only queues — the send belongs to the next scheduled pass.' );
@@ -774,7 +784,7 @@ final class TransactionalFlusherTest extends TestCase {
 
 		$fired = $this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->flush();
+		$this->flusher( $queue, static fn () => $client )->flush();
 
 		self::assertSame( 12, $queue->marked_failed[0]['id'], 'The failure is still recorded.' );
 		self::assertSame( array(), $fired->calls, 'A re-send failure must not mail the native WooCommerce email.' );
@@ -813,7 +823,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$client->method( 'send_message' )->willReturn( array( 'code' => 101 ) );
 		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
 
-		( new TransactionalFlusher( $queue, static fn () => $client ) )->flush();
+		$this->flusher( $queue, static fn () => $client )->flush();
 
 		self::assertSame( array( 13 ), $queue->marked_sent );
 		self::assertSame(
