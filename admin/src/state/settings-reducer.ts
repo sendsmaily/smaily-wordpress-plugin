@@ -1,6 +1,7 @@
 import {
   DEFAULT_SYNC_FIELDS,
   emptyCredentials,
+  FALLBACK_FOLLOW_UP_DELAY_LIMITS,
   idleAsync,
   idleBackfill,
   idleEngineAutomations,
@@ -128,7 +129,7 @@ export function buildSettingsInitialState(env: ServerEnv = {}): WizardState {
     shippedOrderStatuses: [],
     followUpEnabled: false,
     followUpOrderStatuses: [],
-    followUpDelayDays: 7,
+    followUpDelayDays: FALLBACK_FOLLOW_UP_DELAY_LIMITS.default,
     transactionalPersonalData: false,
     transactionalStatus: {},
 

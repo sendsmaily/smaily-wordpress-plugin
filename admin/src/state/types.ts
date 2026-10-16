@@ -282,6 +282,19 @@ export function normalizeContactSyncMode(value: string | undefined): ContactSync
     : DEFAULT_CONTACT_SYNC_MODE;
 }
 
+/** The follow-up delay's range and default in days, as the server validates it (PRO-4095). */
+export interface FollowUpDelayLimits {
+  min: number;
+  max: number;
+  default: number;
+}
+
+/**
+ * TransactionalGate::FOLLOW_UP_DELAY_* — read only when the boot payload
+ * carries no followUpDelayLimits (no payload at all, or a test fixture).
+ */
+export const FALLBACK_FOLLOW_UP_DELAY_LIMITS: FollowUpDelayLimits = { min: 1, max: 90, default: 7 };
+
 export interface WizardState {
   /** True when rendering inside Settings tabs (sub-PR 2.F). */
   inSettings: boolean;
@@ -326,6 +339,13 @@ export interface WizardState {
      * Optional so pre-existing env fixtures stay valid; absent = not active.
      */
     consentApiPresent?: boolean;
+    /**
+     * The follow-up delay's range and default (TransactionalGate::
+     * FOLLOW_UP_DELAY_*, PRO-4095) — the "Days to wait" field's bounds.
+     * Optional so pre-existing env fixtures stay valid; absent reads as
+     * FALLBACK_FOLLOW_UP_DELAY_LIMITS.
+     */
+    followUpDelayLimits?: FollowUpDelayLimits;
   };
 
   /** Step 1 — Connect. */
@@ -383,7 +403,7 @@ export interface WizardState {
   followUpEnabled: boolean;
   /** WC order-status slugs (bare) that start the follow-up email's delay. */
   followUpOrderStatuses: string[];
-  /** Days the follow-up email waits; the server accepts 1–90. */
+  /** Days the follow-up email waits; the server accepts env.followUpDelayLimits' range. */
   followUpDelayDays: number;
   /** Addresses, phone and order note in both confirmations (PRO-3190) — off by default. */
   transactionalPersonalData: boolean;
