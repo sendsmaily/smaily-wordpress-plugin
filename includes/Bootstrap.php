@@ -69,6 +69,7 @@ use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 use Smaily\Connect\Smaily\TransactionalResend;
+use Smaily\Connect\Smaily\TransactionalStatus;
 use Smaily\Connect\Smaily\TransactionalSuppression;
 use Smaily\Connect\Smaily\WorkflowResolverInterface;
 
@@ -1195,6 +1196,14 @@ final class Bootstrap {
 		}
 
 		return $this->transactional_gate;
+	}
+
+	/**
+	 * What the order/shipping confirmation cards show (PRO-4091) — read
+	 * from the same gate the send uses.
+	 */
+	public function transactional_status(): TransactionalStatus {
+		return new TransactionalStatus( $this->transactional_gate() );
 	}
 
 	public function transactional_suppression(): TransactionalSuppression {

@@ -422,6 +422,25 @@ final class SettingsEndpointTest extends TestCase {
 		self::assertCount( 1, $GLOBALS['wpdb']->queries );
 	}
 
+	public function test_a_save_answers_with_the_fresh_confirmation_status(): void {
+		// PRO-4091: the card's status line is read AFTER the save, so a
+		// merchant who just picked the missing workflow sees it take effect.
+		$endpoint = new SettingsEndpoint(
+			static function (): array {
+				return array( 'order_confirmation' => array( 'reason' => '' ) );
+			}
+		);
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'recommendations' );
+		$request->set_param( 'data', array( 'recEngineFeatures' => array( 'trackBrowsing' => false ) ) );
+
+		$data = $endpoint->handle( $request )->get_data();
+
+		self::assertTrue( $data['saved'] );
+		self::assertSame( array( 'order_confirmation' => array( 'reason' => '' ) ), $data['transactionalStatus'] );
+	}
+
 	public function test_recommendations_tab_persists_only_browse_preference(): void {
 		// 3.9: the per-domain sync toggles were removed — connecting the engine
 		// syncs all domains unconditionally. The only persisted Step-4 preference
