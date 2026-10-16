@@ -8326,6 +8326,55 @@ context standing next to the fallback's new rec id, the mismatch this fixes.
 **Relationships:** PRO-3788 (the clear half of the rule), PRO-1710 (refused
 rec id), F3-46.
 
+### PRO-4091 — The confirmation cards say why they don't send; the Event Log records a skipped send (2026-10-16)
+
+**Context:** support reported a shipping confirmation that "never triggered".
+It worked: these emails go through Smaily's `message/send` (transactional
+sending), so the Smaily workflow shows no runs and its delays don't apply —
+neither the merchant nor support could tell. And every reason the plugin did
+NOT send (master switch off, trigger off, no workflow, incomplete
+credentials — including a password that no longer decrypts after
+`SECURE_AUTH_KEY` changes — or no billing email) left no trace; the cards'
+"Active" pill even showed with the master switch off.
+**Decision (Erkki, 2026-10-16):** a status line on each confirmation card plus
+an Event Log "skipped" row.
+- `TransactionalGate::closed_reason()` returns the FIRST closed condition as a
+  `REASON_*` code; `resolve_if_open()` reads the same private evaluation, so
+  the screen can't state a rule the send doesn't follow.
+  `Credentials::password_unreadable()` tells a stored-but-undecryptable
+  password from none.
+- `TransactionalStatus::snapshot()` (boot payload `transactionalStatus`, and
+  every Settings save's answer) gives per trigger the gate's reason, the last
+  send Smaily accepted (`sent` with a `sent_payload`) and, for a ready
+  shipping confirmation, the statuses the newest 200 orders changed in the
+  last 30 days sit at when none is ticked — read through
+  `OrderBackfillJob::table_spec()` (new `modified_col`), so legacy and HPOS
+  both work. "The workflow is not active in Smaily" is decided in the browser
+  from the workflow list the card's menu already loads — no extra Smaily call.
+- When an order reaches a counting point (new order; ticked status) for a
+  switched-on trigger and the gate is closed or there is no billing email,
+  `TransactionalFlusher::record_skip()` writes ONE row through
+  `EventQueue::record_skipped()`: status `sent`, payload `[]`, no
+  `contact_key`, `last_response={outcome:"skipped", reason}` — the order id
+  and the code, nothing personal. It is inserted finished, so no flusher can
+  pick it up, and the order's meta guard is untouched (no attempt burned).
+  Deduplicated per order + trigger within one request. "Send again" and the
+  Last-sent lookup ignore such rows.
+**Rationale:** one source of the rules (the gate) for the send, the card and
+the log. No row while the master switch or the trigger is off — every store
+that doesn't use the email would get one per order; the card says it's off.
+"Last sent" reads the queue, whose sent rows are pruned after 30 days, so its
+empty state says "nothing in the last 30 days", not "never".
+**Alternatives:** a new `skipped` queue status — rejected, the janitor, the
+filters and the erasure split all know only pending/sent/failed, and
+`sent` + a `skipped` exchange is the established terminal-skip pair; a
+stored last-sent option — a write per send for what the queue already holds;
+a server-side workflow check per page load — an extra Smaily call the screen
+already makes in the browser.
+**Relationships:** PRO-1504 (the gate and the once-per-order guard,
+unchanged), F3-44 (the exchange), PRO-2324 (Send again), PRO-4092 (an
+inactive saved workflow in the menu).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
