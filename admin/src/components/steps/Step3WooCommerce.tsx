@@ -83,7 +83,7 @@ export function Step3WooCommerce({
         dispatch={dispatch}
         trigger="welcome"
         title={ __( 'Welcome email', 'smaily-connect' ) }
-        description={ __( 'Sent when a shopper creates an account in your store (checkout or My Account registration) — not for accounts added in WordPress admin or created by another plugin.', 'smaily-connect' ) }
+        description={ __( 'Sent when a shopper subscribes to marketing emails in your store (the checkout box or My Account) and contact sync sends them to Smaily. Creating an account alone does not send it, nor does an opt-in added in WordPress admin or by an import. A shopper who subscribes again gets it again.', 'smaily-connect' ) }
         isEnabled={state.welcomeEnabled}
         onEnabledChange={(enabled) => dispatch({ type: 'SET_WELCOME_ENABLED', payload: enabled })}
       />

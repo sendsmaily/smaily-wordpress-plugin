@@ -521,7 +521,7 @@ td code{white-space:nowrap}
     <div data-lang="en">
       <p>Map store events to your Smaily automation workflows. Turn on the ones you want and pick the Smaily workflow each should trigger:</p>
       <ul>
-        <li><strong>Welcome</strong> — a shopper creates an account in your store: at checkout, or on the My Account registration form. Accounts you add in WordPress admin, or that another plugin creates, don't trigger it.</li>
+        <li><strong>Welcome</strong> — a shopper subscribes to your marketing emails in your store: the newsletter box at checkout, on the My Account registration form or in My Account → Account details. It is sent only when your contact sync sends that contact to Smaily — not while contact sync is switched off, and not for a contact your contact sync mode leaves out. Creating an account alone doesn't start it, and neither does an opt‑in you add in WordPress admin or an import. A shopper who unsubscribed and subscribes again gets it again; the welcome itself never re‑subscribes someone who unsubscribed. Where your store keeps no consent record of its own (the <strong>All customers</strong> and <strong>Checkout opt‑in only</strong> modes, and guests), each ticked checkout starts it. The Smaily newsletter block and forms send their signups straight to Smaily: choose their welcome workflow in the block's or form's own settings.</li>
         <li><strong>First order</strong> — a customer's first order.</li>
         <li><strong>Abandoned cart</strong> — a cart started but not completed. You set a <strong>delay</strong> (minutes of inactivity before the cart counts as abandoned).</li>
       </ul>
@@ -530,7 +530,7 @@ td code{white-space:nowrap}
     <div data-lang="et">
       <p>Seo poe sündmused oma Smaily automaatika‑töövoogudega. Lülita sisse need, mida soovid, ja vali Smaily töövoog, mida iga sündmus käivitab:</p>
       <ul>
-        <li><strong>Welcome</strong> — ostleja loob su poes konto: kassas või „Minu konto“ registreerimisvormil. Kontod, mille lisad WordPressi haldusliideses või mille loob mõni muu plugin, seda ei käivita.</li>
+        <li><strong>Welcome</strong> — ostleja liitub su poes turunduskirjadega: uudiskirja märkeruuduga kassas, „Minu konto“ registreerimisvormil või „Minu konto“ → konto andmetes. See saadetakse ainult siis, kui su kontaktide sünkroonimine saadab selle kontakti Smailysse — mitte siis, kui kontaktide sünkroonimine on välja lülitatud, ega kontaktile, keda su sünkroonimisrežiim ei hõlma. Ainult konto loomine seda ei käivita, samuti mitte WordPressi haldusliideses lisatud nõusolek ega import. Ostleja, kes loobus ja liitub uuesti, saab selle uuesti; tervitus ise ei telli kunagi uuesti kedagi, kes on loobunud. Kui su pood ei pea ise nõusolekukirjet (režiimid <strong>All customers</strong> ja <strong>Checkout opt‑in only</strong> ning külalised), käivitab selle iga märgitud kassa‑ruut. Smaily uudiskirja plokk ja vormid saadavad liitujad otse Smailysse: nende tervituse töövoo vali ploki või vormi enda seadetes.</li>
         <li><strong>First order</strong> — kliendi esimene tellimus.</li>
         <li><strong>Abandoned cart</strong> — ostukorv alustatud, aga lõpetamata. Sead <strong>viivituse</strong> (tegevusetuse minutid, enne kui korv loetakse hüljatuks).</li>
       </ul>
@@ -686,13 +686,13 @@ td code{white-space:nowrap}
     <h2><span data-lang="en">How consent is recorded</span><span data-lang="et">Kuidas nõusolek salvestatakse</span></h2>
     <div data-lang="en">
       <p>In <strong>Subscribers only (consent)</strong> mode, a customer is synced to Smaily only when your store records them as subscribed to email marketing. Your store's own marketing‑consent record is the evidence — the plugin never assumes consent, it mirrors what your store captured.</p>
-      <p>Consent is captured by your store — the checkout marketing checkbox, the Smaily newsletter block (submitting the form is the opt‑in), or the customer's account. The record carries the marketing state, the opt‑in level, and a timestamp.</p>
+      <p>Consent is captured by your store — the checkout marketing checkbox, or the newsletter box on the My Account registration form or in Account details. The Smaily newsletter block is different: it sends the signup straight to Smaily, so your store does not record it. The record carries the marketing state, the opt‑in level, and a timestamp.</p>
       <h3>Language routing</h3>
       <p>The <strong>language</strong> sent with each contact is resolved from the customer's preferred language, then their most recent order's language, then the site's multilingual default (WPML / Polylang / TranslatePress) — never from the request context. This keeps a scheduled sync and a live request giving the same answer, so a store with an English WordPress locale but Estonian content doesn't get its contacts mislabelled.</p>
     </div>
     <div data-lang="et">
       <p><strong>Subscribers only (consent)</strong> režiimis sünkroonitakse klient Smailysse ainult siis, kui su pood on ta märkinud turundusele tellijaks. Su poe enda turundusnõusoleku‑kirje on tõend — plugin ei eelda kunagi nõusolekut, vaid peegeldab seda, mille su pood salvestas.</p>
-      <p>Nõusoleku salvestab su pood — kassa turunduse‑märkeruut, Smaily uudiskirja plokk (vormi esitamine ongi nõusolek) või kliendi konto. Kirje kannab turundusseisundit, nõusoleku‑taset ja ajatemplit.</p>
+      <p>Nõusoleku salvestab su pood — kassa turunduse‑märkeruut või uudiskirja märkeruut „Minu konto“ registreerimisvormil või konto andmetes. Smaily uudiskirja plokk on teistsugune: see saadab liitumise otse Smailysse, nii et su pood seda ei salvesta. Kirje kannab turundusseisundit, nõusoleku‑taset ja ajatemplit.</p>
       <h3>Keele suunamine</h3>
       <p>Iga kontaktiga saadetav <strong>keel</strong> tuletatakse kliendi eelistatud keelest, siis ta viimasest tellimusest, siis saidi mitmekeelsest vaikekeelest (WPML / Polylang / TranslatePress) — mitte kunagi päringu kontekstist. Nii annavad ajastatud sünk ja reaalajas päring sama tulemuse, ja inglise WordPressi‑lokaadiga aga eesti sisuga pood ei saa oma kontakte valesti märgitud.</p>
     </div>
@@ -711,7 +711,7 @@ td code{white-space:nowrap}
         </ul>
       </div>
       <h3>Store‑run triggers</h3>
-      <p>Map a store event to a Smaily workflow: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome fires when a shopper creates an account in your store (checkout or the My Account registration form) — not for accounts added in WordPress admin or created by another plugin. Abandoned cart has a delay (minutes of inactivity before a cart counts as abandoned). If no workflows appear, none were found on your Smaily account (or Smaily couldn't be reached) — create them in Smaily first. The fields each email carries for your template are listed under <a href="#set-merge-tags">Merge tags</a>.</p>
+      <p>Map a store event to a Smaily workflow: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome fires when a shopper subscribes to your marketing emails in your store (the checkout box or My Account) and your contact sync sends them to Smaily — not when an account is created, and not for an opt‑in added in WordPress admin or by an import. Subscribing again after an unsubscribe starts it again; the welcome itself never re‑subscribes someone who unsubscribed. The Smaily newsletter block and forms choose their welcome workflow in their own settings. Abandoned cart has a delay (minutes of inactivity before a cart counts as abandoned). If no workflows appear, none were found on your Smaily account (or Smaily couldn't be reached) — create them in Smaily first. The fields each email carries for your template are listed under <a href="#set-merge-tags">Merge tags</a>.</p>
       <div class="note">
         <span class="k">Each trigger marks the contact — build segments on it</span>
         <p>Every time one of these fires, it writes the moment it ran onto the contact in Smaily, so you can tell an automation‑enrolled contact from someone who subscribed themselves:</p>
@@ -761,7 +761,7 @@ td code{white-space:nowrap}
         </ul>
       </div>
       <h3>Poe‑käivitatavad</h3>
-      <p>Seo poe sündmus Smaily töövooga: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome käivitub, kui ostleja loob su poes konto (kassas või „Minu konto“ registreerimisvormil) — mitte kontode puhul, mille lisad WordPressi haldusliideses või mille loob mõni muu plugin. Pooleli jäänud korval on viivitus (tegevusetuse minutid, enne kui korv loetakse hüljatuks). Kui ühtegi töövoogu ei kuva, ei leitud su Smaily kontolt ühtegi (või Smailyni ei jõutud) — loo need enne Smailys. Kirjapõhjas kasutatavad väljad leiad jaotisest <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</p>
+      <p>Seo poe sündmus Smaily töövooga: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome käivitub, kui ostleja liitub su poes turunduskirjadega (kassa märkeruuduga või „Minu konto“ all) ja su kontaktide sünkroonimine saadab ta Smailysse — mitte konto loomisel ega WordPressi haldusliideses või importimisel lisatud nõusoleku puhul. Pärast loobumist uuesti liitumine käivitab selle uuesti; tervitus ise ei telli kunagi uuesti kedagi, kes on loobunud. Smaily uudiskirja plokk ja vormid valivad oma tervituse töövoo enda seadetes. Pooleli jäänud korval on viivitus (tegevusetuse minutid, enne kui korv loetakse hüljatuks). Kui ühtegi töövoogu ei kuva, ei leitud su Smaily kontolt ühtegi (või Smailyni ei jõutud) — loo need enne Smailys. Kirjapõhjas kasutatavad väljad leiad jaotisest <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</p>
       <div class="note">
         <span class="k">Iga päästik märgistab kontakti — ehita selle peale segmente</span>
         <p>Iga kord, kui mõni neist käivitub, kirjutab see kontaktile Smailys käivitumise hetke, nii et eristad automaatika kaudu lisatud kontakti sellest, kes ise tellijaks hakkas:</p>
@@ -1090,7 +1090,7 @@ td code{white-space:nowrap}
     <h2><span data-lang="en">Integrations</span><span data-lang="et">Integratsioonid</span></h2>
     <div data-lang="en">
       <h3>Storefront newsletter</h3>
-      <p>Add the Smaily newsletter block to any page or widget area; signups land in your Smaily contacts automatically. If you run <strong>Contact Form 7</strong> or <strong>Elementor</strong>, a Smaily subscription field/widget is available in its editor.</p>
+      <p>Add the Smaily newsletter block to any page or widget area; signups land in your Smaily contacts automatically. The block sends each signup straight to Smaily, so the plugin's <a href="#step3">Welcome</a> trigger doesn't see it: to welcome block signups, choose the workflow in the block's own settings. If you run <strong>Contact Form 7</strong> or <strong>Elementor</strong>, a Smaily subscription field/widget is available in its editor.</p>
       <h3>Shortcode</h3>
       <p>For full control over placement, use the <code>[smaily_connect_newsletter_form]</code> shortcode in any post, page, or widget that supports shortcodes. It renders a simple subscription form (email, optional name) that posts directly to your Smaily account.</p>
       <div class="tw">
@@ -1137,7 +1137,7 @@ td code{white-space:nowrap}
     </div>
     <div data-lang="et">
       <h3>Poe uudiskiri</h3>
-      <p>Lisa Smaily uudiskirja plokk mis tahes lehele või vidina‑alale; liitujad jõuavad automaatselt su Smaily kontaktidesse. Kui kasutad <strong>Contact Form 7‑t</strong> või <strong>Elementorit</strong>, on selle redaktoris saadaval Smaily tellimis‑väli/vidin.</p>
+      <p>Lisa Smaily uudiskirja plokk mis tahes lehele või vidina‑alale; liitujad jõuavad automaatselt su Smaily kontaktidesse. Plokk saadab iga liitumise otse Smailysse, nii et plugina <a href="#step3">Welcome</a>‑päästik seda ei näe: ploki kaudu liitujate tervitamiseks vali töövoog ploki enda seadetes. Kui kasutad <strong>Contact Form 7‑t</strong> või <strong>Elementorit</strong>, on selle redaktoris saadaval Smaily tellimis‑väli/vidin.</p>
       <h3>Lühikood (shortcode)</h3>
       <p>Täieliku paigutuskontrolli jaoks kasuta lühikoodi <code>[smaily_connect_newsletter_form]</code> mis tahes postituses, lehel või vidinas, mis lühikoode toetab. See kuvab lihtsa liitumisvormi (e‑post, valikuline nimi), mis saadab andmed otse su Smaily kontosse.</p>
       <div class="tw">
