@@ -2,7 +2,7 @@ import { type Dispatch } from 'react';
 
 import { __ } from '@admin/lib/i18n';
 import { type WizardAction, type WizardState } from '../../state/types';
-import { Card, Checkbox, Toggle } from '../primitives';
+import { Card, Checkbox, Label, NumberInput, Toggle } from '../primitives';
 import { AutomationSection } from './AutomationSection';
 import { TransactionalStatusLine } from './TransactionalStatusLine';
 
@@ -16,7 +16,7 @@ const TRANSACTIONAL_ACCOUNT_KEY = 'transactional';
 
 /**
  * Transactional-email triggers — order confirmation + shipping
- * confirmation (PRO-1504 stage 1). Relocated here from the old combined
+ * confirmation (PRO-1504 stage 1) + the follow-up email (PRO-4095). Relocated here from the old combined
  * TransactionalEmailsSection by PRO-1540: the account connection itself
  * (toggle + credentials + test) now lives on the Connection tab; this
  * section only renders once that connection is established, mirroring
@@ -89,14 +89,66 @@ export function TransactionalTriggersSection({
               trigger="shipping_confirmation"
               accountKey={TRANSACTIONAL_ACCOUNT_KEY}
             />
-            <ShippedStatusPicker state={state} dispatch={dispatch} />
+            <StatusPicker
+              state={state}
+              title={ __( 'Counts as shipped', 'smaily-connect' ) }
+              description={ __( 'Order statuses that trigger the shipping-confirmation email.', 'smaily-connect' ) }
+              namePrefix="smly-shipped-status"
+              selected={state.shippedOrderStatuses}
+              onToggle={(status) => dispatch({ type: 'TOGGLE_SHIPPED_ORDER_STATUS', payload: { status } })}
+            />
+          </>
+        }
+      />
+
+      <AutomationSection
+        state={state}
+        dispatch={dispatch}
+        trigger="follow_up"
+        title={ __( 'Follow-up email', 'smaily-connect' ) }
+        description={ __( 'Sent a set number of days after an order reaches a ticked status — a feedback request, say.', 'smaily-connect' ) }
+        isEnabled={state.followUpEnabled}
+        active={state.transactionalEmailsEnabled && state.followUpEnabled}
+        onEnabledChange={(enabled) => dispatch({ type: 'SET_FOLLOW_UP_ENABLED', payload: enabled })}
+        accountKeyOverride={TRANSACTIONAL_ACCOUNT_KEY}
+        extras={
+          <>
+            <TransactionalStatusLine
+              state={state}
+              trigger="follow_up"
+              accountKey={TRANSACTIONAL_ACCOUNT_KEY}
+            />
+            <div className="mt-4">
+              <Label htmlFor="smly-follow-up-delay">{ __( 'Days to wait', 'smaily-connect' ) }</Label>
+              <div className="mt-1 w-40">
+                <NumberInput
+                  id="smly-follow-up-delay"
+                  value={state.followUpDelayDays}
+                  onChange={(e) => dispatch({ type: 'SET_FOLLOW_UP_DELAY_DAYS', payload: Number(e.target.value) })}
+                  min={1}
+                  max={90}
+                  step={1}
+                />
+              </div>
+              <p className="mt-1 text-xs text-text-tertiary">
+                { __( 'From 1 to 90 days after the order reaches a ticked status.', 'smaily-connect' ) }
+              </p>
+            </div>
+            <StatusPicker
+              state={state}
+              title={ __( 'Starts the wait', 'smaily-connect' ) }
+              description={ __( 'Order statuses that start the follow-up email’s wait. It is sent only if the order is still at one of them when the wait ends, and never for a cancelled, refunded or failed order.', 'smaily-connect' ) }
+              namePrefix="smly-follow-up-status"
+              selected={state.followUpOrderStatuses}
+              onToggle={(status) => dispatch({ type: 'TOGGLE_FOLLOW_UP_ORDER_STATUS', payload: { status } })}
+            />
           </>
         }
       />
 
       <Card
         title={ __( 'Customer details', 'smaily-connect' ) }
-        description={ __( 'Personal data sent with both confirmation emails. Off by default — switch it on only if your email template shows these details.', 'smaily-connect' ) }
+        description={ __( 'Personal data sent with the transactional emails. Off by default — switch it on only if your email template shows these details.', 'smaily-connect' ) }
       >
         <Toggle
           name="smly-transactional-personal-data-enabled"
@@ -112,35 +164,37 @@ export function TransactionalTriggersSection({
   );
 }
 
-interface ShippedStatusPickerProps {
+interface StatusPickerProps {
   state: WizardState;
-  dispatch: Dispatch<WizardAction>;
+  title: string;
+  description: string;
+  /** Prefix of each checkbox's name; the status slug is appended. */
+  namePrefix: string;
+  selected: string[];
+  onToggle: (status: string) => void;
 }
 
 /**
- * "Counts as shipped" order-status multi-select (PRO-1504). Choices come
- * from the server-registered statuses (incl. custom ones) via
+ * An order-status multi-select — "Counts as shipped" (PRO-1504) and the
+ * follow-up email's statuses (PRO-4095). Choices come from the
+ * server-registered statuses (incl. custom ones) via
  * EnvDetector::order_statuses() — the same checkbox-grid pattern Step 2
- * uses for sync fields. Setting only; no status-change listener yet.
+ * uses for sync fields.
  */
-function ShippedStatusPicker({ state, dispatch }: ShippedStatusPickerProps): React.JSX.Element {
+function StatusPicker({ state, title, description, namePrefix, selected, onToggle }: StatusPickerProps): React.JSX.Element {
   const statuses = state.env.orderStatuses ?? [];
 
   return (
     <div className="mt-4">
-      <p className="text-sm font-medium text-text-primary">
-        { __( 'Counts as shipped', 'smaily-connect' ) }
-      </p>
-      <p className="mt-1 text-xs text-text-tertiary">
-        { __( 'Order statuses that trigger the shipping-confirmation email.', 'smaily-connect' ) }
-      </p>
+      <p className="text-sm font-medium text-text-primary">{title}</p>
+      <p className="mt-1 text-xs text-text-tertiary">{description}</p>
       <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
         {statuses.map((status) => (
           <Checkbox
             key={status.slug}
-            name={`smly-shipped-status-${status.slug}`}
-            checked={state.shippedOrderStatuses.includes(status.slug)}
-            onChange={() => dispatch({ type: 'TOGGLE_SHIPPED_ORDER_STATUS', payload: { status: status.slug } })}
+            name={`${namePrefix}-${status.slug}`}
+            checked={selected.includes(status.slug)}
+            onChange={() => onToggle(status.slug)}
             label={status.name}
           />
         ))}

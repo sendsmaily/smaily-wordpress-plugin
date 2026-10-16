@@ -43,6 +43,9 @@ export function buildTabPayload(
         orderConfirmationEnabled: state.orderConfirmationEnabled,
         shippingConfirmationEnabled: state.shippingConfirmationEnabled,
         shippedOrderStatuses: state.shippedOrderStatuses,
+        followUpEnabled: state.followUpEnabled,
+        followUpOrderStatuses: state.followUpOrderStatuses,
+        followUpDelayDays: state.followUpDelayDays,
         transactionalPersonalData: state.transactionalPersonalData,
       };
     case 'recommendations':

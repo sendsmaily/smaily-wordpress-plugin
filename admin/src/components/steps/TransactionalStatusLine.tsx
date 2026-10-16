@@ -12,10 +12,10 @@ export interface TransactionalStatusLineProps {
 }
 
 /**
- * The status line on an order/shipping confirmation card (PRO-4091): the
- * first reason it does not send, else when it last sent — plus, for the
- * shipping confirmation, a warning when recent orders never reach a ticked
- * status. The reason comes from the server's send gate
+ * The status line on a transactional email's card (PRO-4091; the
+ * follow-up email, PRO-4095): the first reason it does not send, else when
+ * it last sent — plus, for the shipping confirmation and the follow-up, a
+ * warning when recent orders never reach a ticked status. The reason comes from the server's send gate
  * (state.transactionalStatus); only "the workflow isn't active in Smaily"
  * is decided here, from the workflow list the card's menu already loaded.
  *
@@ -66,20 +66,31 @@ export function TransactionalStatusLine({
       {reason === '' && unticked.length > 0 && (
         <p className="font-medium text-warning-soft-text">
           {sprintf(
-            // translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
-            __(
-              'No order in the last 30 days reached a status ticked under “Counts as shipped”. Recent orders are at: %s. Nothing is sent until orders reach a ticked status.',
-              'smaily-connect',
-            ),
+            trigger === 'follow_up'
+              ? // translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
+                __(
+                  'No order in the last 30 days reached a status ticked for the follow-up email. Recent orders are at: %s. Nothing is sent until orders reach a ticked status.',
+                  'smaily-connect',
+                )
+              : // translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
+                __(
+                  'No order in the last 30 days reached a status ticked under “Counts as shipped”. Recent orders are at: %s. Nothing is sent until orders reach a ticked status.',
+                  'smaily-connect',
+                ),
             unticked.map((slug) => statusNames.get(slug) ?? slug).join(', '),
           )}
         </p>
       )}
       <p className="text-xs text-text-tertiary">
-        {__(
-          'This email goes out through Smaily’s transactional sending: Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, and each confirmation that could not be sent, is listed in the Event Log.',
-          'smaily-connect',
-        )}
+        {trigger === 'follow_up'
+          ? __(
+              'This email goes out through Smaily’s transactional sending: the plugin waits the number of days you set here, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, each follow-up still waiting, and each one that could not be sent, is listed in the Event Log.',
+              'smaily-connect',
+            )
+          : __(
+              'This email goes out through Smaily’s transactional sending: Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, and each confirmation that could not be sent, is listed in the Event Log.',
+              'smaily-connect',
+            )}
       </p>
     </div>
   );

@@ -49,6 +49,9 @@ export function actionToTab(action: WizardAction): SettingsTabKey | null {
     case 'SET_ORDER_CONFIRMATION_ENABLED':
     case 'SET_SHIPPING_CONFIRMATION_ENABLED':
     case 'TOGGLE_SHIPPED_ORDER_STATUS':
+    case 'SET_FOLLOW_UP_ENABLED':
+    case 'TOGGLE_FOLLOW_UP_ORDER_STATUS':
+    case 'SET_FOLLOW_UP_DELAY_DAYS':
     case 'SET_TRANSACTIONAL_PERSONAL_DATA':
       return 'woocommerce';
 

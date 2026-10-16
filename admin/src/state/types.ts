@@ -125,10 +125,11 @@ export type AutomationTrigger =
   | 'first_order'
   | 'abandoned_cart'
   | 'order_confirmation'
-  | 'shipping_confirmation';
+  | 'shipping_confirmation'
+  | 'follow_up';
 
-/** The two transactional-email triggers (PRO-1504). */
-export type TransactionalTrigger = 'order_confirmation' | 'shipping_confirmation';
+/** The transactional-email triggers (PRO-1504; the follow-up email, PRO-4095). */
+export type TransactionalTrigger = 'order_confirmation' | 'shipping_confirmation' | 'follow_up';
 
 /** One confirmation's send status, as TransactionalStatus::snapshot() emits it (PRO-4091). */
 export interface TransactionalSendStatus {
@@ -141,7 +142,7 @@ export interface TransactionalSendStatus {
   workflowResolved: boolean;
   /** UTC "Y-m-d H:i:s" of the newest send Smaily accepted, '' when none in the last 30 days. */
   lastSentAt: string;
-  /** Bare statuses recent orders reached when none of them is ticked as shipped; empty = no warning. */
+  /** Bare statuses recent orders reached when none of them is ticked for this email; empty = no warning. */
   untickedRecentStatuses: string[];
 }
 
@@ -378,6 +379,12 @@ export interface WizardState {
   shippingConfirmationEnabled: boolean;
   /** WC order-status slugs (bare, no 'wc-' prefix) that count as "shipped". */
   shippedOrderStatuses: string[];
+  /** The follow-up email (PRO-4095) — off by default. */
+  followUpEnabled: boolean;
+  /** WC order-status slugs (bare) that start the follow-up email's delay. */
+  followUpOrderStatuses: string[];
+  /** Days the follow-up email waits; the server accepts 1–90. */
+  followUpDelayDays: number;
   /** Addresses, phone and order note in both confirmations (PRO-3190) — off by default. */
   transactionalPersonalData: boolean;
   /**
@@ -548,6 +555,9 @@ export type WizardAction =
   | { type: 'SET_ORDER_CONFIRMATION_ENABLED'; payload: boolean }
   | { type: 'SET_SHIPPING_CONFIRMATION_ENABLED'; payload: boolean }
   | { type: 'TOGGLE_SHIPPED_ORDER_STATUS'; payload: { status: string } }
+  | { type: 'SET_FOLLOW_UP_ENABLED'; payload: boolean }
+  | { type: 'TOGGLE_FOLLOW_UP_ORDER_STATUS'; payload: { status: string } }
+  | { type: 'SET_FOLLOW_UP_DELAY_DAYS'; payload: number }
   | { type: 'SET_TRANSACTIONAL_PERSONAL_DATA'; payload: boolean }
   | { type: 'SET_TRANSACTIONAL_STATUS'; payload: Partial<Record<TransactionalTrigger, TransactionalSendStatus>> }
 

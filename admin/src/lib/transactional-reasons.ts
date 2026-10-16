@@ -1,10 +1,10 @@
 import { __ } from '@admin/lib/i18n';
 
 /**
- * Why an order or shipping confirmation does not go out, worded for the
- * merchant (PRO-4091). The codes come from the server — the send gate's
+ * Why a transactional email does not go out, worded for the merchant
+ * (PRO-4091). The codes come from the server — the send gate's
  * TransactionalGate::REASON_*, TransactionalFlusher::REASON_NO_BILLING_EMAIL
- * — plus `workflow_inactive`, which only this screen can tell (it holds the
+ * and the follow-up email's due-time reasons (PRO-4095) — plus `workflow_inactive`, which only this screen can tell (it holds the
  * Smaily workflow list). One wording for both places that show a reason:
  * the card's status line and the Event Log's skipped row.
  */
@@ -36,6 +36,15 @@ export function transactionalReasonMessage(reason: string): string {
       );
     case 'no_billing_email':
       return __('The order has no billing email address.', 'smaily-connect');
+    case 'order_missing':
+      return __('The order no longer exists.', 'smaily-connect');
+    case 'order_closed':
+      return __('The order was cancelled, refunded or failed before the follow-up email was due.', 'smaily-connect');
+    case 'status_not_counting':
+      return __(
+        'When the wait ended, the order was no longer at a status ticked for the follow-up email.',
+        'smaily-connect',
+      );
     default:
       return reason;
   }

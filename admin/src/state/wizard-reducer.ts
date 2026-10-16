@@ -72,6 +72,9 @@ export const wizardInitialState: WizardState = {
   orderConfirmationEnabled: false,
   shippingConfirmationEnabled: false,
   shippedOrderStatuses: [],
+  followUpEnabled: false,
+  followUpOrderStatuses: [],
+  followUpDelayDays: 7,
   transactionalPersonalData: false,
   transactionalStatus: {},
 
@@ -385,6 +388,22 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
 
     case 'SET_TRANSACTIONAL_PERSONAL_DATA':
       return { ...state, transactionalPersonalData: action.payload };
+
+    case 'SET_FOLLOW_UP_ENABLED':
+      return { ...state, followUpEnabled: action.payload };
+
+    case 'SET_FOLLOW_UP_DELAY_DAYS':
+      return { ...state, followUpDelayDays: action.payload };
+
+    case 'TOGGLE_FOLLOW_UP_ORDER_STATUS': {
+      const present = state.followUpOrderStatuses.includes(action.payload.status);
+      return {
+        ...state,
+        followUpOrderStatuses: present
+          ? state.followUpOrderStatuses.filter((s) => s !== action.payload.status)
+          : [...state.followUpOrderStatuses, action.payload.status],
+      };
+    }
 
     case 'SET_TRANSACTIONAL_STATUS':
       return { ...state, transactionalStatus: action.payload };

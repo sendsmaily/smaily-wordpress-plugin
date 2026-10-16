@@ -20,6 +20,7 @@ const ROW = {
   can_send_again: false,
   cancelled: false,
   skip_reason: '',
+  scheduled_for: '',
 };
 
 /**
@@ -314,6 +315,61 @@ describe('EventLog', () => {
 
     expect(await screen.findByText('cancelled')).toBeInTheDocument();
     expect(screen.queryByText('sent')).not.toBeInTheDocument();
+  });
+
+  it('shows when a follow-up email waiting for its delay will be sent (PRO-4095)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [
+        {
+          ...ROW,
+          id: 71,
+          source: 'smaily' as const,
+          event_type: 'transactional.follow_up',
+          status: 'pending',
+          attempts: 0,
+          max_attempts: null,
+          last_error: '',
+          scheduled_for: '2026-10-23 08:00:00',
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+
+    render(<EventLog />);
+
+    expect(await screen.findByText('scheduled')).toBeInTheDocument();
+    expect(screen.queryByText('pending')).not.toBeInTheDocument();
+    expect(screen.getByText(/^Sends on /)).toBeInTheDocument();
+  });
+
+  it('says why a follow-up email was not sent when its delay ended (PRO-4095)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [
+        {
+          ...ROW,
+          id: 72,
+          source: 'smaily' as const,
+          event_type: 'transactional.follow_up',
+          status: 'sent',
+          last_error: '',
+          skip_reason: 'order_closed',
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+
+    render(<EventLog />);
+
+    expect(await screen.findByText('skipped')).toBeInTheDocument();
+    expect(
+      screen.getByText('The order was cancelled, refunded or failed before the follow-up email was due.'),
+    ).toBeInTheDocument();
   });
 
   it('reads a confirmation that could not go out as skipped, with the reason (PRO-4091)', async () => {
