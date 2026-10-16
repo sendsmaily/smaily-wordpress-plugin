@@ -275,25 +275,29 @@ function AutomationRow({
 
   if (singleRowMode) {
     return (
-      <tr>
-        <td colSpan={3} className="py-3">
-          {status === 'error' && error !== null ? (
-            <Banner tone="warning">{sprintf(
-              // translators: %s is the error message.
-              __( "Couldn't load workflows: %s", 'smaily-connect' ),
-              error,
-            )}</Banner>
-          ) : (
-            <Select
-              options={options}
-              placeholder={status === 'pending' ? __( 'Loading workflows…', 'smaily-connect' ) : __( '— pick a workflow —', 'smaily-connect' )}
-              value={value}
-              onChange={handleChange}
-              disabled={status !== 'success'}
-            />
-          )}
-        </td>
-      </tr>
+      <table>
+        <tbody>
+          <tr>
+            <td className="py-3">
+              {status === 'error' && error !== null ? (
+                <Banner tone="warning">{sprintf(
+                  // translators: %s is the error message.
+                  __( "Couldn't load workflows: %s", 'smaily-connect' ),
+                  error,
+                )}</Banner>
+              ) : (
+                <Select
+                  options={options}
+                  placeholder={status === 'pending' ? __( 'Loading workflows…', 'smaily-connect' ) : __( '— pick a workflow —', 'smaily-connect' )}
+                  value={value}
+                  onChange={handleChange}
+                  disabled={status !== 'success'}
+                />
+              )}
+            </td>
+          </tr>
+        </tbody>
+      </table>
     );
   }
 
