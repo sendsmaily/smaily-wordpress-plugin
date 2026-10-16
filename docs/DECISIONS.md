@@ -8304,6 +8304,28 @@ HPOS order lookup could take the new helper later); a generated lower-case
 column with its own index — a schema change for no gain over the prefilter.
 **Relationships:** PRO-3996, PRO-3909, PRO-1195 (migration 009's `idx_email`).
 
+### PRO-4049 — A context without a rec id leaves the context cookie alone (2026-10-16)
+
+**Context:** contract v1.9.0 sets `smaily_rec_ctx` only on a landing with
+`smaily_rec` — "the two cookies always describe the same landing". Both
+writers (`LandingCapture::resolve()`, `attribution.ts`) still wrote a valid
+`smaily_ctx` from a landing that wrote no rec id: a link with `smaily_vt` +
+`smaily_ctx`, or with a refused (non-UUID) `smaily_rec`. The cookie then
+held one landing's context next to another landing's rec id (found by the
+Shopify app; the Magento connector fixed the same rule).
+**Decision:** both writers take a context only from a landing that writes
+the rec id cookie in this request. The server writer's guarded
+`utm_content` fallback (`utm_source=smaily` + UUID) counts as writing the
+rec id, so a `smaily_ctx` on that link is taken; it still never clears.
+**Rationale:** the contract's "same landing" invariant is about the rec id
+cookie, and the fallback writes that cookie. Not clearing on the fallback
+is the PRO-3788 decision, unchanged.
+**Alternatives:** count only `smaily_rec` as a recommendation link (the
+fallback then ignores `smaily_ctx`) — rejected: it would leave an older
+context standing next to the fallback's new rec id, the mismatch this fixes.
+**Relationships:** PRO-3788 (the clear half of the rule), PRO-1710 (refused
+rec id), F3-46.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

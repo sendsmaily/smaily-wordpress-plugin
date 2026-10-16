@@ -90,6 +90,23 @@ final class LandingCaptureTest extends TestCase {
 		self::assertSame( self::UUID, $_COOKIE['smaily_rec_id'] );
 	}
 
+	public function test_keeps_the_context_cookie_when_a_link_carries_no_rec_id(): void {
+		EnvSeed::connect();
+		$_GET                      = array(
+			'smaily_vt'  => 'vt_8f3k2aBz01',
+			'smaily_ctx' => 'cart_abandoned',
+		);
+		$_COOKIE['smaily_rec_ctx'] = 'storefront';
+		$capture                   = $this->recorder();
+
+		$capture->capture();
+
+		// Contract v1.9.0: a context is set only together with a rec id.
+		self::assertSame( 'vt_8f3k2aBz01', $capture->written['smaily_rec_uid'] ?? null );
+		self::assertArrayNotHasKey( 'smaily_rec_ctx', $capture->written );
+		self::assertSame( 'storefront', $_COOKIE['smaily_rec_ctx'] );
+	}
+
 	public function test_captures_utm_content_only_with_utm_source_smaily(): void {
 		EnvSeed::connect();
 		$_GET    = array(
