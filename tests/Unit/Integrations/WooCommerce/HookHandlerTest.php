@@ -14,6 +14,7 @@ use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\GuestVisitorToken;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
+use Smaily\Connect\Integrations\WooCommerce\Hooks;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -138,8 +139,9 @@ final class HookHandlerTest extends TestCase {
 		DetectorFactory::reset();
 		Monkey\tearDown();
 		parent::tearDown();
-		$_COOKIE = array();
-		$_POST   = array();
+		$_COOKIE  = array();
+		$_POST    = array();
+		$_REQUEST = array();
 	}
 
 	public function test_gate_closed_suppresses_callbacks_until_setup_completed(): void {
@@ -368,54 +370,49 @@ final class HookHandlerTest extends TestCase {
 		self::assertSame( array( HookHandler::EVENT_CONTACT_SYNC ), array_column( $this->enqueued, 'type' ) );
 	}
 
-	public function test_created_customer_fires_welcome_once_when_option_on(): void {
-		$this->enable_welcome();
-		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 7, 'a@b.c', '', '' ) );
+	/**
+	 * @dataProvider provide_every_mode
+	 */
+	public function test_creating_an_account_without_opting_in_sends_no_welcome( string $mode ): void {
+		// PRO-4093: an account is not an opt-in. WooCommerce created it (checkout
+		// / My Account registration) — user_register fires from inside
+		// wp_insert_user, then woocommerce_created_customer — and the shopper
+		// ticked nothing.
+		$this->welcome_store( $mode );
+		$this->known_users( $this->fake_user( 7, 'a@b.c', '', '' ) );
 
-		// WooCommerce created the account (checkout / My Account registration):
-		// user_register fires first from inside wp_insert_user, then this hook.
 		$handler = new HookHandler( $this->queue );
 		$handler->on_user_register( 7 );
 		$handler->on_woocommerce_created_customer( 7 );
 
-		$types = array_column( $this->enqueued, 'type' );
-		self::assertContains( HookHandler::EVENT_CONTACT_SYNC, $types );
-		self::assertSame(
-			1,
-			count( array_keys( $types, HookHandler::EVENT_AUTOMATION_WELCOME, true ) ),
-			'Both hooks fire for one checkout-created account — exactly one welcome may be enqueued.'
-		);
+		self::assertSame( array(), $this->welcomes(), 'Creating an account alone must not start the welcome.' );
+	}
 
-		// PRO-1681: the welcome run marks the contact — and ONLY the plain
-		// contact sync stays unmarked, so a self-subscribed contact is
-		// distinguishable from an automation-enrolled one.
-		$by_type = array_combine( $types, array_column( $this->enqueued, 'payload' ) );
-		self::assertMatchesRegularExpression(
-			'/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/',
-			$by_type[ HookHandler::EVENT_AUTOMATION_WELCOME ]['fields']['welcome_automation_at']
-		);
-		self::assertArrayNotHasKey(
-			'welcome_automation_at',
-			$by_type[ HookHandler::EVENT_CONTACT_SYNC ]['fields'],
-			'A contact sync is not an automation run — it must carry no marker.'
+	/**
+	 * @return array<string, array{string}>
+	 */
+	public static function provide_every_mode(): array {
+		return array(
+			'consent'             => array( ContactSyncMode::MODE_CONSENT ),
+			'legitimate interest' => array( ContactSyncMode::MODE_LEGITIMATE_INTEREST ),
+			'checkout only'       => array( ContactSyncMode::MODE_CHECKOUT_OPTIN ),
 		);
 	}
 
-	public function test_welcome_eligibility_is_filterable_per_source(): void {
-		$this->enable_welcome();
-		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 7, 'a@b.c', '', '' ) );
+	public function test_welcome_eligibility_filter_receives_the_storefront_act_and_can_veto(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 44, 'registrant@example.test', '', '' ) );
 		Monkey\Filters\expectApplied( HookHandler::FILTER_WELCOME_ELIGIBLE )
 			->once()
-			->with( false, 7, 'user_register' )
-			->andReturn( true );
+			->with( true, 44, 'registration' )
+			->andReturn( false );
 
-		( new HookHandler( $this->queue ) )->on_user_register( 7 );
+		$this->drive_registration( $handler, 44 );
 
-		self::assertContains(
-			HookHandler::EVENT_AUTOMATION_WELCOME,
-			array_column( $this->enqueued, 'type' ),
-			'A store must be able to widen the trigger back to a non-WooCommerce registration flow.'
-		);
+		self::assertNotNull( $this->find_enqueued( '44:consent' ), 'The opt-in itself still reaches Smaily.' );
+		self::assertSame( array(), $this->welcomes(), 'A store can still narrow the welcome with the filter.' );
 	}
 
 	public function test_user_register_ignores_unknown_user(): void {
@@ -1186,6 +1183,419 @@ final class HookHandlerTest extends TestCase {
 
 		self::assertSame( 10, has_action( 'woocommerce_checkout_update_user_meta', array( $settings, 'smaily_save_checkout_newsletter_optin' ) ) );
 		self::assertSame( 10, has_action( 'woocommerce_created_customer', array( $settings, 'smaily_save_registration_newsletter_optin' ) ) );
+	}
+
+	// ------------------------------------------------------------------
+	// PRO-4093: the welcome follows the shopper's own marketing opt-in in the
+	// store, within what contact sync sends. Each case drives the real
+	// callbacks in the order WooCommerce fires them (as the PRO-3406 cases do).
+	// ------------------------------------------------------------------
+
+	public function test_consent_mode_checkout_account_creation_tick_welcomes_once(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 43, 'new.shopper@example.test', '', '' ) );
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 101, 'new.shopper@example.test', 43, 1 ) );
+
+		$this->drive_classic_checkout( $handler, 43, 101, 'new.shopper@example.test', true );
+
+		$this->assert_welcomed( array( '43' => 'new.shopper@example.test' ) );
+		$this->assert_welcome_follows_the_subscribe( '43:consent' );
+	}
+
+	public function test_consent_mode_registration_tick_welcomes(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 44, 'registrant@example.test', '', '' ) );
+
+		$this->drive_registration( $handler, 44 );
+
+		$this->assert_welcomed( array( '44' => 'registrant@example.test' ) );
+		$this->assert_welcome_follows_the_subscribe( '44:consent' );
+	}
+
+	public function test_consent_mode_block_checkout_account_creation_tick_welcomes_once(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 46, 'new.shopper@example.test', '', '' ) );
+
+		$this->drive_block_checkout( $handler, 46, 103, 'new.shopper@example.test', true );
+
+		$this->assert_welcomed( array( '46' => 'new.shopper@example.test' ) );
+	}
+
+	public function test_consent_mode_my_account_tick_welcomes(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 47, 'shopper@example.test', '', '' ) );
+
+		$this->drive_my_account( 47, '1' );
+
+		$this->assert_welcomed( array( '47' => 'shopper@example.test' ) );
+		$this->assert_welcome_follows_the_subscribe( '47:consent' );
+	}
+
+	public function test_an_opt_in_recorded_by_staff_or_an_import_sends_no_welcome(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users(
+			$this->fake_user( 51, 'staff.added@example.test', '', '' ),
+			$this->fake_user( 52, 'imported@example.test', '', '' )
+		);
+
+		// Staff tick the box on Users → Edit user in wp-admin.
+		Functions\when( 'is_admin' )->justReturn( true );
+		Functions\when( 'is_account_page' )->justReturn( false );
+		Functions\when( 'is_checkout' )->justReturn( false );
+		$_REQUEST = array( '_wpnonce' => 'admin-nonce' );
+		$_POST    = array( 'user_newsletter' => '1' );
+		( new Profile_Settings() )->smaily_save_account_fields( 51 );
+
+		// An import writes the consent record directly.
+		update_user_meta( 52, 'user_newsletter', '1' );
+
+		self::assertNotNull( $this->find_enqueued( '51:consent' ), 'The staff-recorded opt-in still reaches Smaily as a consent change.' );
+		self::assertNotNull( $this->find_enqueued( '52:consent' ), 'So does the imported one.' );
+		self::assertSame( array(), $this->welcomes(), 'Only the shopper\'s own opt-in in the store starts the welcome.' );
+	}
+
+	public function test_consent_mode_a_resubscription_in_the_store_welcomes_again(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 44, 'registrant@example.test', '', '' ) );
+
+		$this->drive_registration( $handler, 44 );
+
+		// Later the shopper unsubscribes in Smaily; the reconciler mirrors it.
+		HookHandler::reset_seen();
+		ContactReconciler::run_suppressed(
+			static function (): void {
+				update_user_meta( 44, 'user_newsletter', 0 );
+			}
+		);
+
+		// Another request: they tick the box at checkout again.
+		HookHandler::reset_seen();
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 109, 'registrant@example.test', 44, 1 ) );
+		$this->drive_classic_checkout( $handler, 44, 109, 'registrant@example.test', false );
+
+		self::assertCount( 2, $this->welcomes(), 'A re-subscription in the store starts the welcome again.' );
+	}
+
+	public function test_consent_mode_a_tick_by_a_subscribed_customer_sends_no_second_welcome(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 45, 'shopper@example.test', '', '' ) );
+		$this->user_meta[45]['user_newsletter'] = '1';
+
+		$this->drive_block_checkout( $handler, 45, 102, 'shopper@example.test', false );
+
+		self::assertSame( array(), $this->welcomes(), 'Already subscribed — the store records no new opt-in, so no welcome.' );
+	}
+
+	public function test_consent_mode_guest_checkout_tick_welcomes_only_when_guests_are_synced(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 110, 'guest@example.test', 0, 1 ) );
+
+		$handler->on_checkout_order_processed( 110, $this->posted( 'guest@example.test', 1 ), $this->fake_order( 110, 'guest@example.test', 0, 1 ) );
+		self::assertSame( array(), $this->welcomes(), 'Contact sync does not send guests here, so neither does the welcome.' );
+
+		HookHandler::reset_seen();
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT, array( ContactSyncMode::OPTION_INCLUDE_GUESTS => '1' ) );
+		$handler->on_checkout_order_processed( 110, $this->posted( 'guest@example.test', 1 ), $this->fake_order( 110, 'guest@example.test', 0, 1 ) );
+
+		$this->assert_welcomed( array( 'order:110' => 'guest@example.test' ) );
+	}
+
+	public function test_legitimate_interest_checkout_tick_welcomes_every_time(): void {
+		$this->welcome_store( ContactSyncMode::MODE_LEGITIMATE_INTEREST );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 49, 'shopper@example.test', '', '' ) );
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 107, 'shopper@example.test', 49, 1 ) );
+
+		$this->drive_classic_checkout( $handler, 49, 107, 'shopper@example.test', false );
+		$this->assert_welcomed( array( '49' => 'shopper@example.test' ) );
+
+		// A later order, ticked again: the store keeps no record to tell a
+		// repeat from a first opt-in, so the welcome starts again (Erkki).
+		HookHandler::reset_seen();
+		$this->drive_block_checkout( $handler, 49, 108, 'shopper@example.test', false );
+
+		self::assertCount( 2, $this->welcomes() );
+		self::assertSame( array(), $this->user_meta, 'Still no consent record outside consent mode (PRO-3406).' );
+	}
+
+	public function test_legitimate_interest_registration_and_my_account_ticks_welcome(): void {
+		$this->welcome_store( ContactSyncMode::MODE_LEGITIMATE_INTEREST );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users(
+			$this->fake_user( 44, 'registrant@example.test', '', '' ),
+			$this->fake_user( 47, 'shopper@example.test', '', '' )
+		);
+
+		$this->drive_registration( $handler, 44 );
+		$this->drive_my_account( 47, '1' );
+
+		$this->assert_welcomed(
+			array(
+				'44' => 'registrant@example.test',
+				'47' => 'shopper@example.test',
+			)
+		);
+	}
+
+	public function test_checkout_only_mode_welcomes_a_checkout_tick_and_nothing_else(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CHECKOUT_OPTIN );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users(
+			$this->fake_user( 43, 'new.shopper@example.test', '', '' ),
+			$this->fake_user( 44, 'registrant@example.test', '', '' ),
+			$this->fake_user( 47, 'shopper@example.test', '', '' )
+		);
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 111, 'guest@example.test', 0, 1 ) );
+
+		// Accounts are not contacts in this mode: My Account opt-ins don't count.
+		$this->drive_registration( $handler, 44 );
+		$this->drive_my_account( 47, '1' );
+		self::assertSame( array(), $this->welcomes() );
+
+		// A guest's classic-checkout tick …
+		$handler->on_checkout_order_processed( 111, $this->posted( 'guest@example.test', 1 ), $this->fake_order( 111, 'guest@example.test', 0, 1 ) );
+		// … and an account created at a block checkout with the box ticked.
+		$this->drive_block_checkout( $handler, 43, 112, 'new.shopper@example.test', true );
+
+		$this->assert_welcomed(
+			array(
+				'order:111' => 'guest@example.test',
+				'43'        => 'new.shopper@example.test',
+			)
+		);
+	}
+
+	/**
+	 * @dataProvider provide_every_mode
+	 */
+	public function test_contact_sync_switched_off_sends_no_welcome( string $mode ): void {
+		$this->welcome_store(
+			$mode,
+			array(
+				ContactSyncMode::OPTION_SYNC_ENABLED   => '',
+				ContactSyncMode::OPTION_INCLUDE_GUESTS => '1',
+			)
+		);
+		$this->assert_no_storefront_optin_welcomes();
+	}
+
+	/**
+	 * @dataProvider provide_every_mode
+	 */
+	public function test_welcome_switched_off_sends_no_welcome( string $mode ): void {
+		$this->welcome_store(
+			$mode,
+			array(
+				'smly_plus_welcome_enabled'            => false,
+				ContactSyncMode::OPTION_INCLUDE_GUESTS => '1',
+			)
+		);
+		$this->assert_no_storefront_optin_welcomes();
+	}
+
+	public function test_the_welcome_payload_carries_the_run_marker_and_the_contact_sync_does_not(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users( $this->fake_user( 44, 'registrant@example.test', '', '' ) );
+
+		$this->drive_registration( $handler, 44 );
+
+		// PRO-1681: the welcome run marks the contact; a contact sync never does.
+		self::assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $this->welcomes()[0]['payload']['fields']['welcome_automation_at'] );
+		self::assertArrayNotHasKey( 'welcome_automation_at', $this->find_enqueued( '44:consent' )['payload']['fields'] );
+	}
+
+	/** Every storefront opt-in path, in every mode — none may start the welcome. */
+	private function assert_no_storefront_optin_welcomes(): void {
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+		$this->known_users(
+			$this->fake_user( 43, 'new.shopper@example.test', '', '' ),
+			$this->fake_user( 44, 'registrant@example.test', '', '' ),
+			$this->fake_user( 46, 'block.shopper@example.test', '', '' ),
+			$this->fake_user( 47, 'shopper@example.test', '', '' )
+		);
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 101, 'new.shopper@example.test', 43, 1 ) );
+
+		$this->drive_classic_checkout( $handler, 43, 101, 'new.shopper@example.test', true );
+		$this->drive_registration( $handler, 44 );
+		$this->drive_block_checkout( $handler, 46, 103, 'block.shopper@example.test', true );
+		$this->drive_my_account( 47, '1' );
+		$handler->on_checkout_order_processed( 113, $this->posted( 'guest@example.test', 1 ), $this->fake_order( 113, 'guest@example.test', 0, 1 ) );
+		$this->drive_block_checkout( $handler, 0, 114, 'block.guest@example.test', false );
+
+		self::assertSame( array(), $this->welcomes() );
+	}
+
+	/**
+	 * Classic checkout as WooCommerce fires it: for a new account
+	 * wc_create_new_customer() (user_register, woocommerce_created_customer),
+	 * then woocommerce_checkout_update_user_meta, then
+	 * woocommerce_checkout_order_processed — the box ticked.
+	 */
+	private function drive_classic_checkout( HookHandler $handler, int $user_id, int $order_id, string $email, bool $new_account ): void {
+		$settings = new Profile_Settings();
+		$posted   = $this->posted( $email, 1 );
+		$_POST    = array(
+			'woocommerce-process-checkout-nonce' => 'checkout-nonce',
+			'user_newsletter'                    => '1',
+		);
+		if ( $new_account ) {
+			$handler->on_user_register( $user_id );
+			$settings->smaily_save_registration_newsletter_optin( $user_id );
+			$handler->on_woocommerce_created_customer( $user_id );
+		}
+		$settings->smaily_save_checkout_newsletter_optin( $user_id, $posted );
+		$handler->on_checkout_order_processed( $order_id, $posted, $this->fake_order( $order_id, $email, $user_id, 1 ) );
+	}
+
+	/** My Account registration with the box ticked (WC_Form_Handler::process_registration). */
+	private function drive_registration( HookHandler $handler, int $user_id ): void {
+		$_POST = array(
+			'woocommerce-register-nonce' => 'register-nonce',
+			'register'                   => 'Register',
+			'user_newsletter'            => '1',
+		);
+		$handler->on_user_register( $user_id );
+		// Profile_Settings' callback runs first: HookHandler listens at a later priority.
+		( new Profile_Settings() )->smaily_save_registration_newsletter_optin( $user_id );
+		$handler->on_woocommerce_created_customer( $user_id );
+	}
+
+	/**
+	 * Block checkout with the box ticked: the request hook while the order is
+	 * still a guest's, the account (if any) created, then the processed hook.
+	 */
+	private function drive_block_checkout( HookHandler $handler, int $user_id, int $order_id, string $email, bool $new_account ): void {
+		$order = $this->fake_order( $order_id, $email, $new_account ? 0 : $user_id, 1 );
+		$handler->on_checkout_block_optin( $order, $this->block_request( true ) );
+		if ( $new_account ) {
+			$handler->on_user_register( $user_id );
+			$handler->on_woocommerce_created_customer( $user_id );
+			$order->set_customer_id( $user_id );
+		}
+		$handler->on_block_checkout_order_processed( $order );
+	}
+
+	/** My Account → Account details saved by the logged-in shopper (woocommerce_save_account_details). */
+	private function drive_my_account( int $user_id, string $newsletter ): void {
+		Functions\when( 'is_admin' )->justReturn( false );
+		Functions\when( 'is_account_page' )->justReturn( true );
+		Functions\when( 'is_user_logged_in' )->justReturn( true );
+		Functions\when( 'is_checkout' )->justReturn( false );
+		$_REQUEST = array( 'save-account-details-nonce' => 'account-nonce' );
+		$_POST    = array(
+			'action'          => 'save_account_details',
+			'user_newsletter' => $newsletter,
+		);
+		( new Profile_Settings() )->smaily_save_wc_account_fields( $user_id );
+	}
+
+	/**
+	 * @param int|string $newsletter
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function posted( string $email, $newsletter ): array {
+		return array(
+			'billing_email'   => $email,
+			'user_newsletter' => $newsletter,
+		);
+	}
+
+	/**
+	 * @return array<int, array{type: string, entity_id: string, payload: array<string, mixed>}>
+	 */
+	private function welcomes(): array {
+		return array_values( array_filter( $this->enqueued, static fn ( array $row ): bool => $row['type'] === HookHandler::EVENT_AUTOMATION_WELCOME ) );
+	}
+
+	/**
+	 * @param array<string, string> $expected entity id => address, in enqueue order.
+	 */
+	private function assert_welcomed( array $expected ): void {
+		$actual = array();
+		foreach ( $this->welcomes() as $row ) {
+			$actual[ $row['entity_id'] ] = $row['payload']['email'];
+		}
+		self::assertSame( $expected, $actual, 'Exactly these welcomes, once each.' );
+	}
+
+	/** The subscribe reaches the queue before the welcome, so Smaily finds a subscribed contact. */
+	private function assert_welcome_follows_the_subscribe( string $consent_entity_id ): void {
+		$order = array_column( $this->enqueued, 'entity_id' );
+		self::assertLessThan(
+			array_search( HookHandler::EVENT_AUTOMATION_WELCOME, array_column( $this->enqueued, 'type' ), true ),
+			array_search( $consent_entity_id, $order, true )
+		);
+	}
+
+	/** get_userdata() answers for exactly these users. */
+	private function known_users( \WP_User ...$users ): void {
+		$by_id = array();
+		foreach ( $users as $user ) {
+			$by_id[ (int) $user->ID ] = $user;
+		}
+		Functions\when( 'get_userdata' )->alias( static fn ( $id ) => $by_id[ (int) $id ] ?? false );
+	}
+
+	/**
+	 * Store settings for the PRO-4093 cases: the wizard finished, contact sync
+	 * on, the given mode, the newsletter checkbox offered and the welcome on —
+	 * each overridable.
+	 *
+	 * @param array<string, mixed> $overrides
+	 */
+	private function welcome_store( string $mode, array $overrides = array() ): void {
+		$values = array_merge(
+			array(
+				'smly_plus_setup_completed'                   => true,
+				ContactSyncMode::OPTION_SYNC_ENABLED          => true,
+				ContactSyncMode::OPTION_MODE                  => $mode,
+				Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION => '1',
+				'smly_plus_welcome_enabled'                   => true,
+			),
+			$overrides
+		);
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $key, $default = null ) => array_key_exists( $key, $values ) ? $values[ $key ] : $default
+		);
+		Functions\stubTranslationFunctions();
+		Functions\when( 'sanitize_key' )->alias( 'strtolower' );
+		Functions\when( 'wp_verify_nonce' )->alias(
+			static fn ( $nonce, $action ) => ( $nonce === 'register-nonce' && $action === 'woocommerce-register' )
+				|| ( $nonce === 'checkout-nonce' && $action === 'woocommerce-process_checkout' )
+				|| ( $nonce === 'account-nonce' && $action === 'save_account_details' )
+				|| ( $nonce === 'admin-nonce' && str_starts_with( (string) $action, 'update-user_' ) ) ? 1 : false
+		);
+	}
+
+	public function test_the_handler_reads_a_registration_tick_after_profile_settings_records_it(): void {
+		$handler = new HookHandler( $this->queue );
+
+		Hooks::register( $handler );
+
+		// Profile_Settings records the tick at priority 10 on the same hook (PRO-4093).
+		self::assertGreaterThan( 10, has_action( 'woocommerce_created_customer', array( $handler, 'on_woocommerce_created_customer' ) ) );
 	}
 
 	/**

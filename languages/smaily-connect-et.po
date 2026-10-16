@@ -1665,8 +1665,8 @@ msgid "Welcome email"
 msgstr "Tervituskiri"
 
 #: admin/src/components/steps/Step3WooCommerce.tsx:50
-msgid "Sent when a shopper creates an account in your store (checkout or My Account registration) — not for accounts added in WordPress admin or created by another plugin."
-msgstr "Saadetakse, kui ostleja loob su poes konto (kassas või „Minu konto“ registreerimisel) — mitte kontode puhul, mille lisad WordPressi haldusliideses või mille loob mõni muu plugin."
+msgid "Sent when a shopper subscribes to marketing emails in your store (the checkout box or My Account) and contact sync sends them to Smaily. Creating an account alone does not send it, nor does an opt-in added in WordPress admin or by an import. A shopper who subscribes again gets it again."
+msgstr "Saadetakse, kui ostleja liitub su poes turunduskirjadega (kassa märkeruuduga või „Minu konto“ all) ja kontaktide sünkroonimine saadab ta Smailysse. Ainult konto loomine seda ei saada, samuti mitte WordPressi haldusliideses või importimisel lisatud nõusolek. Uuesti liitunud ostleja saab selle uuesti."
 
 #: admin/src/components/steps/Step3WooCommerce.tsx:61
 #: admin/src/components/steps/Step6Done.tsx:93

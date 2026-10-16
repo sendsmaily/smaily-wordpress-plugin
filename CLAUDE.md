@@ -444,9 +444,25 @@ synced" estimate honour it), and `EnvDetector`'s hydration.
 `ContactSyncMode::OPTION_SYNC_ENABLED`, so the key has one spelling in the
 plugin. The scar: the sync used to gate on `smly_plus_subscriber_sync_enabled`,
 which nothing has ever written — both default ON, so it only bit the merchant
-who switched contact sync OFF and kept syncing anyway. Automations (welcome /
-first-order / abandoned cart) are deliberately NOT gated by it — they have
-their own toggles and consent basis, and the merchant docs promise exactly that.
+who switched contact sync OFF and kept syncing anyway. First-order and
+abandoned-cart automations are deliberately NOT gated by it — they have their
+own toggles and consent basis, and the merchant docs promise exactly that.
+**The welcome IS gated by it since PRO-4093** (Erkki, 2026-10-16): it starts on
+the shopper's own marketing opt-in in the store and only where contact sync
+sends that contact. In consent mode the opt-in is a change of
+`user_newsletter` to 1 made inside `HookHandler::run_as_storefront_optin()`
+(the checkout / registration / My Account writers set it) — a staff edit, an
+import or the reconciler write the meta WITHOUT the flag and start no welcome;
+keep any new storefront writer inside it, and never add a welcome on a bare
+meta change. Where the store keeps no record (legitimate interest,
+checkout-only, guests) every ticked checkout the contact sync sends starts it.
+The newsletter block posts straight to Smaily and is not covered.
+**Integration-test trap (PRO-4093):** the plugin's registered `HookHandler`
+lives for the whole suite process and memoises the contact-sync mode
+(`$mode` / `$audience`), so a test that switches the mode through
+`update_option()` must clear that memo, and clear it again in tearDown —
+`WelcomeTriggerAudienceTest::forget_mode_memo()`. Otherwise the change is
+ignored, or leaks into the next test class.
 **Related WP trap, same fix:** `update_option( $key, false )` on an option that
 was never saved writes NOTHING (WP compares against `get_option()`'s `false` and
 concludes nothing changed) — harmless for a flag that defaults to off, silent
@@ -728,6 +744,13 @@ WRONG for this, so use **`bin/build-i18n.sh`** (it needs the wp-env container):
   whenever admin strings or translations changed; the `.po` translations survive
   (`update-po` preserves `msgstr`). Verify a real render with the Playwright check
   (set the dev site to a locale, confirm `wp.i18n.__()` returns the translation).
+- **On the Mac the script's last step fails** (2026-10-16, PRO-4093): `sed -i -E`
+  is GNU syntax, BSD sed reads `-E` as the backup suffix, so the `_i18n-src/…js`
+  references stay in the `.pot`/`.po` (the script still prints OK). Tidy them by
+  hand: `perl -pi -e 's#_i18n-src/(.*)\.js#admin/src/$1.tsx#g' languages/smaily-connect.pot languages/smaily-connect-et.po`.
+  The committed `.pot` was also stale against `main` on that day (strings from
+  earlier PRs missing), so a regeneration rewrites far more than your change;
+  for a one-string change, edit the `msgid`/`msgstr` pair in both files by hand.
 
 ### Cutting a release ZIP + GH release (official repo; local build = the reference)
 **A release is cut in the official repository `sendsmaily/smaily-wordpress-plugin`
