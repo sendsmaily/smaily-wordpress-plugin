@@ -77,3 +77,24 @@ describe('hydrateState — the consent API flag (PRO-3673)', () => {
     expect(hydrateState(boot(['first_name']), true).env.consentApiPresent).toBe(false);
   });
 });
+
+describe('hydrateState — the confirmation cards\' send status (PRO-4091)', () => {
+  it('carries the server-computed status of each confirmation', () => {
+    const payload = boot(['first_name']);
+    payload.savedSettings.transactionalStatus = {
+      shipping_confirmation: {
+        reason: 'no_workflow',
+        lastSentAt: '',
+        untickedRecentStatuses: [],
+      },
+    };
+
+    expect(hydrateState(payload, true).transactionalStatus).toEqual({
+      shipping_confirmation: { reason: 'no_workflow', lastSentAt: '', untickedRecentStatuses: [] },
+    });
+  });
+
+  it('reads an absent status as nothing to show', () => {
+    expect(hydrateState(boot(['first_name']), true).transactionalStatus).toEqual({});
+  });
+});

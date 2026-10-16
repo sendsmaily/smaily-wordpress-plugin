@@ -19,6 +19,7 @@ const ROW = {
   retry_refusal_message: '',
   can_send_again: false,
   cancelled: false,
+  skip_reason: '',
 };
 
 /**
@@ -313,6 +314,33 @@ describe('EventLog', () => {
 
     expect(await screen.findByText('cancelled')).toBeInTheDocument();
     expect(screen.queryByText('sent')).not.toBeInTheDocument();
+  });
+
+  it('reads a confirmation that could not go out as skipped, with the reason (PRO-4091)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [
+        {
+          ...ROW,
+          id: 61,
+          source: 'smaily' as const,
+          event_type: 'transactional.shipping_confirmation',
+          status: 'sent',
+          last_error: '',
+          skip_reason: 'no_workflow',
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+
+    render(<EventLog />);
+
+    expect(await screen.findByText('skipped')).toBeInTheDocument();
+    expect(screen.queryByText('sent')).not.toBeInTheDocument();
+    expect(screen.getByText('No workflow is chosen for this email.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send again' })).not.toBeInTheDocument();
   });
 
   /**

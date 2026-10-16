@@ -1,9 +1,15 @@
-import { type SettingsTabKey } from '../state/types';
+import {
+  type SettingsTabKey,
+  type TransactionalSendStatus,
+  type TransactionalTrigger,
+} from '../state/types';
 import { apiRequest } from './client';
 
 export interface SaveSettingsResponse {
   saved: boolean;
   errors: Array<{ field: string; message: string }>;
+  /** The confirmation cards' status lines, read after the save (PRO-4091). */
+  transactionalStatus?: Partial<Record<TransactionalTrigger, TransactionalSendStatus>>;
 }
 
 export interface SaveSettingsRequest {

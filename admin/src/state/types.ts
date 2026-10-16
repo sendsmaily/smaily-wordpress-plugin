@@ -127,6 +127,19 @@ export type AutomationTrigger =
   | 'order_confirmation'
   | 'shipping_confirmation';
 
+/** The two transactional-email triggers (PRO-1504). */
+export type TransactionalTrigger = 'order_confirmation' | 'shipping_confirmation';
+
+/** One confirmation's send status, as TransactionalStatus::snapshot() emits it (PRO-4091). */
+export interface TransactionalSendStatus {
+  /** The send gate's first closed condition (TransactionalGate::REASON_*), '' when it is open. */
+  reason: string;
+  /** UTC "Y-m-d H:i:s" of the newest send Smaily accepted, '' when none in the last 30 days. */
+  lastSentAt: string;
+  /** Bare statuses recent orders reached when none of them is ticked as shipped; empty = no warning. */
+  untickedRecentStatuses: string[];
+}
+
 export interface AutomationMapping {
   triggerType: AutomationTrigger;
   /** Language code from env.detectedLanguages, or 'default' for single-language sites. */
@@ -362,6 +375,12 @@ export interface WizardState {
   shippedOrderStatuses: string[];
   /** Addresses, phone and order note in both confirmations (PRO-3190) — off by default. */
   transactionalPersonalData: boolean;
+  /**
+   * What each confirmation card's status line says (PRO-4091) — computed by
+   * the server from the saved settings (TransactionalStatus), refreshed by
+   * every Settings save. Empty until the server sent one.
+   */
+  transactionalStatus: Partial<Record<TransactionalTrigger, TransactionalSendStatus>>;
 
   /**
    * Step 4 — Recommendations. Connecting the rec-engine syncs all domains
@@ -525,6 +544,7 @@ export type WizardAction =
   | { type: 'SET_SHIPPING_CONFIRMATION_ENABLED'; payload: boolean }
   | { type: 'TOGGLE_SHIPPED_ORDER_STATUS'; payload: { status: string } }
   | { type: 'SET_TRANSACTIONAL_PERSONAL_DATA'; payload: boolean }
+  | { type: 'SET_TRANSACTIONAL_STATUS'; payload: Partial<Record<TransactionalTrigger, TransactionalSendStatus>> }
 
   // Step 4: Recommendations -------------------------------------------------
   | { type: 'SET_REC_ENGINE_FEATURE'; payload: { feature: 'trackBrowsing'; enabled: boolean } }

@@ -73,6 +73,7 @@ export const wizardInitialState: WizardState = {
   shippingConfirmationEnabled: false,
   shippedOrderStatuses: [],
   transactionalPersonalData: false,
+  transactionalStatus: {},
 
   recEngineFeatures: {
     trackBrowsing: false,
@@ -384,6 +385,9 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
 
     case 'SET_TRANSACTIONAL_PERSONAL_DATA':
       return { ...state, transactionalPersonalData: action.payload };
+
+    case 'SET_TRANSACTIONAL_STATUS':
+      return { ...state, transactionalStatus: action.payload };
 
     case 'TOGGLE_SHIPPED_ORDER_STATUS': {
       const present = state.shippedOrderStatuses.includes(action.payload.status);

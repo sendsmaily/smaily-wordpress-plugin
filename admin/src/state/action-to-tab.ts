@@ -78,6 +78,7 @@ export function actionToTab(action: WizardAction): SettingsTabKey | null {
     case 'BACKFILL_START':
     case 'BACKFILL_PROGRESS':
     case 'BACKFILL_CANCEL':
+    case 'SET_TRANSACTIONAL_STATUS':
     case 'ENGINE_AUTOMATIONS_HYDRATED':
     case 'UPDATE_ENGINE_AUTOMATION':
     case 'ENGINE_AUTOMATIONS_SAVE_START':

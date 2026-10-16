@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useReducer } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -142,6 +142,123 @@ describe('TransactionalTriggersSection', () => {
     expect(toggle).toBeChecked();
     expect(latest.transactionalPersonalData).toBe(true);
     expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({ transactionalPersonalData: true });
+  });
+
+  describe('the status line on each confirmation card (PRO-4091)', () => {
+    function readyState(overrides: Partial<WizardState> = {}): WizardState {
+      return {
+        ...connectedState(),
+        transactionalEmailsEnabled: true,
+        orderConfirmationEnabled: true,
+        shippingConfirmationEnabled: true,
+        transactionalStatus: {
+          order_confirmation: { reason: '', lastSentAt: '', untickedRecentStatuses: [] },
+          shipping_confirmation: { reason: '', lastSentAt: '', untickedRecentStatuses: [] },
+        },
+        ...overrides,
+      };
+    }
+
+    function card(name: string): HTMLElement {
+      const heading = screen.getByRole('heading', { name });
+      const section = heading.parentElement?.parentElement?.parentElement;
+      if (!(section instanceof HTMLElement)) {
+        throw new Error(`No card for ${name}`);
+      }
+      return section;
+    }
+
+    it.each([
+      ['switched_off', 'Not sending: Transactional emails are switched off. Switch on “Send transactional emails” on the Connection tab.'],
+      ['trigger_off', 'Not sending: This email is switched off.'],
+      ['no_workflow', 'Not sending: No workflow is chosen for this email.'],
+      ['connection_incomplete', 'Not sending: The transactional Smaily account is not fully connected. Check its subdomain, username and password on the Connection tab.'],
+      ['password_unreadable', 'Not sending: The saved password of the transactional Smaily account can no longer be read. Re-enter the password on the Connection tab.'],
+    ])('names the first blocking reason: %s', async (reason, sentence) => {
+      render(
+        <Harness
+          initial={readyState({
+            transactionalStatus: {
+              shipping_confirmation: { reason, lastSentAt: '2026-10-15 08:30:00', untickedRecentStatuses: [] },
+            },
+          })}
+        />,
+      );
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      expect(within(card('Shipping confirmation')).getByText(sentence)).toBeInTheDocument();
+      expect(within(card('Shipping confirmation')).queryByText(/Last sent/)).not.toBeInTheDocument();
+    });
+
+    it('says the saved workflow is not active in Smaily when the loaded list lacks it', async () => {
+      render(
+        <Harness
+          initial={readyState({
+            automationMappings: [
+              { triggerType: 'shipping_confirmation', language: 'default', accountKey: 'transactional', workflowId: '99', isDefaultFallback: true },
+            ],
+          })}
+        />,
+      );
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      expect(
+        within(card('Shipping confirmation')).getByText(
+          'Not sending: The chosen workflow is not active in Smaily. Activate it in Smaily or choose another workflow.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('shows when the email was last sent, or that nothing went out lately', async () => {
+      render(
+        <Harness
+          initial={readyState({
+            transactionalStatus: {
+              order_confirmation: { reason: '', lastSentAt: '2026-10-15 08:30:00', untickedRecentStatuses: [] },
+              shipping_confirmation: { reason: '', lastSentAt: '', untickedRecentStatuses: [] },
+            },
+          })}
+        />,
+      );
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      expect(within(card('Order confirmation')).getByText(/^Last sent /)).toBeInTheDocument();
+      expect(within(card('Shipping confirmation')).getByText('Nothing sent in the last 30 days.')).toBeInTheDocument();
+    });
+
+    it('warns a store whose orders never reach a ticked status, naming the statuses they reach', async () => {
+      render(
+        <Harness
+          initial={readyState({
+            transactionalStatus: {
+              shipping_confirmation: { reason: '', lastSentAt: '', untickedRecentStatuses: ['completed', 'shipped'] },
+            },
+          })}
+        />,
+      );
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      expect(
+        within(card('Shipping confirmation')).getByText(
+          'No order in the last 30 days reached a status ticked under “Counts as shipped”. Recent orders are at: Completed, Shipped. Nothing is sent until orders reach a ticked status.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('explains that these emails skip the workflow, on each card', async () => {
+      render(<Harness initial={readyState()} />);
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      expect(screen.getAllByText(/the workflow shows no runs/)).toHaveLength(2);
+    });
+
+    it('does not call an email active while transactional emails are switched off', async () => {
+      render(<Harness initial={readyState({ transactionalEmailsEnabled: false })} />);
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      expect(within(card('Order confirmation')).queryByText('Active')).not.toBeInTheDocument();
+      expect(within(card('Order confirmation')).getByText('Off')).toBeInTheDocument();
+    });
   });
 
   it('keeps a single row on a one-language store', async () => {
