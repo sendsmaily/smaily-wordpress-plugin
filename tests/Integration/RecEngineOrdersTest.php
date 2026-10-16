@@ -571,6 +571,59 @@ final class RecEngineOrdersTest extends TestCase {
 		self::assertSame( 'smaily_rec_id', $response['errors'][0]['field'] ?? null );
 	}
 
+	/**
+	 * Contract v1.12.1 §5 (PRO-4051) mock fidelity: `null` on an attribution
+	 * field rejects THAT order (D6), while its batch mate goes through. The
+	 * plugin never sends null (OrderPayloadBuilderTest pins the omission), so
+	 * this posts the raw wire shape through the Client, as the uuid check above.
+	 *
+	 * @dataProvider attribution_fields
+	 */
+	public function test_mock_rejects_a_null_attribution_field_like_the_live_engine( string $field ): void {
+		$settings = new RecEngineSettings();
+		$client   = new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
+		$order    = static function ( string $suffix ): array {
+			return array(
+				'event_id'          => 'null-attr-' . $suffix . '-' . wp_generate_uuid4(),
+				'external_order_id' => 'WC-NULL-ATTR-' . $suffix,
+				'customer_email'    => 'null-attr@example.test',
+				'ordered_at'        => '2026-10-15T10:00:00Z',
+				'total_amount'      => 10.0,
+				'currency'          => 'EUR',
+				'status'            => 'completed',
+				'items'             => array(
+					array(
+						'sku'        => 'woo-1',
+						'qty'        => 1,
+						'unit_price' => 10.0,
+						'line_total' => 10.0,
+					),
+				),
+			);
+		};
+		$with_null           = $order( 'NULL' );
+		$with_null[ $field ] = null;
+
+		$response = $client->ingest_orders( array( $with_null, $order( 'OMITTED' ) ) );
+
+		self::assertSame( 1, $response['processed'] ?? null, 'The batch mate that omits the field is written.' );
+		self::assertCount( 1, $response['errors'] ?? array() );
+		self::assertSame( 0, $response['errors'][0]['index'] ?? null, 'The order carrying null is the one rejected.' );
+		self::assertSame( $field, $response['errors'][0]['field'] ?? null );
+	}
+
+	/**
+	 * @return array<string, array{0:string}>
+	 */
+	public static function attribution_fields(): array {
+		return array(
+			'smaily_rec_id'        => array( 'smaily_rec_id' ),
+			'smaily_rec_ctx'       => array( 'smaily_rec_ctx' ),
+			'smaily_visitor_token' => array( 'smaily_visitor_token' ),
+			'session_id'           => array( 'session_id' ),
+		);
+	}
+
 	public function test_a_partial_refund_returns_the_line_and_every_later_sync_keeps_it(): void {
 		// PRO-1633 end-to-end on the real chain: a real WC partial refund
 		// (wc_create_refund) → the real `woocommerce_order_partially_refunded`
