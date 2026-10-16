@@ -391,18 +391,27 @@ class Profile_Settings {
 	}
 
 	/**
+	 * Whether the logged-in customer has already subscribed to the newsletter.
+	 *
+	 * Both checkouts hide the opt-in box for such a customer: the classic
+	 * checkout here, the block checkout through its integration data
+	 * (PRO-4097). A guest is never subscribed.
+	 *
+	 * @return bool
+	 */
+	public static function current_user_subscribed() {
+		return ! empty( get_user_meta( get_current_user_id(), 'user_newsletter', true ) );
+	}
+
+	/**
 	 * Add checkout subscription checkbox to checkout fields.
 	 *
 	 * @param array $checkout_fields Checkout fields.
 	 * @return void
 	 */
 	private function add_checkout_subscription_checkbox( &$checkout_fields ) {
-		// Check if the user has already subscribed to the newsletter.
 		// We don't want to override the user's choice.
-		$user_id = get_current_user_id();
-		$checked = get_user_meta( $user_id, 'user_newsletter', true );
-
-		if ( ! empty( $checked ) ) {
+		if ( self::current_user_subscribed() ) {
 			return;
 		}
 
