@@ -44,10 +44,11 @@ describe('captureAttributionParams (PRO-1767 attribution-only writer)', () => {
   it('refuses a non-uuid rec id (PRO-1710 holds for this bundle too)', () => {
     window.history.replaceState({}, '', '/landing?smaily_rec=junk-value&smaily_ctx=welcome');
 
-    expect(captureAttributionParams(makeConfig())).toBe(true); // the context WAS captured
+    // A refused rec id writes no rec cookie, so the context is not set either.
+    expect(captureAttributionParams(makeConfig())).toBe(false);
 
     expect(document.cookie).not.toContain('smaily_rec_id=');
-    expect(document.cookie).toContain('smaily_rec_ctx=welcome');
+    expect(document.cookie).not.toContain('smaily_rec_ctx=');
     expect(window.location.search).toBe('');
   });
 
@@ -99,6 +100,26 @@ describe('captureAttributionParams (PRO-1767 attribution-only writer)', () => {
     captureAttributionParams(makeConfig());
 
     expect(document.cookie).not.toContain('smaily_rec_ctx=');
+  });
+
+  it('keeps the context cookie when a link carries a context but no smaily_rec', () => {
+    document.cookie = 'smaily_rec_ctx=storefront; path=/';
+    window.history.replaceState({}, '', '/landing?smaily_vt=vt_1&smaily_ctx=welcome');
+
+    captureAttributionParams(makeConfig());
+
+    expect(document.cookie).toContain('smaily_rec_uid=vt_1');
+    expect(document.cookie).toContain('smaily_rec_ctx=storefront');
+    expect(window.location.search).toBe('');
+  });
+
+  it('keeps the context cookie when a refused smaily_rec carries a context', () => {
+    document.cookie = 'smaily_rec_ctx=storefront; path=/';
+    window.history.replaceState({}, '', '/landing?smaily_rec=junk-value&smaily_ctx=welcome');
+
+    captureAttributionParams(makeConfig());
+
+    expect(document.cookie).toContain('smaily_rec_ctx=storefront');
   });
 
   it('keeps the context cookie when the smaily_rec is refused', () => {

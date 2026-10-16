@@ -113,6 +113,7 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
 
   const url = new URL(window.location.href);
   const params = url.searchParams;
+  const written = new Set<string>();
   const mapping: Array<{ param: string; cookie: string; ttl: number; isValid?: (v: string) => boolean }> = [
     {
       param: config.urlParams.visitorToken,
@@ -133,13 +134,14 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
       param: config.urlParams.context,
       cookie: config.cookieNames.context,
       ttl: config.cookieTtlDays.context,
-      isValid: (v) => CONTEXT_PATTERN.test(v),
+      // Context cookie rule (contract v1.9.0): a context is set only together
+      // with a rec id, so it comes after the rec id in this list.
+      isValid: (v) => written.has(config.urlParams.recId) && CONTEXT_PATTERN.test(v),
     },
   ];
 
   let captured = false;
   let present = false;
-  const written = new Set<string>();
   // 1) SAVE every present value to its cookie first.
   for (const { param, cookie, ttl, isValid } of mapping) {
     const value = params.get(param);
@@ -154,7 +156,8 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
     }
   }
   // Context cookie rule (contract v1.9.0, mirrors LandingCapture::resolve()):
-  // a landing that set the rec id without a valid context clears the context,
+  // a context without a rec id is not written (above), and a landing that set
+  // the rec id without a valid context clears the context,
   // so both cookies describe the same landing — an email click after a
   // storefront click must not leave `storefront` standing.
   if (written.has(config.urlParams.recId) && !written.has(config.urlParams.context)) {

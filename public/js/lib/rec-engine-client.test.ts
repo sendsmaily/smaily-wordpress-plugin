@@ -328,9 +328,10 @@ describe('RecEngineClient (3.4.2 cookies + URL-param capture)', () => {
 
     const captured = client.captureUrlParams();
 
-    expect(captured).toBe(true); // the context WAS captured
+    // No rec cookie, so no context either (contract v1.9.0 context cookie rule).
+    expect(captured).toBe(false);
     expect(document.cookie).not.toContain('smaily_rec_id=');
-    expect(document.cookie).toContain('smaily_rec_ctx=welcome');
+    expect(document.cookie).not.toContain('smaily_rec_ctx=');
     expect(window.location.search).toBe('');
   });
 

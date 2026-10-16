@@ -200,13 +200,15 @@ class LandingCapture {
 	 * capture slot. Pure + side-effect-free so it can be unit-tested without
 	 * touching cookies/headers. An absent or malformed value is simply omitted
 	 * (last-touch overwrite only happens for values that are actually present)
-	 * — with one exception, the context cookie rule (contract v1.9.0): a
-	 * landing that carries a valid `smaily_rec` but no valid `smaily_ctx`
-	 * resolves the context slot to '' (= clear the cookie), so the rec id and
-	 * the context always describe the same landing. Without it, an email click
-	 * after a storefront click would leave `storefront` standing and the
-	 * purchase would be credited to the store. The guarded `utm_content`
-	 * fallback carries no `smaily_rec`, so it never clears.
+	 * — except for the context, which follows the context cookie rule
+	 * (contract v1.9.0) so the rec id and the context always describe the same
+	 * landing: a context is taken only from a landing that also resolves a rec
+	 * id, and a landing that carries a valid `smaily_rec` but no valid
+	 * `smaily_ctx` resolves the context slot to '' (= clear the cookie).
+	 * Without it, an email click after a storefront click would leave
+	 * `storefront` standing and the purchase would be credited to the store.
+	 * The guarded `utm_content` fallback carries no `smaily_rec`, so it never
+	 * clears.
 	 *
 	 * @param array<string, mixed> $get Raw request query params.
 	 * @return array<string, string> slot => value ('' = delete that cookie).
@@ -227,7 +229,7 @@ class LandingCapture {
 		}
 
 		$context = $this->clean( $get, self::URL_PARAM_CONTEXT );
-		if ( AttributionShape::is_context( $context ) ) {
+		if ( '' !== $rec_id && AttributionShape::is_context( $context ) ) {
 			$out[ self::SLOT_CONTEXT ] = $context;
 		} elseif ( RecId::is_valid( $this->clean( $get, self::URL_PARAM_REC_ID ) ) ) {
 			$out[ self::SLOT_CONTEXT ] = '';

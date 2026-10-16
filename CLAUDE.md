@@ -1078,8 +1078,12 @@ first guess, corrected by the sync — the CC-8 lesson again.
 **Context cookie rule (v1.9.0):** a landing with a valid `smaily_rec` and no
 valid `smaily_ctx` CLEARS `smaily_rec_ctx` — in BOTH writers
 (`LandingCapture::resolve()` returns `''` for the context slot = delete;
-`attribution.ts` writes it with `Max-Age=0`). The `utm_content` fallback
-never clears. Change one writer, change the other in the same commit.
+`attribution.ts` writes it with `Max-Age=0`). A `smaily_ctx` on a landing
+that writes no rec id (none, or a refused one) leaves `smaily_rec_ctx` as it
+is (PRO-4049). The `utm_content` fallback never clears, but it does take a
+`smaily_ctx` on the same link (the server writer only — `attribution.ts` has
+no `utm_content` fallback). Change one writer, change the other in the same
+commit.
 
 **Visitor-token sources (PRO-3857, security audit M1/L2/L3).** Two shape checks,
 never merged: a LINK (`?smaily_vt=`) takes only the engine's `vt_` token —

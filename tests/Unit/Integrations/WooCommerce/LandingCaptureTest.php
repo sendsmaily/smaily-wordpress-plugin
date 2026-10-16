@@ -138,7 +138,12 @@ final class LandingCaptureTest extends TestCase {
 	}
 
 	public function test_resolve_captures_a_context_slug(): void {
-		$out = $this->capture()->resolve( array( 'smaily_ctx' => 'cart_abandoned' ) );
+		$out = $this->capture()->resolve(
+			array(
+				'smaily_rec' => self::UUID,
+				'smaily_ctx' => 'cart_abandoned',
+			)
+		);
 		self::assertSame( 'cart_abandoned', $out['context'] );
 	}
 
@@ -203,6 +208,56 @@ final class LandingCaptureTest extends TestCase {
 	public function test_resolve_leaves_the_context_alone_when_smaily_rec_is_not_a_uuid(): void {
 		$out = $this->capture()->resolve( array( 'smaily_rec' => 'rec_abc123' ) );
 		self::assertArrayNotHasKey( 'context', $out, 'A refused rec id writes no rec cookie, so the context stays too.' );
+	}
+
+	public function test_resolve_leaves_the_context_alone_when_a_link_has_no_rec_id(): void {
+		// A context is set only together with a rec id (contract v1.9.0): the
+		// two cookies always describe the same landing.
+		$out = $this->capture()->resolve(
+			array(
+				'smaily_vt'  => 'vt_abc123',
+				'smaily_ctx' => 'cart_abandoned',
+			)
+		);
+		self::assertSame( array( 'visitor' => 'vt_abc123' ), $out );
+	}
+
+	public function test_resolve_leaves_the_context_alone_when_a_refused_smaily_rec_carries_one(): void {
+		$out = $this->capture()->resolve(
+			array(
+				'smaily_rec' => 'rec_abc123',
+				'smaily_ctx' => 'cart_abandoned',
+			)
+		);
+		self::assertSame( array(), $out, 'A refused rec id writes no rec cookie, so the context stays too.' );
+	}
+
+	public function test_resolve_takes_the_context_on_a_utm_content_landing_that_carries_one(): void {
+		// The guarded utm_content fallback writes the rec id cookie, so a
+		// context on the same link describes the same landing.
+		$out = $this->capture()->resolve(
+			array(
+				'utm_content' => self::UUID,
+				'utm_source'  => 'smaily',
+				'smaily_ctx'  => 'cart_abandoned',
+			)
+		);
+		self::assertSame( 'cart_abandoned', $out['context'] ?? null );
+	}
+
+	public function test_capture_keeps_the_context_cookie_on_a_landing_without_a_rec_id(): void {
+		Functions\when( 'apply_filters' )->returnArg( 2 );
+		$_GET                      = array(
+			'smaily_vt'  => 'vt_abc123',
+			'smaily_ctx' => 'cart_abandoned',
+		);
+		$_COOKIE['smaily_rec_ctx'] = 'storefront';
+		$writer                    = $this->recording_capture( true, array() );
+
+		$writer->capture();
+
+		self::assertArrayNotHasKey( 'smaily_rec_ctx', $writer->written );
+		self::assertSame( 'storefront', $_COOKIE['smaily_rec_ctx'] );
 	}
 
 	public function test_capture_expires_the_context_cookie_on_a_smaily_rec_landing_without_one(): void {
