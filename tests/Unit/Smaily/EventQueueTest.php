@@ -142,6 +142,43 @@ final class EventQueueTest extends TestCase {
 		self::assertSame( array(), $wpdb->updates );
 	}
 
+	public function test_record_skipped_writes_one_finished_row_that_carries_only_the_reason(): void {
+		// PRO-4091: a send that could not happen leaves one Event Log row —
+		// already terminal (never drained, nothing scheduled), no recipient,
+		// nothing that reads as delivered.
+		$wpdb            = $this->fake_wpdb_with_successful_insert( 77 );
+		$GLOBALS['wpdb'] = $wpdb;
+		$scheduled       = false;
+		Functions\when( 'as_enqueue_async_action' )->alias(
+			static function () use ( &$scheduled ): int {
+				$scheduled = true;
+				return 1;
+			}
+		);
+
+		$id = ( new EventQueue() )->record_skipped( 'transactional.shipping_confirmation', '501', 'no_workflow' );
+
+		self::assertSame( 77, $id );
+		self::assertCount( 1, $wpdb->inserts );
+		$row = $wpdb->inserts[0]['data'];
+		self::assertSame( 'transactional.shipping_confirmation', $row['event_type'] );
+		self::assertSame( '501', $row['entity_id'] );
+		self::assertSame( EventQueue::STATUS_SENT, $row['status'] );
+		self::assertSame( '[]', $row['payload'] );
+		self::assertNull( $row['sent_payload'] );
+		self::assertNull( $row['contact_key'] );
+		self::assertSame( array( 'outcome' => 'skipped', 'reason' => 'no_workflow' ), json_decode( $row['last_response'], true ) );
+		self::assertSame( 'no_workflow', EventQueue::skip_reason( $row['last_response'] ) );
+		self::assertFalse( $scheduled, 'A finished row needs no flush pass.' );
+	}
+
+	public function test_skip_reason_is_empty_for_every_other_stored_response(): void {
+		self::assertSame( '', EventQueue::skip_reason( '' ) );
+		self::assertSame( '', EventQueue::skip_reason( '{"http":200,"outcome":"accepted"}' ) );
+		self::assertSame( '', EventQueue::skip_reason( '{"outcome":"skipped","note":"no API call"}' ), 'The flushers\' own terminal skips carry no reason.' );
+		self::assertSame( '', EventQueue::skip_reason( 'not json' ) );
+	}
+
 	public function test_enqueue_returns_null_when_insert_fails(): void {
 		$wpdb           = $this->fake_wpdb_with_failed_insert();
 		$GLOBALS['wpdb'] = $wpdb;
