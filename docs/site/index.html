@@ -646,7 +646,7 @@ td code{white-space:nowrap}
       </ul>
       <p>Kui su pood müüb mitmes keeles, pakub see vahekaart ka <strong>mitmekeelset režiimi</strong> (eraldi Smaily konto või töövoog keele kohta). Keeled tuvastatakse automaatselt <strong>WPML‑ist</strong>, <strong>Polylangist</strong> või <strong>TranslatePressist</strong>, kui üks neist on kasutusel — vt <a href="#set-consent">mitmekeelne suunamine</a>.</p>
       <p>Siin kuvatakse ka soovitusmootori ühendus koos oma <strong>Test</strong> ja <strong>Disconnect</strong> nuppudega.</p>
-      <p>Ka vabatahtlik <strong>tehingu‑e‑kirjade</strong> konto — teine, eraldi Smaily konto, mida kasutatakse ainult tellimuse/saatmise kinnituste ja järelkirja jaoks — seadistatakse siin, põhiühenduse all; vt <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
+      <p>Ka vabatahtlik <strong>tehingu‑e‑kirjade</strong> konto — teine, eraldi Smaily konto, mida kasutatakse ainult ostu ja tarne kinnituskirjade ning järelkirja jaoks — seadistatakse siin, põhiühenduse all; vt <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
     </div>
   </div>
 
@@ -686,13 +686,13 @@ td code{white-space:nowrap}
     <h2><span data-lang="en">How consent is recorded</span><span data-lang="et">Kuidas nõusolek salvestatakse</span></h2>
     <div data-lang="en">
       <p>In <strong>Subscribers only (consent)</strong> mode, a customer is synced to Smaily only when your store records them as subscribed to email marketing. Your store's own marketing‑consent record is the evidence — the plugin never assumes consent, it mirrors what your store captured.</p>
-      <p>Consent is captured by your store — the checkout marketing checkbox, or the newsletter box on the My Account registration form or in Account details. The Smaily newsletter block is different: it sends the signup straight to Smaily, so your store does not record it. The record carries the marketing state, the opt‑in level, and a timestamp.</p>
+      <p>Consent is captured by your store — the checkout marketing checkbox, or the newsletter box on the My Account registration form or in Account details. The Smaily newsletter block is different: it sends the signup straight to Smaily, so your store does not record it. The record is a single subscribed‑or‑not mark on the customer's account.</p>
       <h3>Language routing</h3>
       <p>The <strong>language</strong> sent with each contact is resolved from the customer's preferred language, then their most recent order's language, then the site's multilingual default (WPML / Polylang / TranslatePress) — never from the request context. This keeps a scheduled sync and a live request giving the same answer, so a store with an English WordPress locale but Estonian content doesn't get its contacts mislabelled.</p>
     </div>
     <div data-lang="et">
       <p><strong>Subscribers only (consent)</strong> režiimis sünkroonitakse klient Smailysse ainult siis, kui su pood on ta märkinud turundusele tellijaks. Su poe enda turundusnõusoleku‑kirje on tõend — plugin ei eelda kunagi nõusolekut, vaid peegeldab seda, mille su pood salvestas.</p>
-      <p>Nõusoleku salvestab su pood — kassa turunduse‑märkeruut või uudiskirja märkeruut „Minu konto“ registreerimisvormil või konto andmetes. Smaily uudiskirja plokk on teistsugune: see saadab liitumise otse Smailysse, nii et su pood seda ei salvesta. Kirje kannab turundusseisundit, nõusoleku‑taset ja ajatemplit.</p>
+      <p>Nõusoleku salvestab su pood — kassa turunduse‑märkeruut või uudiskirja märkeruut „Minu konto“ registreerimisvormil või konto andmetes. Smaily uudiskirja plokk on teistsugune: see saadab liitumise otse Smailysse, nii et su pood seda ei salvesta. Kirje on üks märge kliendi kontol: kas ta on tellija või mitte.</p>
       <h3>Keele suunamine</h3>
       <p>Iga kontaktiga saadetav <strong>keel</strong> tuletatakse kliendi eelistatud keelest, siis ta viimasest tellimusest, siis saidi mitmekeelsest vaikekeelest (WPML / Polylang / TranslatePress) — mitte kunagi päringu kontekstist. Nii annavad ajastatud sünk ja reaalajas päring sama tulemuse, ja inglise WordPressi‑lokaadiga aga eesti sisuga pood ei saa oma kontakte valesti märgitud.</p>
     </div>
@@ -798,7 +798,7 @@ td code{white-space:nowrap}
         <p>Pärast iga salvestamist loeb plugin tagasi, mida Campaign Intelligence salvestas, ja iga automaatika silt näitab seda: <strong>Test mode</strong> („Testrežiim“), <strong>Waiting for Smaily's confirmation</strong> („Ootab Smaily kinnitust“ — taotlesid päris saatmist ja Smaily pole seda veel sisse lülitanud) või <strong>Live — real sends on</strong> („Aktiivne — päris saatmine sees“). Ootamise silt tuleb sinu enda viimasest salvestamisest sellel lehel: kui laadid lehe uuesti, näitab veel ootel automaatika jälle <strong>Test mode</strong> silti.</p>
       </div>
       <h3>Tehingu‑e‑kirjade päästikud</h3>
-      <p>Tellimuse kinnitus ja Saatmisteade ilmuvad ka siia — aga alles pärast eraldi tehingu‑Smaily konto ühendamist <a href="#set-connection">Connection vahekaardil</a>. Täisjuhendi leiad siit: <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
+      <p>Ostu kinnituskiri ja Tarne kinnituskiri ilmuvad ka siia — aga alles pärast eraldi tehingu‑Smaily konto ühendamist <a href="#set-connection">Connection vahekaardil</a>. Täisjuhendi leiad siit: <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
     </div>
   </div>
 
@@ -810,7 +810,7 @@ td code{white-space:nowrap}
         <span class="k">Where to find it</span>
         <p>Two places, on purpose: <strong>Settings → Connection tab</strong> is where you connect the account (toggle → subdomain/username/password → Test connection → the same green "✓ Connected" checkmark your main Smaily connection uses). <strong>Settings → WooCommerce tab</strong> is where the "Order confirmation", "Shipping confirmation" and "Follow-up email" sections appear — but only once that connection is established; until then the WooCommerce tab shows nothing transactional.</p>
       </div>
-      <p>On the Connection tab, <strong>Use transactional emails</strong> is the master switch for the account itself; each of the three emails on the WooCommerce tab has its own switch too, so you can turn on order confirmations without shipping notices, or vice‑versa.</p>
+      <p>On the Connection tab, <strong>Send transactional emails</strong> is the master switch for the account itself; each of the three emails on the WooCommerce tab has its own switch too, so you can turn on order confirmations without shipping notices, or vice‑versa.</p>
       <h3>Order confirmation</h3>
       <p>Sent once, the moment a customer places an order. Map it to a Smaily workflow the same way as the automations above. The fields these emails carry are listed under <a href="#set-merge-tags">Merge tags</a>.</p>
       <p><strong>Multilingual store:</strong> when your site has more than one language, each section shows one workflow row per language, whichever multilingual mode you picked. Each order is sent through the workflow for the language it was placed in, so you can build one single‑section workflow per language on the transactional account. An order in a language with no workflow mapped goes to the row marked <strong>Default fallback</strong>.</p>
@@ -845,25 +845,25 @@ td code{white-space:nowrap}
       </div>
     </div>
     <div data-lang="et">
-      <p>Saada tellimuse kinnitus, saatmisteade ja järelkiri Smaily kaudu (mitte WordPressi enda meili kaudu), kasutades <strong>eraldi Smaily kontot</strong>, mis on seotud ainult nende saadetistega — hoitud lahus su turunduskontost, nii et turunduse tagasipõrge või kaebus ei saa kunagi ohustada tellimuse‑e‑kirjade kohaletoimetamist.</p>
+      <p>Saada ostu kinnituskiri, tarne kinnituskiri ja järelkiri Smaily kaudu (mitte WordPressi enda meili kaudu), kasutades <strong>eraldi Smaily kontot</strong>, mis on seotud ainult nende saadetistega — hoitud lahus su turunduskontost, nii et turunduse tagasipõrge või kaebus ei saa kunagi ohustada tellimuse‑e‑kirjade kohaletoimetamist.</p>
       <div class="note">
         <span class="k">Kust see leida</span>
-        <p>Kaks kohta, meelega: <strong>Settings → Connection vahekaart</strong> on koht, kus ühendad konto (lüliti → subdomeen/kasutajanimi/parool → Test connection → sama roheline "✓ Connected" märge, mida su põhi‑Smaily ühendus kasutab). <strong>Settings → WooCommerce vahekaart</strong> on koht, kus ilmuvad "Order confirmation", "Shipping confirmation" ja "Follow-up email" jaotised — aga alles siis, kui see ühendus on loodud; enne seda ei näita WooCommerce vahekaart tehingu‑e‑kirjade kohta midagi.</p>
+        <p>Kaks kohta, meelega: <strong>Settings → Connection vahekaart</strong> on koht, kus ühendad konto (lüliti → subdomeen/kasutajanimi/parool → Test connection → sama roheline "✓ Connected" märge, mida su põhi‑Smaily ühendus kasutab). <strong>Settings → WooCommerce vahekaart</strong> on koht, kus ilmuvad "Ostu kinnituskiri", "Tarne kinnituskiri" ja "Järelkiri" jaotised — aga alles siis, kui see ühendus on loodud; enne seda ei näita WooCommerce vahekaart tehingu‑e‑kirjade kohta midagi.</p>
       </div>
-      <p>Connection vahekaardil on <strong>Use transactional emails</strong> pealüliti konto enda jaoks; igal kolmest WooCommerce vahekaardi kirjast on ka oma lüliti, nii saad sisse lülitada tellimuskinnitused ilma saatmisteadeteta või vastupidi.</p>
-      <h3>Tellimuse kinnitus</h3>
+      <p>Connection vahekaardil on <strong>Saada tehingulisi kirju</strong> pealüliti konto enda jaoks; igal kolmest WooCommerce vahekaardi kirjast on ka oma lüliti, nii saad sisse lülitada ostu kinnituskirjad ilma tarne kinnituskirjadeta või vastupidi.</p>
+      <h3>Ostu kinnituskiri</h3>
       <p>Saadetakse üks kord, hetkel kui klient tellimuse esitab. Seo see Smaily töövooga samamoodi nagu ülal olevad automaatikad. Nende kirjade väljad leiad jaotisest <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</p>
       <p><strong>Mitmekeelne pood:</strong> kui su saidil on rohkem kui üks keel, näitab iga jaotis iga keele jaoks eraldi töövoo rida, sõltumata valitud mitmekeelsuse režiimist. Iga tellimus saadetakse selle keele töövooga, milles tellimus tehti, nii et tehingukontole saad teha iga keele jaoks oma ühe sektsiooniga töövoo. Kui tellimuse keelele pole töövoogu määratud, kasutatakse rida, mis on märgitud kui <strong>Vaikimisi varuvalik</strong>.</p>
-      <h3>Saatmisteade</h3>
+      <h3>Tarne kinnituskiri</h3>
       <p>Saadetakse üks kord, kui tellimus jõuab esimest korda staatusesse, mille oled märkinud kui <strong>"Loetakse saadetuks"</strong> — vali suvaline arv oma poe staatuseid (sisseehitatud või kohandatud, nt saatmis‑pluginate "Shipped" staatus). Hilisem tagasipöördumine samasse saadetud‑staatusesse sama tellimuse puhul teist teadet enam ei saada.</p>
       <p>Kui kumbki lüliti on sees, võtab Smaily Connect vaikselt üle WooCommerce'i vastava sisseehitatud kliendi‑e‑kirja (Processing order / Completed order), et klient ei saaks sama sündmuse kohta kaht e‑kirja. Completed‑order e‑kirja mahasurumine kehtib ainult siis, kui <strong>"completed"</strong> ise on üks su valitud saadetud‑staatustest — kohandatud staatusel (nt "Shipped") pole asendatavat sisseehitatud WooCommerce'i e‑kirja.</p>
       <h3>Järelkiri</h3>
-      <p>Saadetakse määratud arvu päevade järel pärast seda, kui tellimus jõuab esimest korda olekusse, mille oled selle jaoks märkinud — näiteks tagasiside palve, kui kliendil on olnud aega ostetut kasutada. Märgi olekud, mis ooteaja käivitavad (vaikimisi <strong>completed</strong>), ja määra <strong>Ooteaeg päevades</strong>: täisarv 1 kuni 90, vaikimisi 7. Saatmisteade läheb endiselt välja kohe — üks olekumuutus võib käivitada mõlemad.</p>
+      <p>Saadetakse määratud arvu päevade järel pärast seda, kui tellimus jõuab esimest korda olekusse, mille oled selle jaoks märkinud — näiteks tagasiside palve, kui kliendil on olnud aega ostetut kasutada. Märgi olekud, mis ooteaja käivitavad (vaikimisi <strong>completed</strong>), ja määra <strong>Ooteaeg päevades</strong>: täisarv 1 kuni 90, vaikimisi 7. Tarne kinnituskiri läheb endiselt välja kohe — üks olekumuutus võib käivitada mõlemad.</p>
       <p>Ooteaja lõppedes kontrollib plugin enne saatmist uuesti: kiri peab olema endiselt sisse lülitatud ja töövoog valitud ning tellimus peab olema endiselt mõnes märgitud olekus — mitte kunagi tühistatud, tagastatud ega ebaõnnestunud. Kui nii pole, ei saadeta midagi ja Event Log'i rida on märgisega <strong>vahele jäetud</strong> ning põhjusega. Iga tellimus saab kõige rohkem ühe järelkirja: märgitud olekusse uuesti jõudmine ei pane teist ootele. Ooteajal on järelkiri <a href="#err-retry">Event Log'is</a> märgisega <strong>ajastatud</strong> (scheduled) ja saatmise ajaga.</p>
       <p>Järelkiri ei asenda ühtegi WooCommerce'i kirja, seega pole sellel WooCommerce'i varuvarianti: saatmine, millest Smaily keeldub, on Event Log'is olekuga <strong>failed</strong> ja seal saad seda uuesti proovida.</p>
       <h3>Kliendi andmed</h3>
       <p>Jaotiste all olev <strong>Kliendi andmed → Lisa aadressid, telefon ja tellimuse märkus</strong> lisab tehingu‑e‑kirjadele saaja nime, arveldus‑ ja tarneaadressi, telefoninumbri ja kliendi märkuse tellimusele. See on <strong>vaikimisi väljas</strong> — need on isikuandmed, nii et lülita see sisse ainult siis, kui su kirjapõhi neid näitab. Väljad leiad jaotisest <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</p>
-      <p>Kui Smailyni ei jõuta või see lükkab tellimuse kinnituse või saatmisteate korraks tagasi, käivitub varuvariandina automaatselt WooCommerce'i enda e‑kiri selle tellimuse jaoks — klient ei jää kunagi kinnituseta. Pidevalt ebaõnnestuvat saatmist proovitakse uuesti kuni umbes tund aega, enne kui see varuvariant käivitub, nii et pikem Smaily katkestus ei jäta klienti lõputult ootama. Katse jääb mõlemal juhul kirja su <a href="#err-retry">Event Log'i</a>.</p>
+      <p>Kui Smailyni ei jõuta või see lükkab ostu kinnituskirja või tarne kinnituskirja korraks tagasi, käivitub varuvariandina automaatselt WooCommerce'i enda e‑kiri selle tellimuse jaoks — klient ei jää kunagi kinnituseta. Pidevalt ebaõnnestuvat saatmist proovitakse uuesti kuni umbes tund aega, enne kui see varuvariant käivitub, nii et pikem Smaily katkestus ei jäta klienti lõputult ootama. Katse jääb mõlemal juhul kirja su <a href="#err-retry">Event Log'i</a>.</p>
       <h3>Kas kiri läheb välja? Olekurida</h3>
       <p>Igal kinnituskirja kaardil WooCommerce vahekaardil on olekurida, mis leitakse samade kontrollidega, mida plugin teeb enne iga saatmist. See nimetab esimese asja, mis kirja saatmist takistab:</p>
       <ul>
@@ -873,9 +873,9 @@ td code{white-space:nowrap}
         <li><strong>Valitud töövoog ei ole Smailys aktiivne</strong> — aktiveeri see Smailys või vali teine.</li>
         <li><strong>Tehinguliste kirjade Smaily konto ühendus on poolik</strong> — kontrolli Connection vahekaardil alamdomeeni, kasutajanime ja parooli. Kui rida ütleb, et salvestatud parooli <strong>ei saa enam lugeda</strong> (nii juhtub, kui saidi turvavõtmed failis <code>wp-config.php</code> muutuvad), sisesta parool seal uuesti.</li>
       </ul>
-      <p>Kui miski ei takista, näitab rida, millal kiri <strong>viimati saadeti</strong> (või et viimase 30 päeva jooksul pole midagi saadetud). Saatmisteate ja järelkirja kaart hoiatavad ka siis, kui viimase 30 päeva jooksul ei jõudnud ükski tellimus selle kirja jaoks märgitud staatusesse, ja loetlevad staatused, kuhu su hiljutised tellimused jõudsid — tavaliselt märk, et tellimuste täitmine kasutab kohandatud staatust, mis pole veel märgitud. Rida näitab salvestatud seadeid ja uueneb salvestamisel.</p>
+      <p>Kui miski ei takista, näitab rida, millal kiri <strong>viimati saadeti</strong> (või et viimase 30 päeva jooksul pole midagi saadetud). Tarne kinnituskirja ja järelkirja kaart hoiatavad ka siis, kui viimase 30 päeva jooksul ei jõudnud ükski tellimus selle kirja jaoks märgitud staatusesse, ja loetlevad staatused, kuhu su hiljutised tellimused jõudsid — tavaliselt märk, et tellimuste täitmine kasutab kohandatud staatust, mis pole veel märgitud. Rida näitab salvestatud seadeid ja uueneb salvestamisel.</p>
       <p><strong>Kui Smaily töövoog käivitusi ei näita, on see normaalne.</strong> Need kirjad lähevad välja Smaily tehingulise saatmise kaudu: Smaily saadab valitud töövoo kirja kohe, üks kiri tellimuse kohta. Töövoog ise ei käivitu — selles seatud viivitused ja muud sammud ei kehti ning see ei näita käivitusi. Järelkirja puhul ootab plugin ise selle kaardil määratud arvu päevi. Saadetu leiad <a href="#err-retry">Event Log'ist</a>.</p>
-      <p><strong>Vahele jäetud read Event Log'is.</strong> Kui tellimus jõuab hetkeni, mil sisselülitatud kinnituskiri peaks välja minema (uus tellimus või märgitud staatus), aga see ei saa minna — töövoogu pole valitud, ühendus on poolik või tellimusel puudub arve e‑posti aadress —, lisandub Event Log'i rida märgisega <strong>vahele jäetud</strong> ja põhjusega. Rida sisaldab ainult tellimuse numbrit. Välja lülitatud kiri rida ei jäta. Vahele jäetud saatmine ei kuluta tellimuse ainsat kirja: kui põhjus on parandatud, läheb saatmisteade välja järgmine kord, kui tellimus jõuab märgitud staatusesse. Järelkiri jäetakse vahele ka siis, kui ooteaja lõppedes on tellimus tühistatud, tagastatud või ebaõnnestunud või pole enam märgitud olekus — see kulutab tellimuse järelkirja.</p>
+      <p><strong>Vahele jäetud read Event Log'is.</strong> Kui tellimus jõuab hetkeni, mil sisselülitatud kinnituskiri peaks välja minema (uus tellimus või märgitud staatus), aga see ei saa minna — töövoogu pole valitud, ühendus on poolik või tellimusel puudub arve e‑posti aadress —, lisandub Event Log'i rida märgisega <strong>vahele jäetud</strong> ja põhjusega. Rida sisaldab ainult tellimuse numbrit. Välja lülitatud kiri rida ei jäta. Vahele jäetud saatmine ei kuluta tellimuse ainsat kirja: kui põhjus on parandatud, läheb tarne kinnituskiri välja järgmine kord, kui tellimus jõuab märgitud staatusesse. Järelkiri jäetakse vahele ka siis, kui ooteaja lõppedes on tellimus tühistatud, tagastatud või ebaõnnestunud või pole enam märgitud olekus — see kulutab tellimuse järelkirja.</p>
       <div class="note warn">
         <span class="k">Kaks nõuet su Smaily töövoole</span>
         <ul>
@@ -1029,7 +1029,7 @@ td code{white-space:nowrap}
             <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>Üks komplekt iga korvis oleva toote kohta, <code>N</code> = 1…10. Kasutamata kohad saadetakse tühjana.</td></tr>
             <tr><td><code>product_price_N</code></td><td>Toote praegune hind koos valuutaga (soodushinna ajal soodushind).</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>Toote tavahind koos valuutaga.</td></tr>
-            <tr><td><code>product_url_N</code></td><td>Lihtne link toote lehele (variatsioonidega toote puhul on valitud korvis olev variatsioon) — sama märgend nagu tellimuse kinnituses ja saatmisteates. Tühi, kui toode pole enam avaldatud.</td></tr>
+            <tr><td><code>product_url_N</code></td><td>Lihtne link toote lehele (variatsioonidega toote puhul on valitud korvis olev variatsioon) — sama märgend nagu ostu kinnituskirjas ja tarne kinnituskirjas. Tühi, kui toode pole enam avaldatud.</td></tr>
             <tr><td><code>over_10_products</code></td><td><code>true</code>, kui korvis on üle 10 toote, muidu saadetakse tühjana — nii kustutab väiksema korvi meeldetuletus kontaktilt suurema korvi jäetud märke.</td></tr>
           </tbody>
         </table>
@@ -1047,7 +1047,7 @@ td code{white-space:nowrap}
           </tbody>
         </table>
       </div>
-      <h3>Tellimuse kinnitus, saatmisteade ja järelkiri</h3>
+      <h3>Ostu kinnituskiri, tarne kinnituskiri ja järelkiri</h3>
       <p>Kõigil kolmel <a href="#set-transactional">tehingu‑e‑kirjal</a> on samad väljad.</p>
       <div class="tw">
         <table>
@@ -1084,7 +1084,7 @@ td code{white-space:nowrap}
           </tbody>
         </table>
       </div>
-      <h3>Olemasoleva tellimuskinnituse kirjapõhja üleviimine</h3>
+      <h3>Olemasoleva ostu kinnituskirja põhja üleviimine</h3>
       <ul>
         <li><strong>Vii väljad vastavusse.</strong> Nimed järgivad WooCommerce'i enda nimesid (<code>billing_city</code>, <code>payment_method</code>…); igal tootel on oma komplekt lõpuga <code>_1</code>…<code>_10</code> ja tellimuse summad algavad <code>order_</code>.</li>
         <li><strong>Kontrolli tühje väärtusi õigesti.</strong> Kasutamata tootekohad saadetakse <em>tühjana</em>, mitte ei jäeta välja — kontrolli neid nii: <code>{% if product_name_2 != "" %}</code> (või <code>{% if product_name_2 %}</code>). <code>over_10_products</code> jäetakse välja, kui tooteid on 10 või vähem, nii et kontrolli <code>{% if over_10_products == "true" %}</code>.</li>
@@ -1575,7 +1575,7 @@ td code{white-space:nowrap}
       <p><em>Note:</em> a failed row stays retryable for 90 days, so there is no rush — and a Smaily contact send that keeps failing is retried a few times with growing gaps before it lands in <span class="pill failed">failed</span>, rather than being repeated every minute forever.</p>
     </div>
     <div data-lang="et">
-      <p><strong>Event Log</strong> loetleb, mida plugin saatis, ja iga tõrke. Iga rida näitab olekut — <span class="pill pending">pending</span>, <span class="pill sent">sent</span> või <span class="pill failed">failed</span> — ja <strong>Details</strong> avab täpse saadetud päringu ning mootori vastuse. Rida olekuga <strong>cancelled</strong> võeti enne väljasaatmist tagasi: ostukorvi meeldetuletus, millest kliendi ost ette jõudis. Rida olekuga <strong>vahele jäetud</strong> (skipped) on tellimuse kinnitus või saatmisteade, mis ei saanud välja minna; rida ütleb, miks (vt <a href="#set-transactional">Tehingu‑e‑kirjad</a>). Rida olekuga <strong>ajastatud</strong> (scheduled) on järelkiri, mis ootab oma ooteaja lõppu; rida ütleb, millal see saadetakse.</p>
+      <p><strong>Event Log</strong> loetleb, mida plugin saatis, ja iga tõrke. Iga rida näitab olekut — <span class="pill pending">pending</span>, <span class="pill sent">sent</span> või <span class="pill failed">failed</span> — ja <strong>Details</strong> avab täpse saadetud päringu ning mootori vastuse. Rida olekuga <strong>cancelled</strong> võeti enne väljasaatmist tagasi: ostukorvi meeldetuletus, millest kliendi ost ette jõudis. Rida olekuga <strong>vahele jäetud</strong> (skipped) on ostu kinnituskiri või tarne kinnituskiri, mis ei saanud välja minna; rida ütleb, miks (vt <a href="#set-transactional">Tehingu‑e‑kirjad</a>). Rida olekuga <strong>ajastatud</strong> (scheduled) on järelkiri, mis ootab oma ooteaja lõppu; rida ütleb, millal see saadetakse.</p>
       <ol>
         <li>Ava <span class="path">Settings → Event Log</span> ja sea <strong>Status</strong>‑filter <strong>Failed</strong> peale (või klõpsa punases bänneris <em>View only failed</em>).</li>
         <li>Loe <strong>Last error</strong> veergu. <code>http_4xx</code> / <code>d6_item_error</code> tähendab, et kirje lükati tagasi (paranda kirje); <code>http_5xx</code> või ajaületus on ajutine katkestus (kordus tavaliselt õnnestub). Smaily saadetise puhul tähendab <code>permanent_http_401</code> (või 403 / 404 / 422), et Smaily keeldus viisil, mida kordus ei paranda — kontrolli esmalt konto andmeid või seotud automaatikat, ja pane tähele, et <code>permanent_http_403 … (Smaily code 227)</code> tähendab, et konto pakett ei sisalda API-ligipääsu; <code>permanent_envelope_203</code> tähendab, et Smaily vastas „vigased andmed“ — samad andmed lükataks uuesti tagasi, nii et paranda enne kordust kontakti või e‑kirja välju; muu <code>permanent_envelope_&lt;code&gt;</code> kannab Smaily enda vastust sellele koodile (näiteks 221: automaatikat pole, see on välja lülitatud või krediit on otsas) — paranda enne kordust see, mida vastus nimetab; <code>retry_limit_exceeded</code> tähendab, et seda prooviti mitme tunni jooksul viis korda ja siis loobuti.</li>
