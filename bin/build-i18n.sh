@@ -86,7 +86,18 @@ target="languages/smaily-connect-${LANG}-${ADMIN_JSON_HASH}.json"
 [ "$combined" = "$target" ] || mv "$combined" "$target"
 
 echo "6/6  Tidy references + drop transient build inputs"
-sed -i -E 's#_i18n-src/(.*)\.js#admin/src/\1.tsx#g' languages/smaily-connect.pot "languages/smaily-connect-${LANG}.po" || true
+# perl, not `sed -i`: GNU and BSD (macOS) sed disagree on the in-place flag. A source
+# file may be .ts or .tsx; the transpiled .js does not say which, so ask the tree.
+perl -pi -e 's#_i18n-src/([^\s:]+)\.js#-e "admin/src/$1.ts" ? "admin/src/$1.ts" : "admin/src/$1.tsx"#ge' \
+	languages/smaily-connect.pot "languages/smaily-connect-${LANG}.po"
 rm -rf _i18n-src languages/i18n-map.json
+if grep -q '_i18n-src' languages/smaily-connect.pot "languages/smaily-connect-${LANG}.po"; then
+	echo "!! _i18n-src references left in the .pot/.po" >&2
+	exit 1
+fi
+if [ ! -s "$target" ]; then
+	echo "!! admin catalog $target is missing or empty" >&2
+	exit 1
+fi
 
 echo "OK — languages/*.mo + languages/*.json rebuilt (admin catalog: smaily-connect-${LANG}-${ADMIN_JSON_HASH}.json)."

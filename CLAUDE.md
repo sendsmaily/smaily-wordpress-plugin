@@ -744,13 +744,13 @@ WRONG for this, so use **`bin/build-i18n.sh`** (it needs the wp-env container):
   whenever admin strings or translations changed; the `.po` translations survive
   (`update-po` preserves `msgstr`). Verify a real render with the Playwright check
   (set the dev site to a locale, confirm `wp.i18n.__()` returns the translation).
-- **On the Mac the script's last step fails** (2026-10-16, PRO-4093): `sed -i -E`
-  is GNU syntax, BSD sed reads `-E` as the backup suffix, so the `_i18n-src/…js`
-  references stay in the `.pot`/`.po` (the script still prints OK). Tidy them by
-  hand: `perl -pi -e 's#_i18n-src/(.*)\.js#admin/src/$1.tsx#g' languages/smaily-connect.pot languages/smaily-connect-et.po`.
-  The committed `.pot` was also stale against `main` on that day (strings from
-  earlier PRs missing), so a regeneration rewrites far more than your change;
-  for a one-string change, edit the `msgid`/`msgstr` pair in both files by hand.
+- **The script runs the same on the Mac and on Linux and fails loudly** (PRO-4099,
+  2026-10-16): the reference tidy-up is `perl -pi`, not `sed -i` (GNU and BSD sed
+  disagree on the in-place flag — the old `sed -i -E … || true` silently left
+  `_i18n-src/…js` references on the Mac and still printed OK). The script exits
+  non-zero if any `_i18n-src` reference is left or the admin catalog JSON is missing.
+  A reference keeps its real `.ts`/`.tsx` extension; line numbers point at the
+  transpiled JS, not the source.
 
 ### Cutting a release ZIP + GH release (official repo; local build = the reference)
 **A release is cut in the official repository `sendsmaily/smaily-wordpress-plugin`
