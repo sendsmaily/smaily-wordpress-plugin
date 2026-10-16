@@ -119,15 +119,12 @@ class TransactionalEmailHookHandler {
 			return;
 		}
 
-		$match = $this->gate->resolve_if_open( $trigger_type, $order );
+		list( $reason, $match ) = $this->gate->evaluate( $trigger_type, $order );
 		if ( $match === null ) {
 			// Gate closed — nothing enqueued, no meta written, so the order
-			// keeps its one attempt. A switched-off email stays silent (a row
-			// per order on every store that doesn't use it would flood the
-			// Event Log); a switched-on one that can't send says why
-			// (PRO-4091).
-			$reason = $this->gate->closed_reason( $trigger_type, $order );
-			if ( ! in_array( $reason, array( '', TransactionalGate::REASON_SWITCHED_OFF, TransactionalGate::REASON_TRIGGER_OFF ), true ) ) {
+			// keeps its one attempt. The gate decides which reasons leave an
+			// Event Log skipped row (PRO-4091).
+			if ( TransactionalGate::is_loggable_reason( $reason ) ) {
 				$this->flusher->record_skip( $trigger_type, $order->get_id(), $reason );
 			}
 			return;

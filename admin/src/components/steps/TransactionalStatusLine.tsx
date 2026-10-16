@@ -1,3 +1,4 @@
+import { formatUtc } from '@admin/lib/format-utc';
 import { __, sprintf } from '@admin/lib/i18n';
 import { transactionalReasonMessage } from '@admin/lib/transactional-reasons';
 import { useWorkflows } from '../../hooks/useWorkflows';
@@ -30,8 +31,7 @@ export function TransactionalStatusLine({
   const status = state.inSettings ? state.transactionalStatus[trigger] : undefined;
 
   let reason = status?.reason ?? '';
-  const workflowStep = reason === '' || reason === 'connection_incomplete' || reason === 'password_unreadable';
-  if (status !== undefined && workflowStep && workflowsStatus === 'success') {
+  if (status !== undefined && status.workflowResolved && workflowsStatus === 'success') {
     const active = new Set(workflows.filter((w) => w.status !== 'INACTIVE').map((w) => w.id));
     const inactive = state.automationMappings.some(
       (m) => m.triggerType === trigger && m.accountKey === accountKey && !active.has(m.workflowId),
@@ -83,14 +83,4 @@ export function TransactionalStatusLine({
       </p>
     </div>
   );
-}
-
-/**
- * Render a server-emitted UTC datetime ("2026-05-21 10:42:17") in the
- * merchant's local timezone — the same rule as the backfill panel's
- * "Last run" hint.
- */
-function formatUtc(utcDatetime: string): string {
-  const date = new Date(utcDatetime.replace(' ', 'T') + 'Z');
-  return isNaN(date.getTime()) ? utcDatetime : date.toLocaleString();
 }

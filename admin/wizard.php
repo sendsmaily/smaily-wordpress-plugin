@@ -264,6 +264,10 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 		? trim( (string) file_get_contents( $build_hash_file ) ) // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		: 'dev';
 
+	// The same rule the mount node's data-view follows: the Settings page is
+	// the only screen on page=smaily-connect-settings.
+	$view = isset( $_GET['page'] ) && $_GET['page'] === 'smaily-connect-settings' ? 'settings' : 'wizard'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
 	$boot = array(
 		'buildHash'     => $build_hash,
 		'nonce'         => wp_create_nonce( 'wp_rest' ),
@@ -271,9 +275,10 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 		// but the rest_url() helper returns it without one on some
 		// permalink configurations. Always emit canonical form.
 		'restUrl'       => esc_url_raw( rest_url( 'smaily-connect/v1/' ) ),
-		'view'          => isset( $_GET['page'] ) && $_GET['page'] === 'smaily-connect-settings' ? 'settings' : 'wizard', // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		'view'          => $view,
 		'envSnapshot'   => $detector->snapshot(),
-		'savedSettings' => $detector->saved_settings(),
+		// The confirmation cards' status line is shown in Settings only.
+		'savedSettings' => $detector->saved_settings( $view === 'settings' ),
 	);
 
 	wp_add_inline_script(

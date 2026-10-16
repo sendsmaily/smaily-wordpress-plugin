@@ -161,7 +161,7 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
         payload: { tab: request.tab as SettingsTabKey },
       });
       // PRO-4091: the confirmation cards show what the save just changed.
-      if (response.transactionalStatus !== undefined && !Array.isArray(response.transactionalStatus)) {
+      if (response.transactionalStatus !== undefined) {
         rawDispatch({ type: 'SET_TRANSACTIONAL_STATUS', payload: response.transactionalStatus });
       }
     },

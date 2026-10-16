@@ -26,6 +26,10 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
  * Per trigger:
  *   - `reason` — TransactionalGate::closed_reason(), the send gate's own
  *     answer, so the card can never state a rule the send doesn't follow;
+ *   - `workflowResolved` — TransactionalGate::workflow_resolved(): the
+ *     gate got past the workflow lookup, so the card checks that the
+ *     mapped workflow is active in Smaily (only the admin screen holds
+ *     the workflow list);
  *   - `lastSentAt` — the newest row Smaily accepted (UTC, the Event Log's
  *     format), '' when there is none. Sent rows are pruned after 30 days
  *     (QueueJanitor), so '' means "nothing in that window";
@@ -51,17 +55,19 @@ class TransactionalStatus {
 	}
 
 	/**
-	 * @return array<string, array{reason: string, lastSentAt: string, untickedRecentStatuses: array<int, string>}>
+	 * @return array<string, array{reason: string, workflowResolved: bool, lastSentAt: string, untickedRecentStatuses: array<int, string>}>
 	 */
 	public function snapshot(): array {
-		$out = array();
+		$out       = array();
+		$last_sent = $this->last_sent_at( array_column( TransactionalGate::TRIGGERS, 'event_type' ) );
 
 		foreach ( array_keys( TransactionalGate::TRIGGERS ) as $trigger_type ) {
 			$reason = $this->gate->closed_reason( $trigger_type );
 
 			$out[ $trigger_type ] = array(
 				'reason'                 => $reason,
-				'lastSentAt'             => $this->last_sent_at( TransactionalGate::event_type_for( $trigger_type ) ),
+				'workflowResolved'       => TransactionalGate::workflow_resolved( $reason ),
+				'lastSentAt'             => $last_sent[ TransactionalGate::event_type_for( $trigger_type ) ] ?? '',
 				'untickedRecentStatuses' => $trigger_type === TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION && $reason === ''
 					? $this->unticked_recent_statuses()
 					: array(),
@@ -85,21 +91,34 @@ class TransactionalStatus {
 	}
 
 	/**
-	 * The newest row of $event_type that Smaily accepted. A skipped row
-	 * (and any other terminal skip) is `sent` too, but has no sent_payload.
+	 * The newest row Smaily accepted, per event type, in one query —
+	 * event types without one are absent. A skipped row (and any other
+	 * terminal skip) is `sent` too, but has no sent_payload.
+	 *
+	 * @param array<int, string> $event_types
+	 * @return array<string, string> event type → UTC created_at
 	 */
-	protected function last_sent_at( string $event_type ): string {
+	protected function last_sent_at( array $event_types ): array {
 		global $wpdb;
 
-		$table = $wpdb->prefix . EventQueue::TABLE_SUFFIX;
+		$table        = $wpdb->prefix . EventQueue::TABLE_SUFFIX;
+		$placeholders = implode( ', ', array_fill( 0, count( $event_types ), '%s' ) );
 
-		return (string) $wpdb->get_var(
+		// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $placeholders is one %s per $event_types entry.
+		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT MAX( created_at ) FROM {$table} WHERE status = %s AND event_type = %s AND sent_payload IS NOT NULL AND sent_payload <> ''",
-				EventQueue::STATUS_SENT,
-				$event_type
-			)
+				"SELECT event_type, MAX( created_at ) AS last_sent FROM {$table} WHERE status = %s AND event_type IN ( {$placeholders} ) AND sent_payload IS NOT NULL AND sent_payload <> '' GROUP BY event_type",
+				array_merge( array( EventQueue::STATUS_SENT ), $event_types )
+			),
+			ARRAY_A
 		);
+
+		$out = array();
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$out[ (string) $row['event_type'] ] = (string) $row['last_sent'];
+		}
+
+		return $out;
 	}
 
 	/**

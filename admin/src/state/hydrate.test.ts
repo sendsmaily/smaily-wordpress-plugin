@@ -84,13 +84,14 @@ describe('hydrateState — the confirmation cards\' send status (PRO-4091)', () 
     payload.savedSettings.transactionalStatus = {
       shipping_confirmation: {
         reason: 'no_workflow',
+        workflowResolved: false,
         lastSentAt: '',
         untickedRecentStatuses: [],
       },
     };
 
     expect(hydrateState(payload, true).transactionalStatus).toEqual({
-      shipping_confirmation: { reason: 'no_workflow', lastSentAt: '', untickedRecentStatuses: [] },
+      shipping_confirmation: { reason: 'no_workflow', workflowResolved: false, lastSentAt: '', untickedRecentStatuses: [] },
     });
   });
 

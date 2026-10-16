@@ -152,8 +152,8 @@ describe('TransactionalTriggersSection', () => {
         orderConfirmationEnabled: true,
         shippingConfirmationEnabled: true,
         transactionalStatus: {
-          order_confirmation: { reason: '', lastSentAt: '', untickedRecentStatuses: [] },
-          shipping_confirmation: { reason: '', lastSentAt: '', untickedRecentStatuses: [] },
+          order_confirmation: { reason: '', workflowResolved: true, lastSentAt: '', untickedRecentStatuses: [] },
+          shipping_confirmation: { reason: '', workflowResolved: true, lastSentAt: '', untickedRecentStatuses: [] },
         },
         ...overrides,
       };
@@ -169,17 +169,17 @@ describe('TransactionalTriggersSection', () => {
     }
 
     it.each([
-      ['switched_off', 'Not sending: Transactional emails are switched off. Switch on “Send transactional emails” on the Connection tab.'],
-      ['trigger_off', 'Not sending: This email is switched off.'],
-      ['no_workflow', 'Not sending: No workflow is chosen for this email.'],
-      ['connection_incomplete', 'Not sending: The transactional Smaily account is not fully connected. Check its subdomain, username and password on the Connection tab.'],
-      ['password_unreadable', 'Not sending: The saved password of the transactional Smaily account can no longer be read. Re-enter the password on the Connection tab.'],
-    ])('names the first blocking reason: %s', async (reason, sentence) => {
+      ['switched_off', false, 'Not sending: Transactional emails are switched off. Switch on “Send transactional emails” on the Connection tab.'],
+      ['trigger_off', false, 'Not sending: This email is switched off.'],
+      ['no_workflow', false, 'Not sending: No workflow is chosen for this email.'],
+      ['connection_incomplete', true, 'Not sending: The transactional Smaily account is not fully connected. Check its subdomain, username and password on the Connection tab.'],
+      ['password_unreadable', true, 'Not sending: The saved password of the transactional Smaily account can no longer be read. Re-enter the password on the Connection tab.'],
+    ])('names the first blocking reason: %s', async (reason, workflowResolved, sentence) => {
       render(
         <Harness
           initial={readyState({
             transactionalStatus: {
-              shipping_confirmation: { reason, lastSentAt: '2026-10-15 08:30:00', untickedRecentStatuses: [] },
+              shipping_confirmation: { reason, workflowResolved, lastSentAt: '2026-10-15 08:30:00', untickedRecentStatuses: [] },
             },
           })}
         />,
@@ -214,8 +214,8 @@ describe('TransactionalTriggersSection', () => {
         <Harness
           initial={readyState({
             transactionalStatus: {
-              order_confirmation: { reason: '', lastSentAt: '2026-10-15 08:30:00', untickedRecentStatuses: [] },
-              shipping_confirmation: { reason: '', lastSentAt: '', untickedRecentStatuses: [] },
+              order_confirmation: { reason: '', workflowResolved: true, lastSentAt: '2026-10-15 08:30:00', untickedRecentStatuses: [] },
+              shipping_confirmation: { reason: '', workflowResolved: true, lastSentAt: '', untickedRecentStatuses: [] },
             },
           })}
         />,
@@ -231,7 +231,7 @@ describe('TransactionalTriggersSection', () => {
         <Harness
           initial={readyState({
             transactionalStatus: {
-              shipping_confirmation: { reason: '', lastSentAt: '', untickedRecentStatuses: ['completed', 'shipped'] },
+              shipping_confirmation: { reason: '', workflowResolved: true, lastSentAt: '', untickedRecentStatuses: ['completed', 'shipped'] },
             },
           })}
         />,

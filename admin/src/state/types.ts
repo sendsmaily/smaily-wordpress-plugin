@@ -134,6 +134,11 @@ export type TransactionalTrigger = 'order_confirmation' | 'shipping_confirmation
 export interface TransactionalSendStatus {
   /** The send gate's first closed condition (TransactionalGate::REASON_*), '' when it is open. */
   reason: string;
+  /**
+   * The gate got past the workflow lookup (TransactionalGate::workflow_resolved()) —
+   * then the card checks the mapped workflow is active in Smaily.
+   */
+  workflowResolved: boolean;
   /** UTC "Y-m-d H:i:s" of the newest send Smaily accepted, '' when none in the last 30 days. */
   lastSentAt: string;
   /** Bare statuses recent orders reached when none of them is ticked as shipped; empty = no warning. */
