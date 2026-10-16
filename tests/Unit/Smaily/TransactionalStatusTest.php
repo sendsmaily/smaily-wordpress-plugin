@@ -55,11 +55,13 @@ final class TransactionalStatusTest extends TestCase {
 			array(
 				TransactionalGate::TRIGGER_ORDER_CONFIRMATION    => array(
 					'reason'                 => TransactionalGate::REASON_NO_WORKFLOW,
+					'workflowResolved'       => false,
 					'lastSentAt'             => '2026-10-15 08:30:00',
 					'untickedRecentStatuses' => array(),
 				),
 				TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION => array(
 					'reason'                 => TransactionalGate::REASON_PASSWORD_UNREADABLE,
+					'workflowResolved'       => true,
 					'lastSentAt'             => '',
 					'untickedRecentStatuses' => array(),
 				),
@@ -130,8 +132,8 @@ final class TransactionalStatusTest extends TestCase {
 				$this->last_sent = $last_sent;
 				$this->recent    = $recent;
 			}
-			protected function last_sent_at( string $event_type ): string {
-				return $this->last_sent[ $event_type ] ?? '';
+			protected function last_sent_at( array $event_types ): array {
+				return array_intersect_key( $this->last_sent, array_flip( $event_types ) );
 			}
 			protected function recent_order_statuses(): array {
 				++$this->order_lookups;

@@ -2,6 +2,7 @@ import type React from 'react';
 import { type BackfillJobType } from '../api/backfill';
 import { useBackfillProgress } from '../hooks/useBackfillProgress';
 import { Button, ProgressBar } from './primitives';
+import { formatUtc } from '@admin/lib/format-utc';
 import { __, _n, sprintf } from '@admin/lib/i18n';
 
 interface BackfillPanelProps {
@@ -159,7 +160,7 @@ export function BackfillPanel({
               {sprintf(
                 /* translators: %s: localized date/time of the last run. */
                 __('Last run finished %s.', 'smaily-connect'),
-                formatLastRun(progress.completedAt),
+                formatUtc(progress.completedAt),
               )}
             </p>
           )}
@@ -177,17 +178,4 @@ export function BackfillPanel({
       )}
     </div>
   );
-}
-
-/**
- * Render a server-emitted UTC datetime ("2026-05-21 10:42:17") in the
- * merchant's local timezone. Mirrors Step2Subscribers' helper.
- */
-function formatLastRun(utcDatetime: string): string {
-  const iso = utcDatetime.replace(' ', 'T') + 'Z';
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) {
-    return utcDatetime;
-  }
-  return date.toLocaleString();
 }

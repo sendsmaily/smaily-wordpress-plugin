@@ -1,5 +1,6 @@
 import { useEffect, type Dispatch } from 'react';
 
+import { formatUtc } from '@admin/lib/format-utc';
 import { __, _n, sprintf } from '@admin/lib/i18n';
 import { useBackfillProgress } from '../../hooks/useBackfillProgress';
 import { DEFAULT_SYNC_FIELDS, type ContactSyncMode, type WizardAction, type WizardState } from '../../state/types';
@@ -331,7 +332,7 @@ export function Step2Subscribers({
                 {sprintf(
                   // translators: %s is a localized date/time.
                   __( 'Last run finished %s.', 'smaily-connect' ),
-                  formatLastRun(progress.completedAt),
+                  formatUtc(progress.completedAt),
                 )}
               </p>
             )}
@@ -400,20 +401,4 @@ const FIELD_LABELS: Record<string, string> = {
 
 function prettyFieldLabel(field: string): string {
   return FIELD_LABELS[field] ?? field.replace(/_/g, ' ');
-}
-
-/**
- * Render a server-emitted UTC datetime ("2026-05-21 10:42:17") in the
- * merchant's local timezone. Used by the "Last run finished …" hint
- * under the backfill progress bar. We deliberately avoid Intl options
- * the older Node ICU builds in CI choke on — toLocaleString with no
- * arguments is the broadest path.
- */
-function formatLastRun(utcDatetime: string): string {
-  const iso = utcDatetime.replace(' ', 'T') + 'Z';
-  const date = new Date(iso);
-  if (isNaN(date.getTime())) {
-    return utcDatetime;
-  }
-  return date.toLocaleString();
 }

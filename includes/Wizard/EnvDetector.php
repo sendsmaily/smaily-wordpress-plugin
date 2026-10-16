@@ -413,9 +413,13 @@ class EnvDetector {
 	 * UI re-renders the password field as an empty input ("***"
 	 * placeholder) and a no-op save leaves the stored value untouched.
 	 *
+	 * @param bool $with_transactional_status False for the wizard screen: only
+	 *                                        Settings shows the confirmation
+	 *                                        cards' status line, so the wizard
+	 *                                        skips its queries (an empty list).
 	 * @return array<string, mixed>
 	 */
-	public function saved_settings(): array {
+	public function saved_settings( bool $with_transactional_status = true ): array {
 		$creds             = new Credentials();
 		$set               = $creds->get();
 		$transactional_set = $creds->get( 'transactional' );
@@ -499,7 +503,7 @@ class EnvDetector {
 			// PRO-3190: addresses, phone and order note in both confirmations — off by default.
 			'transactionalPersonalData'     => (bool) get_option( TransactionalPayloadBuilder::OPTION_PERSONAL_DATA, false ),
 			// PRO-4091: each confirmation card's status line.
-			'transactionalStatus'           => $this->transactional_status(),
+			'transactionalStatus'           => $with_transactional_status ? $this->transactional_status() : array(),
 
 			// Step 4: rec-engine connection state (sub-PR 3.1). The
 			// api_key is DELIBERATELY omitted from the boot payload —

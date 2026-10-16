@@ -130,11 +130,13 @@ class TransactionalGate {
 	}
 
 	/**
-	 * The four conditions, in order.
+	 * The four conditions, in order — the reason and the match from ONE
+	 * evaluation, for a caller that needs both (the hook handler sends on
+	 * the match and logs the reason) without running the gate twice.
 	 *
 	 * @return array{0: string, 1: ?WorkflowMatch} [ REASON_* or '', the match when open ]
 	 */
-	private function evaluate( string $trigger_type, ?\WC_Order $order ): array {
+	public function evaluate( string $trigger_type, ?\WC_Order $order = null ): array {
 		if ( ! (bool) get_option( self::OPTION_ENABLED, false ) ) {
 			return array( self::REASON_SWITCHED_OFF, null );
 		}
@@ -157,6 +159,26 @@ class TransactionalGate {
 		}
 
 		return array( '', $match );
+	}
+
+	/**
+	 * Whether a closed gate's $reason earns an Event Log skipped row
+	 * (PRO-4091). A switched-off email stays silent — a row per order on
+	 * every store that doesn't use it would flood the Event Log; a
+	 * switched-on one that can't send says why. '' (open) is no skip.
+	 */
+	public static function is_loggable_reason( string $reason ): bool {
+		return ! in_array( $reason, array( '', self::REASON_SWITCHED_OFF, self::REASON_TRIGGER_OFF ), true );
+	}
+
+	/**
+	 * Whether an evaluation that ended with $reason got past the workflow
+	 * lookup — open, or closed only on the account's credentials. The admin
+	 * screen checks that the mapped workflow is active in Smaily exactly
+	 * then, so it does not depend on the order of the conditions above.
+	 */
+	public static function workflow_resolved( string $reason ): bool {
+		return in_array( $reason, array( '', self::REASON_CONNECTION_INCOMPLETE, self::REASON_PASSWORD_UNREADABLE ), true );
 	}
 
 	/**

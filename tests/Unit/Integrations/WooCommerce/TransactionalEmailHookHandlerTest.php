@@ -384,11 +384,8 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 			public function __construct( string $reason ) {
 				$this->reason = $reason;
 			}
-			public function resolve_if_open( string $trigger_type, ?\WC_Order $order = null ): ?WorkflowMatch {
-				return null;
-			}
-			public function closed_reason( string $trigger_type, ?\WC_Order $order = null ): string {
-				return $this->reason;
+			public function evaluate( string $trigger_type, ?\WC_Order $order = null ): array {
+				return array( $this->reason, null );
 			}
 		};
 	}
@@ -399,8 +396,10 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 			public function __construct( string $open_trigger_type ) {
 				$this->open_trigger_type = $open_trigger_type;
 			}
-			public function resolve_if_open( string $trigger_type, ?\WC_Order $order = null ): ?WorkflowMatch {
-				return $trigger_type === $this->open_trigger_type ? new WorkflowMatch( 1, 'transactional' ) : null;
+			public function evaluate( string $trigger_type, ?\WC_Order $order = null ): array {
+				return $trigger_type === $this->open_trigger_type
+					? array( '', new WorkflowMatch( 1, 'transactional' ) )
+					: array( self::REASON_SWITCHED_OFF, null );
 			}
 		};
 	}
