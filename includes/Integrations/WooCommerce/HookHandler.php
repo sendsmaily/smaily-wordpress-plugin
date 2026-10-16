@@ -335,7 +335,7 @@ class HookHandler {
 	 * handle_newsletter_change().
 	 */
 	private function maybe_welcome_checkout_optin( \WC_Order $order, string $source ): void {
-		if ( $this->gate_closed() ) {
+		if ( ! $this->is_enabled( self::OPTION_WELCOME_ENABLED, false ) ) {
 			return;
 		}
 
@@ -358,6 +358,11 @@ class HookHandler {
 	 * interest: yes; checkout-only: no, accounts are not contacts there).
 	 */
 	private function welcome_optins_without_record(): void {
+		if ( ! $this->is_enabled( self::OPTION_WELCOME_ENABLED, false ) ) {
+			self::$optins_without_record = array();
+			return;
+		}
+
 		foreach ( self::$optins_without_record as $user_id => $source ) {
 			unset( self::$optins_without_record[ $user_id ] );
 
