@@ -137,7 +137,10 @@ final class ContactSyncToggleTest extends TestCase {
 		);
 	}
 
-	public function test_the_welcome_automation_is_not_switched_off_with_the_contact_sync(): void {
+	public function test_the_welcome_automation_follows_the_contact_sync_switch(): void {
+		// PRO-4093 (partly superseding PRO-1742): the welcome follows the
+		// shopper's opt-in only where contact sync sends the contact — with the
+		// switch off it sends no one.
 		$this->save_toggle( false );
 		self::assertSame(
 			200,
@@ -151,18 +154,14 @@ final class ContactSyncToggleTest extends TestCase {
 		);
 
 		$user_id = $this->make_customer();
-		do_action( 'woocommerce_created_customer', $user_id );
+		HookHandler::record_newsletter_optin( $user_id, HookHandler::SOURCE_CHECKOUT );
 
 		$queued = array();
 		foreach ( ( new EventQueue() )->pending( 50 ) as $row ) {
 			$queued[] = (string) $row['event_type'];
 		}
 
-		self::assertContains(
-			HookHandler::EVENT_AUTOMATION_WELCOME,
-			$queued,
-			'The welcome automation is a separate choice with its own toggle — turning contact sync off must not silently turn it off as well.'
-		);
+		self::assertNotContains( HookHandler::EVENT_AUTOMATION_WELCOME, $queued, 'Contact sync switched off: the shopper\'s opt-in starts no welcome either.' );
 		self::assertNotContains( HookHandler::EVENT_CONTACT_SYNC, $queued );
 	}
 
