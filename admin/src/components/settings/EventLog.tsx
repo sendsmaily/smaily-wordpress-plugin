@@ -10,6 +10,7 @@ import {
   type EventRow,
   type EventSource,
 } from '../../api/events';
+import { formatUtc } from '@admin/lib/format-utc';
 import { __, _n, sprintf } from '@admin/lib/i18n';
 import { transactionalReasonMessage } from '@admin/lib/transactional-reasons';
 import { Banner, Button, Card, Pill, Select, type PillTone } from '../primitives';
@@ -318,7 +319,9 @@ export function EventLog(): React.JSX.Element {
                         ? __('cancelled', 'smaily-connect')
                         : row.skip_reason !== ''
                           ? __('skipped', 'smaily-connect')
-                          : row.status}
+                          : row.scheduled_for !== ''
+                            ? __('scheduled', 'smaily-connect')
+                            : row.status}
                     </Pill>
                   </td>
                   <td className="py-2 pr-3">
@@ -330,6 +333,15 @@ export function EventLog(): React.JSX.Element {
                   {row.skip_reason !== '' ? (
                     <td className="max-w-xs py-2 pr-3 text-text-secondary">
                       {transactionalReasonMessage(row.skip_reason)}
+                    </td>
+                  ) : row.scheduled_for !== '' ? (
+                    // A follow-up email waiting for its delay (PRO-4095).
+                    <td className="max-w-xs py-2 pr-3 text-text-secondary">
+                      {sprintf(
+                        // translators: %s is the date and time the follow-up email will be sent.
+                        __('Sends on %s.', 'smaily-connect'),
+                        formatUtc(row.scheduled_for),
+                      )}
                     </td>
                   ) : (
                     <td

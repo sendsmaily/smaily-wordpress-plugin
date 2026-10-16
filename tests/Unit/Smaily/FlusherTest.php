@@ -591,6 +591,7 @@ final class FlusherTest extends TestCase {
 					\Smaily\Connect\Smaily\CartFlusher::EVENT_TYPE,
 					\Smaily\Connect\Smaily\TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION,
 					\Smaily\Connect\Smaily\TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+					\Smaily\Connect\Smaily\TransactionalFlusher::EVENT_TYPE_FOLLOW_UP,
 				),
 			),
 			$queue->last_pending_args

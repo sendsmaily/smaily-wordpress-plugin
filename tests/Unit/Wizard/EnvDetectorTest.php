@@ -347,6 +347,9 @@ final class EnvDetectorTest extends TestCase {
 		self::assertFalse( $saved['orderConfirmationEnabled'] );
 		self::assertFalse( $saved['shippingConfirmationEnabled'] );
 		self::assertSame( array( 'completed' ), $saved['shippedOrderStatuses'] );
+		self::assertFalse( $saved['followUpEnabled'] );
+		self::assertSame( array( 'completed' ), $saved['followUpOrderStatuses'] );
+		self::assertSame( 7, $saved['followUpDelayDays'] );
 		self::assertFalse( $saved['transactionalPersonalData'], 'PRO-3190: addresses and phone stay out of the confirmations until the merchant opts in.' );
 	}
 

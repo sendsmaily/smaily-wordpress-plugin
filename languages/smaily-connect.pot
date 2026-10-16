@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-16T12:57:14+00:00\n"
+"POT-Creation-Date: 2026-10-16T13:24:44+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: smaily-connect\n"
@@ -37,8 +37,8 @@ msgstr ""
 #: integrations/elementor/admin.class.php:30
 #: integrations/elementor/form-action.class.php:47
 #: integrations/elementor/form-action.class.php:85
-#: admin/src/components/settings/EventLog.tsx:189
-#: admin/src/components/settings/EventLog.tsx:241
+#: admin/src/components/settings/EventLog.tsx:190
+#: admin/src/components/settings/EventLog.tsx:242
 msgid "Smaily"
 msgstr ""
 
@@ -295,20 +295,26 @@ msgstr ""
 msgid "Smaily Campaign Intelligence did not respond. Try again in a few minutes."
 msgstr ""
 
-#: includes/REST/SettingsEndpoint.php:129
+#: includes/REST/SettingsEndpoint.php:131
 msgid "You do not have permission to save Smaily Connect settings."
 msgstr ""
 
-#: includes/REST/SettingsEndpoint.php:146
+#: includes/REST/SettingsEndpoint.php:148
 msgid "Unknown settings tab."
 msgstr ""
 
-#: includes/REST/SettingsEndpoint.php:158
+#: includes/REST/SettingsEndpoint.php:160
 msgid "Payload must be an object."
 msgstr ""
 
-#: includes/REST/SettingsEndpoint.php:225
+#: includes/REST/SettingsEndpoint.php:227
 msgid "Subdomain + username are required."
+msgstr ""
+
+#. translators: 1: the shortest delay in days, 2: the longest.
+#: includes/REST/SettingsEndpoint.php:351
+#, php-format
+msgid "The follow-up email delay must be a whole number of days from %1$d to %2$d."
 msgstr ""
 
 #: includes/REST/TestConnectionEndpoint.php:93
@@ -461,15 +467,15 @@ msgstr ""
 msgid "This confirmation can no longer be sent again. Refresh the event log to see the row as it is now."
 msgstr ""
 
-#: includes/Smaily/TransactionalRetryGuard.php:142
+#: includes/Smaily/TransactionalRetryGuard.php:149
 msgid "This order no longer exists, so this event cannot be re-sent."
 msgstr ""
 
-#: includes/Smaily/TransactionalRetryGuard.php:146
+#: includes/Smaily/TransactionalRetryGuard.php:153
 msgid "This second confirmation could not be sent. The confirmation the customer already received still stands."
 msgstr ""
 
-#: includes/Smaily/TransactionalRetryGuard.php:149
+#: includes/Smaily/TransactionalRetryGuard.php:156
 msgid "This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent."
 msgstr ""
 
@@ -1018,7 +1024,7 @@ msgid "Additional Information"
 msgstr ""
 
 #: integrations/woocommerce/profile-settings.class.php:432
-#: admin/src/components/steps/Step2Subscribers.tsx:286
+#: admin/src/components/steps/Step2Subscribers.tsx:287
 msgid "Gender"
 msgstr ""
 
@@ -1031,7 +1037,7 @@ msgid "Female"
 msgstr ""
 
 #: integrations/woocommerce/profile-settings.class.php:446
-#: admin/src/components/steps/Step2Subscribers.tsx:284
+#: admin/src/components/steps/Step2Subscribers.tsx:285
 msgid "Phone"
 msgstr ""
 
@@ -1040,7 +1046,7 @@ msgid "Enter phone number"
 msgstr ""
 
 #: integrations/woocommerce/profile-settings.class.php:457
-#: admin/src/components/steps/Step2Subscribers.tsx:285
+#: admin/src/components/steps/Step2Subscribers.tsx:286
 msgid "Birthday"
 msgstr ""
 
@@ -1231,68 +1237,68 @@ msgid "Network error"
 msgstr ""
 
 #. translators: 1: record count, 2: lowercased domain noun (e.g. products).
-#: admin/src/components/BackfillPanel.tsx:28
+#: admin/src/components/BackfillPanel.tsx:29
 #, js-format
 msgid "%1$d %2$s to import into the engine."
 msgstr ""
 
 #. translators: %s: lowercased domain noun (e.g. products).
-#: admin/src/components/BackfillPanel.tsx:33
+#: admin/src/components/BackfillPanel.tsx:34
 #, js-format
 msgid "No %s to import."
 msgstr ""
 
-#: admin/src/components/BackfillPanel.tsx:48
+#: admin/src/components/BackfillPanel.tsx:49
 msgid "Importing…"
 msgstr ""
 
-#: admin/src/components/BackfillPanel.tsx:48
+#: admin/src/components/BackfillPanel.tsx:49
 msgid "Import now"
 msgstr ""
 
-#: admin/src/components/BackfillPanel.tsx:51
-#: admin/src/components/steps/Step2Subscribers.tsx:178
+#: admin/src/components/BackfillPanel.tsx:52
+#: admin/src/components/steps/Step2Subscribers.tsx:179
 msgid "Cancel"
 msgstr ""
 
 #. translators: %s: domain label (e.g. Products).
-#: admin/src/components/BackfillPanel.tsx:62
+#: admin/src/components/BackfillPanel.tsx:63
 #, js-format
 msgid "%s backfill progress"
 msgstr ""
 
 #. translators: 1: synced count, 2: lowercased domain noun, 3: percent complete.
-#: admin/src/components/BackfillPanel.tsx:70
+#: admin/src/components/BackfillPanel.tsx:71
 #, js-format
 msgid "Synced %1$d %2$s · %3$d%% complete"
 msgstr ""
 
 #. translators: 1: synced count, 2: lowercased domain noun.
-#: admin/src/components/BackfillPanel.tsx:77
+#: admin/src/components/BackfillPanel.tsx:78
 #, js-format
 msgid "Done — %1$d %2$s synced."
 msgstr ""
 
 #. translators: %s: error message.
 #. translators: %s is the error message.
-#: admin/src/components/BackfillPanel.tsx:83
-#: admin/src/components/steps/Step2Subscribers.tsx:205
+#: admin/src/components/BackfillPanel.tsx:84
+#: admin/src/components/steps/Step2Subscribers.tsx:206
 #, js-format
 msgid "Backfill failed: %s"
 msgstr ""
 
-#: admin/src/components/BackfillPanel.tsx:85
-#: admin/src/components/steps/Step2Subscribers.tsx:207
+#: admin/src/components/BackfillPanel.tsx:86
+#: admin/src/components/steps/Step2Subscribers.tsx:208
 msgid "Backfill failed."
 msgstr ""
 
-#: admin/src/components/BackfillPanel.tsx:86
-#: admin/src/components/steps/Step2Subscribers.tsx:208
+#: admin/src/components/BackfillPanel.tsx:87
+#: admin/src/components/steps/Step2Subscribers.tsx:209
 msgid "Backfill cancelled. Re-run when ready."
 msgstr ""
 
 #. translators: %d: number of records that failed to sync.
-#: admin/src/components/BackfillPanel.tsx:90
+#: admin/src/components/BackfillPanel.tsx:91
 #, js-format
 msgid "%d record failed to sync — see the Event Log for details."
 msgid_plural "%d records failed to sync — see the Event Log for details."
@@ -1301,16 +1307,16 @@ msgstr[1] ""
 
 #. translators: %s: localized date/time of the last run.
 #. translators: %s is a localized date/time.
-#: admin/src/components/BackfillPanel.tsx:100
-#: admin/src/components/steps/Step2Subscribers.tsx:239
+#: admin/src/components/BackfillPanel.tsx:101
+#: admin/src/components/steps/Step2Subscribers.tsx:240
 #, js-format
 msgid "Last run finished %s."
 msgstr ""
 
 #. translators: %s: status-check error message.
 #. translators: %s is the error message.
-#: admin/src/components/BackfillPanel.tsx:106
-#: admin/src/components/steps/Step2Subscribers.tsx:249
+#: admin/src/components/BackfillPanel.tsx:107
+#: admin/src/components/steps/Step2Subscribers.tsx:250
 #, js-format
 msgid "Couldn't check status: %s"
 msgstr ""
@@ -1319,216 +1325,226 @@ msgstr ""
 msgid "(optional)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:54
+#: admin/src/components/settings/EventLog.tsx:55
 msgid "Failed to load the event log."
 msgstr ""
 
 #. translators: %d is the number of failed records put back in the queue.
-#: admin/src/components/settings/EventLog.tsx:97
+#: admin/src/components/settings/EventLog.tsx:98
 #, js-format
 msgid "%d record is back in the queue — it will be sent at the next scheduled pass, within about a minute."
 msgid_plural "%d records are back in the queue — they will be sent at the next scheduled pass, within about a minute."
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/src/components/settings/EventLog.tsx:105
+#: admin/src/components/settings/EventLog.tsx:106
 msgid "Retry failed."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:110
+#: admin/src/components/settings/EventLog.tsx:111
 msgid "This sends the customer a second confirmation."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:115
+#: admin/src/components/settings/EventLog.tsx:116
 msgid "A second confirmation is queued — it will be sent at the next scheduled pass, within about a minute."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:119
+#: admin/src/components/settings/EventLog.tsx:120
 msgid "Sending again failed."
 msgstr ""
 
 #. translators: %d is the number of failed events in the last 24 hours.
-#: admin/src/components/settings/EventLog.tsx:132
+#: admin/src/components/settings/EventLog.tsx:133
 #, js-format
 msgid "%d failed event in the last 24 hours"
 msgid_plural "%d failed events in the last 24 hours"
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/src/components/settings/EventLog.tsx:150
+#: admin/src/components/settings/EventLog.tsx:151
 msgid "View only failed"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:160
-#: admin/src/components/settings/EventLog.tsx:220
+#: admin/src/components/settings/EventLog.tsx:161
+#: admin/src/components/settings/EventLog.tsx:221
 msgid "Retry all failed"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:164
+#: admin/src/components/settings/EventLog.tsx:165
 msgid "Some records didn’t reach their destination. Review them below."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:170
+#: admin/src/components/settings/EventLog.tsx:171
 msgid "Event log"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:171
+#: admin/src/components/settings/EventLog.tsx:172
 msgid "Sync activity across the Smaily and recommendation-engine queues. Read-only — last 7 days of events."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:180
+#: admin/src/components/settings/EventLog.tsx:181
 msgid "Filter by source"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:187
+#: admin/src/components/settings/EventLog.tsx:188
 msgid "All sources"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:188
+#: admin/src/components/settings/EventLog.tsx:189
 msgid "Recommendations engine"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:196
+#: admin/src/components/settings/EventLog.tsx:197
 msgid "Filter by status"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:203
+#: admin/src/components/settings/EventLog.tsx:204
 msgid "All statuses"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:204
+#: admin/src/components/settings/EventLog.tsx:205
 msgid "Pending"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:205
+#: admin/src/components/settings/EventLog.tsx:206
 msgid "Sent"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:206
+#: admin/src/components/settings/EventLog.tsx:207
 msgid "Failed"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:207
+#: admin/src/components/settings/EventLog.tsx:208
 msgid "Blocked"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:211
+#: admin/src/components/settings/EventLog.tsx:212
 msgid "Refresh"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:228
+#: admin/src/components/settings/EventLog.tsx:229
 msgid "Time (UTC)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:229
-#: admin/src/components/settings/EventLog.tsx:362
+#: admin/src/components/settings/EventLog.tsx:230
+#: admin/src/components/settings/EventLog.tsx:370
 msgid "Source"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:230
+#: admin/src/components/settings/EventLog.tsx:231
 msgid "Event"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:231
-#: admin/src/components/settings/EventLog.tsx:370
-msgid "Entity"
-msgstr ""
-
 #: admin/src/components/settings/EventLog.tsx:232
-#: admin/src/components/settings/EventLog.tsx:366
-msgid "Status"
+#: admin/src/components/settings/EventLog.tsx:378
+msgid "Entity"
 msgstr ""
 
 #: admin/src/components/settings/EventLog.tsx:233
 #: admin/src/components/settings/EventLog.tsx:374
-msgid "Attempts"
+msgid "Status"
 msgstr ""
 
 #: admin/src/components/settings/EventLog.tsx:234
-#: admin/src/components/settings/EventLog.tsx:387
+#: admin/src/components/settings/EventLog.tsx:382
+msgid "Attempts"
+msgstr ""
+
+#: admin/src/components/settings/EventLog.tsx:235
+#: admin/src/components/settings/EventLog.tsx:395
 msgid "Last error"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:238
+#: admin/src/components/settings/EventLog.tsx:239
 msgid "No events yet."
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:241
+#: admin/src/components/settings/EventLog.tsx:242
 msgid "Rec"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:244
+#: admin/src/components/settings/EventLog.tsx:245
 msgid "cancelled"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:244
+#: admin/src/components/settings/EventLog.tsx:245
 msgid "skipped"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:265
+#: admin/src/components/settings/EventLog.tsx:245
+msgid "scheduled"
+msgstr ""
+
+#. translators: %s is the date and time the follow-up email will be sent.
+#: admin/src/components/settings/EventLog.tsx:254
+#, js-format
+msgid "Sends on %s."
+msgstr ""
+
+#: admin/src/components/settings/EventLog.tsx:273
 #: admin/src/components/steps/EngineAutomationsSection.tsx:199
 msgid "Retry"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:275
+#: admin/src/components/settings/EventLog.tsx:283
 msgid "Send again"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:278
+#: admin/src/components/settings/EventLog.tsx:286
 msgid "Details"
 msgstr ""
 
 #. translators: %d is the total number of events.
-#: admin/src/components/settings/EventLog.tsx:287
+#: admin/src/components/settings/EventLog.tsx:295
 #, js-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/src/components/settings/EventLog.tsx:290
+#: admin/src/components/settings/EventLog.tsx:298
 msgid " · loading…"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:300
+#: admin/src/components/settings/EventLog.tsx:308
 msgid "Previous"
 msgstr ""
 
 #. translators: %1$d is the current page number, %2$d is the total page count.
-#: admin/src/components/settings/EventLog.tsx:305
+#: admin/src/components/settings/EventLog.tsx:313
 #, js-format
 msgid "Page %1$d of %2$d"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:316
+#: admin/src/components/settings/EventLog.tsx:324
 msgid "Next"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:350
+#: admin/src/components/settings/EventLog.tsx:358
 msgid "Close details"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:358
+#: admin/src/components/settings/EventLog.tsx:366
 msgid "Close"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:381
+#: admin/src/components/settings/EventLog.tsx:389
 msgid "Created (UTC)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:391
+#: admin/src/components/settings/EventLog.tsx:399
 msgid "Request sent to the engine"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:392
+#: admin/src/components/settings/EventLog.tsx:400
 msgid "— nothing recorded (not sent, or the row predates this version)"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:395
+#: admin/src/components/settings/EventLog.tsx:403
 msgid "Engine response"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:399
+#: admin/src/components/settings/EventLog.tsx:407
 msgid "Enqueued payload"
 msgstr ""
 
@@ -1991,129 +2007,129 @@ msgstr ""
 msgid "Contacts with the %s locale will sync to this Smaily account."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:35
+#: admin/src/components/steps/Step2Subscribers.tsx:36
 msgid "Step 2 of 6"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:36
+#: admin/src/components/steps/Step2Subscribers.tsx:37
 msgid "Contact synchronisation to Smaily"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:37
+#: admin/src/components/steps/Step2Subscribers.tsx:38
 msgid "Contact synchronisation allows you to send contacts daily to your Smaily account."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:42
+#: admin/src/components/steps/Step2Subscribers.tsx:43
 msgid "Contact synchronisation"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:49
+#: admin/src/components/steps/Step2Subscribers.tsx:50
 msgid "Sync contacts to Smaily"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:50
+#: admin/src/components/steps/Step2Subscribers.tsx:51
 msgid "When sync has been enabled, all new subscribers and/or clients are added to your Smaily contact list."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:57
+#: admin/src/components/steps/Step2Subscribers.tsx:58
 msgid "Fields"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:58
+#: admin/src/components/steps/Step2Subscribers.tsx:59
 msgid "Email address is synced by default. Choose any additional fields to be added as well."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:74
-#: admin/src/components/steps/Step2Subscribers.tsx:77
+#: admin/src/components/steps/Step2Subscribers.tsx:75
+#: admin/src/components/steps/Step2Subscribers.tsx:78
 msgid "Contact synchronisation selection"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:75
+#: admin/src/components/steps/Step2Subscribers.tsx:76
 msgid "Choose which contacts are synced to Smaily, by your lawful basis for marketing email."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:103
+#: admin/src/components/steps/Step2Subscribers.tsx:104
 msgid "Turn on “Show marketing subscription checkbox during checkout” below to use this mode."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:113
+#: admin/src/components/steps/Step2Subscribers.tsx:114
 msgid "This sends every customer to Smaily regardless of marketing consent. Make sure you have a lawful basis (legitimate interest)."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:118
+#: admin/src/components/steps/Step2Subscribers.tsx:119
 msgid "Under the EU soft opt-in, email these customers only about products similar to what they bought, and give them a clear way to refuse marketing when they buy. The legal basis is your responsibility."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:129
+#: admin/src/components/steps/Step2Subscribers.tsx:130
 msgid "Also sync guest-order email addresses"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:135
+#: admin/src/components/steps/Step2Subscribers.tsx:136
 msgid "Subscription checkboxes"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:142
+#: admin/src/components/steps/Step2Subscribers.tsx:143
 msgid "Show marketing subscription checkbox during account registration"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:151
+#: admin/src/components/steps/Step2Subscribers.tsx:152
 msgid "Show marketing subscription checkbox during checkout"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:155
+#: admin/src/components/steps/Step2Subscribers.tsx:156
 msgid "Initial contact import"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:155
+#: admin/src/components/steps/Step2Subscribers.tsx:156
 msgid "Import existing contacts to Smaily."
 msgstr ""
 
 #. translators: %d is the number of contacts.
-#: admin/src/components/steps/Step2Subscribers.tsx:158
+#: admin/src/components/steps/Step2Subscribers.tsx:159
 #, js-format
 msgid "%d contacts will be synced to Smaily in batches of 100 with ~30 seconds apart. Contact sync can take some time."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:160
+#: admin/src/components/steps/Step2Subscribers.tsx:161
 msgid "No existing WordPress users detected — the backfill will be a no-op."
 msgstr ""
 
 #. translators: %d is the number of contacts in the sync audience.
-#: admin/src/components/steps/Step2Subscribers.tsx:163
+#: admin/src/components/steps/Step2Subscribers.tsx:164
 #, js-format
 msgid "Based on your contact sync mode, about %d of them will be synced to Smaily as contacts."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:175
+#: admin/src/components/steps/Step2Subscribers.tsx:176
 msgid "Running…"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:175
+#: admin/src/components/steps/Step2Subscribers.tsx:176
 msgid "Start import"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:186
+#: admin/src/components/steps/Step2Subscribers.tsx:187
 msgid "Contact import progress"
 msgstr ""
 
 #. translators: %1$d is contacts checked, %2$d is total contacts, %3$d is contacts synced.
-#: admin/src/components/steps/Step2Subscribers.tsx:192
+#: admin/src/components/steps/Step2Subscribers.tsx:193
 #, js-format
 msgid "Checked %1$d of %2$d contacts — %3$d contacts synced."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:197
+#: admin/src/components/steps/Step2Subscribers.tsx:198
 msgid "Nothing to import — no contacts match your synchronization settings."
 msgstr ""
 
 #. translators: %1$d is contacts synced, %2$d is contacts checked.
-#: admin/src/components/steps/Step2Subscribers.tsx:199
+#: admin/src/components/steps/Step2Subscribers.tsx:200
 #, js-format
 msgid "Done — %1$d contacts synced (%2$d contacts checked)."
 msgstr ""
 
 #. translators: %d is the number of customers Smaily refused.
-#: admin/src/components/steps/Step2Subscribers.tsx:213
+#: admin/src/components/steps/Step2Subscribers.tsx:214
 #, js-format
 msgid "Smaily refused %d customer, so it was not imported. Fix it and run the import again:"
 msgid_plural "Smaily refused %d customers, so they were not imported. Fix them and run the import again:"
@@ -2121,70 +2137,70 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is Smaily's reason.
-#: admin/src/components/steps/Step2Subscribers.tsx:224
+#: admin/src/components/steps/Step2Subscribers.tsx:225
 #, js-format
 msgid "User %1$d (%2$s): %3$s"
 msgstr ""
 
 #. translators: %d is the number of refused customers not listed.
-#: admin/src/components/steps/Step2Subscribers.tsx:233
+#: admin/src/components/steps/Step2Subscribers.tsx:234
 #, js-format
 msgid "…and %d more."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:242
+#: admin/src/components/steps/Step2Subscribers.tsx:243
 msgid "Backfill runs in the background on your server. You can safely leave this page or close the browser — the job will continue. Return here any time to check progress."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:258
+#: admin/src/components/steps/Step2Subscribers.tsx:259
 msgid "Subscribers only (consent)"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:259
+#: admin/src/components/steps/Step2Subscribers.tsx:260
 msgid "Only contacts who have subscribed to marketing emails are sent to Smaily. Unsubscribed contacts are synced back daily."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:266
+#: admin/src/components/steps/Step2Subscribers.tsx:267
 msgid "All customers (legitimate interest)"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:267
+#: admin/src/components/steps/Step2Subscribers.tsx:268
 msgid "Every customer is sent to Smaily regardless of marketing consent. Requires a lawful basis."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:274
+#: admin/src/components/steps/Step2Subscribers.tsx:275
 msgid "Checkout opt-in only"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:275
+#: admin/src/components/steps/Step2Subscribers.tsx:276
 msgid "Only customers (guests included) who subscribe to marketing emails during the checkout are synced to Smaily."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:282
+#: admin/src/components/steps/Step2Subscribers.tsx:283
 msgid "First name"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:283
+#: admin/src/components/steps/Step2Subscribers.tsx:284
 msgid "Last name"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:287
+#: admin/src/components/steps/Step2Subscribers.tsx:288
 msgid "Customer group"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:288
+#: admin/src/components/steps/Step2Subscribers.tsx:289
 msgid "Customer ID"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:289
+#: admin/src/components/steps/Step2Subscribers.tsx:290
 msgid "First registered date"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:290
+#: admin/src/components/steps/Step2Subscribers.tsx:291
 msgid "Nickname"
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:291
+#: admin/src/components/steps/Step2Subscribers.tsx:292
 msgid "Site title"
 msgstr ""
 
@@ -2715,12 +2731,22 @@ msgid "Nothing sent in the last 30 days."
 msgstr ""
 
 #. translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
-#: admin/src/components/steps/TransactionalStatusLine.tsx:37
+#: admin/src/components/steps/TransactionalStatusLine.tsx:38
+#, js-format
+msgid "No order in the last 30 days reached a status ticked for the follow-up email. Recent orders are at: %s. Nothing is sent until orders reach a ticked status."
+msgstr ""
+
+#. translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
+#: admin/src/components/steps/TransactionalStatusLine.tsx:44
 #, js-format
 msgid "No order in the last 30 days reached a status ticked under “Counts as shipped”. Recent orders are at: %s. Nothing is sent until orders reach a ticked status."
 msgstr ""
 
-#: admin/src/components/steps/TransactionalStatusLine.tsx:43
+#: admin/src/components/steps/TransactionalStatusLine.tsx:51
+msgid "This email goes out through Smaily’s transactional sending: the plugin waits the number of days you set here, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, each follow-up still waiting, and each one that could not be sent, is listed in the Event Log."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalStatusLine.tsx:54
 msgid "This email goes out through Smaily’s transactional sending: Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, and each confirmation that could not be sent, is listed in the Event Log."
 msgstr ""
 
@@ -2744,28 +2770,52 @@ msgstr ""
 msgid "Sent when the order has been completed and is ready to be sent."
 msgstr ""
 
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:72
-msgid "Customer details"
-msgstr ""
-
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:73
-msgid "Personal data sent with both confirmation emails. Off by default — switch it on only if your email template shows these details."
-msgstr ""
-
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:80
-msgid "Include addresses, phone and order note"
-msgstr ""
-
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:81
-msgid "The billing and delivery address, the delivery name, the phone number and the customer's order note."
-msgstr ""
-
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:91
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:69
 msgid "Counts as shipped"
 msgstr ""
 
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:92
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:70
 msgid "Order statuses that trigger the shipping-confirmation email."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:85
+msgid "Follow-up email"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:86
+msgid "Sent a set number of days after an order reaches a ticked status — a feedback request, say."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:101
+msgid "Days to wait"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:113
+msgid "From 1 to 90 days after the order reaches a ticked status."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:119
+msgid "Starts the wait"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:120
+msgid "Order statuses that start the follow-up email’s wait. It is sent only if the order is still at one of them when the wait ends, and never for a cancelled, refunded or failed order."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:132
+msgid "Customer details"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:133
+msgid "Personal data sent with the transactional emails. Off by default — switch it on only if your email template shows these details."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:140
+msgid "Include addresses, phone and order note"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:141
+msgid "The billing and delivery address, the delivery name, the phone number and the customer's order note."
 msgstr ""
 
 #: admin/src/components/wizard/MultilingualModePicker.tsx:21
@@ -2919,6 +2969,18 @@ msgstr ""
 
 #: admin/src/lib/transactional-reasons.ts:29
 msgid "The order has no billing email address."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:31
+msgid "The order no longer exists."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:33
+msgid "The order was cancelled, refunded or failed before the follow-up email was due."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:35
+msgid "When the wait ended, the order was no longer at a status ticked for the follow-up email."
 msgstr ""
 
 #: admin/src/state/engine-automations.ts:87

@@ -49,6 +49,12 @@ export interface EventRow {
    * Stored `sent` like every terminal skip, so the list says "skipped".
    */
   skip_reason: string;
+  /**
+   * When a follow-up email waiting for its delay will be sent (UTC
+   * "Y-m-d H:i:s"), '' on every other row (PRO-4095). The row is
+   * `pending`, so the list says "scheduled".
+   */
+  scheduled_for: string;
 }
 
 export interface EventsListResponse {

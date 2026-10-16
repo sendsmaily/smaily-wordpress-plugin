@@ -118,6 +118,9 @@ export interface BootPayload {
     orderConfirmationEnabled?: boolean;
     shippingConfirmationEnabled?: boolean;
     shippedOrderStatuses?: string[];
+    followUpEnabled?: boolean;
+    followUpOrderStatuses?: string[];
+    followUpDelayDays?: number;
     transactionalPersonalData?: boolean;
     /** Each confirmation card's status line (PRO-4091) — see WizardState.transactionalStatus. */
     transactionalStatus?: Partial<Record<TransactionalTrigger, TransactionalSendStatus>>;
@@ -201,6 +204,9 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       orderConfirmationEnabled: false,
       shippingConfirmationEnabled: false,
       shippedOrderStatuses: [],
+      followUpEnabled: false,
+      followUpOrderStatuses: [],
+      followUpDelayDays: 7,
       transactionalPersonalData: false,
       transactionalStatus: {},
       recEngineFeatures: {
@@ -278,6 +284,9 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
     orderConfirmationEnabled: s.orderConfirmationEnabled ?? false,
     shippingConfirmationEnabled: s.shippingConfirmationEnabled ?? false,
     shippedOrderStatuses: s.shippedOrderStatuses ?? [],
+    followUpEnabled: s.followUpEnabled ?? false,
+    followUpOrderStatuses: s.followUpOrderStatuses ?? [],
+    followUpDelayDays: s.followUpDelayDays ?? 7,
     transactionalPersonalData: s.transactionalPersonalData ?? false,
     // PHP sends an empty map as `[]`.
     transactionalStatus:
@@ -317,6 +326,7 @@ const VALID_TRIGGERS: readonly AutomationTrigger[] = [
   'abandoned_cart',
   'order_confirmation',
   'shipping_confirmation',
+  'follow_up',
 ];
 
 /**

@@ -33,10 +33,10 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
  *   - `lastSentAt` — the newest row Smaily accepted (UTC, the Event Log's
  *     format), '' when there is none. Sent rows are pruned after 30 days
  *     (QueueJanitor), so '' means "nothing in that window";
- *   - `untickedRecentStatuses` — shipping confirmation only, when nothing
- *     blocks it: the statuses recent orders reached when none of them is
- *     ticked under "Counts as shipped" (a store whose fulfilment uses a
- *     custom status). Empty = no warning.
+ *   - `untickedRecentStatuses` — the shipping confirmation and the
+ *     follow-up email (PRO-4095), when nothing blocks them: the statuses
+ *     recent orders reached when none of them is ticked for that email
+ *     (a store whose fulfilment uses a custom status). Empty = no warning.
  *
  * Not final: tests replace the two queries.
  */
@@ -50,6 +50,13 @@ class TransactionalStatus {
 
 	private TransactionalGate $gate;
 
+	/**
+	 * recent_order_statuses() for this snapshot — read once, shared by the cards.
+	 *
+	 * @var array<int, string>|null
+	 */
+	private ?array $recent = null;
+
 	public function __construct( TransactionalGate $gate ) {
 		$this->gate = $gate;
 	}
@@ -58,18 +65,21 @@ class TransactionalStatus {
 	 * @return array<string, array{reason: string, workflowResolved: bool, lastSentAt: string, untickedRecentStatuses: array<int, string>}>
 	 */
 	public function snapshot(): array {
-		$out       = array();
-		$last_sent = $this->last_sent_at( array_column( TransactionalGate::TRIGGERS, 'event_type' ) );
+		$this->recent = null;
+		$out          = array();
+		$last_sent    = $this->last_sent_at( array_column( TransactionalGate::TRIGGERS, 'event_type' ) );
 
 		foreach ( array_keys( TransactionalGate::TRIGGERS ) as $trigger_type ) {
 			$reason = $this->gate->closed_reason( $trigger_type );
+
+			$counting = TransactionalGate::counting_statuses( $trigger_type );
 
 			$out[ $trigger_type ] = array(
 				'reason'                 => $reason,
 				'workflowResolved'       => TransactionalGate::workflow_resolved( $reason ),
 				'lastSentAt'             => $last_sent[ TransactionalGate::event_type_for( $trigger_type ) ] ?? '',
-				'untickedRecentStatuses' => $trigger_type === TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION && $reason === ''
-					? $this->unticked_recent_statuses()
+				'untickedRecentStatuses' => $counting !== array() && $reason === ''
+					? $this->unticked_recent_statuses( $counting )
 					: array(),
 			);
 		}
@@ -78,12 +88,15 @@ class TransactionalStatus {
 	}
 
 	/**
+	 * @param array<int, string> $ticked The statuses the card's email counts.
+	 *
 	 * @return array<int, string>
 	 */
-	private function unticked_recent_statuses(): array {
-		$recent = $this->recent_order_statuses();
+	private function unticked_recent_statuses( array $ticked ): array {
+		$this->recent ??= $this->recent_order_statuses();
+		$recent         = $this->recent;
 
-		if ( $recent === array() || array_intersect( $recent, TransactionalGate::shipped_statuses() ) !== array() ) {
+		if ( $recent === array() || array_intersect( $recent, $ticked ) !== array() ) {
 			return array();
 		}
 

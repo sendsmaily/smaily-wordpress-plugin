@@ -59,9 +59,10 @@ class TransactionalFlusher {
 	/** Wire event types — canonical values live on TransactionalGate::TRIGGERS; mirrored here as they're this class's own public API. */
 	public const EVENT_TYPE_ORDER_CONFIRMATION    = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_ORDER_CONFIRMATION ]['event_type'];
 	public const EVENT_TYPE_SHIPPING_CONFIRMATION = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ]['event_type'];
+	public const EVENT_TYPE_FOLLOW_UP             = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_FOLLOW_UP ]['event_type'];
 
 	/**
-	 * The pair as a set — the one place "which event types are
+	 * The set — the one place "which event types are
 	 * transactional" is written. Every scoping site (this flusher's
 	 * pending() pull + retry ceiling, the main Flusher's exclusion, the
 	 * Event Log's SQL and TransactionalRetryGuard) reads it from here so
@@ -70,6 +71,7 @@ class TransactionalFlusher {
 	public const EVENT_TYPES = array(
 		self::EVENT_TYPE_ORDER_CONFIRMATION,
 		self::EVENT_TYPE_SHIPPING_CONFIRMATION,
+		self::EVENT_TYPE_FOLLOW_UP,
 	);
 
 	public const FLUSH_HOOK = 'smly_plus_flush_transactional_events';
@@ -125,6 +127,25 @@ class TransactionalFlusher {
 	/** Skip reason when the order has no billing email (the gate's own reasons live on TransactionalGate). */
 	public const REASON_NO_BILLING_EMAIL = 'no_billing_email';
 
+	/**
+	 * Why a follow-up that fell due was not sent (PRO-4095): the order is
+	 * gone, it was cancelled/refunded/failed (or trashed), or it no longer
+	 * sits in a status ticked for the follow-up.
+	 */
+	public const REASON_ORDER_MISSING       = 'order_missing';
+	public const REASON_ORDER_CLOSED        = 'order_closed';
+	public const REASON_STATUS_NOT_COUNTING = 'status_not_counting';
+
+	/** Order statuses a follow-up never goes out on, whatever is ticked. */
+	private const FOLLOW_UP_CLOSED_STATUSES = array( 'cancelled', 'refunded', 'failed', 'trash' );
+
+	/**
+	 * Payload key of a follow-up row: when it falls due (UTC "Y-m-d H:i:s").
+	 * The retry ceiling (PRO-1519) runs from this time, not from the hour
+	 * the row was queued days earlier.
+	 */
+	public const PAYLOAD_KEY_DUE_AT = 'due_at';
+
 	/** Cap (chars) on each stored exchange field so the queue stays bounded (F3-44). */
 	private const EXCHANGE_MAX = 10000;
 
@@ -140,6 +161,12 @@ class TransactionalFlusher {
 	/** @var callable(string $account_key): Client */
 	private $client_factory;
 
+	/** Re-checked when a follow-up falls due (PRO-4095); null only in tests that never reach one. */
+	private ?TransactionalGate $gate;
+
+	/** Rebuilds a due follow-up's merge tags from the order as it is then. */
+	private ?TransactionalPayloadBuilder $builder;
+
 	/**
 	 * The HTTP exchange of the event currently being dispatched, captured
 	 * even when the call throws (try/finally) — F3-44. Null = nothing POSTed.
@@ -151,9 +178,11 @@ class TransactionalFlusher {
 	/**
 	 * @param callable(string $account_key): Client $client_factory
 	 */
-	public function __construct( EventQueue $queue, callable $client_factory ) {
+	public function __construct( EventQueue $queue, callable $client_factory, ?TransactionalGate $gate = null, ?TransactionalPayloadBuilder $builder = null ) {
 		$this->queue          = $queue;
 		$this->client_factory = $client_factory;
+		$this->gate           = $gate;
+		$this->builder        = $builder;
 	}
 
 	/**
@@ -248,6 +277,38 @@ class TransactionalFlusher {
 	}
 
 	/**
+	 * Queue an order's follow-up email to go out once the merchant's delay
+	 * has passed (PRO-4095) — called by the WC hook handler once the gate
+	 * is open. Nothing is sent now: the row waits as `pending`, not due
+	 * until now + the delay (EventQueue::enqueue_scheduled()), and this
+	 * flusher's recurring pass sends it once due — after re-checking the
+	 * gate and the order (follow_up_at_due()).
+	 *
+	 * The row carries the recipient (so a privacy erasure still finds and
+	 * deletes it) but no merge tags: those are built when it falls due.
+	 * The once-per-order marker is set here, so the order never gets a
+	 * second follow-up, whatever happens to this one.
+	 */
+	public function schedule_follow_up( \WC_Order $order, WorkflowMatch $match, string $to_status ): void {
+		$payload = self::build_payload( $order, $match, array(), $to_status );
+		if ( $payload === null ) {
+			$this->record_skip( TransactionalGate::TRIGGER_FOLLOW_UP, $order->get_id(), self::REASON_NO_BILLING_EMAIL );
+			return;
+		}
+
+		$due_at                              = gmdate( 'Y-m-d H:i:s', time() + TransactionalGate::follow_up_delay_days() * DAY_IN_SECONDS );
+		$payload[ self::PAYLOAD_KEY_DUE_AT ] = $due_at;
+
+		$id = $this->queue->enqueue_scheduled( self::EVENT_TYPE_FOLLOW_UP, (string) $order->get_id(), $payload, $due_at );
+		if ( $id === null ) {
+			// Same silent-failure posture as send_now(): no row, no marker.
+			return;
+		}
+
+		$this->set_meta( (string) $order->get_id(), self::EVENT_TYPE_FOLLOW_UP, self::META_STATUS_QUEUED, $order );
+	}
+
+	/**
 	 * Enqueue a DELIBERATE second confirmation for an order that already
 	 * got one — the Event Log's "Send again" (PRO-2324). Unlike
 	 * send_now() this only queues: the row goes out on this flusher's
@@ -293,7 +354,7 @@ class TransactionalFlusher {
 	 * AS callback for FLUSH_HOOK — retries rows a prior sync attempt left
 	 * `pending` (transient failure).
 	 *
-	 * @return array{processed: int, sent: int, failed: int, retried: int}
+	 * @return array{processed: int, sent: int, failed: int, retried: int, skipped: int}
 	 */
 	public function flush( int $batch_size = self::DEFAULT_BATCH_SIZE ): array {
 		$stats = array(
@@ -301,6 +362,7 @@ class TransactionalFlusher {
 			'sent'      => 0,
 			'failed'    => 0,
 			'retried'   => 0,
+			'skipped'   => 0,
 		);
 
 		foreach ( $this->queue->pending( $batch_size, self::EVENT_TYPES ) as $event ) {
@@ -366,7 +428,7 @@ class TransactionalFlusher {
 	 *                          none, so set_meta()/fail_open() fall back to
 	 *                          loading it by entity_id themselves.
 	 *
-	 * @return string 'sent' | 'failed' | 'retried'
+	 * @return string 'sent' | 'failed' | 'retried' | 'skipped'
 	 */
 	private function process( array $event, ?\WC_Order $order = null ): string {
 		$id                     = (int) ( $event['id'] ?? 0 );
@@ -379,7 +441,17 @@ class TransactionalFlusher {
 
 		try {
 			$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
-			$this->enforce_retry_ceiling( $event_type, $event );
+
+			if ( $event_type === self::EVENT_TYPE_FOLLOW_UP ) {
+				list( $reason, $payload ) = $this->follow_up_at_due( $order_id_str, $payload, $order );
+				if ( $reason !== '' ) {
+					// The row itself says why — no exchange is stored over it.
+					$this->queue->mark_skipped( $id, $reason );
+					return 'skipped';
+				}
+			}
+
+			$this->enforce_retry_ceiling( $event_type, $event, $payload );
 			$this->dispatch( $payload );
 
 			$this->queue->mark_sent( $id );
@@ -408,6 +480,66 @@ class TransactionalFlusher {
 	}
 
 	/**
+	 * A follow-up that fell due may go out only if it still could be
+	 * scheduled now (PRO-4095): the order still exists, the gate is still
+	 * open for it, the order is not cancelled/refunded/failed/trashed and
+	 * still sits in a ticked status, and it has a billing email. Returns
+	 * the reason it may not ('' when it may) and the payload to send —
+	 * rebuilt from the order and the workflow as they are now, carrying
+	 * the stored due time and resend flag over.
+	 *
+	 * @param array<string, mixed> $payload
+	 *
+	 * @return array{0: string, 1: array<string, mixed>}
+	 *
+	 * @throws \LogicException When the flusher was built without a gate or builder.
+	 */
+	private function follow_up_at_due( string $order_id_str, array $payload, ?\WC_Order $order ): array {
+		if ( $this->gate === null || $this->builder === null ) {
+			throw new \LogicException( 'follow-up needs the gate and the payload builder' );
+		}
+
+		$order = $order ?? self::load_order( (int) $order_id_str );
+		if ( $order === null ) {
+			return array( self::REASON_ORDER_MISSING, $payload );
+		}
+
+		list( $reason, $match ) = $this->gate->evaluate( TransactionalGate::TRIGGER_FOLLOW_UP, $order );
+		if ( $match === null ) {
+			return array( $reason, $payload );
+		}
+
+		$status = (string) $order->get_status();
+		if ( in_array( $status, self::FOLLOW_UP_CLOSED_STATUSES, true ) ) {
+			return array( self::REASON_ORDER_CLOSED, $payload );
+		}
+		if ( ! in_array( $status, TransactionalGate::follow_up_statuses(), true ) ) {
+			return array( self::REASON_STATUS_NOT_COUNTING, $payload );
+		}
+
+		$fresh = self::build_payload( $order, $match, $this->builder->build( $order, TransactionalGate::TRIGGER_FOLLOW_UP ), $status );
+		if ( $fresh === null ) {
+			return array( self::REASON_NO_BILLING_EMAIL, $payload );
+		}
+
+		foreach ( array( self::PAYLOAD_KEY_DUE_AT, self::PAYLOAD_KEY_RESEND ) as $key ) {
+			if ( isset( $payload[ $key ] ) ) {
+				$fresh[ $key ] = $payload[ $key ];
+			}
+		}
+
+		return array( '', $fresh );
+	}
+
+	private static function load_order( int $order_id ): ?\WC_Order {
+		if ( $order_id <= 0 || ! function_exists( 'wc_get_order' ) ) {
+			return null;
+		}
+		$order = wc_get_order( $order_id );
+		return $order instanceof \WC_Order ? $order : null;
+	}
+
+	/**
 	 * PRO-1519: once a transactional row has been sitting past
 	 * RETRY_CEILING_SECONDS, stop retrying — throw the SAME terminal
 	 * exception a deterministic Smaily rejection throws, so it flows through
@@ -419,13 +551,15 @@ class TransactionalFlusher {
 	 *
 	 * $event['created_at'] is absent for the synchronous send_now() call
 	 * (the row was just inserted, so it's never past the ceiling) — treated
-	 * as "not yet expired".
+	 * as "not yet expired". A follow-up row (PRO-4095) counts from its due
+	 * time when that is later — it was queued days before it could send.
 	 *
 	 * @param array<string, mixed> $event
+	 * @param array<string, mixed> $payload
 	 *
 	 * @throws TerminalDispatchException When the row has aged past the ceiling.
 	 */
-	private function enforce_retry_ceiling( string $event_type, array $event ): void {
+	private function enforce_retry_ceiling( string $event_type, array $event, array $payload ): void {
 		if ( ! in_array( $event_type, self::EVENT_TYPES, true ) ) {
 			return;
 		}
@@ -438,6 +572,11 @@ class TransactionalFlusher {
 		$created_ts = strtotime( $created_at . ' UTC' );
 		if ( $created_ts === false ) {
 			return;
+		}
+
+		$due_ts = isset( $payload[ self::PAYLOAD_KEY_DUE_AT ] ) ? strtotime( (string) $payload[ self::PAYLOAD_KEY_DUE_AT ] . ' UTC' ) : false;
+		if ( $due_ts !== false && $due_ts > $created_ts ) {
+			$created_ts = $due_ts;
 		}
 
 		if ( ( time() - $created_ts ) >= self::RETRY_CEILING_SECONDS ) {
@@ -496,6 +635,12 @@ class TransactionalFlusher {
 	private function fail_open( string $order_id_str, string $event_type, array $payload, ?\WC_Order $order = null ): void {
 		if ( self::is_resend( $payload ) ) {
 			// A re-send must not fail open — see PAYLOAD_KEY_RESEND.
+			return;
+		}
+
+		if ( $event_type === self::EVENT_TYPE_FOLLOW_UP ) {
+			// WooCommerce has no follow-up email to fall back to (PRO-4095);
+			// the mark_failed row is the whole record.
 			return;
 		}
 

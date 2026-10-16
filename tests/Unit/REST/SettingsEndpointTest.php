@@ -359,6 +359,69 @@ final class SettingsEndpointTest extends TestCase {
 		self::assertArrayNotHasKey( 'smly_plus_credentials_transactional', $this->option_writes );
 	}
 
+	public function test_woocommerce_tab_persists_the_follow_up_email_settings(): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'automationMappings'     => array(),
+				'followUpEnabled'        => true,
+				'followUpOrderStatuses'  => array( 'completed', 'delivered' ),
+				'followUpDelayDays'      => 14,
+			)
+		);
+
+		self::assertTrue( $endpoint->handle( $request )->get_data()['saved'] );
+		self::assertTrue( $this->option_writes['smly_plus_follow_up_enabled'] );
+		self::assertSame( array( 'completed', 'delivered' ), $this->option_writes['smly_plus_follow_up_order_statuses'] );
+		self::assertSame( 14, $this->option_writes['smly_plus_follow_up_delay_days'] );
+	}
+
+	/**
+	 * @dataProvider invalid_follow_up_delays
+	 *
+	 * @param mixed $days
+	 */
+	public function test_woocommerce_tab_refuses_a_follow_up_delay_outside_one_to_ninety_days( $days ): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'automationMappings' => array(),
+				'followUpEnabled'    => true,
+				'followUpDelayDays'  => $days,
+			)
+		);
+
+		$response = $endpoint->handle( $request );
+
+		self::assertSame( 400, $response->get_status() );
+		self::assertSame( 'followUpDelayDays', $response->get_data()['errors'][0]['field'] );
+		self::assertArrayNotHasKey( 'smly_plus_follow_up_delay_days', $this->option_writes );
+		self::assertArrayNotHasKey( 'smly_plus_follow_up_enabled', $this->option_writes, 'Nothing on the tab is saved.' );
+	}
+
+	/**
+	 * @return array<string, array{0: mixed}>
+	 */
+	public static function invalid_follow_up_delays(): array {
+		return array(
+			'zero'     => array( 0 ),
+			'too long' => array( 91 ),
+			'fraction' => array( 2.5 ),
+			'text'     => array( 'soon' ),
+			'negative' => array( -3 ),
+		);
+	}
+
 	public function test_woocommerce_tab_accepts_transactional_trigger_mappings(): void {
 		$endpoint        = new SettingsEndpoint();
 		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();

@@ -27,6 +27,7 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\SubscriberPayloadBuilder;
+use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 
 /**
@@ -500,6 +501,10 @@ class EnvDetector {
 			'orderConfirmationEnabled'      => (bool) get_option( 'smly_plus_order_confirmation_enabled', false ),
 			'shippingConfirmationEnabled'   => (bool) get_option( 'smly_plus_shipping_confirmation_enabled', false ),
 			'shippedOrderStatuses'          => (array) get_option( 'smly_plus_shipped_order_statuses', array( 'completed' ) ),
+			// The follow-up email (PRO-4095) — off, `completed`, 7 days by default.
+			'followUpEnabled'               => (bool) get_option( TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_FOLLOW_UP ]['toggle_option'], false ),
+			'followUpOrderStatuses'         => TransactionalGate::follow_up_statuses(),
+			'followUpDelayDays'             => TransactionalGate::follow_up_delay_days(),
 			// PRO-3190: addresses, phone and order note in both confirmations — off by default.
 			'transactionalPersonalData'     => (bool) get_option( TransactionalPayloadBuilder::OPTION_PERSONAL_DATA, false ),
 			// PRO-4091: each confirmation card's status line.

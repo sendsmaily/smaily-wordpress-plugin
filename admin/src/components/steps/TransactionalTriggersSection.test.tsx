@@ -43,6 +43,16 @@ function Harness({
   return <TransactionalTriggersSection state={state} dispatch={dispatch} />;
 }
 
+/** The card a trigger heading belongs to. */
+function sectionOf(name: string): HTMLElement {
+  const heading = screen.getByRole('heading', { name });
+  const section = heading.parentElement?.parentElement?.parentElement;
+  if (!(section instanceof HTMLElement)) {
+    throw new Error(`No card for ${name}`);
+  }
+  return section;
+}
+
 describe('TransactionalTriggersSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -64,11 +74,12 @@ describe('TransactionalTriggersSection', () => {
     expect(workflowsMock).not.toHaveBeenCalled();
   });
 
-  it('renders both trigger sections once the transactional account is connected', async () => {
+  it('renders the trigger sections once the transactional account is connected', async () => {
     render(<Harness initial={connectedState()} />);
 
     expect(screen.getByRole('heading', { name: 'Order confirmation' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Shipping confirmation' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Follow-up email' })).toBeInTheDocument();
 
     // Workflow dropdowns for the two triggers fetch the TRANSACTIONAL
     // account's list, never the default account's — both dropdowns show
@@ -86,8 +97,9 @@ describe('TransactionalTriggersSection', () => {
     // background state update doesn't land after the test finishes.
     await screen.findAllByRole('option', { name: 'Order confirmed' });
 
-    const completed = screen.getByRole('checkbox', { name: 'Completed' });
-    const shipped = screen.getByRole('checkbox', { name: 'Shipped' });
+    const shipping = sectionOf('Shipping confirmation');
+    const completed = within(shipping).getByRole('checkbox', { name: 'Completed' });
+    const shipped = within(shipping).getByRole('checkbox', { name: 'Shipped' });
     expect(completed).not.toBeChecked();
     expect(shipped).not.toBeChecked();
 
@@ -108,9 +120,9 @@ describe('TransactionalTriggersSection', () => {
     render(<Harness initial={initial} onState={(s) => { latest = s; }} />);
 
     await screen.findAllByRole('option', { name: 'Order confirmed' });
-    // Two triggers × two languages.
-    expect(screen.getAllByRole('combobox')).toHaveLength(4);
-    expect(screen.getAllByRole('radio', { name: 'Mark en as default fallback' })).toHaveLength(2);
+    // Three triggers × two languages.
+    expect(screen.getAllByRole('combobox')).toHaveLength(6);
+    expect(screen.getAllByRole('radio', { name: 'Mark en as default fallback' })).toHaveLength(3);
 
     const [, orderEn] = screen.getAllByRole('combobox');
     fireEvent.change(orderEn!, { target: { value: '77' } });
@@ -249,7 +261,7 @@ describe('TransactionalTriggersSection', () => {
       render(<Harness initial={readyState()} />);
       await screen.findAllByRole('option', { name: 'Order confirmed' });
 
-      expect(screen.getAllByText(/the workflow shows no runs/)).toHaveLength(2);
+      expect(screen.getAllByText(/the workflow shows no runs/)).toHaveLength(3);
     });
 
     it('does not call an email active while transactional emails are switched off', async () => {
@@ -258,6 +270,61 @@ describe('TransactionalTriggersSection', () => {
 
       expect(within(card('Order confirmation')).queryByText('Active')).not.toBeInTheDocument();
       expect(within(card('Order confirmation')).getByText('Off')).toBeInTheDocument();
+    });
+  });
+
+  describe('the follow-up email (PRO-4095)', () => {
+    it('is off by default, waits 7 days and counts the statuses the server sends', async () => {
+      render(<Harness initial={{ ...connectedState(), followUpOrderStatuses: ['completed'] }} />);
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      const followUp = sectionOf('Follow-up email');
+      expect(within(followUp).getByRole('switch', { name: 'Enable follow-up email' })).not.toBeChecked();
+      expect(within(followUp).getByRole('spinbutton', { name: 'Days to wait' })).toHaveValue(7);
+      expect(within(followUp).getByRole('checkbox', { name: 'Completed' })).toBeChecked();
+      expect(within(followUp).getByRole('checkbox', { name: 'Shipped' })).not.toBeChecked();
+    });
+
+    it('saves its switch, statuses and delay with the WooCommerce tab', async () => {
+      let latest = connectedState();
+      render(<Harness initial={latest} onState={(s) => { latest = s; }} />);
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      const followUp = sectionOf('Follow-up email');
+      fireEvent.click(within(followUp).getByRole('switch', { name: 'Enable follow-up email' }));
+      fireEvent.click(within(followUp).getByRole('checkbox', { name: 'Shipped' }));
+      fireEvent.change(within(followUp).getByRole('spinbutton', { name: 'Days to wait' }), { target: { value: '14' } });
+
+      expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({
+        followUpEnabled: true,
+        followUpOrderStatuses: ['shipped'],
+        followUpDelayDays: 14,
+      });
+      expect(latest.shippedOrderStatuses).toEqual([]);
+    });
+
+    it('says the plugin waits the delay set here and warns when no order reaches a ticked status', async () => {
+      render(
+        <Harness
+          initial={{
+            ...connectedState(),
+            transactionalEmailsEnabled: true,
+            followUpEnabled: true,
+            transactionalStatus: {
+              follow_up: { reason: '', workflowResolved: true, lastSentAt: '', untickedRecentStatuses: ['shipped'] },
+            },
+          }}
+        />,
+      );
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      const followUp = sectionOf('Follow-up email');
+      expect(within(followUp).getByText(/the plugin waits the number of days you set here/)).toBeInTheDocument();
+      expect(
+        within(followUp).getByText(
+          'No order in the last 30 days reached a status ticked for the follow-up email. Recent orders are at: Shipped. Nothing is sent until orders reach a ticked status.',
+        ),
+      ).toBeInTheDocument();
     });
   });
 
@@ -270,7 +337,7 @@ describe('TransactionalTriggersSection', () => {
     render(<Harness initial={initial} />);
 
     await screen.findAllByRole('option', { name: 'Order confirmed' });
-    expect(screen.getAllByRole('combobox')).toHaveLength(2);
+    expect(screen.getAllByRole('combobox')).toHaveLength(3);
     expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   });
 });

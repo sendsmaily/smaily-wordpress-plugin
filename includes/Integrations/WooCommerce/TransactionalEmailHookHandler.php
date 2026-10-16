@@ -16,7 +16,7 @@ use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 
 /**
- * Two triggers, both once-per-order-per-email-type (an order-meta guard —
+ * Three triggers, each once-per-order-per-email-type (an order-meta guard —
  * design point 1):
  *
  *   - order_confirmation: `woocommerce_checkout_order_processed` — a
@@ -33,6 +33,10 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *     `smly_plus_shipped_order_statuses` set. Repeated flips into the
  *     shipped set after the first one are no-ops — the meta guard is
  *     already set.
+ *   - follow_up (PRO-4095): the same `woocommerce_order_status_changed`,
+ *     when the new status is in `smly_plus_follow_up_order_statuses`.
+ *     Nothing is sent then — the flusher queues the email to go out once
+ *     the merchant's delay has passed. One status change can do both.
  *
  * Gating (design point 2) is delegated whole to TransactionalGate — no
  * consent/opt-out check here (transactional sends override marketing
@@ -98,8 +102,10 @@ class TransactionalEmailHookHandler {
 	public function on_order_status_changed( $order_id, $from_status = '', $to_status = '', ?\WC_Order $order = null ): void {
 		unset( $from_status );
 
-		$to = $this->bare_status( (string) $to_status );
-		if ( ! in_array( $to, TransactionalGate::shipped_statuses(), true ) ) {
+		$to        = $this->bare_status( (string) $to_status );
+		$shipped   = in_array( $to, TransactionalGate::shipped_statuses(), true );
+		$follow_up = in_array( $to, TransactionalGate::follow_up_statuses(), true );
+		if ( ! $shipped && ! $follow_up ) {
 			return;
 		}
 
@@ -108,7 +114,12 @@ class TransactionalEmailHookHandler {
 			return;
 		}
 
-		$this->attempt( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, $order, $to );
+		if ( $shipped ) {
+			$this->attempt( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, $order, $to );
+		}
+		if ( $follow_up ) {
+			$this->attempt( TransactionalGate::TRIGGER_FOLLOW_UP, $order, $to );
+		}
 	}
 
 	private function attempt( string $trigger_type, \WC_Order $order, string $to_status = '' ): void {
@@ -127,6 +138,11 @@ class TransactionalEmailHookHandler {
 			if ( TransactionalGate::is_loggable_reason( $reason ) ) {
 				$this->flusher->record_skip( $trigger_type, $order->get_id(), $reason );
 			}
+			return;
+		}
+
+		if ( $trigger_type === TransactionalGate::TRIGGER_FOLLOW_UP ) {
+			$this->flusher->schedule_follow_up( $order, $match, $to_status );
 			return;
 		}
 

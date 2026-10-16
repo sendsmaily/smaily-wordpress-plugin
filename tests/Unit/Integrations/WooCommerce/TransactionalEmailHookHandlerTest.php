@@ -33,7 +33,10 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		parent::setUp();
 		Monkey\setUp();
 		$this->orders  = array();
-		$this->options = array( 'smly_plus_shipped_order_statuses' => array( 'completed' ) );
+		$this->options = array(
+			'smly_plus_shipped_order_statuses'   => array( 'completed' ),
+			'smly_plus_follow_up_order_statuses' => array(),
+		);
 
 		$orders = &$this->orders;
 		Functions\when( 'wc_get_order' )->alias(
@@ -376,6 +379,70 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		self::assertSame( array(), $flusher->skips );
 	}
 
+	// --- follow-up email (PRO-4095) ------------------------------------------
+
+	public function test_an_order_reaching_a_follow_up_status_schedules_the_follow_up(): void {
+		$this->options['smly_plus_follow_up_order_statuses'] = array( 'completed' );
+		$this->orders[40] = $this->fake_order( 40, 'buyer@example.test' );
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_FOLLOW_UP ), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 40, 'processing', 'wc-completed' );
+
+		self::assertSame( array(), $flusher->calls, 'Nothing is sent now.' );
+		self::assertSame( array( array( 40, 9, 'completed' ) ), $flusher->follow_ups );
+	}
+
+	public function test_one_status_change_can_send_the_shipping_confirmation_and_schedule_the_follow_up(): void {
+		$this->options['smly_plus_follow_up_order_statuses'] = array( 'completed' );
+		$this->orders[41] = $this->fake_order( 41, 'buyer@example.test' );
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for_all(), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 41, 'processing', 'completed' );
+
+		self::assertCount( 1, $flusher->calls, 'The shipping confirmation still sends at once.' );
+		self::assertSame( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, $flusher->calls[0]['trigger_type'] );
+		self::assertCount( 1, $flusher->follow_ups );
+	}
+
+	public function test_a_status_not_ticked_for_the_follow_up_schedules_nothing(): void {
+		$this->options['smly_plus_follow_up_order_statuses'] = array( 'completed' );
+		$this->orders[42] = $this->fake_order( 42, 'buyer@example.test' );
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_FOLLOW_UP ), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 42, 'pending', 'processing' );
+
+		self::assertSame( array(), $flusher->follow_ups );
+	}
+
+	public function test_an_order_that_already_had_its_follow_up_attempted_gets_no_second_one(): void {
+		$this->options['smly_plus_follow_up_order_statuses'] = array( 'completed', 'delivered' );
+		$order = $this->fake_order( 43, 'buyer@example.test' );
+		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ), TransactionalFlusher::META_STATUS_QUEUED );
+		$this->orders[43] = $order;
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_FOLLOW_UP ), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 43, 'completed', 'delivered' );
+
+		self::assertSame( array(), $flusher->follow_ups );
+		self::assertSame( array(), $flusher->skips );
+	}
+
+	public function test_a_follow_up_that_cannot_be_scheduled_leaves_a_skipped_row(): void {
+		$this->options['smly_plus_follow_up_order_statuses'] = array( 'delivered' );
+		$this->orders[44] = $this->fake_order( 44, 'buyer@example.test' );
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_closed_because( TransactionalGate::REASON_NO_WORKFLOW ), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 44, 'completed', 'delivered' );
+
+		self::assertSame( array(), $flusher->follow_ups );
+		self::assertSame( array( array( TransactionalGate::TRIGGER_FOLLOW_UP, 44, TransactionalGate::REASON_NO_WORKFLOW ) ), $flusher->skips );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	private function gate_closed_because( string $reason ): TransactionalGate {
@@ -390,6 +457,15 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		};
 	}
 
+	private function gate_open_for_all(): TransactionalGate {
+		return new class() extends TransactionalGate {
+			public function __construct() {}
+			public function evaluate( string $trigger_type, ?\WC_Order $order = null ): array {
+				return array( '', new WorkflowMatch( 9, 'transactional' ) );
+			}
+		};
+	}
+
 	private function gate_open_for( string $open_trigger_type ): TransactionalGate {
 		return new class( $open_trigger_type ) extends TransactionalGate {
 			private string $open_trigger_type;
@@ -398,7 +474,7 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 			}
 			public function evaluate( string $trigger_type, ?\WC_Order $order = null ): array {
 				return $trigger_type === $this->open_trigger_type
-					? array( '', new WorkflowMatch( 1, 'transactional' ) )
+					? array( '', new WorkflowMatch( $trigger_type === self::TRIGGER_FOLLOW_UP ? 9 : 1, 'transactional' ) )
 					: array( self::REASON_SWITCHED_OFF, null );
 			}
 		};
@@ -444,6 +520,10 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 			}
 			public function record_skip( string $trigger_type, int $order_id, string $reason ): void {
 				$this->skips[] = array( $trigger_type, $order_id, $reason );
+			}
+			public array $follow_ups = array();
+			public function schedule_follow_up( \WC_Order $order, WorkflowMatch $match, string $to_status ): void {
+				$this->follow_ups[] = array( $order->get_id(), $match->workflow_id, $to_status );
 			}
 		};
 	}

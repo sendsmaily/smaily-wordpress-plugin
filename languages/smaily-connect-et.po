@@ -29,8 +29,8 @@ msgstr "Ühenda oma WooCommerce'i pood Smailyga e-posti turunduse, automatiseeri
 #: integrations/elementor/admin.class.php:30
 #: integrations/elementor/form-action.class.php:47
 #: integrations/elementor/form-action.class.php:85
-#: admin/src/components/settings/EventLog.tsx:189
-#: admin/src/components/settings/EventLog.tsx:241
+#: admin/src/components/settings/EventLog.tsx:190
+#: admin/src/components/settings/EventLog.tsx:242
 msgid "Smaily"
 msgstr "Smaily"
 
@@ -49,17 +49,17 @@ msgid "Email"
 msgstr "E-post"
 
 #: integrations/woocommerce/profile-settings.class.php:457
-#: admin/src/components/steps/Step2Subscribers.tsx:285
+#: admin/src/components/steps/Step2Subscribers.tsx:286
 msgid "Birthday"
 msgstr "Sünnipäev"
 
 #: integrations/woocommerce/profile-settings.class.php:432
-#: admin/src/components/steps/Step2Subscribers.tsx:286
+#: admin/src/components/steps/Step2Subscribers.tsx:287
 msgid "Gender"
 msgstr "Sugu"
 
 #: integrations/woocommerce/profile-settings.class.php:446
-#: admin/src/components/steps/Step2Subscribers.tsx:284
+#: admin/src/components/steps/Step2Subscribers.tsx:285
 msgid "Phone"
 msgstr "Telefon"
 
@@ -274,19 +274,19 @@ msgstr "Smaily Campaign Intelligence on seadistamata. Lõpeta kõigepealt seadis
 msgid "Stored rec-engine configuration is incomplete. Re-run setup."
 msgstr "Salvestatud soovitusmootori seadistus on puudulik. Käivita seadistamine uuesti."
 
-#: includes/REST/SettingsEndpoint.php:129
+#: includes/REST/SettingsEndpoint.php:131
 msgid "You do not have permission to save Smaily Connect settings."
 msgstr "Sul ei ole õigust Smaily Connecti seadeid salvestada."
 
-#: includes/REST/SettingsEndpoint.php:146
+#: includes/REST/SettingsEndpoint.php:148
 msgid "Unknown settings tab."
 msgstr "Tundmatu seadete vaheleht."
 
-#: includes/REST/SettingsEndpoint.php:158
+#: includes/REST/SettingsEndpoint.php:160
 msgid "Payload must be an object."
 msgstr "Andmekogum (payload) peab olema objekt."
 
-#: includes/REST/SettingsEndpoint.php:225
+#: includes/REST/SettingsEndpoint.php:227
 msgid "Subdomain + username are required."
 msgstr "Alamdomeen ja kasutajanimi on kohustuslikud."
 
@@ -1028,68 +1028,68 @@ msgid "Network error"
 msgstr "Võrguviga"
 
 #. translators: 1: record count, 2: lowercased domain noun (e.g. products).
-#: admin/src/components/BackfillPanel.tsx:28
+#: admin/src/components/BackfillPanel.tsx:29
 #, js-format
 msgid "%1$d %2$s to import into the engine."
 msgstr "%1$d %2$s mootorisse importimiseks."
 
 #. translators: %s: lowercased domain noun (e.g. products).
-#: admin/src/components/BackfillPanel.tsx:33
+#: admin/src/components/BackfillPanel.tsx:34
 #, js-format
 msgid "No %s to import."
 msgstr "Pole %s importida."
 
-#: admin/src/components/BackfillPanel.tsx:48
+#: admin/src/components/BackfillPanel.tsx:49
 msgid "Importing…"
 msgstr "Impordin…"
 
-#: admin/src/components/BackfillPanel.tsx:48
+#: admin/src/components/BackfillPanel.tsx:49
 msgid "Import now"
 msgstr "Impordi kohe"
 
-#: admin/src/components/BackfillPanel.tsx:51
-#: admin/src/components/steps/Step2Subscribers.tsx:178
+#: admin/src/components/BackfillPanel.tsx:52
+#: admin/src/components/steps/Step2Subscribers.tsx:179
 msgid "Cancel"
 msgstr "Tühista"
 
 #. translators: %s: domain label (e.g. Products).
-#: admin/src/components/BackfillPanel.tsx:62
+#: admin/src/components/BackfillPanel.tsx:63
 #, js-format
 msgid "%s backfill progress"
 msgstr "%s impordi edenemine"
 
 #. translators: 1: synced count, 2: lowercased domain noun, 3: percent complete.
-#: admin/src/components/BackfillPanel.tsx:70
+#: admin/src/components/BackfillPanel.tsx:71
 #, js-format
 msgid "Synced %1$d %2$s · %3$d%% complete"
 msgstr "Sünkroonitud %1$d %2$s · %3$d%% valmis"
 
 #. translators: 1: synced count, 2: lowercased domain noun.
-#: admin/src/components/BackfillPanel.tsx:77
+#: admin/src/components/BackfillPanel.tsx:78
 #, js-format
 msgid "Done — %1$d %2$s synced."
 msgstr "Valmis — sünkroonitud %1$d %2$s."
 
 #. translators: %s: error message.
 #. translators: %s is the error message.
-#: admin/src/components/BackfillPanel.tsx:83
-#: admin/src/components/steps/Step2Subscribers.tsx:205
+#: admin/src/components/BackfillPanel.tsx:84
+#: admin/src/components/steps/Step2Subscribers.tsx:206
 #, js-format
 msgid "Backfill failed: %s"
 msgstr "Import ebaõnnestus: %s"
 
-#: admin/src/components/BackfillPanel.tsx:85
-#: admin/src/components/steps/Step2Subscribers.tsx:207
+#: admin/src/components/BackfillPanel.tsx:86
+#: admin/src/components/steps/Step2Subscribers.tsx:208
 msgid "Backfill failed."
 msgstr "Import ebaõnnestus."
 
-#: admin/src/components/BackfillPanel.tsx:86
-#: admin/src/components/steps/Step2Subscribers.tsx:208
+#: admin/src/components/BackfillPanel.tsx:87
+#: admin/src/components/steps/Step2Subscribers.tsx:209
 msgid "Backfill cancelled. Re-run when ready."
 msgstr "Import tühistatud. Käivita uuesti, kui valmis."
 
 #. translators: %d is the number of customers Smaily refused.
-#: admin/src/components/steps/Step2Subscribers.tsx:213
+#: admin/src/components/steps/Step2Subscribers.tsx:214
 #, js-format
 msgid "Smaily refused %d customer, so it was not imported. Fix it and run the import again:"
 msgid_plural "Smaily refused %d customers, so they were not imported. Fix them and run the import again:"
@@ -1097,19 +1097,19 @@ msgstr[0] "Smaily lükkas tagasi %d kliendi, seetõttu teda ei imporditud. Paran
 msgstr[1] "Smaily lükkas tagasi %d klienti, seetõttu neid ei imporditud. Paranda andmed ja käivita import uuesti:"
 
 #. translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is Smaily's reason.
-#: admin/src/components/steps/Step2Subscribers.tsx:224
+#: admin/src/components/steps/Step2Subscribers.tsx:225
 #, js-format
 msgid "User %1$d (%2$s): %3$s"
 msgstr "Kasutaja %1$d (%2$s): %3$s"
 
 #. translators: %d is the number of refused customers not listed.
-#: admin/src/components/steps/Step2Subscribers.tsx:233
+#: admin/src/components/steps/Step2Subscribers.tsx:234
 #, js-format
 msgid "…and %d more."
 msgstr "…ja veel %d."
 
 #. translators: %d: number of records that failed to sync.
-#: admin/src/components/BackfillPanel.tsx:90
+#: admin/src/components/BackfillPanel.tsx:91
 #, js-format
 msgid "%d record failed to sync — see the Event Log for details."
 msgid_plural "%d records failed to sync — see the Event Log for details."
@@ -1118,16 +1118,16 @@ msgstr[1] "%d kirjet ei sünkroonitud — vaata üksikasju sündmuste logist."
 
 #. translators: %s: localized date/time of the last run.
 #. translators: %s is a localized date/time.
-#: admin/src/components/BackfillPanel.tsx:100
-#: admin/src/components/steps/Step2Subscribers.tsx:239
+#: admin/src/components/BackfillPanel.tsx:101
+#: admin/src/components/steps/Step2Subscribers.tsx:240
 #, js-format
 msgid "Last run finished %s."
 msgstr "Viimane käivitus lõppes %s."
 
 #. translators: %s: status-check error message.
 #. translators: %s is the error message.
-#: admin/src/components/BackfillPanel.tsx:106
-#: admin/src/components/steps/Step2Subscribers.tsx:249
+#: admin/src/components/BackfillPanel.tsx:107
+#: admin/src/components/steps/Step2Subscribers.tsx:250
 #, js-format
 msgid "Couldn't check status: %s"
 msgstr "Olekut ei õnnestunud kontrollida: %s"
@@ -1136,188 +1136,188 @@ msgstr "Olekut ei õnnestunud kontrollida: %s"
 msgid "(optional)"
 msgstr "(valikuline)"
 
-#: admin/src/components/settings/EventLog.tsx:54
+#: admin/src/components/settings/EventLog.tsx:55
 msgid "Failed to load the event log."
 msgstr "Sündmuste logi laadimine ebaõnnestus."
 
-#: admin/src/components/settings/EventLog.tsx:105
+#: admin/src/components/settings/EventLog.tsx:106
 msgid "Retry failed."
 msgstr "Uuesti proovimine ebaõnnestus."
 
 #. translators: %d is the number of failed events in the last 24 hours.
-#: admin/src/components/settings/EventLog.tsx:132
+#: admin/src/components/settings/EventLog.tsx:133
 #, js-format
 msgid "%d failed event in the last 24 hours"
 msgid_plural "%d failed events in the last 24 hours"
 msgstr[0] "%d ebaõnnestunud sündmus viimase 24 tunni jooksul"
 msgstr[1] "%d ebaõnnestunud sündmust viimase 24 tunni jooksul"
 
-#: admin/src/components/settings/EventLog.tsx:150
+#: admin/src/components/settings/EventLog.tsx:151
 msgid "View only failed"
 msgstr "Näita ainult ebaõnnestunuid"
 
-#: admin/src/components/settings/EventLog.tsx:160
-#: admin/src/components/settings/EventLog.tsx:220
+#: admin/src/components/settings/EventLog.tsx:161
+#: admin/src/components/settings/EventLog.tsx:221
 msgid "Retry all failed"
 msgstr "Proovi kõiki ebaõnnestunuid uuesti"
 
-#: admin/src/components/settings/EventLog.tsx:164
+#: admin/src/components/settings/EventLog.tsx:165
 msgid "Some records didn’t reach their destination. Review them below."
 msgstr "Mõned kirjed ei jõudnud sihtkohta. Vaata need allpool üle."
 
-#: admin/src/components/settings/EventLog.tsx:170
+#: admin/src/components/settings/EventLog.tsx:171
 msgid "Event log"
 msgstr "Sündmuste logi"
 
-#: admin/src/components/settings/EventLog.tsx:171
+#: admin/src/components/settings/EventLog.tsx:172
 msgid "Sync activity across the Smaily and recommendation-engine queues. Read-only — last 7 days of events."
 msgstr "Sünkroonimistegevus Smaily ja soovitusmootori järjekordades. Ainult lugemiseks — viimase 7 päeva sündmused."
 
-#: admin/src/components/settings/EventLog.tsx:180
+#: admin/src/components/settings/EventLog.tsx:181
 msgid "Filter by source"
 msgstr "Filtreeri allika järgi"
 
-#: admin/src/components/settings/EventLog.tsx:187
+#: admin/src/components/settings/EventLog.tsx:188
 msgid "All sources"
 msgstr "Kõik allikad"
 
-#: admin/src/components/settings/EventLog.tsx:188
+#: admin/src/components/settings/EventLog.tsx:189
 msgid "Recommendations engine"
 msgstr "Soovitusmootor"
 
-#: admin/src/components/settings/EventLog.tsx:196
+#: admin/src/components/settings/EventLog.tsx:197
 msgid "Filter by status"
 msgstr "Filtreeri oleku järgi"
 
-#: admin/src/components/settings/EventLog.tsx:203
+#: admin/src/components/settings/EventLog.tsx:204
 msgid "All statuses"
 msgstr "Kõik olekud"
 
-#: admin/src/components/settings/EventLog.tsx:204
+#: admin/src/components/settings/EventLog.tsx:205
 msgid "Pending"
 msgstr "Ootel"
 
-#: admin/src/components/settings/EventLog.tsx:205
+#: admin/src/components/settings/EventLog.tsx:206
 msgid "Sent"
 msgstr "Saadetud"
 
-#: admin/src/components/settings/EventLog.tsx:206
+#: admin/src/components/settings/EventLog.tsx:207
 msgid "Failed"
 msgstr "Ebaõnnestunud"
 
-#: admin/src/components/settings/EventLog.tsx:207
+#: admin/src/components/settings/EventLog.tsx:208
 msgid "Blocked"
 msgstr "Blokeeritud"
 
-#: admin/src/components/settings/EventLog.tsx:211
+#: admin/src/components/settings/EventLog.tsx:212
 msgid "Refresh"
 msgstr "Värskenda"
 
-#: admin/src/components/settings/EventLog.tsx:228
+#: admin/src/components/settings/EventLog.tsx:229
 msgid "Time (UTC)"
 msgstr "Aeg (UTC)"
 
-#: admin/src/components/settings/EventLog.tsx:229
-#: admin/src/components/settings/EventLog.tsx:362
+#: admin/src/components/settings/EventLog.tsx:230
+#: admin/src/components/settings/EventLog.tsx:370
 msgid "Source"
 msgstr "Allikas"
 
-#: admin/src/components/settings/EventLog.tsx:230
+#: admin/src/components/settings/EventLog.tsx:231
 msgid "Event"
 msgstr "Sündmus"
 
-#: admin/src/components/settings/EventLog.tsx:231
-#: admin/src/components/settings/EventLog.tsx:370
+#: admin/src/components/settings/EventLog.tsx:232
+#: admin/src/components/settings/EventLog.tsx:378
 msgid "Entity"
 msgstr "Olem"
 
-#: admin/src/components/settings/EventLog.tsx:232
-#: admin/src/components/settings/EventLog.tsx:366
+#: admin/src/components/settings/EventLog.tsx:233
+#: admin/src/components/settings/EventLog.tsx:374
 msgid "Status"
 msgstr "Olek"
 
-#: admin/src/components/settings/EventLog.tsx:233
-#: admin/src/components/settings/EventLog.tsx:374
+#: admin/src/components/settings/EventLog.tsx:234
+#: admin/src/components/settings/EventLog.tsx:382
 msgid "Attempts"
 msgstr "Katsed"
 
-#: admin/src/components/settings/EventLog.tsx:234
-#: admin/src/components/settings/EventLog.tsx:387
+#: admin/src/components/settings/EventLog.tsx:235
+#: admin/src/components/settings/EventLog.tsx:395
 msgid "Last error"
 msgstr "Viimane viga"
 
-#: admin/src/components/settings/EventLog.tsx:238
+#: admin/src/components/settings/EventLog.tsx:239
 msgid "No events yet."
 msgstr "Sündmusi veel pole."
 
-#: admin/src/components/settings/EventLog.tsx:241
+#: admin/src/components/settings/EventLog.tsx:242
 msgid "Rec"
 msgstr "Mootor"
 
-#: admin/src/components/settings/EventLog.tsx:244
+#: admin/src/components/settings/EventLog.tsx:245
 msgid "cancelled"
 msgstr "tühistatud"
 
-#: admin/src/components/settings/EventLog.tsx:265
+#: admin/src/components/settings/EventLog.tsx:273
 #: admin/src/components/steps/EngineAutomationsSection.tsx:199
 msgid "Retry"
 msgstr "Proovi uuesti"
 
-#: admin/src/components/settings/EventLog.tsx:278
+#: admin/src/components/settings/EventLog.tsx:286
 msgid "Details"
 msgstr "Üksikasjad"
 
 #. translators: %d is the total number of events.
-#: admin/src/components/settings/EventLog.tsx:287
+#: admin/src/components/settings/EventLog.tsx:295
 #, js-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d sündmus"
 msgstr[1] "%d sündmust"
 
-#: admin/src/components/settings/EventLog.tsx:290
+#: admin/src/components/settings/EventLog.tsx:298
 msgid " · loading…"
 msgstr " · laadimine…"
 
-#: admin/src/components/settings/EventLog.tsx:300
+#: admin/src/components/settings/EventLog.tsx:308
 msgid "Previous"
 msgstr "Eelmine"
 
 #. translators: %1$d is the current page number, %2$d is the total page count.
-#: admin/src/components/settings/EventLog.tsx:305
+#: admin/src/components/settings/EventLog.tsx:313
 #, js-format
 msgid "Page %1$d of %2$d"
 msgstr "Lehekülg %1$d / %2$d"
 
-#: admin/src/components/settings/EventLog.tsx:316
+#: admin/src/components/settings/EventLog.tsx:324
 msgid "Next"
 msgstr "Järgmine"
 
-#: admin/src/components/settings/EventLog.tsx:350
+#: admin/src/components/settings/EventLog.tsx:358
 msgid "Close details"
 msgstr "Sulge üksikasjad"
 
-#: admin/src/components/settings/EventLog.tsx:358
+#: admin/src/components/settings/EventLog.tsx:366
 msgid "Close"
 msgstr "Sule"
 
-#: admin/src/components/settings/EventLog.tsx:381
+#: admin/src/components/settings/EventLog.tsx:389
 msgid "Created (UTC)"
 msgstr "Loodud (UTC)"
 
-#: admin/src/components/settings/EventLog.tsx:391
+#: admin/src/components/settings/EventLog.tsx:399
 msgid "Request sent to the engine"
 msgstr "Mootorisse saadetud päring"
 
-#: admin/src/components/settings/EventLog.tsx:392
+#: admin/src/components/settings/EventLog.tsx:400
 msgid "— nothing recorded (not sent, or the row predates this version)"
 msgstr "— midagi pole salvestatud (ei saadetud või rida on sellest versioonist vanem)"
 
-#: admin/src/components/settings/EventLog.tsx:395
+#: admin/src/components/settings/EventLog.tsx:403
 msgid "Engine response"
 msgstr "Mootori vastus"
 
-#: admin/src/components/settings/EventLog.tsx:399
+#: admin/src/components/settings/EventLog.tsx:407
 msgid "Enqueued payload"
 msgstr "Järjekorda pandud sisu"
 
@@ -1607,59 +1607,59 @@ msgstr "%s konto"
 msgid "Contacts with the %s locale will sync to this Smaily account."
 msgstr "%s lokaadiga kontaktid sünkroonitakse sellesse Smaily kontosse."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:35
+#: admin/src/components/steps/Step2Subscribers.tsx:36
 msgid "Step 2 of 6"
 msgstr "2. samm 6-st"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:42
+#: admin/src/components/steps/Step2Subscribers.tsx:43
 msgid "Contact synchronisation"
 msgstr "Kontaktide sünkroniseerimine"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:49
+#: admin/src/components/steps/Step2Subscribers.tsx:50
 msgid "Sync contacts to Smaily"
 msgstr "Sünkroniseeri kontaktid Smailysse"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:135
+#: admin/src/components/steps/Step2Subscribers.tsx:136
 msgid "Subscription checkboxes"
 msgstr "Turunduskirjade tellimine"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:160
+#: admin/src/components/steps/Step2Subscribers.tsx:161
 msgid "No existing WordPress users detected — the backfill will be a no-op."
 msgstr "Olemasolevaid WordPressi kasutajaid ei tuvastatud — import ei tee midagi."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:175
+#: admin/src/components/steps/Step2Subscribers.tsx:176
 msgid "Running…"
 msgstr "Töötab…"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:242
+#: admin/src/components/steps/Step2Subscribers.tsx:243
 msgid "Backfill runs in the background on your server. You can safely leave this page or close the browser — the job will continue. Return here any time to check progress."
 msgstr "Kontaktide import töötab taustal edasi ning võid selle lehe sulgeda. Saad jälgida impordi edenemist siin lehel igal ajal."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:282
+#: admin/src/components/steps/Step2Subscribers.tsx:283
 msgid "First name"
 msgstr "Eesnimi"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:283
+#: admin/src/components/steps/Step2Subscribers.tsx:284
 msgid "Last name"
 msgstr "Perekonnanimi"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:287
+#: admin/src/components/steps/Step2Subscribers.tsx:288
 msgid "Customer group"
 msgstr "Kliendigrupp"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:288
+#: admin/src/components/steps/Step2Subscribers.tsx:289
 msgid "Customer ID"
 msgstr "Kliendi ID"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:289
+#: admin/src/components/steps/Step2Subscribers.tsx:290
 msgid "First registered date"
 msgstr "Esmase registreerumise kuupäev"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:290
+#: admin/src/components/steps/Step2Subscribers.tsx:291
 msgid "Nickname"
 msgstr "Hüüdnimi"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:291
+#: admin/src/components/steps/Step2Subscribers.tsx:292
 msgid "Site title"
 msgstr "Saidi pealkiri"
 
@@ -2139,31 +2139,31 @@ msgstr "Smaily lükkas mandaadid tagasi."
 msgid "Failed to load workflows"
 msgstr "Töövoogude laadimine ebaõnnestus"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:113
+#: admin/src/components/steps/Step2Subscribers.tsx:114
 msgid "This sends every customer to Smaily regardless of marketing consent. Make sure you have a lawful basis (legitimate interest)."
 msgstr "See valik sünkroniseerib Smailysse kõik kontaktid sõltumata turundusnõusolekust. Veendu, et sul on õiguslik alus (õigustatud huvi)."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:118
+#: admin/src/components/steps/Step2Subscribers.tsx:119
 msgid "Under the EU soft opt-in, email these customers only about products similar to what they bought, and give them a clear way to refuse marketing when they buy. The legal basis is your responsibility."
 msgstr "ELi pehme nõusoleku (soft opt-in) reeglite järgi saada neile klientidele turunduskirju ainult ostetuga sarnaste toodete kohta ja anna neile ostu tegemisel selge võimalus turundusest keelduda. Õigusliku aluse eest vastutad sina."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:129
+#: admin/src/components/steps/Step2Subscribers.tsx:130
 msgid "Also sync guest-order email addresses"
 msgstr "Sünkroniseeri ka külalisostude kontaktid"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:258
+#: admin/src/components/steps/Step2Subscribers.tsx:259
 msgid "Subscribers only (consent)"
 msgstr "Ainult turunduskirjade tellijad (nõusolekuga)"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:266
+#: admin/src/components/steps/Step2Subscribers.tsx:267
 msgid "All customers (legitimate interest)"
 msgstr "Kõik kliendid (õigustatud huvi)"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:267
+#: admin/src/components/steps/Step2Subscribers.tsx:268
 msgid "Every customer is sent to Smaily regardless of marketing consent. Requires a lawful basis."
 msgstr "Smailysse edastatakse kõik kliendid, sõltumata turundusnõusolekust. Turunduskirjade saatmiseks peab olema õiguslik alus."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:274
+#: admin/src/components/steps/Step2Subscribers.tsx:275
 msgid "Checkout opt-in only"
 msgstr "Ainult kassas turunduskirjade nõusoleku andnud kontaktid"
 
@@ -2380,7 +2380,7 @@ msgid "This automation is enabled in test mode without any test addresses — no
 msgstr "See automaatika on lubatud test-režiimis ilma test-aadressideta — kirju ei saadeta mitte kellelegi, kuni lisad vähemalt ühe aadressi."
 
 #. translators: %d is the number of contacts in the sync audience.
-#: admin/src/components/steps/Step2Subscribers.tsx:163
+#: admin/src/components/steps/Step2Subscribers.tsx:164
 #, js-format
 msgid "Based on your contact sync mode, about %d of them will be synced to Smaily as contacts."
 msgstr "Valitud kontaktide sünkroniseerimise valimi järgi sünkroniseeritakse Smailysse ligikaudu %d kontakti."
@@ -2416,27 +2416,23 @@ msgstr "Saadetakse tellimuse sooritamise järel."
 msgid "Shipping confirmation"
 msgstr "Tarne kinnituskiri"
 
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:72
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:132
 msgid "Customer details"
 msgstr "Kliendi andmed"
 
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:73
-msgid "Personal data sent with both confirmation emails. Off by default — switch it on only if your email template shows these details."
-msgstr "Isikuandmed, mis saadetakse mõlema kinnituskirjaga. Vaikimisi väljas — lülita sisse ainult siis, kui su kirjapõhi neid andmeid näitab."
-
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:80
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:140
 msgid "Include addresses, phone and order note"
 msgstr "Lisa aadressid, telefon ja tellimuse märkus"
 
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:81
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:141
 msgid "The billing and delivery address, the delivery name, the phone number and the customer's order note."
 msgstr "Arveldus- ja tarneaadress, saaja nimi, telefoninumber ja kliendi märkus tellimusele."
 
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:91
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:69
 msgid "Counts as shipped"
 msgstr "Loetakse saadetuks"
 
-#: admin/src/components/steps/TransactionalTriggersSection.tsx:92
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:70
 msgid "Order statuses that trigger the shipping-confirmation email."
 msgstr "Tellimuse olekud, mis käivitavad tarne kinnituskirja."
 
@@ -2503,86 +2499,86 @@ msgstr "Ühenduse loomiseks loo uus API kasutajanimi ja parool oma Smaily konto 
 msgid "User guide to create API credentials"
 msgstr "Juhend API kasutaja loomiseks"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:36
+#: admin/src/components/steps/Step2Subscribers.tsx:37
 msgid "Contact synchronisation to Smaily"
 msgstr "Kontaktide sünkroniseerimine Smailysse"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:37
+#: admin/src/components/steps/Step2Subscribers.tsx:38
 msgid "Contact synchronisation allows you to send contacts daily to your Smaily account."
 msgstr "Kontaktide sünkronisatsioon võimaldab kord päevas automaatselt saata kontaktid Smailysse."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:50
+#: admin/src/components/steps/Step2Subscribers.tsx:51
 msgid "When sync has been enabled, all new subscribers and/or clients are added to your Smaily contact list."
 msgstr "Kui sünkronisatsioon on sisse lülitatud siis lisatakse uued uudiskirjaga liitujad ja/või kliendid sinu Smaily konto kontaktiloendisse."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:57
+#: admin/src/components/steps/Step2Subscribers.tsx:58
 msgid "Fields"
 msgstr "Väljad"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:58
+#: admin/src/components/steps/Step2Subscribers.tsx:59
 msgid "Email address is synced by default. Choose any additional fields to be added as well."
 msgstr "E-posti aadress sünkroniseeritakse vaikimisi. Vali lisaväljad, mida soovid samuti Smailysse."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:74
-#: admin/src/components/steps/Step2Subscribers.tsx:77
+#: admin/src/components/steps/Step2Subscribers.tsx:75
+#: admin/src/components/steps/Step2Subscribers.tsx:78
 msgid "Contact synchronisation selection"
 msgstr "Kontaktide sünkroniseerimise valim"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:75
+#: admin/src/components/steps/Step2Subscribers.tsx:76
 msgid "Choose which contacts are synced to Smaily, by your lawful basis for marketing email."
 msgstr "Vali, millised kontaktid edastatakse Smailysse, vastavalt turunduskirjade õiguslikule alusele."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:103
+#: admin/src/components/steps/Step2Subscribers.tsx:104
 msgid "Turn on “Show marketing subscription checkbox during checkout” below to use this mode."
 msgstr "Selle valiku kasutamiseks lülita all sisse „Näita turunduskirjade tellimise märkeruutu kassalehel“."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:142
+#: admin/src/components/steps/Step2Subscribers.tsx:143
 msgid "Show marketing subscription checkbox during account registration"
 msgstr "Näita turunduskirjade tellimise märkeruutu kasutajaks registreerumisel"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:151
+#: admin/src/components/steps/Step2Subscribers.tsx:152
 msgid "Show marketing subscription checkbox during checkout"
 msgstr "Näita turunduskirjade tellimise märkeruutu kassalehel"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:155
+#: admin/src/components/steps/Step2Subscribers.tsx:156
 msgid "Initial contact import"
 msgstr "Esmane kontaktide import"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:155
+#: admin/src/components/steps/Step2Subscribers.tsx:156
 msgid "Import existing contacts to Smaily."
 msgstr "Impordi olemasolevad kontaktid Smailysse."
 
 #. translators: %d is the number of contacts.
-#: admin/src/components/steps/Step2Subscribers.tsx:158
+#: admin/src/components/steps/Step2Subscribers.tsx:159
 #, js-format
 msgid "%d contacts will be synced to Smaily in batches of 100 with ~30 seconds apart. Contact sync can take some time."
 msgstr "Smailysse sünkroniseeritakse %d kontakti 100-kaupa ~30 sekundiliste vahedega, seega võib kontaktide esmane import võtta aega."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:175
+#: admin/src/components/steps/Step2Subscribers.tsx:176
 msgid "Start import"
 msgstr "Alusta importi"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:186
+#: admin/src/components/steps/Step2Subscribers.tsx:187
 msgid "Contact import progress"
 msgstr "Kontaktide impordi edenemine"
 
 #. translators: %1$d is contacts checked, %2$d is total contacts, %3$d is contacts synced.
-#: admin/src/components/steps/Step2Subscribers.tsx:192
+#: admin/src/components/steps/Step2Subscribers.tsx:193
 #, js-format
 msgid "Checked %1$d of %2$d contacts — %3$d contacts synced."
 msgstr "%1$d kontakti %2$d-st kontrollitud — %3$d kontakti imporditud."
 
 #. translators: %1$d is contacts synced, %2$d is contacts checked.
-#: admin/src/components/steps/Step2Subscribers.tsx:199
+#: admin/src/components/steps/Step2Subscribers.tsx:200
 #, js-format
 msgid "Done — %1$d contacts synced (%2$d contacts checked)."
 msgstr "Valmis — %1$d kontakti imporditud (%2$d kontakti kontrollitud)."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:259
+#: admin/src/components/steps/Step2Subscribers.tsx:260
 msgid "Only contacts who have subscribed to marketing emails are sent to Smaily. Unsubscribed contacts are synced back daily."
 msgstr "Smailysse edastatakse ainult kontaktid, kes on andnud nõusoleku turunduskirjade saamiseks. Smailys lahkunud kontaktid sünkroniseeritakse iga päev tagasi e-poe kontaktibaasi."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:275
+#: admin/src/components/steps/Step2Subscribers.tsx:276
 msgid "Only customers (guests included) who subscribe to marketing emails during the checkout are synced to Smaily."
 msgstr "Edastatakse ainult need kontaktid, kes märgivad kassas turunduskirjade (uudiskirjade) saamise linnukese (sh ka külalised)."
 
@@ -2724,7 +2720,7 @@ msgstr "Liitumisvormide ja RSS voo seadistus"
 msgid "Summary and last check"
 msgstr "Kokkuvõte ja viimane kontroll"
 
-#: admin/src/components/steps/Step2Subscribers.tsx:197
+#: admin/src/components/steps/Step2Subscribers.tsx:198
 msgid "Nothing to import — no contacts match your synchronization settings."
 msgstr "Pole midagi importida — ükski kontakt ei vasta sinu sünkroniseerimise seadetele."
 
@@ -2764,39 +2760,39 @@ msgstr "Konto on deaktiveeritud"
 msgid "Your Smaily Campaign Intelligence account has been deactivated, so syncing has stopped. Contact Smaily to reactivate it. Once it is active again, disconnect here and connect it with a new setup link."
 msgstr "Sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega sünkroonimine on peatunud. Konto taasaktiveerimiseks võta ühendust Smailyga. Kui konto on jälle aktiivne, katkesta siin ühendus ja ühenda konto uue seadistuslingiga."
 
-#: includes/Smaily/TransactionalRetryGuard.php:142
+#: includes/Smaily/TransactionalRetryGuard.php:149
 msgid "This order no longer exists, so this event cannot be re-sent."
 msgstr "Seda tellimust enam ei ole, seega seda sündmust ei saa uuesti saata."
 
-#: includes/Smaily/TransactionalRetryGuard.php:146
+#: includes/Smaily/TransactionalRetryGuard.php:153
 msgid "This second confirmation could not be sent. The confirmation the customer already received still stands."
 msgstr "Seda teist kinnitust ei õnnestunud saata. Kinnitus, mille klient juba sai, jääb kehtima."
 
-#: includes/Smaily/TransactionalRetryGuard.php:149
+#: includes/Smaily/TransactionalRetryGuard.php:156
 msgid "This confirmation was already sent to the shopper as the standard WooCommerce email; it cannot be re-sent."
 msgstr "See kinnitus saadeti kliendile juba WooCommerce'i tavalise e-kirjana; seda ei saa uuesti saata."
 
 #. translators: %d is the number of failed records put back in the queue.
-#: admin/src/components/settings/EventLog.tsx:97
+#: admin/src/components/settings/EventLog.tsx:98
 #, js-format
 msgid "%d record is back in the queue — it will be sent at the next scheduled pass, within about a minute."
 msgid_plural "%d records are back in the queue — they will be sent at the next scheduled pass, within about a minute."
 msgstr[0] "%d kirje on tagasi järjekorras — see saadetakse järgmisel plaanipärasel saatmisringil, umbes minuti jooksul."
 msgstr[1] "%d kirjet on tagasi järjekorras — need saadetakse järgmisel plaanipärasel saatmisringil, umbes minuti jooksul."
 
-#: admin/src/components/settings/EventLog.tsx:110
+#: admin/src/components/settings/EventLog.tsx:111
 msgid "This sends the customer a second confirmation."
 msgstr "See saadab kliendile teise kinnituse."
 
-#: admin/src/components/settings/EventLog.tsx:115
+#: admin/src/components/settings/EventLog.tsx:116
 msgid "A second confirmation is queued — it will be sent at the next scheduled pass, within about a minute."
 msgstr "Teine kinnitus on järjekorras — see saadetakse järgmisel plaanipärasel saatmisringil, umbes minuti jooksul."
 
-#: admin/src/components/settings/EventLog.tsx:119
+#: admin/src/components/settings/EventLog.tsx:120
 msgid "Sending again failed."
 msgstr "Uuesti saatmine ebaõnnestus."
 
-#: admin/src/components/settings/EventLog.tsx:275
+#: admin/src/components/settings/EventLog.tsx:283
 msgid "Send again"
 msgstr "Saada uuesti"
 
@@ -3023,15 +3019,81 @@ msgid "Nothing sent in the last 30 days."
 msgstr "Viimase 30 päeva jooksul pole midagi saadetud."
 
 #. translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
-#: admin/src/components/steps/TransactionalStatusLine.tsx:37
+#: admin/src/components/steps/TransactionalStatusLine.tsx:44
 #, js-format
 msgid "No order in the last 30 days reached a status ticked under “Counts as shipped”. Recent orders are at: %s. Nothing is sent until orders reach a ticked status."
 msgstr "Viimase 30 päeva jooksul ei jõudnud ükski tellimus olekusse, mis on märgitud valiku „Loetakse saadetuks“ all. Hiljutised tellimused on olekus: %s. Midagi ei saadeta, kuni tellimused jõuavad märgitud olekusse."
 
-#: admin/src/components/steps/TransactionalStatusLine.tsx:43
+#: admin/src/components/steps/TransactionalStatusLine.tsx:54
 msgid "This email goes out through Smaily’s transactional sending: Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, and each confirmation that could not be sent, is listed in the Event Log."
 msgstr "See kiri saadetakse Smaily tehingulise saatmise kaudu: Smaily saadab valitud töövoo kirja kohe, seega töövoos seatud viivitused ei kehti ja töövoog ei näita käivitusi. Iga saatmine ja iga kinnituskiri, mida ei saanud saata, on kirjas Sündmuste logis."
 
-#: admin/src/components/settings/EventLog.tsx:244
+#: admin/src/components/settings/EventLog.tsx:245
 msgid "skipped"
 msgstr "vahele jäetud"
+
+#. translators: 1: the shortest delay in days, 2: the longest.
+#: includes/REST/SettingsEndpoint.php:351
+#, php-format
+msgid "The follow-up email delay must be a whole number of days from %1$d to %2$d."
+msgstr "Järelkirja ooteaeg peab olema täisarv päevi vahemikus %1$d kuni %2$d."
+
+#: admin/src/components/settings/EventLog.tsx:245
+msgid "scheduled"
+msgstr "ajastatud"
+
+#. translators: %s is the date and time the follow-up email will be sent.
+#: admin/src/components/settings/EventLog.tsx:254
+#, js-format
+msgid "Sends on %s."
+msgstr "Saadetakse %s."
+
+#. translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
+#: admin/src/components/steps/TransactionalStatusLine.tsx:38
+#, js-format
+msgid "No order in the last 30 days reached a status ticked for the follow-up email. Recent orders are at: %s. Nothing is sent until orders reach a ticked status."
+msgstr "Viimase 30 päeva jooksul ei jõudnud ükski tellimus järelkirja jaoks märgitud olekusse. Hiljutised tellimused on olekus: %s. Midagi ei saadeta, kuni tellimused jõuavad märgitud olekusse."
+
+#: admin/src/components/steps/TransactionalStatusLine.tsx:51
+msgid "This email goes out through Smaily’s transactional sending: the plugin waits the number of days you set here, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, each follow-up still waiting, and each one that could not be sent, is listed in the Event Log."
+msgstr "See kiri saadetakse Smaily tehingulise saatmise kaudu: plugin ootab siin määratud arvu päevi, seejärel saadab Smaily valitud töövoo kirja kohe, seega töövoos seatud viivitused ei kehti ja töövoog ei näita käivitusi. Iga saatmine, iga veel ootel järelkiri ja iga järelkiri, mida ei saanud saata, on kirjas Sündmuste logis."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:85
+msgid "Follow-up email"
+msgstr "Järelkiri"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:86
+msgid "Sent a set number of days after an order reaches a ticked status — a feedback request, say."
+msgstr "Saadetakse määratud arvu päevade järel pärast seda, kui tellimus jõuab märgitud olekusse — näiteks tagasiside palve."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:101
+msgid "Days to wait"
+msgstr "Ooteaeg päevades"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:113
+msgid "From 1 to 90 days after the order reaches a ticked status."
+msgstr "1 kuni 90 päeva pärast seda, kui tellimus jõuab märgitud olekusse."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:119
+msgid "Starts the wait"
+msgstr "Käivitab ooteaja"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:120
+msgid "Order statuses that start the follow-up email’s wait. It is sent only if the order is still at one of them when the wait ends, and never for a cancelled, refunded or failed order."
+msgstr "Tellimuse olekud, mis käivitavad järelkirja ooteaja. Kiri saadetakse ainult siis, kui tellimus on ooteaja lõppedes endiselt mõnes neist olekutest, ja mitte kunagi tühistatud, tagastatud või ebaõnnestunud tellimusele."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:133
+msgid "Personal data sent with the transactional emails. Off by default — switch it on only if your email template shows these details."
+msgstr "Isikuandmed, mis saadetakse tehinguliste kirjadega. Vaikimisi väljas — lülita sisse ainult siis, kui su kirjapõhi neid andmeid näitab."
+
+#: admin/src/lib/transactional-reasons.ts:31
+msgid "The order no longer exists."
+msgstr "Tellimust enam ei ole."
+
+#: admin/src/lib/transactional-reasons.ts:33
+msgid "The order was cancelled, refunded or failed before the follow-up email was due."
+msgstr "Tellimus tühistati, raha tagastati või tellimus ebaõnnestus enne järelkirja saatmise aega."
+
+#: admin/src/lib/transactional-reasons.ts:35
+msgid "When the wait ended, the order was no longer at a status ticked for the follow-up email."
+msgstr "Ooteaja lõppedes ei olnud tellimus enam järelkirja jaoks märgitud olekus."

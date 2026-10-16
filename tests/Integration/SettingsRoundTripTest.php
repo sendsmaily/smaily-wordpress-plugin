@@ -227,6 +227,56 @@ final class SettingsRoundTripTest extends TestCase {
 		self::assertSame( '302', $by_trigger['shipping_confirmation']['workflowId'] );
 	}
 
+	public function test_the_follow_up_email_settings_round_trip_and_an_invalid_delay_is_refused(): void {
+		// PRO-4095.
+		$saved = ( new EnvDetector() )->saved_settings();
+		self::assertFalse( $saved['followUpEnabled'] );
+		self::assertSame( array( 'completed' ), $saved['followUpOrderStatuses'] );
+		self::assertSame( 7, $saved['followUpDelayDays'] );
+
+		$response = RestRequestHelper::post(
+			'/settings',
+			array(
+				'tab'  => 'woocommerce',
+				'data' => array(
+					'automationMappings'    => array(
+						array(
+							'triggerType'       => 'follow_up',
+							'language'          => 'default',
+							'accountKey'        => 'transactional',
+							'workflowId'        => '303',
+							'isDefaultFallback' => true,
+						),
+					),
+					'followUpEnabled'       => true,
+					'followUpOrderStatuses' => array( 'completed', 'shipped' ),
+					'followUpDelayDays'     => 21,
+				),
+			)
+		);
+		self::assertSame( 200, $response->get_status() );
+
+		$saved = ( new EnvDetector() )->saved_settings();
+		self::assertTrue( $saved['followUpEnabled'] );
+		self::assertSame( array( 'completed', 'shipped' ), $saved['followUpOrderStatuses'] );
+		self::assertSame( 21, $saved['followUpDelayDays'] );
+		self::assertSame( '303', $saved['automationMappings'][0]['workflowId'] );
+		self::assertSame( 'follow_up', $saved['automationMappings'][0]['triggerType'] );
+
+		$refused = RestRequestHelper::post(
+			'/settings',
+			array(
+				'tab'  => 'woocommerce',
+				'data' => array(
+					'automationMappings' => array(),
+					'followUpDelayDays'  => 120,
+				),
+			)
+		);
+		self::assertSame( 400, $refused->get_status() );
+		self::assertSame( 21, ( new EnvDetector() )->saved_settings()['followUpDelayDays'], 'A refused save changes nothing.' );
+	}
+
 	public function test_connection_tab_preserves_password_on_empty_resave(): void {
 		// Bug-2.H.19#3 regression guard. The "already-connected" view on
 		// Step 1 leaves password='' in React state. Continue would POST

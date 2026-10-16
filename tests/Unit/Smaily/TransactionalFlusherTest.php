@@ -19,6 +19,7 @@ use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
+use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 use Smaily\Connect\Smaily\WorkflowMatch;
 
 final class TransactionalFlusherTest extends TestCase {
@@ -46,7 +47,7 @@ final class TransactionalFlusherTest extends TestCase {
 		parent::tearDown();
 	}
 
-	public function test_flush_scopes_pending_to_the_two_transactional_event_types(): void {
+	public function test_flush_scopes_pending_to_the_transactional_event_types(): void {
 		$queue = $this->fake_queue( array() );
 
 		( new TransactionalFlusher( $queue, static fn () => null ) )->flush();
@@ -54,11 +55,11 @@ final class TransactionalFlusherTest extends TestCase {
 		self::assertSame(
 			array(
 				TransactionalFlusher::DEFAULT_BATCH_SIZE,
-				array( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION, TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION ),
+				array( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION, TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, TransactionalFlusher::EVENT_TYPE_FOLLOW_UP ),
 				array(),
 			),
 			$queue->last_pending_args,
-			'The transactional drain must scope pending() to its own two event types — other flushers own the rest.'
+			'The transactional drain must scope pending() to its own event types — other flushers own the rest.'
 		);
 	}
 
@@ -359,7 +360,7 @@ final class TransactionalFlusherTest extends TestCase {
 		self::assertSame( array(), $queue->attempts, 'A ceiling-expired row must not be recorded as another transient attempt.' );
 		self::assertSame( TransactionalFlusher::META_STATUS_FAILED_OPEN, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) ) );
 		self::assertSame( array( 509 ), $fired->calls, 'Fail-open must re-fire the native email once the ceiling forces a terminal failure.' );
-		self::assertSame( array( 'processed' => 1, 'sent' => 0, 'failed' => 1, 'retried' => 0 ), $stats );
+		self::assertSame( array( 'processed' => 1, 'sent' => 0, 'failed' => 1, 'retried' => 0, 'skipped' => 0 ), $stats );
 	}
 
 	public function test_a_row_still_within_the_retry_ceiling_keeps_retrying_as_normal(): void {
@@ -417,6 +418,214 @@ final class TransactionalFlusherTest extends TestCase {
 		self::assertSame( 23, $queue->attempts[0]['id'] );
 	}
 
+	// --- follow-up email (PRO-4095) --------------------------------------------
+
+	public function test_schedule_follow_up_queues_one_row_due_after_the_delay_and_sends_nothing_now(): void {
+		$this->stub_options( array( TransactionalGate::OPTION_FOLLOW_UP_DELAY_DAYS => 3 ) );
+		$order = $this->fake_order( 701, 'buyer@example.test' );
+
+		$queue   = $this->fake_queue( array() );
+		$flusher = new TransactionalFlusher(
+			$queue,
+			static function (): Client {
+				self::fail( 'Scheduling sends nothing — the send waits for the delay.' );
+			}
+		);
+
+		$before = time();
+		$flusher->schedule_follow_up( $order, new WorkflowMatch( 8080, 'transactional' ), 'completed' );
+
+		self::assertCount( 1, $queue->scheduled );
+		self::assertSame( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP, $queue->scheduled[0]['event_type'] );
+		self::assertSame( '701', $queue->scheduled[0]['entity_id'] );
+		self::assertSame( 'buyer@example.test', $queue->scheduled[0]['payload']['to'], 'The recipient stays on the row, so a privacy erasure still finds it.' );
+		$due = strtotime( $queue->scheduled[0]['due_at'] . ' UTC' );
+		self::assertGreaterThanOrEqual( $before + 3 * DAY_IN_SECONDS, $due );
+		self::assertLessThanOrEqual( time() + 3 * DAY_IN_SECONDS, $due );
+		self::assertSame( $queue->scheduled[0]['due_at'], $queue->scheduled[0]['payload'][ TransactionalFlusher::PAYLOAD_KEY_DUE_AT ] );
+		self::assertSame( TransactionalFlusher::META_STATUS_QUEUED, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ) ), 'The order has had its one follow-up.' );
+	}
+
+	public function test_schedule_follow_up_without_a_billing_email_records_a_skipped_row(): void {
+		$this->stub_options( array() );
+		$order = $this->fake_order( 702, '' );
+		$queue = $this->fake_queue( array() );
+
+		( new TransactionalFlusher( $queue, static fn () => null ) )->schedule_follow_up( $order, new WorkflowMatch( 1, 'transactional' ), 'completed' );
+
+		self::assertSame( array(), $queue->scheduled );
+		self::assertSame( array( array( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP, '702', TransactionalFlusher::REASON_NO_BILLING_EMAIL ) ), $queue->skipped );
+		self::assertSame( '', $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ) ) );
+	}
+
+	public function test_a_due_follow_up_sends_with_the_workflow_and_order_as_they_are_now(): void {
+		$this->stub_options( array( TransactionalGate::OPTION_FOLLOW_UP_STATUSES => array( 'completed' ) ) );
+		$order = $this->fake_order( 703, 'now@example.test', 'completed' );
+		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ), TransactionalFlusher::META_STATUS_QUEUED );
+		$this->orders[703] = $order;
+
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 31, 703 ) ) );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::once() )
+			->method( 'send_message' )
+			->with( 9191, 'now@example.test', array( 'order_number' => '703' ) )
+			->willReturn( array( 'code' => 101 ) );
+		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
+
+		$stats = $this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 9191, 'transactional' ) ) )->flush();
+
+		self::assertSame( array( 31 ), $queue->marked_sent );
+		self::assertSame( 1, $stats['sent'] );
+		self::assertSame( TransactionalFlusher::META_STATUS_SENT, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ) ) );
+	}
+
+	/**
+	 * @dataProvider follow_up_not_sendable_at_due
+	 */
+	public function test_a_due_follow_up_that_can_no_longer_go_out_is_skipped_with_the_reason( string $status, string $gate_reason, string $expected_reason ): void {
+		$this->stub_options( array( TransactionalGate::OPTION_FOLLOW_UP_STATUSES => array( 'completed' ) ) );
+		$this->orders[704] = $this->fake_order( 704, 'buyer@example.test', $status );
+
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 32, 704 ) ) );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::never() )->method( 'send_message' );
+
+		$match = $gate_reason === '' ? new WorkflowMatch( 9191, 'transactional' ) : null;
+		$stats = $this->follow_up_flusher( $queue, $client, $this->gate_answering( $gate_reason, $match ) )->flush();
+
+		self::assertSame( array( array( 'id' => 32, 'reason' => $expected_reason ) ), $queue->marked_skipped );
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertSame( array(), $queue->exchanges, 'The skipped row keeps its reason — nothing overwrites it.' );
+		self::assertSame( 1, $stats['skipped'] );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: string, 2: string}>
+	 */
+	public static function follow_up_not_sendable_at_due(): array {
+		return array(
+			'cancelled'                 => array( 'cancelled', '', TransactionalFlusher::REASON_ORDER_CLOSED ),
+			'refunded'                  => array( 'refunded', '', TransactionalFlusher::REASON_ORDER_CLOSED ),
+			'failed'                    => array( 'failed', '', TransactionalFlusher::REASON_ORDER_CLOSED ),
+			'no longer counting'        => array( 'processing', '', TransactionalFlusher::REASON_STATUS_NOT_COUNTING ),
+			'switched off meanwhile'    => array( 'completed', TransactionalGate::REASON_TRIGGER_OFF, TransactionalGate::REASON_TRIGGER_OFF ),
+			'workflow removed meanwhile' => array( 'completed', TransactionalGate::REASON_NO_WORKFLOW, TransactionalGate::REASON_NO_WORKFLOW ),
+		);
+	}
+
+	public function test_a_due_follow_up_whose_order_is_gone_is_skipped(): void {
+		$this->stub_options( array() );
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 33, 705 ) ) );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::never() )->method( 'send_message' );
+
+		$this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 1, 'transactional' ) ) )->flush();
+
+		self::assertSame( array( array( 'id' => 33, 'reason' => TransactionalFlusher::REASON_ORDER_MISSING ) ), $queue->marked_skipped );
+	}
+
+	public function test_a_refused_follow_up_is_failed_without_any_woocommerce_email(): void {
+		$this->stub_options( array( TransactionalGate::OPTION_FOLLOW_UP_STATUSES => array( 'completed' ) ) );
+		$order             = $this->fake_order( 706, 'buyer@example.test', 'completed' );
+		$this->orders[706] = $order;
+		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ), TransactionalFlusher::META_STATUS_QUEUED );
+
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 34, 706 ) ) );
+		$client = $this->createMock( Client::class );
+		$client->method( 'send_message' )->willReturn( array( 'code' => 203 ) );
+		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
+
+		$processing = $this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
+
+		$this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 1, 'transactional' ) ) )->flush();
+
+		self::assertSame( 34, $queue->marked_failed[0]['id'], 'The Event Log shows the failure.' );
+		self::assertSame( array(), $processing->calls, 'The follow-up has no WooCommerce email to fall back to.' );
+		self::assertSame( TransactionalFlusher::META_STATUS_QUEUED, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ) ) );
+	}
+
+	public function test_the_retry_ceiling_of_a_follow_up_counts_from_its_due_time(): void {
+		// Queued seven days ago, due a minute ago: still well inside the
+		// one-hour ceiling, which starts when the row became due.
+		$this->stub_options( array( TransactionalGate::OPTION_FOLLOW_UP_STATUSES => array( 'completed' ) ) );
+		$this->orders[707] = $this->fake_order( 707, 'buyer@example.test', 'completed' );
+
+		$row               = $this->due_follow_up_row( 35, 707 );
+		$row['created_at'] = gmdate( 'Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS );
+
+		$queue  = $this->fake_queue( array( $row ) );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::once() )->method( 'send_message' )->willReturn( array( 'code' => 101 ) );
+		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
+
+		$this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 1, 'transactional' ) ) )->flush();
+
+		self::assertSame( array( 35 ), $queue->marked_sent );
+		self::assertSame( array(), $queue->marked_failed );
+	}
+
+	/**
+	 * A follow-up row the way schedule_follow_up() leaves it, now due.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function due_follow_up_row( int $id, int $order_id ): array {
+		$due_at = gmdate( 'Y-m-d H:i:s', time() - 60 );
+
+		return array(
+			'id'         => $id,
+			'event_type' => TransactionalFlusher::EVENT_TYPE_FOLLOW_UP,
+			'entity_id'  => (string) $order_id,
+			'payload'    => json_encode(
+				array(
+					'to'          => 'then@example.test',
+					'workflow_id' => 1,
+					'account_key' => 'transactional',
+					'context'     => array(),
+					'to_status'   => 'completed',
+					TransactionalFlusher::PAYLOAD_KEY_DUE_AT => $due_at,
+				)
+			),
+			'created_at' => $due_at,
+		);
+	}
+
+	private function follow_up_flusher( EventQueue $queue, Client $client, TransactionalGate $gate ): TransactionalFlusher {
+		$builder = new class() extends TransactionalPayloadBuilder {
+			public function __construct() {}
+			public function build( \WC_Order $order, string $trigger = '' ): array {
+				return array( 'order_number' => (string) $order->get_id() );
+			}
+		};
+
+		return new TransactionalFlusher( $queue, static fn () => $client, $gate, $builder );
+	}
+
+	private function gate_answering( string $reason, ?WorkflowMatch $match ): TransactionalGate {
+		return new class( $reason, $match ) extends TransactionalGate {
+			private string $reason;
+			private ?WorkflowMatch $match;
+			public function __construct( string $reason, ?WorkflowMatch $match ) {
+				$this->reason = $reason;
+				$this->match  = $match;
+			}
+			public function evaluate( string $trigger_type, ?\WC_Order $order = null ): array {
+				return array( $this->reason, $this->match );
+			}
+		};
+	}
+
+	/**
+	 * @param array<string, mixed> $options
+	 */
+	private function stub_options( array $options ): void {
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $fallback = false ) use ( $options ) {
+				return $options[ $key ] ?? $fallback;
+			}
+		);
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**
@@ -450,19 +659,25 @@ final class TransactionalFlusherTest extends TestCase {
 		return $email;
 	}
 
-	private function fake_order( int $id, string $email ): \WC_Order {
-		return new class( $id, $email ) extends \WC_Order {
+	private function fake_order( int $id, string $email, string $status = '' ): \WC_Order {
+		return new class( $id, $email, $status ) extends \WC_Order {
 			private int $id;
 			private string $email;
+			private string $status;
 			private array $meta = array();
 
-			public function __construct( int $id, string $email ) {
-				$this->id    = $id;
-				$this->email = $email;
+			public function __construct( int $id, string $email, string $status ) {
+				$this->id     = $id;
+				$this->email  = $email;
+				$this->status = $status;
 			}
 
 			public function get_id(): int {
 				return $this->id;
+			}
+
+			public function get_status( $context = 'view' ): string {
+				return $this->status;
 			}
 
 			public function get_billing_email( $context = 'view' ): string {
@@ -691,6 +906,22 @@ final class TransactionalFlusherTest extends TestCase {
 			public function restart_age( array $ids ): int {
 				$this->age_restarted = $ids;
 				return count( $ids );
+			}
+
+			/** @var array<int, array<string, mixed>> */
+			public array $scheduled = array();
+
+			public function enqueue_scheduled( string $event_type, string $entity_id, array $payload, string $due_at ): ?int {
+				$id                = $this->next_id++;
+				$this->scheduled[] = compact( 'id', 'event_type', 'entity_id', 'payload', 'due_at' );
+				return $id;
+			}
+
+			/** @var array<int, array{id: int, reason: string}> */
+			public array $marked_skipped = array();
+
+			public function mark_skipped( int $id, string $reason ): void {
+				$this->marked_skipped[] = compact( 'id', 'reason' );
 			}
 		};
 	}
