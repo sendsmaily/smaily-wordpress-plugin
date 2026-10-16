@@ -130,14 +130,12 @@ class TransactionalFlusher {
 	/**
 	 * Why a follow-up that fell due was not sent (PRO-4095): the order is
 	 * gone, it was cancelled/refunded/failed (or trashed), or it no longer
-	 * sits in a status ticked for the follow-up.
+	 * sits in a status ticked for the follow-up. The last two are the
+	 * gate's (TransactionalGate::follow_up_due_reason()), mirrored here.
 	 */
 	public const REASON_ORDER_MISSING       = 'order_missing';
-	public const REASON_ORDER_CLOSED        = 'order_closed';
-	public const REASON_STATUS_NOT_COUNTING = 'status_not_counting';
-
-	/** Order statuses a follow-up never goes out on, whatever is ticked. */
-	private const FOLLOW_UP_CLOSED_STATUSES = array( 'cancelled', 'refunded', 'failed', 'trash' );
+	public const REASON_ORDER_CLOSED        = TransactionalGate::REASON_ORDER_CLOSED;
+	public const REASON_STATUS_NOT_COUNTING = TransactionalGate::REASON_STATUS_NOT_COUNTING;
 
 	/**
 	 * Payload key of a follow-up row: when it falls due (UTC "Y-m-d H:i:s").
@@ -161,11 +159,11 @@ class TransactionalFlusher {
 	/** @var callable(string $account_key): Client */
 	private $client_factory;
 
-	/** Re-checked when a follow-up falls due (PRO-4095); null only in tests that never reach one. */
-	private ?TransactionalGate $gate;
+	/** Re-checked when a follow-up falls due (PRO-4095). */
+	private TransactionalGate $gate;
 
 	/** Rebuilds a due follow-up's merge tags from the order as it is then. */
-	private ?TransactionalPayloadBuilder $builder;
+	private TransactionalPayloadBuilder $builder;
 
 	/**
 	 * The HTTP exchange of the event currently being dispatched, captured
@@ -178,7 +176,7 @@ class TransactionalFlusher {
 	/**
 	 * @param callable(string $account_key): Client $client_factory
 	 */
-	public function __construct( EventQueue $queue, callable $client_factory, ?TransactionalGate $gate = null, ?TransactionalPayloadBuilder $builder = null ) {
+	public function __construct( EventQueue $queue, callable $client_factory, TransactionalGate $gate, TransactionalPayloadBuilder $builder ) {
 		$this->queue          = $queue;
 		$this->client_factory = $client_factory;
 		$this->gate           = $gate;
@@ -491,14 +489,8 @@ class TransactionalFlusher {
 	 * @param array<string, mixed> $payload
 	 *
 	 * @return array{0: string, 1: array<string, mixed>}
-	 *
-	 * @throws \LogicException When the flusher was built without a gate or builder.
 	 */
 	private function follow_up_at_due( string $order_id_str, array $payload, ?\WC_Order $order ): array {
-		if ( $this->gate === null || $this->builder === null ) {
-			throw new \LogicException( 'follow-up needs the gate and the payload builder' );
-		}
-
 		$order = $order ?? self::load_order( (int) $order_id_str );
 		if ( $order === null ) {
 			return array( self::REASON_ORDER_MISSING, $payload );
@@ -509,15 +501,12 @@ class TransactionalFlusher {
 			return array( $reason, $payload );
 		}
 
-		$status = (string) $order->get_status();
-		if ( in_array( $status, self::FOLLOW_UP_CLOSED_STATUSES, true ) ) {
-			return array( self::REASON_ORDER_CLOSED, $payload );
-		}
-		if ( ! in_array( $status, TransactionalGate::follow_up_statuses(), true ) ) {
-			return array( self::REASON_STATUS_NOT_COUNTING, $payload );
+		$reason = $this->gate->follow_up_due_reason( $order );
+		if ( $reason !== '' ) {
+			return array( $reason, $payload );
 		}
 
-		$fresh = self::build_payload( $order, $match, $this->builder->build( $order, TransactionalGate::TRIGGER_FOLLOW_UP ), $status );
+		$fresh = self::build_payload( $order, $match, $this->builder->build( $order, TransactionalGate::TRIGGER_FOLLOW_UP ), (string) $order->get_status() );
 		if ( $fresh === null ) {
 			return array( self::REASON_NO_BILLING_EMAIL, $payload );
 		}
@@ -646,15 +635,8 @@ class TransactionalFlusher {
 
 		$order_id = (int) $order_id_str;
 
+		$order = $order ?? self::load_order( $order_id );
 		if ( $order === null ) {
-			if ( $order_id <= 0 || ! function_exists( 'wc_get_order' ) ) {
-				return;
-			}
-			$maybe = wc_get_order( $order_id );
-			$order = $maybe instanceof \WC_Order ? $maybe : null;
-		}
-
-		if ( ! $order instanceof \WC_Order ) {
 			return;
 		}
 
@@ -691,16 +673,8 @@ class TransactionalFlusher {
 	 *                          when set.
 	 */
 	private function set_meta( string $order_id_str, string $event_type, string $value, ?\WC_Order $order = null ): void {
+		$order = $order ?? self::load_order( (int) $order_id_str );
 		if ( $order === null ) {
-			$order_id = (int) $order_id_str;
-			if ( $order_id <= 0 || ! function_exists( 'wc_get_order' ) ) {
-				return;
-			}
-			$maybe = wc_get_order( $order_id );
-			$order = $maybe instanceof \WC_Order ? $maybe : null;
-		}
-
-		if ( ! $order instanceof \WC_Order ) {
 			return;
 		}
 

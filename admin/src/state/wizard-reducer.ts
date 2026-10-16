@@ -2,6 +2,7 @@ import {
   DEFAULT_CONTACT_SYNC_MODE,
   DEFAULT_SYNC_FIELDS,
   emptyCredentials,
+  FALLBACK_FOLLOW_UP_DELAY_LIMITS,
   idleAsync,
   idleBackfill,
   idleEngineAutomations,
@@ -74,7 +75,7 @@ export const wizardInitialState: WizardState = {
   shippedOrderStatuses: [],
   followUpEnabled: false,
   followUpOrderStatuses: [],
-  followUpDelayDays: 7,
+  followUpDelayDays: FALLBACK_FOLLOW_UP_DELAY_LIMITS.default,
   transactionalPersonalData: false,
   transactionalStatus: {},
 
@@ -395,28 +396,20 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case 'SET_FOLLOW_UP_DELAY_DAYS':
       return { ...state, followUpDelayDays: action.payload };
 
-    case 'TOGGLE_FOLLOW_UP_ORDER_STATUS': {
-      const present = state.followUpOrderStatuses.includes(action.payload.status);
+    case 'TOGGLE_FOLLOW_UP_ORDER_STATUS':
       return {
         ...state,
-        followUpOrderStatuses: present
-          ? state.followUpOrderStatuses.filter((s) => s !== action.payload.status)
-          : [...state.followUpOrderStatuses, action.payload.status],
+        followUpOrderStatuses: toggleIn(state.followUpOrderStatuses, action.payload.status),
       };
-    }
 
     case 'SET_TRANSACTIONAL_STATUS':
       return { ...state, transactionalStatus: action.payload };
 
-    case 'TOGGLE_SHIPPED_ORDER_STATUS': {
-      const present = state.shippedOrderStatuses.includes(action.payload.status);
+    case 'TOGGLE_SHIPPED_ORDER_STATUS':
       return {
         ...state,
-        shippedOrderStatuses: present
-          ? state.shippedOrderStatuses.filter((s) => s !== action.payload.status)
-          : [...state.shippedOrderStatuses, action.payload.status],
+        shippedOrderStatuses: toggleIn(state.shippedOrderStatuses, action.payload.status),
       };
-    }
 
     // Step 4: Recommendations ----------------------------------------------
     case 'SET_REC_ENGINE_FEATURE':
@@ -541,6 +534,11 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
+}
+
+/** `list` with `slug` removed when present, else appended — a ticked-status toggle. */
+function toggleIn(list: string[], slug: string): string[] {
+  return list.includes(slug) ? list.filter((s) => s !== slug) : [...list, slug];
 }
 
 /**

@@ -448,15 +448,26 @@ class SettingsEndpoint {
 		$statuses_raw = isset( $data['shippedOrderStatuses'] ) && is_array( $data['shippedOrderStatuses'] )
 			? $data['shippedOrderStatuses']
 			: array();
-		$statuses     = array_values(
+		update_option( 'smly_plus_shipped_order_statuses', self::sanitize_statuses( $statuses_raw ) );
+	}
+
+	/**
+	 * A status list from the payload as bare, non-empty status keys —
+	 * the one rule both status sets (shipped, follow-up) are saved by.
+	 *
+	 * @param array<mixed> $statuses
+	 *
+	 * @return string[]
+	 */
+	private static function sanitize_statuses( array $statuses ): array {
+		return array_values(
 			array_filter(
 				array_map(
 					static fn ( $s ): string => sanitize_key( (string) $s ),
-					$statuses_raw
+					$statuses
 				)
 			)
 		);
-		update_option( 'smly_plus_shipped_order_statuses', $statuses );
 	}
 
 	/**
@@ -470,10 +481,7 @@ class SettingsEndpoint {
 		update_option( TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_FOLLOW_UP ]['toggle_option'], ! empty( $data['followUpEnabled'] ) );
 
 		if ( isset( $data['followUpOrderStatuses'] ) && is_array( $data['followUpOrderStatuses'] ) ) {
-			update_option(
-				TransactionalGate::OPTION_FOLLOW_UP_STATUSES,
-				array_values( array_filter( array_map( static fn ( $s ): string => sanitize_key( (string) $s ), $data['followUpOrderStatuses'] ) ) )
-			);
+			update_option( TransactionalGate::OPTION_FOLLOW_UP_STATUSES, self::sanitize_statuses( $data['followUpOrderStatuses'] ) );
 		}
 
 		if ( $delay_days !== null ) {

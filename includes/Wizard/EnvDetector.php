@@ -62,6 +62,7 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *     docsUrl: string,
  *     orderStatuses: array<{slug, name}>,
  *     consentApiPresent: bool,
+ *     followUpDelayLimits: { min: int, max: int, default: int },
  *   }
  *
  * The React bundle reads everything that's not in WizardState.env
@@ -90,30 +91,38 @@ class EnvDetector {
 	 *   docsUrl: string,
 	 *   orderStatuses: array<int, array{slug: string, name: string}>,
 	 *   consentApiPresent: bool,
+	 *   followUpDelayLimits: array{min: int, max: int, default: int},
 	 * }
 	 */
 	public function snapshot(): array {
 		return array(
-			'detectedLanguages'  => $this->detected_languages(),
-			'multilingualPlugin' => $this->multilingual_plugin(),
-			'elementorPresent'   => $this->elementor_present(),
-			'cf7Present'         => $this->cf7_present(),
-			'wcActive'           => $this->wc_active(),
-			'hposActive'         => $this->hpos_active(),
-			'storeTotals'        => $this->store_totals(),
-			'rss'                => $this->rss_snapshot(),
+			'detectedLanguages'   => $this->detected_languages(),
+			'multilingualPlugin'  => $this->multilingual_plugin(),
+			'elementorPresent'    => $this->elementor_present(),
+			'cf7Present'          => $this->cf7_present(),
+			'wcActive'            => $this->wc_active(),
+			'hposActive'          => $this->hpos_active(),
+			'storeTotals'         => $this->store_totals(),
+			'rss'                 => $this->rss_snapshot(),
 			// Base merchant-docs URL (PRO-1430) — Constants::docs_url() is the
 			// single place this can move/be filtered; the React "How to add a
 			// Smaily signup form" section appends its own #anchor client-side.
-			'docsUrl'            => Constants::docs_url(),
+			'docsUrl'             => Constants::docs_url(),
 			// PRO-1504 — registered WooCommerce order statuses (incl. custom
 			// ones), choices for the "counts as shipped" multi-select.
-			'orderStatuses'      => $this->order_statuses(),
+			'orderStatuses'       => $this->order_statuses(),
 			// PRO-3673 — whether the WP Consent API is active, the same check
 			// NotificationManager's consent advisory makes: without it the
 			// browse tracker gets no consent signal and sends nothing, and the
 			// browse-tracking toggle says so.
-			'consentApiPresent'  => StorefrontBeacon::consent_api_present(),
+			'consentApiPresent'   => StorefrontBeacon::consent_api_present(),
+			// PRO-4095 — the follow-up delay's range and default, so the
+			// "Days to wait" field uses the values the save route validates by.
+			'followUpDelayLimits' => array(
+				'min'     => TransactionalGate::FOLLOW_UP_DELAY_MIN,
+				'max'     => TransactionalGate::FOLLOW_UP_DELAY_MAX,
+				'default' => TransactionalGate::FOLLOW_UP_DELAY_DEFAULT,
+			),
 		);
 	}
 
