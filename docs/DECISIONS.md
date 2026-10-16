@@ -4490,6 +4490,12 @@ omit-vs-empty rule is F3-47's.
 
 ### PRO-1682 — The welcome trigger keys on the WooCommerce account-creation FLOW, never on the role
 
+**Superseded in part by PRO-4093 (2026-10-16):** creating an account no longer
+starts the welcome at all — the shopper's own marketing opt-in in the store
+does. The flow-not-role reasoning below still explains why a staff account or
+another plugin's account is never welcomed. The filter keeps its name, but its
+default is now `true` and its `$source` is the storefront act.
+
 **Context:** the welcome automation fired on any `user_register` — a staff
 account added in wp-admin, an account a membership or forum plugin created,
 anything. Enrolment can't be suppressed once a trigger fires (accepted
@@ -4588,7 +4594,10 @@ and every surface reads it through one accessor,
   `'1'` / `''` instead, the same on-disk shape the legacy settings page left.
   Every other flag on that tab defaults to off, where the lost write is
   invisible; only this one needed it.
-- **Automations are NOT coupled to it.** Welcome / first-order / abandoned
+- **Automations are NOT coupled to it** *(superseded for Welcome by PRO-4093,
+  2026-10-16: the welcome follows the shopper's opt-in only where contact sync
+  sends the contact, so it sends nothing with the switch off; first-order and
+  abandoned cart are unchanged)*. Welcome / first-order / abandoned
   cart keep their own toggles and their own consent basis, which is what the
   merchant docs already promise ("existing contacts and Smaily automations
   are unaffected") — turning contact sync off must not silently disable an
@@ -8325,6 +8334,58 @@ fallback then ignores `smaily_ctx`) — rejected: it would leave an older
 context standing next to the fallback's new rec id, the mismatch this fixes.
 **Relationships:** PRO-3788 (the clear half of the rule), PRO-1710 (refused
 rec id), F3-46.
+
+### PRO-4093 — The welcome starts on the shopper's own marketing opt-in in the store (2026-10-16)
+
+**Context:** the welcome started when WooCommerce created an account
+(PRO-1682), with no check of consent or of the contact sync. Smaily adds an
+unknown address as a subscribed contact when an automation is triggered for it
+(PRO-1678), so every new account became a welcomed marketing contact, whether
+or not the shopper asked for marketing. The Shopify (S-66) and Magento
+(PRO-3580) plugins start the welcome on the shopper's opt-in.
+**Decision (Erkki, 2026-10-16):** the welcome follows the shopper's own
+marketing opt-in in the store, within what contact sync sends under the
+store's mode. Repeats are allowed; there is no once-per-contact record.
+- **Consent mode:** the welcome starts when the consent record
+  `user_newsletter` changes to 1 inside a storefront act —
+  `HookHandler::run_as_storefront_optin()`, a scoped flag like
+  `ContactReconciler::run_suppressed()`, set by `record_newsletter_optin()`
+  (checkout, block checkout, My Account registration) and by
+  `Profile_Settings::smaily_save_wc_account_fields()` (My Account → Account
+  details). `handle_newsletter_change()` queues the welcome after the
+  subscribe. A staff edit in wp-admin, an import and the reconciler change the
+  record without the flag: the consent reaches Smaily, no welcome starts. A
+  shopper who unsubscribed (the reconciler writes 0) and ticks again starts it
+  again; a tick by a subscribed customer changes nothing and starts nothing.
+- **Where the store keeps no consent record** (legitimate interest and
+  checkout-only, PRO-3406; guests in every mode): every ticked checkout that
+  contact sync sends (`ContactAudience::should_sync_order_email()` /
+  `should_sync_user()`) starts it, so a returning buyer who ticks again gets it
+  again. Under legitimate interest a My Account tick (a 0→1 change of the meta)
+  and the registration-form tick count too. `record_newsletter_optin()` notes
+  an account's tick in these modes for the handler, which reads it later in
+  the request; for the registration form that is why
+  `on_woocommerce_created_customer` now runs at priority 20.
+- **Gates:** setup completed, the Welcome toggle, contact sync sending the
+  contact (switch on + the mode's audience — the existing decision, never a
+  copy), then `smaily_connect_welcome_eligible` ( `true`, user id or 0 for a
+  guest, source `checkout` | `block_checkout` | `registration` | `my_account` ).
+  `force_opt_in` stays `false`. One welcome per address per request: an
+  account created at a checkout with the box ticked reaches it from two hooks.
+- **The newsletter block, shortcode and widget are not covered** (Erkki): they
+  post straight to Smaily, the store never sees the signup, and they start the
+  workflow chosen in their own settings. The docs say so.
+**Rationale:** only people who asked for marketing get the welcome, and the
+three Smaily store plugins treat it the same way.
+**Alternatives:** a once-per-contact record (S-66) — not chosen, Erkki allows
+repeats; a welcome on any change of the meta — rejected, an import or a staff
+edit would welcome; a welcome only on a recorded change — rejected, the
+legitimate-interest and checkout-only modes would never welcome.
+**Relationships:** partly supersedes PRO-1682 (account creation) and PRO-1742
+(Welcome not coupled to the sync switch); builds on PRO-3406 (the record
+writer) and PRO-1716 (`force_opt_in=false`). Pinned by
+`tests/Integration/WelcomeTriggerAudienceTest.php` (real hooks, real queue and
+flusher, transport faked) and the PRO-4093 section of `HookHandlerTest`.
 
 ## How to keep this document going
 

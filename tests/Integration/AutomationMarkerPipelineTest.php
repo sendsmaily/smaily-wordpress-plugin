@@ -74,14 +74,13 @@ final class AutomationMarkerPipelineTest extends TestCase {
 	public function test_welcome_marks_the_contact_and_a_plain_contact_sync_does_not(): void {
 		$this->configure_triggers( array( 'welcomeEnabled' => true ), 'welcome', '4242' );
 
-		// Real WooCommerce account creation → the registrar's
-		// woocommerce_created_customer callback (PRO-1682: a bare user_register
-		// is no longer a welcome trigger).
+		// A real WooCommerce account, then the shopper's own opt-in at the
+		// checkout (PRO-4093: the opt-in, not the account, starts the welcome).
+		// The opt-in also produces a REAL contact sync (the consent change), and
+		// editing their profile another one — neither is an automation run, so
+		// neither may carry a marker.
 		$user_id = $this->store->make_customer( 'welcome' );
-		// Opting the new customer in produces a REAL contact sync (consent
-		// change), and editing their profile another one — neither is an
-		// automation run, so neither may carry a marker.
-		update_user_meta( $user_id, 'user_newsletter', 1 );
+		HookHandler::record_newsletter_optin( $user_id, HookHandler::SOURCE_CHECKOUT );
 		HookHandler::reset_seen();
 		wp_update_user(
 			array(

@@ -42,7 +42,7 @@ Smaily Connect resolves each contact's language through WPML, Polylang or Transl
 
 Map WooCommerce events to workflows you have created in Smaily:
 
-* Welcome a customer after account registration
+* Welcome a shopper who subscribes to your marketing emails in the store
 * Respond to a customer's first order
 * Remind a shopper about an abandoned cart after your chosen delay
 
