@@ -16,8 +16,9 @@ const TRANSACTIONAL_ACCOUNT_KEY = 'transactional';
 
 /**
  * Transactional-email triggers — order confirmation + shipping
- * confirmation (PRO-1504 stage 1) + the follow-up email (PRO-4095). Relocated here from the old combined
- * TransactionalEmailsSection by PRO-1540: the account connection itself
+ * confirmation (PRO-1504 stage 1) + the follow-up email (PRO-4095).
+ * Relocated here from the old combined TransactionalEmailsSection by
+ * PRO-1540: the account connection itself
  * (toggle + credentials + test) now lives on the Connection tab; this
  * section only renders once that connection is established, mirroring
  * how EngineAutomationsSection gates its own sub-section on the rec-engine
