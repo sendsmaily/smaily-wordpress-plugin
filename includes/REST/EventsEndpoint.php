@@ -14,7 +14,6 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
-use Automattic\WooCommerce\Utilities\OrderUtil;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\EventQueue;
@@ -713,7 +712,7 @@ class EventsEndpoint {
 
 		$ids = array_values( array_unique( $ids ) );
 
-		if ( class_exists( OrderUtil::class ) && OrderUtil::custom_orders_table_usage_is_enabled() ) {
+		if ( OrderBackfillJob::uses_hpos() ) {
 			/** @var int[] $found `return => ids` yields ids — the stub types wc_get_orders() as WC_Order[]. */
 			$found = wc_get_orders(
 				array(

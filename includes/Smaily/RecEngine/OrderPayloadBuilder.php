@@ -11,6 +11,7 @@ namespace Smaily\Connect\Smaily\RecEngine;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Support\AttributionShape;
 use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
 use Smaily\Connect\Smaily\RecEngine\Support\RecId;
@@ -223,7 +224,7 @@ class OrderPayloadBuilder {
 	 * but a 'wc-' prefix is normalised defensively. (DECISIONS F3-42.)
 	 */
 	public function map_status( string $wc_status ): string {
-		$key = ( strpos( $wc_status, 'wc-' ) === 0 ) ? substr( $wc_status, 3 ) : $wc_status;
+		$key = OrderBackfillJob::bare_status( $wc_status );
 		if ( $key === '' || in_array( $key, self::NON_SALE_STATUSES, true ) ) {
 			return '';
 		}
