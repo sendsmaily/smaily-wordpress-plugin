@@ -2,12 +2,14 @@ import {
   DEFAULT_CONTACT_SYNC_MODE,
   DEFAULT_SYNC_FIELDS,
   emptyCredentials,
+  FALLBACK_FOLLOW_UP_DELAY_LIMITS,
   idleAsync,
   idleBackfill,
   idleEngineAutomations,
   normalizeContactSyncMode,
   type AutomationMapping,
   type AutomationTrigger,
+  type FollowUpDelayLimits,
   type RssFeedBootData,
   type TransactionalSendStatus,
   type TransactionalTrigger,
@@ -64,6 +66,8 @@ export interface BootPayload {
     orderStatuses?: Array<{ slug: string; name: string }>;
     /** Whether the WP Consent API is active, from EnvDetector::snapshot() (PRO-3673). */
     consentApiPresent?: boolean;
+    /** The follow-up delay's range and default, from EnvDetector::snapshot() (PRO-4095). */
+    followUpDelayLimits?: FollowUpDelayLimits;
   };
   savedSettings: {
     smailyCredentials: { subdomain: string; username: string; password: string };
@@ -206,7 +210,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       shippedOrderStatuses: [],
       followUpEnabled: false,
       followUpOrderStatuses: [],
-      followUpDelayDays: 7,
+      followUpDelayDays: FALLBACK_FOLLOW_UP_DELAY_LIMITS.default,
       transactionalPersonalData: false,
       transactionalStatus: {},
       recEngineFeatures: {
@@ -257,6 +261,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       docsUrl: env.docsUrl ?? '',
       orderStatuses: env.orderStatuses ?? [],
       consentApiPresent: env.consentApiPresent ?? false,
+      followUpDelayLimits: env.followUpDelayLimits,
     },
     smailyCredentials: { ...s.smailyCredentials },
     smailyConnection: deriveCredentialConnection(s.smailyConnected, s.smailyCredentials),
@@ -286,7 +291,8 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
     shippedOrderStatuses: s.shippedOrderStatuses ?? [],
     followUpEnabled: s.followUpEnabled ?? false,
     followUpOrderStatuses: s.followUpOrderStatuses ?? [],
-    followUpDelayDays: s.followUpDelayDays ?? 7,
+    followUpDelayDays:
+      s.followUpDelayDays ?? (env.followUpDelayLimits ?? FALLBACK_FOLLOW_UP_DELAY_LIMITS).default,
     transactionalPersonalData: s.transactionalPersonalData ?? false,
     // PHP sends an empty map as `[]`.
     transactionalStatus:
