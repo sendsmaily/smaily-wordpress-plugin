@@ -163,6 +163,132 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertSame( 5151, $captured[0]['body']['autoresponder_id'] );
 	}
 
+	public function test_a_completed_order_sends_the_shipping_confirmation_at_once_and_the_follow_up_after_the_delay(): void {
+		// PRO-4095: one transition into `completed` does both — the shipping
+		// confirmation goes out now, the follow-up waits its 3 days.
+		$this->configure_follow_up( 3 );
+
+		$product  = $this->make_product( 'Follow-up Product', 11.00 );
+		$order_id = $this->make_order( 'follow@example.test', $product );
+		$order    = wc_get_order( $order_id );
+		$order->set_status( 'processing' );
+		$order->save();
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$before = time();
+			$order->update_status( 'completed' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertCount( 1, $captured, 'Only the shipping confirmation goes out now.' );
+		self::assertSame( 5151, $captured[0]['body']['autoresponder_id'] );
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+		self::assertNotNull( $row );
+		self::assertSame( 'pending', $row['status'] );
+		$due = strtotime( (string) $row['next_retry_at'] . ' UTC' );
+		self::assertGreaterThanOrEqual( $before + 3 * DAY_IN_SECONDS, $due );
+		self::assertLessThanOrEqual( time() + 3 * DAY_IN_SECONDS, $due );
+
+		$listed = $this->listed_row( (int) $row['id'], 'pending' );
+		self::assertSame( (string) $row['next_retry_at'], $listed['scheduled_for'], 'The Event Log shows when it will be sent.' );
+
+		// Not due yet: the transactional flusher's pass leaves it waiting.
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+		self::assertCount( 1, $captured );
+		self::assertSame( 'pending', $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP )['status'] );
+
+		// Once the delay has passed, the next pass sends it.
+		$this->make_due( (int) $row['id'] );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertCount( 2, $captured );
+		self::assertSame( 6161, $captured[1]['body']['autoresponder_id'] );
+		self::assertSame( array( 'follow@example.test' ), $captured[1]['body']['to'] );
+		self::assertSame( 'Follow-up Product', $captured[1]['body']['context']['product_name_1'], 'The merge tags are built when it falls due.' );
+		self::assertSame( 'sent', $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP )['status'] );
+		self::assertSame( TransactionalFlusher::META_STATUS_SENT, wc_get_order( $order_id )->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ) ) );
+	}
+
+	public function test_an_order_that_already_had_its_follow_up_gets_no_second_one(): void {
+		$this->configure_follow_up();
+
+		$product = $this->make_product( 'Once Product', 6.00 );
+		$order   = wc_get_order( $this->make_order( 'once@example.test', $product ) );
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+			$order->update_status( 'processing' );
+			$order->update_status( 'completed' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP ) );
+	}
+
+	/**
+	 * @dataProvider follow_up_cancelled_meanwhile
+	 */
+	public function test_a_follow_up_whose_order_changed_meanwhile_is_skipped_with_the_reason( string $status_at_due, string $reason ): void {
+		$this->configure_follow_up();
+
+		$product = $this->make_product( 'Changed Product', 6.00 );
+		$order   = wc_get_order( $this->make_order( 'changed@example.test', $product ) );
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+			$order->update_status( $status_at_due );
+
+			$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+			$this->make_due( (int) $row['id'] );
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		$sends = array_filter( $captured, static fn ( $c ) => ( $c['body']['autoresponder_id'] ?? 0 ) === 6161 );
+		self::assertSame( array(), $sends, 'The follow-up is not sent.' );
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+		self::assertSame( 'sent', $row['status'], 'Finished — nothing retries it.' );
+		self::assertNull( $row['sent_payload'] );
+		$listed = $this->listed_row( (int) $row['id'], 'sent' );
+		self::assertSame( $reason, $listed['skip_reason'], 'The Event Log says why.' );
+		self::assertFalse( $listed['can_send_again'] );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: string}>
+	 */
+	public static function follow_up_cancelled_meanwhile(): array {
+		return array(
+			'cancelled'          => array( 'cancelled', TransactionalFlusher::REASON_ORDER_CLOSED ),
+			'refunded'           => array( 'refunded', TransactionalFlusher::REASON_ORDER_CLOSED ),
+			'no longer counting' => array( 'processing', TransactionalFlusher::REASON_STATUS_NOT_COUNTING ),
+		);
+	}
+
 	public function test_native_processing_order_email_suppressed_only_while_the_gate_holds(): void {
 		$this->configure( array( 'order_confirmation' => '4242' ) );
 
@@ -850,8 +976,10 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 	 * @param array<string, string> $mappings         trigger_type => workflow id.
 	 * @param array<int, string>    $shipped_statuses The statuses a shipping
 	 *                                                confirmation fires on.
+	 * @param array<string, mixed>  $woocommerce_extra More WooCommerce-tab fields
+	 *                                                (the follow-up email's, PRO-4095).
 	 */
-	private function configure( array $mappings, array $shipped_statuses = array( 'completed' ) ): void {
+	private function configure( array $mappings, array $shipped_statuses = array( 'completed' ), array $woocommerce_extra = array() ): void {
 		$rows = array();
 		foreach ( $mappings as $trigger => $workflow_id ) {
 			$rows[] = array(
@@ -891,11 +1019,14 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 			'/settings',
 			array(
 				'tab'  => 'woocommerce',
-				'data' => array(
-					'orderConfirmationEnabled'    => true,
-					'shippingConfirmationEnabled' => true,
-					'shippedOrderStatuses'        => $shipped_statuses,
-					'automationMappings'          => $rows,
+				'data' => array_merge(
+					array(
+						'orderConfirmationEnabled'    => true,
+						'shippingConfirmationEnabled' => true,
+						'shippedOrderStatuses'        => $shipped_statuses,
+						'automationMappings'          => $rows,
+					),
+					$woocommerce_extra
 				),
 			)
 		);
@@ -1036,6 +1167,37 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		}
 
 		return $rows[ $id ];
+	}
+
+	/** PRO-4095 test-only: make a waiting follow-up row due now, without waiting days. */
+	private function make_due( int $id ): void {
+		global $wpdb;
+		$wpdb->update(
+			$wpdb->prefix . 'smly_plus_event_queue',
+			array( 'next_retry_at' => gmdate( 'Y-m-d H:i:s', time() - 60 ) ),
+			array( 'id' => $id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * Map and switch on the follow-up email (PRO-4095) beside the shipping
+	 * confirmation, both on `completed`.
+	 */
+	private function configure_follow_up( int $delay_days = 7 ): void {
+		$this->configure(
+			array(
+				'shipping_confirmation' => '5151',
+				'follow_up'             => '6161',
+			),
+			array( 'completed' ),
+			array(
+				'followUpEnabled'       => true,
+				'followUpOrderStatuses' => array( 'completed' ),
+				'followUpDelayDays'     => $delay_days,
+			)
+		);
 	}
 
 	/** PRO-1519 test-only: push a queue row's created_at back by $seconds without sleeping. */
