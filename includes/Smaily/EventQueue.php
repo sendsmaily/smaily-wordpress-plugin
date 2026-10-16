@@ -499,6 +499,57 @@ class EventQueue {
 		return is_array( $decoded ) && ( $decoded['outcome'] ?? '' ) === self::OUTCOME_CANCELLED;
 	}
 
+	/**
+	 * Record a send that could not happen, as one finished row (PRO-4091):
+	 * written straight as the established terminal-skip pair (`sent`, no
+	 * sent_payload, a `skipped` exchange), so no flusher ever drains it and
+	 * nothing is scheduled. It carries the entity id and the reason code
+	 * only — no payload, so no recipient or other personal data.
+	 *
+	 * @return int|null Inserted row id, or null if the insert failed (silent, like enqueue()).
+	 */
+	public function record_skipped( string $event_type, string $entity_id, string $reason ): ?int {
+		global $wpdb;
+
+		$inserted = $wpdb->insert(
+			$this->table_name(),
+			array(
+				'event_type'    => $event_type,
+				'entity_id'     => $entity_id,
+				'payload'       => '[]',
+				'contact_key'   => null,
+				'created_at'    => current_time( 'mysql', true ),
+				'attempts'      => 0,
+				'status'        => self::STATUS_SENT,
+				'sent_payload'  => null,
+				'last_response' => (string) wp_json_encode(
+					array(
+						'outcome' => self::OUTCOME_SKIPPED,
+						'reason'  => $reason,
+					)
+				),
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+		);
+
+		return $inserted === 1 ? (int) $wpdb->insert_id : null;
+	}
+
+	/**
+	 * The reason code a record_skipped() row carries, or '' for any other
+	 * stored response — including the flushers' own terminal skips, which
+	 * record a note but no reason. The one place that knows that shape.
+	 */
+	public static function skip_reason( string $last_response ): string {
+		$decoded = json_decode( $last_response, true );
+
+		if ( ! is_array( $decoded ) || ( $decoded['outcome'] ?? '' ) !== self::OUTCOME_SKIPPED ) {
+			return '';
+		}
+
+		return isset( $decoded['reason'] ) && is_string( $decoded['reason'] ) ? $decoded['reason'] : '';
+	}
+
 	public function mark_sent( int $id ): void {
 		global $wpdb;
 		$wpdb->update(

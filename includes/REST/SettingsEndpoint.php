@@ -82,6 +82,21 @@ class SettingsEndpoint {
 		'shipping_confirmation',
 	);
 
+	/**
+	 * Builds the confirmation cards' status lines (PRO-4091) — null leaves
+	 * them out of the answer.
+	 *
+	 * @var (callable(): array<string, mixed>)|null
+	 */
+	private $transactional_status;
+
+	/**
+	 * @param (callable(): array<string, mixed>)|null $transactional_status See the property.
+	 */
+	public function __construct( ?callable $transactional_status = null ) {
+		$this->transactional_status = $transactional_status;
+	}
+
 	public function register(): void {
 		register_rest_route(
 			Constants::REST_NAMESPACE,
@@ -526,13 +541,17 @@ class SettingsEndpoint {
 	}
 
 	private function success_response(): WP_REST_Response {
-		return new WP_REST_Response(
-			array(
-				'saved'  => true,
-				'errors' => array(),
-			),
-			200
+		$data = array(
+			'saved'  => true,
+			'errors' => array(),
 		);
+
+		// Read after the write, so the card's status line reflects the save.
+		if ( $this->transactional_status !== null ) {
+			$data['transactionalStatus'] = ( $this->transactional_status )();
+		}
+
+		return new WP_REST_Response( $data, 200 );
 	}
 
 	/**

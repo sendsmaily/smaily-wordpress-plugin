@@ -31,6 +31,12 @@ export interface AutomationSectionProps {
    * apply), every row on this one account; else a single row.
    */
   accountKeyOverride?: string;
+  /**
+   * Whether the header pill says "Active" — defaults to `isEnabled`. The
+   * transactional cards pass false while the master switch is off, so a
+   * card never claims to send when nothing will (PRO-4091).
+   */
+  active?: boolean;
 }
 
 /**
@@ -62,6 +68,7 @@ export function AutomationSection({
   onEnabledChange,
   extras,
   accountKeyOverride,
+  active = isEnabled,
 }: AutomationSectionProps): React.JSX.Element {
   const isModeA = state.multilingualMode === 'A' && state.env.detectedLanguages.length > 1;
   const isModeB = state.multilingualMode === 'B' && state.env.detectedLanguages.length > 1;
@@ -75,7 +82,7 @@ export function AutomationSection({
     <Card
       title={title}
       description={description}
-      headerAccessory={isEnabled ? <Pill tone="success">{ __( 'Active', 'smaily-connect' ) }</Pill> : <Pill tone="neutral">{ __( 'Off', 'smaily-connect' ) }</Pill>}
+      headerAccessory={active ? <Pill tone="success">{ __( 'Active', 'smaily-connect' ) }</Pill> : <Pill tone="neutral">{ __( 'Off', 'smaily-connect' ) }</Pill>}
     >
       <Toggle
         name={`smly-automation-${trigger}-enabled`}

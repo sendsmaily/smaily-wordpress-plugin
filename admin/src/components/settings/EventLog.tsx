@@ -11,6 +11,7 @@ import {
   type EventSource,
 } from '../../api/events';
 import { __, _n, sprintf } from '@admin/lib/i18n';
+import { transactionalReasonMessage } from '@admin/lib/transactional-reasons';
 import { Banner, Button, Card, Pill, Select, type PillTone } from '../primitives';
 
 const PER_PAGE = 50;
@@ -312,20 +313,32 @@ export function EventLog(): React.JSX.Element {
                     {/* A withdrawn abandoned-cart reminder is stored `sent`
                         (terminal, never retried) but nothing was sent — say
                         so on the row itself, not only in Details (PRO-2372). */}
-                    <Pill tone={row.cancelled ? 'neutral' : statusTone(row.status)} dot>
-                      {row.cancelled ? __('cancelled', 'smaily-connect') : row.status}
+                    <Pill tone={row.cancelled || row.skip_reason !== '' ? 'neutral' : statusTone(row.status)} dot>
+                      {row.cancelled
+                        ? __('cancelled', 'smaily-connect')
+                        : row.skip_reason !== ''
+                          ? __('skipped', 'smaily-connect')
+                          : row.status}
                     </Pill>
                   </td>
                   <td className="py-2 pr-3">
                     {row.attempts}
                     {row.max_attempts !== null ? `/${row.max_attempts}` : ''}
                   </td>
-                  <td
-                    className="max-w-xs truncate py-2 pr-3 text-danger"
-                    title={row.last_error}
-                  >
-                    {row.last_error || '—'}
-                  </td>
+                  {/* A skipped confirmation (PRO-4091) has no error — the
+                      cell says why nothing went out instead. */}
+                  {row.skip_reason !== '' ? (
+                    <td className="max-w-xs py-2 pr-3 text-text-secondary">
+                      {transactionalReasonMessage(row.skip_reason)}
+                    </td>
+                  ) : (
+                    <td
+                      className="max-w-xs truncate py-2 pr-3 text-danger"
+                      title={row.last_error}
+                    >
+                      {row.last_error || '—'}
+                    </td>
+                  )}
                   <td className="sticky right-0 border-l border-border-subtle bg-surface py-2 pl-3 text-right">
                     <div className="flex justify-end gap-1 whitespace-nowrap">
                       {/* A failed transactional row whose confirmation

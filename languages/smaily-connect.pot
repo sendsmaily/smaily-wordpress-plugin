@@ -2968,3 +2968,61 @@ msgstr ""
 #: includes/Integrations/Elementor/FormSubscription.php:154
 msgid "No workflow"
 msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:14
+msgid "Transactional emails are switched off. Switch on “Send transactional emails” on the Connection tab."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:19
+msgid "This email is switched off."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:21
+msgid "No workflow is chosen for this email."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:23
+msgid "The chosen workflow is not active in Smaily. Activate it in Smaily or choose another workflow."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:28
+msgid "The transactional Smaily account is not fully connected. Check its subdomain, username and password on the Connection tab."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:33
+msgid "The saved password of the transactional Smaily account can no longer be read. Re-enter the password on the Connection tab."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:38
+msgid "The order has no billing email address."
+msgstr ""
+
+#. translators: %s is why the email is not sent, e.g. "No workflow is chosen for this email."
+#: admin/src/components/steps/TransactionalStatusLine.tsx:54
+#, js-format
+msgid "Not sending: %s"
+msgstr ""
+
+#. translators: %s is the date and time of the last send.
+#: admin/src/components/steps/TransactionalStatusLine.tsx:60
+#, js-format
+msgid "Last sent %s."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalStatusLine.tsx:63
+msgid "Nothing sent in the last 30 days."
+msgstr ""
+
+#. translators: %s is a comma-separated list of order statuses, e.g. "Processing, Label printed".
+#: admin/src/components/steps/TransactionalStatusLine.tsx:70
+#, js-format
+msgid "No order in the last 30 days reached a status ticked under “Counts as shipped”. Recent orders are at: %s. Nothing is sent until orders reach a ticked status."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalStatusLine.tsx:79
+msgid "This email goes out through Smaily’s transactional sending: Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, and each confirmation that could not be sent, is listed in the Event Log."
+msgstr ""
+
+#: admin/src/components/settings/EventLog.tsx:320
+msgid "skipped"
+msgstr ""

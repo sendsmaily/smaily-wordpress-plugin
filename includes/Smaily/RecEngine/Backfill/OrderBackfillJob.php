@@ -91,22 +91,27 @@ class OrderBackfillJob extends AbstractBackfillJob {
 	 * the pilot runs legacy, so the HPOS path is forward-compat and verified by
 	 * its column mapping here, not by an integration query (STATUS/CLAUDE).
 	 *
-	 * @return array{table: string, id_col: string, type_col: string, status_col: string}
+	 * `modified_col` is the order's last-changed time in UTC — read by the
+	 * transactional status line's recent-orders lookup (PRO-4091).
+	 *
+	 * @return array{table: string, id_col: string, type_col: string, status_col: string, modified_col: string}
 	 */
 	public static function table_spec( bool $hpos, string $prefix ): array {
 		if ( $hpos ) {
 			return array(
-				'table'      => $prefix . 'wc_orders',
-				'id_col'     => 'id',
-				'type_col'   => 'type',
-				'status_col' => 'status',
+				'table'        => $prefix . 'wc_orders',
+				'id_col'       => 'id',
+				'type_col'     => 'type',
+				'status_col'   => 'status',
+				'modified_col' => 'date_updated_gmt',
 			);
 		}
 		return array(
-			'table'      => $prefix . 'posts',
-			'id_col'     => 'ID',
-			'type_col'   => 'post_type',
-			'status_col' => 'post_status',
+			'table'        => $prefix . 'posts',
+			'id_col'       => 'ID',
+			'type_col'     => 'post_type',
+			'status_col'   => 'post_status',
+			'modified_col' => 'post_modified_gmt',
 		);
 	}
 

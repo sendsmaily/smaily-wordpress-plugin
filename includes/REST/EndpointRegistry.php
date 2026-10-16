@@ -78,7 +78,13 @@ final class EndpointRegistry {
 					return new Client( $subdomain, $username, $password );
 				}
 			),
-			new SettingsEndpoint(),
+			new SettingsEndpoint(
+				// A save answers with the confirmation cards' fresh status
+				// lines (PRO-4091), so the screen doesn't show the old one.
+				static function () use ( $bootstrap ): array {
+					return $bootstrap->transactional_status()->snapshot();
+				}
+			),
 			new EventsEndpoint(
 				// "Send again" (PRO-2324) runs the same gate + payload
 				// builder a first confirmation does. Built on demand: the

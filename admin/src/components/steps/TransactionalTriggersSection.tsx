@@ -4,6 +4,7 @@ import { __ } from '@admin/lib/i18n';
 import { type WizardAction, type WizardState } from '../../state/types';
 import { Card, Checkbox, Toggle } from '../primitives';
 import { AutomationSection } from './AutomationSection';
+import { TransactionalStatusLine } from './TransactionalStatusLine';
 
 export interface TransactionalTriggersSectionProps {
   state: WizardState;
@@ -55,10 +56,18 @@ export function TransactionalTriggersSection({
         title={ __( 'Order confirmation', 'smaily-connect' ) }
         description={ __( 'Sent when a customer places an order.', 'smaily-connect' ) }
         isEnabled={state.orderConfirmationEnabled}
+        active={state.transactionalEmailsEnabled && state.orderConfirmationEnabled}
         onEnabledChange={(enabled) =>
           dispatch({ type: 'SET_ORDER_CONFIRMATION_ENABLED', payload: enabled })
         }
         accountKeyOverride={TRANSACTIONAL_ACCOUNT_KEY}
+        extras={
+          <TransactionalStatusLine
+            state={state}
+            trigger="order_confirmation"
+            accountKey={TRANSACTIONAL_ACCOUNT_KEY}
+          />
+        }
       />
 
       <AutomationSection
@@ -68,11 +77,21 @@ export function TransactionalTriggersSection({
         title={ __( 'Shipping confirmation', 'smaily-connect' ) }
         description={ __( 'Sent when the order has been completed and is ready to be sent.', 'smaily-connect' ) }
         isEnabled={state.shippingConfirmationEnabled}
+        active={state.transactionalEmailsEnabled && state.shippingConfirmationEnabled}
         onEnabledChange={(enabled) =>
           dispatch({ type: 'SET_SHIPPING_CONFIRMATION_ENABLED', payload: enabled })
         }
         accountKeyOverride={TRANSACTIONAL_ACCOUNT_KEY}
-        extras={<ShippedStatusPicker state={state} dispatch={dispatch} />}
+        extras={
+          <>
+            <TransactionalStatusLine
+              state={state}
+              trigger="shipping_confirmation"
+              accountKey={TRANSACTIONAL_ACCOUNT_KEY}
+            />
+            <ShippedStatusPicker state={state} dispatch={dispatch} />
+          </>
+        }
       />
 
       <Card

@@ -155,11 +155,15 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
   }, [lockedTabs, activeTab, setActiveTab]);
 
   const { mutate: save, status: saveStatus, error: saveError } = useSaveSettings({
-    onSuccess: (_response, request) => {
+    onSuccess: (response, request) => {
       rawDispatch({
         type: 'CLEAR_TAB_DIRTY',
         payload: { tab: request.tab as SettingsTabKey },
       });
+      // PRO-4091: the confirmation cards show what the save just changed.
+      if (response.transactionalStatus !== undefined && !Array.isArray(response.transactionalStatus)) {
+        rawDispatch({ type: 'SET_TRANSACTIONAL_STATUS', payload: response.transactionalStatus });
+      }
     },
   });
 

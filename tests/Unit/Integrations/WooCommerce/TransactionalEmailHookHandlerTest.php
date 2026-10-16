@@ -290,7 +290,108 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		self::assertSame( 'Dog food', $flusher->calls[0]['context']['product_name_1'] );
 	}
 
+	// --- skipped rows (PRO-4091) ---------------------------------------------
+
+	/**
+	 * @dataProvider skip_worthy_reasons
+	 */
+	public function test_a_counting_status_that_cannot_send_leaves_a_skipped_row( string $reason ): void {
+		$order           = $this->fake_order( 30, 'buyer@example.test' );
+		$this->orders[30] = $order;
+		$flusher         = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_closed_because( $reason ), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 30, 'processing', 'completed' );
+
+		self::assertCount( 0, $flusher->calls, 'Nothing is sent.' );
+		self::assertSame( array( array( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, 30, $reason ) ), $flusher->skips );
+		self::assertSame( '', $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ) ), 'A skipped row must not burn the order\'s one attempt.' );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function skip_worthy_reasons(): array {
+		return array(
+			'no workflow'           => array( TransactionalGate::REASON_NO_WORKFLOW ),
+			'connection incomplete' => array( TransactionalGate::REASON_CONNECTION_INCOMPLETE ),
+			'password unreadable'   => array( TransactionalGate::REASON_PASSWORD_UNREADABLE ),
+		);
+	}
+
+	public function test_a_new_order_that_cannot_send_its_confirmation_leaves_a_skipped_row(): void {
+		$order   = $this->fake_order( 31, 'buyer@example.test' );
+		$flusher = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_closed_because( TransactionalGate::REASON_NO_WORKFLOW ), $this->builder_returning( array() ), $flusher ) )
+			->on_block_checkout_order_processed( $order );
+
+		self::assertSame( array( array( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, 31, TransactionalGate::REASON_NO_WORKFLOW ) ), $flusher->skips );
+	}
+
+	/**
+	 * @dataProvider switched_off_reasons
+	 */
+	public function test_a_switched_off_email_leaves_no_row( string $reason ): void {
+		// Every store that doesn't use the email would otherwise get a row
+		// per order — the card's status line says it's off instead.
+		$this->orders[32] = $this->fake_order( 32, 'buyer@example.test' );
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_closed_because( $reason ), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 32, 'processing', 'completed' );
+
+		self::assertSame( array(), $flusher->skips );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function switched_off_reasons(): array {
+		return array(
+			'master switch off' => array( TransactionalGate::REASON_SWITCHED_OFF ),
+			'trigger off'       => array( TransactionalGate::REASON_TRIGGER_OFF ),
+		);
+	}
+
+	public function test_a_status_that_is_not_ticked_leaves_no_row(): void {
+		$this->orders[33] = $this->fake_order( 33, 'buyer@example.test' );
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_closed_because( TransactionalGate::REASON_NO_WORKFLOW ), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 33, 'processing', 'label-printed' );
+
+		self::assertSame( array(), $flusher->skips );
+	}
+
+	public function test_an_order_that_already_had_its_attempt_leaves_no_row(): void {
+		$order = $this->fake_order( 34, 'buyer@example.test' );
+		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ), TransactionalFlusher::META_STATUS_SENT );
+		$this->orders[34] = $order;
+		$flusher          = $this->recording_flusher();
+
+		( new TransactionalEmailHookHandler( $this->gate_closed_because( TransactionalGate::REASON_NO_WORKFLOW ), $this->builder_returning( array() ), $flusher ) )
+			->on_order_status_changed( 34, 'processing', 'completed' );
+
+		self::assertSame( array(), $flusher->skips );
+	}
+
 	// --- helpers -------------------------------------------------------------
+
+	private function gate_closed_because( string $reason ): TransactionalGate {
+		return new class( $reason ) extends TransactionalGate {
+			private string $reason;
+			public function __construct( string $reason ) {
+				$this->reason = $reason;
+			}
+			public function resolve_if_open( string $trigger_type, ?\WC_Order $order = null ): ?WorkflowMatch {
+				return null;
+			}
+			public function closed_reason( string $trigger_type, ?\WC_Order $order = null ): string {
+				return $this->reason;
+			}
+		};
+	}
 
 	private function gate_open_for( string $open_trigger_type ): TransactionalGate {
 		return new class( $open_trigger_type ) extends TransactionalGate {
@@ -337,9 +438,13 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 	private function recording_flusher(): TransactionalFlusher {
 		return new class() extends TransactionalFlusher {
 			public array $calls = array();
+			public array $skips = array();
 			public function __construct() {}
 			public function send_now( string $trigger_type, \WC_Order $order, WorkflowMatch $match, array $context, string $to_status = '' ): void {
 				$this->calls[] = compact( 'trigger_type', 'context', 'to_status' );
+			}
+			public function record_skip( string $trigger_type, int $order_id, string $reason ): void {
+				$this->skips[] = array( $trigger_type, $order_id, $reason );
 			}
 		};
 	}

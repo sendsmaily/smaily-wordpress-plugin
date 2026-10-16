@@ -51,6 +51,19 @@ final class TransactionalRetryGuardTest extends TestCase {
 		);
 	}
 
+	public function test_a_skipped_row_is_not_sent_again(): void {
+		// PRO-4091: a skipped row is stored `sent` like every terminal skip,
+		// but nothing reached the shopper — there is no first email to repeat.
+		self::assertFalse(
+			TransactionalRetryGuard::resendable(
+				TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION,
+				'sent',
+				true,
+				'{"outcome":"skipped","reason":"no_workflow"}'
+			)
+		);
+	}
+
 	public function test_only_a_sent_transactional_row_on_a_live_order_may_be_sent_again(): void {
 		// A failed row never qualifies — including the fail-open case, where
 		// WooCommerce's own email is what went out; that row is `failed`, and

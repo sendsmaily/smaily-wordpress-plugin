@@ -24,6 +24,7 @@ final class OrderBackfillJobTest extends TestCase {
 		self::assertSame( 'ID', $spec['id_col'] );
 		self::assertSame( 'post_type', $spec['type_col'] );
 		self::assertSame( 'post_status', $spec['status_col'] );
+		self::assertSame( 'post_modified_gmt', $spec['modified_col'] );
 	}
 
 	public function test_hpos_table_spec_targets_wc_orders(): void {
@@ -32,6 +33,7 @@ final class OrderBackfillJobTest extends TestCase {
 		self::assertSame( 'id', $spec['id_col'] );
 		self::assertSame( 'type', $spec['type_col'] );
 		self::assertSame( 'status', $spec['status_col'] );
+		self::assertSame( 'date_updated_gmt', $spec['modified_col'] );
 	}
 
 	public function test_non_sale_statuses_are_the_single_source_for_the_filter(): void {

@@ -89,7 +89,7 @@ final class TransactionalFlusherTest extends TestCase {
 		self::assertStringContainsString( '"endpoint":"message\/send"', (string) $queue->exchanges[1]['sent'] );
 	}
 
-	public function test_send_now_without_a_billing_email_is_a_noop(): void {
+	public function test_send_now_without_a_billing_email_records_a_skipped_row_and_burns_no_attempt(): void {
 		$order = $this->fake_order( 502, '' );
 
 		$queue = $this->fake_queue( array() );
@@ -104,6 +104,31 @@ final class TransactionalFlusherTest extends TestCase {
 		);
 
 		self::assertSame( array(), $queue->enqueued, 'No recipient → nothing enqueued, nothing attempted.' );
+		self::assertSame(
+			array( array( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION, '502', TransactionalFlusher::REASON_NO_BILLING_EMAIL ) ),
+			$queue->skipped,
+			'PRO-4091: the merchant sees why nothing went out.'
+		);
+		self::assertSame( '', $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) ), 'A skip must not burn the one attempt — a later fire with an email can still send.' );
+	}
+
+	public function test_record_skip_writes_one_row_per_order_and_trigger_within_a_request(): void {
+		$queue   = $this->fake_queue( array() );
+		$flusher = new TransactionalFlusher( $queue, static fn () => null );
+
+		$flusher->record_skip( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, 7, TransactionalGate::REASON_NO_WORKFLOW );
+		$flusher->record_skip( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, 7, TransactionalGate::REASON_NO_WORKFLOW );
+		$flusher->record_skip( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, 7, TransactionalGate::REASON_NO_WORKFLOW );
+		$flusher->record_skip( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION, 8, TransactionalGate::REASON_NO_WORKFLOW );
+
+		self::assertSame(
+			array(
+				array( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, '7', TransactionalGate::REASON_NO_WORKFLOW ),
+				array( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION, '7', TransactionalGate::REASON_NO_WORKFLOW ),
+				array( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, '8', TransactionalGate::REASON_NO_WORKFLOW ),
+			),
+			$queue->skipped
+		);
 	}
 
 	public function test_terminal_response_marks_failed_and_fails_open_order_confirmation(): void {
@@ -653,6 +678,14 @@ final class TransactionalFlusherTest extends TestCase {
 
 			public function store_exchange( int $id, ?string $sent_payload, ?string $last_response ): void {
 				$this->exchanges[ $id ] = array( 'sent' => $sent_payload, 'response' => $last_response );
+			}
+
+			/** @var array<int, array{0: string, 1: string, 2: string}> */
+			public array $skipped = array();
+
+			public function record_skipped( string $event_type, string $entity_id, string $reason ): ?int {
+				$this->skipped[] = array( $event_type, $entity_id, $reason );
+				return $this->next_id++;
 			}
 
 			public function restart_age( array $ids ): int {

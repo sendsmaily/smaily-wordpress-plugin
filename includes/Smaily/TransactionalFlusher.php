@@ -122,10 +122,20 @@ class TransactionalFlusher {
 	public const META_STATUS_SENT        = 'sent';
 	public const META_STATUS_FAILED_OPEN = 'failed_open';
 
+	/** Skip reason when the order has no billing email (the gate's own reasons live on TransactionalGate). */
+	public const REASON_NO_BILLING_EMAIL = 'no_billing_email';
+
 	/** Cap (chars) on each stored exchange field so the queue stays bounded (F3-44). */
 	private const EXCHANGE_MAX = 10000;
 
 	private EventQueue $queue;
+
+	/**
+	 * "event_type|order_id" keys record_skip() already wrote this request.
+	 *
+	 * @var array<string, true>
+	 */
+	private array $skips_recorded = array();
 
 	/** @var callable(string $account_key): Client */
 	private $client_factory;
@@ -181,8 +191,10 @@ class TransactionalFlusher {
 	public function send_now( string $trigger_type, \WC_Order $order, WorkflowMatch $match, array $context, string $to_status = '' ): void {
 		$payload = self::build_payload( $order, $match, $context, $to_status );
 		if ( $payload === null ) {
-			// No recipient — nothing to send or retry; leave no trace (a
-			// future hook fire with a since-added email can try again).
+			// No recipient — nothing to send or retry. The Event Log says
+			// so (PRO-4091), but the meta guard stays unset: a future hook
+			// fire with a since-added email can try again.
+			$this->record_skip( $trigger_type, $order->get_id(), self::REASON_NO_BILLING_EMAIL );
 			return;
 		}
 
@@ -209,6 +221,30 @@ class TransactionalFlusher {
 			),
 			$order
 		);
+	}
+
+	/**
+	 * Leave one Event Log row saying why an order's confirmation could not
+	 * go out (PRO-4091) — $reason is a TransactionalGate::REASON_* code or
+	 * REASON_NO_BILLING_EMAIL. The row holds the order id and the reason
+	 * only. It never touches the order's meta guard, so the order keeps its
+	 * one attempt for when the cause is fixed.
+	 *
+	 * One row per order + trigger per request: one checkout fires both
+	 * checkout hooks on some stores, and a status can be set twice in one
+	 * save. A later request may write another row — each one is a real
+	 * moment the email did not go out.
+	 */
+	public function record_skip( string $trigger_type, int $order_id, string $reason ): void {
+		$event_type = self::event_type_for( $trigger_type );
+		$key        = $event_type . '|' . $order_id;
+
+		if ( isset( $this->skips_recorded[ $key ] ) ) {
+			return;
+		}
+		$this->skips_recorded[ $key ] = true;
+
+		$this->queue->record_skipped( $event_type, (string) $order_id, $reason );
 	}
 
 	/**

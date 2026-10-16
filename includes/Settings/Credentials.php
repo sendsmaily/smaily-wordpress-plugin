@@ -83,6 +83,22 @@ class Credentials {
 		return $set !== null && $set->is_complete();
 	}
 
+	/**
+	 * True when a password IS stored for the account but no longer decrypts
+	 * — what happens after the site's SECURE_AUTH_KEY changes. get() can't
+	 * tell this apart from "no password saved" (both give ''), and the
+	 * merchant's fix differs: here they must re-enter the password (PRO-4091).
+	 */
+	public function password_unreadable( string $account_key = self::DEFAULT_ACCOUNT_KEY ): bool {
+		$row = get_option( $this->resolve_option_key( $account_key ), array() );
+
+		if ( ! is_array( $row ) || ! isset( $row['password'] ) || (string) $row['password'] === '' ) {
+			return false;
+		}
+
+		return $this->decrypt_password( (string) $row['password'] ) === '';
+	}
+
 	private function resolve_option_key( string $account_key ): string {
 		if ( $account_key === self::DEFAULT_ACCOUNT_KEY || $account_key === '' ) {
 			return self::LEGACY_OPTION_KEY;

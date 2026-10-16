@@ -325,7 +325,7 @@ class EventsEndpoint {
 		// Whether the order still exists is the service's answer, not this
 		// route's: it loads the order anyway and says so with
 		// ERROR_ORDER_MISSING, which lands on the same refusal below.
-		if ( ! TransactionalRetryGuard::resendable( $event_type, (string) $row['status'], true ) ) {
+		if ( ! TransactionalRetryGuard::resendable( $event_type, (string) $row['status'], true, (string) ( $row['last_response'] ?? '' ) ) ) {
 			return $this->resend_refused( 'resend_not_available' );
 		}
 
@@ -620,13 +620,18 @@ class EventsEndpoint {
 			// is terminal-marked `sent` like any other skip; the merchant
 			// must read "cancelled" on the row without opening Details.
 			'cancelled'             => EventQueue::is_cancelled_response( (string) ( $row['last_response'] ?? '' ) ),
+			// PRO-4091: a confirmation that could not go out is stored `sent`
+			// like every terminal skip; the row must read "skipped" and say
+			// why. '' on every other row.
+			'skip_reason'           => EventQueue::skip_reason( (string) ( $row['last_response'] ?? '' ) ),
 			// PRO-2324: may the merchant deliberately send this confirmation
 			// a second time? Only a transactional row Smaily itself sent, on
 			// an order that still exists.
 			'can_send_again'        => TransactionalRetryGuard::resendable(
 				(string) ( $row['event_type'] ?? '' ),
 				(string) ( $row['status'] ?? '' ),
-				$this->order_exists( (string) ( $row['entity_id'] ?? '' ), $existing_orders )
+				$this->order_exists( (string) ( $row['entity_id'] ?? '' ), $existing_orders ),
+				(string) ( $row['last_response'] ?? '' )
 			),
 		);
 	}

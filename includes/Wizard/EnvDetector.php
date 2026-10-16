@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
+use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\Multilingual\DetectorFactory;
@@ -497,6 +498,8 @@ class EnvDetector {
 			'shippedOrderStatuses'          => (array) get_option( 'smly_plus_shipped_order_statuses', array( 'completed' ) ),
 			// PRO-3190: addresses, phone and order note in both confirmations — off by default.
 			'transactionalPersonalData'     => (bool) get_option( TransactionalPayloadBuilder::OPTION_PERSONAL_DATA, false ),
+			// PRO-4091: each confirmation card's status line.
+			'transactionalStatus'           => $this->transactional_status(),
 
 			// Step 4: rec-engine connection state (sub-PR 3.1). The
 			// api_key is DELIBERATELY omitted from the boot payload —
@@ -508,6 +511,24 @@ class EnvDetector {
 			// tohi kunagi olla client-side koodis").
 			'recEngine'                     => $this->rec_engine_snapshot(),
 		);
+	}
+
+	/**
+	 * The confirmation cards' status lines — TransactionalStatus, read
+	 * through the same send gate the plugin uses.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function transactional_status(): array {
+		/** @var \wpdb|null $wpdb */
+		global $wpdb;
+		// Same unit-test guard as automation_mappings(): it reads the
+		// mapping and queue tables.
+		if ( ! ( $wpdb instanceof \wpdb ) ) {
+			return array();
+		}
+
+		return Bootstrap::instance()->transactional_status()->snapshot();
 	}
 
 	/**

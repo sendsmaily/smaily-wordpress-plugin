@@ -206,6 +206,71 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertTrue( apply_filters( 'woocommerce_email_enabled_customer_processing_order', true, wc_get_order( $order_id ), null ) );
 	}
 
+	public function test_a_shipped_order_with_no_workflow_leaves_a_skipped_row_and_keeps_its_attempt(): void {
+		// PRO-4091: shipping confirmation switched on, no workflow chosen.
+		// The order reaches a ticked status — nothing goes out, and the
+		// Event Log says why, holding the order id and nothing personal.
+		$this->configure( array( 'order_confirmation' => '4242' ) );
+
+		$product = $this->make_product( 'Skipped Product', 9.00 );
+		$order   = wc_get_order( $this->make_order( 'skipped@example.test', $product ) );
+		$order->set_status( 'processing' );
+		$order->save();
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertSame( array(), array_filter( $captured, static fn ( $c ) => strpos( (string) $c['url'], 'message/send' ) !== false ), 'Nothing is sent.' );
+		self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION ) );
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION );
+		self::assertSame( (string) $order->get_id(), $row['entity_id'] );
+		self::assertSame( 'sent', $row['status'], 'Finished — no flusher drains it.' );
+		self::assertSame( '[]', $row['payload'] );
+		self::assertNull( $row['sent_payload'] );
+		self::assertSame( array( 'outcome' => 'skipped', 'reason' => TransactionalGate::REASON_NO_WORKFLOW ), json_decode( (string) $row['last_response'], true ) );
+		self::assertStringNotContainsString( 'skipped@example.test', (string) wp_json_encode( $row ), 'No email address in the row.' );
+
+		$listed = $this->listed_row( (int) $row['id'], 'sent' );
+		self::assertSame( TransactionalGate::REASON_NO_WORKFLOW, $listed['skip_reason'] );
+		self::assertFalse( $listed['can_send_again'], 'Nothing reached the shopper, so there is nothing to send again.' );
+
+		self::assertSame(
+			'',
+			wc_get_order( $order->get_id() )->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ) ),
+			'The skip burns no attempt.'
+		);
+
+		// Once the merchant picks a workflow, the next flip into the ticked
+		// status sends — the order still had its one attempt.
+		$this->configure( array( 'order_confirmation' => '4242', 'shipping_confirmation' => '5151' ) );
+		$order = wc_get_order( $order->get_id() );
+		$order->update_status( 'processing' );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertSame( 'sent', $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION )['status'] );
+		self::assertNotNull( $this->queue_row( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION )['sent_payload'] );
+	}
+
+	public function test_a_switched_off_shipping_confirmation_leaves_no_row(): void {
+		// A store that doesn't use the email gets no row per order.
+		$product = $this->make_product( 'Off Product', 9.00 );
+		$order   = wc_get_order( $this->make_order( 'off-ship@example.test', $product ) );
+		$order->update_status( 'completed' );
+
+		self::assertSame( 0, $this->queue_count( TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION ) );
+	}
+
 	public function test_terminal_smaily_rejection_marks_the_row_failed_and_fails_open(): void {
 		$this->configure( array( 'order_confirmation' => '4242' ) );
 

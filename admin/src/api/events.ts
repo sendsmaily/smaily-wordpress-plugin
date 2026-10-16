@@ -43,6 +43,12 @@ export interface EventRow {
    * never be retried), so the list says "cancelled" instead.
    */
   cancelled: boolean;
+  /**
+   * Why an order/shipping confirmation could not go out, '' on every other
+   * row (PRO-4091) — a code the screen words (transactionalReasonMessage).
+   * Stored `sent` like every terminal skip, so the list says "skipped".
+   */
+  skip_reason: string;
 }
 
 export interface EventsListResponse {

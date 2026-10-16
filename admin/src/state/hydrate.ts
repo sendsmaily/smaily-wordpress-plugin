@@ -9,6 +9,8 @@ import {
   type AutomationMapping,
   type AutomationTrigger,
   type RssFeedBootData,
+  type TransactionalSendStatus,
+  type TransactionalTrigger,
   type WizardState,
 } from './types';
 
@@ -117,6 +119,8 @@ export interface BootPayload {
     shippingConfirmationEnabled?: boolean;
     shippedOrderStatuses?: string[];
     transactionalPersonalData?: boolean;
+    /** Each confirmation card's status line (PRO-4091) — see WizardState.transactionalStatus. */
+    transactionalStatus?: Partial<Record<TransactionalTrigger, TransactionalSendStatus>>;
     /**
      * Step 4 — rec-engine connection. The api_key intentionally never
      * lands here; the React layer only needs the connected flag plus
@@ -198,6 +202,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       shippingConfirmationEnabled: false,
       shippedOrderStatuses: [],
       transactionalPersonalData: false,
+      transactionalStatus: {},
       recEngineFeatures: {
         trackBrowsing: false,
       },
@@ -274,6 +279,9 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
     shippingConfirmationEnabled: s.shippingConfirmationEnabled ?? false,
     shippedOrderStatuses: s.shippedOrderStatuses ?? [],
     transactionalPersonalData: s.transactionalPersonalData ?? false,
+    // PHP sends an empty map as `[]`.
+    transactionalStatus:
+      s.transactionalStatus !== undefined && !Array.isArray(s.transactionalStatus) ? s.transactionalStatus : {},
     // Read the saved browse preference so reload AND re-connect restore the
     // merchant's last choice (disconnect preserves the option server-side).
     recEngineFeatures: {
