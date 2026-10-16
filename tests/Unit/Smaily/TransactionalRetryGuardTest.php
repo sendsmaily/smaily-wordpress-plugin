@@ -153,6 +153,28 @@ final class TransactionalRetryGuardTest extends TestCase {
 		);
 	}
 
+	public function test_a_failed_follow_up_may_be_retried_because_no_woocommerce_email_stood_in(): void {
+		// PRO-4095: the follow-up never falls back to a WooCommerce email,
+		// so a failed one reached nobody.
+		self::assertSame(
+			'',
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_FOLLOW_UP,
+				(string) json_encode( array( 'to_status' => 'completed' ) ),
+				true
+			)
+		);
+		self::assertSame(
+			TransactionalRetryGuard::REASON_RESEND_FAILED,
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_FOLLOW_UP,
+				(string) json_encode( array( TransactionalFlusher::PAYLOAD_KEY_RESEND => true ) ),
+				true
+			),
+			'A failed second follow-up still leaves the first one standing.'
+		);
+	}
+
 	public function test_a_row_whose_order_is_gone_is_refused_with_its_own_reason(): void {
 		// Existence is resolved by the caller (one batched lookup) and handed
 		// in — the guard itself does no I/O.

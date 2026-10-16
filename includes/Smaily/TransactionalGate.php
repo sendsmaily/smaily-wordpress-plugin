@@ -42,6 +42,7 @@ class TransactionalGate {
 
 	public const TRIGGER_ORDER_CONFIRMATION    = 'order_confirmation';
 	public const TRIGGER_SHIPPING_CONFIRMATION = 'shipping_confirmation';
+	public const TRIGGER_FOLLOW_UP             = 'follow_up';
 
 	/**
 	 * Why the gate is closed — closed_reason()'s answer, one per condition
@@ -58,6 +59,16 @@ class TransactionalGate {
 
 	/** Bare WC status slugs (no 'wc-' prefix) treated as "shipped" — Settings persists this option. */
 	public const OPTION_SHIPPED_STATUSES = 'smly_plus_shipped_order_statuses';
+
+	/** Bare WC status slugs (no 'wc-' prefix) a follow-up email counts — Settings persists this option (PRO-4095). */
+	public const OPTION_FOLLOW_UP_STATUSES = 'smly_plus_follow_up_order_statuses';
+
+	/** Days the follow-up email waits after an order reaches a counting status (PRO-4095). */
+	public const OPTION_FOLLOW_UP_DELAY_DAYS = 'smly_plus_follow_up_delay_days';
+
+	public const FOLLOW_UP_DELAY_DEFAULT = 7;
+	public const FOLLOW_UP_DELAY_MIN     = 1;
+	public const FOLLOW_UP_DELAY_MAX     = 90;
 
 	/**
 	 * Single source of truth for everything that varies per trigger type —
@@ -86,6 +97,12 @@ class TransactionalGate {
 			'event_type'    => 'transactional.shipping_confirmation',
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- config value only, consumed as a per-order-id meta guard key (get/update_meta_data by order id), never a WP_Query meta_query; WPCS flags any 'meta_key' array key regardless of context.
 			'meta_key'      => '_smly_plus_transactional_shipping_confirmation_status',
+		),
+		self::TRIGGER_FOLLOW_UP             => array(
+			'toggle_option' => 'smly_plus_follow_up_enabled',
+			'event_type'    => 'transactional.follow_up',
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- config value only, consumed as a per-order-id meta guard key (get/update_meta_data by order id), never a WP_Query meta_query; WPCS flags any 'meta_key' array key regardless of context.
+			'meta_key'      => '_smly_plus_transactional_follow_up_status',
 		),
 	);
 
@@ -235,6 +252,62 @@ class TransactionalGate {
 	public static function shipped_statuses(): array {
 		$statuses = get_option( self::OPTION_SHIPPED_STATUSES, array( 'completed' ) );
 		return is_array( $statuses ) ? array_map( 'strval', $statuses ) : array( 'completed' );
+	}
+
+	/**
+	 * Bare WC status slugs (no 'wc-' prefix) that start the follow-up
+	 * email's delay (PRO-4095). Defaults to ['completed'], like the
+	 * shipped set.
+	 *
+	 * @return string[]
+	 */
+	public static function follow_up_statuses(): array {
+		$statuses = get_option( self::OPTION_FOLLOW_UP_STATUSES, array( 'completed' ) );
+		return is_array( $statuses ) ? array_map( 'strval', $statuses ) : array( 'completed' );
+	}
+
+	/**
+	 * The statuses a trigger counts — what the card's "no recent order
+	 * reached a ticked status" warning checks. Empty for the order
+	 * confirmation, which counts no status.
+	 *
+	 * @return string[]
+	 */
+	public static function counting_statuses( string $trigger_type ): array {
+		if ( $trigger_type === self::TRIGGER_SHIPPING_CONFIRMATION ) {
+			return self::shipped_statuses();
+		}
+		if ( $trigger_type === self::TRIGGER_FOLLOW_UP ) {
+			return self::follow_up_statuses();
+		}
+		return array();
+	}
+
+	/**
+	 * The follow-up delay in whole days, FOLLOW_UP_DELAY_MIN..MAX. Settings
+	 * validates on save; a stored value outside the range (or none) reads
+	 * as the default, so a bad option can never send at once.
+	 */
+	public static function follow_up_delay_days(): int {
+		return self::delay_days_or_null( get_option( self::OPTION_FOLLOW_UP_DELAY_DAYS, self::FOLLOW_UP_DELAY_DEFAULT ) ) ?? self::FOLLOW_UP_DELAY_DEFAULT;
+	}
+
+	/**
+	 * A whole number of days within FOLLOW_UP_DELAY_MIN..MAX, or null —
+	 * the one rule the save route and the reader share.
+	 *
+	 * @param mixed $days
+	 */
+	public static function delay_days_or_null( $days ): ?int {
+		if ( is_int( $days ) ) {
+			$value = $days;
+		} elseif ( is_string( $days ) && preg_match( '/^\d+$/', trim( $days ) ) === 1 ) {
+			$value = (int) trim( $days );
+		} else {
+			return null;
+		}
+
+		return $value >= self::FOLLOW_UP_DELAY_MIN && $value <= self::FOLLOW_UP_DELAY_MAX ? $value : null;
 	}
 
 	/**

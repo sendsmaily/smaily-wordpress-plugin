@@ -1221,7 +1221,9 @@ final class Bootstrap {
 				$this->event_queue(),
 				static function ( string $account_key ) use ( $bootstrap ): Client {
 					return $bootstrap->smaily_client( $account_key );
-				}
+				},
+				$this->transactional_gate(),
+				new TransactionalPayloadBuilder()
 			);
 		}
 

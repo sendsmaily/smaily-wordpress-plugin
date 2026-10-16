@@ -46,8 +46,12 @@ final class TransactionalStatusTest extends TestCase {
 			array(
 				TransactionalGate::TRIGGER_ORDER_CONFIRMATION    => TransactionalGate::REASON_NO_WORKFLOW,
 				TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION => TransactionalGate::REASON_PASSWORD_UNREADABLE,
+				TransactionalGate::TRIGGER_FOLLOW_UP             => TransactionalGate::REASON_TRIGGER_OFF,
 			),
-			array( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION => '2026-10-15 08:30:00' ),
+			array(
+				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION => '2026-10-15 08:30:00',
+				TransactionalFlusher::EVENT_TYPE_FOLLOW_UP          => '2026-10-14 07:00:00',
+			),
 			array()
 		);
 
@@ -63,6 +67,12 @@ final class TransactionalStatusTest extends TestCase {
 					'reason'                 => TransactionalGate::REASON_PASSWORD_UNREADABLE,
 					'workflowResolved'       => true,
 					'lastSentAt'             => '',
+					'untickedRecentStatuses' => array(),
+				),
+				TransactionalGate::TRIGGER_FOLLOW_UP             => array(
+					'reason'                 => TransactionalGate::REASON_TRIGGER_OFF,
+					'workflowResolved'       => false,
+					'lastSentAt'             => '2026-10-14 07:00:00',
 					'untickedRecentStatuses' => array(),
 				),
 			),
@@ -93,7 +103,10 @@ final class TransactionalStatusTest extends TestCase {
 
 	public function test_a_blocked_shipping_confirmation_names_its_block_and_skips_the_order_lookup(): void {
 		$status = $this->status(
-			array( TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION => TransactionalGate::REASON_TRIGGER_OFF ),
+			array(
+				TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION => TransactionalGate::REASON_TRIGGER_OFF,
+				TransactionalGate::TRIGGER_FOLLOW_UP             => TransactionalGate::REASON_TRIGGER_OFF,
+			),
 			array(),
 			array( 'label-printed' )
 		);
@@ -102,6 +115,18 @@ final class TransactionalStatusTest extends TestCase {
 
 		self::assertSame( array(), $snapshot[ TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ]['untickedRecentStatuses'] );
 		self::assertSame( 0, $status->order_lookups, 'The first blocking reason is what the merchant needs; no order query for it.' );
+	}
+
+	public function test_a_ready_follow_up_warns_against_its_own_ticked_statuses(): void {
+		// PRO-4095: the follow-up counts its own statuses, not the shipped set.
+		$this->options[ TransactionalGate::OPTION_FOLLOW_UP_STATUSES ] = array( 'delivered' );
+
+		$status   = $this->status( array(), array(), array( 'processing', 'completed' ) );
+		$snapshot = $status->snapshot();
+
+		self::assertSame( array( 'processing', 'completed' ), $snapshot[ TransactionalGate::TRIGGER_FOLLOW_UP ]['untickedRecentStatuses'] );
+		self::assertSame( array(), $snapshot[ TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ]['untickedRecentStatuses'], 'completed is ticked as shipped.' );
+		self::assertSame( 1, $status->order_lookups, 'Both cards read one order lookup.' );
 	}
 
 	/**

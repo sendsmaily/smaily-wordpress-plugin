@@ -172,6 +172,41 @@ final class EventQueueTest extends TestCase {
 		self::assertFalse( $scheduled, 'A finished row needs no flush pass.' );
 	}
 
+	public function test_enqueue_scheduled_parks_the_row_until_it_is_due(): void {
+		// PRO-4095: a follow-up waits as pending, not due until $due_at —
+		// pending() leaves it out until then.
+		$wpdb            = $this->fake_wpdb_with_successful_insert( 88 );
+		$GLOBALS['wpdb'] = $wpdb;
+		$scheduled       = false;
+		Functions\when( 'as_enqueue_async_action' )->alias(
+			static function () use ( &$scheduled ): int {
+				$scheduled = true;
+				return 1;
+			}
+		);
+
+		$id = ( new EventQueue() )->enqueue_scheduled( 'transactional.follow_up', '601', array( 'to' => 'a@b.c' ), '2026-05-26 12:00:00' );
+
+		self::assertSame( 88, $id );
+		$row = $wpdb->inserts[0]['data'];
+		self::assertSame( EventQueue::STATUS_PENDING, $row['status'] );
+		self::assertSame( '2026-05-26 12:00:00', $row['next_retry_at'] );
+		self::assertSame( '{"to":"a@b.c"}', $row['payload'] );
+		self::assertFalse( $scheduled, 'Its own flusher\'s recurring pass picks it up once due.' );
+	}
+
+	public function test_mark_skipped_finishes_a_queued_row_with_its_reason(): void {
+		$wpdb            = $this->fake_wpdb_full();
+		$GLOBALS['wpdb'] = $wpdb;
+
+		( new EventQueue() )->mark_skipped( 9, 'order_closed' );
+
+		self::assertSame( array( 'id' => 9 ), $wpdb->updates[0]['where'] );
+		self::assertSame( EventQueue::STATUS_SENT, $wpdb->updates[0]['data']['status'] );
+		self::assertNull( $wpdb->updates[0]['data']['sent_payload'] );
+		self::assertSame( 'order_closed', EventQueue::skip_reason( $wpdb->updates[0]['data']['last_response'] ) );
+	}
+
 	public function test_skip_reason_is_empty_for_every_other_stored_response(): void {
 		self::assertSame( '', EventQueue::skip_reason( '' ) );
 		self::assertSame( '', EventQueue::skip_reason( '{"http":200,"outcome":"accepted"}' ) );

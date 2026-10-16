@@ -509,7 +509,7 @@ class EventsEndpoint {
 		$where_sql = $where === array() ? '' : ' WHERE ' . implode( ' AND ', $where );
 
 		$sql = sprintf(
-			'SELECT id, %s AS source, event_type, entity_id, status, attempts, %s AS max_attempts, last_error, created_at, %s AS retry_payload, %s AS last_response FROM %s%s',
+			'SELECT id, %s AS source, event_type, entity_id, status, attempts, %s AS max_attempts, last_error, created_at, next_retry_at, %s AS retry_payload, %s AS last_response FROM %s%s',
 			$this->quote( $source ),
 			$max_attempts_expr,
 			$this->conditional_column_expr(
@@ -624,6 +624,9 @@ class EventsEndpoint {
 			// like every terminal skip; the row must read "skipped" and say
 			// why. '' on every other row.
 			'skip_reason'           => EventQueue::skip_reason( (string) ( $row['last_response'] ?? '' ) ),
+			// PRO-4095: a follow-up email waiting for its delay — when it
+			// will be sent (UTC), '' on every other row.
+			'scheduled_for'         => $this->scheduled_for( $row ),
 			// PRO-2324: may the merchant deliberately send this confirmation
 			// a second time? Only a transactional row Smaily itself sent, on
 			// an order that still exists.
@@ -637,7 +640,24 @@ class EventsEndpoint {
 	}
 
 	/**
-	 * Whether the row is one of the two transactional-email types — the only
+	 * When a pending follow-up row falls due, '' when it is not one or is
+	 * already due. A retry park (record_attempt()) is due at once, so only
+	 * the delay the row was queued with reads as a future time.
+	 *
+	 * @param array<string, mixed> $row
+	 */
+	private function scheduled_for( array $row ): string {
+		$due = (string) ( $row['next_retry_at'] ?? '' );
+
+		return (string) ( $row['event_type'] ?? '' ) === TransactionalFlusher::EVENT_TYPE_FOLLOW_UP
+			&& (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_PENDING
+			&& $due > current_time( 'mysql', true )
+			? $due
+			: '';
+	}
+
+	/**
+	 * Whether the row is one of the transactional-email types — the only
 	 * rows either Event Log action applies to. Which action, and to which
 	 * status, is the caller's own compare.
 	 *
