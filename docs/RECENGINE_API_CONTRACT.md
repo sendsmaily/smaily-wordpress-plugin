@@ -1,8 +1,8 @@
 # Smaily Recommendation Engine — API Contract v1.12
 
-**Version**: 1.12.0
+**Version**: 1.12.1
 **Published**: 2026-05-19
-**Last updated**: 2026-10-06 (v1.12.0 — new §3c `POST /api/v1/ingest/catalog/manifest`: once a night the sender sends every product code with its stock; the engine removes products missing from the list (as §3b), corrects stock, counts products it does not have, and a truncation guard removes nothing when the list is empty or would remove more than 20% of the live catalog. MINOR bump: new endpoint — PRO-3763)
+**Last updated**: 2026-10-15 (v1.12.1 — §5 states that a later sync of the same order keeps the attribution fields it omits, and that `null` on one of them rejects the order. PATCH bump: wording only — PRO-4051)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -1041,6 +1041,13 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 
 **Items are fully replaced on update.** Re-ingesting an existing `external_order_id` UPSERTs the order and **fully replaces its line items** (the previous `order_items` are deleted and the new set inserted) — the order is the unit, not the line item. Send the complete item set on every order.
 
+<a id="attribution-fields-on-resync"></a>
+**Attribution fields on a later sync** (v1.12.1, PRO-4051). Unlike the items, the order's attribution fields are not cleared by omission. When a later sync of the same `external_order_id` omits `smaily_rec_id`, `smaily_rec_ctx`, `smaily_visitor_token` or `session_id`, the engine keeps the value that an earlier sync stored. A later sync that carries a value replaces the stored value. To keep a stored value, **omit** the field:
+- `null` on any of these four fields fails per-order validation: the order lands in `errors[]` and is not written, as for a [malformed `smaily_rec_id`](#rec-id-uuid-validation).
+- `""` is a value, not an omission. On `smaily_rec_id` it rejects the order; on `smaily_rec_ctx`, `smaily_visitor_token` and `session_id` it replaces the stored value with an empty string.
+
+A later sync that adds a `smaily_visitor_token` binds it to the order's customer ([below](#store-created-visitor-token)). Purchase credit is computed once per order, by the first attribution run after the order is written (see *Attribution is asynchronous* below): a field that arrives after that run is stored, but it does not change the credit already computed.
+
 **Response 200 OK** (per-order partial success — the D6 contract):
 ```json
 {
@@ -1082,7 +1089,7 @@ Matching steps (run by the cron; PRO-1524, 2026-07-23 — a former 4th-priority
 - **Response.** The binding is not reported in the response; the response shape does not change.
 
 <a id="rec-id-uuid-validation"></a>
-**`smaily_rec_id` is UUID-validated, and a bad value costs the order — not just the field.** The value is a `recommendations.rec_id`, so the route types it as a UUID (`z.string().uuid()`). A present-but-malformed value (a truncated cookie, a `rec_abc123`-style placeholder, an empty string) fails per-order validation: that order lands in `errors[]` with `field: "smaily_rec_id"` and is **not written** — the order's revenue is lost to the engine, not merely its attribution. This is the standard per-order rejection path described above: the rest of the batch still processes, the rejected order's `event_id` is not registered, and a corrected retry writes it normally. **Sender rule**: omit the field entirely when there is no cookie or the cookie value is not a well-formed UUID. Omitted (or `null`) is always safe — the order then attributes through the visitor-token or email-click mechanism, or as `control_purchase`. Do not send `""`.
+**`smaily_rec_id` is UUID-validated, and a bad value costs the order — not just the field.** The value is a `recommendations.rec_id`, so the route types it as a UUID (`z.string().uuid()`). A present-but-malformed value (a truncated cookie, a `rec_abc123`-style placeholder, an empty string) fails per-order validation: that order lands in `errors[]` with `field: "smaily_rec_id"` and is **not written** — the order's revenue is lost to the engine, not merely its attribution. This is the standard per-order rejection path described above: the rest of the batch still processes, the rejected order's `event_id` is not registered, and a corrected retry writes it normally. **Sender rule**: omit the field entirely when there is no cookie or the cookie value is not a well-formed UUID. Omitted is always safe — the order then attributes through the visitor-token or email-click mechanism, or as `control_purchase`. Do not send `""` or `null` ([attribution fields on a later sync](#attribution-fields-on-resync)).
 
 **Idempotency**: two layers, as described in [Idempotency](#idempotency):
 - **Layer 1**: `(tenant_id, external_order_id)` natural-key UPSERT (items are fully replaced on update).
@@ -2332,6 +2339,13 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **One list per store.** The list covers the whole store catalog, however many connections feed the tenant.
 - **Lifecycle wording.** §3 "no delete-by-absence" and §3b "the only delete signal" now name the manifest as the one place absence counts; the "known gap" paragraph now says what the manifest heals and what still needs a full import.
 - **What the plugin does.** Send the manifest once a night from the store's full product list. A plugin that does not send it keeps working; lost events then stay unhealed as before.
+
+**v1.12.1** (2026-10-15) — **§5: a later sync of the same order keeps the attribution fields it omits**. PATCH bump per the [Versioning](#versioning) rule (wording only — no new endpoint, no new field, no shape change; the contract now states what the engine already does). PRO-4051:
+- **The gap.** §5 said that items are fully replaced on re-ingest, but not what happens to the order's attribution fields. A sender that sends an order first and its visit identity later could not know whether a sync without the fields erases them.
+- **The rule ([attribution fields on a later sync](#attribution-fields-on-resync)).** An omitted `smaily_rec_id`, `smaily_rec_ctx`, `smaily_visitor_token` or `session_id` keeps the stored value; a sent value replaces it. `null` on any of the four rejects the order. `""` rejects the order on `smaily_rec_id` and replaces the stored value on the other three.
+- **Correction.** The `smaily_rec_id` sender rule said that `null` is always safe. It is not: `null` has always rejected the order. Omit the field instead.
+- **Credit timing.** Purchase credit is computed once per order, by the first attribution run after the order is written. A field that arrives later is stored and binds a visitor token, but it does not change the credit already computed.
+- **What the plugin does.** Omit an attribution field that has no value; never send it as `null`. A plugin that already omits empty fields changes nothing.
 
 ### Appendix F: Migration notes
 
