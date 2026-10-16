@@ -314,10 +314,10 @@ export function EventLog(): React.JSX.Element {
                     {/* A withdrawn abandoned-cart reminder is stored `sent`
                         (terminal, never retried) but nothing was sent — say
                         so on the row itself, not only in Details (PRO-2372). */}
-                    <Pill tone={row.cancelled || row.skip_reason !== '' ? 'neutral' : statusTone(row.status)} dot>
+                    <Pill tone={row.cancelled || row.skipped ? 'neutral' : statusTone(row.status)} dot>
                       {row.cancelled
                         ? __('cancelled', 'smaily-connect')
-                        : row.skip_reason !== ''
+                        : row.skipped
                           ? __('skipped', 'smaily-connect')
                           : row.scheduled_for !== ''
                             ? __('scheduled', 'smaily-connect')
