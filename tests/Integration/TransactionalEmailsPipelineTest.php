@@ -273,7 +273,10 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
 		self::assertSame( 'sent', $row['status'], 'Finished — nothing retries it.' );
 		self::assertNull( $row['sent_payload'] );
-		$listed = $this->listed_row( (int) $row['id'], 'sent' );
+		// A skipped row reads "skipped" and is left out of the Sent filter (PRO-4098).
+		$listed = $this->listed_row( (int) $row['id'], '' );
+		self::assertTrue( $listed['skipped'] );
+		self::assertArrayNotHasKey( (int) $row['id'], RestRequestHelper::listed_smaily_events( 'sent' ) );
 		self::assertSame( $reason, $listed['skip_reason'], 'The Event Log says why.' );
 		self::assertFalse( $listed['can_send_again'] );
 	}
@@ -362,7 +365,10 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertSame( array( 'outcome' => 'skipped', 'reason' => TransactionalGate::REASON_NO_WORKFLOW ), json_decode( (string) $row['last_response'], true ) );
 		self::assertStringNotContainsString( 'skipped@example.test', (string) wp_json_encode( $row ), 'No email address in the row.' );
 
-		$listed = $this->listed_row( (int) $row['id'], 'sent' );
+		// A skipped row reads "skipped" and is left out of the Sent filter (PRO-4098).
+		$listed = $this->listed_row( (int) $row['id'], '' );
+		self::assertTrue( $listed['skipped'] );
+		self::assertArrayNotHasKey( (int) $row['id'], RestRequestHelper::listed_smaily_events( 'sent' ) );
 		self::assertSame( TransactionalGate::REASON_NO_WORKFLOW, $listed['skip_reason'] );
 		self::assertFalse( $listed['can_send_again'], 'Nothing reached the shopper, so there is nothing to send again.' );
 
