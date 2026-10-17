@@ -1030,6 +1030,23 @@ merchant never saw the failure or the retry it promises. Two rules:
 The unit test asserted only `updates[0]` was `failed`, while its comment
 said "no further updates" — assert the count, not just the first write.
 
+### 2.29 Two PRs green on their own can be red together (PRO-4098, Event Log Sent filter, 2026-10-16)
+
+PR #238 made the Event Log's Sent filter leave out rows whose stored outcome
+is `skipped`. The tests that PR #230 and PR #234 had already merged looked
+their skipped rows up UNDER the Sent filter. Each PR's CI was green on its own
+base; together they failed 4 integration tests on both order-storage legs.
+It was caught only because #238's CI ran again after main was merged into it —
+had #238 been merged on its earlier green run, main would have gone red. A CI
+result proves the PR against the main it ran on, not the main it lands on.
+Rule:
+1. **When several PRs are open at once, merge one, then let the next PR's CI
+   run against the new main** (merge main into it, or re-run its checks)
+   before merging it.
+2. **Never merge two PRs back-to-back on CI results from before the first
+   merge** — the more of them change the same area (here: the Event Log and
+   its tests), the likelier the pair breaks where neither does alone.
+
 ---
 
 ## 4. Concrete checklist for the start of a new project

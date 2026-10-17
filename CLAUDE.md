@@ -1478,6 +1478,11 @@ bypass. So every change — code, docs, a contract sync, a release bump — goes
 
 The old "push directly to main" rhythm (and the earlier fork's) is history.
 
+**With several PRs open, merge one at a time and let the next one's CI run
+against the new main before merging it** (merge main into it or re-run its
+checks) — two PRs green on their own were red together on 2026-10-16
+(LESSONS §2.29).
+
 **A batch of several open PRs may leave STATUS.md to one batch PR (Erkki,
 2026-10-06).** When several feature PRs are open at once, each one that adds
 its STATUS bullet at the same spot puts every other one in conflict on each
