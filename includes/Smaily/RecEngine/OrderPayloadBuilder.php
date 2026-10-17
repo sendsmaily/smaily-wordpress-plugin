@@ -11,6 +11,7 @@ namespace Smaily\Connect\Smaily\RecEngine;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Support\AttributionShape;
 use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
 use Smaily\Connect\Smaily\RecEngine\Support\RecId;
@@ -28,12 +29,13 @@ use Smaily\Connect\Support\DebugLog;
  * orders have order ids. Items are fully replaced on re-ingest (the order is
  * the unit); send the complete item set every time.
  *
- * Status mapping (F3-22): WC order statuses are mapped to the engine's 4-value
- * enum. completed/processing/cancelled/refunded map directly; `on-hold` maps
- * to `processing` (a placed order awaiting payment — BACS/COD/cheque — is a
- * real purchase intent, common in the pilot's market). Anything else
- * (pending / failed / draft / custom) is NOT a confirmed purchase and maps to
- * `''` — the OrderHookHandler skips those orders (and logs unknown statuses).
+ * Status mapping (F3-42): WC order statuses are mapped to the engine's 4-value
+ * enum. completed/processing/cancelled/refunded map directly; any other sale
+ * status — a merchant's custom fulfilment status included — maps to
+ * `processing`. Only the NON_SALE_STATUSES (pending / on-hold / failed /
+ * draft / trash / …) are NOT a confirmed purchase and map to `''` — the
+ * OrderHookHandler skips those orders. `on-hold` is non-sale: F3-42 reversed
+ * F3-22's on-hold→processing (payment not yet captured).
  * The engine requires the enum, so the builder never sends a raw WC status.
  *
  * Empty-value policy mirrors the other builders (F2-10): an OPTIONAL field
@@ -223,7 +225,7 @@ class OrderPayloadBuilder {
 	 * but a 'wc-' prefix is normalised defensively. (DECISIONS F3-42.)
 	 */
 	public function map_status( string $wc_status ): string {
-		$key = ( strpos( $wc_status, 'wc-' ) === 0 ) ? substr( $wc_status, 3 ) : $wc_status;
+		$key = OrderBackfillJob::bare_status( $wc_status );
 		if ( $key === '' || in_array( $key, self::NON_SALE_STATUSES, true ) ) {
 			return '';
 		}

@@ -54,7 +54,7 @@ class OrderBackfillJob extends AbstractBackfillJob {
 
 	protected function count_total(): int {
 		global $wpdb;
-		$spec         = self::table_spec( $this->is_hpos(), $wpdb->prefix );
+		$spec         = self::table_spec( self::uses_hpos(), $wpdb->prefix );
 		$statuses     = $this->non_sale_status_slugs();
 		$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
@@ -71,7 +71,7 @@ class OrderBackfillJob extends AbstractBackfillJob {
 	 */
 	protected function fetch_ids_after( int $after_id, int $limit ): array {
 		global $wpdb;
-		$spec         = self::table_spec( $this->is_hpos(), $wpdb->prefix );
+		$spec         = self::table_spec( self::uses_hpos(), $wpdb->prefix );
 		$statuses     = $this->non_sale_status_slugs();
 		$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
@@ -115,6 +115,24 @@ class OrderBackfillJob extends AbstractBackfillJob {
 		);
 	}
 
+	/**
+	 * Whether the store uses HPOS (the wc_orders custom table) — the `$hpos`
+	 * argument table_spec() takes. The OrderUtil helper handles the "enabled
+	 * but not yet synced" transition correctly.
+	 */
+	public static function uses_hpos(): bool {
+		return class_exists( OrderUtil::class )
+			&& OrderUtil::custom_orders_table_usage_is_enabled();
+	}
+
+	/**
+	 * A WC order status without its stored 'wc-' prefix ('wc-completed' →
+	 * 'completed'); a status without the prefix comes back unchanged.
+	 */
+	public static function bare_status( string $status ): string {
+		return strpos( $status, 'wc-' ) === 0 ? substr( $status, 3 ) : $status;
+	}
+
 	protected function enqueue_record( int $entity_id ): void {
 		$this->queue->enqueue(
 			OrderFlusher::EVENT_ORDER_UPSERT,
@@ -124,16 +142,6 @@ class OrderBackfillJob extends AbstractBackfillJob {
 			OrderFlusher::FLUSH_HOOK,
 			OrderFlusher::AS_GROUP
 		);
-	}
-
-	/**
-	 * Whether the store uses HPOS (the wc_orders custom table). Mirrors
-	 * EnvDetector — the OrderUtil helper handles the "enabled but not yet
-	 * synced" transition correctly.
-	 */
-	protected function is_hpos(): bool {
-		return class_exists( OrderUtil::class )
-			&& OrderUtil::custom_orders_table_usage_is_enabled();
 	}
 
 	/**

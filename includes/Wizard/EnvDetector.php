@@ -26,6 +26,7 @@ use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\ContactSyncMode;
+use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\SubscriberPayloadBuilder;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
@@ -240,7 +241,7 @@ class EnvDetector {
 		}
 		$statuses = array();
 		foreach ( wc_get_order_statuses() as $key => $label ) {
-			$slug       = ( strpos( (string) $key, 'wc-' ) === 0 ) ? substr( (string) $key, 3 ) : (string) $key;
+			$slug       = OrderBackfillJob::bare_status( (string) $key );
 			$statuses[] = array(
 				'slug' => $slug,
 				'name' => (string) $label,

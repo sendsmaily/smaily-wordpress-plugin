@@ -19,6 +19,7 @@ const ROW = {
   retry_refusal_message: '',
   can_send_again: false,
   cancelled: false,
+  skipped: false,
   skip_reason: '',
   scheduled_for: '',
 };
@@ -355,6 +356,7 @@ describe('EventLog', () => {
           event_type: 'transactional.follow_up',
           status: 'sent',
           last_error: '',
+          skipped: true,
           skip_reason: 'order_closed',
         },
       ],
@@ -382,6 +384,7 @@ describe('EventLog', () => {
           event_type: 'transactional.shipping_confirmation',
           status: 'sent',
           last_error: '',
+          skipped: true,
           skip_reason: 'no_workflow',
         },
       ],
@@ -397,6 +400,21 @@ describe('EventLog', () => {
     expect(screen.queryByText('sent')).not.toBeInTheDocument();
     expect(screen.getByText('No workflow is chosen for this email.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send again' })).not.toBeInTheDocument();
+  });
+
+  it('reads any other skipped row as skipped, even with no reason (PRO-4098)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [{ ...ROW, id: 62, status: 'sent', last_error: '', skipped: true }],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+
+    render(<EventLog />);
+
+    expect(await screen.findByText('skipped')).toBeInTheDocument();
+    expect(screen.queryByText('sent')).not.toBeInTheDocument();
   });
 
   /**

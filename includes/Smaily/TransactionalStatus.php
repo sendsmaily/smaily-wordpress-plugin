@@ -11,7 +11,6 @@ namespace Smaily\Connect\Smaily;
 
 defined( 'ABSPATH' ) || exit;
 
-use Automattic\WooCommerce\Utilities\OrderUtil;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- read-only admin-screen queries: table/column names come from $wpdb->prefix + class constants / OrderBackfillJob::table_spec(); values are prepare()d.
@@ -150,8 +149,7 @@ class TransactionalStatus {
 			return array();
 		}
 
-		$hpos = class_exists( OrderUtil::class ) && OrderUtil::custom_orders_table_usage_is_enabled();
-		$spec = OrderBackfillJob::table_spec( $hpos, $wpdb->prefix );
+		$spec = OrderBackfillJob::table_spec( OrderBackfillJob::uses_hpos(), $wpdb->prefix );
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
@@ -171,7 +169,7 @@ class TransactionalStatus {
 			if ( (string) ( $row['modified'] ?? '' ) < $cutoff || ! isset( $registered[ $status ] ) ) {
 				continue;
 			}
-			$statuses[ strpos( $status, 'wc-' ) === 0 ? substr( $status, 3 ) : $status ] = true;
+			$statuses[ OrderBackfillJob::bare_status( $status ) ] = true;
 		}
 
 		return array_map( 'strval', array_keys( $statuses ) );

@@ -147,6 +147,82 @@ final class RecEngineEventsTest extends TestCase {
 		self::assertContains( 'automation.welcome', $types );
 	}
 
+	/**
+	 * PRO-4098: rows skipped for good are stored `sent` with a `skipped`
+	 * outcome — the D6 flushers' terminal skip (rec queue), the Smaily
+	 * flushers' terminal skip (a note, no reason) and a transactional skip
+	 * (a reason). Seeds one of each in the shapes the writers store.
+	 */
+	private function seed_skipped_rows(): void {
+		global $wpdb;
+		$now = current_time( 'mysql', true );
+
+		$wpdb->insert(
+			$this->rec_table(),
+			array(
+				'event_type'    => 'order.upsert',
+				'entity_id'     => '43',
+				'event_uuid'    => wp_generate_uuid4(),
+				'payload'       => '[]',
+				'created_at'    => $now,
+				'attempts'      => 1,
+				'max_attempts'  => 5,
+				'status'        => 'sent',
+				'last_response' => '{"outcome":"skipped","note":"row not in a sendable state (entity gone, no longer a confirmed sale, or no product lines) — nothing was POSTed"}',
+			)
+		);
+		$wpdb->insert(
+			$this->smaily_table(),
+			array(
+				'event_type'    => 'contact.sync',
+				'entity_id'     => 'e@f.test',
+				'payload'       => '[]',
+				'created_at'    => $now,
+				'attempts'      => 1,
+				'status'        => 'sent',
+				'last_response' => '{"outcome":"skipped","note":"nothing was POSTed"}',
+			)
+		);
+		( new EventQueue() )->record_skipped( 'transactional.order_confirmation', '44', 'no_workflow' );
+	}
+
+	public function test_sent_filter_leaves_out_skipped_rows_from_both_queues(): void {
+		$this->seed_skipped_rows();
+
+		$data = $this->list( array( 'status' => 'sent' ) );
+
+		// Only the two rows setUp sent — their last_response is NULL, which
+		// must not drop them from the filter.
+		self::assertSame( 2, $data['total'] );
+		self::assertEqualsCanonicalizing(
+			array( 'SKU-1', 'a@b.test' ),
+			array_column( $data['events'], 'entity_id' )
+		);
+	}
+
+	public function test_list_marks_every_skipped_row_as_skipped(): void {
+		$this->seed_skipped_rows();
+
+		$skipped = array();
+		foreach ( $this->list()['events'] as $event ) {
+			$skipped[ $event['source'] . ':' . $event['entity_id'] ] = $event['skipped'];
+		}
+
+		ksort( $skipped, SORT_STRING );
+		self::assertSame(
+			array(
+				'rec_engine:42'    => false,
+				'rec_engine:43'    => true,
+				'rec_engine:SKU-1' => false,
+				'smaily:44'        => true,
+				'smaily:a@b.test'  => false,
+				'smaily:c@d.test'  => false,
+				'smaily:e@f.test'  => true,
+			),
+			$skipped
+		);
+	}
+
 	public function test_failed_24h_counts_both_queues(): void {
 		$data = $this->list();
 		self::assertSame( 2, $data['failed_24h'] );

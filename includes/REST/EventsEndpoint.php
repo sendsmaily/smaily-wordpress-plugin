@@ -14,7 +14,6 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
-use Automattic\WooCommerce\Utilities\OrderUtil;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\EventQueue;
@@ -61,6 +60,9 @@ class EventsEndpoint {
 	/** Sources the UNION exposes; the value doubles as the wire `source`. */
 	private const SOURCE_REC    = 'rec_engine';
 	private const SOURCE_SMAILY = 'smaily';
+
+	/** How a skipped outcome reads in a stored `last_response` (both queues write it with wp_json_encode). */
+	private const SKIPPED_MARKER = '"outcome":"' . EventQueue::OUTCOME_SKIPPED . '"';
 
 	/** @var callable(): TransactionalResend */
 	private $resend_factory;
@@ -494,12 +496,21 @@ class EventsEndpoint {
 	 * @return array{0: string, 1: array<int, scalar>}
 	 */
 	private function branch( string $table, string $source, string $max_attempts_expr, string $status, string $type ): array {
+		global $wpdb;
+
 		$where  = array();
 		$params = array();
 
 		if ( $status !== '' ) {
 			$where[]  = 'status = %s';
 			$params[] = $status;
+		}
+		// A skipped row is stored `sent` but nothing was sent (PRO-4098), so
+		// the Sent filter leaves it out — the SQL twin of is_skipped(). A row
+		// with no stored response (NULL) stays in.
+		if ( $status === EventQueue::STATUS_SENT ) {
+			$where[]  = "COALESCE( last_response, '' ) NOT LIKE %s";
+			$params[] = '%' . $wpdb->esc_like( self::SKIPPED_MARKER ) . '%';
 		}
 		if ( $type !== '' ) {
 			$where[]  = 'event_type = %s';
@@ -512,13 +523,14 @@ class EventsEndpoint {
 			'SELECT id, %s AS source, event_type, entity_id, status, attempts, %s AS max_attempts, last_error, created_at, next_retry_at, %s AS retry_payload, %s AS last_response FROM %s%s',
 			$this->quote( $source ),
 			$max_attempts_expr,
-			$this->conditional_column_expr(
-				$source,
-				'payload',
-				EventQueue::STATUS_FAILED,
-				' AND event_type IN ( ' . implode( ', ', array_map( array( $this, 'quote' ), TransactionalFlusher::EVENT_TYPES ) ) . ' )'
-			),
-			$this->conditional_column_expr( $source, 'last_response', EventQueue::STATUS_SENT ),
+			$source === self::SOURCE_SMAILY
+				? $this->conditional_column_expr(
+					'payload',
+					EventQueue::STATUS_FAILED,
+					' AND event_type IN ( ' . implode( ', ', array_map( array( $this, 'quote' ), TransactionalFlusher::EVENT_TYPES ) ) . ' )'
+				)
+				: "''",
+			$this->conditional_column_expr( 'last_response', EventQueue::STATUS_SENT ),
 			$table,
 			$where_sql
 		);
@@ -624,6 +636,9 @@ class EventsEndpoint {
 			// like every terminal skip; the row must read "skipped" and say
 			// why. '' on every other row.
 			'skip_reason'           => EventQueue::skip_reason( (string) ( $row['last_response'] ?? '' ) ),
+			// PRO-4098: every row skipped for good, from either queue, with
+			// or without a reason, reads "skipped" — not "sent".
+			'skipped'               => self::is_skipped( (string) ( $row['status'] ?? '' ), (string) ( $row['last_response'] ?? '' ) ),
 			// PRO-4095: a follow-up email waiting for its delay — when it
 			// will be sent (UTC), '' on every other row.
 			'scheduled_for'         => $this->scheduled_for( $row ),
@@ -637,6 +652,22 @@ class EventsEndpoint {
 				(string) ( $row['last_response'] ?? '' )
 			),
 		);
+	}
+
+	/**
+	 * Whether a row was skipped for good (PRO-4098): stored `sent` — it is
+	 * terminal and never retried — with a `skipped` outcome, so nothing was
+	 * sent. Every terminal skip in both queues records that outcome. A failed
+	 * row stays failed. The Sent filter's SQL in branch() is its twin.
+	 */
+	public static function is_skipped( string $status, string $last_response ): bool {
+		if ( $status !== EventQueue::STATUS_SENT ) {
+			return false;
+		}
+
+		$decoded = json_decode( $last_response, true );
+
+		return is_array( $decoded ) && ( $decoded['outcome'] ?? '' ) === EventQueue::OUTCOME_SKIPPED;
 	}
 
 	/**
@@ -713,7 +744,7 @@ class EventsEndpoint {
 
 		$ids = array_values( array_unique( $ids ) );
 
-		if ( class_exists( OrderUtil::class ) && OrderUtil::custom_orders_table_usage_is_enabled() ) {
+		if ( OrderBackfillJob::uses_hpos() ) {
 			/** @var int[] $found `return => ids` yields ids — the stub types wc_get_orders() as WC_Order[]. */
 			$found = wc_get_orders(
 				array(
@@ -785,24 +816,20 @@ class EventsEndpoint {
 	/**
 	 * One heavy column carried only for the rows that actually need it, the
 	 * empty literal for the rest — so a page of ordinary events doesn't drag
-	 * it out of the database. The rec queue needs neither of them, so it gets
-	 * the literal outright.
+	 * it out of the database.
 	 *
-	 * `payload` is carried for FAILED transactional rows: the list reads it
-	 * to tell a re-fired-native-email failure from one the shopper never got
-	 * (PRO-1733). `last_response` is carried for SENT rows, where a withdrawn
-	 * abandoned-cart reminder records `cancelled` (PRO-1723) and the list must
-	 * label it as such (PRO-2372); a failed row's response is the big one
-	 * nobody needs here.
+	 * `payload` is carried for FAILED transactional rows (Smaily queue only):
+	 * the list reads it to tell a re-fired-native-email failure from one the
+	 * shopper never got (PRO-1733). `last_response` is carried for SENT rows
+	 * of both queues, where a withdrawn abandoned-cart reminder records
+	 * `cancelled` (PRO-1723, PRO-2372) and a row skipped for good records
+	 * `skipped` (PRO-4098), and the list must label each as such; a failed
+	 * row's response is the big one nobody needs here.
 	 *
 	 * @param string $extra_condition Already-quoted SQL appended to the status
 	 *                                test, or '' for none.
 	 */
-	private function conditional_column_expr( string $source, string $column, string $status, string $extra_condition = '' ): string {
-		if ( $source !== self::SOURCE_SMAILY ) {
-			return "''";
-		}
-
+	private function conditional_column_expr( string $column, string $status, string $extra_condition = '' ): string {
 		return sprintf(
 			"CASE WHEN status = %s%s THEN %s ELSE '' END",
 			$this->quote( $status ),

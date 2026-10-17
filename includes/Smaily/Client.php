@@ -98,8 +98,10 @@ class Client {
 	 *       "created_at": ..., "activated_at": ... }, … ]
 	 *
 	 * We pass `status=ACTIVE` so the dropdown only carries automations
-	 * the merchant can actually use; legacy mappings that point at an
-	 * INACTIVE workflow are surfaced as warnings by the React layer.
+	 * the merchant can actually use. A saved mapping whose workflow is
+	 * not in that list (deactivated or deleted in Smaily) shows in its
+	 * menu as "#<id> — inactive" (PRO-4092), and a transactional email's
+	 * status line says the chosen workflow is not active in Smaily.
 	 *
 	 * Sub-PR 2.H.14 — previously this method called `workflows.php`
 	 * with `trigger_type=form_submitted`, which isn't a real Smaily

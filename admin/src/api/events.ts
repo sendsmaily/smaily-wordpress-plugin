@@ -44,9 +44,15 @@ export interface EventRow {
    */
   cancelled: boolean;
   /**
+   * Whether this row was skipped for good (PRO-4098) — stored `sent` (it is
+   * terminal and never retried) but nothing was sent, from either queue, so
+   * the list says "skipped". The Sent filter leaves these rows out.
+   */
+  skipped: boolean;
+  /**
    * Why an order/shipping confirmation could not go out, '' on every other
    * row (PRO-4091) — a code the screen words (transactionalReasonMessage).
-   * Stored `sent` like every terminal skip, so the list says "skipped".
+   * Only some skipped rows carry one.
    */
   skip_reason: string;
   /**
