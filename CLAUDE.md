@@ -1377,8 +1377,8 @@ delete after) like the legacy-WC verification used:
 
 then `npx @wordpress/env start --update` (NOT `npx wp-env` — that alias only
 prints a deprecation notice and exits 0 WITHOUT starting, which silently looks
-like success), reset the carried-over HPOS options so `is_hpos()=false`, run
-the suite, and restore the default env afterwards (delete the override +
+like success), reset the carried-over HPOS options so `OrderBackfillJob::uses_hpos()`
+is false, run the suite, and restore the default env afterwards (delete the override +
 `start --update` again). See the go-live checklist entry in STATUS.md for the
 original WC 6.9.4 walk-through.
 

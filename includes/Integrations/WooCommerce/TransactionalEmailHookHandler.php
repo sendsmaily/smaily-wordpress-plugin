@@ -11,6 +11,7 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
@@ -102,7 +103,7 @@ class TransactionalEmailHookHandler {
 	public function on_order_status_changed( $order_id, $from_status = '', $to_status = '', ?\WC_Order $order = null ): void {
 		unset( $from_status );
 
-		$to        = $this->bare_status( (string) $to_status );
+		$to        = OrderBackfillJob::bare_status( (string) $to_status );
 		$shipped   = in_array( $to, TransactionalGate::shipped_statuses(), true );
 		$follow_up = in_array( $to, TransactionalGate::follow_up_statuses(), true );
 		if ( ! $shipped && ! $follow_up ) {
@@ -159,9 +160,5 @@ class TransactionalEmailHookHandler {
 		}
 		$order = wc_get_order( (int) $order_id );
 		return $order instanceof \WC_Order ? $order : null;
-	}
-
-	private function bare_status( string $status ): string {
-		return strpos( $status, 'wc-' ) === 0 ? substr( $status, 3 ) : $status;
 	}
 }
