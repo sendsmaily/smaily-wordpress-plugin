@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.12
+# Smaily Recommendation Engine — API Contract v1.13
 
-**Version**: 1.12.1
+**Version**: 1.13.0
 **Published**: 2026-05-19
-**Last updated**: 2026-10-15 (v1.12.1 — §5 states that a later sync of the same order keeps the attribution fields it omits, and that `null` on one of them rejects the order. PATCH bump: wording only — PRO-4051)
+**Last updated**: 2026-10-17 (v1.13.0 — §8 export `data_retention_policy` lists every kind of data the privacy policy lists; visitor-token formats, the one token-lifetime rule in §15 and the attribution run interval corrected. MINOR bump: new keys in the export response — PRO-4108, PRO-4088)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -87,7 +87,7 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
 - Tenant IDs: UUID v4
 - Customer IDs: UUID v4 (generated engine-side from the first customer ingest)
 - Recommendation IDs: UUID v4
-- Visitor tokens: opaque string. Engine-issued (email links): prefix `vt_`, 8–12 characters. Store-created at checkout (v1.11.0, [§5](#store-created-visitor-token)): `vs_` + exactly 22 characters `[A-Za-z0-9]`
+- Visitor tokens: opaque strings of up to 64 characters — store, forward and compare a token exactly as received; do not depend on its length or characters. Engine-issued (email links, `smaily_vt`): `vt_` + exactly 10 characters `[a-z0-9]`. Store-created at checkout (v1.11.0, [§5](#store-created-visitor-token)): `vs_` + exactly 22 characters `[A-Za-z0-9]`
 - Order `external_id`: text, plugin/platform-defined
 - SKU: text, max 64 characters
 
@@ -156,7 +156,7 @@ https://shop.example.com/product/widget?
   utm_medium=email&
   smaily_rec=3fa85f64-5717-4562-b3fc-2c963f66afa6&
   smaily_ctx=cart_abandoned&
-  smaily_vt=vt_8f3k2a
+  smaily_vt=vt_8f3k2a9xq4
 ```
 
 **Reserved Smaily-prefixed parameters**:
@@ -966,7 +966,7 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
       "currency": "EUR",
       "status": "completed",
       "smaily_rec_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-      "smaily_visitor_token": "vt_8f3k2a",
+      "smaily_visitor_token": "vt_8f3k2a9xq4",
       "smaily_rec_ctx": "cart_abandoned",
       "session_id": "wp_sess_abc123",
       "items": [
@@ -1065,7 +1065,7 @@ A later sync that adds a `smaily_visitor_token` binds it to the order's customer
 - `deduplicated_all: true` is added when every order was deduplicated (pure no-op retry), e.g. `{"ok":true,"processed":0,"deduplicated":1,"errors":[],"deduplicated_all":true}`.
 - The response carries **no** `created`/`updated`/`skipped`, no `request_id`, and **no attribution counts** — attribution is computed asynchronously (below).
 
-**Attribution is asynchronous.** The orders ingest route only **stores** the attribution signals (`smaily_rec_id` / `smaily_visitor_token` / `session_id` / `smaily_rec_ctx`) on the order. A separate cron (`process-order-attributions`, ~every 30 min) then computes `rec_attribution` rows via the 4-step matching below — **after** ingest, once browse events and recommendations have settled. Attribution counts are therefore **not** in the ingest response.
+**Attribution is asynchronous.** The orders ingest route only **stores** the attribution signals (`smaily_rec_id` / `smaily_visitor_token` / `session_id` / `smaily_rec_ctx`) on the order. A separate cron (`process-order-attributions`, every 15 minutes) then computes `rec_attribution` rows via the 4-step matching below — **after** ingest, once browse events and recommendations have settled. Attribution counts are therefore **not** in the ingest response.
 
 Matching steps (run by the cron; PRO-1524, 2026-07-23 — a former 4th-priority
 `browse_events`/`session_id` fallback was removed here, see Appendix E):
@@ -1135,7 +1135,7 @@ Browse events batch. The highest-volume endpoint.
       "source": "plugin_woo",
       
       "customer_email": "mari@example.com",
-      "smaily_visitor_token": "vt_8f3k2a",
+      "smaily_visitor_token": "vt_8f3k2a9xq4",
       "smaily_rec_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
       "smaily_ctx": "cart_abandoned",
       "external_id": "67"
@@ -1256,7 +1256,7 @@ Anonymous visitor → known customer manual merge. The plugin calls this when a 
 **Rate limit**: 100 req/sec
 
 **Use case**:
-1. Mari arrives at the store via a `?smaily_vt=vt_xyz` link → plugin sets the cookie, starts an anonymous session
+1. Mari arrives at the store via a `?smaily_vt=vt_8f3k2a9xq4` link → plugin sets the cookie, starts an anonymous session
 2. Mari browses a few pages; the plugin sends browse events with `smaily_visitor_token` — the engine resolves customer_id (Mari) → events are linked to Mari
 3. **However, when** the plugin sees Mari is **now logged in** (`is_user_logged_in()` returns true) — but `customer_email` wasn't previously known — the plugin calls `identity/merge` to explicitly preserve the **session-anon-history → known-customer** mapping.
 
@@ -1264,7 +1264,7 @@ Anonymous visitor → known customer manual merge. The plugin calls this when a 
 ```json
 {
   "anon_session_id": "anon_sess_uuid_v4_from_cookie",
-  "smaily_visitor_token": "vt_8f3k2a",
+  "smaily_visitor_token": "vt_8f3k2a9xq4",
   "customer_email": "mari@example.com",
   "customer_external_id": "67",
   "merge_ts": "2026-05-19T10:15:23Z",
@@ -1346,7 +1346,17 @@ GDPR data export. Returns all engine-held data for the customer.
       "browse_events": "90 days",
       "email_events": "365 days",
       "recommendations": "730 days",
-      "orders": "indefinite"
+      "orders": "indefinite: kept as long as the merchant uses the service, or until deleted on request",
+      "replaced_recommendations": "180 days after the replacement; one still linked to a click or purchase record is kept as long as that record, at most 730 days",
+      "decision_log": "30 days",
+      "visitor_tokens": "90 days from creation; a token that arrived with an order 365 days from the latest such order",
+      "rec_attribution": "730 days",
+      "customer_engagement_history": "730 days",
+      "trigger_candidates": "30 days after the engine acted on the signal, or 90 days after detection if it never acted; one still linked to an issued recommendation is kept as long as that recommendation",
+      "edge_weights_log": "90 days",
+      "ingest_event_log": "90 days",
+      "customers": "indefinite: kept as long as the merchant uses the service, or until deleted on request",
+      "catalog": "indefinite: kept as long as the merchant uses the service, or until deleted on request"
     }
   },
   "customer": {
@@ -1422,6 +1432,8 @@ GDPR data export. Returns all engine-held data for the customer.
   "visitor_tokens": []
 }
 ```
+
+> **`data_retention_policy`** (v1.13.0, PRO-4108) lists every kind of data the engine's privacy policy (§4 "How long we keep data") lists, with the period after which the engine's nightly cleanup deletes it. Each value is a human-readable string — show it, do not parse it. `recommendations` is the period for an issued recommendation that was not replaced by a newer one; `replaced_recommendations` is the period for a replaced one. `orders`, `customers` and `catalog` are never deleted automatically; their values start with `indefinite`. Keys are only added, never renamed or removed, within contract 1.x.
 
 > **Note**: `order_items` is a **top-level** array (not nested under `orders`); join on `order_id`. The export does **not** include a `rec_attribution` array (the engine's export omits attribution rows) — if the plugin needs attribution data for a subject-access request, request it separately; it is not part of this endpoint's payload today.
 
@@ -1953,7 +1965,7 @@ Storefront recommendations (v1.9.0, PRO-3781; visitor token v1.10.0, PRO-3834): 
 A returning guest shopper (no store customer account), named by the visitor token from the store's cookie (v1.10.0):
 ```json
 {
-  "smaily_visitor_token": "vt_8f3k2a",
+  "smaily_visitor_token": "vt_8f3k2a9xq4",
   "limit": 4
 }
 ```
@@ -1966,9 +1978,7 @@ A returning guest shopper (no store customer account), named by the visitor toke
 
 **At least one of `customer_external_id` and `smaily_visitor_token` is required.** When the request carries both, **`customer_external_id` wins and the token is ignored entirely** — the engine does not fall back to the token when the customer id finds nobody, because on a shared browser the cookie can belong to a different person than the logged-in shopper.
 
-**Which customer a token names** (v1.11.0). An engine `vt_` token names the customer the engine issued it for, for 90 days from issue. A token carried on an order — a store-created `vs_` token or a `vt_` token — names the order's customer for 365 days from the latest order that carried it ([§5](#store-created-visitor-token)). The empty-answer rules below are the same for both.
-
-**Which customer a visitor token names.** The customer the engine issued the token for, in this tenant, while the token is valid: a token is valid for 90 days after the engine issued it, even though the cookie lives longer. An expired token, a token issued for another tenant, and a value the engine never issued are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
+**Which customer a visitor token names** (v1.11.0; one rule since v1.13.0). The customer the token is bound to in this tenant, while the token is valid. An engine email-link token (`vt_`) is bound to the customer the engine issued it for and is valid for **90 days from issue**. A token carried on an order — a store-created `vs_` token or a `vt_` token — is valid for **365 days from the latest order of its customer that carried it**; an order never shortens a token's lifetime ([§5](#store-created-visitor-token)). The cookie may live longer than the token. An expired token, a token of another tenant, and a value the engine does not know are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
 
 **Never send an email address, name or other contact detail** in this request. The shopper is named by the store's id or the visitor token only. Unknown fields are ignored.
 
@@ -2035,7 +2045,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/recommendations/customer \
 curl -X POST https://intelligence.smaily.com/api/v1/recommendations/customer \
   -H "Authorization: Bearer sk_..." \
   -H "Content-Type: application/json" \
-  -d '{"smaily_visitor_token": "vt_8f3k2a", "limit": 4}'
+  -d '{"smaily_visitor_token": "vt_8f3k2a9xq4", "limit": 4}'
 ```
 
 ---
@@ -2346,6 +2356,14 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **Correction.** The `smaily_rec_id` sender rule said that `null` is always safe. It is not: `null` has always rejected the order. Omit the field instead.
 - **Credit timing.** Purchase credit is computed once per order, by the first attribution run after the order is written. A field that arrives later is stored and binds a visitor token, but it does not change the credit already computed.
 - **What the plugin does.** Omit an attribution field that has no value; never send it as `null`. A plugin that already omits empty fields changes nothing.
+
+**v1.13.0** (2026-10-17) — **§8: the export's retention block lists every kind of data the privacy policy lists; visitor-token and attribution-timing corrections**. MINOR bump per the [Versioning](#versioning) rule (new fields in an existing response; backward-compatible — no key is renamed or removed, no request changes). PRO-4108, PRO-4088:
+- **The gap (§8).** `export_metadata.data_retention_policy` listed four kinds of data; the privacy policy §4 lists twelve. A shopper's data export said less about retention than the policy.
+- **The block ([§8](#8-get-apiv1customeremailexport)).** Ten keys are added: `replaced_recommendations`, `decision_log`, `visitor_tokens`, `rec_attribution`, `customer_engagement_history`, `trigger_candidates`, `edge_weights_log`, `ingest_event_log`, `customers`, `catalog`. `browse_events`, `email_events` and `recommendations` keep their values; `recommendations` is now explicitly the period for a recommendation that was not replaced. The `orders` value changes from `indefinite` to `indefinite: kept as long as the merchant uses the service, or until deleted on request` — the same meaning, stated in full. No retention period changes.
+- **Token formats (Base context).** An engine email-link token is `vt_` + exactly 10 characters `[a-z0-9]` (the contract said 8–12); a store-created token is `vs_` + exactly 22 characters `[A-Za-z0-9]` (unchanged). Connectors treat every token as an opaque string of up to 64 characters. The examples now show a valid `vt_` token.
+- **Token lifetime (§15).** One rule replaces two paragraphs that disagreed: an email-link token is valid for 90 days from issue; a token carried on an order is valid for 365 days from the latest order of its customer that carried it, and is never shortened. The engine behaviour is unchanged since v1.11.0.
+- **Attribution timing (§5).** The `process-order-attributions` run is every 15 minutes, not ~every 30 minutes.
+- **What the plugin does.** Nothing is required. A plugin that shows the export's retention block shows the new keys; a plugin that checks token length accepts up to 64 characters.
 
 ### Appendix F: Migration notes
 
