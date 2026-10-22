@@ -13,6 +13,7 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Multilingual\Router;
+use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Smaily\WorkflowMatch;
 
 final class RouterTest extends TestCase {
@@ -261,6 +262,54 @@ final class RouterTest extends TestCase {
 		( new Router() )->resolve_workflow( 'order_confirmation', null );
 
 		self::assertSame( array( 'order_confirmation', 'default' ), $wpdb->all_args[0] );
+	}
+
+	public function test_a_pushed_design_workflow_replaces_the_mapped_one_and_keeps_its_account(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		$this->stub_options(
+			array(
+				EmailDesignWorkflows::OPTION => array(
+					'plugin.welcome'                   => 9001,
+					'transactional.order_confirmation' => 9002,
+				),
+			)
+		);
+
+		$wpdb->row_queue = array(
+			array( 'workflow_id' => '7', 'account_key' => 'default', 'language' => 'default' ),
+			array( 'workflow_id' => '8', 'account_key' => 'transactional', 'language' => 'et' ),
+			array( 'workflow_id' => '9', 'account_key' => 'default', 'language' => 'default' ),
+		);
+
+		$router  = new Router();
+		$welcome = $router->resolve_workflow( 'welcome', null );
+		$order   = $router->resolve_workflow( 'order_confirmation', 'et' );
+		$cart    = $router->resolve_workflow( 'abandoned_cart', null );
+
+		self::assertSame( 9001, $welcome->workflow_id );
+		self::assertSame( 'default', $welcome->account_key );
+		self::assertSame( 9002, $order->workflow_id );
+		self::assertSame( 'transactional', $order->account_key );
+		self::assertSame( 'et', $order->matched_language );
+		self::assertSame( 9, $cart->workflow_id, 'No pushed workflow: the mapped one is used.' );
+	}
+
+	public function test_a_pushed_design_workflow_does_not_start_an_unmapped_email(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		$this->stub_options( array( EmailDesignWorkflows::OPTION => array( 'plugin.welcome' => 9001 ) ) );
+
+		self::assertNull( ( new Router() )->resolve_workflow( 'welcome', null ) );
+	}
+
+	/**
+	 * @param array<string, mixed> $options Stored options; anything else reads its default.
+	 */
+	private function stub_options( array $options ): void {
+		Functions\when( 'get_option' )->alias(
+			static fn ( string $name, $default = false ) => array_key_exists( $name, $options ) ? $options[ $name ] : $default
+		);
 	}
 
 	/**
