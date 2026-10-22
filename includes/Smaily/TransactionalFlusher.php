@@ -445,6 +445,7 @@ class TransactionalFlusher {
 				if ( $reason !== '' ) {
 					// The row itself says why — no exchange is stored over it.
 					$this->queue->mark_skipped( $id, $reason );
+					$this->date_finished_follow_up( $event_type, $id );
 					return 'skipped';
 				}
 			}
@@ -474,7 +475,25 @@ class TransactionalFlusher {
 
 		$this->record_exchange( $id );
 
+		if ( $outcome !== 'retried' ) {
+			$this->date_finished_follow_up( $event_type, $id );
+		}
+
 		return $outcome;
+	}
+
+	/**
+	 * A follow-up row is queued up to 90 days before it can go out
+	 * (PRO-4095), and its created_at is what "Last sent", the Event Log and
+	 * the janitor's retention read as the time of the send. So once the row
+	 * is finished — sent, skipped or failed — it dates from then (CON-169).
+	 * A row still waiting, or retried after a transient failure, keeps the
+	 * time it was queued; when it will go out is its next_retry_at.
+	 */
+	private function date_finished_follow_up( string $event_type, int $id ): void {
+		if ( $event_type === self::EVENT_TYPE_FOLLOW_UP ) {
+			$this->queue->restart_age( array( $id ) );
+		}
 	}
 
 	/**

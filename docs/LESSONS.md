@@ -1047,6 +1047,24 @@ Rule:
    merge** — the more of them change the same area (here: the Event Log and
    its tests), the likelier the pair breaks where neither does alone.
 
+### 2.30 A row that waits before it sends cannot keep its queue time as its send time (CON-169, follow-up email, 2026-10-22)
+
+PRO-4095 queued the follow-up email as a `pending` row due up to 90 days
+later, and kept the queue's `created_at = now`. Every earlier row was sent
+within the hour it was queued, so three readers had always taken
+`created_at` as the time of the send: the Settings "Last sent" line, the
+Event Log's order, and the janitor's 30-day retention. For the follow-up
+all three were wrong, and with a delay over 30 days the janitor deleted
+every sent row at its next run. The re-audit found it, not a test: the
+tests made the row due by moving `next_retry_at` and never aged it.
+Rules:
+1. **When a row's send can lie far after its insert, list every reader of
+   the row's time before shipping** — retention, "last" lines, list order,
+   ceilings — and decide which time each one means.
+2. **A test of a delayed row ages it the way real time does** (backdate
+   `created_at` by the delay as well as making it due), or the bug the
+   delay creates cannot show.
+
 ---
 
 ## 4. Concrete checklist for the start of a new project
