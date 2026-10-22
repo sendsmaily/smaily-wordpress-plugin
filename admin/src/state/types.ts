@@ -191,6 +191,17 @@ export interface EngineAutomationRow {
 }
 
 /**
+ * The §13 keys that are optional on the wire (contract v1.15.0): a save
+ * sends them only when the merchant set them in the plugin (CON-172).
+ */
+export const MERCHANT_SET_FIELDS = ['automation_map', 'test_mode', 'test_emails'] as const;
+export type MerchantSetField = (typeof MERCHANT_SET_FIELDS)[number];
+
+/** One §13 PUT row: the required fields, plus the optional ones the merchant set. */
+export type EngineAutomationPutRow = Omit<EngineAutomationRow, MerchantSetField> &
+  Partial<Pick<EngineAutomationRow, MerchantSetField>>;
+
+/**
  * §13 422 error entry — also reused for client-side pre-validation
  * issues so the field-binding UI renders both through one path.
  * Wrapper-level entries have no index and field='configs'.
@@ -227,6 +238,14 @@ export interface EngineAutomationsState {
    * record of it.
    */
   realSendsRequested: string[];
+  /**
+   * Per trigger key, the optional §13 fields the merchant changed on the
+   * screen since the rows were read (CON-172). A save sends only these of
+   * the three — the engine keeps its stored value of a left-out key, so a
+   * workflow, test mode or test address list set on the engine's setup
+   * page is never overwritten by a value the merchant did not touch.
+   */
+  changedFields: Record<string, MerchantSetField[]>;
 }
 
 /**
@@ -503,6 +522,7 @@ export const idleEngineAutomations: EngineAutomationsState = {
   saveError: null,
   serverErrors: [],
   realSendsRequested: [],
+  changedFields: {},
 };
 
 export const idleBackfill: BackfillProgress = {
@@ -593,8 +613,17 @@ export type WizardAction =
   // a failure keeps the WHOLE slice dirty).
   | {
       type: 'ENGINE_AUTOMATIONS_HYDRATED';
-      /** afterSave: the re-read that follows a save — keeps the save outcome banner. */
-      payload: { rows: EngineAutomationRow[]; keepDirty: boolean; afterSave?: boolean };
+      /**
+       * afterSave: the re-read that follows a save — keeps the save outcome banner.
+       * mapConverted: triggers whose stored workflow map the screen converted
+       * to the store's language mode — a save sends their map (CON-172).
+       */
+      payload: {
+        rows: EngineAutomationRow[];
+        keepDirty: boolean;
+        afterSave?: boolean;
+        mapConverted?: string[];
+      };
     }
   | { type: 'UPDATE_ENGINE_AUTOMATION'; payload: { triggerKey: string; patch: Partial<EngineAutomationRow> } }
   | { type: 'ENGINE_AUTOMATIONS_SAVE_START' }

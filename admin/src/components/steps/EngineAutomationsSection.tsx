@@ -15,6 +15,7 @@ import {
   engineTriggerStatus,
   fallbackLanguage,
   issuesByTrigger,
+  mapConvertedTriggers,
   pickRecipe,
   setFallbackLanguage,
   updateLanguageWorkflow,
@@ -201,7 +202,12 @@ function ConnectedSection({
     );
     dispatch({
       type: 'ENGINE_AUTOMATIONS_HYDRATED',
-      payload: { rows, keepDirty: engine.dirty, afterSave: rereadAfterSave.current },
+      payload: {
+        rows,
+        keepDirty: engine.dirty,
+        afterSave: rereadAfterSave.current,
+        mapConverted: mapConvertedTriggers(data.configs, derivedMode),
+      },
     });
     rereadAfterSave.current = false;
     // engine.dirty/rows are read on purpose only when data changes — a
@@ -711,7 +717,7 @@ function TestModeBlock({
       sprintf(
         // translators: %s is the automation name, e.g. "Replenishment due".
         __(
-          'Request real sends for "%s"? Once you save, the request goes to Smaily. The automation stays in test mode until Smaily switches real sends on after your confirmation.',
+          'Request real sends for "%s"? The automation stays in test mode until Smaily switches real sends on after your confirmation.',
           'smaily-connect',
         ),
         name,

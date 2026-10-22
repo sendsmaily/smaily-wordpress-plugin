@@ -6,7 +6,9 @@ import {
   idleAsync,
   idleBackfill,
   idleEngineAutomations,
+  MERCHANT_SET_FIELDS,
   type AutomationMapping,
+  type MerchantSetField,
   type ModeAccount,
   type WizardAction,
   type WizardState,
@@ -434,6 +436,12 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
           // A preserved draft keeps its unresolved save errors visible;
           // a fresh hydrate starts clean.
           serverErrors: action.payload.keepDirty ? state.engineAutomations.serverErrors : [],
+          // A preserved draft keeps the merchant's changes; a fresh read
+          // starts from none, except the workflow maps the screen converted.
+          changedFields: (action.payload.mapConverted ?? []).reduce(
+            (changed, key) => withChangedFields(changed, key, ['automation_map']),
+            action.payload.keepDirty ? state.engineAutomations.changedFields : {},
+          ),
         },
       };
 
@@ -446,6 +454,11 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
             row.trigger_key === action.payload.triggerKey
               ? { ...row, ...action.payload.patch }
               : row,
+          ),
+          changedFields: withChangedFields(
+            state.engineAutomations.changedFields,
+            action.payload.triggerKey,
+            MERCHANT_SET_FIELDS.filter((field) => field in action.payload.patch),
           ),
           dirty: true,
           // An edit invalidates the previous save outcome banner.
@@ -474,6 +487,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
           saveError: null,
           serverErrors: [],
           realSendsRequested: action.payload.realSendsRequested,
+          changedFields: {},
         },
       };
 
@@ -539,6 +553,17 @@ function clamp(value: number, min: number, max: number): number {
 /** `list` with `slug` removed when present, else appended — a ticked-status toggle. */
 function toggleIn(list: string[], slug: string): string[] {
   return list.includes(slug) ? list.filter((s) => s !== slug) : [...list, slug];
+}
+
+/** `changed` with `fields` added to `triggerKey`'s list, each once. */
+function withChangedFields(
+  changed: Record<string, MerchantSetField[]>,
+  triggerKey: string,
+  fields: readonly MerchantSetField[],
+): Record<string, MerchantSetField[]> {
+  const current = changed[triggerKey] ?? [];
+  const added = fields.filter((field) => !current.includes(field));
+  return added.length === 0 ? changed : { ...changed, [triggerKey]: [...current, ...added] };
 }
 
 /**
