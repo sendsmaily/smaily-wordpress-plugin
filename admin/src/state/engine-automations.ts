@@ -124,6 +124,10 @@ export function convertAutomationMap(
  *   test mode keeps `test_mode: false` in the draft: the merchant's
  *   request stands on the screen. A save never sends it (`toPutRow`,
  *   CON-172); the engine keeps such a row in test mode either way (§13).
+ *
+ * `mapConverted` lists every stored row whose language mode differs from
+ * the store's — the triggers whose workflow map the screen converts. The
+ * converted map is the plugin's own change, so a save sends it (CON-172).
  */
 export function buildRows(
   catalog: AutomationCatalogTrigger[],
@@ -131,11 +135,14 @@ export function buildRows(
   previousDraft: EngineAutomationRow[] | null,
   languageMode: EngineAutomationRow['language_mode'],
   realSendsRequested: readonly string[],
-): EngineAutomationRow[] {
+): { rows: EngineAutomationRow[]; mapConverted: string[] } {
   const configByKey = new Map(configs.map((c) => [c.trigger_key, c]));
   const draftByKey = new Map((previousDraft ?? []).map((r) => [r.trigger_key, r]));
+  const mapConverted = configs
+    .filter((config) => config.language_mode !== languageMode)
+    .map((config) => config.trigger_key);
 
-  return catalog.map((trigger) => {
+  const rows = catalog.map((trigger) => {
     const draft = draftByKey.get(trigger.key);
     if (draft !== undefined) {
       return draft;
@@ -164,20 +171,8 @@ export function buildRows(
     }
     return defaultRow(trigger.key, languageMode);
   });
-}
 
-/**
- * Triggers whose stored workflow map `buildRows` converts, because the
- * engine stored the row in another language mode than the store's. The
- * converted map is the plugin's own change, so a save sends it (CON-172).
- */
-export function mapConvertedTriggers(
-  configs: AutomationConfigServerRow[],
-  languageMode: EngineAutomationRow['language_mode'],
-): string[] {
-  return configs
-    .filter((config) => config.language_mode !== languageMode)
-    .map((config) => config.trigger_key);
+  return { rows, mapConverted };
 }
 
 /**
@@ -414,8 +409,7 @@ export function fallbackLanguage(
  * `toPutRow` with the fields the merchant changed (CON-172).
  */
 export async function saveEngineAutomations(
-  rows: EngineAutomationRow[],
-  changedFields: EngineAutomationsState['changedFields'],
+  { rows, changedFields }: Pick<EngineAutomationsState, 'rows' | 'changedFields'>,
   dispatch: Dispatch<WizardAction>,
 ): Promise<boolean> {
   const localIssues = validateRows(rows);
