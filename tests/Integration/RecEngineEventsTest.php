@@ -200,6 +200,30 @@ final class RecEngineEventsTest extends TestCase {
 		);
 	}
 
+	/**
+	 * CON-2: an abandoned-cart reminder withdrawn before it went out is
+	 * stored `sent` with a `cancelled` outcome (PRO-2372) — nothing was
+	 * sent, so the Sent filter leaves it out like a skipped row. Written by
+	 * the real withdrawal path, so the filter is pinned to the stored shape.
+	 */
+	public function test_sent_filter_leaves_out_a_withdrawn_cart_reminder(): void {
+		$queue = new EventQueue();
+		$id    = $queue->enqueue_scheduled( 'automation.abandoned_cart', 'g@h.test', array( 'email' => 'g@h.test' ), current_time( 'mysql', true ) );
+		self::assertNotNull( $id );
+		$queue->withdraw_pending_for( 'automation.abandoned_cart', 'g@h.test' );
+
+		$all = $this->list( array( 'source' => 'smaily' ) );
+		$row = current( array_filter( $all['events'], static fn ( $e ) => (int) $e['id'] === $id ) );
+		self::assertIsArray( $row, 'The withdrawn reminder is still listed under All statuses.' );
+		self::assertSame( 'sent', $row['status'], 'The withdrawal is terminal, never retried.' );
+		self::assertTrue( $row['cancelled'] );
+
+		$data = $this->list( array( 'status' => 'sent' ) );
+
+		self::assertNotContains( $id, array_map( 'intval', array_column( $data['events'], 'id' ) ) );
+		self::assertSame( 2, $data['total'], 'Only the two rows setUp really sent.' );
+	}
+
 	public function test_list_marks_every_skipped_row_as_skipped(): void {
 		$this->seed_skipped_rows();
 
