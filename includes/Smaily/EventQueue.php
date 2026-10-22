@@ -742,7 +742,9 @@ class EventQueue {
 	 * flusher's one-hour ceiling (PRO-1519) is measured from created_at, so a
 	 * revived transactional row would otherwise terminal-fail on the very next
 	 * tick — the retry has to give it a fresh hour. Deliberately narrow: only
-	 * /events/retry calls it, and only for the transactional rows it revived.
+	 * /events/retry calls it, for the transactional rows it revived, and the
+	 * transactional flusher, for a follow-up row it has just finished
+	 * (CON-169 — the row then dates from its send, not from its queueing).
 	 * Returns the row count.
 	 *
 	 * @param int[] $ids
