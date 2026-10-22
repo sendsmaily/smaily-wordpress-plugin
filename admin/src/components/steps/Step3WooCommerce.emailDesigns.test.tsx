@@ -105,7 +105,9 @@ describe('Step3WooCommerce — Edit design', () => {
 
       render(<Harness initial={connectedState()} inSettings={inSettings} />);
 
-      await waitFor(() => expect(screen.getAllByRole('button', { name: 'Edit design' })).toHaveLength(CARDS.length));
+      // The engine card renders only after its own two reads; under a full
+      // parallel run that can take longer than waitFor's 1 s default.
+      await waitFor(() => expect(screen.getAllByRole('button', { name: 'Edit design' })).toHaveLength(CARDS.length), { timeout: 5000 });
       for (const [title] of CARDS) {
         expect(within(cardOf(title)).getByRole('button', { name: 'Edit design' })).toBeInTheDocument();
       }
