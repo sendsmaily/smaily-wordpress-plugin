@@ -25,12 +25,18 @@ use Smaily\Connect\Support\DebugLog;
  * the same cutoff + F3-37 backlog-guard semantics the legacy pass would have
  * (a recent cart gets its reminder; a stale one expires without emailing).
  *
+ * Runs only from schema migration 012 (`RetiredTables`, CON-182), right
+ * before that migration drops the legacy table — a store can still update
+ * straight from 1.x / 2.0.0, which never ran this drain.
+ *
  * Safety properties (each one a scar):
- *   - READ-ONLY on the legacy table — no row is mutated or deleted, and the
- *     table is not dropped (schema removal is a later one-way-door decision;
- *     a rollback to the old plugin version resumes with its data intact).
- *   - One-time via the `smly_plus_cart_legacy_drained` option stamp —
- *     re-running Activation (every upgrade) is a cheap no-op.
+ *   - READ-ONLY on the legacy table — no row is mutated or deleted; dropping
+ *     the table is migration 012's step, after this one.
+ *   - One-time via the `smly_plus_cart_legacy_drained` option stamp — a store
+ *     that drained on an earlier version is not drained twice.
+ *   - A failed read of the legacy table THROWS (never stamps), so migration
+ *     012 keeps the table and retries on the next update instead of dropping
+ *     carts that were never copied.
  *   - Legacy `cart_content` is UNTRUSTED wire input (F3-53: old-writer rows
  *     deserialize to string items; an offset read on them is a PHP 8 fatal):
  *     non-array content is counted + logged and skipped; non-array/keyless
@@ -49,7 +55,7 @@ class LegacyCartDrain {
 
 	public const DRAINED_OPTION = 'smly_plus_cart_legacy_drained';
 
-	private const LEGACY_TABLE_SUFFIX = 'smaily_connect_abandoned_carts';
+	private const LEGACY_TABLE_SUFFIX = RetiredTables::LEGACY_CART_TABLE;
 
 	private CartSessionStore $store;
 
@@ -62,6 +68,8 @@ class LegacyCartDrain {
 	 *
 	 * @return array{drained: int, poison: int, skipped: int}|null Stats, or
 	 *         null when the drain already ran.
+	 *
+	 * @throws \RuntimeException When the legacy table exists but cannot be read.
 	 */
 	public function maybe_run(): ?array {
 		if ( get_option( self::DRAINED_OPTION, false ) !== false ) {
@@ -75,7 +83,7 @@ class LegacyCartDrain {
 		if ( $stats['drained'] > 0 || $stats['poison'] > 0 || $stats['skipped'] > 0 ) {
 			DebugLog::write(
 				sprintf(
-					'[smaily-connect cart.drain] Legacy abandoned-cart drain: %d cart(s) migrated to the new tracker, %d poison row(s) skipped, %d row(s) without a usable identity skipped. Legacy table left untouched.',
+					'[smaily-connect cart.drain] Legacy abandoned-cart drain: %d cart(s) migrated to the new tracker, %d poison row(s) skipped, %d row(s) without a usable identity skipped. Legacy table dropped next (migration 012).',
 					$stats['drained'],
 					$stats['poison'],
 					$stats['skipped']
@@ -100,6 +108,10 @@ class LegacyCartDrain {
 
 		$table  = $wpdb->prefix . self::LEGACY_TABLE_SUFFIX;
 		$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+		if ( self::db_error() ) {
+			// "Could not look" is not "no table" — never stamp on it.
+			throw new \RuntimeException( 'Could not check for the legacy abandoned-cart table.' );
+		}
 		if ( $exists !== $table ) {
 			return $stats;
 		}
@@ -108,8 +120,10 @@ class LegacyCartDrain {
 			"SELECT customer_id, cart_updated, cart_content FROM {$table} WHERE mail_sent IS NULL",
 			ARRAY_A
 		);
-		if ( ! is_array( $rows ) ) {
-			return $stats;
+		if ( ! is_array( $rows ) || self::db_error() ) {
+			// The table exists but could not be read: migration 012 must not
+			// drop it with carts still uncopied (CON-182).
+			throw new \RuntimeException( 'The legacy abandoned-cart table could not be read.' );
 		}
 
 		foreach ( $rows as $row ) {
@@ -180,6 +194,19 @@ class LegacyCartDrain {
 		}
 
 		return $stats;
+	}
+
+	/**
+	 * Whether the last $wpdb query failed. A method, not an inline read: a
+	 * failed query returns an empty result, so the error text is the only
+	 * signal (and static analysis cannot see a query reset it).
+	 *
+	 * @phpstan-impure
+	 */
+	private static function db_error(): bool {
+		global $wpdb;
+
+		return (string) $wpdb->last_error !== '';
 	}
 
 	/**

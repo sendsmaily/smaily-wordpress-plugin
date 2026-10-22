@@ -22,7 +22,9 @@
  *      (credentials, sync settings, schema-version marker), plus the
  *      `smly_profiling_optouts` durable opt-out registry (PRO-1194/PRO-1336).
  *   3. Custom tables created by the migration runner (includes the rec-engine
- *      `smly_rec_event_queue` / `smly_rec_visitor` tables).
+ *      `smly_rec_event_queue` table), plus the two retired tables schema
+ *      migration 012 drops (`smaily_connect_abandoned_carts`,
+ *      `smly_rec_visitor`) for a store deleted before that migration ran.
  *   4. User-meta freshness markers seeded by BackfillJob.
  *   5. Cron events + Action Scheduler actions the plugin scheduled (both
  *      `smly_plus_*` and `smly_rec_*` hooks — the latter are the four
@@ -147,7 +149,12 @@ foreach ( $legacy_options as $opt ) {
 // keeps the diff predictable). The rec-engine tables (`smly_rec_event_queue`,
 // `smly_rec_visitor`) were already covered here pre-PRO-1337 — no change
 // needed for this list, only the options + AS-actions sweeps below.
+// `smaily_connect_abandoned_carts` (the legacy 1.x / 2.0.0 cart table) and
+// `smly_rec_visitor` are retired: schema migration 012 drops both on update
+// (CON-182). They stay here for a store deleted before that migration ran —
+// e.g. one updated from 2.0.0 and deleted with no admin page load between.
 $tables = array(
+	'smaily_connect_abandoned_carts',
 	'smly_plus_automation_mapping',
 	'smly_plus_backfill_job',
 	'smly_plus_cart_session',

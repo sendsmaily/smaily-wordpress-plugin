@@ -221,7 +221,6 @@ class Smaily_Connect {
 		$this->options = new Options();
 
 		if ( Helper::is_woocommerce_active() ) {
-			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cart.class.php';
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cron.class.php';
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/data-handler.class.php';
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/profile-settings.class.php';
@@ -313,10 +312,10 @@ class Smaily_Connect {
 		$this->public_base->register_hooks();
 
 		if ( Helper::is_woocommerce_active() ) {
-			// PRO-1195: the legacy Cart tracker is no longer registered — the
-			// namespaced CartHookHandler (Bootstrap) owns cart tracking (own
-			// scalar row shape, guest carts, Event Log observability). The
-			// class + its table stay (drain source, safe rollback).
+			// PRO-1195: the namespaced CartHookHandler (Bootstrap) owns cart
+			// tracking (own scalar row shape, guest carts, Event Log
+			// observability). The legacy Cart class and its table are gone
+			// (CON-182: schema migration 012 drains, then drops the table).
 
 			$this->wc_cron = new Cron( $this->options );
 			$this->wc_cron->register_hooks();

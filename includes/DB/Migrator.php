@@ -14,11 +14,16 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Constants;
 
 /**
- * Runs forward-only SQL migrations from the migrations/ directory against
+ * Runs forward-only migrations from the migrations/ directory against
  * the current site's database.
  *
  * Migration files follow the pattern `NNN-{slug}.sql` (e.g.
- * `001-create-smly-plus-event-queue.sql`). The numeric prefix is the
+ * `001-create-smly-plus-event-queue.sql`) or `NNN-{slug}.php`. A `.php`
+ * migration returns a callable; it is for a step dbDelta() cannot express
+ * (dbDelta silently ignores DROP TABLE — CON-182). The callable returns
+ * false when the step could not finish: the runner then stops WITHOUT
+ * recording that version, so the step is retried on the next upgrade and no
+ * later migration runs ahead of it. The numeric prefix is the
  * schema version applied; files are sorted by integer (so 010 sorts
  * after 009, not lexicographically). The runner persists the highest
  * applied version in the Constants::OPTION_SCHEMA_VERSION option and
@@ -66,7 +71,9 @@ final class Migrator {
 				continue;
 			}
 
-			$this->apply( $file );
+			if ( ! $this->apply( $file ) ) {
+				break;
+			}
 			update_option( Constants::OPTION_SCHEMA_VERSION, $version, false );
 			$applied[] = $version;
 		}
@@ -78,8 +85,8 @@ final class Migrator {
 	 * Discover migration files in the migrations directory.
 	 *
 	 * Returns an array keyed by integer version, sorted ascending. Only
-	 * files matching `NNN-*.sql` participate — anything else (legacy
-	 * upgrade-*.php, index.php, README, …) is ignored.
+	 * files matching `NNN-*.sql` or `NNN-*.php` participate — anything else
+	 * (legacy upgrade-*.php, index.php, README, …) is ignored.
 	 *
 	 * Public to allow unit tests to introspect discovery output without
 	 * having to mock the filesystem.
@@ -93,9 +100,11 @@ final class Migrator {
 
 		$found = array();
 
-		foreach ( (array) glob( $this->migrations_dir . '/*.sql' ) as $path ) {
-			$basename = basename( $path );
-			if ( preg_match( '/^(\d+)-.+\.sql$/', $basename, $matches ) !== 1 ) {
+		// Plain '/*' + the regex below, not GLOB_BRACE: that flag does not
+		// exist on every libc (musl / Alpine images).
+		foreach ( (array) glob( $this->migrations_dir . '/*' ) as $path ) {
+			$basename = basename( (string) $path );
+			if ( preg_match( '/^(\d+)-.+\.(sql|php)$/', $basename, $matches ) !== 1 ) {
 				continue;
 			}
 
@@ -113,14 +122,26 @@ final class Migrator {
 	}
 
 	/**
-	 * Run a single migration file through dbDelta().
+	 * Run a single migration file: a `.php` one by calling the callable it
+	 * returns, a `.sql` one through dbDelta().
+	 *
+	 * @return bool False only when a `.php` migration reports it could not
+	 *              finish — the caller then stops without recording it.
 	 */
-	private function apply( string $file ): void {
+	private function apply( string $file ): bool {
+		if ( substr( $file, -4 ) === '.php' ) {
+			// `require`, not `require_once`: the file only returns a closure,
+			// and a second run in the same process (tests) needs it again.
+			$migration = require $file;
+
+			return ! is_callable( $migration ) || $migration() !== false;
+		}
+
 		global $wpdb;
 
 		$sql = (string) file_get_contents( $file );
 		if ( $sql === '' ) {
-			return;
+			return true;
 		}
 
 		// Strip SQL line comments BEFORE handing the buffer to dbDelta.
@@ -156,6 +177,8 @@ final class Migrator {
 			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		}
 		dbDelta( $sql );
+
+		return true;
 	}
 
 	private function default_migrations_dir(): string {
