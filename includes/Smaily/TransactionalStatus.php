@@ -103,9 +103,14 @@ class TransactionalStatus {
 	}
 
 	/**
-	 * The newest row Smaily accepted, per event type, in one query —
-	 * event types without one are absent. A skipped row (and any other
-	 * terminal skip) is `sent` too, but has no sent_payload.
+	 * The newest row Smaily accepted, per event type — event types without
+	 * one are absent. A skipped row (and any other terminal skip) is `sent`
+	 * too, but has no sent_payload.
+	 *
+	 * One `LIMIT 1` query per event type (CON-170): with the
+	 * `idx_status_created` index the database reads the sent rows newest
+	 * first and stops at the type's newest send, so a settings load or save
+	 * no longer aggregates every sent row of the queue.
 	 *
 	 * @param array<int, string> $event_types
 	 * @return array<string, string> event type → UTC created_at
@@ -113,21 +118,20 @@ class TransactionalStatus {
 	protected function last_sent_at( array $event_types ): array {
 		global $wpdb;
 
-		$table        = $wpdb->prefix . EventQueue::TABLE_SUFFIX;
-		$placeholders = implode( ', ', array_fill( 0, count( $event_types ), '%s' ) );
+		$table = $wpdb->prefix . EventQueue::TABLE_SUFFIX;
+		$out   = array();
 
-		// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- $placeholders is one %s per $event_types entry.
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT event_type, MAX( created_at ) AS last_sent FROM {$table} WHERE status = %s AND event_type IN ( {$placeholders} ) AND sent_payload IS NOT NULL AND sent_payload <> '' GROUP BY event_type",
-				array_merge( array( EventQueue::STATUS_SENT ), $event_types )
-			),
-			ARRAY_A
-		);
-
-		$out = array();
-		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			$out[ (string) $row['event_type'] ] = (string) $row['last_sent'];
+		foreach ( array_unique( $event_types ) as $event_type ) {
+			$last = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT created_at FROM {$table} WHERE status = %s AND event_type = %s AND sent_payload IS NOT NULL AND sent_payload <> '' ORDER BY created_at DESC LIMIT 1",
+					EventQueue::STATUS_SENT,
+					$event_type
+				)
+			);
+			if ( is_string( $last ) && $last !== '' ) {
+				$out[ $event_type ] = $last;
+			}
 		}
 
 		return $out;
