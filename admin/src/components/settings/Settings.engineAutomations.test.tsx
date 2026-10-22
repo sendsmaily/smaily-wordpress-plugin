@@ -130,23 +130,21 @@ describe('Settings — engine automations join the WooCommerce tab save (T2.2)',
       expect(putMock).toHaveBeenCalledTimes(1);
     });
 
-    // The PUT carries the FULL row: the edited cooldown, the untouched
-    // daily_cap from GET (never nulled by the UI), and NO read-only
-    // §12 fields.
+    // The PUT carries the required fields — the edited cooldown, the
+    // untouched daily_cap from GET (never nulled by the UI) — and NOT the
+    // workflow, test mode or test addresses the merchant left alone, so
+    // the values the engine's setup page stored stay (CON-172). No
+    // read-only §12 fields either.
     const sentRows = putMock.mock.calls[0]?.[0];
-    expect(sentRows).toHaveLength(1);
-    expect(sentRows?.[0]).toMatchObject({
-      trigger_key: 'replenish_due',
-      enabled: true,
-      language_mode: 'single',
-      automation_map: { id: '123' },
-      cooldown_days: 21,
-      daily_cap: 500,
-      test_mode: true,
-      test_emails: ['owner@shop.example'],
-    });
-    expect(sentRows?.[0]).not.toHaveProperty('configured_via');
-    expect(sentRows?.[0]).not.toHaveProperty('updated_at');
+    expect(sentRows).toEqual([
+      {
+        trigger_key: 'replenish_due',
+        enabled: true,
+        language_mode: 'single',
+        cooldown_days: 21,
+        daily_cap: 500,
+      },
+    ]);
 
     expect(await screen.findByText(/engine automations saved/i)).toBeInTheDocument();
     await waitFor(() => {
@@ -191,7 +189,9 @@ describe('Settings — engine automations join the WooCommerce tab save (T2.2)',
     await waitFor(() => {
       expect(putMock).toHaveBeenCalledTimes(1);
     });
-    expect(putMock.mock.calls[0]?.[0]?.[0]).toMatchObject({ enabled: true, test_mode: false });
+    // The request stays in the plugin: test_mode: false is never sent (CON-172).
+    expect(putMock.mock.calls[0]?.[0]?.[0]).toMatchObject({ enabled: true });
+    expect(putMock.mock.calls[0]?.[0]?.[0]).not.toHaveProperty('test_mode');
 
     // The engine stored the row in test mode (operator not yet confirmed):
     // the re-read config is unchanged, and the card says so.
@@ -205,6 +205,44 @@ describe('Settings — engine automations join the WooCommerce tab save (T2.2)',
     expect(screen.getByText(/engine automations saved/i)).toBeInTheDocument();
     // A clean slice after the re-read: nothing left to save.
     expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
+  });
+
+  it('sends the workflow and test addresses the merchant set in the plugin (CON-172)', async () => {
+    configMock.mockResolvedValue({ configs: [] });
+    workflowsMock.mockResolvedValue({
+      workflows: [
+        { id: '123', name: 'Replenishment flow', status: 'ACTIVE' },
+        { id: '456', name: 'Other flow', status: 'ACTIVE' },
+      ],
+    });
+    putMock.mockResolvedValue({ ok: true, upserted: 1 });
+    await renderOnWooCommerceTab();
+
+    fireEvent.click(screen.getByRole('switch', { name: /enable replenishment due/i }));
+    const workflow = await screen.findByLabelText('Smaily workflow');
+    await waitFor(() => {
+      expect(workflow).not.toBeDisabled();
+    });
+    fireEvent.change(workflow, { target: { value: '456' } });
+    fireEvent.change(screen.getByLabelText('Test addresses'), {
+      target: { value: 'me@shop.example' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(putMock).toHaveBeenCalledTimes(1);
+    });
+    expect(putMock.mock.calls[0]?.[0]).toEqual([
+      {
+        trigger_key: 'replenish_due',
+        enabled: true,
+        language_mode: 'single',
+        automation_map: { id: '456' },
+        cooldown_days: 7,
+        daily_cap: null,
+        test_emails: ['me@shop.example'],
+      },
+    ]);
   });
 
   it('does not PUT when only the local WooCommerce half is dirty', async () => {

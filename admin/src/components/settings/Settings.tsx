@@ -182,7 +182,11 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
     // error renders inside the section — the merchant loses neither
     // half (F3-52).
     if (activeTab === 'woocommerce' && rawState.engineAutomations.dirty) {
-      void saveEngineAutomations(rawState.engineAutomations.rows, rawDispatch);
+      void saveEngineAutomations(
+        rawState.engineAutomations.rows,
+        rawState.engineAutomations.changedFields,
+        rawDispatch,
+      );
     }
   }, [activeTab, rawState, save]);
 
