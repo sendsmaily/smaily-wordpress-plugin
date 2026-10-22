@@ -17,11 +17,13 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
+use Smaily\Connect\Wizard\EnvDetector;
 
 final class TransactionalEmailsPipelineTest extends TestCase {
 
@@ -224,6 +226,139 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertSame( TransactionalFlusher::META_STATUS_SENT, wc_get_order( $order_id )->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ) ) );
 	}
 
+	public function test_a_follow_up_sent_after_a_60_day_delay_shows_its_send_time_and_outlives_the_next_cleanup(): void {
+		// CON-169: the row was queued 60 days before it went out. Once sent,
+		// the Event Log, "Last sent" and the janitor's 30-day retention must
+		// all read the send, not the day it was queued.
+		$this->configure_follow_up( 60 );
+
+		$product  = $this->make_product( 'Late Product', 9.00 );
+		$order_id = $this->make_order( 'late@example.test', $product );
+		$order    = wc_get_order( $order_id );
+		$order->set_status( 'processing' );
+		$order->save();
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+
+			// The 60 days pass.
+			$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+			$this->backdate_queue_row( (int) $row['id'], 60 * DAY_IN_SECONDS );
+			$this->make_due( (int) $row['id'] );
+
+			$before = gmdate( 'Y-m-d H:i:s' );
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+			$after = gmdate( 'Y-m-d H:i:s' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		self::assertSame( 6161, $captured[1]['body']['autoresponder_id'], 'The follow-up went out.' );
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+		self::assertSame( 'sent', $row['status'] );
+		self::assertGreaterThanOrEqual( $before, $row['created_at'], 'The row shows when it was sent, not when it was queued.' );
+		self::assertLessThanOrEqual( $after, $row['created_at'] );
+		self::assertSame( $row['created_at'], $this->listed_row( (int) $row['id'], 'sent' )['created_at'], 'The Event Log lists it at its send time.' );
+
+		$status = ( new EnvDetector() )->saved_settings()['transactionalStatus'];
+		self::assertSame( $row['created_at'], $status[ TransactionalGate::TRIGGER_FOLLOW_UP ]['lastSentAt'], '"Last sent" is the day it was sent.' );
+
+		( new QueueJanitor() )->run();
+		self::assertNotNull( $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP ), 'A follow-up sent today is kept for the normal retention.' );
+	}
+
+	public function test_a_refused_follow_up_row_shows_when_it_failed(): void {
+		$this->configure_follow_up();
+
+		$product = $this->make_product( 'Refused Product', 4.00 );
+		$order   = wc_get_order( $this->make_order( 'refused@example.test', $product ) );
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+		$this->backdate_queue_row( (int) $row['id'], 7 * DAY_IN_SECONDS );
+		$this->make_due( (int) $row['id'] );
+
+		$refuse = $this->fake_transport_with_code( 203 );
+		add_filter( 'pre_http_request', $refuse, 10, 3 );
+		try {
+			$before = gmdate( 'Y-m-d H:i:s' );
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $refuse, 10 );
+		}
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+		self::assertSame( 'failed', $row['status'] );
+		self::assertGreaterThanOrEqual( $before, $row['created_at'], 'The row shows when the send failed, not when it was queued.' );
+	}
+
+	public function test_a_waiting_follow_up_keeps_its_scheduled_time_and_goes_out_when_due(): void {
+		$this->configure_follow_up( 3 );
+
+		$product = $this->make_product( 'Waiting Product', 7.00 );
+		$order   = wc_get_order( $this->make_order( 'waiting@example.test', $product ) );
+
+		$captured = array();
+		$fake     = $this->fake_transport( $captured );
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			$order->update_status( 'completed' );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+
+		$queued = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+		$id     = (int) $queued['id'];
+
+		// Not due yet: a pass leaves it waiting, its times untouched.
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+		$waiting = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+		self::assertSame( 'pending', $waiting['status'] );
+		self::assertSame( $queued['created_at'], $waiting['created_at'] );
+		self::assertSame( $queued['next_retry_at'], $waiting['next_retry_at'] );
+		self::assertSame( $queued['next_retry_at'], $this->listed_row( $id, 'pending' )['scheduled_for'] );
+
+		// Due, but Smaily answers 5xx: it waits for the next pass and keeps the time it was queued.
+		$this->make_due( $id );
+		$fail = $this->fake_transport_with_code( 500, 500 );
+		add_filter( 'pre_http_request', $fail, 10, 3 );
+		try {
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $fail, 10 );
+		}
+		$retried = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+		self::assertSame( 'pending', $retried['status'] );
+		self::assertSame( $queued['created_at'], $retried['created_at'] );
+
+		// The next pass sends it.
+		add_filter( 'pre_http_request', $fake, 10, 3 );
+		try {
+			do_action( TransactionalFlusher::FLUSH_HOOK );
+		} finally {
+			remove_filter( 'pre_http_request', $fake, 10 );
+		}
+		self::assertSame( 6161, end( $captured )['body']['autoresponder_id'] );
+		self::assertSame( 'sent', $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP )['status'] );
+	}
+
 	public function test_an_order_that_already_had_its_follow_up_gets_no_second_one(): void {
 		$this->configure_follow_up();
 
@@ -261,7 +396,9 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 			$order->update_status( $status_at_due );
 
 			$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
+			$this->backdate_queue_row( (int) $row['id'], 7 * DAY_IN_SECONDS );
 			$this->make_due( (int) $row['id'] );
+			$before = gmdate( 'Y-m-d H:i:s' );
 			do_action( TransactionalFlusher::FLUSH_HOOK );
 		} finally {
 			remove_filter( 'pre_http_request', $fake, 10 );
@@ -272,6 +409,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 
 		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP );
 		self::assertSame( 'sent', $row['status'], 'Finished — nothing retries it.' );
+		self::assertGreaterThanOrEqual( $before, $row['created_at'], 'The row shows when it was skipped (CON-169).' );
 		self::assertNull( $row['sent_payload'] );
 		// A skipped row reads "skipped" and is left out of the Sent filter (PRO-4098).
 		$listed = $this->listed_row( (int) $row['id'], '' );

@@ -475,6 +475,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$stats = $this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 9191, 'transactional' ) ) )->flush();
 
 		self::assertSame( array( 31 ), $queue->marked_sent );
+		self::assertSame( array( 31 ), $queue->age_restarted, 'The row now dates from its send, not from when it was queued (CON-169).' );
 		self::assertSame( 1, $stats['sent'] );
 		self::assertSame( TransactionalFlusher::META_STATUS_SENT, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ) ) );
 	}
@@ -496,6 +497,7 @@ final class TransactionalFlusherTest extends TestCase {
 		self::assertSame( array( array( 'id' => 32, 'reason' => $expected_reason ) ), $queue->marked_skipped );
 		self::assertSame( array(), $queue->marked_sent );
 		self::assertSame( array(), $queue->exchanges, 'The skipped row keeps its reason — nothing overwrites it.' );
+		self::assertSame( array( 32 ), $queue->age_restarted, 'The row now dates from when it was skipped (CON-169).' );
 		self::assertSame( 1, $stats['skipped'] );
 	}
 
@@ -540,8 +542,24 @@ final class TransactionalFlusherTest extends TestCase {
 		$this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 1, 'transactional' ) ) )->flush();
 
 		self::assertSame( 34, $queue->marked_failed[0]['id'], 'The Event Log shows the failure.' );
+		self::assertSame( array( 34 ), $queue->age_restarted, 'The row now dates from when it failed (CON-169).' );
 		self::assertSame( array(), $processing->calls, 'The follow-up has no WooCommerce email to fall back to.' );
 		self::assertSame( TransactionalFlusher::META_STATUS_QUEUED, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_FOLLOW_UP ) ) );
+	}
+
+	public function test_a_follow_up_retried_after_a_transient_failure_keeps_the_time_it_was_queued(): void {
+		$this->stub_options( array( TransactionalGate::OPTION_FOLLOW_UP_STATUSES => array( 'completed' ) ) );
+		$this->orders[708] = $this->fake_order( 708, 'buyer@example.test', 'completed' );
+
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 36, 708 ) ) );
+		$client = $this->createMock( Client::class );
+		$client->method( 'send_message' )->willThrowException( new ApiException( 'server error', 500 ) );
+		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 500 ) ) );
+
+		$stats = $this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 1, 'transactional' ) ) )->flush();
+
+		self::assertSame( 1, $stats['retried'] );
+		self::assertSame( array(), $queue->age_restarted, 'A row still waiting to go out is not finished — its times stay as they are.' );
 	}
 
 	public function test_the_retry_ceiling_of_a_follow_up_counts_from_its_due_time(): void {
