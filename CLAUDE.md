@@ -817,10 +817,14 @@ they are no longer how the released asset is produced. Full sequence (verified
    `node_modules`, `admin/src`, dev vendor pkgs). `.zipignore`
    excludes `blocks/node_modules` (583M) — a bloated ZIP means it leaked.
    **Source maps are stripped from the ZIP (PRO-1949)** — `.zipignore` drops
-   `*.map` and `composer run package` sed-strips the then-dangling
-   `//# sourceMappingURL=` trailer out of the staged bundles, so the check is
+   `*.map` and `composer run package` strips the then-dangling
+   `//# sourceMappingURL=` trailer out of the staged bundles — with `perl -ni`,
+   not `sed -i`, which fails on macOS (BSD sed, CON-171; the same trap as
+   `bin/build-i18n.sh`) — so the check is
    two-part: no `*.map` entries AND no trailer left in the shipped JS
-   (`unzip -p … dist/admin/admin.js | grep -c sourceMappingURL` ⇒ 0). Local
+   (`unzip -p … smaily-connect/dist/admin/admin.js | grep -c sourceMappingURL`
+   ⇒ 0 — the entries sit under `smaily-connect/`; without that prefix unzip
+   matches nothing and the count is 0 whatever the bundle holds). Local
    builds still emit maps — nothing about debugging changes, only the ZIP.
    **Run it from the repo root**: from another directory its bundle-scope step cannot load jsdom from the repo's
    `node_modules` and reports "a shipped bundle is not an IIFE or leaks
