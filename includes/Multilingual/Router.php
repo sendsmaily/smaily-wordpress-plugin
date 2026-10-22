@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
+use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\WorkflowMatch;
 use Smaily\Connect\Smaily\WorkflowResolverInterface;
@@ -55,11 +56,35 @@ final class Router implements WorkflowResolverInterface {
 
 	public const LANGUAGE_DEFAULT = 'default';
 
+	private EmailDesignWorkflows $designs;
+
+	public function __construct( ?EmailDesignWorkflows $designs = null ) {
+		$this->designs = $designs ?? new EmailDesignWorkflows();
+	}
+
+	/**
+	 * Every email the plugin starts resolves its workflow here — welcome,
+	 * first order and abandoned cart through AutomationRouter, the three
+	 * transactional emails through TransactionalGate. When the engine has
+	 * pushed the email's design to Smaily, its workflow takes the mapped
+	 * one's place (CON-173); the mapping still decides whether the email is
+	 * sent at all, and through which account and language.
+	 */
 	public function resolve_workflow( string $trigger_type, ?string $language ): ?WorkflowMatch {
-		if ( isset( TransactionalGate::TRIGGERS[ $trigger_type ] ) ) {
-			return $this->resolve_transactional( $trigger_type, $language );
+		$match = isset( TransactionalGate::TRIGGERS[ $trigger_type ] )
+			? $this->resolve_transactional( $trigger_type, $language )
+			: $this->resolve_marketing( $trigger_type, $language );
+
+		if ( $match === null ) {
+			return null;
 		}
 
+		$pushed = $this->designs->workflow_id( $trigger_type );
+
+		return $pushed > 0 ? new WorkflowMatch( $pushed, $match->account_key, $match->matched_language ) : $match;
+	}
+
+	private function resolve_marketing( string $trigger_type, ?string $language ): ?WorkflowMatch {
 		$mode  = $this->current_mode();
 		$lang  = $this->effective_language( $mode, $language );
 		$match = $this->find_mapping( $trigger_type, $lang );

@@ -110,6 +110,8 @@ final class EnvScrub {
 			RecEngineSettings::OPTION_CONFIG,
 			RecEngineSettings::OPTION_ISSUED_AT,
 			RecEngineSettings::OPTION_REFUSED_AT,
+			// autoload=false and asserted on through the send paths (CON-173).
+			\Smaily\Connect\Settings\EmailDesignWorkflows::OPTION,
 			// One-time-stamp options (autoload=false → per-key cache) the
 			// LIKE-sweep deletes from the DB but not from the object cache;
 			// stale cached values would make re-runnable one-time migrations

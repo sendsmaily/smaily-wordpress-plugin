@@ -54,6 +54,10 @@ final class EndpointRegistryTest extends TestCase {
 		self::assertContains( 'GET /rec-engine/automations/config', $paths );
 		self::assertContains( 'PUT /rec-engine/automations/config', $paths );
 
+		// "Edit design" on the email cards (CON-173, §22–§23).
+		self::assertContains( 'GET /rec-engine/emails/designs', $paths );
+		self::assertContains( 'POST /rec-engine/emails/design-link', $paths );
+
 		// Public browse-beacon proxy (F3-41: `/relay`, never `/beacon`).
 		self::assertContains( 'POST /relay', $paths );
 
@@ -63,7 +67,7 @@ final class EndpointRegistryTest extends TestCase {
 		// Pin the TOTAL so a route can't silently drop out of the list
 		// (PRO-1258: the /events triple was missing for months and nothing
 		// failed). A new endpoint bumps this number on purpose.
-		self::assertCount( 18, $paths );
+		self::assertCount( 20, $paths );
 		self::assertSame( $paths, array_unique( $paths ), 'Duplicate method+path pair in expected_routes()' );
 	}
 
