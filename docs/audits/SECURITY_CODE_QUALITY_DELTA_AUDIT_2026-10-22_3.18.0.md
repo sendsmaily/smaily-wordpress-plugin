@@ -447,3 +447,70 @@ and the new rows hold no more personal data than they need. Static gates are
 clean, CI is green, the built ZIP verifies, and Plugin Check adds one false
 positive. **3.18.0 may proceed once M1 is fixed or accepted, and L1 and L3 are
 handled at the bump.**
+
+---
+
+## Disposition (2026-10-22)
+
+| # | Disposition |
+|---|---|
+| M1 (Medium) | **Fixed** in CON-169 (#244): `TransactionalFlusher::process()` re-dates a follow-up row to the current time (`EventQueue::restart_age()`) when it finishes the row — sent, skipped or failed. A waiting row, or a row retried after a transient failure, keeps its queue time; `scheduled_for` still says when it goes out. Pinned in `TransactionalFlusherTest` (unit) and `TransactionalEmailsPipelineTest` (integration: a 60-day follow-up shows its send time in the row, the Event Log and "Last sent", and survives `QueueJanitor::run()`). |
+| L1 (Low) | **Fixed** in the 3.18.0 bump (CON-183): `PluginCheck.Security.DirectDB.UnescapedDBParameter` is added to the file-level `phpcs:disable` list of `TransactionalStatus.php` (`:16`), as in `EventsEndpoint.php` and `EnvDetector.php`. The false positive is confirmed: `recent_order_statuses()` interpolates only the table and column names from `OrderBackfillJob::table_spec()` (code constants and `$wpdb->prefix`); the two values go through `prepare()`. |
+| L2 (Low) | Backlog **CON-170** (read one row per event type, or an `(event_type, status, created_at)` index; compute the status only for the WooCommerce tab's save). Not a 3.18.0 blocker. |
+| L3 (Low) | **Fixed** in the 3.18.0 bump (CON-183): `readme.txt` names the follow-up email in the description, the external-services list, the FAQ and screenshot 4, and says that the follow-up has no WooCommerce fallback (a failed follow-up is retried from the Event Log). `= 3.16.0 =` is dropped from Changelog and Upgrade Notice; the Changelog section with the new `= 3.18.0 =` entry is 4 760 characters including its heading. |
+| L4 (Low) | Backlog **CON-171** (`composer run package` on macOS: replace the GNU-only `sed -i`). CI is not affected. |
+| I1–I9 (Info) | Accepted as recorded above. The I3 `DATA_MODEL_GDPR.md` sentence and the I4 multi-select note stay backlog candidates. |
+
+## Addendum: post-audit delta (`b9ee014..ef1fe3d`)
+
+After this audit was recorded (#243, `b9ee014`), five PRs landed on `main`
+before the 3.18.0 bump: **5 commits, 34 files, +1 047 / −139**; outside
+`docs/` and `tests/` 22 files, +422 / −76; shipped PHP 7 files, +55 / −15
+(`includes/`, `uninstall.php`); shipped TypeScript sources 8 files,
++126 / −17 (tests excluded).
+
+- **#244 CON-169** — the M1 fix (see Disposition).
+- **#245 CON-172** — a save of the Campaign Intelligence automations sends
+  only the fields the merchant changed (`toPutRow()`, `changedFields`), and
+  the REST proxy `AutomationsEndpoint::put_config()` drops `test_mode: false`
+  from every row.
+- **#247** — refactor of #245 after the simplification review (admin
+  TypeScript only, no behaviour change).
+- **#246 CON-51 / CON-52** — comments in `uninstall.php` and
+  `RecEngineSettings::disconnect()`, a new unit test
+  (`NoStoreDeletionRequestTest`) and docs-site retention text. No code path
+  changed.
+- **#248 CON-178** — the engine `vt_` token is `vt_` + 1–61 characters
+  (64 in all) in `AttributionShape`, `attribution.ts` and the order-meta cap.
+
+**Security look at the touched surfaces:**
+
+- **REST route.** `PUT /automations/config` keeps
+  `permission_callback` → `current_user_can( Constants::CAPABILITY )` and the
+  `wp_rest` nonce of REST cookie auth. The new step only removes a key: a row
+  whose `test_mode` is exactly `false` loses that key, every other value goes
+  to the engine unchanged, and the engine's schema stays the validator
+  (F3-51). The proxy can therefore send less than the browser asked for,
+  never more. The api_key stays server-side. A non-boolean `test_mode` is
+  passed through and the engine refuses it with its indexed 422, as before.
+- **SQL.** The only new statement path is `EventQueue::restart_age()` from
+  the transactional flusher: an `UPDATE … SET created_at = %s WHERE id IN
+  (%d, …)` through `prepare()`, with the table name from the class and ids
+  from `clean_ids()`. It runs for one row id the flusher itself holds, only
+  for `transactional.follow_up`. No new query reads user input.
+- **Stored data.** No new column, option or row type. CON-169 changes only a
+  finished follow-up row's `created_at`, so the janitor now keeps it 30
+  (sent) or 90 (failed) days from the send instead of from the queueing —
+  the retention `docs/DATA_MODEL_GDPR.md` states. CON-172 sends the test
+  addresses (`test_emails`) to the engine less often (only when the merchant
+  changed them); nothing new is stored. CON-178 narrows the accepted token
+  shape and the stored order-meta length (67 → 64), so it can only refuse
+  more input.
+- **Engine data deletion.** Uninstall and Disconnect make no engine request
+  (confirmed by reading both paths and by the new unit test).
+- **Translations.** One `msgid` changed by hand in `.pot` and `-et.po`
+  (the go-live confirm text); `msgcmp` reports the catalogues consistent,
+  `msgfmt --check` 681 translated.
+
+**Findings: none.** The addendum adds no Medium or Low finding, and the
+verdict stands with M1 fixed: **3.18.0 may proceed.**
