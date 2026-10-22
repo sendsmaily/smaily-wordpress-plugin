@@ -61,8 +61,13 @@ class EventsEndpoint {
 	private const SOURCE_REC    = 'rec_engine';
 	private const SOURCE_SMAILY = 'smaily';
 
-	/** How a skipped outcome reads in a stored `last_response` (both queues write it with wp_json_encode). */
-	private const SKIPPED_MARKER = '"outcome":"' . EventQueue::OUTCOME_SKIPPED . '"';
+	/**
+	 * The outcomes a row finished as `sent` records when nothing was sent:
+	 * a skip (PRO-4098) and a withdrawn reminder (PRO-2372). The Sent filter
+	 * leaves both out — sent_nothing() and its SQL twin in branch() read
+	 * this one list (CON-2).
+	 */
+	private const NOTHING_SENT_OUTCOMES = array( EventQueue::OUTCOME_SKIPPED, EventQueue::OUTCOME_CANCELLED );
 
 	/** @var callable(): TransactionalResend */
 	private $resend_factory;
@@ -505,12 +510,15 @@ class EventsEndpoint {
 			$where[]  = 'status = %s';
 			$params[] = $status;
 		}
-		// A skipped row is stored `sent` but nothing was sent (PRO-4098), so
-		// the Sent filter leaves it out — the SQL twin of is_skipped(). A row
-		// with no stored response (NULL) stays in.
+		// A skipped or withdrawn row is stored `sent` but nothing was sent
+		// (PRO-4098, CON-2), so the Sent filter leaves it out — the SQL twin
+		// of sent_nothing(). Both queues write `last_response` with
+		// wp_json_encode. A row with no stored response (NULL) stays in.
 		if ( $status === EventQueue::STATUS_SENT ) {
-			$where[]  = "COALESCE( last_response, '' ) NOT LIKE %s";
-			$params[] = '%' . $wpdb->esc_like( self::SKIPPED_MARKER ) . '%';
+			foreach ( self::NOTHING_SENT_OUTCOMES as $outcome ) {
+				$where[]  = "COALESCE( last_response, '' ) NOT LIKE %s";
+				$params[] = '%' . $wpdb->esc_like( '"outcome":"' . $outcome . '"' ) . '%';
+			}
 		}
 		if ( $type !== '' ) {
 			$where[]  = 'event_type = %s';
@@ -658,16 +666,28 @@ class EventsEndpoint {
 	 * Whether a row was skipped for good (PRO-4098): stored `sent` — it is
 	 * terminal and never retried — with a `skipped` outcome, so nothing was
 	 * sent. Every terminal skip in both queues records that outcome. A failed
-	 * row stays failed. The Sent filter's SQL in branch() is its twin.
+	 * row stays failed.
 	 */
 	public static function is_skipped( string $status, string $last_response ): bool {
-		if ( $status !== EventQueue::STATUS_SENT ) {
-			return false;
-		}
+		return $status === EventQueue::STATUS_SENT
+			&& self::stored_outcome( $last_response ) === EventQueue::OUTCOME_SKIPPED;
+	}
 
+	/**
+	 * Whether a row finished as `sent` sent nothing (CON-2): it was skipped
+	 * (PRO-4098) or withdrawn (PRO-2372). The rule the Sent filter applies —
+	 * its SQL twin is in branch(), and both read NOTHING_SENT_OUTCOMES.
+	 */
+	public static function sent_nothing( string $status, string $last_response ): bool {
+		return $status === EventQueue::STATUS_SENT
+			&& in_array( self::stored_outcome( $last_response ), self::NOTHING_SENT_OUTCOMES, true );
+	}
+
+	/** The `outcome` a stored `last_response` records, '' when it records none. */
+	private static function stored_outcome( string $last_response ): string {
 		$decoded = json_decode( $last_response, true );
 
-		return is_array( $decoded ) && ( $decoded['outcome'] ?? '' ) === EventQueue::OUTCOME_SKIPPED;
+		return is_array( $decoded ) && is_string( $decoded['outcome'] ?? null ) ? $decoded['outcome'] : '';
 	}
 
 	/**

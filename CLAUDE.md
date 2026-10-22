@@ -273,9 +273,12 @@ call is still captured; fields trim to ~10 KB and are janitor-pruned. A terminal
 stores `last_response={outcome:"skipped"}` — that's how you tell a row marked "sent"
 that never actually POSTed (the #58922 confusion). Stored for ALL rows, success too.
 The Event Log list reads that outcome on a `sent` row of EITHER queue as **skipped**
-(`EventsEndpoint::is_skipped()`), and its Sent filter leaves those rows out with the
-SQL twin in `branch()` (PRO-4098) — a new terminal skip must keep the `skipped`
-outcome, or it reads "sent" again.
+(`EventsEndpoint::is_skipped()`, PRO-4098) — a new terminal skip must keep the `skipped`
+outcome, or it reads "sent" again. The Sent filter leaves out every `sent` row whose
+outcome is `skipped` or a withdrawn reminder's `cancelled` (CON-2): one list,
+`EventsEndpoint::NOTHING_SENT_OUTCOMES`, read by `sent_nothing()` and its SQL twin in
+`branch()` — a new "nothing went out" outcome goes into that list. Details shows the
+same status word as the row's pill (`statusLabel()` in `EventLog.tsx`).
 
 ### Trashing a product fires NO catalog hook — it's kept as `in_stock=false`
 `before_delete_post` is **permanent-delete-only**; trashing routes through
