@@ -70,7 +70,9 @@ $wpdb->query(
 // LIKE-prefix delete, like the smly_plus_* sweep above, so a future
 // smly_rec_* option doesn't need a new uninstall.php line to be swept.
 // Approved design (PRO-1337): full irrecoverable local delete — no network
-// call to the engine is made here, so the api_key remains valid engine-side
+// call to the engine is made here, and never the contract §16 store-deletion
+// request (CON-51, DECISIONS: the store's engine data is deleted when the
+// merchant closes the Smaily account), so the api_key remains valid engine-side
 // until revoked/rotated in the engine admin; a re-install needs a fresh
 // setup token (per-connection keys since engine migration 0036, so this
 // can't affect any other store).

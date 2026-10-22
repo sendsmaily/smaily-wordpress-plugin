@@ -8532,6 +8532,58 @@ part), contract §13/§17/§20. Pinned by `toPutRow` tests in
 proxy unit test and `tests/Integration/RecEngineAutomationsTest.php` (the mock
 keeps a left-out key's stored value).
 
+### CON-51 — The plugin never sends the §16 store-deletion request (2026-10-22)
+
+**Context:** contract v1.14.0 added §16 `POST /api/v1/store/uninstall` and asks
+the plugin to call it when the shop admin uninstalls. When the store's last
+connection calls it, the engine marks the store for deletion and deletes ALL of
+its data (customers, orders, catalog, events, recommendations, attribution,
+settings) within 30 days; the store cannot be connected again without the
+engine operator.
+**Decision (Erkki, 2026-10-22):** the plugin NEVER sends the §16 request — not
+on uninstall (`uninstall.php`) and not on Disconnect
+(`RecEngineSettings::disconnect()` via the `/rec-engine/disconnect` route).
+Both only remove the plugin's own stored engine connection (the API key and
+the other `smly_rec_*` options); they make no engine request at all.
+**Rationale:** a merchant who uninstalls or disconnects may only be changing
+platform (another plugin or shop on the same Smaily account), and a deletion
+cannot be undone. The store's engine data is deleted when the merchant closes
+the Smaily account. The merchant docs already promised that Campaign
+Intelligence data persists after an uninstall.
+**Alternatives:** call §16 on uninstall as the contract suggests — rejected for
+the reason above.
+**Relationships:** contract §16 (v1.14.0), PRO-1337 (uninstall sweeps the
+connection options). Pinned by `tests/Unit/Settings/NoStoreDeletionRequestTest.php`
+(Disconnect sends no HTTP request; `uninstall.php` makes no request; no shipped
+code names the endpoint). The docs site `#faq-uninstall` and the privacy-policy
+template say so. Changing this is a one-way-door decision for Erkki.
+
+### CON-52 — Retention follows the contract; the cookie lifetimes stay the engine's (2026-10-22)
+
+**Context:** contract v1.14.0 lengthened the engine's retention (browse and
+email events 14 months from the event, visitor tokens 14 months from their
+last activity) and added `data_retention_purpose` to the §8 export.
+**Decision (Erkki, 2026-10-22):** the plugin follows the contract's periods
+exactly; where the contract states no period for something the plugin keeps
+about a person, the target is 2 years (Klaviyo up to 2, Bloomreach up to 3,
+Shopify 1); where the plugin already keeps something longer, it stays.
+- **Privacy text:** the privacy-policy template on the docs site (`#pr-policy`)
+  states every §8 `data_retention_policy` period with its
+  `data_retention_purpose`. The plugin adds no text to WordPress's Privacy
+  Policy Guide; the docs-site template is the plugin's suggested text.
+- **Cookies:** no change. Every attribution cookie lifetime (`smaily_rec_uid`,
+  `smaily_rec_id`, `smaily_rec_ctx`, `smaily_anon_sid`) comes from the
+  engine's setup-exchange `config` (`*_ttl_days`); the plugin's fallbacks in
+  `LandingCapture` and `attribution.ts` / `rec-engine-client.ts` (365 / 30 /
+  30 / 30 days) equal the contract's cookie table. The store's `vs_` token
+  uses the same visitor-cookie lifetime. §15 says the cookie and the token may
+  expire at different times, so the 365-day cookie and the 14-month token do
+  not conflict. A longer cookie is the engine's change (`cookie_ttl_days`).
+- **Operational retention** (queue janitor, cart tracker, caches, the opt-out
+  registry) is unchanged here; it is Erkki's next decision.
+**Relationships:** contract §5, §8, §15 (v1.14.0); PRO-3845 (`vs_` token);
+CON-51.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
