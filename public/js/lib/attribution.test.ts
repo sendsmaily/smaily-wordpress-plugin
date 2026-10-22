@@ -71,9 +71,18 @@ describe('captureAttributionParams (PRO-1767 attribution-only writer)', () => {
     expect(window.location.search).toBe('');
   });
 
-  it('refuses an oversized visitor token and context (>64 chars past the prefix)', () => {
+  it('accepts a visitor token of exactly 64 characters in all', () => {
+    const token = `vt_${'b'.repeat(61)}`;
+    window.history.replaceState({}, '', `/landing?smaily_vt=${token}`);
+
+    expect(captureAttributionParams(makeConfig())).toBe(true);
+
+    expect(document.cookie).toContain(`smaily_rec_uid=${token}`);
+  });
+
+  it('refuses a visitor token of 65 characters in all and an oversized context', () => {
     const long = 'a'.repeat(65);
-    window.history.replaceState({}, '', `/landing?smaily_vt=vt_${long}&smaily_ctx=${long}`);
+    window.history.replaceState({}, '', `/landing?smaily_vt=vt_${'b'.repeat(62)}&smaily_ctx=${long}`);
 
     expect(captureAttributionParams(makeConfig())).toBe(false);
 
