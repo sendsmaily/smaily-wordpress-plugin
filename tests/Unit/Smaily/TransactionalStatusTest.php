@@ -129,6 +129,63 @@ final class TransactionalStatusTest extends TestCase {
 		self::assertSame( 1, $status->order_lookups, 'Both cards read one order lookup.' );
 	}
 
+	public function test_last_sent_reads_only_the_newest_real_send_of_each_email(): void {
+		$previous_wpdb = $GLOBALS['wpdb'] ?? null;
+		$wpdb          = new class() {
+			public string $prefix = 'wp_';
+			/** @var array<int, array{sql: string, args: array<int, mixed>}> */
+			public array $queries = array();
+			/** @var array<string, string> event type → newest real send */
+			public array $newest = array(
+				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION => '2026-10-15 08:30:00',
+				TransactionalFlusher::EVENT_TYPE_FOLLOW_UP          => '2026-10-14 07:00:00',
+			);
+			/** @param mixed ...$args */
+			public function prepare( string $sql, ...$args ): string {
+				return (string) json_encode( array( 'sql' => $sql, 'args' => $args ) );
+			}
+			public function get_var( string $prepared ): ?string {
+				$query           = json_decode( $prepared, true );
+				$this->queries[] = $query;
+				return $this->newest[ (string) end( $query['args'] ) ] ?? null;
+			}
+			/** @return never */
+			public function get_results( string $prepared ) {
+				throw new \LogicException( 'last_sent_at() must not read a result set: ' . $prepared );
+			}
+		};
+		$GLOBALS['wpdb'] = $wpdb;
+
+		try {
+			$gate   = new class() extends TransactionalGate {
+				public function __construct() {}
+				public function closed_reason( string $trigger_type, ?\WC_Order $order = null ): string {
+					return TransactionalGate::REASON_TRIGGER_OFF;
+				}
+			};
+			$status = new class( $gate ) extends TransactionalStatus {
+				protected function recent_order_statuses(): array {
+					return array();
+				}
+			};
+
+			$snapshot = $status->snapshot();
+		} finally {
+			$GLOBALS['wpdb'] = $previous_wpdb;
+		}
+
+		self::assertSame( '2026-10-15 08:30:00', $snapshot[ TransactionalGate::TRIGGER_ORDER_CONFIRMATION ]['lastSentAt'] );
+		self::assertSame( '', $snapshot[ TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ]['lastSentAt'] );
+		self::assertSame( '2026-10-14 07:00:00', $snapshot[ TransactionalGate::TRIGGER_FOLLOW_UP ]['lastSentAt'] );
+
+		self::assertCount( count( TransactionalGate::TRIGGERS ), $wpdb->queries, 'One query per email type.' );
+		foreach ( $wpdb->queries as $query ) {
+			self::assertStringContainsString( 'event_type = %s', $query['sql'] );
+			self::assertStringEndsWith( 'ORDER BY created_at DESC LIMIT 1', $query['sql'], 'Each query reads at most one row.' );
+			self::assertStringContainsString( 'sent_payload IS NOT NULL', $query['sql'], 'A skipped row is no send.' );
+		}
+	}
+
 	/**
 	 * @param array<string, string>  $reasons   trigger → closed reason ('' / absent = open).
 	 * @param array<string, string>  $last_sent event type → last real send.

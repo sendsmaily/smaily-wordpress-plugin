@@ -117,6 +117,44 @@ final class TransactionalStatusTest extends TestCase {
 		self::assertMatchesRegularExpression( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $last );
 	}
 
+	public function test_last_sent_is_each_emails_newest_real_send_among_many_rows(): void {
+		global $wpdb;
+		$table = $wpdb->prefix . \Smaily\Connect\Smaily\EventQueue::TABLE_SUFFIX;
+		$rows  = array(
+			// The order confirmation: the newest real send is 10-03 09:00.
+			array( 'transactional.order_confirmation', 'sent', '2026-10-01 10:00:00', '{"n":1}' ),
+			array( 'transactional.order_confirmation', 'sent', '2026-10-03 09:00:00', '{"n":2}' ),
+			array( 'transactional.order_confirmation', 'sent', '2026-10-05 08:00:00', null ),   // skipped: no send.
+			array( 'transactional.order_confirmation', 'sent', '2026-10-06 08:00:00', '' ),     // skipped: no send.
+			array( 'transactional.order_confirmation', 'failed', '2026-10-07 08:00:00', '{"n":3}' ),
+			array( 'transactional.order_confirmation', 'pending', '2026-10-08 08:00:00', null ),
+			// The shipping confirmation: 10-02 12:00.
+			array( 'transactional.shipping_confirmation', 'sent', '2026-09-30 12:00:00', '{"n":4}' ),
+			array( 'transactional.shipping_confirmation', 'sent', '2026-10-02 12:00:00', '{"n":5}' ),
+			// Another email's newer sends count for neither.
+			array( 'automation.abandoned_cart', 'sent', '2026-10-09 08:00:00', '{"n":6}' ),
+			array( 'subscriber.update', 'sent', '2026-10-10 08:00:00', '{"n":7}' ),
+		);
+		foreach ( $rows as $row ) {
+			$wpdb->insert(
+				$table,
+				array(
+					'event_type'   => $row[0],
+					'payload'      => '{}',
+					'status'       => $row[1],
+					'created_at'   => $row[2],
+					'sent_payload' => $row[3],
+				)
+			);
+		}
+
+		$status = ( new EnvDetector() )->saved_settings()['transactionalStatus'];
+
+		self::assertSame( '2026-10-03 09:00:00', $status['order_confirmation']['lastSentAt'] );
+		self::assertSame( '2026-10-02 12:00:00', $status['shipping_confirmation']['lastSentAt'] );
+		self::assertSame( '', $status['follow_up']['lastSentAt'], 'An email with no send shows none.' );
+	}
+
 	public function test_a_store_whose_orders_never_reach_a_ticked_status_is_warned(): void {
 		// Ticked: a status no order can be on (a custom fulfilment status
 		// the store doesn't use any more). The newest order sits at
