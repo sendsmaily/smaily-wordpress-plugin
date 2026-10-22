@@ -8255,6 +8255,9 @@ majors of the admin build/test tools; `extract-zip`, `showdown` and
 ^5.2.1` etc.), PRO-3444 (the `@wordpress/scripts` major; remove the
 `blocks/` overrides it makes unnecessary). Overrides go stale silently: when a
 parent moves, re-check whether its entry is still needed.
+**Addendum (CON-57, 2026-10-22):** the Vite 6 / Vitest 4 majors are done
+(entry "CON-57"); the root `tinypool` override is removed with Vitest 4, the
+root `postcss-selector-parser` override stays.
 
 ### PRO-3996 — An order or a login removes the buyer's carts, not an accented address's (2026-10-09)
 
@@ -8641,6 +8644,43 @@ live.
 `tests/Integration/EmailDesignsTest.php`, `tests/Unit/REST/EmailDesignsEndpointTest.php`,
 `tests/Unit/Settings/EmailDesignWorkflowsTest.php`, `RouterTest` and the
 vitest suites `EmailDesigns.test.tsx` / `Step3WooCommerce.emailDesigns.test.tsx`.
+
+### CON-57 — The admin build and test tools move to Vite 6 and Vitest 4 (2026-10-22)
+
+**Context:** PRO-3858 left six Dependabot alerts open on the root lockfile
+because only a major closes them: `vite` ×3 (fixed in 6.4.3), `esbuild`
+(0.25.0, which Vite 6 depends on), `vitest` + `@vitest/mocker` (4.1.11;
+`npm audit` lists a newer `@vitest/mocker` advisory fixed in 4.1.12). All
+are development-server and test-runner advisories; none of these tools ships
+in the ZIP.
+**Decision:** the lowest majors that close every alert: `vite ^6.4.5`,
+`vitest ^4.1.12`, `@vitest/coverage-v8 ^4.1.12`. `@vitejs/plugin-react` stays
+on 4.7 (it accepts Vite 6), and Vitest 4 accepts Vite 6 as its peer.
+`vite.config.ts` and `vitest.config.ts` are unchanged: the four single-entry
+IIFE passes, `cssCodeSplit: false` and the coverage thresholds need no new
+option. The root `tinypool` override is removed — Vitest 4 no longer depends
+on `tinypool`. The `postcss-selector-parser ^7.1.6` override stays: Tailwind
+3 still asks for ^6.
+**Output:** `sc-runtime.js`, `sc-landing.js` and `sc-recs.js` build
+byte-identical. `admin.css` differs only in `@media(...)` whitespace (the
+`esbuild` 0.25 minifier). `admin.js` grows 311 710 → 313 379 B (gzip 89 898 →
+90 621 B; the 250 KB budget holds): Vite 6 sets the CommonJS plugin's
+`strictRequires` to `true` by default, so React's CommonJS modules are
+wrapped in functions that run on first import instead of at bundle start, and
+the newer `esbuild` writes some bit tests as `(x&y)===0` instead of `!(x&y)`.
+The app imports React at its entry, so the order in which code runs does not
+change.
+**Alternatives:** `build.commonjsOptions.strictRequires: 'auto'` keeps the
+Vite 5 shape (tried: only the `esbuild` rewrites remain) — not chosen, it
+departs from the upstream default and changes no behaviour. Vite 7 or 8 —
+no alert needs it, and Vite 7 also changes the default build target.
+**Not fixed here:** `npm audit` now also lists `braces` (GHSA-vfj7-8cjw-p6xm,
+no patched release) under Tailwind 3, `micromatch` and `@typescript-eslint`
+7; it is not a Dependabot alert at the time of writing.
+**Relationships:** PRO-3858 (the overrides; its "not fixed here" list is
+closed by this entry), PRO-2391 (the IIFE passes, re-checked by
+`bin/check-bundle-scope.sh`), PRO-3444 / CON-56 (the `blocks/` major, not
+touched).
 
 ## How to keep this document going
 
