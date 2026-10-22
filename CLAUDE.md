@@ -1401,7 +1401,7 @@ shipped `sprintf(resolve_url(…), rawurlencode($email))` — a silent no-op on 
 `{email}` URL, so the literal `{email}` was sent and the engine 404'd (`No
 customer with email '{email}'`). The unit + mock endpoints maps had used `%s`,
 mirroring the bug → all gates green; only the LIVE engine used `{email}`, so only
-the 3.8.1 live-walk caught it. Use `Client::customer_url()` (`str_replace`), keep
+the 3.8.1 live-walk caught it. Use `Client::templated_url()` (`str_replace`), keep
 fallback `PATH_CUSTOMER_*_TMPL` constants on `{email}`, and seed mock/unit maps
 with `{email}` (the mock 422s on a literal-placeholder email). General rule: a
 URL from the endpoints-map carries the engine's placeholder syntax — confirm it

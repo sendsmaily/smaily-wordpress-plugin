@@ -63,10 +63,9 @@ final class EmailDesignWorkflows {
 				continue;
 			}
 			$id = $item['smaily_workflow_id'] ?? null;
-			if ( ( is_string( $id ) && ctype_digit( $id ) ) || is_int( $id ) ) {
-				if ( (int) $id > 0 ) {
-					$workflows[ (string) $item['email_key'] ] = (int) $id;
-				}
+			$id = is_int( $id ) || ( is_string( $id ) && ctype_digit( $id ) ) ? (int) $id : 0;
+			if ( $id > 0 ) {
+				$workflows[ (string) $item['email_key'] ] = $id;
 			}
 		}
 

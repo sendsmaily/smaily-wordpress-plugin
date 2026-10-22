@@ -16,7 +16,6 @@ use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
-use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -42,18 +41,15 @@ use WP_REST_Response;
  */
 class EmailDesignsEndpoint {
 
+	use RecEngineProxy;
+
 	public const ROUTE_DESIGNS     = '/rec-engine/emails/designs';
 	public const ROUTE_DESIGN_LINK = '/rec-engine/emails/design-link';
 
 	/** §17 `return_url` limit, which §22 takes over. */
 	private const RETURN_URL_MAX = 2048;
 
-	private RecEngineSettings $settings;
-
 	private EmailDesignWorkflows $workflows;
-
-	/** @var callable(string $api_key, string $base_url, array<string, string> $endpoints): Client */
-	private $client_factory;
 
 	/**
 	 * @param callable(string $api_key, string $base_url, array<string, string> $endpoints): Client $client_factory
@@ -95,20 +91,6 @@ class EmailDesignsEndpoint {
 				),
 			)
 		);
-	}
-
-	/**
-	 * @return bool|WP_Error
-	 */
-	public function permission_check( WP_REST_Request $request ) {
-		if ( ! current_user_can( Constants::CAPABILITY ) ) {
-			return new WP_Error(
-				'smaily_connect_forbidden',
-				__( 'You do not have permission to manage Campaign Intelligence.', 'smaily-connect' ),
-				array( 'status' => 403 )
-			);
-		}
-		return true;
 	}
 
 	public function designs( WP_REST_Request $request ): WP_REST_Response {
@@ -207,14 +189,6 @@ class EmailDesignsEndpoint {
 	private function is_engine_link( string $url ): bool {
 		return stripos( $url, 'https://' ) === 0
 			|| strpos( $url, rtrim( $this->settings->base_url(), '/' ) . '/' ) === 0;
-	}
-
-	private function client(): Client {
-		return ( $this->client_factory )(
-			$this->settings->api_key(),
-			$this->settings->base_url(),
-			$this->settings->endpoints()
-		);
 	}
 
 	/**
