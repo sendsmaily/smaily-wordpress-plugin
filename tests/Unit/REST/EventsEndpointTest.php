@@ -1,8 +1,9 @@
 <?php
 /**
  * EventsEndpoint::is_skipped() — which Event Log rows read "skipped"
- * (PRO-4098). The SQL twin behind the Sent filter is pinned by the
- * integration suite (RecEngineEventsTest).
+ * (PRO-4098) — and EventsEndpoint::sent_nothing() — which rows the Sent
+ * filter leaves out (CON-2). The SQL twin behind the Sent filter is pinned
+ * by the integration suite (RecEngineEventsTest).
  *
  * @package Smaily\Connect\Tests
  */
@@ -35,5 +36,22 @@ final class EventsEndpointTest extends TestCase {
 	public function test_only_a_sent_row_can_be_skipped(): void {
 		self::assertFalse( EventsEndpoint::is_skipped( 'failed', '{"outcome":"skipped","reason":"build_failed"}' ) );
 		self::assertFalse( EventsEndpoint::is_skipped( 'pending', '{"outcome":"skipped"}' ) );
+	}
+
+	/** CON-2: a skipped and a withdrawn row sent nothing; the Sent filter leaves both out. */
+	public function test_a_skipped_or_withdrawn_sent_row_sent_nothing(): void {
+		self::assertTrue( EventsEndpoint::sent_nothing( 'sent', '{"outcome":"skipped","reason":"no_workflow"}' ) );
+		self::assertTrue( EventsEndpoint::sent_nothing( 'sent', '{"outcome":"cancelled","note":"the shopper completed a purchase before the reminder was sent"}' ) );
+	}
+
+	public function test_a_row_that_really_went_out_did_not_send_nothing(): void {
+		self::assertFalse( EventsEndpoint::sent_nothing( 'sent', '{"http":200,"outcome":"accepted"}' ) );
+		self::assertFalse( EventsEndpoint::sent_nothing( 'sent', '' ) );
+		self::assertFalse( EventsEndpoint::sent_nothing( 'sent', 'not json' ) );
+	}
+
+	public function test_only_a_sent_row_can_have_sent_nothing(): void {
+		self::assertFalse( EventsEndpoint::sent_nothing( 'failed', '{"outcome":"skipped","reason":"build_failed"}' ) );
+		self::assertFalse( EventsEndpoint::sent_nothing( 'pending', '{"outcome":"cancelled"}' ) );
 	}
 }
