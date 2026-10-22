@@ -48,7 +48,8 @@ use WP_REST_Response;
  *     engine-side (operator "admin") edits and against catalog changes that
  *     ship with engine deploys.
  *   - No duplicate validation. PUT forwards `configs` to the engine as-is
- *     (only a minimal is-array shape check) — the engine's Zod schema is the
+ *     (only a minimal is-array shape check, and a `test_mode: false` is
+ *     left out — CON-172) — the engine's Zod schema is the
  *     validator, and its indexed 422 comes back verbatim. A PHP-side copy of
  *     the rules would be a second source of truth that drifts.
  *   - The api_key never reaches the browser: this proxy decrypts the stored
@@ -169,7 +170,7 @@ class AutomationsEndpoint {
 		}
 
 		// Minimal shape check ONLY — the engine's schema is the validator
-		// (F3-51). Everything else (1..50 rows, the 8 required row fields,
+		// (F3-51). Everything else (1..50 rows, the required row fields,
 		// enum/range/email rules) comes back as the engine's indexed 422.
 		$configs = $request->get_param( 'configs' );
 		if ( ! is_array( $configs ) ) {
@@ -182,8 +183,21 @@ class AutomationsEndpoint {
 			);
 		}
 
+		// The plugin never sends `test_mode: false` (CON-172). It never
+		// switches real sends on (§13) — only the go-live action (§20) or a
+		// Smaily operator does — and a left-out key keeps the stored value.
+		$configs = array_map(
+			static function ( $row ) {
+				if ( is_array( $row ) && array_key_exists( 'test_mode', $row ) && $row['test_mode'] === false ) {
+					unset( $row['test_mode'] );
+				}
+				return $row;
+			},
+			array_values( $configs )
+		);
+
 		try {
-			$body = $this->client()->put_automations_config( array_values( $configs ) );
+			$body = $this->client()->put_automations_config( $configs );
 		} catch ( ApiException $e ) {
 			return $this->engine_error_response( $e );
 		}

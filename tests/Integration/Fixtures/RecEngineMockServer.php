@@ -182,18 +182,6 @@ final class RecEngineMockServer {
 	}
 
 	/**
-	 * Play the Smaily operator who switches real automated sends on in the
-	 * engine admin (contract §13): only the listed triggers keep
-	 * `test_mode=false` when the plugin saves them; any other enabled row is
-	 * stored in test mode.
-	 *
-	 * @param string[] $trigger_keys
-	 */
-	public function set_automations_real_sends_on( array $trigger_keys ): void {
-		$this->write_state( array( 'automations_real_sends_on' => $trigger_keys ) );
-	}
-
-	/**
 	 * Play the engine's setup page (contract §17) or a Smaily operator:
 	 * store these §12 config rows as if they wrote them, so a test can check
 	 * that a plugin save leaves their workflow, test mode and test

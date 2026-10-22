@@ -1542,8 +1542,14 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 		},
 		automations_catalog_triggers()
 	);
-	$modes        = array( 'single', 'per_language' );
-	$required     = array( 'trigger_key', 'enabled', 'language_mode', 'automation_map', 'cooldown_days', 'daily_cap', 'test_mode', 'test_emails' );
+	$modes    = array( 'single', 'per_language' );
+	$required = array( 'trigger_key', 'enabled', 'language_mode', 'cooldown_days', 'daily_cap' );
+	// Optional since v1.15.0: an omitted key keeps the stored value; a new
+	// row is stored with test_mode=true and test_emails=[] (§13, CON-172).
+	$optional = array( 'automation_map', 'test_mode', 'test_emails' );
+	$stored   = ( isset( $state['automations_configs'] ) && is_array( $state['automations_configs'] ) )
+		? $state['automations_configs']
+		: array();
 
 	$errors       = array();
 	$rows_to_save = array();
@@ -1566,7 +1572,7 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 			$errors[]         = $entry;
 		};
 
-		// All 8 keys REQUIRED on every row (no server-side defaults);
+		// The 5 required keys on every row (no server-side defaults);
 		// daily_cap is nullable but its KEY must be present.
 		$missing = false;
 		foreach ( $required as $required_key ) {
@@ -1590,20 +1596,28 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 		if ( ! is_string( $row['language_mode'] ) || ! in_array( $row['language_mode'], $modes, true ) ) {
 			$row_error( 'language_mode', 'Invalid enum value' );
 		}
-		if ( ! is_array( $row['automation_map'] ) ) {
+		$stored_row = ( $trigger_key !== '' && isset( $stored[ $trigger_key ] ) && is_array( $stored[ $trigger_key ] ) )
+			? $stored[ $trigger_key ]
+			: null;
+		if ( array_key_exists( 'automation_map', $row ) && ! is_array( $row['automation_map'] ) ) {
 			$row_error( 'automation_map', 'Expected object' );
 		} else {
-			foreach ( $row['automation_map'] as $map_key => $map_value ) {
+			// The sent map, else the stored one (an omitted map is kept).
+			$map = array_key_exists( 'automation_map', $row )
+				? $row['automation_map']
+				: ( ( $stored_row !== null && is_array( $stored_row['automation_map'] ?? null ) ) ? $stored_row['automation_map'] : array() );
+			foreach ( $map as $map_key => $map_value ) {
 				if ( ! is_string( $map_value ) || preg_match( '/^\d+$/', $map_value ) !== 1 ) {
 					$row_error( 'automation_map.' . $map_key, 'automatsiooni id peab olema number' );
 				}
 			}
-			// enabled=true binding requirement: single needs `id`,
-			// per_language needs `fallback` (enabled=false may be {}).
-			if ( $row['enabled'] === true && $row['language_mode'] === 'single' && ! isset( $row['automation_map']['id'] ) ) {
+			// enabled=true binding requirement on the stored-or-sent map:
+			// single needs `id`, per_language needs `fallback` (enabled=false
+			// may be {}).
+			if ( $row['enabled'] === true && $row['language_mode'] === 'single' && ! isset( $map['id'] ) ) {
 				$row_error( 'automation_map', 'automation_map.id on nõutav' );
 			}
-			if ( $row['enabled'] === true && $row['language_mode'] === 'per_language' && ! isset( $row['automation_map']['fallback'] ) ) {
+			if ( $row['enabled'] === true && $row['language_mode'] === 'per_language' && ! isset( $map['fallback'] ) ) {
 				$row_error( 'automation_map', 'automation_map.fallback on nõutav' );
 			}
 		}
@@ -1613,10 +1627,12 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 		if ( $row['daily_cap'] !== null && ( ! is_int( $row['daily_cap'] ) || $row['daily_cap'] < 1 || $row['daily_cap'] > 100000 ) ) {
 			$row_error( 'daily_cap', 'Number must be between 1 and 100000, or null' );
 		}
-		if ( ! is_bool( $row['test_mode'] ) ) {
+		if ( array_key_exists( 'test_mode', $row ) && ! is_bool( $row['test_mode'] ) ) {
 			$row_error( 'test_mode', 'Expected boolean' );
 		}
-		if ( ! is_array( $row['test_emails'] ) ) {
+		if ( ! array_key_exists( 'test_emails', $row ) ) {
+			// Optional — nothing to check.
+		} elseif ( ! is_array( $row['test_emails'] ) ) {
 			$row_error( 'test_emails', 'Expected array' );
 		} elseif ( count( $row['test_emails'] ) > 50 ) {
 			$row_error( 'test_emails', 'Array must contain at most 50 element(s)' );
@@ -1631,9 +1647,31 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 		if ( count( $errors ) === $errors_before ) {
 			// Unknown keys are STRIPPED, not rejected (standard Zod object
 			// behavior) — incl. round-tripped configured_via/updated_at.
+			// An omitted optional key keeps the stored value; a new row gets
+			// the §13 defaults.
 			$clean = array();
 			foreach ( $required as $required_key ) {
 				$clean[ $required_key ] = $row[ $required_key ];
+			}
+			$defaults = array(
+				'automation_map' => array(),
+				'test_mode'      => true,
+				'test_emails'    => array(),
+			);
+			foreach ( $optional as $optional_key ) {
+				if ( array_key_exists( $optional_key, $row ) ) {
+					$clean[ $optional_key ] = $row[ $optional_key ];
+				} elseif ( $stored_row !== null && array_key_exists( $optional_key, $stored_row ) ) {
+					$clean[ $optional_key ] = $stored_row[ $optional_key ];
+				} else {
+					$clean[ $optional_key ] = $defaults[ $optional_key ];
+				}
+			}
+			// Real sends are switched on engine-side only (§13): a sent
+			// test_mode=false on an enabled row is stored as true unless the
+			// stored row already sends to real customers.
+			if ( $clean['enabled'] === true && ( $row['test_mode'] ?? null ) === false && ( $stored_row === null || ( $stored_row['test_mode'] ?? true ) !== false ) ) {
+				$clean['test_mode'] = true;
 			}
 			$rows_to_save[] = $clean;
 		}
@@ -1644,21 +1682,7 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 		reply( 422, array( 'error' => 'validation_failed', 'errors' => $errors ) );
 	}
 
-	$stored = ( isset( $state['automations_configs'] ) && is_array( $state['automations_configs'] ) )
-		? $state['automations_configs']
-		: array();
-	// Real sends are switched on engine-side only (§13, contract v1.8.2):
-	// an enabled row sent with test_mode=false is STORED with test_mode=true
-	// unless the operator already switched that trigger's real sends on —
-	// a test seeds that operator switch via `automations_real_sends_on`.
-	// The 200 response is unchanged; only the §12 read shows the outcome.
-	$real_sends_on = ( isset( $state['automations_real_sends_on'] ) && is_array( $state['automations_real_sends_on'] ) )
-		? $state['automations_real_sends_on']
-		: array();
 	foreach ( $rows_to_save as $clean ) {
-		if ( $clean['enabled'] === true && $clean['test_mode'] === false && ! in_array( $clean['trigger_key'], $real_sends_on, true ) ) {
-			$clean['test_mode'] = true;
-		}
 		$clean['configured_via']                  = 'plugin';
 		$clean['updated_at']                      = gmdate( 'Y-m-d\TH:i:s' ) . '.000Z';
 		$stored[ $clean['trigger_key'] ]          = $clean;
