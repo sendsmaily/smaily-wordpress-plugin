@@ -192,7 +192,8 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 	// v1.1.0 `automations_*` keys, plus `ingest_catalog_remove` — added to
 	// the live map by engine 6b225fb; the Client keeps its absolute-path
 	// fallback for pre-6b225fb connections whose stored map lacks the key —
-	// plus v1.12.0's `ingest_catalog_manifest`).
+	// plus v1.12.0's `ingest_catalog_manifest`, plus the v1.14.0–v1.17.0
+	// keys at the end of the map).
 	$engine_base = sprintf( 'http://%s', $_SERVER['HTTP_HOST'] ?? 'localhost:9876' );
 	reply(
 		200,
@@ -223,6 +224,16 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				'recommendations_customer' => $engine_base . '/api/v1/recommendations/customer',
 				'automations_catalog'     => $engine_base . '/api/v1/automations/catalog',
 				'automations_config'      => $engine_base . '/api/v1/automations/config',
+				// Keys the live engine returns since contract v1.14.0–v1.17.0
+				// (the plugin calls none of them yet). `{key}` / `{email_key}`
+				// are placeholders like `{email}`; the reply must still pass
+				// SetupExchange::is_allowed_reply(). §19/§20's keys are left
+				// out: the engine returns them only once those are live.
+				'store_uninstall'         => $engine_base . '/api/v1/store/uninstall',
+				'automations_setup_link'  => $engine_base . '/api/v1/automations/{key}/setup-link',
+				'store_branding'          => $engine_base . '/api/v1/store/branding',
+				'emails_design_link'      => $engine_base . '/api/v1/emails/{email_key}/design-link',
+				'emails_designs'          => $engine_base . '/api/v1/emails/designs',
 			),
 			'config'          => array(
 				'tracking_cookie_name' => 'smaily_rec_uid',
