@@ -178,6 +178,8 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 	// Anything else: success. Mark token used.
 	$state[ 'used_' . $token ]   = true;
 	$state[ 'api_key' ]          = 'sk_mock_' . bin2hex( random_bytes( 16 ) );
+	// The connection's site URL — §17/§22 check a `return_url` host against it.
+	$state['plugin_site_url'] = (string) ( $body['plugin_info']['site_url'] ?? '' );
 	$state[ 'tenant_id' ]        = '00000000-0000-4000-8000-' . bin2hex( random_bytes( 6 ) );
 	$state[ 'tenant_name' ]      = 'Mock Tenant';
 	save_state( $state_file, $state );
@@ -1758,6 +1760,108 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 
 	header( 'Cache-Control: no-store, private', true );
 	reply( 200, array( 'slots' => array_slice( array_values( $seeded ), 0, $limit ) ) );
+}
+
+/**
+ * Email designs (§22–§23, contract v1.17.0). One item per email key the
+ * store can design: every §11 catalogue key plus the six v1.17.0 starters.
+ * Like the live engine before the Smaily push is live, every item says
+ * `smaily_state: "not_available"` with null ids; a test patches an item
+ * (`email_design_patches`, e.g. a pushed workflow id) or plays an engine that
+ * does not offer the routes yet (`email_designs_unavailable` → the 404 an
+ * unknown route gets).
+ */
+function email_design_items( array $state ): array {
+	$starters = array(
+		array( 'plugin.welcome', 'plugin', 'Tervituskiri', 'Welcome email', 'workflow' ),
+		array( 'plugin.first_order', 'plugin', 'Esimese tellimuse kiri', 'First order email', 'workflow' ),
+		array( 'plugin.abandoned_cart', 'plugin', 'Mahajäetud ostukorv', 'Abandoned cart', 'workflow' ),
+		array( 'plugin.follow_up', 'plugin', 'Järelkiri', 'Follow-up email', 'workflow' ),
+		array( 'transactional.order_confirmation', 'transactional', 'Tellimuse kinnitus', 'Order confirmation', 'transactional' ),
+		array( 'transactional.shipping_confirmation', 'transactional', 'Tarne kinnitus', 'Shipping confirmation', 'transactional' ),
+	);
+	foreach ( automations_catalog_triggers() as $trigger ) {
+		$starters[] = array( $trigger['key'], 'engine', $trigger['name_et'], $trigger['name_en'], 'workflow' );
+	}
+	$patches = ( isset( $state['email_design_patches'] ) && is_array( $state['email_design_patches'] ) ) ? $state['email_design_patches'] : array();
+	$items   = array();
+	foreach ( $starters as list( $key, $kind, $name_et, $name_en, $sent_through ) ) {
+		$item = array(
+			'email_key'          => $key,
+			'kind'               => $kind,
+			'name_et'            => $name_et,
+			'name_en'            => $name_en,
+			'sent_through'       => $sent_through,
+			'design_state'       => 'none',
+			'subject'            => null,
+			'sender'             => null,
+			'version'            => 0,
+			'smaily_state'       => 'not_available',
+			'smaily_template_id' => null,
+			'smaily_workflow_id' => null,
+			'smaily_pushed_at'   => null,
+			'updated_at'         => null,
+		);
+		$items[ $key ] = isset( $patches[ $key ] ) && is_array( $patches[ $key ] ) ? array_merge( $item, $patches[ $key ] ) : $item;
+	}
+	return $items;
+}
+
+if ( empty( $state['email_designs_unavailable'] ) && $method === 'GET' && $path === '/api/v1/emails/designs' ) {
+	require_bearer_auth();
+	$items = email_design_items( $state );
+	$key   = isset( $_GET['email_key'] ) ? (string) $_GET['email_key'] : null;
+	if ( $key !== null ) {
+		if ( ! isset( $items[ $key ] ) ) {
+			reply( 404, array( 'error' => 'unknown_email', 'email_key' => $key ) );
+		}
+		$items = array( $items[ $key ] );
+	}
+	reply( 200, array( 'emails' => array_values( $items ) ) );
+}
+
+if ( empty( $state['email_designs_unavailable'] ) && $method === 'POST' && preg_match( '#^/api/v1/emails/([^/]+)/design-link$#', $path, $m ) === 1 ) {
+	require_bearer_auth();
+	$key = rawurldecode( $m[1] );
+	if ( ! isset( email_design_items( $state )[ $key ] ) ) {
+		reply( 404, array( 'error' => 'unknown_email', 'message' => sprintf( 'No email %s for this store.', $key ) ) );
+	}
+
+	$body = json_decode( (string) file_get_contents( 'php://input' ), true );
+	if ( ! is_array( $body ) ) {
+		reply( 400, array( 'error' => 'invalid_json', 'message' => 'Request body is not a JSON object.' ) );
+	}
+
+	// §17 rules, which §22 takes over: `return_url` https on the host of the
+	// connection's `plugin_info.site_url`; `language` an ISO 639-1 code.
+	$errors = array();
+	if ( array_key_exists( 'return_url', $body ) ) {
+		$return_url = $body['return_url'];
+		$site_host  = (string) parse_url( (string) ( $state['plugin_site_url'] ?? '' ), PHP_URL_HOST );
+		if ( ! is_string( $return_url ) || strlen( $return_url ) > 2048
+			|| parse_url( $return_url, PHP_URL_SCHEME ) !== 'https'
+			|| $site_host === '' || strtolower( (string) parse_url( $return_url, PHP_URL_HOST ) ) !== strtolower( $site_host ) ) {
+			$errors[] = array( 'field' => 'return_url', 'message' => 'Must be https on the store site host.' );
+		}
+	}
+	if ( array_key_exists( 'language', $body ) && ( ! is_string( $body['language'] ) || preg_match( '/^[a-z]{2}$/', $body['language'] ) !== 1 ) ) {
+		$errors[] = array( 'field' => 'language', 'message' => 'Must be an ISO 639-1 code.' );
+	}
+	if ( $errors !== array() ) {
+		reply( 422, array( 'error' => 'validation_failed', 'errors' => $errors ) );
+	}
+
+	$state['last_design_link_request'] = array( 'email_key' => $key, 'body' => $body );
+	save_state( $state_file, $state );
+
+	$engine_base = sprintf( 'http://%s', $_SERVER['HTTP_HOST'] ?? 'localhost:9876' );
+	reply(
+		200,
+		array(
+			'url'        => $engine_base . '/design/email/dl_' . bin2hex( random_bytes( 8 ) ),
+			'expires_at' => gmdate( 'Y-m-d\\TH:i:s.000\\Z', time() + 300 ),
+		)
+	);
 }
 
 // Fallback.

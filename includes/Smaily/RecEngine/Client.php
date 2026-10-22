@@ -119,6 +119,12 @@ class Client {
 	// `recommendations_customer`; a connection exchanged before v1.9.0 has no
 	// such key, so this fallback serves every existing connection.
 	public const PATH_RECOMMENDATIONS_CUSTOMER = '/api/v1/recommendations/customer';
+	// Email designs (contract v1.17.0, §22–§23). Map keys `emails_design_link`
+	// and `emails_designs`; a connection exchanged before the engine returned
+	// them has no such keys, so these fallbacks serve it. `{email_key}` is a
+	// placeholder like `{email}` — substituted, never sprintf'd.
+	public const PATH_EMAILS_DESIGN_LINK_TMPL = '/api/v1/emails/{email_key}/design-link';
+	public const PATH_EMAILS_DESIGNS          = '/api/v1/emails/designs';
 
 	/** Default in-request retry ceiling — generous for one-shot calls (ping, setup). */
 	public const DEFAULT_MAX_ATTEMPTS = 5;
@@ -563,6 +569,41 @@ class Client {
 		);
 	}
 
+	/**
+	 * A one-time link to the engine's design page for one email (§22) —
+	 * `{url, expires_at}`. The link is opened at once in a new tab and never
+	 * stored or logged. `$body` carries the optional `return_url` and
+	 * `language`; an empty body is sent as `{}`.
+	 *
+	 * @param array<string, string> $body
+	 *
+	 * @return array<string, mixed>
+	 *
+	 * @throws ApiException On 4xx (incl. 404 unknown_email, 422) or network failure.
+	 */
+	public function email_design_link( string $email_key, array $body ): array {
+		$url = str_replace(
+			'{email_key}',
+			rawurlencode( $email_key ),
+			$this->resolve_url( 'emails_design_link', self::PATH_EMAILS_DESIGN_LINK_TMPL )
+		);
+		return $this->request_url( 'POST', $url, $body );
+	}
+
+	/**
+	 * Every email design of the store (§23) — `{emails: [...]}`, one item per
+	 * email key the store can design, with its design state and Smaily ids.
+	 * Read when the email settings open and on return from the design page,
+	 * never before a send run.
+	 *
+	 * @return array<string, mixed>
+	 *
+	 * @throws ApiException On 4xx (incl. 404 while the engine does not offer it) or network failure.
+	 */
+	public function email_designs(): array {
+		return $this->request_url( 'GET', $this->resolve_url( 'emails_designs', self::PATH_EMAILS_DESIGNS ) );
+	}
+
 	// ---------------------------------------------------------------
 	// Private request engine.
 	// ---------------------------------------------------------------
@@ -639,8 +680,9 @@ class Client {
 		$attempts     = 0;
 		$backoff      = 1;
 		$max_attempts = $single_attempt ? 1 : $this->max_attempts;
-		// Encoded once: every attempt sends the same bytes.
-		$json = $body !== null ? (string) wp_json_encode( $body ) : null;
+		// Encoded once: every attempt sends the same bytes. An empty body is
+		// the JSON object `{}` (§22), not the list `[]` wp_json_encode() makes.
+		$json = $body !== null ? ( $body === array() ? '{}' : (string) wp_json_encode( $body ) ) : null;
 
 		while ( true ) {
 			++$attempts;
