@@ -253,6 +253,77 @@ final class MigratorTest extends TestCase {
 		self::assertSame( array( 1 ), $option_writes );
 	}
 
+	public function test_discover_picks_up_numbered_php_migrations_beside_sql(): void {
+		// CON-182: a `.php` migration carries a step dbDelta() cannot run
+		// (it silently ignores DROP TABLE). The legacy `upgrade-*.php` and
+		// `index.php` still stay out.
+		$this->seed_file( '011-a.sql', 'x' );
+		$this->seed_file( '012-drop-retired-tables.php', '<?php return static function (): bool { return true; };' );
+		$this->seed_file( 'upgrade-1-3-0.php', '<?php // legacy' );
+		$this->seed_file( 'index.php', '<?php' );
+
+		$found = ( new Migrator( $this->tmp_dir ) )->discover();
+
+		self::assertSame( array( 11, 12 ), array_keys( $found ) );
+		self::assertStringEndsWith( '012-drop-retired-tables.php', $found[12] );
+	}
+
+	public function test_migrate_runs_a_php_migration_and_records_its_version(): void {
+		$GLOBALS['smly_migrator_test_calls'] = array();
+		$this->seed_php_step( '001-step.php', 1, true );
+
+		Functions\when( 'get_option' )->justReturn( 0 );
+		$option_writes = array();
+		Functions\when( 'update_option' )->alias(
+			static function ( string $key, $value ) use ( &$option_writes ): bool {
+				$option_writes[] = $value;
+				return true;
+			}
+		);
+
+		$applied = ( new Migrator( $this->tmp_dir ) )->migrate();
+
+		self::assertSame( array( 1 ), $applied );
+		self::assertSame( array( 1 ), $GLOBALS['smly_migrator_test_calls'] );
+		self::assertSame( array( 1 ), $option_writes );
+	}
+
+	public function test_a_php_migration_that_returns_false_stops_the_run_without_recording_it(): void {
+		$GLOBALS['smly_migrator_test_calls'] = array();
+		$this->seed_php_step( '001-step.php', 1, true );
+		$this->seed_php_step( '002-retry-later.php', 2, false );
+		$this->seed_php_step( '003-after.php', 3, true );
+
+		Functions\when( 'get_option' )->justReturn( 0 );
+		$option_writes = array();
+		Functions\when( 'update_option' )->alias(
+			static function ( string $key, $value ) use ( &$option_writes ): bool {
+				$option_writes[] = $value;
+				return true;
+			}
+		);
+
+		$applied = ( new Migrator( $this->tmp_dir ) )->migrate();
+
+		self::assertSame( array( 1 ), $applied, 'Version 2 is not recorded, so the next update retries it.' );
+		self::assertSame( array( 1 ), $option_writes );
+		self::assertSame( array( 1, 2 ), $GLOBALS['smly_migrator_test_calls'], 'No later migration runs ahead of the one that has to be retried.' );
+	}
+
+	/**
+	 * A `.php` migration that records its call and answers $result.
+	 */
+	private function seed_php_step( string $name, int $id, bool $result ): void {
+		$this->seed_file(
+			$name,
+			sprintf(
+				'<?php return static function (): bool { $GLOBALS["smly_migrator_test_calls"][] = %d; return %s; };',
+				$id,
+				$result ? 'true' : 'false'
+			)
+		);
+	}
+
 	private function seed_file( string $name, string $contents ): void {
 		file_put_contents( $this->tmp_dir . '/' . $name, $contents );
 	}

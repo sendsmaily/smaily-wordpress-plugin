@@ -67,7 +67,6 @@ final class EnvScrub {
 			'smly_plus_automation_mapping',
 			'smly_plus_cart_session',
 			'smly_rec_event_queue',
-			'smly_rec_visitor',
 		);
 		foreach ( $tables as $suffix ) {
 			$table = $wpdb->prefix . $suffix;
