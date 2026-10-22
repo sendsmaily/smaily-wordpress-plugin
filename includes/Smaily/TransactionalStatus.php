@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 
-// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- read-only admin-screen queries: table/column names come from $wpdb->prefix + class constants / OrderBackfillJob::table_spec(); values are prepare()d.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- read-only admin-screen queries: table/column names come from $wpdb->prefix + class constants / OrderBackfillJob::table_spec(); values are prepare()d.
 
 /**
  * The facts behind the status line on the order- and shipping-confirmation
