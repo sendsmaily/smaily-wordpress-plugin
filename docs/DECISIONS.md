@@ -8493,6 +8493,32 @@ personal data in the queue longer than needed; a new queue status
 `tests/Integration/TransactionalEmailsPipelineTest.php` (real WC status
 transitions) and `tests/Unit/Smaily/TransactionalFlusherTest.php`.
 
+### CON-51 — The plugin never sends the §16 store-deletion request (2026-10-22)
+
+**Context:** contract v1.14.0 added §16 `POST /api/v1/store/uninstall` and asks
+the plugin to call it when the shop admin uninstalls. When the store's last
+connection calls it, the engine marks the store for deletion and deletes ALL of
+its data (customers, orders, catalog, events, recommendations, attribution,
+settings) within 30 days; the store cannot be connected again without the
+engine operator.
+**Decision (Erkki, 2026-10-22):** the plugin NEVER sends the §16 request — not
+on uninstall (`uninstall.php`) and not on Disconnect
+(`RecEngineSettings::disconnect()` via the `/rec-engine/disconnect` route).
+Both only remove the plugin's own stored engine connection (the API key and
+the other `smly_rec_*` options); they make no engine request at all.
+**Rationale:** a merchant who uninstalls or disconnects may only be changing
+platform (another plugin or shop on the same Smaily account), and a deletion
+cannot be undone. The store's engine data is deleted when the merchant closes
+the Smaily account. The merchant docs already promised that Campaign
+Intelligence data persists after an uninstall.
+**Alternatives:** call §16 on uninstall as the contract suggests — rejected for
+the reason above.
+**Relationships:** contract §16 (v1.14.0), PRO-1337 (uninstall sweeps the
+connection options). Pinned by `tests/Unit/Settings/NoStoreDeletionRequestTest.php`
+(Disconnect sends no HTTP request; `uninstall.php` makes no request; no shipped
+code names the endpoint). The docs site `#faq-uninstall` and the privacy-policy
+template say so. Changing this is a one-way-door decision for Erkki.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
