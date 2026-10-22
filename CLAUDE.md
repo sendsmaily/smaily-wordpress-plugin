@@ -82,6 +82,13 @@ environment moves wp-env without touching `.wp-env.json`. `wp-env start`
 fails with "port is already allocated" when the port is taken — don't stop
 someone else's container; pass the same variables to every later `wp-env
 run`/`stop`. The suite does not depend on the dev port.
+**Check which checkout the running wp-env mounts** (2026-10-22): the Mac's
+running `wp-env-connect-…` containers mount the OLDER checkout path
+`/Users/erkkimarkus/Downloads/smaily/connect`, not `connect-woo` — a local
+integration run there tests that tree, not this repo, until wp-env is
+restarted from `connect-woo`. `docker inspect <cli> --format '{{range
+.Mounts}}{{.Source}} {{end}}'` shows the source. Until then, rely on CI's two
+integration legs (the 2026-10-22 PRs did).
 
 **Filtered/single-test integration runs:** prefer the wrapper — it passes
 extra args through to phpunit AND keeps the PRO-1240 smly_rec_* snapshot/
@@ -1486,6 +1493,14 @@ The old "push directly to main" rhythm (and the earlier fork's) is history.
 against the new main before merging it** (merge main into it or re-run its
 checks) — two PRs green on their own were red together on 2026-10-16
 (LESSONS §2.29).
+
+**Run a guarded merge/cleanup script under bash, not the Mac's zsh**
+(2026-10-22): on the Mac the Bash tool runs zsh, and a `set -euo pipefail`
+merge-then-clean-up script there did NOT stop after a failed `gh pr merge`
+(PR #246 had conflicts) — it went on and removed the unmerged PR's local
+worktree (nothing was lost only because the branch was pushed). Run such a
+script as `bash -euo pipefail <<'EOF' … EOF`, and treat conflict output from
+`gh pr update-branch` (or a failed merge) as a stop: no cleanup after it.
 
 **A batch of several open PRs may leave STATUS.md to one batch PR (Erkki,
 2026-10-06).** When several feature PRs are open at once, each one that adds
