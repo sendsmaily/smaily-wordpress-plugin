@@ -1518,6 +1518,14 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 		reply( 400, array( 'error' => 'invalid_json' ) );
 	}
 
+	// The decode above turns both `{}` and `[]` into an empty PHP array, so
+	// the map's JSON type is read from an object decode. §13 types
+	// automation_map as an object; the live Zod schema refuses a list.
+	$raw_body    = json_decode( $raw );
+	$raw_configs = ( $raw_body instanceof \stdClass && isset( $raw_body->configs ) && is_array( $raw_body->configs ) )
+		? $raw_body->configs
+		: array();
+
 	$configs = isset( $body['configs'] ) ? $body['configs'] : null;
 	// What the plugin sent, before any validation — a test reads it back
 	// (RecEngineMockServer::last_automations_config_put()).
@@ -1606,7 +1614,11 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 		$stored_row = ( $trigger_key !== '' && isset( $stored[ $trigger_key ] ) && is_array( $stored[ $trigger_key ] ) )
 			? $stored[ $trigger_key ]
 			: null;
-		if ( array_key_exists( 'automation_map', $row ) && ! is_array( $row['automation_map'] ) ) {
+		$raw_row     = $raw_configs[ $index ] ?? null;
+		$map_is_list = $raw_row instanceof \stdClass && property_exists( $raw_row, 'automation_map' ) && is_array( $raw_row->automation_map );
+		if ( $map_is_list ) {
+			$row_error( 'automation_map', 'Expected object, received array' );
+		} elseif ( array_key_exists( 'automation_map', $row ) && ! is_array( $row['automation_map'] ) ) {
 			$row_error( 'automation_map', 'Expected object' );
 		} else {
 			// The sent map, else the stored one (an omitted map is kept).

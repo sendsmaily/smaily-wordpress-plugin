@@ -48,8 +48,9 @@ use WP_REST_Response;
  *     engine-side (operator "admin") edits and against catalog changes that
  *     ship with engine deploys.
  *   - No duplicate validation. PUT forwards `configs` to the engine as-is
- *     (only a minimal is-array shape check, and a `test_mode: false` is
- *     left out — CON-172) — the engine's Zod schema is the
+ *     (only a minimal is-array shape check, a `test_mode: false` is
+ *     left out — CON-172 — and an empty `automation_map` is sent as `{}`,
+ *     CON-180) — the engine's Zod schema is the
  *     validator, and its indexed 422 comes back verbatim. A PHP-side copy of
  *     the rules would be a second source of truth that drifts.
  *   - The api_key never reaches the browser: this proxy decrypts the stored
@@ -186,10 +187,17 @@ class AutomationsEndpoint {
 		// The plugin never sends `test_mode: false` (CON-172). It never
 		// switches real sends on (§13) — only the go-live action (§20) or a
 		// Smaily operator does — and a left-out key keeps the stored value.
+		//
+		// A cleared workflow goes out as `{}` (CON-180). WP REST decodes the
+		// browser's `{}` into an empty PHP array, which would re-encode as
+		// the JSON list `[]`; §13 types `automation_map` as an object.
 		$configs = array_map(
 			static function ( $row ) {
 				if ( is_array( $row ) && array_key_exists( 'test_mode', $row ) && $row['test_mode'] === false ) {
 					unset( $row['test_mode'] );
+				}
+				if ( is_array( $row ) && array_key_exists( 'automation_map', $row ) && $row['automation_map'] === array() ) {
+					$row['automation_map'] = new \stdClass();
 				}
 				return $row;
 			},
