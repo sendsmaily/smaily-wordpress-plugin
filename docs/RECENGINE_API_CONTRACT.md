@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.13
+# Smaily Recommendation Engine — API Contract v1.17
 
-**Version**: 1.13.0
+**Version**: 1.17.0
 **Published**: 2026-05-19
-**Last updated**: 2026-10-17 (v1.13.0 — §8 export `data_retention_policy` lists every kind of data the privacy policy lists; visitor-token formats, the one token-lifetime rule in §15 and the attribution run interval corrected. MINOR bump: new keys in the export response — PRO-4108, PRO-4088)
+**Last updated**: 2026-10-22 (v1.17.0 — the engine runs only its own emails: the engine-less parts of v1.15.0, which were never live, leave §11–§13, §17, §19 and §20. New §22 design link and §23 design read-back: the engine is the one design place for every email the store sends — engine, plugin and transactional — sends a test of each from the design page, and pushes each saved design to Smaily. MINOR bump: no live behaviour changes. §22 and §23 are published before they are live: see the availability note in each section. Published the same day as v1.16.0 (new §21: a plugin starts Campaign Intelligence for a shop with no store) and v1.15.0 (one setup place for the engine's automated emails: §17 setup link, §18 brand kit, §19 test send, §20 go-live) — INT-11, INT-134, PRO-4166, INT-12)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -61,6 +61,14 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
    - [PUT /api/v1/automations/config](#13-put-apiv1automationsconfig)
    - [POST /api/v1/notifications/ingest](#14-post-apiv1notificationsingest)
    - [POST /api/v1/recommendations/customer](#15-post-apiv1recommendationscustomer)
+   - [POST /api/v1/store/uninstall](#16-post-apiv1storeuninstall)
+   - [POST /api/v1/automations/{key}/setup-link](#17-post-apiv1automationskeysetup-link)
+   - [PUT /api/v1/store/branding](#18-put-apiv1storebranding)
+   - [POST /api/v1/automations/{key}/test-send](#19-post-apiv1automationskeytest-send)
+   - [POST /api/v1/automations/{key}/go-live](#20-post-apiv1automationskeygo-live)
+   - [POST /api/v1/onboarding/start](#21-post-apiv1onboardingstart)
+   - [POST /api/v1/emails/{email_key}/design-link](#22-post-apiv1emailsemail_keydesign-link)
+   - [GET /api/v1/emails/designs](#23-get-apiv1emailsdesigns)
 9. [Appendices](#appendices)
 
 ---
@@ -91,6 +99,8 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
 - Order `external_id`: text, plugin/platform-defined
 - SKU: text, max 64 characters
 
+**Paid Smaily package required.** Connect works only with a paid Smaily package: the engine reads and writes the store's Smaily data through the Smaily API, and Smaily gives API access only to paid packages. An account without one gets Smaily code 227 ("A paid package is required"). When the engine reports `smaily_paid_package_required` (§21), the plugin tells the store that its Smaily package does not include API access and offers the package upgrade instead of onboarding.
+
 ---
 
 ## Authentication
@@ -103,7 +113,7 @@ Authorization: Bearer sk_<random_32_chars>
 
 The API key is tenant-scoped, obtained via `POST /api/setup/exchange`. **The API key must never appear in client-side code** (JavaScript, mobile app bundle). A plugin-side server proxy is required for browse events.
 
-The setup endpoint (`POST /api/setup/exchange`) is the **only** unauthenticated endpoint — it accepts a setup token instead of an API key.
+The setup endpoint (`POST /api/setup/exchange`) and, since v1.16.0, the onboarding start (`POST /api/v1/onboarding/start`, [§21](#21-post-apiv1onboardingstart)) are the **only** unauthenticated endpoints. The setup endpoint accepts a setup token instead of an API key; the onboarding start accepts the store's Smaily API login.
 
 **Auth failure responses**:
 - `401 Unauthorized` if the `Authorization` header is missing or the API key is invalid
@@ -269,13 +279,22 @@ HTTP 400 Bad Request
 | `/api/v1/ingest/customers` | 100 requests | per 1 second |
 | `/api/v1/ingest/orders` | 100 requests | per 1 second |
 | `/api/v1/identity/merge` | 100 requests | per 1 second |
+| `/api/v1/automations/{key}/setup-link` | 10 requests | per 60 seconds |
+| `/api/v1/automations/{key}/test-send` | 10 requests | per 3600 seconds |
+| `/api/v1/automations/{key}/go-live` | 10 requests | per 60 seconds |
 | `/api/v1/automations/...` | 100 requests | per 1 second |
+| `/api/v1/emails/{email_key}/design-link` | 10 requests | per 60 seconds |
+| `/api/v1/emails/...` | 100 requests | per 1 second |
 | `/api/v1/notifications/ingest` | 100 requests | per 1 second |
 | `/api/v1/recommendations/customer` | 100 requests | per 1 second |
+| `/api/v1/store/branding` | 10 requests | per 60 seconds |
 | `/api/v1/customer/...` (GDPR) | 10 requests | per 60 seconds |
 | `/api/setup/exchange` | 10 requests | per 60 seconds (per IP) |
+| `/api/v1/onboarding/...` | 10 requests | per 60 seconds (per IP) |
 
-**Identity**: authenticated requests are tracked by `<tenant_id>:<endpoint_prefix>`. The anonymous setup-exchange endpoint is tracked by `ip:<ip>`.
+**Identity**: authenticated requests are tracked by `<tenant_id>:<endpoint_prefix>`. The anonymous setup-exchange and onboarding endpoints are tracked by `ip:<ip>`.
+
+A more specific prefix wins: the three `/api/v1/automations/{key}/...` rows come before the `/api/v1/automations/...` row (v1.15.0). For the three `{key}` rows the prefix does not include the key: one limit covers all emails of the store. Test sends from the setup page and the design page (§22), for every email, count toward the same test-send limit. The `/api/v1/emails/{email_key}/design-link` row comes before the `/api/v1/emails/...` row; its prefix does not include the key: one limit covers all emails of the store (v1.17.0). Design links and setup links (§17) count separately. The onboarding start window's own calls (reading its link, submitting the form) share the `/api/v1/onboarding/...` bucket with the start call, per IP (v1.16.0). The setup-link, branding and both emails rows are live; the test-send and go-live rows apply once their endpoints are live (§19, §20).
 
 **Storage**: in-memory per Vercel instance (MVP; not shared across instances). Redis-backed global rate limiting is deferred to v2. For the pilot scale (one tenant, single Vercel instance handling traffic), per-instance limits are sufficient.
 
@@ -380,9 +399,11 @@ POST /api/v1/ingest/catalog
 
 ### 1. POST /api/setup/exchange
 
-Setup-token exchange. **Unauthenticated endpoint** (the only one).
+Setup-token exchange. **Unauthenticated endpoint** (one of two, with the onboarding start, [§21](#21-post-apiv1onboardingstart)).
 
 **Use case**: after tenant creation in the admin UI, Erkki gets a setup URL (e.g. `https://intelligence.smaily.com/setup/abc123xyz`). The client pastes this URL into the plugin's Settings; the plugin extracts the token (`abc123xyz`) and calls this endpoint to obtain its technical configuration.
+
+**Where the setup token comes from.** The operator's admin, the store's console (Settings → Connections), or — since v1.16.0 — the start window of a new store (§21), which sends it to the plugin's window in a browser message. The exchange is the same in every case.
 
 **URL**: `POST /api/setup/exchange`
 
@@ -439,7 +460,14 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
     "recommendations_customer": "https://intelligence.smaily.com/api/v1/recommendations/customer",
     "automations_catalog":     "https://intelligence.smaily.com/api/v1/automations/catalog",
     "automations_config":      "https://intelligence.smaily.com/api/v1/automations/config",
-    "notifications_ingest":    "https://intelligence.smaily.com/api/v1/notifications/ingest"
+    "notifications_ingest":    "https://intelligence.smaily.com/api/v1/notifications/ingest",
+    "store_uninstall":         "https://intelligence.smaily.com/api/v1/store/uninstall",
+    "automations_setup_link":  "https://intelligence.smaily.com/api/v1/automations/{key}/setup-link",
+    "store_branding":          "https://intelligence.smaily.com/api/v1/store/branding",
+    "automations_test_send":   "https://intelligence.smaily.com/api/v1/automations/{key}/test-send",
+    "automations_go_live":     "https://intelligence.smaily.com/api/v1/automations/{key}/go-live",
+    "emails_design_link":      "https://intelligence.smaily.com/api/v1/emails/{email_key}/design-link",
+    "emails_designs":          "https://intelligence.smaily.com/api/v1/emails/designs"
   },
   "config": {
     "tracking_cookie_name": "smaily_rec_uid",
@@ -462,11 +490,15 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
 }
 ```
 
-**Endpoint map convention**: keys use `ingest_*`, `identity_*`, `customer_*`, `recommendations_*`, `automations_*` prefixes for the categories. Plugin code should read endpoint URLs from this map (`endpoints[ingest_catalog]`) rather than concatenating base URL + hardcoded paths. This way, future path migrations on the engine side don't require plugin updates — only the setup-response map changes.
+**Endpoint map convention**: keys use `ingest_*`, `identity_*`, `customer_*`, `recommendations_*`, `automations_*`, `store_*`, `emails_*` prefixes for the categories. Plugin code should read endpoint URLs from this map (`endpoints[ingest_catalog]`) rather than concatenating base URL + hardcoded paths. This way, future path migrations on the engine side don't require plugin updates — only the setup-response map changes.
 
 > **Deprecated keys** (v1.9.1, PRO-3793): `recommendations_preview` and `recommendations_issue` point at routes that the engine retired on 2026-07-13 (PRO-1295); they answer `404`. The setup response still carries both keys, so the map shape does not change, but plugins must not call them. Contract 2.0 removes both keys. Storefront recommendations use `recommendations_customer` ([§15](#15-post-apiv1recommendationscustomer)).
 
 > **Map age**: a connection keeps the endpoints map it received at exchange time. Connections established before a key existed (e.g. the `automations_*` keys, added v1.1.0) won't have it in their stored map — the plugin ships fallback path constants for exactly this case (the existing `resolve_url()` pattern). New keys serve future path migrations, not retroactive updates.
+
+> **Automation setup keys** (v1.15.0): `automations_setup_link` ([§17](#17-post-apiv1automationskeysetup-link)), `store_branding` ([§18](#18-put-apiv1storebranding)), `automations_test_send` ([§19](#19-post-apiv1automationskeytest-send)) and `automations_go_live` ([§20](#20-post-apiv1automationskeygo-live)). `{key}` is a placeholder, like `{email}` in `customer_export`: the plugin replaces it with a catalogue `key` (URL-encoded). **The engine returns `automations_setup_link` and `store_branding` now** (since 2026-10-22); `automations_test_send` and `automations_go_live` are returned once §19 and §20 are live, and until then the key is absent. A connection set up before v1.15.0, or before the endpoint went live, has no key and uses the fallback path constant. An endpoint that is not live yet answers `404`; the plugin treats `404` as "not available yet" and keeps its current behaviour.
+
+> **Email design keys** (v1.17.0): `emails_design_link` ([§22](#22-post-apiv1emailsemail_keydesign-link)) and `emails_designs` ([§23](#23-get-apiv1emailsdesigns)). `{email_key}` is a placeholder: the plugin replaces it with an email key (URL-encoded; the dot needs no encoding). **The engine returns both keys now** (since 2026-10-22). A connection set up before the endpoints went live has no key and uses the fallback path constant.
 
 **Response 410 Gone** (token expired or used):
 ```json
@@ -1083,7 +1115,7 @@ Matching steps (run by the cron; PRO-1524, 2026-07-23 — a former 4th-priority
 - **Consent.** Create and send a `vs_` token **only for a shopper who gave marketing consent** at checkout. Without consent, create no token and send none.
 - **Cookie.** Store the token in the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)). A cookie the **server sets** (`Set-Cookie` header) is recommended: Safari deletes cookies set by page JavaScript after 7 days. When the shopper already has a visitor-token cookie (an engine `vt_` token from an email link), keep it and send that value — do not replace it with a new token.
 - **What the engine does.** When the order is written, the engine binds the token to the order's customer (the `customer_email` customer). An unknown `vs_` token is created for that customer. A token that is already bound to the **same** customer is renewed. A token that is already bound to **another** customer does not move — the [one-customer-per-token rule](#one-customer-per-visitor-token) — and the order is still written. A customer who objected to profiling ([§10](#10-post-apiv1customeremailopt-out)) is not bound.
-- **Lifetime.** A token carried on an order lives **365 days from that order**. Every later order that carries the same token renews it to 365 days from that order; a token is never shortened. An engine `vt_` token that is never carried on an order keeps its 90 days from issue.
+- **Lifetime** (v1.14.0, PRO-4116). Every visitor token lives **14 months from its last activity**: its creation, and each order that carries it. Every later order that carries the same token renews it to 14 months from that order; a token is never shortened. An engine `vt_` token that is never carried on an order lives 14 months from issue.
 - **An invalid value is ignored, never rejected.** A value that starts with `vs_` but does not match the format is stored on the order like any other value and creates no binding; the order is written normally and there is no `errors[]` entry.
 - **No credit by itself.** A store-created token names the shopper; it carries no recommendation, so it never makes a purchase an email or storefront credit. Purchase credit still comes from `smaily_rec_id` / `smaily_rec_ctx` and email clicks, as above.
 - **Response.** The binding is not reported in the response; the response shape does not change.
@@ -1343,13 +1375,13 @@ GDPR data export. Returns all engine-held data for the customer.
     "customer_email": "mari@example.com",
     "customer_id": "660f9500-...",
     "data_retention_policy": {
-      "browse_events": "90 days",
-      "email_events": "365 days",
+      "browse_events": "14 months",
+      "email_events": "14 months",
       "recommendations": "730 days",
       "orders": "indefinite: kept as long as the merchant uses the service, or until deleted on request",
       "replaced_recommendations": "180 days after the replacement; one still linked to a click or purchase record is kept as long as that record, at most 730 days",
       "decision_log": "30 days",
-      "visitor_tokens": "90 days from creation; a token that arrived with an order 365 days from the latest such order",
+      "visitor_tokens": "14 months from the token's last activity (its creation, or the latest order that carried it)",
       "rec_attribution": "730 days",
       "customer_engagement_history": "730 days",
       "trigger_candidates": "30 days after the engine acted on the signal, or 90 days after detection if it never acted; one still linked to an issued recommendation is kept as long as that recommendation",
@@ -1357,6 +1389,22 @@ GDPR data export. Returns all engine-held data for the customer.
       "ingest_event_log": "90 days",
       "customers": "indefinite: kept as long as the merchant uses the service, or until deleted on request",
       "catalog": "indefinite: kept as long as the merchant uses the service, or until deleted on request"
+    },
+    "data_retention_purpose": {
+      "browse_events": "comparison with the same month last year (seasonal purchases), plus two months of margin",
+      "email_events": "comparison with the same month last year (seasonal purchases), plus two months of margin",
+      "recommendations": "two-year reporting and purchase look-back",
+      "orders": "providing the service",
+      "replaced_recommendations": "crediting a later click or purchase to the email that showed the product, and not repeating products too soon",
+      "decision_log": "explaining why a recommendation was chosen (support and error tracing)",
+      "visitor_tokens": "recognising a returning shopper in the store (storefront recommendations, crediting a purchase) across a year of repeat purchases, plus two months of margin",
+      "rec_attribution": "two-year reporting and purchase look-back",
+      "customer_engagement_history": "two-year reporting and purchase look-back",
+      "trigger_candidates": "acting on the signal in the next recommendations; a signal the engine never acted on no longer describes the customer",
+      "edge_weights_log": "checking and undoing a wrong change to a rule weight",
+      "ingest_event_log": "recognising data the store plugin sends twice, so that it is stored once",
+      "customers": "providing the service",
+      "catalog": "providing the service"
     }
   },
   "customer": {
@@ -1433,7 +1481,9 @@ GDPR data export. Returns all engine-held data for the customer.
 }
 ```
 
-> **`data_retention_policy`** (v1.13.0, PRO-4108) lists every kind of data the engine's privacy policy (§4 "How long we keep data") lists, with the period after which the engine's nightly cleanup deletes it. Each value is a human-readable string — show it, do not parse it. `recommendations` is the period for an issued recommendation that was not replaced by a newer one; `replaced_recommendations` is the period for a replaced one. `orders`, `customers` and `catalog` are never deleted automatically; their values start with `indefinite`. Keys are only added, never renamed or removed, within contract 1.x.
+> **`data_retention_policy`** (v1.13.0, PRO-4108) lists every kind of data the engine's privacy policy (§4 "How long we keep data") lists, with the period after which the engine's nightly cleanup deletes it. Each value is a human-readable string — show it, do not parse it. `recommendations` is the period for an issued recommendation that was not replaced by a newer one; `replaced_recommendations` is the period for a replaced one. `orders`, `customers` and `catalog` are never deleted automatically while the store uses the service; their values start with `indefinite`. When the store leaves, all of its data is deleted ([§16](#16-post-apiv1storeuninstall)). Keys are only added, never renamed or removed, within contract 1.x.
+
+> **`data_retention_purpose`** (v1.14.0, PRO-4116) has the same keys as `data_retention_policy` and says why each period is as long as it is. Each value is a human-readable string — show it, do not parse it. The three tiers: behavioural signals (`browse_events` for identified and anonymous visitors, `email_events`) are kept **14 months from the event**; visitor tokens **14 months from their last activity**; outcomes (`recommendations`, `rec_attribution`, `customer_engagement_history`) **730 days**; master data (`customers`, `orders`, `catalog`) while the store uses the service.
 
 > **Note**: `order_items` is a **top-level** array (not nested under `orders`); join on `order_id`. The export does **not** include a `rec_attribution` array (the engine's export omits attribution rows) — if the plugin needs attribution data for a subject-access request, request it separately; it is not part of this endpoint's payload today.
 
@@ -1576,11 +1626,15 @@ GDPR opt-out: data is retained, but the customer is excluded from future recomme
 
 ### 11. GET /api/v1/automations/catalog
 
-**Engine-triggered automations** (added v1.1.0): the engine can enrol a Smaily contact into a merchant-built Smaily automation workflow at the right moment (replenishment due, win-back, etc.). The plugin's role is **configuration only** — it renders the trigger catalog (this endpoint), lets the merchant bind each trigger to a Smaily workflow id, and saves the selection to the engine (§13). Execution never goes through the plugin. **Fail-closed rule**: a trigger the merchant has not enabled never fires; the plugin must never send `enabled=true` without an explicit merchant action, and `test_mode` defaults to on in the UI.
+**Automated emails** (added v1.1.0; setup fields added v1.15.0): the catalogue lists the engine's own automated emails for this store — emails whose audience and moment the engine decides. The engine enrols an eligible contact into the email's Smaily workflow. A plugin's own emails (welcome, abandoned cart, first order, follow-up) and the transactional order emails are **not** in this catalogue: the plugin decides when they are sent, with its own settings (v1.17.0). Their design is made in the engine too: see §22 and §23.
 
-Returns the automation triggers available **for this store**. The list is filtered by the tenant's sector (`tenants.industry`) — e.g. the `life_stage` trigger is only served to `pet` tenants; a tenant in another industry does not see it. **Render the list dynamically**: a new trigger appears with an engine deploy and must not require a plugin release. Do not hardcode trigger keys or assume a fixed count.
+The plugin's role is **configuration only**: it renders this list, opens the setup page for an email (§17), shows the state the engine returns (§12), saves the store's choices (§13), and passes on the store's test-send request (§19) and go-live switch (§20). The setup page edits subject, preheader and design; the plugin does not. Execution of a catalogue email never goes through the plugin. **Fail-closed rule**: an email the merchant has not enabled never sends; the plugin must never send `enabled=true` without an explicit merchant action. Real sends start only through the go-live action (§20), after the merchant confirms it; `test_mode: false` in §13 never starts them.
+
+Returns the automated emails available **for this store**. The list is filtered by the tenant's sector (`tenants.industry`) — e.g. `life_stage` is served only to `pet` tenants. **Render the list dynamically**: a new email appears with an engine deploy and must not require a plugin release. Do not hardcode keys, settings, rules or a fixed count.
 
 **URL**: `GET /api/v1/automations/catalog`
+
+**Query parameters**: none. A query parameter is ignored. (v1.15.0 published `include=engine_less`; it was never live and leaves in v1.17.0.)
 
 **Auth**: `Authorization: Bearer sk_...` (the same tenant API key as ingest — no separate credential)
 
@@ -1596,8 +1650,28 @@ Returns the automation triggers available **for this store**. The list is filter
       "name_en": "Replenishment due",
       "description_et": "Käivitub, kui kliendi korduvtoode hakkab ennustuse järgi otsa saama (85% isiklikust ostuintervallist täis).",
       "description_en": "Fires when a customer's recurring product is predicted to run out (85% of their personal purchase interval reached).",
-      "recipe_et": "Ehita Smailys \"form submitted\" trigeriga automatsioon, mille kiri kasutab rec_replenish_sku + soovitusslotte. Mootor enrollib kontakti õigel päeval.",
-      "recipe_en": "Build a Smaily automation with a \"form submitted\" trigger; the email uses rec_replenish_sku plus the recommendation slots. The engine enrols the contact on the right day."
+      "recipe_et": "Ehita Smailys \"form submitted\" trigeriga automatsioon. Kiri: \"{{rec_rep_name}} saab otsa\" + toote pilt/hind/link väljadelt rec_rep_sku/rec_rep_name/rec_rep_price/rec_rep_image_url/rec_rep_link_path ja päevad otsasaamiseni väljalt rec_rep_days (0 = otsas või kohe otsas), soovi korral soovitusslotid. Need väljad lisatakse kontaktile ainult SELLE kirja saatmise hetkel (mitte öisel sünkil) — soovitusslot 1 ega rec_replenish_sku ei pruugi olla sama toode. Mootor enrollib kontakti õigel päeval.",
+      "recipe_en": "Build a Smaily automation with a \"form submitted\" trigger. Email: \"{{rec_rep_name}} is running out\" + the product picture/price/link from rec_rep_sku/rec_rep_name/rec_rep_price/rec_rep_image_url/rec_rep_link_path and the days until it runs out from rec_rep_days (0 = out or about to run out), optionally followed by the recommendation slots. These fields are added to the contact only at the moment THIS email fires (not the nightly sync) — recommendation slot 1 and rec_replenish_sku may be a different product. The engine enrols the contact on the right day.",
+      "engine_backed": true,
+      "started_by": "engine",
+      "go_live": "store",
+      "editable_settings": [
+        { "key": "subject", "type": "text", "min_length": 1, "max_length": 150, "required": true, "edited_in": "setup_page" },
+        { "key": "preheader", "type": "text", "min_length": 0, "max_length": 150, "required": false, "edited_in": "setup_page" },
+        { "key": "cooldown_days", "type": "integer", "min": 1, "max": 365, "default": 30, "unit": "days", "required": true, "edited_in": "plugin_or_setup_page" },
+        { "key": "daily_cap", "type": "integer", "min": 1, "max": 100000, "nullable": true, "default": 10, "unit": "emails_per_day", "required": true, "edited_in": "plugin_or_setup_page" },
+        { "key": "test_emails", "type": "email_list", "max_items": 50, "required": false, "edited_in": "plugin_or_setup_page" }
+      ],
+      "engine_rules": [
+        { "key": "comparison_group", "label_et": "…", "label_en": "25% of customers get no recommendation emails, so the engine can measure the extra revenue.", "params": { "holdout_percent": 25 } },
+        { "key": "suppression", "label_et": "…", "label_en": "No email to a customer who ever complained, unsubscribed in the last 30 days, or bought the product after it was picked.", "params": { "unsub_days": 30 } },
+        { "key": "spacing", "label_et": "…", "label_en": "At most one engine email per customer in 3 days, and none within 24 hours of a newsletter.", "params": { "min_gap_days": 3, "newsletter_quiet_hours": 24 } },
+        { "key": "automatic_stop", "label_et": "…", "label_en": "Real sends stop after 1 complaint, or when more than 1% unsubscribe over at least 50 sends in 7 days. A Smaily operator reviews the stop before real sends can start again.", "params": { "complaints": 1, "optout_rate": 0.01, "optout_min_sends": 50, "window_days": 7 } },
+        { "key": "overdue_limit", "label_et": "…", "label_en": "No reminder when the product is more than twice its usual interval overdue.", "params": { "overdue_multiple": 2 } },
+        { "key": "real_send_switch", "label_et": "…", "label_en": "Real sends start when you switch them on, after a test email from the same sender reached Smaily.", "params": {} },
+        { "key": "ramp", "label_et": "…", "label_en": "After real sends start: at most 10 emails a day for 7 days, then 25 a day for 7 days, then 50 a day for 14 days, then your daily cap.", "params": { "steps": [ { "per_day": 10, "days": 7 }, { "per_day": 25, "days": 7 }, { "per_day": 50, "days": 14 } ] } },
+        { "key": "discount", "label_et": "…", "label_en": "A discount is shown only when a Smaily operator has switched discounts on for this store.", "params": { "discounts_offered": false } }
+      ]
     }
   ],
   "language_modes": ["single", "per_language"],
@@ -1622,6 +1696,69 @@ Returns the automation triggers available **for this store**. The list is filter
 | `language_modes` | array of strings | The closed set of valid `language_mode` values for §13. Currently `["single", "per_language"]`. |
 | `docs` | string (URL) | Help page ("Smaily templates and fields") for the merchant. **This field is stable** — the plugin should link to the URL from the response rather than hardcoding it. |
 
+**New field reference** (per `triggers[]` item, v1.15.0):
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `engine_backed` | boolean | Always `true` (v1.17.0): the engine decides audience and moment for every catalogue email. A plugin may ignore the field. |
+| `started_by` | `"engine"` | Always `"engine"` (v1.17.0): the engine starts each send. A plugin may ignore the field. An unknown value: do not render the entry. |
+| `go_live` | `"store"` \| `"operator"` | Who switches real sends on. `store`: the store switches them with the go-live action (§20), unless a go-live blocker exists (§12). In v1.15.0 every email carries `store`. `operator` is reserved: the engine may serve it when a Smaily operator must switch real sends on for this store (for example, a store under operator review). Then the plugin shows "A Smaily operator switches real sends on" and offers no go-live button; §20 answers `409 go_live_blocked` with `operator_switch_required`. |
+| `editable_settings` | array | The settings the store may change for this email, with their limits. See the settings vocabulary below. A setting appears only when the engine applies it for this email. |
+| `engine_rules` | array | The engine's send checks for this email, as **read-only labels**. The plugin may show them; it never offers a control for them. `label_*` is display text and may change with any engine deploy; `params` is informational; neither is a contract value to branch on. A rule `key` the plugin does not know is still rendered by its label. |
+
+**`editable_settings[]` item**:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `key` | string | Setting key (vocabulary below). Unknown keys: render by `type` and limits, or hide; never fail. |
+| `type` | `"text"` \| `"integer"` \| `"email_list"` | Input type. |
+| `min_length`, `max_length` | integer | `text` only. Characters (Unicode code points). |
+| `min`, `max` | integer | `integer` only. Inclusive. |
+| `max_items` | integer | `email_list` only. |
+| `nullable` | boolean | Optional, default `false`. `true`: `null` is a valid value (for `daily_cap`, `null` = no cap). |
+| `default` | same as `type` | Optional. The value the setup page and the plugin show for a new email. |
+| `unit` | string | Optional display unit: `days`, `emails_per_day`. |
+| `required` | boolean | `true`: the email cannot be enabled without a value. |
+| `edited_in` | `"setup_page"` \| `"plugin_or_setup_page"` | `setup_page`: only the setup page edits it; the plugin may show the stored value from §12. `plugin_or_setup_page`: the plugin may also edit it as a top-level §13 field (`cooldown_days`, `daily_cap`, `test_emails`); both write the same stored value. |
+
+**Settings vocabulary (v1.15.0)** — the engine stores one value per (store, email, setting); §12 returns it:
+
+| `key` | Type and limits | Default | Used by | `edited_in` |
+| --- | --- | --- | --- | --- |
+| `subject` | text, 1–150 | per email, engine copy in the store's language | every email | `setup_page` |
+| `preheader` | text, 0–150 | empty | every email | `setup_page` |
+| `cooldown_days` ("pause between emails") | integer 1–365 | 30 (`post_purchase` 14; see note) | engine-backed | `plugin_or_setup_page` |
+| `daily_cap` | integer 1–100,000, or `null` | 10 (ramp start) | engine-backed | `plugin_or_setup_page` |
+| `test_emails` | up to 50 addresses, optional | empty | every email | `plugin_or_setup_page` |
+
+Notes:
+
+- **Limits equal the v1.14.0 PUT limits.** `cooldown_days` and `daily_cap` keep the §13 bounds, so a v1.14.0 plugin's saved values stay valid. A tighter per-email floor (for example `post_purchase` ≥ 14 days) is not in v1.15.0: it would reject values that a v1.14.0 plugin sends today, which is a breaking change.
+- **`life_stage`** has no `cooldown_days` setting: its detector sets a fixed 365-day cooldown, shown as an engine rule. §13 still requires the key on its row (v1.14.0 shape); the value is stored and not used.
+- **Engine-backed timing** (the moment of the send) is decided by the engine and shown as an engine rule. A store-editable send hour is not in v1.15.0.
+- **Subject and preheader are part of the email design** (v1.17.0). The engine stores them with the design (§22, §23), not as separate settings. §12 `settings` shows the values of the saved design. §13 has no field for them.
+- **Test addresses and test sends**: `test_emails` is optional and the plugin needs no field for it. It is the list that test-mode sends reach (`setup_state` `test` or `stopped`); the setup page may edit it, and a plugin that still has the field may send it. To check an email, the store uses the test send (§19): one email to one address it types. The test send does not read or change `test_emails`.
+
+**Engine rule labels (v1.15.0)** — keys an engine-backed email may carry; `params` show today's values:
+
+| `key` | What the label says | Applies to |
+| --- | --- | --- |
+| `comparison_group` | A share of the store's customers (holdout, default 25%) gets no recommendation emails, so the engine can measure the extra revenue. `params.holdout_percent` is `0` when the store's holdout is off. | engine-backed |
+| `suppression` | No email to a customer who ever complained, unsubscribed in the last 30 days, or bought the named product after it was picked (PRO-3903). | engine-backed |
+| `spacing` | At most one engine email per customer in 3 days; none within 24 hours of a newsletter (PRO-3716). | engine-backed |
+| `automatic_stop` | Real sends switch back to test after 1 complaint, or opt-outs above 1% over at least 50 sends in 7 days (PRO-3708). A Smaily operator reviews the stop before the store can switch real sends on again (§20, blocker `stopped_needs_review`). | engine-backed |
+| `overdue_limit` | No reminder when the product is more than 2 × its usual interval overdue (PRO-3702). | `replenish_due` |
+| `real_send_switch` | Real sends start when the store switches them on (§20), after a test send from the same sender was accepted (§19). | every catalogue email |
+| `ramp` | After real sends start: at most 10 a day for 7 days, 25 a day for 7 days, 50 a day for 14 days, then the store's `daily_cap`. A lower `daily_cap` wins. The ramp starts again at 10 each time real sends start. | engine-backed |
+| `discount` | A discount is shown only when a Smaily operator switched discounts on for the store (PRO-1924); the store cannot raise it. | `replenish_due`, `winback_rescue` |
+| `fixed_cooldown` | One email per customer in 365 days. | `life_stage` |
+
+**Plugin and transactional emails are not catalogue entries** (v1.17.0). The plugin keeps them, their settings and their sending. Their design lives in the engine: the plugin opens it with §22 and reads the Smaily ids back with §23.
+
+> **Recipe example** (v1.15.0, documentation only): the example `recipe_*` for `replenish_due` is the live recipe. It names the per-send fields `rec_rep_sku` / `rec_rep_name` / `rec_rep_price` / `rec_rep_image_url` / `rec_rep_link_path` / `rec_rep_days`; the engine has served this recipe since PRO-3701.
+
+> **Compatibility** (v1.15.0, v1.17.0): the response lists only the engine's own emails, with or without a query parameter. Their seven v1.14.0 fields keep their meaning. The five v1.15.0 fields are additive; a plugin that does not read them is unaffected. v1.17.0 removes `include=engine_less`, which was never live: the engine always answered without engine-less entries.
+
 **Error responses**: `401` (invalid/revoked key — see [Authentication](#authentication)), `429` (see [Rate limiting](#rate-limiting)).
 
 **Idempotency**: not applicable (read-only endpoint).
@@ -1638,7 +1775,11 @@ curl -X GET https://intelligence.smaily.com/api/v1/automations/catalog \
 
 Returns the tenant's current automation configuration rows — whether configured via the plugin (§13) or engine-side by the operator. Used when (re-)opening the plugin's settings UI: **the engine's GET is the source of truth**; the plugin must not treat a local copy as authoritative (a local cache is fine).
 
+Since v1.15.0 the response also has a top-level `setup` array: one setup state per catalogue email (see below). `configs` is unchanged.
+
 **URL**: `GET /api/v1/automations/config`
+
+**Query parameters**: none. `configs` holds the store's rows; `setup` has one item per §11 catalogue email.
 
 **Auth**: `Authorization: Bearer sk_...`
 
@@ -1660,6 +1801,28 @@ Returns the tenant's current automation configuration rows — whether configure
       "configured_via": "plugin",
       "updated_at": "2026-07-07T05:15:00.000Z"
     }
+  ],
+  "setup": [
+    {
+      "trigger_key": "replenish_due",
+      "setup_state": "test",
+      "stop_reason": null,
+      "go_live_blockers": [],
+      "live_since": null,
+      "daily_limit": null,
+      "last_test_send_at": "2026-10-21T07:55:00.000Z",
+      "sender_state": "ok",
+      "sender": { "from_name": "Shop Example", "from_address": "news@shop.example" },
+      "sender_tested_at": "2026-10-21T07:55:00.000Z",
+      "design_state": "edited",
+      "settings": {
+        "subject": "{{rec_rep_name}} is running out",
+        "preheader": "Order again in one click",
+        "cooldown_days": 30,
+        "daily_cap": 10
+      },
+      "updated_at": "2026-10-20T08:00:00.000Z"
+    }
   ]
 }
 ```
@@ -1669,6 +1832,38 @@ Returns the tenant's current automation configuration rows — whether configure
   - `configured_via` (`"plugin"` | `"admin"`) — which surface last wrote the row.
   - `updated_at` (ISO 8601, may carry milliseconds) — when the row was last written.
 - **Do not round-trip the read-only fields**: `configured_via` and `updated_at` are set engine-side and are NOT part of the PUT body (§13). They are tolerated if sent (unknown keys are stripped, see the §13 note), but the engine always overwrites them itself.
+
+**`setup[]`**: one item for **every** email in the store's §11 catalogue, configured or not. Every field is read-only; the plugin never sends any of them back.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `trigger_key` | string | Catalogue `key`. |
+| `setup_state` | `"off"` \| `"set_up"` \| `"test"` \| `"live"` \| `"stopped"` | See the state table below. |
+| `stop_reason` | string \| null | Set only when `setup_state` is `stopped`: `auto_stop_complaint`, `auto_stop_optout_rate`, `sender_check_failed`, `operator`. Unknown values: show "Stopped". |
+| `go_live_blockers` | array of strings | Why real sends cannot start now (§20). Empty = nothing blocks. Values: `no_workflow`, `no_design`, `design_check_failed`, `missing_subject`, `sender_unverified`, `sender_address_not_allowed`, `sender_records_invalid`, `no_test_send` (no accepted test send from this email's from-address, §19), `stopped_needs_review` (after a stop, until a Smaily operator reviews it), `operator_switch_required` (`go_live: "operator"`, §11). Unknown values: show the generic text "Setup is not complete". |
+| `live_since` | ISO 8601 \| null | When real sends last started. `null` unless `setup_state` is `live`. |
+| `daily_limit` | integer \| null | `live` only: the most real sends the engine makes today — the ramp step (§20) or `daily_cap`, whichever is lower. `null` otherwise, and `null` when neither limits (no cap after the ramp). |
+| `last_test_send_at` | ISO 8601 \| null | When Smaily last accepted a test send of this email (§19). |
+| `sender_state` | `"unknown"` \| `"unverified"` \| `"address_not_allowed"` \| `"records_invalid"` \| `"ok"` | The from-domain state as the engine last read it. `unknown`: the engine cannot read it (no Smaily API access for sender domains yet). `unknown` does not block go-live by itself; the sender check is then the test send (`sender_tested_at`). A test send that Smaily refuses sets `unverified` or `address_not_allowed` (§19). |
+| `sender` | object \| null | `from_name`, `from_address` used for this email. `null` when not set. |
+| `sender_tested_at` | ISO 8601 \| null | When Smaily last accepted a test send from `sender.from_address`, for any email of this store. `null` = blocker `no_test_send`. A later refused test send or a refused real send from the same address sets it back to `null`. |
+| `design_state` | `"none"` \| `"starter"` \| `"edited"` \| `"check_failed"` | `none`: no design saved. `starter`: the engine's starter design, unedited. `edited`: the store changed it. `check_failed`: the engine's design check failed (a required field, slot guard, unsubscribe link or `smaily_rec` parameter is missing). |
+| `settings` | object | Current value of each setting in the email's `editable_settings` (§11), by `key`. A setting with no stored value is absent. |
+| `updated_at` | ISO 8601 \| null | Last change of any field in this item. |
+
+**`setup_state` values**:
+
+| State | Meaning |
+| --- | --- |
+| `off` | Not set up and not enabled: `go_live_blockers` contains at least one of `no_workflow`, `no_design`, `missing_subject`, and the config row is absent or `enabled: false`. |
+| `set_up` | Setup is complete (no `no_workflow`, `no_design`, `missing_subject` blocker), and the email is not enabled. |
+| `test` | Enabled with `test_mode: true`: only `test_emails` receive it (nobody when `test_emails` is empty). |
+| `live` | Enabled with `test_mode: false`: real customers receive it. Only the go-live action (§20) or a Smaily operator reaches this state. |
+| `stopped` | Real sends were on and the engine or the operator switched them back to test (`stop_reason`). Test-mode sends continue; the config row reads `test_mode: true`. After `auto_stop_complaint`, `auto_stop_optout_rate` or `operator`, the state stays `stopped`, with blocker `stopped_needs_review`, until a Smaily operator reviews the stop; then it is `test` and the store can switch real sends on again (§20). After `sender_check_failed`, the blocker is `no_test_send`; an accepted test send (§19) makes the state `test`. |
+
+> **Bridge note**: when an operator binds a hand-built Smaily workflow and the design lives in that workflow, `design_state` may be `none`, but `no_design` is not a blocker: the engine accepts the operator's statement that the workflow holds the design. A plugin shows the state as given.
+
+> **Compatibility** (v1.15.0): `setup` is a new top-level key. A v1.14.0 plugin reads `configs` only; `configs` is unchanged.
 
 **Error responses**: `401`, `429`.
 
@@ -1712,28 +1907,38 @@ Saves the merchant's automation configuration. **Full-selection upsert**: the pl
 
 **Wrapper**: `{configs: [...]}`, **1..50 rows** per request. A non-array / empty / >50 `configs` is rejected (422, wrapper-level error — see below).
 
-**Field reference** (per config row — **all 8 keys are REQUIRED on every row**; no field has a server-side default):
+**Field reference** (per config row). Every key below is required, except `automation_map`, `test_mode` and `test_emails` (optional since v1.15.0). No field has a server-side default, except that an omitted optional key keeps its stored value.
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `trigger_key` | string | YES | Must be a catalog key (§11). An unknown key → 422 (`"tundmatu trigger"`). Natural key for the `(tenant_id, trigger_key)` UPSERT. |
+| `trigger_key` | string | YES | A §11 catalogue key. Any other key — also `welcome`, `first_order`, `abandoned_cart`, `follow_up`, `plugin.*` and `transactional.*` — → 422 (`"tundmatu trigger"`), as in v1.14.0. Natural key for the `(tenant_id, trigger_key)` UPSERT. |
 | `enabled` | boolean | YES | Fail-closed master switch. The plugin must never send `true` without an explicit merchant action. |
 | `language_mode` | `"single"` \| `"per_language"` | YES | Must be one of the catalog's `language_modes` (§11). |
-| `automation_map` | object `{string: string}` | YES | Smaily workflow/autoresponder ids. **Every value must be a numeric string** (`/^\d+$/`) — e.g. `"123"`, not `123` or `"abc"`. Keys are free-form: `"id"` (single mode), language codes + `"fallback"` (per_language mode). When `enabled=true`: `single` requires the `id` key; `per_language` requires the `fallback` key (422 otherwise). When `enabled=false` the map may be empty `{}` — but the key itself must be present. |
+| `automation_map` | object `{string: string}` | NO (v1.15.0) | Smaily workflow/autoresponder ids. **Every value must be a numeric string** (`/^\d+$/`) — e.g. `"123"`, not `123` or `"abc"`. Keys are free-form: `"id"` (single mode), language codes + `"fallback"` (per_language mode). When sent, it replaces the stored map (as in v1.14.0; `{}` is valid on an `enabled=false` row). **When omitted, the stored map is kept** (the operator or the setup page may have set it). When `enabled=true`, the stored-or-sent map must satisfy the v1.14.0 rule (`single` → `id`; `per_language` → `fallback`), or the engine must hold a workflow for this email that it or the operator set up; otherwise 422 (`"automation_map.id on nõutav"` / `"automation_map.fallback on nõutav"`). |
 | `cooldown_days` | integer 1–365 | YES | Minimum days between fires per customer per trigger. **Required even on `enabled=false` rows** (no server default — the plugin supplies its UI default, e.g. 7). |
 | `daily_cap` | integer 1–100000 \| null | YES (nullable) | Max fires per day for this trigger. **Nullable but the key must be present** — `null` = no cap. |
-| `test_mode` | boolean | YES | When true, fires only reach `test_emails` recipients. UI default: true (fail-closed). **This endpoint cannot switch real sends on** — see the Semantics note below. |
-| `test_emails` | array of email strings, max 50 | YES | May be empty `[]`. Each entry must be a valid email. |
+| `test_mode` | boolean | NO (v1.15.0) | When `true`, sends reach only `test_emails` recipients. **When omitted, the stored value is kept**; a new row is stored with `true`. `true` is stored as sent and switches real sends off, as in v1.14.0. `false` **never** switches real sends on (see Semantics below). A plugin without a test-mode control omits the key. |
+| `test_emails` | array of email strings, max 50 | NO (v1.15.0) | Each entry must be a valid email. **When omitted, the stored list is kept**; a new row is stored with `[]`. When sent, it replaces the stored list, as in v1.14.0. A plugin without a test-address field omits the key. |
 
-> **Unknown keys are stripped, not rejected** (standard Zod object behavior): extra keys in a row — including round-tripped `configured_via` / `updated_at` from §12 — are silently ignored. Cleaner to not send them.
+> **Unknown keys are stripped, not rejected** (standard Zod object behavior): extra keys in a row — including round-tripped `configured_via` / `updated_at` from §12, and a `settings` object (published in v1.15.0, never live, removed in v1.17.0) — are silently ignored. Cleaner to not send them.
 
 **Semantics**:
-- **UPSERT by `(tenant_id, trigger_key)`** — a row in the body creates or fully replaces that trigger's config (one exception: the real-sends rule below).
+- **UPSERT by `(tenant_id, trigger_key)`** — a row in the body creates or fully replaces that trigger's config. Exceptions: the real-sends rule below, and (v1.15.0) an omitted optional key, which keeps its stored value.
 - **PUT never deletes rows**: a trigger absent from the body keeps its stored config unchanged (and if it was never configured, it stays off). There is no delete operation — to disable a trigger, send its row with `enabled: false`.
 - `configured_via` is written as `'plugin'` on every row this endpoint touches (the engine-side admin UI writes `'admin'`).
-- **Real sends are switched on engine-side only** (pilot consent rule): a row with `enabled: true` and `test_mode: false` is stored with `test_mode: true` unless that trigger already sends to real customers. Every other field in the row is stored as sent, and the response is the normal `200` shape. Read the stored state back with §12. A trigger whose real sends the operator already switched on keeps them when the plugin re-saves it; `enabled: false` and `test_mode: true` are always stored as sent. The merchant asks for real sends in writing; a Smaily operator switches them on in the engine admin.
+- **Real sends** (rewritten v1.15.0): **`test_mode: false` never switches real sends on.** This holds for every catalogue email and for every plugin version. Existing plugins may already send `test_mode: false`; the engine treats it exactly as in v1.14.0. The only ways to start real sends are the go-live action (§20, also used by the setup page) and a Smaily operator's switch in the engine admin.
+  - **Legacy field behaviour** (the v1.14.0 pilot consent rule, unchanged for the `test_mode` field): a row with `enabled: true` and `test_mode: false` is stored with `test_mode: true` unless the email already sends to real customers. Every other field in the row is stored as sent, and the response is the normal `200`. An email whose real sends are already on keeps them when the plugin re-saves it. `enabled: false` and `test_mode: true` are always stored as sent, so both switch real sends off. Under this rule the merchant asks for real sends in writing and a Smaily operator switches them on in the engine admin; that path stays for a store whose plugin has no go-live button (v1.14.0).
+  - **New path** (v1.15.0): the store switches real sends on itself with the go-live action (§20). The merchant's confirmation in the go-live dialog replaces the written yes. The engine records who switched (§20 audit).
+  - The response shape is unchanged (`200 {ok, upserted}`); read the stored state back with §12.
 - Every change of a row's `enabled` / `test_mode` state is recorded engine-side with the authenticating API key.
 - **Validation is all-or-nothing** (unlike ingest's per-item D6 partial success): any invalid row → 422 and **nothing** is written. Retry with the whole corrected selection.
+
+> **Compatibility — a plugin that still sends a workflow id** (v1.15.0): a v1.14.0 plugin sends all eight keys with `automation_map` set. The engine stores the row exactly as in v1.14.0: the sent map replaces the stored map, the real-sends rule is the v1.14.0 rule (as in v1.14.0), and the response is the same. **Nothing changes for that plugin.**
+>
+> Two interactions to know:
+>
+> - A sent `automation_map` — also `{}` on a disabled row — replaces a workflow id that the operator or the setup page stored. A v1.15.0 plugin therefore omits `automation_map` unless the merchant picks a workflow in the plugin.
+> - A sent `test_mode: true` switches real sends off, also when the store switched them on with §20 or on the setup page. A sent `test_emails` replaces the list that the setup page stored. A v1.15.0 plugin therefore omits `test_mode` and `test_emails`. A plugin that still has the fields may keep sending them; the engine keeps storing them.
 
 **Response 200 OK**:
 ```json
@@ -1978,7 +2183,7 @@ A returning guest shopper (no store customer account), named by the visitor toke
 
 **At least one of `customer_external_id` and `smaily_visitor_token` is required.** When the request carries both, **`customer_external_id` wins and the token is ignored entirely** — the engine does not fall back to the token when the customer id finds nobody, because on a shared browser the cookie can belong to a different person than the logged-in shopper.
 
-**Which customer a visitor token names** (v1.11.0; one rule since v1.13.0). The customer the token is bound to in this tenant, while the token is valid. An engine email-link token (`vt_`) is bound to the customer the engine issued it for and is valid for **90 days from issue**. A token carried on an order — a store-created `vs_` token or a `vt_` token — is valid for **365 days from the latest order of its customer that carried it**; an order never shortens a token's lifetime ([§5](#store-created-visitor-token)). The cookie may live longer than the token. An expired token, a token of another tenant, and a value the engine does not know are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
+**Which customer a visitor token names** (v1.11.0; one rule since v1.13.0). The customer the token is bound to in this tenant, while the token is valid. An engine email-link token (`vt_`) is bound to the customer the engine issued it for. Every token is valid for **14 months from its last activity** (v1.14.0): its issue, or the latest order of its customer that carried it — a store-created `vs_` token or a `vt_` token; an order never shortens a token's lifetime ([§5](#store-created-visitor-token)). The cookie and the token may expire at different times. An expired token, a token of another tenant, and a value the engine does not know are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
 
 **Never send an email address, name or other contact detail** in this request. The shopper is named by the store's id or the visitor token only. Unknown fields are ignored.
 
@@ -2046,6 +2251,751 @@ curl -X POST https://intelligence.smaily.com/api/v1/recommendations/customer \
   -H "Authorization: Bearer sk_..." \
   -H "Content-Type: application/json" \
   -d '{"smaily_visitor_token": "vt_8f3k2a9xq4", "limit": 4}'
+```
+
+### 16. POST /api/v1/store/uninstall
+
+**Uninstall: remove this connection; the store's last connection deletes the store's data** (v1.14.0, PRO-4116, Erkki's decision 2026-10-19). Call it when the shop admin uninstalls the plugin or app, before the plugin deletes its own stored API key.
+
+**URL**: `POST /api/v1/store/uninstall`
+
+**Auth**: `Authorization: Bearer sk_...` — the connection's own API key.
+
+**Request body**: none.
+
+**What the engine does — "the last key deletes"**:
+1. The engine revokes the **calling** connection's API key. Other connections of the same store keep working.
+2. When the store has **another active connection** after that (another plugin or shop with its own key), nothing else happens. The response says `connection_removed`.
+3. When the calling connection was the store's **last active connection**, the store is marked for deletion. From that moment the engine stops using the store: no recommendations are issued, nothing is pushed to Smaily, no automated email is sent and no Smaily data is pulled. Every other key of the store answers `403 tenant_inactive`, and a new setup exchange for the store answers `404 tenant_not_found`. The response says `deletion_scheduled`.
+4. A marked store's data is deleted **within 30 days of the request** — normally the next night (00:30 UTC). All of it is deleted: customers, orders, catalog, events, recommendations, attribution and the store's settings. The engine keeps only a record that the deletion happened (no shopper data) and the store's monthly usage counts. Data the engine pushed to the store's Smaily contacts (the `rec_*` fields) stays in Smaily; the engine does not write to Smaily after the request.
+
+**Response 200 OK — another connection remains**:
+```json
+{
+  "ok": true,
+  "status": "connection_removed",
+  "other_connections_remain": true
+}
+```
+
+**Response 200 OK — the store's data will be deleted**:
+```json
+{
+  "ok": true,
+  "status": "deletion_scheduled",
+  "other_connections_remain": false,
+  "deletion_requested_at": "2026-10-19T14:02:11.000Z",
+  "delete_by": "2026-11-18T14:02:11.000Z"
+}
+```
+
+`delete_by` is `deletion_requested_at` + 30 days: the latest moment the data is gone.
+
+**Idempotency**: a retry with the same key — for example after a network error — changes nothing and answers the store's current state (`connection_removed`, or `deletion_scheduled` with the same `deletion_requested_at`). Once the deletion has run, the key is unknown and the engine answers `401`. A key from before per-connection keys (created before 2026-06-12) is answered `401` on a retry, because the first call removes it. The plugin treats `401` on a retry as "already done".
+
+**Errors**: `401 unauthorised` (header missing, key unknown, or key revoked other than by this endpoint). A suspended store may still uninstall: the endpoint does not answer `403 tenant_inactive`.
+
+**After the call**: delete the stored API key and stop all calls to the engine. To connect the store again later, run a new setup exchange ([§1](#1-post-apisetupexchange)) — possible as long as the store was not marked for deletion; a store whose data was deleted is set up again by the engine operator.
+
+**Endpoint map key**: `store_uninstall` (setup-exchange response, [§1](#1-post-apisetupexchange)). A connection set up before v1.14.0 does not have the key — use the fallback path constant.
+
+**Audit log**: the engine records every request that changes something (`admin_audit_log`, action `tenant.deletion_request`) and every deletion (`tenant.deletion_purge`), with the store's tenant id and no other identifier.
+
+**Curl example**:
+```bash
+curl -X POST https://intelligence.smaily.com/api/v1/store/uninstall \
+  -H "Authorization: Bearer sk_..."
+```
+
+---
+
+### 17. POST /api/v1/automations/{key}/setup-link
+
+**One-time link to the engine-hosted setup page** (v1.15.0, PRO-4166). The store sets up one automated email on that page: sender check, settings, design in the embedded editor, test send, and go-live (the store's own switch, for every catalogue email). Call it when the shop admin presses "Set up" (or "Edit") on an email in the plugin.
+
+**URL**: `POST /api/v1/automations/{key}/setup-link` — `{key}` is a §11 catalogue key.
+
+**Auth**: `Authorization: Bearer sk_...` — the connection's own API key. The store is the API key's store; the request cannot name another store.
+
+**Rate limit**: 10 requests per 60 seconds per store.
+
+**Request body** (all fields optional; an empty body `{}` is valid):
+
+```json
+{
+  "return_url": "https://shop.example/wp-admin/admin.php?page=smaily-connect&tab=automations",
+  "language": "et"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `return_url` | string (URL), max 2048 | Where the page's "Back to your store" button goes. Must be `https`. Its host must equal the host of the connection's `plugin_info.site_url` (§1), or be the platform's admin host (`admin.shopify.com` for Shopify). Otherwise → 422. When absent, the page shows no back button. |
+| `language` | ISO 639-1 | Language of the setup page. When absent or not supported, the store's default language. |
+
+**Response 200 OK**:
+
+```json
+{
+  "url": "https://intelligence.smaily.com/setup/automation/sl_9Qe2…",
+  "expires_at": "2026-10-20T08:05:00.000Z"
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `url` | Opaque one-time URL. Open it at once in a **new browser tab** (top-level navigation, not an iframe — the page sets a session cookie). Do not store, log or send it anywhere else. |
+| `expires_at` | Issue time + **5 minutes**. |
+
+**Rules**:
+
+1. **One time.** The first opening redeems the link. A second opening, or an opening after `expires_at`, shows "This link has expired — open the setup again from your store" and nothing else. Mint a new link for each "Set up" press.
+2. **Own store only.** The page opens a setup session for the API key's store. The session reaches only that store's automation setup pages and the store's brand kit (§18): the email named in the link opens first, and the store can switch to its other catalogue emails. It gives no access to the merchant console, other stores, customer lists or reports. The same session also reaches the design page of the store's plugin and transactional emails (§22).
+3. **Session.** The setup session ends 60 minutes after the last action, or when the tab closes. It names no person: the engine records the connection (API key id), not a user.
+4. **What the page writes.** The page shows the email's state, the brand kit (§18) and the design, and saves the subject, preheader, sender and design (stored as HTML in the engine). Settings (timing and frequency within the §11 limits, test addresses), test send and go-live are not on the page yet; when they come, they follow the same rules, limits and audit as §19 and §20, and their audit rows name the setup session and the API key that minted the link.
+5. **After the page.** When the store returns to the plugin, the plugin reads §12 again; it does not wait for a callback.
+
+**Errors**:
+
+| Status | `error` | Meaning |
+| --- | --- | --- |
+| 401 | `unauthorised` / `api_key_revoked` | As in [Authentication](#authentication). |
+| 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
+| 404 | `unknown_automation` | `{key}` is not in this store's catalogue (another sector, or unknown). |
+| 422 | `validation_failed` | `return_url` or `language` is invalid. Body: `{"error":"validation_failed","errors":[{"field":"return_url","message":"…"}]}` (the §13 shape, without `index`). |
+| 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). |
+
+**Idempotency**: none needed. Each call mints a new link; earlier unredeemed links stay valid until they expire.
+
+**Endpoint map key**: `automations_setup_link` (§1). A connection set up before v1.15.0 does not have the key — use the fallback path constant.
+
+**Audit log**: every mint (`admin_audit_log`, action `automation.setup_link.mint`) and every redemption (`automation.setup_link.redeem`), with the store's tenant id, the email key and the API key id; no other identifier.
+
+**Curl example**:
+
+```bash
+curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/setup-link \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"return_url":"https://shop.example/wp-admin/admin.php?page=smaily-connect","language":"et"}'
+```
+
+---
+
+### 18. PUT /api/v1/store/branding
+
+**The store's brand kit** (v1.15.0, PRO-4166). The engine builds the starter design of every email from it — engine, plugin and transactional emails (§22) — (logo, colours, font, footer, sender). The plugin reads the fields from the shop platform's own settings and sends them with their source. Send it after setup exchange, and again when a source setting changes in the shop admin.
+
+**URL**: `PUT /api/v1/store/branding` (write) · `GET /api/v1/store/branding` (read the stored kit)
+
+**Auth**: `Authorization: Bearer sk_...`
+
+**Rate limit**: 10 requests per 60 seconds per store.
+
+**Request body** — every field is optional; each sent field is `{value, source, source_setting?}`:
+
+```json
+{
+  "fields": {
+    "store_name":       { "value": "Shop Example", "source": "platform", "source_setting": "blogname" },
+    "store_url":        { "value": "https://shop.example", "source": "platform", "source_setting": "home" },
+    "postal_address":   { "value": "Example street 1, 10111 Tallinn, Estonia", "source": "platform", "source_setting": "woocommerce_store_address" },
+    "logo_url":         { "value": "https://shop.example/logo.png", "source": "platform", "source_setting": "woocommerce_email_header_image" },
+    "primary_colour":   { "value": "#7F54B3", "source": "platform", "source_setting": "woocommerce_email_base_color" },
+    "background_colour":{ "value": "#F7F7F7", "source": "platform", "source_setting": "woocommerce_email_background_color" },
+    "text_colour":      { "value": "#3C3C3C", "source": "platform", "source_setting": "woocommerce_email_text_color" },
+    "font_family":      { "value": "Helvetica", "source": "merchant" },
+    "footer_text":      { "value": "Shop Example — thank you for shopping with us.", "source": "platform", "source_setting": "woocommerce_email_footer_text" },
+    "sender_name":      { "value": "Shop Example", "source": "platform", "source_setting": "woocommerce_email_from_name" },
+    "sender_address":   { "value": "news@shop.example", "source": "platform", "source_setting": "woocommerce_email_from_address" },
+    "language":         { "value": "et", "source": "platform", "source_setting": "WPLANG" }
+  }
+}
+```
+
+**Field reference and validation**:
+
+| Field | `value` type and limits |
+| --- | --- |
+| `store_name` | text, 1–100 characters |
+| `store_url` | `https` URL, max 2048 |
+| `postal_address` | text, 1–300 characters, line breaks allowed (the legal footer address) |
+| `logo_url` | `https` URL, max 2048, path ending `.png`, `.jpg`, `.jpeg`, `.gif` or `.svg`, or a URL that answers with one of those image types. The engine does not copy the file in v1.15.0; it must stay reachable. |
+| `primary_colour`, `background_colour`, `text_colour` | `#RRGGBB` (6 hex digits, case-insensitive; stored upper case) |
+| `font_family` | text, 1–100 characters, a font family name without CSS (letters, digits, spaces, `-`). The starter design adds a safe fallback stack. |
+| `footer_text` | plain text, 0–1000 characters, line breaks allowed; HTML tags are rejected |
+| `sender_name` | text, 1–100 characters |
+| `sender_address` | email address, max 254 |
+| `language` | ISO 639-1 code (two letters) |
+
+| Envelope field | Type and limits |
+| --- | --- |
+| `source` | `"platform"` (read from the shop platform's settings) \| `"merchant"` (typed by the shop admin in the plugin). Required. |
+| `source_setting` | text, max 200 — the platform setting the value came from (e.g. a WooCommerce option name, a Shopify `brand` field path, a Magento config path). Optional; required when `source` is `platform`. Display and support only. |
+| `null` instead of the envelope | Clears the stored field. |
+
+**Semantics**:
+
+- **Merge by field.** A sent field replaces the stored field; a field not sent keeps its stored value. An empty `fields: {}` is valid and changes nothing.
+- **A store's own edit wins.** A field that the store edited on the setup page (stored source `setup_page`) is **not** replaced by a PUT with `source: "platform"`. It is replaced by a PUT with `source: "merchant"`, or by a later setup-page edit. The response lists such fields in `kept`.
+- **Website fallback.** For a field the plugin does not send, the engine may fill a value from the store's website (stored source `website`). A sent field always replaces a `website` value.
+- **Validation is all-or-nothing**, as in §13: any invalid field → 422 and nothing is written.
+- **No shopper data.** The brand kit holds store data only. Do not send customer names, addresses or emails.
+
+**Response 200 OK** (PUT):
+
+```json
+{
+  "ok": true,
+  "stored": ["store_name", "logo_url", "primary_colour"],
+  "kept": [{ "field": "footer_text", "reason": "edited_on_setup_page" }]
+}
+```
+
+**Response 200 OK** (GET):
+
+```json
+{
+  "fields": {
+    "store_name": { "value": "Shop Example", "source": "platform", "source_setting": "blogname", "updated_at": "2026-10-20T08:00:00.000Z" },
+    "footer_text": { "value": "…", "source": "setup_page", "updated_at": "2026-10-20T08:10:00.000Z" }
+  }
+}
+```
+
+The GET `source` may also be `setup_page` or `website`. A field with no stored value is absent.
+
+**Errors**: `400 invalid_json`; `401`; `403 tenant_inactive`; `422 validation_failed` with `{"error":"validation_failed","errors":[{"field":"fields.primary_colour.value","message":"…"}]}`; `429`.
+
+**Idempotency**: natural-key UPSERT on (store, field). Repeating the same PUT is a no-op update.
+
+**Endpoint map key**: `store_branding` (§1). A connection set up before v1.15.0 does not have the key — use the fallback path constant.
+
+**Where each platform's values come from** (the plugin reads them; the engine does not care which setting it was):
+
+| Field | WooCommerce | Shopify | Magento |
+| --- | --- | --- | --- |
+| store name, URL | site title, home URL | shop name, primary domain | store name, base URL |
+| postal address | store address settings | shop address | store information address |
+| logo | email header image | `brand` logo (Admin API) | email logo, else header logo |
+| colours | email base / background / text colour | `brand` colours (fields unverified) | none in core — `merchant` or omit |
+| font | none in core — `merchant` or omit | none — `merchant` or omit | none in core — `merchant` or omit |
+| footer | email footer text | none — `merchant` or omit | none in core — `merchant` or omit |
+| sender name, address | email "From" name and address | sender email, shop name | store email identity (general contact) |
+| language | site language | shop primary locale | store locale |
+
+---
+
+### 19. POST /api/v1/automations/{key}/test-send
+
+> **Not live yet** (published 2026-10-22, before the engine builds it): the engine answers `404` until this endpoint is built. A connector must treat `404` as "not available yet" and keep its current behaviour. The setup-exchange endpoint map returns this endpoint's key only once the endpoint is live.
+
+**One test email to one address** (v1.15.0, INT-12). The engine sends one email of one automated email to one address that the store types, with real products and no customer's name or email. Call it when the shop admin presses "Send test email" in the plugin. The setup page offers the same action. A test send that Smaily accepts is also the **sender check** that go-live needs (§20). The design page (§22) offers the same test send for **every** email the store designs — engine, plugin and transactional emails — under the same rules: one address the store types, real products, no customer's name or email, and an accepted test send is the sender check (Erkki, 2026-10-22).
+
+**URL**: `POST /api/v1/automations/{key}/test-send` — `{key}` is a §11 catalogue key. A plugin or transactional email key → `404 unknown_automation`: the plugin does not send their test through this endpoint.
+
+**Auth**: `Authorization: Bearer sk_...` — the connection's own API key. The store is the API key's store.
+
+**Rate limit**: 10 requests per 3600 seconds per store, all emails together, setup page and design page included.
+
+**Request body**:
+
+```json
+{
+  "email": "owner@shop.example",
+  "language": "et"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `email` | email address, max 254 | Required. Exactly one address. The engine uses it for this send only: it does not store it, does not log it and does not add it to `test_emails`. |
+| `language` | ISO 639-1 | Optional. Language of the copy and the product names, when the store has that language. Otherwise the store's default language. |
+
+**What the engine sends**:
+
+1. The email's current subject, preheader and design, from the email's from-name and from-address (§12 `sender`).
+2. **Real products.** Engine-backed email: the current recommendations of one customer of the store who could receive this email (not in the holdout, not opted out, not unsubscribed), chosen by the engine; the per-send fields (for example `rec_rep_*` for `replenish_due`) come from the same customer. Plugin or transactional email (design page only): products from the store's catalogue (best sellers) in place of the cart lines or the order lines; a recommendation block shows products as in an engine email.
+3. **No customer's name or email.** Personal fields (for example the first name) are empty. Nothing in the email names or identifies the customer whose products it shows.
+4. **Links** go to the real product pages without `smaily_rec`, `smaily_vt` or `smaily_ctx`. A click or a purchase from a test email never credits a recommendation.
+5. **Not a send to a customer.** A test send writes no recommendation and no email event. It does not count toward `daily_cap`, the ramp, spacing, cooldown or the automatic stop.
+6. A test send works in every `setup_state` and does not change it.
+
+**Sender check**:
+
+- **Smaily accepts the send** → the engine sets §12 `sender_tested_at` for the from-address (for every email of the store that uses the same address) and `last_test_send_at` for this email. The blocker `no_test_send` is cleared.
+- **Smaily refuses the send** because the from-domain is not verified or the from-address is not allowed → `409 sender_refused`. The engine sets §12 `sender_state` to `unverified` or `address_not_allowed` and `sender_tested_at` to `null`. Real sends of an email that uses this address stop with `stop_reason: sender_check_failed`.
+- **Accepted is not delivered.** The engine knows only that Smaily accepted the send. The store checks its inbox.
+- A test send of a plugin or transactional email from the design page sets and clears `sender_tested_at` for its from-address in the same way. It changes no §12 `setup[]` item of its own: plugin and transactional emails have none.
+
+**Response 200 OK**:
+
+```json
+{
+  "ok": true,
+  "trigger_key": "replenish_due",
+  "accepted_at": "2026-10-21T07:55:00.000Z",
+  "sender": { "from_name": "Shop Example", "from_address": "news@shop.example" }
+}
+```
+
+The response does not repeat the recipient address.
+
+**Errors** (body `{error, message?, details?}`, as in [Error response format](#error-response-format)):
+
+| Status | `error` | Meaning |
+| --- | --- | --- |
+| 400 | `invalid_json` | The body is not valid JSON. |
+| 401 | `unauthorised` / `api_key_revoked` | As in [Authentication](#authentication). |
+| 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
+| 404 | `unknown_automation` | `{key}` is not in this store's catalogue. |
+| 409 | `not_ready` | The email cannot be sent yet. `details.reasons` lists one or more of: `no_workflow`, `no_design`, `design_check_failed` (the design check failed — a required field, slot guard, unsubscribe link or `smaily_rec` parameter is missing), `missing_subject`, `no_sender` (no from-address), `no_products` (no customer of the store has recommendations for this email yet). Unknown values: show "Setup is not complete". |
+| 409 | `sender_refused` | Smaily refused a send from this from-address. `details.sender_state` is `unverified` or `address_not_allowed`; `details.from_address` names the store's from-address. The store fixes the sender domain in Smaily, then sends a test again. |
+| 422 | `validation_failed` | `email` or `language` is invalid. Body: `{"error":"validation_failed","errors":[{"field":"email","message":"…"}]}` (the §13 shape, without `index`). |
+| 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). |
+| 502 | `smaily_unavailable` | Smaily did not answer or failed. Nothing changes. **Do not retry automatically** — a retry can send a second email; let the shop admin press again. |
+
+**Idempotency**: none. Each accepted call sends one email.
+
+**Bridge note** (not normative): the contract does not name how the engine sends the email. Until Smaily gives the engine a test-send call for the store's account, the engine may enrol the address into the email's Smaily workflow with the test field values. Smaily may then keep the address as a contact of the store's list.
+
+**Endpoint map key**: `automations_test_send` (§1). A connection set up before v1.15.0 does not have the key — use the fallback path constant.
+
+**Audit log**: every call (`admin_audit_log`, action `automation.test_send`) with the store's tenant id, the email key, the API key id or the setup or design session, the result (`accepted`, `sender_refused`, `not_ready`, `smaily_unavailable`) and the from-address domain. The recipient address is not recorded.
+
+**Curl example**:
+
+```bash
+curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/test-send \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"email":"owner@shop.example","language":"et"}'
+```
+
+---
+
+### 20. POST /api/v1/automations/{key}/go-live
+
+> **Not live yet** (published 2026-10-22, before the engine builds it): the engine answers `404` until this endpoint is built. A connector must treat `404` as "not available yet" and keep its current behaviour. The setup-exchange endpoint map returns this endpoint's key only once the endpoint is live. Until §20 is live, real sends start only as in v1.14.0: the merchant asks in writing and a Smaily operator switches them on in the engine admin ([§13](#13-put-apiv1automationsconfig)).
+
+**The store switches real sends on or off for one email** (v1.15.0, INT-12). Call it when the shop admin presses "Go live" (and confirms) or "Stop real sends". The setup page offers the same switch. **This is the only way a plugin or the setup page starts real sends.** A §13 row with `test_mode: false` never starts them ([§13](#13-put-apiv1automationsconfig)). A Smaily operator can still switch real sends on and off in the engine admin.
+
+**URL**: `POST /api/v1/automations/{key}/go-live` — `{key}` is a §11 catalogue key. A plugin or transactional email key → `404 unknown_automation`.
+
+**Auth**: `Authorization: Bearer sk_...` — the connection's own API key. The store is the API key's store.
+
+**Rate limit**: 10 requests per 60 seconds per store.
+
+**Request body**:
+
+```json
+{
+  "live": true,
+  "confirmed": true,
+  "switched_by": "17"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `live` | boolean | Required. `true`: switch real sends on. `false`: switch real sends off. |
+| `confirmed` | boolean | Required and must be `true` when `live` is `true`, otherwise 422. It states that the shop admin confirmed a dialog that names the email and says that the store's customers will receive it. Ignored when `live` is `false`. |
+| `switched_by` | string, max 100 | Optional, recommended. The shop admin's user id on the platform (opaque, for example a WordPress user id). Never an email address or a name. The engine stores it only in the audit row. |
+
+**`live: true`**:
+
+1. The engine reads §12 `go_live_blockers` for this email at the moment of the call. **Any blocker** → `409 go_live_blocked`, and nothing changes. Go-live is refused in particular while the design check fails (`design_check_failed`) or the sender check fails (`no_test_send`, `sender_unverified`, `sender_address_not_allowed`, `sender_records_invalid`).
+2. With no blocker, the engine stores `enabled: true` and `test_mode: false`. §12 `setup_state` becomes `live` and `live_since` is set.
+3. The engine starts real sends at ramp step 1 (table below). The holdout, suppression, spacing, overdue limit and automatic stop apply as before.
+4. An email that is already `live` answers `200` with `changed: false`; the ramp does not restart.
+
+**`live: false`**:
+
+- Always allowed; no confirmation and no blocker check. The engine stores `test_mode: true`; `enabled` is unchanged. A `live` email becomes `test`. An email that is not `live` answers `200` with `changed: false`.
+- To stop all sends, including test-mode sends, save the row with `enabled: false` (§13).
+
+**Ramp** (today's values — §11 `engine_rules` `ramp` shows the current values, §12 `daily_limit` today's limit):
+
+| Step | Real sends per day, at most | Length |
+| --- | --- | --- |
+| 1 | 10 | 7 days |
+| 2 | 25 | 7 days |
+| 3 | 50 | 14 days |
+| after step 3 | the store's `daily_cap` (`null` = no cap) | — |
+
+A lower `daily_cap` wins at every step. The days count from `live_since`. The ramp starts again at step 1 each time real sends start.
+
+**Automatic stop** (unchanged rule, PRO-3708): after 1 complaint, or when opt-outs exceed 1% over at least 50 sends in 7 days, the engine switches real sends back to test mode. §12 shows `setup_state: stopped`, the `stop_reason` and the blocker `stopped_needs_review`. A Smaily operator reviews the stop; after the review the state is `test`, and the store can switch real sends on again with this action. A refused real send from the from-address stops real sends the same way (`stop_reason: sender_check_failed`); a new accepted test send clears it.
+
+**Response 200 OK**:
+
+```json
+{
+  "ok": true,
+  "trigger_key": "replenish_due",
+  "changed": true,
+  "setup_state": "live",
+  "live_since": "2026-10-21T08:00:00.000Z",
+  "daily_limit": 10
+}
+```
+
+`setup_state`, `live_since` and `daily_limit` have the §12 meaning.
+
+**Errors** (body `{error, message?, details?}`, as in [Error response format](#error-response-format)):
+
+| Status | `error` | Meaning |
+| --- | --- | --- |
+| 400 | `invalid_json` | The body is not valid JSON. |
+| 401 | `unauthorised` / `api_key_revoked` | As in [Authentication](#authentication). |
+| 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
+| 404 | `unknown_automation` | `{key}` is not in this store's catalogue. |
+| 409 | `go_live_blocked` | Real sends cannot start now. `details.blockers` has the §12 `go_live_blockers` values, for example `{"error":"go_live_blocked","message":"…","details":{"blockers":["no_test_send"]}}`. Show the reasons; for `no_test_send` offer the test send (§19). |
+| 422 | `validation_failed` | `live` is missing, or `live` is `true` and `confirmed` is not `true`, or `switched_by` is invalid. Body: `{"error":"validation_failed","errors":[{"field":"confirmed","message":"…"}]}` (the §13 shape, without `index`). |
+| 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). |
+
+**Idempotency**: the request names the target state. Repeating it answers `200` with `changed: false`.
+
+**Endpoint map key**: `automations_go_live` (§1). A connection set up before v1.15.0 does not have the key — use the fallback path constant. A plugin with neither the key nor the constant has no go-live button; a Smaily operator switches real sends on for its store, as in v1.14.0.
+
+**Audit log**: every change (`admin_audit_log`, action `automation.real_sends.on` or `automation.real_sends.off`) and every refused `live: true` (`automation.real_sends.refused`, with the blockers). Each row holds the store's tenant id, the email key, the API key id or the setup session, `switched_by` when sent, and the state before the call. No other identifier. This row is the store's go-live consent record; it replaces the merchant's written yes of the pilot rule ([§13](#13-put-apiv1automationsconfig)).
+
+**Curl example**:
+
+```bash
+curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/go-live \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"live":true,"confirmed":true,"switched_by":"17"}'
+```
+
+---
+
+### 21. POST /api/v1/onboarding/start
+
+> **Built; switched off until the terms text is published** (published 2026-10-22): the engine answers `404 not_found` until then. A connector must treat `404` as "not available yet", keep its current behaviour and show the operator path (contact Smaily). This endpoint has no setup-exchange endpoint map key: the plugin calls it before it has a connection, so it uses its path constant.
+
+**Start Campaign Intelligence for a shop that has no store in the engine** (v1.16.0, INT-134, Erkki's decision 2026-10-21). Call it when the shop admin presses "Start Campaign Intelligence" in the plugin and the plugin has no engine connection yet.
+
+**URL**: `POST /api/v1/onboarding/start`
+
+**Auth**: none. Call it **server-to-server** (from the shop's backend, never from the browser): the body carries the Smaily API password. The engine checks the Smaily API login with one Smaily call (`GET https://{subdomain}.sendsmaily.net/api/list.php`).
+
+**Rate limit**: 10 requests per 60 seconds per IP.
+
+**Request body**:
+
+```json
+{
+  "shop_url": "https://shop.example",
+  "platform": "woocommerce",
+  "smaily_subdomain": "myshop",
+  "smaily_username": "api-user",
+  "smaily_password": "••••••••",
+  "opener_origin": "https://admin.shopify.com"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `shop_url` | string (URL), max 2048 | The shop's public address, `http` or `https`. It becomes the store's product link base. Its origin is the default target origin of the window message. |
+| `platform` | string, 1–32 | `woocommerce`, `shopify` or `magento`. Recorded with the store creation. |
+| `smaily_subdomain` | string, max 64 | Only the subdomain (`myshop`), not `myshop.sendsmaily.net`. Letters, digits and `-`; case does not matter. |
+| `smaily_username` | string, 1–255 | Smaily API username. |
+| `smaily_password` | string, 1–255 | Smaily API password. |
+| `opener_origin` | string, optional, max 2048 | The origin of the plugin's window that opens `start_url` (scheme and host, optional port, no path), for example `https://admin.shopify.com`. The start window sends the setup token to this origin only. Omitted: the origin of `shop_url`. Accepted values: the origin of `shop_url`, `https://admin.shopify.com`, and the app hosts the engine lists (ask Smaily to add a Shopify app host). Any other value: `400 opener_origin_not_allowed`. |
+
+**Response 200 OK** — the account has no store yet:
+
+```json
+{
+  "start_url": "https://intelligence.smaily.com/onboarding/start#t=AQ3f…",
+  "expires_at": "2026-10-21T09:05:00.000Z"
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `start_url` | Opaque one-time URL. Open it at once with `window.open(start_url)` from the shop admin page (a new window or tab, top level, not an iframe). Do not store, log or send it anywhere else. The token is in the URL fragment (`#t=…`), which the browser does not send to any server. |
+| `expires_at` | Issue time + **5 minutes**. |
+
+**Response 409** — the account already has a store (a live or suspended one; a deleted store does not count, see rule 6):
+
+```json
+{
+  "error": "store_exists",
+  "message": "This Smaily account already has a store.",
+  "console_url": "https://intelligence.smaily.com/console/<tenant_id>/home"
+}
+```
+
+Open `console_url` for the shop admin. The console asks the person to sign in. To connect this plugin to the existing store, the store creates a setup link in its console (Settings → Connections) and the plugin uses §1.
+
+**Errors**:
+
+| Status | `error` | Meaning | What the plugin shows |
+| --- | --- | --- | --- |
+| 400 | `validation_failed` | A field is missing or malformed. | Its own settings error. |
+| 400 | `opener_origin_not_allowed` | `opener_origin` is not an origin, or not an accepted one. `message` says why. | Its own error; a plugin bug, not a store problem. |
+| 401 | `smaily_login_refused` | Smaily refused the API login. | "Check the Smaily API login in the plugin settings." |
+| 403 | `smaily_paid_package_required` | Smaily answered code 227: the package has no API access. | "Your Smaily package does not include API access", and the package upgrade. No onboarding. |
+| 404 | `not_found` | The self-service path is off. | The operator path (contact Smaily). |
+| 409 | `store_exists` | See above. | Open `console_url`. |
+| 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). | Try again later. |
+| 502 | `smaily_unavailable` | Smaily did not answer. | Try again shortly. |
+
+**The start window** (engine-hosted; the plugin builds nothing for it):
+
+1. Shows the shop address from the link for confirmation. A wrong address is corrected in the plugin settings and the start is repeated.
+2. Asks the store to accept the terms of service, pick its industry and give the email for its console account. Only the industries open for self-service can be picked (today pet and beauty); the others say "set up by our team".
+3. On submit, the engine creates in one step: the store; a console **editor** account for the email, with a sign-in link sent to it; the Smaily API login, stored encrypted; a record of the terms acceptance. The campaign statistics sync starts at once. Contact sync stays off: **nothing is written to any Smaily contact before the operator activates the store.**
+4. Sends the setup token to the window that opened it:
+
+   ```js
+   window.opener.postMessage(
+     { type: 'smaily_intelligence_setup', setup_token: '…', setup_url: 'https://intelligence.smaily.com/setup/…' },
+     '<opener_origin>'
+   );
+   ```
+
+   The target origin is the `opener_origin` of the start request, by default the origin of `shop_url` — never `*`. The window also shows the setup link with a copy button, for the case where the message cannot arrive.
+
+**What the plugin does with the message**:
+
+```js
+window.addEventListener('message', (event) => {
+  if (event.origin !== 'https://intelligence.smaily.com') return;
+  if (event.data?.type !== 'smaily_intelligence_setup') return;
+  // Send event.data.setup_token to the shop backend, which calls §1 POST /api/setup/exchange.
+});
+```
+
+Check `event.origin` against the engine base URL. Send the token to the shop backend, which runs the §1 exchange and stores the API key as usual. Do not store or log the setup token. When no message arrives, the store pastes the setup link from the window into the plugin's existing setup-link field.
+
+**Rules**:
+
+1. **Five minutes.** The start link stops working at `expires_at`, 5 minutes after it was issued. The window then says "This link has expired or is not valid. Start again from your plugin."
+2. **One store.** A start link creates at most one store. A second submit of the same link — or any later start for the same Smaily account while its store exists — answers "this Smaily account already has a store" with the console link, and hands out no setup token.
+3. **One Smaily account, one store.** The subdomain identifies the account; case and surrounding spaces do not matter. Stores with several Smaily accounts are not covered: such a store is set up by the operator.
+4. **No contact writes before activation.** The new store has contact sync off until the operator activates it.
+5. **Credentials.** The engine never returns the Smaily API login, and never writes it to a log or an audit record. It is stored encrypted, as when the operator enters it.
+6. **A deleted store frees its account** (Erkki 2026-10-21). A store that is purged, or whose deletion was requested (§16 `POST /api/v1/store/uninstall`), no longer holds its Smaily account. A start for that account answers `200` with a start link, and the submit creates a new store; the old store gives up the account at that moment. The new store starts empty: nothing of the deleted store's data comes back.
+7. **Window origin.** The setup token goes only to the origin named by `opener_origin` (default: the shop's origin). The origin travels inside the encrypted start link; the engine stores it nowhere else.
+
+**Audit log**: the store creation (`admin_audit_log`, action `tenant.create`, `metadata.via = "self_service"`, with the industry, the platform and the Smaily subdomain) and the terms acceptance (`terms.accept`, with the terms version), both with the console email as the actor. When the account was held by a deleted store (rule 6), one more record: `tenant.smaily_account_released` on the old store, which names the old store only. The setup exchange writes its existing records (§1).
+
+**Curl example**:
+
+```bash
+curl -X POST https://intelligence.smaily.com/api/v1/onboarding/start \
+  -H "Content-Type: application/json" \
+  -d '{"shop_url":"https://shop.example","platform":"woocommerce","smaily_subdomain":"myshop","smaily_username":"api-user","smaily_password":"…"}'
+```
+
+---
+
+### 22. POST /api/v1/emails/{email_key}/design-link
+
+> **Live since 2026-10-22; the Smaily push is not live yet.** A design saved on the page is stored in the engine. It reaches Smaily only when Smaily's automations API extension is available ([§23 Smaily dependency](#smaily-dependency)). The page's test send (rule 4) comes with §19.
+
+**One-time link to the engine design page for any email the store sends** (v1.17.0, INT-11). The store edits the email's subject, sender and design in the embedded editor, on a starter built from the brand kit (§18), and sends a test email of it (§19 rules). The engine stores the design and pushes it to Smaily (§23). Call it when the shop admin presses "Edit design" on an email in the plugin — for an engine email, a plugin email (for example the abandoned-cart email) or a transactional email (for example the order confirmation).
+
+**The engine never decides when a plugin or transactional email is sent.** The plugin keeps its own settings and state for those emails. The design page shows no on/off switch, timing, test mode or go-live for them, and the plugin does not ask the engine before a send run. The design page offers a test send for them (rule 4).
+
+**URL**: `POST /api/v1/emails/{email_key}/design-link`
+
+**`{email_key}`** — one of:
+
+| Kind | Form | Accepted when |
+| --- | --- | --- |
+| Engine email | a §11 catalogue `key`, for example `replenish_due` | The key is in this store's catalogue. The link opens the §17 setup page (design, settings, test send, go-live) for that email. |
+| Plugin email | `plugin.<name>` | The engine has a starter for the key (table below). |
+| Transactional email | `transactional.<name>` | The engine has a starter for the key (table below). |
+
+`<name>` matches `^[a-z][a-z0-9_]{0,49}$`. The plugin names its own keys from the table below; the engine accepts only keys it has a starter for. §23 lists the keys this store can use; render that list, do not hardcode it.
+
+**Starters in v1.17.0**:
+
+| `email_key` | What it is | Sent through | Locked blocks |
+| --- | --- | --- | --- |
+| `plugin.welcome` | Welcome email when a contact joins the newsletter | Smaily workflow | unsubscribe link |
+| `plugin.first_order` | Email after a customer's first order | Smaily workflow | unsubscribe link |
+| `plugin.abandoned_cart` | Email with the products left in a cart | Smaily workflow | unsubscribe link, cart block |
+| `plugin.follow_up` | Email some days after an order | Smaily workflow | unsubscribe link |
+| `transactional.order_confirmation` | Order confirmation | Smaily transactional sending | order block, recommendation block |
+| `transactional.shipping_confirmation` | Shipping confirmation | Smaily transactional sending | order block |
+
+Engine emails keep the v1.15.0 design check: locked recommendation blocks, the unsubscribe link and the `smaily_rec` tracking parameter on every recommendation link. **Recommendation blocks are allowed in plugin and transactional emails** (Erkki, 2026-10-22). A transactional starter may include one: the `transactional.order_confirmation` starter does. In a plugin email the store may add one. A recommendation block in a plugin or transactional design is locked, and its links carry `smaily_rec`. "Locked" means: the store can move the block, not remove it; the design check (§23 `design_state: "check_failed"`) fails when it is missing.
+
+**Auth**: `Authorization: Bearer sk_...` — the connection's own API key. The store is the API key's store.
+
+**Rate limit**: 10 requests per 60 seconds per store.
+
+**Request body** (all fields optional; `{}` is valid) — the same fields and rules as §17:
+
+```json
+{
+  "return_url": "https://shop.example/wp-admin/admin.php?page=smaily-connect&tab=emails",
+  "language": "et"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `return_url` | string (URL), max 2048 | As in §17. |
+| `language` | ISO 639-1 | Language of the design page and of the starter copy. When absent or not supported, the store's default language. |
+
+**Response 200 OK** — as in §17:
+
+```json
+{
+  "url": "https://intelligence.smaily.com/design/email/dl_7Hc2…",
+  "expires_at": "2026-10-23T08:05:00.000Z"
+}
+```
+
+**Rules**: §17 rules 1–5 apply unchanged (one time, own store only, a 60-minute session that names no person, read §23 again on return; no callback). In addition:
+
+1. **What the page writes for a plugin or transactional email**: subject, preheader (plugin emails only), sender name and address, and the design. Nothing else. **Subject and preheader are part of the email design**: the engine stores them with the design, not as separate settings, and no §13 field holds them.
+2. **Save pushes.** Each save replaces the stored design, raises `version` by 1 and starts the push to Smaily (§23). The page shows the push result. A design that fails the design check is stored and not pushed.
+3. **Reopen.** The next link for the same email key opens the stored design source, not a new starter.
+4. **Test send.** The page sends one test email of the design to one address the store types, for every email key — engine, plugin and transactional. The §19 rules apply: real products, no customer's name or email, the same rate limit and audit, and an accepted test send is the sender check. For a plugin or transactional email, products from the store's catalogue (best sellers) take the place of the cart lines or the order lines.
+5. **History.** The engine keeps only the current design and its `version`; it keeps no earlier versions. Smaily's template revisions keep the history of pushed designs.
+
+**Errors**:
+
+| Status | `error` | Meaning |
+| --- | --- | --- |
+| 401 | `unauthorised` / `api_key_revoked` | As in [Authentication](#authentication). |
+| 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
+| 404 | `unknown_email` | `{email_key}` is not a catalogue key of this store and has no starter. |
+| 422 | `validation_failed` | `return_url` or `language` is invalid (the §17 shape). |
+| 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). |
+
+**Idempotency**: none needed. Each call mints a new link.
+
+**Endpoint map key**: `emails_design_link` (§1).
+
+**Audit log**: every mint (`admin_audit_log`, action `email.design_link.mint`), every redemption (`email.design_link.redeem`) and every saved version (`email.design.save`), with the store's tenant id, the email key, the API key id or the setup session; no other identifier.
+
+**Curl example**:
+
+```bash
+curl -X POST https://intelligence.smaily.com/api/v1/emails/plugin.abandoned_cart/design-link \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"return_url":"https://shop.example/wp-admin/admin.php?page=smaily-connect","language":"et"}'
+```
+
+---
+
+### 23. GET /api/v1/emails/designs
+
+> **Live since 2026-10-22; the Smaily push is not live yet.** Until Smaily's automations API extension is available, every item carries `smaily_state: "not_available"` and `null` Smaily ids ([Smaily dependency](#smaily-dependency)).
+
+**Read back every email design of the store** (v1.17.0, INT-11): the design state and the Smaily ids per email key. Call it when the shop admin opens the plugin's email settings and when the store returns from the design page. **Do not call it before a send run**: the plugin stores the ids it read and uses them until the next read.
+
+**URL**: `GET /api/v1/emails/designs`
+
+**Query parameters**:
+
+| Parameter | Notes |
+| --- | --- |
+| `email_key` | Optional. Return only this email key. Unknown → `404 unknown_email`. |
+
+**Auth**: `Authorization: Bearer sk_...`
+
+**Rate limit**: 100 req/sec (the `/api/v1/emails/...` row).
+
+**Response 200 OK**:
+
+```json
+{
+  "emails": [
+    {
+      "email_key": "plugin.abandoned_cart",
+      "kind": "plugin",
+      "name_et": "Mahajäetud ostukorv",
+      "name_en": "Abandoned cart",
+      "sent_through": "workflow",
+      "design_state": "edited",
+      "subject": "You left something in your cart",
+      "sender": { "from_name": "Shop Example", "from_address": "news@shop.example" },
+      "version": 3,
+      "smaily_state": "pushed",
+      "smaily_template_id": "123",
+      "smaily_workflow_id": "456",
+      "smaily_pushed_at": "2026-10-23T08:10:00.000Z",
+      "updated_at": "2026-10-23T08:09:58.000Z"
+    },
+    {
+      "email_key": "transactional.order_confirmation",
+      "kind": "transactional",
+      "name_et": "Tellimuse kinnitus",
+      "name_en": "Order confirmation",
+      "sent_through": "transactional",
+      "design_state": "none",
+      "subject": null,
+      "sender": null,
+      "version": 0,
+      "smaily_state": "not_available",
+      "smaily_template_id": null,
+      "smaily_workflow_id": null,
+      "smaily_pushed_at": null,
+      "updated_at": null
+    }
+  ]
+}
+```
+
+One item for **every** email key this store can design: every §11 catalogue email, and every plugin and transactional starter. An item exists before any design is saved (`design_state: "none"`).
+
+**Field reference** (per `emails[]` item):
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `email_key` | string | The email key (§22). |
+| `kind` | `"engine"` \| `"plugin"` \| `"transactional"` | Engine email (§11), plugin email or transactional email. Unknown value: ignore the item. |
+| `name_et` / `name_en` | string | Display name. |
+| `sent_through` | `"workflow"` \| `"transactional"` | How Smaily sends it: a Smaily workflow (engine and plugin emails) or Smaily transactional sending. |
+| `design_state` | `"none"` \| `"starter"` \| `"edited"` \| `"check_failed"` | As in §12. `check_failed`: a locked block, the unsubscribe link (not for transactional emails) or the `smaily_rec` parameter on a recommendation link is missing. |
+| `subject` | string \| null | The saved subject. `null` when no design is saved. |
+| `sender` | object \| null | `from_name`, `from_address`. `null` when not set. |
+| `version` | integer | The saved design version; `0` when none. It grows by 1 at each save. The engine keeps only the current version. |
+| `smaily_state` | `"not_available"` \| `"pending"` \| `"pushed"` \| `"failed"` | `not_available`: the engine cannot push to Smaily for this store yet. `pending`: a saved version waits for its push. `pushed`: Smaily holds the saved version. `failed`: the last push failed; the ids, when present, belong to the last pushed version. Unknown value: treat as `not_available`. |
+| `smaily_template_id` | string \| null | The Smaily template that holds the pushed HTML. Numeric string. `null` until the first push. |
+| `smaily_workflow_id` | string \| null | `sent_through: "workflow"` only: the Smaily workflow that the engine created for this email. Numeric string. `null` for a transactional email and until the first push. |
+| `smaily_pushed_at` | ISO 8601 \| null | When the last push succeeded. |
+| `updated_at` | ISO 8601 \| null | When the design was last saved. |
+
+**What the plugin does with the ids**:
+
+- **Plugin email**: when `smaily_workflow_id` is present, the plugin starts its email with that workflow, in place of the workflow that the shop admin picked or that the plugin created. When it is `null`, the plugin keeps its current workflow. The plugin's own settings (on/off, timing, cart cutoff, test mode) decide when the email is sent, as before.
+- **Transactional email**: when `smaily_template_id` is present, the plugin sends with that template, in place of its own. When it is `null`, the plugin keeps its current template.
+- **Engine email**: the plugin does nothing with the ids. The engine enrols contacts into its own workflow; §12 `configs[].automation_map` shows the workflow id the engine uses.
+- An id can change after a save (a new template or workflow). The plugin reads §23 again on return from the design page, and uses the ids it read last.
+
+#### Smaily dependency
+
+**The engine starts pushing when Smaily's automations API extension is available.** Until then, `smaily_state` is `not_available`, the ids are `null`, and the design is stored in the engine only.
+
+- **Workflows.** Creating, switching on and updating a workflow come with Smaily's automations API extension.
+- **Smaily v1 accounts.** Access for a v1 account comes with the same extension.
+- **Contact fields.** A contact field (for example `rec_1_name`) is a Smaily merge tag inside the template HTML. The engine already writes these contact fields to the contact (contact sync).
+
+The push is **not live yet**. The contract does not name the Smaily calls; it names only the ids the plugin reads.
+
+**Error responses**: `401`, `403 tenant_inactive`, `404 unknown_email` (with `email_key`), `429`.
+
+**Idempotency**: not applicable (read-only endpoint).
+
+**Endpoint map key**: `emails_designs` (§1).
+
+**Curl example**:
+
+```bash
+curl -X GET "https://intelligence.smaily.com/api/v1/emails/designs?email_key=plugin.abandoned_cart" \
+  -H "Authorization: Bearer sk_..."
 ```
 
 ---
@@ -2364,6 +3314,49 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **Token lifetime (§15).** One rule replaces two paragraphs that disagreed: an email-link token is valid for 90 days from issue; a token carried on an order is valid for 365 days from the latest order of its customer that carried it, and is never shortened. The engine behaviour is unchanged since v1.11.0.
 - **Attribution timing (§5).** The `process-order-attributions` run is every 15 minutes, not ~every 30 minutes.
 - **What the plugin does.** Nothing is required. A plugin that shows the export's retention block shows the new keys; a plugin that checks token length accepts up to 64 characters.
+
+**v1.14.0** (2026-10-19) — **Retention periods as long as competitors keep data, with a purpose for each**. MINOR bump per the [Versioning](#versioning) rule (a new field in an existing response; backward-compatible — no key is renamed or removed). PRO-4116, Erkki's decision 2026-10-19:
+- **The ask.** Shopify asked that data be kept at least as long as competitors keep it, and that each period state its purpose.
+- **Periods.** Browse events (identified and anonymous) and email events: **14 months from the event** (were 90 and 365 days). Visitor tokens: **14 months from their last activity** — the token's creation, or the latest order that carried it (were 90 days from issue, or 365 days from the latest order). Recommendations, attribution and engagement history: 730 days, unchanged. Customers, orders and catalog: while the store uses the service, unchanged. The other periods are unchanged.
+- **The block ([§8](#8-get-apiv1customeremailexport)).** `data_retention_policy` carries the new values for `browse_events`, `email_events` and `visitor_tokens`. A new sibling object `export_metadata.data_retention_purpose` has the same keys and states each period's purpose.
+- **Token lifetime ([§5](#store-created-visitor-token), [§15](#15-post-apiv1recommendationscustomer)).** One lifetime for every token: 14 months from its last activity. A token issued or renewed before this version keeps its expiry until its next activity (an order that carries it) moves it; the engine does not extend existing tokens.
+- **Store deletion ([§16](#16-post-apiv1storeuninstall)).** New endpoint `POST /api/v1/store/uninstall`, endpoint map key `store_uninstall`. It revokes the calling connection's key; when that was the store's last active connection, the engine stops using the store and deletes all of its data within 30 days of the request (normally the next night). The response says which of the two happened, and `delete_by` gives the deadline.
+- **What the plugin does.** Call `POST /api/v1/store/uninstall` when the shop admin uninstalls the plugin or app, then delete the stored API key. Nothing else is required. A plugin that shows the export's retention block can show the purpose next to each period.
+
+**v1.15.0** (2026-10-22) — **One setup place for every automated email**. MINOR bump per the [Versioning](#versioning) rule (new endpoints, new optional request fields, new response keys; backward-compatible — a v1.14.0 request is still valid and answers the same). PRO-4166, Erkki's decisions 2026-10-19 and 2026-10-21 (INT-12):
+- **Availability.** Published 2026-10-22, before the engine builds it (Erkki's decision). Until each part is built, the engine answers `404` for §17–§20 and omits the new §11 fields and §12 `setup`; §13 keeps the v1.14.0 rules. A connector treats `404` or a missing field as "not available yet" and keeps its current behaviour. The setup-exchange endpoint map returns each new key only once its endpoint is live.
+- **The gap.** Each plugin had its own list: engine emails bound to a workflow id, and its own welcome, first-order, abandoned-cart and follow-up settings. No plugin could set subject, sender check or design, and the three plugins showed different states.
+- **§11 catalogue.** With `include=engine_less`, the list also has `welcome`, `first_order`, `abandoned_cart` and `follow_up`. Every entry gains `engine_backed`, `started_by`, `go_live`, `editable_settings[]` (subject, preheader, timing, pause between emails, daily cap, test addresses — each with its limits) and `engine_rules[]` (comparison group, suppression, spacing, automatic stop, overdue limit, real-send switch, ramp, discount — read-only labels). Every email has `go_live: "store"`. The example recipe now shows the live `rec_rep_*` recipe (documentation only).
+- **§12 config read.** New top-level `setup[]`: one item per catalogue email with `setup_state` (`off`, `set_up`, `test`, `live`, `stopped`), `sender_state`, `sender_tested_at`, `design_state`, `go_live_blockers`, `live_since`, `daily_limit`, `last_test_send_at` and current `settings`.
+- **§13 config write.** Engine-less keys are accepted. `automation_map`, `test_mode` and `test_emails` may be omitted (the stored value is kept). Optional `settings` for plugin-editable settings. **`test_mode: false` never switches real sends on**, for any email — it is stored as in v1.14.0 (the pilot consent rule now describes only this legacy field).
+- **§17 setup link** (new). `POST /api/v1/automations/{key}/setup-link` returns a one-time URL to the engine-hosted setup page for the API key's store, valid 5 minutes. Endpoint map key `automations_setup_link`.
+- **§18 brand kit** (new). `PUT` / `GET /api/v1/store/branding`: store name, URL, postal address, logo, colours, font, footer, sender name and address, language, each with its source. Endpoint map key `store_branding`.
+- **§19 test send** (new). `POST /api/v1/automations/{key}/test-send` sends one email to one address the store types, with real products and no customer's name or email. Smaily's acceptance is the sender check. Endpoint map key `automations_test_send`.
+- **§20 go-live** (new). `POST /api/v1/automations/{key}/go-live` lets the store switch real sends on (after confirmation, with no blocker) and off for one email, and records who switched it. Engine-backed emails keep the ramp 10 → 25 → 50 per day and the automatic stop; a stop needs an operator's review before the store can switch real sends on again. This replaces the pilot rule that a Smaily operator switches real sends on after the store's written yes (v1.8.2); the operator switch stays for a plugin without the go-live button. Endpoint map key `automations_go_live`.
+- **Not in the contract.** What runs an email (a hand-built Smaily workflow today) and which editor the setup page embeds. The engine stores the design as HTML; no Smaily template holds it.
+- **What the plugin does.** To use the setup page: ask for `include=engine_less`, render `editable_settings` and `engine_rules`, show `setup[]` state, open §17 links in a new tab, send the brand kit (§18), call §19 for a test email and §20 to go live, omit `test_mode` and `test_emails` from §13, and run engine-less emails by the §12 state and settings. **A plugin that does none of this, and still sends a workflow id, keeps working unchanged.**
+
+**v1.16.0** (2026-10-22) — **A plugin starts Campaign Intelligence for a shop with no store**. MINOR bump per the [Versioning](#versioning) rule (a new endpoint; backward-compatible). INT-134, Erkki's decision 2026-10-21:
+- **Availability.** Built; switched off until the terms text is published (INT-2): the engine answers `404 not_found` until then. A connector treats `404` as "not available yet" and keeps its current behaviour.
+- **The gap.** A new store needed the operator: create the store, enter the Smaily login, mint a setup link, send it to the store. The plugin already held the Smaily login.
+- **§21 start** (new). `POST /api/v1/onboarding/start` with the shop address and the Smaily API login. The engine checks the login with one Smaily call; a refused login (`401 smaily_login_refused`) or a package without API access (`403 smaily_paid_package_required`, Smaily code 227) stops the start. An account with a store gets `409 store_exists` and the console link. Otherwise a one-time start link, 5 minutes.
+- **Start window.** Terms, industry (self-service packs only), shop address, console email. One submit creates the store, the editor account, the encrypted Smaily login and the terms record, starts the campaign statistics sync, and sends the setup token to the plugin's window (`postMessage`, type `smaily_intelligence_setup`, target origin = `opener_origin`, by default the shop's origin). No Smaily contact is written before the operator activates the store.
+- **Window origin.** Optional `opener_origin` in the start request: the shop's origin (default), `https://admin.shopify.com`, or an app host the engine lists. Any other value: `400 opener_origin_not_allowed`.
+- **Deleted store.** A store that is purged or whose deletion was requested (§16) no longer holds its Smaily account: a new start creates a new store.
+- **Base context.** Connect works only with a paid Smaily package.
+- **Authentication.** §21 is the second unauthenticated endpoint, after the setup exchange (§1).
+- **What the plugin does.** To use the start: call §21 from the shop backend, open `start_url` in a new window, listen for the message, run the §1 exchange with its token. **A plugin that does none of this keeps working unchanged.**
+
+**v1.17.0** (2026-10-22) — **One design place for every email; the engine runs only its own emails**. MINOR bump per the [Versioning](#versioning) rule (two new endpoints; the parts that leave were published in v1.15.0 under a "Not live yet" note and never served, so no live behaviour changes). INT-11, Erkki's decision 2026-10-22:
+- **Availability.** §22 and §23 are "Not live yet": the engine answers `404` until each is built. Pushing to Smaily waits on Smaily's automations API extension, which brings workflow switch-on and update and access for a v1 account; until then `smaily_state` is `not_available`. Contact fields are Smaily merge tags in the template HTML.
+- **The change.** v1.15.0 let the engine hold the plugin's own emails (welcome, first order, abandoned cart, follow-up): their settings, their state, and a rule that the plugin reads the engine's state before each run. Erkki decided to keep it simple: when such an email is sent stays in the plugin. The engine runs and configures only its own emails, and is the one design place for every email.
+- **Removed (never live).** §11 `include=engine_less`, the four engine-less entries, the settings `abandoned_cutoff_minutes` and `follow_up_delay_days`, the engine rule `store_plugin_runs`, `started_by: "store_plugin"`. §12 `include` and engine-less `setup[]` items. §13 engine-less keys (refused again as `"tundmatu trigger"`, as in v1.14.0), the `settings` field, and the rule "run engine-less emails by the §12 state". The engine-less parts of §17, §19 and §20.
+- **Kept.** §11 `go_live`, `editable_settings`, `engine_rules` (and `engine_backed`, `started_by` with one value each); §12 `setup[]` for catalogue emails; §13 optional `automation_map`, `test_mode`, `test_emails` and the rule that `test_mode: false` never starts real sends; §17 setup link, §18 brand kit, §19 test send, §20 go-live — for catalogue emails.
+- **§22 design link** (new). `POST /api/v1/emails/{email_key}/design-link` returns a one-time URL to the engine design page for any email: a catalogue key, or a `plugin.*` / `transactional.*` key the engine has a starter for. Same rules as §17. On the page the store edits subject, sender and design, and sends a test email under the §19 rules, for every email. Subject and preheader are part of the design. Recommendation blocks are allowed in plugin and transactional emails; the order-confirmation starter has one. The engine keeps only the current design; Smaily template revisions keep the history. Endpoint map key `emails_design_link`.
+- **§23 design read-back** (new). `GET /api/v1/emails/designs`: per email key the design state, subject, sender, version and the Smaily template and workflow ids. Endpoint map key `emails_designs`.
+- **§19 test send.** The endpoint stays for catalogue emails. The design page (§22) offers the same test send for plugin and transactional emails; their test sends count toward the same limit and are the same sender check.
+- **What the plugin does.** Keep its own emails, their settings and their sending. Stop any work on the engine-less parts of v1.15.0. Offer "Edit design" on every email (§22) and use the Smaily ids from §23 when they are present. A test of a plugin or transactional email is sent from the design page, not through §19. **A plugin that does none of this keeps working unchanged.**
+- 2026-10-22: §11–§13, §17, §18, §22 and §23 are live.
 
 ### Appendix F: Migration notes
 
