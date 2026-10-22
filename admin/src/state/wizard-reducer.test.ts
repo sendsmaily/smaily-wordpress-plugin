@@ -558,6 +558,68 @@ describe('wizardReducer — engine-run automations slice (T2.2)', () => {
     expect(s.engineAutomations.realSendsRequested).toEqual(['replenish_due']);
   });
 
+  it('records which optional §13 fields the merchant changed, per trigger (CON-172)', () => {
+    let s = wizardReducer(baseState, {
+      type: 'ENGINE_AUTOMATIONS_HYDRATED',
+      payload: { rows: [row], keepDirty: false },
+    });
+    expect(s.engineAutomations.changedFields).toEqual({});
+
+    s = wizardReducer(s, {
+      type: 'UPDATE_ENGINE_AUTOMATION',
+      payload: { triggerKey: 'replenish_due', patch: { cooldown_days: 14, enabled: true } },
+    });
+    expect(s.engineAutomations.changedFields).toEqual({});
+
+    s = wizardReducer(s, {
+      type: 'UPDATE_ENGINE_AUTOMATION',
+      payload: { triggerKey: 'replenish_due', patch: { automation_map: { id: '9' } } },
+    });
+    s = wizardReducer(s, {
+      type: 'UPDATE_ENGINE_AUTOMATION',
+      payload: { triggerKey: 'replenish_due', patch: { test_emails: ['a@shop.example'] } },
+    });
+    s = wizardReducer(s, {
+      type: 'UPDATE_ENGINE_AUTOMATION',
+      payload: { triggerKey: 'replenish_due', patch: { test_emails: ['b@shop.example'] } },
+    });
+    expect(s.engineAutomations.changedFields).toEqual({
+      replenish_due: ['automation_map', 'test_emails'],
+    });
+  });
+
+  it('a fresh hydrate starts from the converted workflow maps; a dirty one keeps the changes; a save clears them (CON-172)', () => {
+    let s = wizardReducer(baseState, {
+      type: 'ENGINE_AUTOMATIONS_HYDRATED',
+      payload: { rows: [row], keepDirty: false, mapConverted: ['replenish_due'] },
+    });
+    expect(s.engineAutomations.changedFields).toEqual({ replenish_due: ['automation_map'] });
+
+    s = wizardReducer(s, {
+      type: 'UPDATE_ENGINE_AUTOMATION',
+      payload: { triggerKey: 'replenish_due', patch: { test_mode: true } },
+    });
+    s = wizardReducer(s, {
+      type: 'ENGINE_AUTOMATIONS_HYDRATED',
+      payload: { rows: [row], keepDirty: true },
+    });
+    expect(s.engineAutomations.changedFields).toEqual({
+      replenish_due: ['automation_map', 'test_mode'],
+    });
+
+    s = wizardReducer(s, {
+      type: 'ENGINE_AUTOMATIONS_SAVED',
+      payload: { realSendsRequested: [] },
+    });
+    expect(s.engineAutomations.changedFields).toEqual({});
+
+    s = wizardReducer(s, {
+      type: 'ENGINE_AUTOMATIONS_HYDRATED',
+      payload: { rows: [row], keepDirty: false, afterSave: true },
+    });
+    expect(s.engineAutomations.changedFields).toEqual({});
+  });
+
   it('the re-read after a save keeps the save outcome; any other hydrate resets it (PRO-3707)', () => {
     let s = wizardReducer(baseState, {
       type: 'ENGINE_AUTOMATIONS_SAVED',

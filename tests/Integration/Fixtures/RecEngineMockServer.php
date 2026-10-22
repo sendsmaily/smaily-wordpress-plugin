@@ -193,6 +193,28 @@ final class RecEngineMockServer {
 		$this->write_state( array( 'automations_real_sends_on' => $trigger_keys ) );
 	}
 
+	/**
+	 * Play the engine's setup page (contract §17) or a Smaily operator:
+	 * store these §12 config rows as if they wrote them, so a test can check
+	 * that a plugin save leaves their workflow, test mode and test
+	 * addresses alone (CON-172).
+	 *
+	 * @param array<int, array<string, mixed>> $rows Rows in the §12 shape.
+	 */
+	public function set_automations_configs( array $rows ): void {
+		$this->write_state( array( 'automations_configs' => array_column( $rows, null, 'trigger_key' ) ) );
+	}
+
+	/**
+	 * The `configs` of the last §13 PUT exactly as the engine received them
+	 * — the proof of what the plugin sent, not of what the engine stored.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function last_automations_config_put(): array {
+		return (array) ( $this->state()['last_automations_config_put'] ?? array() );
+	}
+
 	/** Zero the request counter so a test can assert "no request since here". */
 	public function reset_request_count(): void {
 		$this->write_state( array( 'request_count' => 0 ) );

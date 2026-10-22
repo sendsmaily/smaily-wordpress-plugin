@@ -1517,6 +1517,10 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 	}
 
 	$configs = isset( $body['configs'] ) ? $body['configs'] : null;
+	// What the plugin sent, before any validation — a test reads it back
+	// (RecEngineMockServer::last_automations_config_put()).
+	$state['last_automations_config_put'] = $configs;
+	save_state( $state_file, $state );
 	if ( ! is_array( $configs ) || count( $configs ) === 0 || count( $configs ) > 50 ) {
 		reply(
 			422,

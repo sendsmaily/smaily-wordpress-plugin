@@ -129,6 +129,31 @@ final class AutomationsEndpointTest extends TestCase {
 		);
 	}
 
+	public function test_put_config_never_sends_test_mode_false_and_keeps_every_other_field(): void {
+		$client   = $this->stub_client( array( 'ok' => true, 'upserted' => 3 ) );
+		$endpoint = $this->endpoint( $this->settings( true ), $client );
+
+		$requested              = $this->valid_row();
+		$requested['test_mode'] = false;
+		$back_to_test           = $this->valid_row( 'winback_risk' );
+		$left_out               = $this->valid_row( 'life_stage' );
+		unset( $left_out['automation_map'], $left_out['test_mode'], $left_out['test_emails'] );
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'configs', array( $requested, $back_to_test, $left_out ) );
+
+		$response = $endpoint->put_config( $request );
+
+		self::assertSame( 200, $response->get_status() );
+		$expected = $requested;
+		unset( $expected['test_mode'] );
+		self::assertSame(
+			array( $expected, $back_to_test, $left_out ),
+			$client->received_configs,
+			'test_mode=false is left out (CON-172: §13 keeps the stored value); true and every other field go to the engine as sent.'
+		);
+	}
+
 	public function test_put_config_rejects_a_missing_or_non_array_configs_with_400(): void {
 		$endpoint = $this->endpoint( $this->settings( true ), $this->stub_client() );
 

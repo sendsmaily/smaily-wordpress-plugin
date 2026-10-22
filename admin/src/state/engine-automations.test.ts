@@ -13,9 +13,11 @@ import {
   engineTriggerStatus,
   fallbackLanguage,
   issuesByTrigger,
+  mapConvertedTriggers,
   pickRecipe,
   saveEngineAutomations,
   setFallbackLanguage,
+  toPutRow,
   updateLanguageWorkflow,
   validateRows,
 } from './engine-automations';
@@ -382,6 +384,60 @@ describe('issuesByTrigger — 422 binding', () => {
   });
 });
 
+describe('toPutRow — what a save sends (CON-172)', () => {
+  const row: EngineAutomationRow = {
+    trigger_key: 'replenish_due',
+    enabled: true,
+    language_mode: 'single',
+    automation_map: { id: '123' },
+    cooldown_days: 30,
+    daily_cap: 10,
+    test_mode: true,
+    test_emails: ['owner@shop.example'],
+  };
+
+  it('leaves out the workflow, test mode and test addresses the merchant did not change', () => {
+    expect(toPutRow(row, [])).toEqual({
+      trigger_key: 'replenish_due',
+      enabled: true,
+      language_mode: 'single',
+      cooldown_days: 30,
+      daily_cap: 10,
+    });
+  });
+
+  it('sends the workflow and the test addresses the merchant changed', () => {
+    expect(toPutRow(row, ['automation_map', 'test_emails'])).toEqual({
+      trigger_key: 'replenish_due',
+      enabled: true,
+      language_mode: 'single',
+      automation_map: { id: '123' },
+      cooldown_days: 30,
+      daily_cap: 10,
+      test_emails: ['owner@shop.example'],
+    });
+  });
+
+  it('sends test mode only when the merchant switched it back on — never test_mode: false', () => {
+    expect(toPutRow(row, ['test_mode'])).toMatchObject({ test_mode: true });
+    expect(toPutRow({ ...row, test_mode: false }, ['test_mode'])).not.toHaveProperty('test_mode');
+  });
+});
+
+describe('mapConvertedTriggers — stored maps the screen converts (CON-172)', () => {
+  it('lists the triggers whose stored language mode differs from the store\'s', () => {
+    const stored = (key: string, mode: EngineAutomationRow['language_mode']): AutomationConfigServerRow => ({
+      ...defaultRow(key, mode),
+      automation_map: mode === 'single' ? { id: '1' } : { fallback: '1' },
+    });
+
+    expect(
+      mapConvertedTriggers([stored('a', 'single'), stored('b', 'per_language')], 'per_language'),
+    ).toEqual(['a']);
+    expect(mapConvertedTriggers([stored('a', 'single')], 'single')).toEqual([]);
+  });
+});
+
 describe('saveEngineAutomations — save orchestration', () => {
   let dispatched: WizardAction[];
   const dispatch = (action: WizardAction): void => {
@@ -393,14 +449,41 @@ describe('saveEngineAutomations — save orchestration', () => {
     putMock.mockReset();
   });
 
-  it('PUTs the rows and dispatches SAVED on success', async () => {
-    putMock.mockResolvedValue({ ok: true, upserted: 1 });
-    const rows = [defaultRow('t', 'single')];
+  it('PUTs the rows with only the fields the merchant set and dispatches SAVED on success (CON-172)', async () => {
+    putMock.mockResolvedValue({ ok: true, upserted: 2 });
+    const picked = {
+      ...defaultRow('picked', 'single'),
+      enabled: true,
+      automation_map: { id: '5' },
+      test_emails: ['a@shop.example'],
+    };
+    const untouched = { ...defaultRow('untouched', 'single'), automation_map: { id: '6' } };
 
-    const ok = await saveEngineAutomations(rows, dispatch);
+    const ok = await saveEngineAutomations(
+      [picked, untouched],
+      { picked: ['automation_map', 'test_emails'] },
+      dispatch,
+    );
 
     expect(ok).toBe(true);
-    expect(putMock).toHaveBeenCalledWith(rows);
+    expect(putMock).toHaveBeenCalledWith([
+      {
+        trigger_key: 'picked',
+        enabled: true,
+        language_mode: 'single',
+        automation_map: { id: '5' },
+        cooldown_days: 7,
+        daily_cap: null,
+        test_emails: ['a@shop.example'],
+      },
+      {
+        trigger_key: 'untouched',
+        enabled: false,
+        language_mode: 'single',
+        cooldown_days: 7,
+        daily_cap: null,
+      },
+    ]);
     expect(dispatched.map((a) => a.type)).toEqual([
       'ENGINE_AUTOMATIONS_SAVE_START',
       'ENGINE_AUTOMATIONS_SAVED',
@@ -413,7 +496,7 @@ describe('saveEngineAutomations — save orchestration', () => {
     const test = { ...defaultRow('test', 'single'), enabled: true, automation_map: { id: '2' } };
     const off = { ...defaultRow('off', 'single'), test_mode: false };
 
-    await saveEngineAutomations([live, test, off], dispatch);
+    await saveEngineAutomations([live, test, off], {}, dispatch);
 
     expect(dispatched[1]).toEqual({
       type: 'ENGINE_AUTOMATIONS_SAVED',
@@ -424,7 +507,7 @@ describe('saveEngineAutomations — save orchestration', () => {
   it('skips the PUT entirely when client-side validation fails', async () => {
     const rows = [{ ...defaultRow('t', 'single'), enabled: true }];
 
-    const ok = await saveEngineAutomations(rows, dispatch);
+    const ok = await saveEngineAutomations(rows, {}, dispatch);
 
     expect(ok).toBe(false);
     expect(putMock).not.toHaveBeenCalled();
@@ -442,7 +525,7 @@ describe('saveEngineAutomations — save orchestration', () => {
       errors: [{ index: 0, trigger_key: 't', field: 'automation_map.fallback', message: 'nõutav' }],
     });
 
-    const ok = await saveEngineAutomations([defaultRow('t', 'single')], dispatch);
+    const ok = await saveEngineAutomations([defaultRow('t', 'single')], {}, dispatch);
 
     expect(ok).toBe(false);
     const failed = dispatched.find((a) => a.type === 'ENGINE_AUTOMATIONS_SAVE_FAILED');
@@ -454,7 +537,7 @@ describe('saveEngineAutomations — save orchestration', () => {
   it('maps key_rejected and network failures to SAVE_FAILED without errors', async () => {
     putMock.mockResolvedValue({ ok: false, kind: 'key_rejected', message: 'rejected' });
 
-    const ok = await saveEngineAutomations([defaultRow('t', 'single')], dispatch);
+    const ok = await saveEngineAutomations([defaultRow('t', 'single')], {}, dispatch);
 
     expect(ok).toBe(false);
     const failed = dispatched.find((a) => a.type === 'ENGINE_AUTOMATIONS_SAVE_FAILED');
@@ -469,7 +552,7 @@ describe('saveEngineAutomations — save orchestration', () => {
       detail: 'PUT /rec-engine/automations/config → 500',
     });
 
-    await saveEngineAutomations([defaultRow('t', 'single')], dispatch);
+    await saveEngineAutomations([defaultRow('t', 'single')], {}, dispatch);
 
     const failed = dispatched.find((a) => a.type === 'ENGINE_AUTOMATIONS_SAVE_FAILED');
     expect(failed).toMatchObject({
@@ -481,7 +564,7 @@ describe('saveEngineAutomations — save orchestration', () => {
   });
 
   it('treats an empty catalog as a no-op success (§13 forbids an empty PUT)', async () => {
-    const ok = await saveEngineAutomations([], dispatch);
+    const ok = await saveEngineAutomations([], {}, dispatch);
 
     expect(ok).toBe(true);
     expect(putMock).not.toHaveBeenCalled();
