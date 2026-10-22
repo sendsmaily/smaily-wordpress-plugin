@@ -15,7 +15,6 @@ use Smaily\Connect\Constants;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
-use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -69,13 +68,10 @@ use WP_REST_Response;
  */
 class AutomationsEndpoint {
 
+	use RecEngineProxy;
+
 	public const ROUTE_CATALOG = '/rec-engine/automations/catalog';
 	public const ROUTE_CONFIG  = '/rec-engine/automations/config';
-
-	private RecEngineSettings $settings;
-
-	/** @var callable(string $api_key, string $base_url, array<string, string> $endpoints): Client */
-	private $client_factory;
 
 	/**
 	 * @param callable(string $api_key, string $base_url, array<string, string> $endpoints): Client $client_factory
@@ -118,20 +114,6 @@ class AutomationsEndpoint {
 				),
 			)
 		);
-	}
-
-	/**
-	 * @return bool|WP_Error
-	 */
-	public function permission_check( WP_REST_Request $request ) {
-		if ( ! current_user_can( Constants::CAPABILITY ) ) {
-			return new WP_Error(
-				'smaily_connect_forbidden',
-				__( 'You do not have permission to manage Campaign Intelligence.', 'smaily-connect' ),
-				array( 'status' => 403 )
-			);
-		}
-		return true;
 	}
 
 	public function catalog( WP_REST_Request $request ): WP_REST_Response {
@@ -253,14 +235,6 @@ class AutomationsEndpoint {
 		}
 
 		return null;
-	}
-
-	private function client(): Client {
-		return ( $this->client_factory )(
-			$this->settings->api_key(),
-			$this->settings->base_url(),
-			$this->settings->endpoints()
-		);
 	}
 
 	/**
