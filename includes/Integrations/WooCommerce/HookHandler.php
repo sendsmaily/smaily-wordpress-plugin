@@ -106,9 +106,9 @@ class HookHandler {
 
 	/**
 	 * Longest value each attribution cookie can legitimately hold, from the
-	 * shapes LandingCapture accepts: a UUID rec_id (Support\RecId), `vt_` + up
-	 * to 64 alphanumerics (a store `vs_` token is shorter), a context slug of
-	 * up to 64. The anonymous session id
+	 * shapes LandingCapture accepts: a UUID rec_id (Support\RecId), a `vt_`
+	 * token of up to 64 characters in all (a store `vs_` token is shorter), a
+	 * context slug of up to 64. The anonymous session id
 	 * is a UUID in every producer we ship but is shape-checked nowhere, so it
 	 * gets the same generous 64 bound rather than an exact one.
 	 *
@@ -120,7 +120,7 @@ class HookHandler {
 	 */
 	private const ORDER_META_MAX_LENGTH = array(
 		'_smaily_anon_session_id' => 64,
-		'_smaily_visitor_token'   => 67,
+		'_smaily_visitor_token'   => 64,
 		'_smaily_rec_id'          => 36,
 		'_smaily_rec_ctx'         => 64,
 	);
