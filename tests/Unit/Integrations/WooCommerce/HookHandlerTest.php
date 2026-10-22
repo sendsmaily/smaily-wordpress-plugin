@@ -558,7 +558,7 @@ final class HookHandlerTest extends TestCase {
 		Functions\when( 'wc_get_order' )->justReturn( $order );
 
 		$_COOKIE['smaily_rec_ctx'] = str_repeat( 'a', 65 );
-		$_COOKIE['smaily_rec_uid'] = 'vt_' . str_repeat( 'b', 65 );
+		$_COOKIE['smaily_rec_uid'] = 'vt_' . str_repeat( 'b', 62 );
 
 		( new HookHandler( $this->queue ) )->on_checkout_order_processed( 100 );
 
@@ -573,7 +573,7 @@ final class HookHandlerTest extends TestCase {
 		Functions\when( 'wc_get_order' )->justReturn( $order );
 
 		$ctx                       = str_repeat( 'a', 64 );
-		$vt                        = 'vt_' . str_repeat( 'b', 64 );
+		$vt                        = 'vt_' . str_repeat( 'b', 61 );
 		$_COOKIE['smaily_rec_ctx'] = $ctx;
 		$_COOKIE['smaily_rec_uid'] = $vt;
 

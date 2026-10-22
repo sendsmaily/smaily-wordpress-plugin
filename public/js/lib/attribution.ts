@@ -68,7 +68,8 @@ export const DEFAULT_TTL_DAYS: AttributionTtlDays = { visitor: 365, recId: 30, c
 export const REC_ID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /**
- * The engine's visitor-token shape (`vt_` + alphanumerics) and the campaign
+ * The engine's visitor-token shape (`vt_` + alphanumerics, at most 64
+ * characters in all) and the campaign
  * context slug, mirroring `AttributionShape::is_engine_visitor_token()` /
  * `::is_context()` verbatim. Two writers of the same cookies must accept the
  * same values (PRO-1896): before this, a crafted landing URL could plant an
@@ -80,7 +81,7 @@ export const REC_ID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-
  * link never carries one, so a `vs_` value in a link is one its sender chose,
  * and the engine would bind it to this visitor at their next guest order.
  */
-export const VISITOR_TOKEN_PATTERN = /^vt_[A-Za-z0-9]{1,64}$/;
+export const VISITOR_TOKEN_PATTERN = /^vt_[A-Za-z0-9]{1,61}$/;
 export const CONTEXT_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
 
 /**

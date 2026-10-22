@@ -31,8 +31,11 @@ defined( 'ABSPATH' ) || exit;
  */
 final class AttributionShape {
 
-	/** Engine visitor-token format: `vt_` + alphanumerics (re: visitor-tokens/manager.ts). */
-	private const VISITOR_TOKEN_PATTERN = '/^vt_[A-Za-z0-9]{1,64}$/';
+	/**
+	 * Engine visitor-token format: `vt_` + alphanumerics, at most 64 characters
+	 * in all (contract Base context: a token is opaque, up to 64 characters).
+	 */
+	private const VISITOR_TOKEN_PATTERN = '/^vt_[A-Za-z0-9]{1,61}$/';
 
 	/** Store-created visitor-token format (contract v1.11.0 §5): `vs_` + exactly 22 alphanumerics. */
 	private const STORE_VISITOR_TOKEN_PATTERN = '/^vs_[A-Za-z0-9]{22}$/';
