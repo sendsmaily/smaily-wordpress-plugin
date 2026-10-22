@@ -60,6 +60,7 @@ export function TransactionalTriggersSection({
         state={state}
         dispatch={dispatch}
         trigger="order_confirmation"
+        emailKey="transactional.order_confirmation"
         title={ __( 'Order confirmation', 'smaily-connect' ) }
         description={ __( 'Sent when a customer places an order.', 'smaily-connect' ) }
         isEnabled={state.orderConfirmationEnabled}
@@ -81,6 +82,7 @@ export function TransactionalTriggersSection({
         state={state}
         dispatch={dispatch}
         trigger="shipping_confirmation"
+        emailKey="transactional.shipping_confirmation"
         title={ __( 'Shipping confirmation', 'smaily-connect' ) }
         description={ __( 'Sent when the order has been completed and is ready to be sent.', 'smaily-connect' ) }
         isEnabled={state.shippingConfirmationEnabled}
@@ -112,6 +114,7 @@ export function TransactionalTriggersSection({
         state={state}
         dispatch={dispatch}
         trigger="follow_up"
+        emailKey="plugin.follow_up"
         title={ __( 'Follow-up email', 'smaily-connect' ) }
         description={ __( 'Sent a set number of days after an order reaches a ticked status — a feedback request, say.', 'smaily-connect' ) }
         isEnabled={state.followUpEnabled}

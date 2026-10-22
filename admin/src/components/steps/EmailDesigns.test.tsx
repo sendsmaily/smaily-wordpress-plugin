@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
 import { ApiError } from '../../api/client';
 import { getDesignLink, getEmailDesigns, type EmailDesign } from '../../api/emailDesigns';
@@ -47,7 +47,7 @@ function fakeTab(): Window {
 }
 
 describe('EditDesign', () => {
-  let openSpy: ReturnType<typeof vi.spyOn>;
+  let openSpy: MockInstance<typeof window.open>;
 
   beforeEach(() => {
     vi.clearAllMocks();

@@ -4,6 +4,7 @@ import { __ } from '@admin/lib/i18n';
 import { type WizardAction, type WizardState } from '../../state/types';
 import { Label, NumberInput } from '../primitives';
 import { AutomationSection } from './AutomationSection';
+import { EmailDesignsProvider } from './EmailDesigns';
 import { EngineAutomationsSection } from './EngineAutomationsSection';
 import { TransactionalTriggersSection } from './TransactionalTriggersSection';
 
@@ -29,7 +30,17 @@ export interface Step3WooCommerceProps {
  * The abandoned-cart section gets an extra Cutoff input (10-min minimum
  * per PLUGIN.md §5.3c).
  */
-export function Step3WooCommerce({
+export function Step3WooCommerce(props: Step3WooCommerceProps): React.JSX.Element {
+  // "Edit design" on every email card below (CON-173) reads the engine's
+  // design list once for all of them.
+  return (
+    <EmailDesignsProvider enabled={props.state.recEngineConnection.kind === 'success'}>
+      <Step3Cards {...props} />
+    </EmailDesignsProvider>
+  );
+}
+
+function Step3Cards({
   state,
   dispatch,
   inSettings = false,
@@ -82,6 +93,7 @@ export function Step3WooCommerce({
         state={state}
         dispatch={dispatch}
         trigger="welcome"
+        emailKey="plugin.welcome"
         title={ __( 'Welcome email', 'smaily-connect' ) }
         description={ __( 'Sent when a shopper subscribes to marketing emails in your store (the checkout box or My Account) and contact sync sends them to Smaily. Creating an account alone does not send it, nor does an opt-in added in WordPress admin or by an import. A shopper who subscribes again gets it again.', 'smaily-connect' ) }
         isEnabled={state.welcomeEnabled}
@@ -92,6 +104,7 @@ export function Step3WooCommerce({
         state={state}
         dispatch={dispatch}
         trigger="first_order"
+        emailKey="plugin.first_order"
         title={ __( 'First-order email', 'smaily-connect' ) }
         description={ __( 'Sent when a customer purchases for the first time.', 'smaily-connect' ) }
         isEnabled={state.firstOrderEnabled}
@@ -104,6 +117,7 @@ export function Step3WooCommerce({
         state={state}
         dispatch={dispatch}
         trigger="abandoned_cart"
+        emailKey="plugin.abandoned_cart"
         title={ __( 'Abandoned-cart reminder', 'smaily-connect' ) }
         description={ __( 'Sent when the cart has been abandoned for a set amount of time. Note! Abandoned cart check runs every 15 minutes.', 'smaily-connect' ) }
         isEnabled={state.abandonedCartEnabled}
