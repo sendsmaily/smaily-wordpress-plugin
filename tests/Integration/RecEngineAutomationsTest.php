@@ -41,10 +41,12 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *
  *   - api_key non-leak: none of the proxied bodies may carry the stored key.
  *
- *   - Real sends are switched on engine-side only (§13): a save asking for
- *     them answers 200 as usual, and the §12 read the settings screen runs
- *     after every save shows the trigger still in test mode until the
- *     operator has switched it on.
+ *   - A save never sends test_mode=false (CON-172): the proxy leaves it out,
+ *     so the engine keeps the stored value — a new row stays in test mode
+ *     and a trigger whose real sends are on stays on.
+ *
+ *   - A save that leaves out automation_map / test_mode / test_emails keeps
+ *     what the engine's setup page stored (§13 v1.15.0, CON-172).
  */
 final class RecEngineAutomationsTest extends TestCase {
 
@@ -131,34 +133,91 @@ final class RecEngineAutomationsTest extends TestCase {
 		self::assertNotSame( '', (string) $configs[0]['updated_at'] );
 	}
 
-	public function test_a_real_sends_request_is_stored_in_test_mode_until_the_operator_switches_it_on(): void {
+	public function test_a_real_sends_request_never_reaches_the_engine_and_a_live_trigger_stays_live(): void {
 		$this->connect( 'tok_automations_real_sends' );
-		self::$engine->set_automations_real_sends_on( array( 'winback_risk' ) );
+		// Real sends for winback_risk were switched on outside the plugin
+		// (the setup page's go-live, or a Smaily operator).
+		$live              = $this->valid_row( 'winback_risk' );
+		$live['test_mode'] = false;
+		self::$engine->set_automations_configs( array( $live ) );
 
-		$requested                = $this->valid_row();
-		$requested['test_mode']   = false;
-		$operator_on              = $this->valid_row( 'winback_risk' );
-		$operator_on['test_mode'] = false;
-		$disabled                 = $this->valid_row( 'life_stage' );
-		$disabled['enabled']      = false;
-		$disabled['test_mode']    = false;
+		$requested              = $this->valid_row();
+		$requested['test_mode'] = false;
+		$resaved                = $this->valid_row( 'winback_risk' );
+		$resaved['test_mode']   = false;
 
 		$put = RestRequestHelper::put(
 			'/rec-engine/automations/config',
-			array( 'configs' => array( $requested, $operator_on, $disabled ) )
+			array( 'configs' => array( $requested, $resaved ) )
 		);
-		self::assertSame( 200, $put->get_status(), 'The request answers like any save — nothing in the PUT response says it was held back.' );
-		self::assertSame( 3, $put->get_data()['upserted'] );
+		self::assertSame( 200, $put->get_status() );
+		self::assertSame( 2, $put->get_data()['upserted'] );
+
+		$sent = self::$engine->last_automations_config_put();
+		self::assertCount( 2, $sent );
+		foreach ( $sent as $row ) {
+			self::assertArrayNotHasKey( 'test_mode', $row, 'The plugin never sends test_mode=false (CON-172).' );
+		}
 
 		$configs = array_column(
 			RestRequestHelper::get( '/rec-engine/automations/config' )->get_data()['configs'],
 			null,
 			'trigger_key'
 		);
-		self::assertTrue( $configs['replenish_due']['test_mode'], 'Requested real sends stay in test mode until the operator switches them on.' );
+		self::assertTrue( $configs['replenish_due']['test_mode'], 'A new row is stored in test mode (§13).' );
 		self::assertTrue( $configs['replenish_due']['enabled'], 'Every other field is stored as sent.' );
-		self::assertFalse( $configs['winback_risk']['test_mode'], 'A trigger the operator already switched on keeps real sends on a re-save.' );
-		self::assertFalse( $configs['life_stage']['test_mode'], 'A disabled row is stored as sent.' );
+		self::assertFalse( $configs['winback_risk']['test_mode'], 'A trigger whose real sends are on keeps them on a re-save.' );
+	}
+
+	public function test_a_save_keeps_the_workflow_test_mode_and_test_addresses_the_setup_page_stored(): void {
+		$this->connect( 'tok_automations_setup_page' );
+		$stored                   = $this->valid_row();
+		$stored['automation_map'] = array( 'id' => '777' );
+		$stored['test_mode']      = false;
+		$stored['test_emails']    = array( 'store@shop.example' );
+		self::$engine->set_automations_configs( array( $stored ) );
+
+		// What the settings screen sends when the merchant changed only the
+		// cooldown: no workflow, no test mode, no test addresses.
+		$saved                  = $this->valid_row();
+		$saved['cooldown_days'] = 14;
+		unset( $saved['automation_map'], $saved['test_mode'], $saved['test_emails'] );
+
+		$put = RestRequestHelper::put( '/rec-engine/automations/config', array( 'configs' => array( $saved ) ) );
+		self::assertSame( 200, $put->get_status(), 'The three keys are optional (§13, v1.15.0).' );
+
+		$row = RestRequestHelper::get( '/rec-engine/automations/config' )->get_data()['configs'][0];
+		self::assertSame( 14, $row['cooldown_days'], 'The merchant\'s change is stored.' );
+		self::assertSame( array( 'id' => '777' ), $row['automation_map'], 'The stored workflow is kept.' );
+		self::assertFalse( $row['test_mode'], 'The stored test mode is kept.' );
+		self::assertSame( array( 'store@shop.example' ), $row['test_emails'], 'The stored test addresses are kept.' );
+	}
+
+	public function test_a_new_row_that_leaves_them_out_is_stored_in_test_mode_with_no_test_addresses(): void {
+		$this->connect( 'tok_automations_new_row' );
+
+		$row            = $this->valid_row();
+		$row['enabled'] = false;
+		unset( $row['automation_map'], $row['test_mode'], $row['test_emails'] );
+
+		$put = RestRequestHelper::put( '/rec-engine/automations/config', array( 'configs' => array( $row ) ) );
+		self::assertSame( 200, $put->get_status() );
+
+		$stored = RestRequestHelper::get( '/rec-engine/automations/config' )->get_data()['configs'][0];
+		self::assertTrue( $stored['test_mode'], '§13: a new row is stored with test_mode=true.' );
+		self::assertSame( array(), $stored['test_emails'], '§13: a new row is stored with test_emails=[].' );
+	}
+
+	public function test_an_enabled_row_with_no_workflow_sent_or_stored_is_refused(): void {
+		$this->connect( 'tok_automations_no_workflow' );
+
+		$row = $this->valid_row();
+		unset( $row['automation_map'] );
+
+		$put = RestRequestHelper::put( '/rec-engine/automations/config', array( 'configs' => array( $row ) ) );
+
+		self::assertSame( 422, $put->get_status() );
+		self::assertSame( 'automation_map', $put->get_data()['errors'][0]['field'] );
 	}
 
 	public function test_invalid_row_returns_indexed_422_and_saves_nothing(): void {

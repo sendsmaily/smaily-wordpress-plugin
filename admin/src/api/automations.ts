@@ -1,6 +1,7 @@
 import { __, sprintf } from '@admin/lib/i18n';
 
 import {
+  type EngineAutomationPutRow,
   type EngineAutomationRow,
   type EngineAutomationsIssue,
 } from '../state/types';
@@ -104,7 +105,7 @@ export function getAutomationsConfig(
  * positions in the `configs` array as sent here.
  */
 export async function putAutomationsConfig(
-  configs: EngineAutomationRow[],
+  configs: EngineAutomationPutRow[],
   signal?: AbortSignal,
 ): Promise<PutAutomationsResult> {
   try {

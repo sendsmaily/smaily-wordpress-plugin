@@ -2878,7 +2878,9 @@ always shown). Design decisions locked by Erkki 2026-07-07.
    every open (unmount on tab switch, no cache); a dirty draft survives the re-fetch, a
    clean slice is replaced. Rows live in state in the EXACT §13 wire shape (snake_case,
    scar 3.5.3a) and the PUT sends every rendered row with all 8 fields — un-edited fields
-   (today `daily_cap`) round-trip from GET unchanged, the §12 read-only pair is stripped at
+   (today `daily_cap`) round-trip from GET unchanged (**superseded in part by CON-172**: the
+   PUT leaves out `automation_map`, `test_mode` and `test_emails` unless the merchant changed
+   them, and never sends `test_mode: false`), the §12 read-only pair is stripped at
    hydrate so it can't leak into the PUT. A config row absent from the catalog is neither
    rendered nor sent (PUT never deletes). Client-side pre-validation at the fields is a UX
    layer only; the engine's indexed 422 is the validator and binds back to rows by
@@ -7203,7 +7205,8 @@ known from the plugin's own last successful save in this page session
 (`engineAutomations.realSendsRequested`), because the §12 read has no field
 that tells a request apart from plain test mode. While a request stands, the
 hydrated draft keeps `test_mode: false`, so a later save repeats the request
-instead of silently withdrawing it. The go-live step says Smaily switches real
+instead of silently withdrawing it (**superseded by CON-172**: a save never sends
+`test_mode: false`; the request stays on the plugin's screen only). The go-live step says Smaily switches real
 sends on after the merchant's confirmation and links Smaily support.
 **Rationale:** the engine stays the authority for what is stored (F3-51);
 the request is the plugin's own act, not a copy of engine state, so no local
@@ -8492,6 +8495,42 @@ personal data in the queue longer than needed; a new queue status
 (`next_retry_at`), PRO-2383 (erasure). Pinned by the follow-up tests in
 `tests/Integration/TransactionalEmailsPipelineTest.php` (real WC status
 transitions) and `tests/Unit/Smaily/TransactionalFlusherTest.php`.
+
+### CON-172 — An automations save sends only what the merchant set in the plugin, and never `test_mode: false` (2026-10-22)
+
+**Context:** contract v1.15.0 made `automation_map`, `test_mode` and
+`test_emails` optional in the §13 PUT; a left-out key keeps the engine's
+stored value. The engine's setup page (§17, live 2026-10-22) can set those
+three, and a Smaily operator can too. The settings screen sent all eight keys
+on every row on every save, so a save overwrote what the store set there, and
+its `test_mode: true` would switch off real sends switched on outside the
+plugin (go-live §20, not live yet).
+**Decision:** every row carries the five required keys (`trigger_key`,
+`enabled`, `language_mode`, `cooldown_days`, `daily_cap`). Of the three
+optional keys, a row carries `automation_map` and `test_emails` only when the
+merchant changed them on the screen since the rows were read, and `test_mode`
+only when the merchant switched it back on (always `true`). The screen
+records the changes per trigger (`engineAutomations.changedFields`; a save
+clears them, a dirty draft keeps them). A stored map that the screen converts
+to the store's language mode (F3-52 addendum) counts as changed: the row's
+`language_mode` changes with it, and the engine checks the stored-or-sent map
+against it. The REST proxy also drops `test_mode: false` from every row, so
+no client of the route sends it. "Activate for real…" stays a request on the
+plugin's screen; the engine never acted on `test_mode: false` (v1.8.2).
+**Rationale:** §13 tells a plugin to leave the three keys out; a value the
+merchant did not touch is the engine's, not the plugin's. `test_mode: false`
+never switches real sends on, so leaving it out loses nothing, and real sends
+start only through §20 or an operator.
+**Alternatives:** compare each field with the §12 read and send what differs —
+rejected: a dirty draft kept across a re-read would send its stale copy of a
+value the setup page changed in between; drop the three fields entirely —
+rejected: the screen still edits them, and a store that has not used the setup
+page sets its workflow and test addresses only there.
+**Relationships:** F3-51, F3-52 rule 4 and PRO-3707 (both superseded in
+part), contract §13/§17/§20. Pinned by `toPutRow` tests in
+`admin/src/state/engine-automations.test.ts`, the Settings save tests, the
+proxy unit test and `tests/Integration/RecEngineAutomationsTest.php` (the mock
+keeps a left-out key's stored value).
 
 ## How to keep this document going
 

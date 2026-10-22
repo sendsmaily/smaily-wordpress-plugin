@@ -1846,7 +1846,7 @@ msgstr ""
 #. translators: %s is the automation name, e.g. "Replenishment due".
 #: admin/src/components/steps/EngineAutomationsSection.tsx:455
 #, js-format
-msgid "Request real sends for \"%s\"? Once you save, the request goes to Smaily. The automation stays in test mode until Smaily switches real sends on after your confirmation."
+msgid "Request real sends for \"%s\"? The automation stays in test mode until Smaily switches real sends on after your confirmation."
 msgstr ""
 
 #: admin/src/components/steps/EngineAutomationsSection.tsx:467

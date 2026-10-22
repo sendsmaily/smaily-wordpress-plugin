@@ -2278,8 +2278,8 @@ msgstr "Aktiivne — päris saatmine sees"
 #. translators: %s is the automation name, e.g. "Replenishment due".
 #: admin/src/components/steps/EngineAutomationsSection.tsx:455
 #, js-format
-msgid "Request real sends for \"%s\"? Once you save, the request goes to Smaily. The automation stays in test mode until Smaily switches real sends on after your confirmation."
-msgstr "Kas taotleda automaatikale \"%s\" päris saatmist? Pärast salvestamist läheb taotlus Smailyle. Automaatika jääb testrežiimi, kuni Smaily lülitab päris saatmise sisse pärast sinu kinnitust."
+msgid "Request real sends for \"%s\"? The automation stays in test mode until Smaily switches real sends on after your confirmation."
+msgstr "Kas taotleda automaatikale \"%s\" päris saatmist? Automaatika jääb testrežiimi, kuni Smaily lülitab päris saatmise sisse pärast sinu kinnitust."
 
 #: admin/src/components/steps/EngineAutomationsSection.tsx:473
 msgid "Live — real sends are on: real customers receive this automation."

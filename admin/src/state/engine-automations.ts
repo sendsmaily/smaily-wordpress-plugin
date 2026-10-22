@@ -8,8 +8,11 @@ import {
   type AutomationConfigServerRow,
 } from '../api/automations';
 import {
+  type EngineAutomationPutRow,
   type EngineAutomationRow,
   type EngineAutomationsIssue,
+  type EngineAutomationsState,
+  type MerchantSetField,
   type WizardAction,
   type WizardState,
 } from './types';
@@ -119,8 +122,8 @@ export function convertAutomationMap(
  *   default row appended.
  * - A trigger in `realSendsRequested` that the engine still stores in
  *   test mode keeps `test_mode: false` in the draft: the merchant's
- *   request stands, so a later save repeats it instead of withdrawing
- *   it (the engine keeps such a row in test mode either way, §13).
+ *   request stands on the screen. A save never sends it (`toPutRow`,
+ *   CON-172); the engine keeps such a row in test mode either way (§13).
  */
 export function buildRows(
   catalog: AutomationCatalogTrigger[],
@@ -161,6 +164,53 @@ export function buildRows(
     }
     return defaultRow(trigger.key, languageMode);
   });
+}
+
+/**
+ * Triggers whose stored workflow map `buildRows` converts, because the
+ * engine stored the row in another language mode than the store's. The
+ * converted map is the plugin's own change, so a save sends it (CON-172).
+ */
+export function mapConvertedTriggers(
+  configs: AutomationConfigServerRow[],
+  languageMode: EngineAutomationRow['language_mode'],
+): string[] {
+  return configs
+    .filter((config) => config.language_mode !== languageMode)
+    .map((config) => config.trigger_key);
+}
+
+/**
+ * The §13 PUT row for one draft row (CON-172). The required fields go
+ * every time; the workflow map and the test addresses only when the
+ * merchant changed them on the screen; test mode only when the merchant
+ * switched it back on. The engine keeps its stored value of a left-out
+ * key, so a save never overwrites what the store set on the engine's
+ * setup page. `test_mode: false` is never sent: it never switches real
+ * sends on (§13), and real sends start only through the go-live action
+ * (§20) or a Smaily operator.
+ */
+export function toPutRow(
+  row: EngineAutomationRow,
+  changed: readonly MerchantSetField[],
+): EngineAutomationPutRow {
+  const putRow: EngineAutomationPutRow = {
+    trigger_key: row.trigger_key,
+    enabled: row.enabled,
+    language_mode: row.language_mode,
+    cooldown_days: row.cooldown_days,
+    daily_cap: row.daily_cap,
+  };
+  if (changed.includes('automation_map')) {
+    putRow.automation_map = row.automation_map;
+  }
+  if (changed.includes('test_mode') && row.test_mode) {
+    putRow.test_mode = true;
+  }
+  if (changed.includes('test_emails')) {
+    putRow.test_emails = row.test_emails;
+  }
+  return putRow;
 }
 
 export type EngineTriggerStatus = 'off' | 'test' | 'waiting' | 'live';
@@ -360,10 +410,12 @@ export function fallbackLanguage(
  * Pre-validates client-side; a local failure skips the PUT entirely.
  * §13 is all-or-nothing, so any failure keeps the slice dirty (the
  * reducer's SAVE_FAILED handler) and the caller gets `false` — in the
- * wizard that means "stay on the step".
+ * wizard that means "stay on the step". Each row goes out through
+ * `toPutRow` with the fields the merchant changed (CON-172).
  */
 export async function saveEngineAutomations(
   rows: EngineAutomationRow[],
+  changedFields: EngineAutomationsState['changedFields'],
   dispatch: Dispatch<WizardAction>,
 ): Promise<boolean> {
   const localIssues = validateRows(rows);
@@ -385,7 +437,9 @@ export async function saveEngineAutomations(
   }
 
   dispatch({ type: 'ENGINE_AUTOMATIONS_SAVE_START' });
-  const result = await putAutomationsConfig(rows);
+  const result = await putAutomationsConfig(
+    rows.map((row) => toPutRow(row, changedFields[row.trigger_key] ?? [])),
+  );
 
   if (result.ok) {
     dispatch({
