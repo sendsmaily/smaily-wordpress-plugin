@@ -140,11 +140,7 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
     const [localOk, engineOk] = await Promise.all([
       saveAndAdvance(tab),
       needsEngineSave
-        ? saveEngineAutomations(
-            state.engineAutomations.rows,
-            state.engineAutomations.changedFields,
-            dispatch,
-          )
+        ? saveEngineAutomations(state.engineAutomations, dispatch)
         : Promise.resolve(true),
     ]);
     if (!localOk) {
