@@ -47,6 +47,9 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *
  *   - A save that leaves out automation_map / test_mode / test_emails keeps
  *     what the engine's setup page stored (§13 v1.15.0, CON-172).
+ *
+ *   - A cleared workflow goes to the engine as `{}`, never `[]` — the mock
+ *     refuses a list, as the engine's schema does (§13 types it an object).
  */
 final class RecEngineAutomationsTest extends TestCase {
 
@@ -249,6 +252,47 @@ final class RecEngineAutomationsTest extends TestCase {
 			$read->get_data()['configs'],
 			'A 422 means nothing was written — a partial save would silently enable a trigger the merchant saw fail.'
 		);
+	}
+
+	public function test_a_cleared_workflow_is_saved_as_an_empty_map(): void {
+		$this->connect( 'tok_automations_cleared' );
+
+		$put = RestRequestHelper::put( '/rec-engine/automations/config', array( 'configs' => array( $this->valid_row() ) ) );
+		self::assertSame( 200, $put->get_status() );
+
+		// The merchant clears the workflow and switches the trigger off. The
+		// mock refuses a map sent as a JSON list, so a 200 here means the
+		// proxy sent `{}` (§13: automation_map is an object).
+		$cleared                   = $this->valid_row();
+		$cleared['enabled']        = false;
+		$cleared['automation_map'] = array();
+		$put                       = RestRequestHelper::put( '/rec-engine/automations/config', array( 'configs' => array( $cleared ) ) );
+		self::assertSame( 200, $put->get_status(), 'A cleared workflow must reach the engine as an object.' );
+
+		$read = RestRequestHelper::get( '/rec-engine/automations/config' );
+		self::assertSame( array(), $read->get_data()['configs'][0]['automation_map'], 'The sent empty map replaces the stored workflow.' );
+	}
+
+	public function test_mock_refuses_an_automation_map_sent_as_a_json_list(): void {
+		// A direct Client encodes an empty PHP array as `[]` — the shape the
+		// proxy must never send. §13 types automation_map as an object, and
+		// the engine's Zod schema refuses a list.
+		$row                   = $this->valid_row();
+		$row['enabled']        = false;
+		$row['automation_map'] = array();
+		$client                = new Client( 'sk_mock_list', self::$engine->base_url() );
+
+		try {
+			$client->put_automations_config( array( $row ) );
+			self::fail( 'An automation_map sent as a JSON list must be refused.' );
+		} catch ( ApiException $e ) {
+			self::assertSame( 422, $e->getCode() );
+			self::assertSame( 'validation_failed', $e->error_code() );
+			$errors = $e->errors();
+			self::assertCount( 1, $errors );
+			self::assertSame( 0, $errors[0]['index'] );
+			self::assertSame( 'automation_map', $errors[0]['field'] );
+		}
 	}
 
 	public function test_wrapper_violation_is_a_422_with_field_configs_and_no_index(): void {

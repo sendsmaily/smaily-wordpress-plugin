@@ -154,6 +154,32 @@ final class AutomationsEndpointTest extends TestCase {
 		);
 	}
 
+	public function test_put_config_sends_a_cleared_workflow_as_an_empty_json_object(): void {
+		$client   = $this->stub_client( array( 'ok' => true, 'upserted' => 2 ) );
+		$endpoint = $this->endpoint( $this->settings( true ), $client );
+
+		// WP REST decodes the browser's `{}` into an empty PHP array, which
+		// re-encodes as a JSON list; §13 types `automation_map` as an object.
+		$cleared                   = $this->valid_row();
+		$cleared['enabled']        = false;
+		$cleared['automation_map'] = array();
+		$picked                    = $this->valid_row( 'winback_risk' );
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'configs', array( $cleared, $picked ) );
+
+		$response = $endpoint->put_config( $request );
+
+		self::assertSame( 200, $response->get_status() );
+		$body = (string) json_encode( array( 'configs' => $client->received_configs ) );
+		self::assertStringContainsString(
+			'"trigger_key":"replenish_due","enabled":false,"language_mode":"single","automation_map":{},',
+			$body,
+			'A cleared workflow goes to the engine as {} — never [] (§13: automation_map is an object).'
+		);
+		self::assertStringContainsString( '"automation_map":{"id":"123"}', $body, 'A picked workflow is sent as it came.' );
+	}
+
 	public function test_put_config_rejects_a_missing_or_non_array_configs_with_400(): void {
 		$endpoint = $this->endpoint( $this->settings( true ), $this->stub_client() );
 
