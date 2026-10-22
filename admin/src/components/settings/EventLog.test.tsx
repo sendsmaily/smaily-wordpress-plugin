@@ -417,6 +417,35 @@ describe('EventLog', () => {
     expect(screen.queryByText('sent')).not.toBeInTheDocument();
   });
 
+  it.each([
+    { label: 'cancelled', flags: { cancelled: true } },
+    { label: 'skipped', flags: { skipped: true } },
+  ])('shows the $label status in Details, as the row does (CON-2)', async ({ label, flags }) => {
+    const row = { ...ROW, id: 71, source: 'smaily' as const, status: 'sent', last_error: '', ...flags };
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [row],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+    vi.spyOn(eventsApi, 'getEventDetail').mockResolvedValue({
+      event: row,
+      payload: '',
+      sent_payload: '',
+      last_response: `{"outcome":"${label}"}`,
+    });
+
+    render(<EventLog />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Details' }));
+
+    await screen.findByRole('button', { name: 'Close details' });
+    const status = screen.getAllByText('Status').find((el) => el.tagName === 'DT');
+    expect(status?.nextElementSibling).toHaveTextContent(label);
+    expect(screen.queryByText('sent')).not.toBeInTheDocument();
+  });
+
   /**
    * PRO-2369: both row actions answer a refusal with a sentence the SERVER
    * worded. The stub sentence below is deliberately NOT the PHP wording —
