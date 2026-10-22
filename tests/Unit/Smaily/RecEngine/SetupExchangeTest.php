@@ -57,6 +57,8 @@ final class SetupExchangeTest extends TestCase {
 			'the base'                    => array( 'https://intelligence.smaily.com' ),
 			'an endpoint'                 => array( 'https://intelligence.smaily.com/api/v1/ingest/catalog' ),
 			'an {email} endpoint'         => array( 'https://intelligence.smaily.com/api/v1/customer/{email}/export' ),
+			'a {key} endpoint'            => array( 'https://intelligence.smaily.com/api/v1/automations/{key}/setup-link' ),
+			'an {email_key} endpoint'     => array( 'https://intelligence.smaily.com/api/v1/emails/{email_key}/design-link' ),
 			'host in another letter case' => array( 'HTTPS://Intelligence.Smaily.com/api/v1/ingest/orders' ),
 		);
 	}
