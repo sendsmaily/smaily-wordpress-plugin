@@ -1546,7 +1546,12 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 	$required = array( 'trigger_key', 'enabled', 'language_mode', 'cooldown_days', 'daily_cap' );
 	// Optional since v1.15.0: an omitted key keeps the stored value; a new
 	// row is stored with test_mode=true and test_emails=[] (§13, CON-172).
-	$optional = array( 'automation_map', 'test_mode', 'test_emails' );
+	$defaults = array(
+		'automation_map' => array(),
+		'test_mode'      => true,
+		'test_emails'    => array(),
+	);
+	$optional = array_keys( $defaults );
 	$stored   = ( isset( $state['automations_configs'] ) && is_array( $state['automations_configs'] ) )
 		? $state['automations_configs']
 		: array();
@@ -1630,13 +1635,11 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 		if ( array_key_exists( 'test_mode', $row ) && ! is_bool( $row['test_mode'] ) ) {
 			$row_error( 'test_mode', 'Expected boolean' );
 		}
-		if ( ! array_key_exists( 'test_emails', $row ) ) {
-			// Optional — nothing to check.
-		} elseif ( ! is_array( $row['test_emails'] ) ) {
+		if ( array_key_exists( 'test_emails', $row ) && ! is_array( $row['test_emails'] ) ) {
 			$row_error( 'test_emails', 'Expected array' );
-		} elseif ( count( $row['test_emails'] ) > 50 ) {
+		} elseif ( array_key_exists( 'test_emails', $row ) && count( $row['test_emails'] ) > 50 ) {
 			$row_error( 'test_emails', 'Array must contain at most 50 element(s)' );
-		} else {
+		} elseif ( array_key_exists( 'test_emails', $row ) ) {
 			foreach ( array_values( $row['test_emails'] ) as $email_index => $email ) {
 				if ( ! is_string( $email ) || filter_var( $email, FILTER_VALIDATE_EMAIL ) === false ) {
 					$row_error( 'test_emails.' . $email_index, 'Invalid email' );
@@ -1653,11 +1656,6 @@ if ( $method === 'PUT' && $path === '/api/v1/automations/config' ) {
 			foreach ( $required as $required_key ) {
 				$clean[ $required_key ] = $row[ $required_key ];
 			}
-			$defaults = array(
-				'automation_map' => array(),
-				'test_mode'      => true,
-				'test_emails'    => array(),
-			);
 			foreach ( $optional as $optional_key ) {
 				if ( array_key_exists( $optional_key, $row ) ) {
 					$clean[ $optional_key ] = $row[ $optional_key ];

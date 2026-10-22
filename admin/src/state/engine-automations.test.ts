@@ -13,7 +13,6 @@ import {
   engineTriggerStatus,
   fallbackLanguage,
   issuesByTrigger,
-  mapConvertedTriggers,
   pickRecipe,
   saveEngineAutomations,
   setFallbackLanguage,
@@ -102,7 +101,7 @@ describe('convertAutomationMap — store-global mode conversion (T2.4/1)', () =>
 describe('buildRows — dynamic catalog-driven rows', () => {
   it('renders an unknown new trigger from the catalog with a fail-closed default row', () => {
     // A key this plugin has never heard of — must appear with no code change.
-    const rows = buildRows([catalogTrigger('brand_new_trigger_2027')], [], null, 'single', []);
+    const { rows } = buildRows([catalogTrigger('brand_new_trigger_2027')], [], null, 'single', []);
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toEqual(defaultRow('brand_new_trigger_2027', 'single'));
@@ -114,12 +113,12 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('derives per_language for default rows on multilingual sites', () => {
-    const rows = buildRows([catalogTrigger('t')], [], null, 'per_language', []);
+    const { rows } = buildRows([catalogTrigger('t')], [], null, 'per_language', []);
     expect(rows[0]?.language_mode).toBe('per_language');
   });
 
   it('keeps all eight fields of a configured row — daily_cap round-trips untouched', () => {
-    const rows = buildRows(
+    const { rows } = buildRows(
       [catalogTrigger('replenish_due')],
       [configuredRow({ daily_cap: 500 })],
       null,
@@ -134,14 +133,14 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('strips the read-only §12 fields so they cannot reach the PUT body', () => {
-    const rows = buildRows([catalogTrigger('replenish_due')], [configuredRow()], null, 'single', []);
+    const { rows } = buildRows([catalogTrigger('replenish_due')], [configuredRow()], null, 'single', []);
 
     expect(rows[0]).not.toHaveProperty('configured_via');
     expect(rows[0]).not.toHaveProperty('updated_at');
   });
 
   it('drops a config row whose trigger is missing from the catalog (not rendered, not sent)', () => {
-    const rows = buildRows(
+    const { rows } = buildRows(
       [catalogTrigger('winback_risk')],
       [configuredRow({ trigger_key: 'retired_trigger' })],
       null,
@@ -159,7 +158,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       automation_map: { id: '999' },
     };
 
-    const rows = buildRows(
+    const { rows } = buildRows(
       [catalogTrigger('replenish_due'), catalogTrigger('fresh_from_deploy')],
       [configuredRow()],
       [draft],
@@ -174,7 +173,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   it('renders EVERY row in the store-derived mode — a stored single row on a multilingual store converts, uniformly with its neighbours', () => {
     // The sandbox bug: a walk-saved 'single' replenish_due row rendered one
     // dropdown while never-configured triggers got the per_language table.
-    const rows = buildRows(
+    const { rows } = buildRows(
       [catalogTrigger('replenish_due'), catalogTrigger('winback_rescue')],
       [configuredRow({ trigger_key: 'replenish_due', language_mode: 'single', automation_map: { id: '123' } })],
       null,
@@ -188,7 +187,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('converts a stored per_language row to single on a single-language store — fallback id becomes the id', () => {
-    const rows = buildRows(
+    const { rows } = buildRows(
       [catalogTrigger('replenish_due')],
       [
         configuredRow({
@@ -207,7 +206,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('keeps a standing real-sends request in the draft while the engine still stores test mode (PRO-3707)', () => {
-    const rows = buildRows(
+    const { rows } = buildRows(
       [catalogTrigger('replenish_due'), catalogTrigger('winback_rescue')],
       [
         configuredRow({ trigger_key: 'replenish_due', test_mode: true }),
@@ -225,7 +224,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('never turns test mode off for a requested trigger the engine stores as disabled', () => {
-    const rows = buildRows(
+    const { rows } = buildRows(
       [catalogTrigger('replenish_due')],
       [configuredRow({ enabled: false, test_mode: true })],
       null,
@@ -237,7 +236,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('follows catalog order', () => {
-    const rows = buildRows(
+    const { rows } = buildRows(
       [catalogTrigger('b'), catalogTrigger('a')],
       [configuredRow({ trigger_key: 'a' })],
       null,
@@ -424,7 +423,7 @@ describe('toPutRow — what a save sends (CON-172)', () => {
   });
 });
 
-describe('mapConvertedTriggers — stored maps the screen converts (CON-172)', () => {
+describe('buildRows mapConverted — stored maps the screen converts (CON-172)', () => {
   it('lists the triggers whose stored language mode differs from the store\'s', () => {
     const stored = (key: string, mode: EngineAutomationRow['language_mode']): AutomationConfigServerRow => ({
       ...defaultRow(key, mode),
@@ -432,9 +431,10 @@ describe('mapConvertedTriggers — stored maps the screen converts (CON-172)', (
     });
 
     expect(
-      mapConvertedTriggers([stored('a', 'single'), stored('b', 'per_language')], 'per_language'),
+      buildRows([], [stored('a', 'single'), stored('b', 'per_language')], null, 'per_language', [])
+        .mapConverted,
     ).toEqual(['a']);
-    expect(mapConvertedTriggers([stored('a', 'single')], 'single')).toEqual([]);
+    expect(buildRows([], [stored('a', 'single')], null, 'single', []).mapConverted).toEqual([]);
   });
 });
 
@@ -460,8 +460,7 @@ describe('saveEngineAutomations — save orchestration', () => {
     const untouched = { ...defaultRow('untouched', 'single'), automation_map: { id: '6' } };
 
     const ok = await saveEngineAutomations(
-      [picked, untouched],
-      { picked: ['automation_map', 'test_emails'] },
+      { rows: [picked, untouched], changedFields: { picked: ['automation_map', 'test_emails'] } },
       dispatch,
     );
 
@@ -496,7 +495,7 @@ describe('saveEngineAutomations — save orchestration', () => {
     const test = { ...defaultRow('test', 'single'), enabled: true, automation_map: { id: '2' } };
     const off = { ...defaultRow('off', 'single'), test_mode: false };
 
-    await saveEngineAutomations([live, test, off], {}, dispatch);
+    await saveEngineAutomations({ rows: [live, test, off], changedFields: {} }, dispatch);
 
     expect(dispatched[1]).toEqual({
       type: 'ENGINE_AUTOMATIONS_SAVED',
@@ -507,7 +506,7 @@ describe('saveEngineAutomations — save orchestration', () => {
   it('skips the PUT entirely when client-side validation fails', async () => {
     const rows = [{ ...defaultRow('t', 'single'), enabled: true }];
 
-    const ok = await saveEngineAutomations(rows, {}, dispatch);
+    const ok = await saveEngineAutomations({ rows, changedFields: {} }, dispatch);
 
     expect(ok).toBe(false);
     expect(putMock).not.toHaveBeenCalled();
@@ -525,7 +524,7 @@ describe('saveEngineAutomations — save orchestration', () => {
       errors: [{ index: 0, trigger_key: 't', field: 'automation_map.fallback', message: 'nõutav' }],
     });
 
-    const ok = await saveEngineAutomations([defaultRow('t', 'single')], {}, dispatch);
+    const ok = await saveEngineAutomations({ rows: [defaultRow('t', 'single')], changedFields: {} }, dispatch);
 
     expect(ok).toBe(false);
     const failed = dispatched.find((a) => a.type === 'ENGINE_AUTOMATIONS_SAVE_FAILED');
@@ -537,7 +536,7 @@ describe('saveEngineAutomations — save orchestration', () => {
   it('maps key_rejected and network failures to SAVE_FAILED without errors', async () => {
     putMock.mockResolvedValue({ ok: false, kind: 'key_rejected', message: 'rejected' });
 
-    const ok = await saveEngineAutomations([defaultRow('t', 'single')], {}, dispatch);
+    const ok = await saveEngineAutomations({ rows: [defaultRow('t', 'single')], changedFields: {} }, dispatch);
 
     expect(ok).toBe(false);
     const failed = dispatched.find((a) => a.type === 'ENGINE_AUTOMATIONS_SAVE_FAILED');
@@ -552,7 +551,7 @@ describe('saveEngineAutomations — save orchestration', () => {
       detail: 'PUT /rec-engine/automations/config → 500',
     });
 
-    await saveEngineAutomations([defaultRow('t', 'single')], {}, dispatch);
+    await saveEngineAutomations({ rows: [defaultRow('t', 'single')], changedFields: {} }, dispatch);
 
     const failed = dispatched.find((a) => a.type === 'ENGINE_AUTOMATIONS_SAVE_FAILED');
     expect(failed).toMatchObject({
@@ -564,7 +563,7 @@ describe('saveEngineAutomations — save orchestration', () => {
   });
 
   it('treats an empty catalog as a no-op success (§13 forbids an empty PUT)', async () => {
-    const ok = await saveEngineAutomations([], {}, dispatch);
+    const ok = await saveEngineAutomations({ rows: [], changedFields: {} }, dispatch);
 
     expect(ok).toBe(true);
     expect(putMock).not.toHaveBeenCalled();

@@ -15,7 +15,6 @@ import {
   engineTriggerStatus,
   fallbackLanguage,
   issuesByTrigger,
-  mapConvertedTriggers,
   pickRecipe,
   setFallbackLanguage,
   updateLanguageWorkflow,
@@ -193,7 +192,7 @@ function ConnectedSection({
     if (data === null) {
       return;
     }
-    const rows = buildRows(
+    const { rows, mapConverted } = buildRows(
       data.catalog.triggers,
       data.configs,
       engine.dirty ? engine.rows : null,
@@ -206,7 +205,7 @@ function ConnectedSection({
         rows,
         keepDirty: engine.dirty,
         afterSave: rereadAfterSave.current,
-        mapConverted: mapConvertedTriggers(data.configs, derivedMode),
+        mapConverted,
       },
     });
     rereadAfterSave.current = false;
