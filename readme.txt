@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.17.1
+Stable tag: 3.18.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -58,7 +58,7 @@ Campaign Intelligence is an optional paid Smaily add-on. It is not enabled by de
 
 = Optional transactional emails =
 
-Connect a separate Smaily Transactional account to send WooCommerce order and shipping confirmations through Smaily. If a Smaily send fails, the native WooCommerce email is used as a fallback.
+Connect a separate Smaily Transactional account to send WooCommerce order and shipping confirmations through Smaily, and a follow-up email a set number of days after an order reaches a status you choose. If an order or shipping confirmation fails in Smaily, the native WooCommerce email is used as a fallback. The follow-up email has no WooCommerce fallback: a failed follow-up shows in the Event Log, where you can retry it.
 
 = See what is happening =
 
@@ -92,7 +92,7 @@ The plugin uses the [Smaily Public API](https://smaily.com/help/api/) to connect
 * synchronize contacts and subscription status;
 * trigger workflows after form submissions and WooCommerce events;
 * send abandoned-cart data to the selected Smaily workflow; and
-* send order and shipping confirmations when Smaily Transactional is configured.
+* send order and shipping confirmations and the follow-up email when Smaily Transactional is configured.
 
 **Smaily Campaign Intelligence — optional**
 
@@ -152,7 +152,7 @@ No. Browse tracking is off by default. Events are sent only when the site admini
 
 = Can Smaily Connect send order and shipping confirmations? =
 
-Yes. You can optionally connect a separate Smaily Transactional account and use it for WooCommerce order and shipping confirmations. If a Smaily send fails, the plugin falls back to the corresponding native WooCommerce email.
+Yes. You can optionally connect a separate Smaily Transactional account and use it for WooCommerce order and shipping confirmations, and for a follow-up email a set number of days after an order reaches a status you choose. If an order or shipping confirmation fails in Smaily, the plugin falls back to the corresponding native WooCommerce email. The follow-up email has no WooCommerce fallback: a failed follow-up shows in the Event Log, where you can retry it.
 
 = Does Smaily Connect support multilingual stores? =
 
@@ -178,6 +178,20 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.18.0 =
+* New: a follow-up email through your Smaily Transactional account, sent a set number of days (1–90) after an order reaches a status you choose. It has no WooCommerce fallback; a failed send can be retried in the Event Log.
+* Changed: the Welcome automation starts when a shopper subscribes to your marketing emails at checkout, on the registration form or in My Account, and only for contacts that contact sync sends to Smaily. Creating an account no longer starts it.
+* Improved: each confirmation card in Settings says why the email does not send, or when Smaily last accepted one. A confirmation that cannot go out leaves a skipped row in the Event Log.
+* Improved: every Event Log row that sent nothing reads skipped, with its reason, and the Sent filter leaves it out.
+* Improved: the Estonian translation of the admin screens is complete.
+* Fixed: an automation saved with a Smaily workflow that is no longer active shows that workflow as inactive instead of another one.
+* Fixed: the block checkout no longer shows the newsletter box to a logged-in customer who already subscribed.
+* Fixed: saving Campaign Intelligence automations in the plugin sends only what you changed, so it no longer overwrites settings made on Smaily's setup page.
+* Fixed: a recommendation link's campaign context is stored only together with its recommendation, and a visitor ID longer than 64 characters is refused.
+* Privacy: uninstalling or disconnecting never asks Campaign Intelligence to delete your store's data. The documentation's privacy policy template lists how long Campaign Intelligence keeps each kind of data.
+* Developers: the `smaily_connect_welcome_eligible` filter now receives the opt-in's source (`checkout`, `block_checkout`, `registration` or `my_account`) instead of the account hook, and a guest's user ID is 0.
+* Updated to the Smaily Campaign Intelligence API contract v1.17.0.
+
 = 3.17.1 =
 * Improved: personal-data export and erasure go through a customer's orders ten at a time, so many orders no longer risk a timeout.
 * Improved: if PHP stops the nightly product list, its Event Log row shows as failed and where it stopped.
@@ -200,19 +214,10 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Fixed: Cancel or Hold back on an import now holds even when the import's next batch had already started; the import no longer switches back to running.
 * Changed: once the initial setup is finished, the "Smaily Connect" admin menu opens Settings. The setup wizard stays available under "Run setup again".
 
-= 3.16.0 =
-* New: a "Smaily Recommendations" block and the `[smaily_recommendations]` shortcode show a shopper's personal product recommendations in your store, for logged-in customers and returning guests. The cards load after the page, so the page can stay in your page cache, and appear only for shoppers who accepted marketing cookies.
-* New: a guest buyer who accepted marketing cookies gets a visitor cookie at checkout, so their recommendations can be shown on a later visit.
-* New: Elementor Pro forms get a "Smaily" action under Actions After Submit: map fields to Smaily, choose newsletter signup or contact form with a consent box, and optionally start a workflow.
-* New: connecting Campaign Intelligence starts the product import automatically; a notice lets you hold it back.
-* Improved: each Campaign Intelligence automation shows its stored state: Off, Test mode, Waiting for Smaily's confirmation, or Live.
-* Improved: the "All customers (legitimate interest)" warning names what soft opt-in requires, and the browse-tracking toggle says where consent comes from.
-* Changed: browse tracking and recommendations count marketing consent only when the shopper said yes in a consent banner connected to the WP Consent API. A store with the WP Consent API but no such banner stops sending browse events until one is set up.
-* Fixed: the personalised-recommendations choice and the abandoned-cart purchase marker no longer create a new Smaily contact; code 203 fails the Event Log row at once; a cart of 10 products or fewer no longer keeps the "more than 10 products" flag; a recommendation link without a campaign context no longer leaves an older one in place.
-* Security & privacy: Campaign Intelligence accepts a new connection only from https://intelligence.smaily.com. The browse relay ignores identity hints from the browser, sends each batch in one short attempt and always applies its rate limit; a store visitor cookie is sent to Smaily only with marketing consent. The Elementor form action records the page address only for your own store.
-* Updated to the Smaily Campaign Intelligence API contract v1.12.0.
-
 == Upgrade Notice ==
+
+= 3.18.0 =
+Adds a follow-up email after an order status, starts the Welcome on the shopper's own opt-in instead of account creation, shows why a confirmation does not send, and keeps plugin saves from overwriting Campaign Intelligence's setup page. Safe update.
 
 = 3.17.1 =
 Includes all of 3.17.0: a nightly product list, published-only recommendations, import errors on Settings and stricter personal-data erasure. Also pages privacy requests through orders, fails a stopped product list visibly and keeps accented addresses' carts. Safe update.
@@ -223,14 +228,11 @@ Adds a nightly product list for Campaign Intelligence, keeps unpublished product
 = 3.16.1 =
 Fixes the Elementor Pro form action's "Other fields" editor, Smaily refusals shown as sent and cancelled imports that restarted; after setup, the Smaily Connect menu opens Settings. Safe update.
 
-= 3.16.0 =
-Adds store recommendations and an Elementor Pro form action; browse tracking and recommendations now need a yes stored by a consent banner through the WP Consent API, and if you use Campaign Intelligence, run Import existing data → Customers once after updating.
-
 == Screenshots ==
 
 1. Contact synchronisation — choose which contacts and customer fields are sent to Smaily.
 2. Signup forms — collect subscribers through shortcode, Gutenberg, Elementor, the classic widget or Contact Form 7.
 3. WooCommerce automations — connect welcome, first-order and abandoned-cart events to Smaily workflows.
-4. Transactional emails — send order and shipping confirmations through a separate Smaily Transactional account.
+4. Transactional emails — send order and shipping confirmations and a follow-up email through a separate Smaily Transactional account.
 5. Product RSS feed — configure which WooCommerce products are loaded into Smaily email templates.
 6. Campaign Intelligence connection — manage the engine connection and import existing products, customers and orders.
