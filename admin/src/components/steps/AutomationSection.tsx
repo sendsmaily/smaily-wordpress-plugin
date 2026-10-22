@@ -9,6 +9,7 @@ import {
   type WizardState,
 } from '../../state/types';
 import { Banner, Card, Pill, Radio, Select, Toggle } from '../primitives';
+import { EditDesign } from './EmailDesigns';
 
 export interface AutomationSectionProps {
   state: WizardState;
@@ -37,6 +38,8 @@ export interface AutomationSectionProps {
    * card never claims to send when nothing will (PRO-4091).
    */
   active?: boolean;
+  /** The email's design key (§22) — its "Edit design" button shows when the engine lists it. */
+  emailKey?: string;
 }
 
 /**
@@ -69,6 +72,7 @@ export function AutomationSection({
   extras,
   accountKeyOverride,
   active = isEnabled,
+  emailKey,
 }: AutomationSectionProps): React.JSX.Element {
   const isModeA = state.multilingualMode === 'A' && state.env.detectedLanguages.length > 1;
   const isModeB = state.multilingualMode === 'B' && state.env.detectedLanguages.length > 1;
@@ -94,6 +98,8 @@ export function AutomationSection({
           title.toLowerCase(),
         )}
       />
+
+      {emailKey !== undefined && <EditDesign emailKey={emailKey} />}
 
       {extras}
 

@@ -141,6 +141,32 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * Play the engine after a design save (§23): merge these fields into one
+	 * email's design item — e.g. a pushed `smaily_workflow_id`.
+	 *
+	 * @param array<string, mixed> $fields
+	 */
+	public function set_email_design( string $email_key, array $fields ): void {
+		$patches               = (array) ( $this->state()['email_design_patches'] ?? array() );
+		$patches[ $email_key ] = array_merge( (array) ( $patches[ $email_key ] ?? array() ), $fields );
+		$this->write_state( array( 'email_design_patches' => $patches ) );
+	}
+
+	/** Play an engine that does not offer §22/§23 yet: both routes answer 404. */
+	public function set_email_designs_unavailable( bool $unavailable ): void {
+		$this->write_state( array( 'email_designs_unavailable' => $unavailable ) );
+	}
+
+	/**
+	 * The last §22 request the engine accepted: `{email_key, body}`.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function last_design_link_request(): array {
+		return (array) ( $this->state()['last_design_link_request'] ?? array() );
+	}
+
+	/**
 	 * Flip the mock into (or out of) the contract §2 deactivated-tenant state:
 	 * every API-key-authenticated route then answers `403 tenant_inactive`.
 	 * The setup-exchange route stays open — that is how a merchant connects a

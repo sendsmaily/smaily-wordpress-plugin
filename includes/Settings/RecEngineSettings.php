@@ -193,6 +193,9 @@ class RecEngineSettings {
 		// connection (PRO-1893): a new setup token means a live tenant,
 		// possibly a different one, so the stale refusal must not survive it.
 		$this->clear_refused();
+		// The same goes for the workflows another tenant pushed (CON-173):
+		// the next read of the new tenant's design list stores its own.
+		delete_option( EmailDesignWorkflows::OPTION );
 		// connected is autoloaded — boot payload reads it on every
 		// admin page, so the alloptions cache makes the gate cheap.
 		update_option( self::OPTION_CONNECTED, true, true );
@@ -219,6 +222,8 @@ class RecEngineSettings {
 			self::OPTION_CONFIG,
 			self::OPTION_ISSUED_AT,
 			self::OPTION_REFUSED_AT,
+			// The emails go back to their mapped workflows (CON-173).
+			EmailDesignWorkflows::OPTION,
 		);
 		foreach ( $keys as $key ) {
 			delete_option( $key );

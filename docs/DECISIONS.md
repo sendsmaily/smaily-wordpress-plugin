@@ -8584,6 +8584,64 @@ Shopify 1); where the plugin already keeps something longer, it stays.
 **Relationships:** contract §5, §8, §15 (v1.14.0); PRO-3845 (`vs_` token);
 CON-51.
 
+### CON-173 — "Edit design" on every email card; the pushed Smaily workflow replaces the mapped one (2026-10-22)
+
+**Context:** contract v1.17.0 (§22–§23): the engine keeps a design for every
+email the store sends — engine, plugin (`plugin.*`) and transactional
+(`transactional.*`) — offers a one-time link to its design page, and will push
+each design to Smaily (template + workflow). §23 lists every email the store
+can design with its Smaily ids; until the push is live every item is
+`not_available` with null ids. Erkki (2026-10-22): every automated email
+becomes a Smaily automation that the engine pushes; the plugin opens the
+editor and starts the email with the pushed workflow.
+**Decision:**
+- **Button:** each email card (wizard Step 3 and the Settings tab — the same
+  component) shows "Edit design" when the last §23 read names its key:
+  welcome / first order / abandoned cart / follow-up → `plugin.<trigger>`,
+  order / shipping confirmation → `transactional.<trigger>`, an engine card →
+  its §11 key. The card-to-key map is fixed; whether a button shows comes from
+  §23 only. §23 is read when the cards open and once more when the store
+  returns to the tab after a design-link open (window focus / visibility).
+- **Link:** `POST /rec-engine/emails/design-link` (REST\EmailDesignsEndpoint,
+  manage_options + nonce, gated on `sending_allowed()`). The browser sends the
+  current page as `return_url`; the server passes it on only when it is
+  https on the host of `get_site_url()` (what `plugin_info.site_url` carries),
+  else leaves it out. `language` is the admin locale's two-letter code. The
+  click opens a blank tab at once (pop-up blockers allow a tab only from the
+  click), sets its `opener` to null and sends it to the link when it arrives;
+  on a failure it closes the tab. One attempt, no Retry-After wait.
+- **Id override:** every §23 read stores the `smaily_workflow_id` of the six
+  plugin emails (`smly_rec_email_workflows`, autoload=false; only kinds
+  `plugin`/`transactional`, only `smaily_state` pending/pushed/failed, numeric
+  ids). `Multilingual\Router::resolve_workflow()` — the one place every
+  plugin email resolves its workflow — swaps the mapped workflow id for the
+  stored one and keeps the mapped account and language. No mapped workflow →
+  still no send. A send never calls the engine. The store is cleared on
+  Disconnect and on a new connection; a failed read keeps it.
+- **Template id ignored:** `smaily_template_id` is not used. §23 says a
+  transactional email sends with it, but the plugin sends transactional email
+  through a Smaily workflow (`autoresponder_id`), and how a template id goes
+  on that call is an open engine question (INT-146).
+**Rationale:** §23 forbids a read before a send, so the ids must be stored;
+the router is the single chokepoint for all six emails (AutomationRouter and
+TransactionalGate both call it), so one rule covers every send path. Keeping
+the mapping as the on/off and account decision changes nothing for a store
+until the engine pushes.
+**Alternatives:** start an email from the pushed workflow even with no mapped
+workflow — not taken: it needs a guess at which Smaily account holds the
+engine's workflow (see follow-up below); hardcode the button list — rejected
+by §23.
+**Open:** which Smaily account holds a pushed workflow. The plugin sends a
+plugin email through the mapped account (`default`, a Mode A language
+account, or `transactional` for the follow-up email). If the engine pushes to
+one account only, the override must name that account before the push goes
+live.
+**Relationships:** contract §1 map keys `emails_design_link` /
+`emails_designs`, §17, §22, §23; INT-146. Pinned by
+`tests/Integration/EmailDesignsTest.php`, `tests/Unit/REST/EmailDesignsEndpointTest.php`,
+`tests/Unit/Settings/EmailDesignWorkflowsTest.php`, `RouterTest` and the
+vitest suites `EmailDesigns.test.tsx` / `Step3WooCommerce.emailDesigns.test.tsx`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

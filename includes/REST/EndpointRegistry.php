@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
+use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
@@ -118,6 +119,15 @@ final class EndpointRegistry {
 					return new RecEngineClient( $api_key, $base_url, $endpoints );
 				}
 			),
+			new EmailDesignsEndpoint(
+				new RecEngineSettings(),
+				new EmailDesignWorkflows(),
+				// One attempt: the admin waits on this request, so an engine
+				// Retry-After (the design link's 10 per minute) must not hold it.
+				static function ( string $api_key, string $base_url, array $endpoints ): RecEngineClient {
+					return new RecEngineClient( $api_key, $base_url, $endpoints, 1 );
+				}
+			),
 			new BeaconEndpoint(
 				new RecEngineSettings(),
 				static function ( string $api_key, string $base_url ): RecEngineClient {
@@ -218,6 +228,15 @@ final class EndpointRegistry {
 			array(
 				'method' => 'PUT',
 				'path'   => '/rec-engine/automations/config',
+			),
+			// "Edit design" on the email cards (CON-173, contract §22–§23).
+			array(
+				'method' => 'GET',
+				'path'   => '/rec-engine/emails/designs',
+			),
+			array(
+				'method' => 'POST',
+				'path'   => '/rec-engine/emails/design-link',
 			),
 			// The public browse-beacon proxy. Registered unconditionally; the
 			// gate (connected + browse-tracking on) lives in the handler, which

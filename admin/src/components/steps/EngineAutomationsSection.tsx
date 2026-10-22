@@ -39,6 +39,7 @@ import {
   Select,
   Toggle,
 } from '../primitives';
+import { EditDesign } from './EmailDesigns';
 
 /** Smaily's support page — where the merchant confirms real sends. */
 const SMAILY_SUPPORT_URL = 'https://smaily.com/help/';
@@ -409,6 +410,8 @@ function TriggerCard({
           </>
         )}
       </div>
+
+      <EditDesign emailKey={trigger.key} />
 
       <div className="mt-4">
         <Toggle

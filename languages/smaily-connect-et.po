@@ -3097,3 +3097,37 @@ msgstr "Tellimus tühistati, raha tagastati või tellimus ebaõnnestus enne jär
 #: admin/src/lib/transactional-reasons.ts:35
 msgid "When the wait ended, the order was no longer at a status ticked for the follow-up email."
 msgstr "Ooteaja lõppedes ei olnud tellimus enam järelkirja jaoks märgitud olekus."
+
+#: admin/src/components/steps/EmailDesigns.tsx:102
+msgid "Your browser blocked the new tab. Allow pop-ups for this page and try again."
+msgstr "Brauser blokeeris uue vahekaardi. Luba sellel lehel hüpikaknad ja proovi uuesti."
+
+#: admin/src/components/steps/EmailDesigns.tsx:115
+msgid "The design page could not be opened. Try again in a minute."
+msgstr "Kujunduse lehte ei õnnestunud avada. Proovi minuti pärast uuesti."
+
+#: admin/src/components/steps/EmailDesigns.tsx:126
+msgid "Edit design"
+msgstr "Muuda kujundust"
+
+#. translators: %s is the email's subject line.
+#: admin/src/components/steps/EmailDesigns.tsx:133
+#, js-format
+msgid "Subject: %s"
+msgstr "Teemarida: %s"
+
+#: admin/src/components/steps/EmailDesigns.tsx:150
+msgid "No design saved yet"
+msgstr "Kujundust pole veel salvestatud"
+
+#: admin/src/components/steps/EmailDesigns.tsx:152
+msgid "Starter design"
+msgstr "Algkujundus"
+
+#: admin/src/components/steps/EmailDesigns.tsx:154
+msgid "Design edited"
+msgstr "Kujundust on muudetud"
+
+#: admin/src/components/steps/EmailDesigns.tsx:156
+msgid "Design check failed — open the design to fix it"
+msgstr "Kujunduse kontroll ebaõnnestus — ava kujundus, et see parandada"

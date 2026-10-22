@@ -526,6 +526,7 @@ td code{white-space:nowrap}
         <li><strong>Abandoned cart</strong> — a cart started but not completed. You set a <strong>delay</strong> (minutes of inactivity before the cart counts as abandoned).</li>
       </ul>
       <p>Your Smaily workflows must exist in Smaily first; the plugin lists them for you to map. If none appear, none were found on your account (or Smaily couldn't be reached) — create them in Smaily, then revisit.</p>
+      <p>With Campaign Intelligence connected, each email card also shows <strong>Edit design</strong>: it opens the email's design page in a new browser tab (see <a href="#set-automations">Automations</a>). On a first run of the wizard, Campaign Intelligence is connected only in Step 4, so the button appears when you run the setup again and in Settings.</p>
     </div>
     <div data-lang="et">
       <p>Seo poe sündmused oma Smaily automaatika‑töövoogudega. Lülita sisse need, mida soovid, ja vali Smaily töövoog, mida iga sündmus käivitab:</p>
@@ -535,6 +536,7 @@ td code{white-space:nowrap}
         <li><strong>Abandoned cart</strong> — ostukorv alustatud, aga lõpetamata. Sead <strong>viivituse</strong> (tegevusetuse minutid, enne kui korv loetakse hüljatuks).</li>
       </ul>
       <p>Su Smaily töövood peavad Smailys enne olemas olema; plugin loetleb need sidumiseks. Kui ühtegi ei kuva, ei leitud su kontolt ühtegi (või Smailyni ei jõutud) — loo need Smailys ja tule tagasi.</p>
+      <p>Kui Campaign Intelligence on ühendatud, on igal e‑kirja kaardil ka nupp <strong>Edit design</strong> („Muuda kujundust“): see avab kirja kujunduse lehe uuel brauseri vahekaardil (vt <a href="#set-automations">Automaatikad</a>). Seadistuse esimesel läbimisel ühendatakse Campaign Intelligence alles 4. sammus, nii et nupp ilmub, kui käivitad seadistuse uuesti, ja seadetes.</p>
     </div>
   </div>
 
@@ -747,8 +749,13 @@ td code{white-space:nowrap}
         <p><strong>Activate for real…</strong> marks your request on this page when you save; the plugin does not send it to Smaily. The automation stays in test mode — test addresses only — until Smaily switches real sends on after your confirmation; <a href="https://smaily.com/help/" target="_blank" rel="noopener">contact Smaily support</a> to confirm.</p>
         <p>After each save the plugin reads back what Campaign Intelligence stored, and the label on each automation shows it: <strong>Test mode</strong>, <strong>Waiting for Smaily's confirmation</strong> (you asked for real sends and Smaily has not switched them on yet) or <strong>Live — real sends on</strong>. The waiting label comes from your own last save on that page: after you reload the page, an automation that is still waiting shows <strong>Test mode</strong> again.</p>
       </div>
+      <div class="note">
+        <span class="k">Edit an email's design</span>
+        <p>With Campaign Intelligence connected, every email card on this tab — the store‑run triggers, the transactional emails and each engine‑run automation — shows <strong>Edit design</strong> when Campaign Intelligence offers a design for that email. It opens the email's design page in a new browser tab, where you edit the subject, sender and design and can send yourself a test email. If your browser blocks the new tab, allow pop‑ups for your WordPress admin and press the button again. When you come back to this tab, the card shows the design's state and subject.</p>
+        <p>Once Campaign Intelligence has delivered a design to Smaily as a workflow, the plugin starts that email with it in place of the workflow you picked. Your settings here still decide whether and when the email is sent, and an email with no workflow picked is still not sent. Delivery to Smaily is not live yet: until it is, your emails keep using the workflows you picked.</p>
+      </div>
       <h3>Transactional‑email triggers</h3>
-      <p>Order confirmation and Shipping confirmation appear here too — but only once you've connected the separate transactional Smaily account on the <a href="#set-connection">Connection tab</a>. See <a href="#set-transactional">Transactional emails</a> for the full walkthrough.</p>
+      <p>Order confirmation, Shipping confirmation and the follow‑up email appear here too — but only once you've connected the separate transactional Smaily account on the <a href="#set-connection">Connection tab</a>. See <a href="#set-transactional">Transactional emails</a> for the full walkthrough.</p>
     </div>
     <div data-lang="et">
       <p>Siin elab kolme liiki automaatikat.</p>
@@ -797,8 +804,13 @@ td code{white-space:nowrap}
         <p><strong>Activate for real…</strong> märgib salvestamisel sinu taotluse sellel lehel; plugin ei saada seda Smailyle. Automaatika jääb testrežiimi — ainult test‑aadressidele — kuni Smaily lülitab päris saatmise sisse pärast sinu kinnitust; kinnitamiseks <a href="https://smaily.com/help/" target="_blank" rel="noopener">võta ühendust Smaily toega</a>.</p>
         <p>Pärast iga salvestamist loeb plugin tagasi, mida Campaign Intelligence salvestas, ja iga automaatika silt näitab seda: <strong>Test mode</strong> („Testrežiim“), <strong>Waiting for Smaily's confirmation</strong> („Ootab Smaily kinnitust“ — taotlesid päris saatmist ja Smaily pole seda veel sisse lülitanud) või <strong>Live — real sends on</strong> („Aktiivne — päris saatmine sees“). Ootamise silt tuleb sinu enda viimasest salvestamisest sellel lehel: kui laadid lehe uuesti, näitab veel ootel automaatika jälle <strong>Test mode</strong> silti.</p>
       </div>
+      <div class="note">
+        <span class="k">Muuda kirja kujundust</span>
+        <p>Kui Campaign Intelligence on ühendatud, on sellel vahekaardil igal e‑kirja kaardil — poe‑käivitatavad päästikud, tehingu‑e‑kirjad ja iga mootori‑käivitatav automaatika — nupp <strong>Edit design</strong> („Muuda kujundust“), kui Campaign Intelligence pakub selle kirja jaoks kujundust. Nupp avab kirja kujunduse lehe uuel brauseri vahekaardil, kus muudad teemarida, saatjat ja kujundust ning saad endale testkirja saata. Kui brauser blokeerib uue vahekaardi, luba oma WordPressi haldusliideses hüpikaknad ja vajuta nuppu uuesti. Kui tuled sellele vahekaardile tagasi, näitab kaart kujunduse olekut ja teemarida.</p>
+        <p>Kui Campaign Intelligence on kujunduse Smailysse töövooks viinud, käivitab plugin selle kirja sellega sinu valitud töövoo asemel. Siinsed seaded otsustavad endiselt, kas ja millal kiri saadetakse, ning kirja, millele pole töövoogu valitud, ei saadeta ka edaspidi. Smailysse viimine ei ole veel töös: seni kasutavad su kirjad sinu valitud töövooge.</p>
+      </div>
       <h3>Tehingu‑e‑kirjade päästikud</h3>
-      <p>Ostu kinnituskiri ja Tarne kinnituskiri ilmuvad ka siia — aga alles pärast eraldi tehingu‑Smaily konto ühendamist <a href="#set-connection">Connection vahekaardil</a>. Täisjuhendi leiad siit: <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
+      <p>Ostu kinnituskiri, Tarne kinnituskiri ja järelkiri ilmuvad ka siia — aga alles pärast eraldi tehingu‑Smaily konto ühendamist <a href="#set-connection">Connection vahekaardil</a>. Täisjuhendi leiad siit: <a href="#set-transactional">Tehingu‑e‑kirjad</a>.</p>
     </div>
   </div>
 

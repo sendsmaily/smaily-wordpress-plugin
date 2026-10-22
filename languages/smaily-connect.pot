@@ -3097,3 +3097,37 @@ msgstr ""
 msgctxt "block keyword"
 msgid "products"
 msgstr ""
+
+#: admin/src/components/steps/EmailDesigns.tsx:102
+msgid "Your browser blocked the new tab. Allow pop-ups for this page and try again."
+msgstr ""
+
+#: admin/src/components/steps/EmailDesigns.tsx:115
+msgid "The design page could not be opened. Try again in a minute."
+msgstr ""
+
+#: admin/src/components/steps/EmailDesigns.tsx:126
+msgid "Edit design"
+msgstr ""
+
+#. translators: %s is the email's subject line.
+#: admin/src/components/steps/EmailDesigns.tsx:133
+#, js-format
+msgid "Subject: %s"
+msgstr ""
+
+#: admin/src/components/steps/EmailDesigns.tsx:150
+msgid "No design saved yet"
+msgstr ""
+
+#: admin/src/components/steps/EmailDesigns.tsx:152
+msgid "Starter design"
+msgstr ""
+
+#: admin/src/components/steps/EmailDesigns.tsx:154
+msgid "Design edited"
+msgstr ""
+
+#: admin/src/components/steps/EmailDesigns.tsx:156
+msgid "Design check failed — open the design to fix it"
+msgstr ""
