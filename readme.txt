@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.19.0
+Stable tag: 3.20.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -46,6 +46,8 @@ Map WooCommerce events to workflows you have created in Smaily:
 * Respond to a customer's first order
 * Remind a shopper about an abandoned cart after your chosen delay. In the "Subscribers only (consent)" and "Checkout opt-in only" contact-sync modes, only a shopper who has subscribed gets a reminder; a shopper who unsubscribed in Smaily never gets one
 
+Each of these emails can carry a single-use discount code that the plugin copies from a WooCommerce coupon you pick. A code works once, only for the shopper's email address, for the number of days you choose.
+
 You can also use the product RSS feed to bring WooCommerce products directly into Smaily email templates. With Campaign Intelligence connected, the Edit design button on an email card opens that email's design page.
 
 = Optional personalized product recommendations =
@@ -72,6 +74,7 @@ The Event Log lets you inspect synchronization events, understand failures and r
 * Browse tracking is off by default and only sends events when it is enabled by the site administrator and the shopper has given the required consent.
 * Shoppers can opt out of recommendation profiling from their WooCommerce account.
 * Smaily Connect supports the WordPress personal-data export and erasure tools.
+* The discount codes of automation emails are WooCommerce coupons that hold the shopper's email address. The personal-data export and erasure tools cover them, and an unused code is deleted 30 days after it expires.
 
 = Documentation and support =
 
@@ -90,7 +93,7 @@ The plugin uses the [Smaily Public API](https://smaily.com/help/api/) to connect
 * validate Smaily account credentials;
 * list available Smaily automation workflows;
 * synchronize contacts and subscription status;
-* trigger workflows after form submissions and WooCommerce events;
+* trigger workflows after form submissions and WooCommerce events, with the shopper's discount code and its last valid day when a discount code is switched on for the automation;
 * check a shopper's subscription status before an abandoned-cart reminder;
 * send abandoned-cart data to the selected Smaily workflow; and
 * send order and shipping confirmations and the follow-up email when Smaily Transactional is configured.
@@ -181,6 +184,14 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.20.0 =
+* New: the welcome, first-order and abandoned-cart emails can each carry a single-use discount code. Pick a WooCommerce coupon and the number of days a code stays valid. Each code copies the coupon's discount and restrictions, brands included, works once and only for the shopper's email address, and reaches Smaily with its last valid day.
+* New: a shopper who still has an unused, valid code from the same automation gets that code again, not a new one. No code is made for an address that WooCommerce cannot restrict a coupon to exactly; the email goes without it.
+* New: unused codes are deleted 30 days after they expire.
+* Privacy: the personal-data export lists the codes made for an address. Erasure deletes the unused ones and removes the address from the used ones.
+* Changed: Disconnect and deleting the plugin now tell Campaign Intelligence that the connection ends. Campaign Intelligence revokes the plugin's key and, if your store has no other connection, pauses the store and keeps its data: no recommendations and none of its automated emails until you connect again with a new setup link.
+* Updated to the Smaily Campaign Intelligence API contract v1.18.0.
+
 = 3.19.0 =
 * Changed: an abandoned-cart reminder follows your contact-sync mode. In "Subscribers only (consent)" and "Checkout opt-in only" it goes only to a shopper who subscribed in your store, ticked the newsletter box in the classic checkout, or is subscribed in Smaily. A shopper who unsubscribed in Smaily gets no reminder in any mode. A stopped reminder shows as skipped in the Event Log, with the reason.
 * Improved: a tick in the classic checkout's newsletter box counts at once, also when the shopper leaves right after it.
@@ -205,21 +216,16 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Developers: the `smaily_connect_welcome_eligible` filter now receives the opt-in's source (`checkout`, `block_checkout`, `registration` or `my_account`) instead of the account hook, and a guest's user ID is 0.
 * Updated to the Smaily Campaign Intelligence API contract v1.17.0.
 
-= 3.17.1 =
-* Improved: personal-data export and erasure go through a customer's orders ten at a time, so many orders no longer risk a timeout.
-* Improved: if PHP stops the nightly product list, its Event Log row shows as failed and where it stopped.
-* Fixed: an order or a login no longer removes the abandoned cart of an address that differs only by accented letters, without slowing cart updates.
-
 == Upgrade Notice ==
+
+= 3.20.0 =
+Adds single-use discount codes to the welcome, first-order and abandoned-cart emails. Disconnect and deleting the plugin now tell Campaign Intelligence that the connection ends; it pauses a store with no other connection and keeps its data. Safe update.
 
 = 3.19.0 =
 Abandoned-cart reminders now follow your contact-sync mode's consent rule and skip shoppers who unsubscribed in Smaily. Adds Edit design. Removes the 1.x/2.0.0 abandoned-cart table after copying its unsent carts; this cannot be undone.
 
 = 3.18.0 =
 Adds a follow-up email after an order status, starts the Welcome on the shopper's own opt-in instead of account creation, shows why a confirmation does not send, and keeps plugin saves from overwriting Campaign Intelligence's setup page. Safe update.
-
-= 3.17.1 =
-Includes all of 3.17.0: a nightly product list, published-only recommendations, import errors on Settings and stricter personal-data erasure. Also pages privacy requests through orders, fails a stopped product list visibly and keeps accented addresses' carts. Safe update.
 
 == Screenshots ==
 
