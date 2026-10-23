@@ -2,12 +2,15 @@
 /**
  * The plugin never asks the engine to delete the store's data (CON-51).
  *
- * Contract §16 (`POST /api/v1/store/uninstall`, v1.14.0) deletes ALL of a
- * store's engine data when the store's last connection calls it. Erkki's
+ * Contract §16 (`POST /api/v1/store/uninstall`, v1.14.0) deleted ALL of a
+ * store's engine data when the store's last connection called it. Erkki's
  * decision (2026-10-22): the plugin never sends it — not on uninstall, not
  * on Disconnect. Both only remove the plugin's own stored engine key; the
  * store's data is deleted when the merchant closes the Smaily account (a
- * merchant who uninstalls may only be changing platform).
+ * merchant who uninstalls may only be changing platform). Contract v1.18.0
+ * made §16 a disconnect that revokes the calling key and pauses the store,
+ * never deletes; this test pins the current behaviour until Erkki revisits
+ * the decision (INT-145).
  *
  * @package Smaily\Connect\Tests
  */

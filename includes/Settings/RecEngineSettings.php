@@ -205,10 +205,11 @@ class RecEngineSettings {
 	 * Wipe every rec-engine option so the next boot reverts to
 	 * not-connected. Called by the "Disconnect" button in Step 4.
 	 *
-	 * Deliberately makes NO engine call — never the §16 store-uninstall
-	 * request, which deletes the store's engine data when its last
-	 * connection calls it (CON-51, DECISIONS). The api_key stays valid on
-	 * the engine side until revoked there; the plugin just stops sending it.
+	 * Deliberately makes NO engine call — never the §16 request (CON-51,
+	 * DECISIONS). Since contract v1.18.0 §16 only revokes the calling key
+	 * and pauses a store left with no connection; whether the plugin calls
+	 * it is still Erkki's open decision (INT-145). The api_key stays valid
+	 * on the engine side until revoked there; the plugin just stops sending it.
 	 */
 	public function disconnect(): void {
 		$keys = array(
