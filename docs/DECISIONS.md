@@ -8258,6 +8258,9 @@ parent moves, re-check whether its entry is still needed.
 **Addendum (CON-57, 2026-10-22):** the Vite 6 / Vitest 4 majors are done
 (entry "CON-57"); the root `tinypool` override is removed with Vitest 4, the
 root `postcss-selector-parser` override stays.
+**Addendum (CON-56, 2026-10-23):** the `markdownlint@0.25` override now asks
+for `markdown-it ^14.3.3` (two new advisories); the `@wordpress/scripts` major
+is still not needed (entry "CON-56").
 
 ### PRO-3996 — An order or a login removes the buyer's carts, not an accented address's (2026-10-09)
 
@@ -8794,6 +8797,35 @@ resume the legacy carts — they were copied into the current tracker first.
 `tests/Unit/Migration/RetiredTablesTest.php`,
 `tests/Unit/Migration/LegacyCartDrainTest.php`, `MigratorTest`,
 `UninstallCleanupTest`.
+
+### CON-56 — The five `blocks/` alerts close in range; `@wordpress/scripts` stays on 27 (2026-10-23)
+
+**Context:** five Dependabot alerts were open on `blocks/package-lock.json`,
+all under `@wordpress/scripts` 27.9.0: `markdown-it` 14.3.2 ×2 (one high;
+fixed in 14.3.3, via `markdownlint-cli` 0.31 → `markdownlint` 0.25, which the
+PRO-3858 override already lifted from 12.3.2 to 14.x) and `launch-editor`
+2.14.1 ×3 (one high; fixed in 2.14.2, via `webpack-dev-server` 5.2.6, which
+asks for `^2.14.1`). Neither package ships in the ZIP. `npm audit` names
+`@wordpress/scripts` 37 as the fix for `markdown-it`.
+**Decision:** no major. The existing `markdownlint@0.25` override moves from
+`markdown-it ^14.3.1` to `^14.3.3`, and `npm update launch-editor` takes
+2.14.2 inside `webpack-dev-server`'s own range (its `shell-quote ^1.10.0` is
+met by the 1.11.0 already locked). The lockfile changes in those two packages
+only; no `@wordpress/*` package moves.
+**Output:** all four blocks (`checkout-optin`, `landingpage`,
+`newsletter-signup`, `recommendations`) build byte-identical — every file in
+`blocks/*/build/` — and the blocks' lint + test stay green.
+**Rationale:** the smallest reversible change that closes every open alert.
+`@wordpress/scripts` 27 → 37 is ten majors of the block build (webpack,
+ESLint, Jest, stylelint configs) for two dev-tool children; it gets its own
+change (PRO-3444) when a reason other than these alerts needs it.
+**Not fixed here:** `npm audit` in `blocks/` still lists 108 findings; each
+maps to an alert GitHub auto-dismissed as a development dependency (`ajv`,
+`braces`, `basic-ftp`, `colord`, `cross-spawn`, `diff`, `ip-address`, `yaml`,
+`@babel/runtime`) or Erkki dismissed (`extract-zip`, `showdown`).
+**Relationships:** PRO-3858 (the `blocks/` overrides; this raises one of
+them), PRO-3444 (the `@wordpress/scripts` major, still open), CON-57 (the
+root-lockfile majors).
 
 ## How to keep this document going
 
