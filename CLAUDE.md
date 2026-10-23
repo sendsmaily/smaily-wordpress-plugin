@@ -1626,7 +1626,9 @@ repo: a red staleness run is the signal to sync.
   `Cart` class and the `Cron` abandoned-cart passes are gone, and schema
   migration 012 drops the legacy table (CON-182 — after running the one-time
   drain, because 1.x / 2.0.0 stores never ran it; an unreadable table is never
-  dropped, the migration retries on the next update). Pipeline: `CartHookHandler` (guest carts included)
+  dropped, nor one with a cart the tracker did not store, nor any while the
+  tracker table is missing (CON-207) — the migration retries on the next
+  update; `CartSessionStore::upsert()` returns whether it stored the row). Pipeline: `CartHookHandler` (guest carts included)
   → `smly_plus_cart_session` tracker (own scalar JSON shape, never
   `serialize(get_cart())`) → `CartAbandonmentSweeper` on the 15-min
   `smly_plus_abandoned_cart` AS tick (cutoff + the F3-37 backlog guard) →

@@ -36,7 +36,10 @@ use Smaily\Connect\Support\DebugLog;
  *     that drained on an earlier version is not drained twice.
  *   - A failed read of the legacy table THROWS (never stamps), so migration
  *     012 keeps the table and retries on the next update instead of dropping
- *     carts that were never copied.
+ *     carts that were never copied. So does a cart the tracker did not store
+ *     (CON-207): "copied" means the write succeeded. The retry re-copies the
+ *     carts that did land onto the same rows (same token), and their
+ *     `reminder_enqueued_at` survives the update, so no second reminder.
  *   - Legacy `cart_content` is UNTRUSTED wire input (F3-53: old-writer rows
  *     deserialize to string items; an offset read on them is a PHP 8 fatal):
  *     non-array content is counted + logged and skipped; non-array/keyless
@@ -69,7 +72,9 @@ class LegacyCartDrain {
 	 * @return array{drained: int, poison: int, skipped: int}|null Stats, or
 	 *         null when the drain already ran.
 	 *
-	 * @throws \RuntimeException When the legacy table exists but cannot be read.
+	 * @throws \RuntimeException When the legacy table exists but cannot be
+	 *                           read, or a cart could not be stored in the
+	 *                           tracker.
 	 */
 	public function maybe_run(): ?array {
 		if ( get_option( self::DRAINED_OPTION, false ) !== false ) {
@@ -126,6 +131,7 @@ class LegacyCartDrain {
 			throw new \RuntimeException( 'The legacy abandoned-cart table could not be read.' );
 		}
 
+		$not_stored = false;
 		foreach ( $rows as $row ) {
 			try {
 				$customer_id = isset( $row['customer_id'] ) ? (int) $row['customer_id'] : 0;
@@ -170,7 +176,7 @@ class LegacyCartDrain {
 					);
 				}
 
-				$this->store->upsert(
+				$stored = $this->store->upsert(
 					(string) $customer_id,
 					$customer_id,
 					(string) $user->user_email,
@@ -179,6 +185,13 @@ class LegacyCartDrain {
 					$items,
 					$this->normalize_timestamp( isset( $row['cart_updated'] ) ? (string) $row['cart_updated'] : '' )
 				);
+				if ( ! $stored ) {
+					// Not a poison row: the tracker refused a sound cart, and
+					// the next one would fare no better. Stop and throw below,
+					// outside the per-row backstop.
+					$not_stored = true;
+					break;
+				}
 				++$stats['drained'];
 			} catch ( \Throwable $e ) {
 				// One poison row must never abort the drain (F3-53 backstop).
@@ -191,6 +204,11 @@ class LegacyCartDrain {
 					)
 				);
 			}
+		}
+
+		if ( $not_stored ) {
+			// Migration 012 must not drop the table with this cart uncopied.
+			throw new \RuntimeException( 'A legacy abandoned cart could not be stored in the cart tracker.' );
 		}
 
 		return $stats;
