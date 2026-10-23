@@ -1237,7 +1237,9 @@ header-proof** (Magento's PRO-3575 hardening, mirrored). (1) `Client::ingest_bro
 ONE attempt bounded by `Client::BROWSE_TIMEOUT_SECONDS` (3 s, the WHOLE request, connect
 included — WP's `timeout` is curl's total timeout), `redirection` 0, no retry, no back-off,
 no Retry-After wait — whatever `$max_attempts` the client was built with. It is the only
-browse call, and `/relay` its only caller; every other engine call keeps the retry policy
+browse call, and `/relay` its only caller; the only other call in that single-attempt mode is
+`Client::store_uninstall()` (§16 disconnect, CON-219 — the admin waits on it), and every
+other engine call keeps the retry policy
 (don't route a flusher/backfill through `ingest_browse`'s single-attempt mode, and don't
 "restore" retries on it). A failure is a 502 and a lost batch — by design. (2) The rate
 limit keys on `REMOTE_ADDR` only, never a forwarding header, and the per-IP counter ALWAYS
@@ -1349,7 +1351,12 @@ suite, and after it — even on failure — restores them secret-safely (JSON
 piped over STDIN into `docker exec -i … wp eval-file
 bin/restore-smly-rec-options.php`, never on a command line) and prints the
 restored `tenant_name`, warning loudly on `MiuMjau`/fixture. An intentionally
-DISCONNECTED dev site is left alone (no auto-reconnect). **Since PRO-1256 the
+DISCONNECTED dev site is left alone (no auto-reconnect). **Disconnect revokes the
+key in the engine since CON-219** (§16, as does a plugin uninstall): after a
+Disconnect of the dev site — or of any site whose key is in the durable snapshot
+— that snapshot's key is dead, so a restore brings back a refused connection; the
+fix is a fresh SANDBOX setup token. Tests never reach the real engine here:
+`EnvScrub::reset()` sweeps the connection before any test disconnects. **Since PRO-1256 the
 guard is a shared library, not wrapper-internal:** `bin/lib-smly-snapshot.sh`
 (sourced by the wrapper; also executable — `snapshot`/`restore` subcommands,
 always exit 0 so a guard problem never fails the guarded run). **Since

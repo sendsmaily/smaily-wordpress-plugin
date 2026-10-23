@@ -8540,6 +8540,11 @@ keeps a left-out key's stored value).
 
 ### CON-51 — The plugin never sends the §16 store-deletion request (2026-10-22)
 
+> **Superseded by CON-219 (Erkki, 2026-10-23):** contract v1.18.0 made §16 a
+> disconnect that pauses a store and never deletes it, so the reason for this
+> rule is gone. Disconnect and uninstall now call §16 before they delete the
+> key. `NoStoreDeletionRequestTest` is replaced by `RecEngineDisconnectTest`.
+
 **Context:** contract v1.14.0 added §16 `POST /api/v1/store/uninstall` and asks
 the plugin to call it when the shop admin uninstalls. When the store's last
 connection calls it, the engine marks the store for deletion and deletes ALL of
@@ -9035,6 +9040,50 @@ when the eraser ran can still make one.
 meta) — they expire on their own.
 **Relationships:** CON-199; PRO-3986/PRO-3993 (the address match);
 PRO-2383 (the Smaily queue the codes ride in).
+
+### CON-219 — Disconnect and uninstall send the §16 disconnect before they delete the key (2026-10-23)
+
+**Context:** CON-51 kept the plugin away from contract §16 because, under
+v1.14.0, the store's last connection calling it deleted all of the store's
+engine data. Contract v1.18.0 (INT-145) made §16 a disconnect: it revokes only
+the calling connection's key, a store left with no active connection is paused
+(no recommendations, no writes to Smaily, no engine emails; data and the
+Smaily `rec_*` fields kept), and a new setup exchange resumes it. Data is
+deleted only when the merchant closes the Smaily account. Without the call the
+engine never learned the store had left: the key stayed valid and the engine
+kept recommending and sending for a store whose plugin was gone.
+**Decision (Erkki, 2026-10-23; supersedes CON-51):** Disconnect
+(`RecEngineSettings::disconnect()`, called by `POST /rec-engine/disconnect`)
+and `uninstall.php` call §16 through `Client::store_uninstall()` —
+endpoints-map key `store_uninstall`, fallback `Client::PATH_STORE_UNINSTALL`
+— via `RecEngineSettings::end_engine_connection()`, BEFORE they delete the
+stored key. `store_paused` and `connection_removed` both count as done.
+- **One short attempt:** the admin waits on it, so it uses the Client's
+  single-attempt mode — at most `Client::BROWSE_TIMEOUT_SECONDS` (3 s) for the
+  whole request, no redirect, no retry, no Retry-After wait.
+- **Never blocks:** a refused key (401/403), an unreachable engine or any
+  error is logged (WP_DEBUG only) and swallowed; the key is deleted anyway.
+- **Gate:** `is_connected()` with a stored key and base URL — not
+  `sending_allowed()`. A refused (suspended) account is still called once:
+  §16 does not answer `403 tenant_inactive` for a suspended store, and for a
+  deleted one the cost is one `401`.
+- **Uninstall** runs without the plugin loaded, so `uninstall.php` loads the
+  Composer autoloader and the Cypher class itself, and makes the call before
+  its `smly_rec_*` sweep.
+- **Merchant text:** the plugin never says the store's data will be deleted;
+  the Disconnect confirm now says the engine pauses a store with no other
+  connection and keeps its data (the old text said engine campaigns go on).
+**Rationale:** the premise of CON-51 (a deletion that cannot be undone) is
+gone; what remains is a reversible pause, and telling the engine stops it from
+serving a store that left.
+**Alternatives:** keep not calling it — rejected: the contract asks connectors
+to call it, and the engine otherwise keeps working on an abandoned store with
+a live key.
+**Relationships:** CON-51 (superseded), contract §16 (v1.18.0), PRO-1337
+(uninstall sweeps the connection), PRO-1893 (`sending_allowed()`), PRO-3620
+(the single-attempt mode). Pinned by `tests/Unit/Settings/
+RecEngineDisconnectTest.php` and `tests/Integration/RecEngineDisconnectTest.php`
+(the mock's §16 route).
 
 ## How to keep this document going
 

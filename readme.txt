@@ -105,7 +105,8 @@ If the site administrator connects Campaign Intelligence using a one-time setup 
 * order data, including order status, totals and purchased items;
 * browsing events, including product views, searches, cart events and checkout events, only when browse tracking is enabled and the shopper has given the required consent;
 * requests for a shopper's product recommendations, when a page with the Smaily Recommendations block or shortcode loads and the shopper has given marketing consent. The shopper's browser asks your store, and your store asks Campaign Intelligence, sending the logged-in customer's store user ID or the store's visitor cookie value;
-* when the site administrator uses Edit design, requests for the list of email designs and for a one-time link to a design page, with the address of the admin page to return to; and
+* when the site administrator uses Edit design, requests for the list of email designs and for a one-time link to a design page, with the address of the admin page to return to;
+* when the site administrator disconnects Campaign Intelligence or deletes the plugin, a request that ends the connection: Campaign Intelligence revokes the plugin's key and, if the store has no other connection, pauses the store and keeps its data; and
 * personal-data export, erasure and profiling opt-out requests so the corresponding WordPress and shopper controls are honored by Campaign Intelligence.
 
 The site administrator controls the enabled features in the plugin settings.
@@ -170,7 +171,7 @@ Existing settings, credentials and connections are preserved. If the setup wizar
 
 = What happens when I uninstall the plugin? =
 
-Uninstalling removes the plugin settings and local queue data from the WordPress site. Contacts already stored in Smaily and data stored in Campaign Intelligence are not automatically deleted. See the Smaily Connect documentation and Smaily Privacy Policy for deletion options.
+Uninstalling removes the plugin settings and local queue data from the WordPress site. If Campaign Intelligence is connected, the plugin first tells it that the connection ends; unless the store has another connection, Campaign Intelligence pauses the store. Contacts already stored in Smaily and data stored in Campaign Intelligence are not automatically deleted. See the Smaily Connect documentation and Smaily Privacy Policy for deletion options.
 
 = Where can I get help? =
 
