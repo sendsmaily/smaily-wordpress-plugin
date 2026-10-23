@@ -8865,6 +8865,68 @@ maps to an alert GitHub auto-dismissed as a development dependency (`ajv`,
 them), PRO-3444 (the `@wordpress/scripts` major, still open), CON-57 (the
 root-lockfile majors).
 
+### CON-199 — Each automation email can carry the shopper's own single-use WooCommerce discount code (2026-10-23)
+
+**Context:** a merchant who wanted a discount in the welcome, first-order or
+abandoned-cart email could only paste one shared coupon code into the Smaily
+template — passable to anyone, unlimited, with no tie to the email's date.
+The Magento extension built the same feature first (CON-198, its #200); the
+contact field names are its, final. Design approved by Erkki (2026-10-23).
+**Decision:** per automation a "Send a discount code" switch, a template
+coupon and "Valid for (days)" (1–365, default 7), in one option
+`smly_plus_automation_discounts` (`{trigger: {enabled, template_id,
+valid_days}}`, saved with the WooCommerce tab; an out-of-range day count
+refuses the whole tab save, the PRO-4095 pattern).
+`Integrations\WooCommerce\AutomationDiscount::issue()` runs from
+`AutomationRouter::trigger_automation()`'s new `before_send` callable — only
+once a workflow is found — and on the CartFlusher's legacy-autoresponder
+path, both after the CON-196 consent gate, so a skipped send makes no code.
+It clones the template into one new `WC_Coupon`: discount type, amount,
+individual use, products and exclusions, categories and exclusions, sale-item
+exclusion, minimum and maximum spend, free shipping, item limit; then a
+random 10-character code (upper case and digits, no 0/O/1/I), `usage_limit`
+1, `usage_limit_per_user` 1, `email_restrictions` = the shopper's lowercased
+address, `date_expires` = 23:59:59 of today + N days in `wp_timezone()`,
+capped at the template's own `date_expires`; meta
+`_smaily_connect_generated_from` = the template id. The code and its last day
+are written into the queue row's `fields` before the post
+(`EventQueue::update_payload()`), so a retry finds them and makes no second
+coupon. They ride the address as `<trigger>_coupon_code` /
+`<trigger>_coupon_expires_at` (`Y-m-d`, the last valid day in the store
+timezone) beside the `*_automation_at` markers. A template's last valid day
+is the day BEFORE its WooCommerce expiry date, which means 00:00 of that day.
+**Template filter:** a published `shop_coupon` whose stored `discount_type`
+is one of WooCommerce's own three (`percent`, `fixed_cart`, `fixed_product`),
+not expired, without the generated-from meta; the picker lists at most 200.
+Read from the post and its meta, not through `WC_Coupon`: WooCommerce reads a
+type it does not know as `fixed_cart`, so another plugin's gift-card or
+store-credit coupon would clone into a plain cart discount.
+**No code:** a template that is unpicked, deleted, trashed, unpublished,
+expired, of another type, or that WooCommerce refuses to copy (any
+`set_props()` error — never a code without its email restriction) sends the
+email WITHOUT a code; the reason is the stored exchange's `note` ("Sent
+without a discount code: …", in the Event Log Details, kept through an Art 17
+redaction). The row stays `sent`, not skipped. A retry checks again (no
+reason is stored in the payload, unlike Magento's `discount_notice`), so a
+fixed template gives a retried send its code.
+**Expiry enforcement:** none of our own. WooCommerce refuses an expired
+coupon (`WC_Discounts::validate_coupon_expiry_date()`, `time() >
+date_expires`), a used one (`validate_coupon_usage_limit()`) and a foreign
+email (`validate_coupon_allowed_emails()`) — pinned by the integration suite.
+Magento had to add its own check: its platform ignores a coupon's end date.
+**Cleanup:** the daily `QueueJanitor` tick deletes the plugin's coupons whose
+`date_expires` is more than 30 days past and whose `usage_count` is 0
+(`AutomationDiscount::delete_expired_unused()`, at most 10 × 200 a day); a
+used code stays. No new Action Scheduler group.
+**Not copied:** settings another plugin keeps in its own coupon meta
+(`woocommerce_coupon_options_save`) — they can be state as well as settings.
+**Accepted limits:** a WordPress personal-data erasure does not delete the
+shopper's coupons (the docs site's data list says so); an unused one goes 30
+days after its expiry.
+**Relationships:** CON-198 (Magento, the field names); PRO-1681
+(`AutomationMarker`, the sibling contact fields); CON-196 (the gate that runs
+first); F3-44 (the exchange note); PRO-4095 (the day-count validation shape).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
