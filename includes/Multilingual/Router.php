@@ -96,6 +96,9 @@ final class Router implements WorkflowResolverInterface {
 	/**
 	 * The engine pushes one workflow per email and does not yet say into
 	 * which Smaily account or for which language (CON-173, audit 3.19.0 M1).
+	 * Contract v1.18.0 adds the account (`smaily_subdomain`) but the engine
+	 * does not serve it yet, and names no language; the plugin does not read
+	 * it yet (INT-146).
 	 * Its id is known to fit only the `default` account in the store's
 	 * default language: the single `default` row of a one-workflow mapping,
 	 * or the row of the default language. The transactional account

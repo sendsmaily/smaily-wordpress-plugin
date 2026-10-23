@@ -8563,6 +8563,14 @@ connection options). Pinned by `tests/Unit/Settings/NoStoreDeletionRequestTest.p
 (Disconnect sends no HTTP request; `uninstall.php` makes no request; no shipped
 code names the endpoint). The docs site `#faq-uninstall` and the privacy-policy
 template say so. Changing this is a one-way-door decision for Erkki.
+**Addendum (contract v1.18.0, 2026-10-23, INT-145):** the premise changed. §16
+is now "disconnect": it revokes only the calling connection's key, and a store
+left with no active connection is paused (no recommendations, no writes to
+Smaily, no engine emails), never deleted; a new setup exchange resumes it. The
+store's data is deleted only when the merchant closes the Smaily account (an
+operator today). The contract asks connectors to call §16 on uninstall and on
+disconnect, and says a plugin that does not keeps working. The plugin still
+does not call it: the decision above stands until Erkki revisits it.
 
 ### CON-52 — Retention follows the contract; the cookie lifetimes stay the engine's (2026-10-22)
 
@@ -8660,6 +8668,17 @@ the engine names the account and language of a pushed workflow; widen the
 rule then, in `Router::takes_pushed_workflow()`. Pinned by `RouterTest` and
 `EmailDesignsTest` (both Mode A / Mode B cases and the transactional
 account).
+**Addendum (contract v1.18.0, 2026-10-23, INT-146):** §23 now answers part of
+this. The template id is informational; every email, transactional included,
+starts with `smaily_workflow_id`. New `smaily_subdomain` names the account that
+holds the ids, and the rule is: use the id only when that subdomain is the
+account the plugin sends the email from, else keep the current workflow. New
+`created_by` (`engine` / `other`) decides whether "Edit design" shows (an
+`other` card links to Smaily). The engine does not serve `smaily_subdomain` or
+`created_by` yet and the push is not live (every id is null), so nothing changed
+in the plugin. Before the engine announces them, the interim rule above should
+become the subdomain check (which also lets the transactional account and a
+Mode A account take a pushed id); the language question stays open.
 **Relationships:** contract §1 map keys `emails_design_link` /
 `emails_designs`, §17, §22, §23; INT-146. Pinned by
 `tests/Integration/EmailDesignsTest.php`, `tests/Unit/REST/EmailDesignsEndpointTest.php`,
