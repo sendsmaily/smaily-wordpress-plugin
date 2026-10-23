@@ -8618,10 +8618,12 @@ editor and starts the email with the pushed workflow.
   on a failure it closes the tab. One attempt, no Retry-After wait.
 - **Id override:** every §23 read stores the `smaily_workflow_id` of the six
   plugin emails (`smly_rec_email_workflows`, autoload=false; only kinds
-  `plugin`/`transactional`, only `smaily_state` pending/pushed/failed, numeric
-  ids). `Multilingual\Router::resolve_workflow()` — the one place every
+  `plugin`/`transactional`, only `sent_through: "workflow"` — 3.19.0 audit
+  L3, §23 gives a workflow id to no other item — only `smaily_state`
+  pending/pushed/failed, numeric ids). `Multilingual\Router::resolve_workflow()` — the one place every
   plugin email resolves its workflow — swaps the mapped workflow id for the
-  stored one and keeps the mapped account and language. No mapped workflow →
+  stored one and keeps the mapped account and language, under the interim
+  rule below (default account + default language only). No mapped workflow →
   still no send. A send never calls the engine. The store is cleared on
   Disconnect and on a new connection; a failed read keeps it.
 - **Template id ignored:** `smaily_template_id` is not used. §23 says a
@@ -8637,11 +8639,27 @@ until the engine pushes.
 workflow — not taken: it needs a guess at which Smaily account holds the
 engine's workflow (see follow-up below); hardcode the button list — rejected
 by §23.
-**Open:** which Smaily account holds a pushed workflow. The plugin sends a
-plugin email through the mapped account (`default`, a Mode A language
-account, or `transactional` for the follow-up email). If the engine pushes to
-one account only, the override must name that account before the push goes
-live.
+**Interim rule (Erkki, 2026-10-23 — 3.19.0 audit M1; replaces the "Open"
+item):** the override applies ONLY when the mapped row is on the `default`
+account AND its language is the store's default language — the
+`language='default'` row (single mode, Mode C, a one-row mapping) or the row
+whose language equals the active detector's `get_default_language()` (Mode
+B; a fallback to that row counts, since the shopper then gets the
+default-language email anyway). Everywhere else the mapped workflow stays:
+the follow-up email and both confirmations (`transactional` account), every
+Mode A language account, and a Mode B row of another language. **Why:** the
+engine pushes ONE workflow per email and does not say into which Smaily
+account or for which language (§23; the account question is open with the
+engine, INT-146). Smaily workflow ids are numbered per account (assumed, not
+checked against the Smaily API), so on another account the id fails or names
+a different workflow, and one design cannot replace per-language workflows.
+The push is not live yet, and when it goes live every 3.19.0 store switches
+on its next design-list read with no plugin release in between — so the
+plugin takes the override only where its target is known. **Revisit** when
+the engine names the account and language of a pushed workflow; widen the
+rule then, in `Router::takes_pushed_workflow()`. Pinned by `RouterTest` and
+`EmailDesignsTest` (both Mode A / Mode B cases and the transactional
+account).
 **Relationships:** contract §1 map keys `emails_design_link` /
 `emails_designs`, §17, §22, §23; INT-146. Pinned by
 `tests/Integration/EmailDesignsTest.php`, `tests/Unit/REST/EmailDesignsEndpointTest.php`,
@@ -8743,6 +8761,26 @@ cart no longer triggers one without consent there; PRO-1716 (`force_opt_in`
 stays `false`); PRO-1742 (independent of the contact-sync switch); PRO-4093
 (the same consent sources for the welcome); PRO-3627 (the purchase marker's
 has-contact read, the pattern copied); CONTACT_SYNC_MODES.md § 6.1.
+
+**Addendum — the residue of earlier reminders is accepted (Erkki,
+2026-10-23; 3.19.0 audit M2).** Before 3.19.0 every reminder went out without
+this gate, so every shopper reminded on a consent-mode store who was not yet a
+contact is now a SUBSCRIBED Smaily contact — and the gate reads "subscribed in
+Smaily" as consent, so they keep getting reminders (and the merchant's
+newsletters). A store that ran "All customers" and moved to a consent mode
+carries the same residue from the contact sync. The plugin cannot tell these
+contacts from real subscribers, and no plugin-side rule can: the contact
+record carries no origin. **Decision:** no behaviour change. **Why:** the
+cohort is bounded (reminders sent before 3.19.0), Smaily honours an
+unsubscribe, and dropping the Smaily-side subscription as a consent source
+would stop reminders to shoppers who did subscribe in Smaily (a newsletter
+form, an import) — the reason it is a source. The newsletter effect is outside
+the gate, so only the merchant can act on it. **What the merchant gets:** the
+docs site ("Who gets an abandoned-cart reminder", EN+ET) names the contact
+fields every reminder wrote — `is_abandoned_cart` (`true`, every version) and
+`abandoned_cart_automation_at` (the last reminder's UTC time, since 3.11.2) —
+says they are on already-subscribed contacts too, and leaves the decision
+(e.g. a Smaily filter/segment on those fields) to the merchant.
 
 ### CON-182 — Drop the legacy abandoned-cart table and the unused visitor table; drain first (2026-10-22)
 

@@ -141,6 +141,7 @@ final class EmailDesignsEndpointTest extends TestCase {
 				array(
 					'email_key'          => 'plugin.welcome',
 					'kind'               => 'plugin',
+					'sent_through'       => 'workflow',
 					'smaily_state'       => 'pushed',
 					'smaily_workflow_id' => '456',
 				),

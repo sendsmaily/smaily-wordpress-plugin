@@ -58,8 +58,12 @@ final class Router implements WorkflowResolverInterface {
 
 	private EmailDesignWorkflows $designs;
 
-	public function __construct( ?EmailDesignWorkflows $designs = null ) {
-		$this->designs = $designs ?? new EmailDesignWorkflows();
+	/** Null: the active multilingual plugin's detector, asked at send time. */
+	private ?DetectorInterface $detector;
+
+	public function __construct( ?EmailDesignWorkflows $designs = null, ?DetectorInterface $detector = null ) {
+		$this->designs  = $designs ?? new EmailDesignWorkflows();
+		$this->detector = $detector;
 	}
 
 	/**
@@ -67,8 +71,10 @@ final class Router implements WorkflowResolverInterface {
 	 * first order and abandoned cart through AutomationRouter, the three
 	 * transactional emails through TransactionalGate. When the engine has
 	 * pushed the email's design to Smaily, its workflow takes the mapped
-	 * one's place (CON-173); the mapping still decides whether the email is
-	 * sent at all, and through which account and language.
+	 * one's place (CON-173) — but only on the `default` account in the
+	 * store's default language (takes_pushed_workflow()). The mapping still
+	 * decides whether the email is sent at all, and through which account
+	 * and language.
 	 */
 	public function resolve_workflow( string $trigger_type, ?string $language ): ?WorkflowMatch {
 		$match = isset( TransactionalGate::TRIGGERS[ $trigger_type ] )
@@ -80,8 +86,33 @@ final class Router implements WorkflowResolverInterface {
 		}
 
 		$pushed = $this->designs->workflow_id( $trigger_type );
+		if ( $pushed <= 0 || ! $this->takes_pushed_workflow( $match ) ) {
+			return $match;
+		}
 
-		return $pushed > 0 ? new WorkflowMatch( $pushed, $match->account_key, $match->matched_language ) : $match;
+		return new WorkflowMatch( $pushed, $match->account_key, $match->matched_language );
+	}
+
+	/**
+	 * The engine pushes one workflow per email and does not yet say into
+	 * which Smaily account or for which language (CON-173, audit 3.19.0 M1).
+	 * Its id is known to fit only the `default` account in the store's
+	 * default language: the single `default` row of a one-workflow mapping,
+	 * or the row of the default language. The transactional account
+	 * (follow-up email, confirmations), a Mode A language account and a
+	 * Mode B row of another language keep the mapped workflow.
+	 */
+	private function takes_pushed_workflow( WorkflowMatch $mapped ): bool {
+		if ( $mapped->account_key !== 'default' || $mapped->matched_language === null ) {
+			return false;
+		}
+		if ( $mapped->matched_language === self::LANGUAGE_DEFAULT ) {
+			return true;
+		}
+
+		$default = ( $this->detector ?? DetectorFactory::create() )->get_default_language();
+
+		return $default !== '' && $mapped->matched_language === $default;
 	}
 
 	private function resolve_marketing( string $trigger_type, ?string $language ): ?WorkflowMatch {

@@ -12,6 +12,7 @@ namespace Smaily\Connect\Tests\Unit\Multilingual;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Multilingual\Router;
 use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Smaily\WorkflowMatch;
@@ -264,35 +265,124 @@ final class RouterTest extends TestCase {
 		self::assertSame( array( 'order_confirmation', 'default' ), $wpdb->all_args[0] );
 	}
 
-	public function test_a_pushed_design_workflow_replaces_the_mapped_one_and_keeps_its_account(): void {
+	public function test_a_pushed_design_workflow_replaces_the_mapped_one_on_the_default_account_and_language(): void {
 		$wpdb            = $this->fake_wpdb();
 		$GLOBALS['wpdb'] = $wpdb;
 		$this->stub_options(
 			array(
 				EmailDesignWorkflows::OPTION => array(
-					'plugin.welcome'                   => 9001,
-					'transactional.order_confirmation' => 9002,
+					'plugin.welcome'     => 9001,
+					'plugin.first_order' => 9002,
 				),
 			)
 		);
 
 		$wpdb->row_queue = array(
 			array( 'workflow_id' => '7', 'account_key' => 'default', 'language' => 'default' ),
-			array( 'workflow_id' => '8', 'account_key' => 'transactional', 'language' => 'et' ),
+			array( 'workflow_id' => '8', 'account_key' => 'default', 'language' => 'default' ),
 			array( 'workflow_id' => '9', 'account_key' => 'default', 'language' => 'default' ),
 		);
 
-		$router  = new Router();
+		$router  = new Router( null, $this->detector( 'et' ) );
 		$welcome = $router->resolve_workflow( 'welcome', null );
-		$order   = $router->resolve_workflow( 'order_confirmation', 'et' );
+		$first   = $router->resolve_workflow( 'first_order', null );
 		$cart    = $router->resolve_workflow( 'abandoned_cart', null );
 
 		self::assertSame( 9001, $welcome->workflow_id );
 		self::assertSame( 'default', $welcome->account_key );
-		self::assertSame( 9002, $order->workflow_id );
-		self::assertSame( 'transactional', $order->account_key );
-		self::assertSame( 'et', $order->matched_language );
+		self::assertSame( 'default', $welcome->matched_language );
+		self::assertSame( 9002, $first->workflow_id );
 		self::assertSame( 9, $cart->workflow_id, 'No pushed workflow: the mapped one is used.' );
+	}
+
+	public function test_a_pushed_design_workflow_replaces_the_mode_b_row_of_the_store_default_language(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		$this->stub_options(
+			array(
+				Router::OPTION_MODE          => Router::MODE_B,
+				EmailDesignWorkflows::OPTION => array( 'plugin.welcome' => 9001 ),
+			)
+		);
+
+		$wpdb->row_queue = array(
+			array( 'workflow_id' => '41', 'account_key' => 'default', 'language' => 'et' ),
+		);
+
+		$match = ( new Router( null, $this->detector( 'et' ) ) )->resolve_workflow( 'welcome', 'et' );
+
+		self::assertSame( 9001, $match->workflow_id );
+		self::assertSame( 'default', $match->account_key );
+		self::assertSame( 'et', $match->matched_language );
+	}
+
+	public function test_a_mode_b_row_of_another_language_keeps_its_mapped_workflow(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		$this->stub_options(
+			array(
+				Router::OPTION_MODE          => Router::MODE_B,
+				EmailDesignWorkflows::OPTION => array( 'plugin.welcome' => 9001 ),
+			)
+		);
+
+		$wpdb->row_queue = array(
+			array( 'workflow_id' => '42', 'account_key' => 'default', 'language' => 'en' ),
+		);
+
+		$match = ( new Router( null, $this->detector( 'et' ) ) )->resolve_workflow( 'welcome', 'en' );
+
+		self::assertSame( 42, $match->workflow_id, 'One pushed design does not replace a per-language workflow.' );
+	}
+
+	public function test_a_mode_a_language_account_keeps_its_mapped_workflow(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		$this->stub_options(
+			array(
+				Router::OPTION_MODE          => Router::MODE_A,
+				EmailDesignWorkflows::OPTION => array( 'plugin.abandoned_cart' => 9003 ),
+			)
+		);
+
+		$wpdb->row_queue = array(
+			array( 'workflow_id' => '51', 'account_key' => 'lt_account', 'language' => 'lt' ),
+			array( 'workflow_id' => '52', 'account_key' => 'et_account', 'language' => 'et' ),
+		);
+
+		$router = new Router( null, $this->detector( 'et' ) );
+		$lt     = $router->resolve_workflow( 'abandoned_cart', 'lt' );
+		$et     = $router->resolve_workflow( 'abandoned_cart', 'et' );
+
+		self::assertSame( 51, $lt->workflow_id );
+		self::assertSame( 'lt_account', $lt->account_key );
+		self::assertSame( 52, $et->workflow_id, 'Another account than the default one, even in the default language.' );
+	}
+
+	public function test_the_transactional_account_keeps_its_mapped_workflow(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		$this->stub_options(
+			array(
+				EmailDesignWorkflows::OPTION => array(
+					'plugin.follow_up'                    => 9004,
+					'transactional.order_confirmation'    => 9005,
+					'transactional.shipping_confirmation' => 9006,
+				),
+			)
+		);
+
+		$wpdb->row_queue = array(
+			array( 'workflow_id' => '61', 'account_key' => 'transactional', 'language' => 'default' ),
+			array( 'workflow_id' => '62', 'account_key' => 'transactional', 'language' => 'default' ),
+			array( 'workflow_id' => '63', 'account_key' => 'transactional', 'language' => 'default' ),
+		);
+
+		$router = new Router( null, $this->detector( 'et' ) );
+
+		self::assertSame( 61, $router->resolve_workflow( 'follow_up', null )->workflow_id );
+		self::assertSame( 62, $router->resolve_workflow( 'order_confirmation', null )->workflow_id );
+		self::assertSame( 63, $router->resolve_workflow( 'shipping_confirmation', null )->workflow_id );
 	}
 
 	public function test_a_pushed_design_workflow_does_not_start_an_unmapped_email(): void {
@@ -301,6 +391,14 @@ final class RouterTest extends TestCase {
 		$this->stub_options( array( EmailDesignWorkflows::OPTION => array( 'plugin.welcome' => 9001 ) ) );
 
 		self::assertNull( ( new Router() )->resolve_workflow( 'welcome', null ) );
+	}
+
+	/** A detector whose store default language is $default. */
+	private function detector( string $default ): DetectorInterface {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_default_language' )->willReturn( $default );
+
+		return $detector;
 	}
 
 	/**

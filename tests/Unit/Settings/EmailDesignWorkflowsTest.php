@@ -1,7 +1,7 @@
 <?php
 /**
  * EmailDesignWorkflows — which Smaily workflow ids from the engine's §23
- * answer are kept for the send paths (CON-173).
+ * answer are kept for the send paths (CON-173, audit 3.19.0 L3).
  *
  * @package Smaily\Connect\Tests
  */
@@ -40,7 +40,7 @@ final class EmailDesignWorkflowsTest extends TestCase {
 		parent::tearDown();
 	}
 
-	public function test_keeps_the_workflow_id_of_each_plugin_and_transactional_email_unautoloaded(): void {
+	public function test_keeps_the_workflow_id_of_each_email_sent_through_a_workflow_unautoloaded(): void {
 		$store = new EmailDesignWorkflows();
 
 		$store->remember(
@@ -48,16 +48,29 @@ final class EmailDesignWorkflowsTest extends TestCase {
 				$this->item( 'plugin.welcome', 'plugin', 'pushed', '456' ),
 				$this->item( 'plugin.follow_up', 'plugin', 'failed', '457' ),
 				$this->item( 'plugin.abandoned_cart', 'plugin', 'pending', '458' ),
-				$this->item( 'transactional.order_confirmation', 'transactional', 'pushed', '459' ),
 			)
 		);
 
 		self::assertSame( 456, $store->workflow_id( 'welcome' ) );
 		self::assertSame( 457, $store->workflow_id( 'follow_up' ) );
 		self::assertSame( 458, $store->workflow_id( 'abandoned_cart' ) );
-		self::assertSame( 459, $store->workflow_id( 'order_confirmation' ) );
 		self::assertSame( 0, $store->workflow_id( 'first_order' ), 'Not listed: no workflow of its own.' );
 		self::assertFalse( $this->written[ EmailDesignWorkflows::OPTION ][1], 'Read at send time only — never autoloaded.' );
+	}
+
+	public function test_an_email_not_sent_through_a_workflow_stores_no_id(): void {
+		$store = new EmailDesignWorkflows();
+
+		$store->remember(
+			array(
+				$this->item( 'transactional.order_confirmation', 'transactional', 'pushed', '459', 'transactional' ),
+				$this->item( 'transactional.shipping_confirmation', 'transactional', 'pushed', '460', 'workflow ' ),
+				$this->item( 'plugin.welcome', 'plugin', 'pushed', '461', 'transactional' ),
+				$this->item( 'plugin.first_order', 'plugin', 'pushed', '462', null ),
+			)
+		);
+
+		self::assertSame( array(), $this->written[ EmailDesignWorkflows::OPTION ][0] );
 	}
 
 	public function test_ignores_ids_the_contract_says_not_to_use(): void {
@@ -106,13 +119,18 @@ final class EmailDesignWorkflowsTest extends TestCase {
 	/**
 	 * @return array<string, mixed>
 	 */
-	private function item( string $email_key, string $kind, string $smaily_state, ?string $workflow_id ): array {
-		return array(
+	private function item( string $email_key, string $kind, string $smaily_state, ?string $workflow_id, ?string $sent_through = 'workflow' ): array {
+		$item = array(
 			'email_key'          => $email_key,
 			'kind'               => $kind,
 			'smaily_state'       => $smaily_state,
 			'smaily_template_id' => '999',
 			'smaily_workflow_id' => $workflow_id,
 		);
+		if ( $sent_through !== null ) {
+			$item['sent_through'] = $sent_through;
+		}
+
+		return $item;
 	}
 }
