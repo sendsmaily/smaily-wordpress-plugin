@@ -42,7 +42,7 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  * already has. (A product slot is the opposite on purpose: sending it empty
  * IS the mechanism that clears the previous cart.)
  *
- * Differences from the legacy `Cron::prepare_*` pair, by design:
+ * Differences from the legacy `Cron::prepare_*` pair (removed, CON-182), by design:
  *   - input is the tracker row's own JSON shape (scalars), never a
  *     deserialized WC object — product details are fetched fresh via
  *     wc_get_product() at build time (same as legacy);
@@ -154,7 +154,8 @@ class CartPayloadBuilder {
 
 	/**
 	 * The non-product address fields, mirroring the legacy
-	 * `Cron::prepare_user_data()` selection semantics for `store`/`language`;
+	 * `Cron::prepare_user_data()` (removed, CON-182) selection semantics for
+	 * `store`/`language`;
 	 * the names are unconditional (PRO-1729).
 	 *
 	 * @param array<string, mixed> $row
@@ -222,7 +223,7 @@ class CartPayloadBuilder {
 
 	/**
 	 * The `product_<field>_1..10` matrix, mirroring the legacy
-	 * `Cron::prepare_products_data()`: every slot prefilled '' (the legacy
+	 * `Cron::prepare_products_data()` (removed, CON-182): every slot prefilled '' (the legacy
 	 * Smaily API requires all fields updated every send — that is what clears
 	 * the previous cart from the contact), EVERY product field filled per item
 	 * (PRO-1680: no merchant-facing selection), `over_10_products` flagged past
