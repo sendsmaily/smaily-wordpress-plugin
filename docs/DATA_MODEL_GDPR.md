@@ -210,6 +210,12 @@ contact refresh is a new action and may sync the contact again.
 |---|---|---|---|---|
 | `smly_plus_contact_import_refused` option | `wp_options` (autoload off) | The contacts Smaily refused for good in the contact import's current run: `count` (total) and up to 20 `{user_id, reason}` entries (the reason holds no address) | No | **Yes** — the eraser removes the requester's entries and lowers `count` by as many (PRO-3995); `BackfillJob::start()` clears the whole list on every new run |
 
+### Plugin-held — automation discount codes (CON-199)
+
+| Element | Where | What it is | Export (Art 15) | Erase (Art 17) |
+|---|---|---|---|---|
+| `shop_coupon` post with `_smaily_connect_generated_from` meta | WooCommerce's coupons (`wp_posts` + `wp_postmeta`) | One single-use coupon per automation email whose "Send a discount code" is on; its `customer_email` (allowed emails) holds the shopper's lowercased address. The code and its last day also ride the queue row's `payload` (above) | No | **No** — the eraser does not read coupons. An unused code is deleted by the daily janitor 30 days after it expires; a used one stays with WooCommerce's coupon history |
+
 ### Plugin-held — Campaign Intelligence ingest queue (PRO-2384)
 
 The local queue of what the store sends to the engine. Rows in
