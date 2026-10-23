@@ -23,12 +23,14 @@ use Smaily\Connect\Support\NumberInput;
  * and, for a reminder, after the consent check, so a skipped send makes no
  * code — issue() clones the template into one new coupon: every setting of
  * the template (discount type and amount, products, categories, sale items,
- * minimum and maximum spend, free shipping, individual use, item limit)
- * except its code, usage limits, expiry and allowed emails, which become a
+ * minimum and maximum spend, free shipping, individual use, item limit, and
+ * WooCommerce's own brand restriction, CLONED_META) except its code, usage
+ * limits, expiry and allowed emails, which become a
  * random code, one use, one use per user, the shopper's address only, and
  * the end of the day `valid_days` ahead in the store's timezone — never
  * later than the template's own expiry. The copy carries META_GENERATED_FROM
- * (the template's id), which marks it as the plugin's.
+ * (the template's id), which marks it as the plugin's, and META_TRIGGER (the
+ * automation).
  *
  * Only a template that can be cloned into such a code counts (the picker
  * lists only these, and issue() checks again at send time):
@@ -37,6 +39,12 @@ use Smaily\Connect\Support\NumberInput;
  * may carry state a copy must not duplicate), not expired, and not a code
  * the plugin made itself. Settings another plugin keeps in its own coupon
  * meta are not copied.
+ *
+ * One code per shopper while it works: when the address already has an
+ * unused, published, unexpired code the same automation made from the same
+ * template, issue() returns that code and its last day again and makes no
+ * coupon (unused_code(); audit M1, 3.20.0). A code made before the plugin
+ * recorded the automation has no META_TRIGGER and is never sent again.
  *
  * Once per queue row: issue() returns the code and its last day, and the
  * flusher writes them into the row's payload before the post
@@ -64,6 +72,9 @@ class AutomationDiscount {
 
 	/** Coupon meta marking a code the plugin made: the template's id. */
 	public const META_GENERATED_FROM = '_smaily_connect_generated_from';
+
+	/** Coupon meta: the automation (a FIELDS key) the plugin made the code for. */
+	public const META_TRIGGER = '_smaily_connect_trigger';
 
 	public const VALID_DAYS_MIN     = 1;
 	public const VALID_DAYS_MAX     = 365;
@@ -103,6 +114,14 @@ class AutomationDiscount {
 		'minimum_amount',
 		'maximum_amount',
 	);
+
+	/**
+	 * The template's meta a code copies: WooCommerce's own brand restriction
+	 * ("Brands" / "Exclude brands", core since WooCommerce 9.6), two lists of
+	 * brand term ids that WC_Brands_Coupons reads from the coupon's meta —
+	 * not WC_Coupon props, so get_data() leaves them out.
+	 */
+	private const CLONED_META = array( 'product_brands', 'exclude_product_brands' );
 
 	/** Upper case and digits, without the look-alikes 0/O and 1/I. */
 	private const CODE_CHARACTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -277,10 +296,11 @@ class AutomationDiscount {
 	 * The discount code fields for one queue row about to be posted.
 	 *
 	 * Nothing when the automation's switch is off, or when the row already
-	 * carries its code (a retry — the fields are in its payload). Otherwise a
-	 * new code, which the caller writes into the row's payload before the
-	 * post (DiscountCodeIssuer); or no code and the reason, when the
-	 * template cannot give one.
+	 * carries its code (a retry — the fields are in its payload). Otherwise
+	 * the address's unused code of this automation and template when it has
+	 * one (unused_code()), else a new code — which the caller writes into
+	 * the row's payload before the post (DiscountCodeIssuer); or no code and
+	 * the reason, when the template cannot give one.
 	 *
 	 * @param array<string, mixed> $payload The row's decoded payload.
 	 *
@@ -304,7 +324,11 @@ class AutomationDiscount {
 		}
 
 		$problem = class_exists( '\WC_Coupon' ) ? self::template_problem( $setting['template_id'] ) : 'WooCommerce is not active';
-		$code    = $problem === '' ? $this->create( $setting['template_id'], $setting['valid_days'], $email ) : $problem;
+		$code    = $problem;
+		if ( $problem === '' ) {
+			$code = self::unused_code( $trigger, $setting['template_id'], $email )
+				?? $this->create( $trigger, $setting['template_id'], $setting['valid_days'], $email );
+		}
 		if ( is_string( $code ) ) {
 			return array(
 				'fields' => array(),
@@ -337,10 +361,51 @@ class AutomationDiscount {
 
 		if ( $template_expires !== null && $template_expires < $expires ) {
 			$expires  = $template_expires;
-			$last_day = ( new \DateTimeImmutable( '@' . ( $template_expires - 1 ) ) )->setTimezone( $timezone )->format( 'Y-m-d' );
+			$last_day = self::last_day( $template_expires, $timezone );
 		}
 
 		return array( $expires, $last_day );
+	}
+
+	/**
+	 * The last valid day (`Y-m-d` in $timezone) of a coupon WooCommerce
+	 * refuses from $expires on: the day of the second before it.
+	 */
+	public static function last_day( int $expires, \DateTimeZone $timezone ): string {
+		return ( new \DateTimeImmutable( '@' . ( $expires - 1 ) ) )->setTimezone( $timezone )->format( 'Y-m-d' );
+	}
+
+	/**
+	 * The address's code this automation made from this template that still
+	 * works — published, unused, not expired, restricted to exactly the
+	 * address — with its own last day; the newest when there are several;
+	 * null when there is none. The address matches as codes_for_address()
+	 * matches it. A code without META_TRIGGER (made before the plugin
+	 * recorded the automation) never counts.
+	 *
+	 * @return array{code: string, last_day: string}|null
+	 */
+	private static function unused_code( string $trigger, int $template_id, string $email ): ?array {
+		$now = time();
+		foreach ( array_reverse( self::codes_for_address( $email ) ) as $coupon ) {
+			$expires = $coupon->get_date_expires( 'edit' );
+			if ( (string) $coupon->get_meta( self::META_TRIGGER, true, 'edit' ) !== $trigger
+				|| (string) $coupon->get_meta( self::META_GENERATED_FROM, true, 'edit' ) !== (string) $template_id
+				|| get_post_status( $coupon->get_id() ) !== 'publish'
+				|| $coupon->get_usage_count( 'edit' ) > 0
+				|| $expires === null
+				|| $expires->getTimestamp() <= $now
+				|| ! self::restricts_to_exactly( $coupon->get_email_restrictions( 'edit' ), $email ) ) {
+				continue;
+			}
+
+			return array(
+				'code'     => $coupon->get_code( 'edit' ),
+				'last_day' => self::last_day( $expires->getTimestamp(), wp_timezone() ),
+			);
+		}
+
+		return null;
 	}
 
 	/**
@@ -539,7 +604,7 @@ class AutomationDiscount {
 	 *
 	 * @return array{code: string, last_day: string}|string
 	 */
-	private function create( int $template_id, int $days, string $email ): array|string {
+	private function create( string $trigger, int $template_id, int $days, string $email ): array|string {
 		$template         = new \WC_Coupon( $template_id );
 		$template_expires = $template->get_date_expires( 'edit' );
 
@@ -578,7 +643,14 @@ class AutomationDiscount {
 		if ( ! self::restricts_to_exactly( $coupon->get_email_restrictions( 'edit' ), $email ) ) {
 			return 'WooCommerce cannot restrict a code to exactly this email address';
 		}
+		foreach ( self::CLONED_META as $key ) {
+			$value = get_post_meta( $template_id, $key, true );
+			if ( is_array( $value ) && $value !== array() ) {
+				$coupon->update_meta_data( $key, $value );
+			}
+		}
 		$coupon->update_meta_data( self::META_GENERATED_FROM, (string) $template_id );
+		$coupon->update_meta_data( self::META_TRIGGER, $trigger );
 
 		try {
 			$saved = $coupon->save();
