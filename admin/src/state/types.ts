@@ -146,6 +146,45 @@ export interface TransactionalSendStatus {
   untickedRecentStatuses: string[];
 }
 
+/** The automations whose emails can carry a discount code (CON-199). */
+export type DiscountTrigger = 'welcome' | 'first_order' | 'abandoned_cart';
+
+/** One automation's "Send a discount code" settings (CON-199). */
+export interface AutomationDiscountSetting {
+  enabled: boolean;
+  /** The WooCommerce coupon each code is cloned from; 0 = none picked. */
+  templateId: number;
+  /** Days a code stays valid; the server accepts env.discountValidDays' range. */
+  validDays: number;
+}
+
+export type AutomationDiscounts = Record<DiscountTrigger, AutomationDiscountSetting>;
+
+/** A coupon a discount code can be cloned from, as EnvDetector lists it (CON-199). */
+export interface DiscountTemplate {
+  id: number;
+  label: string;
+}
+
+/** The "Valid for (days)" range and default, as the server validates it (CON-199). */
+export interface DiscountValidDays {
+  min: number;
+  max: number;
+  default: number;
+}
+
+/**
+ * AutomationDiscount::VALID_DAYS_* — read only when the boot payload
+ * carries no discountValidDays (no payload at all, or a test fixture).
+ */
+export const FALLBACK_DISCOUNT_VALID_DAYS: DiscountValidDays = { min: 1, max: 365, default: 7 };
+
+/** Every automation off, with the default days — the state before anything is saved. */
+export function defaultAutomationDiscounts(): AutomationDiscounts {
+  const off = { enabled: false, templateId: 0, validDays: FALLBACK_DISCOUNT_VALID_DAYS.default };
+  return { welcome: { ...off }, first_order: { ...off }, abandoned_cart: { ...off } };
+}
+
 export interface AutomationMapping {
   triggerType: AutomationTrigger;
   /** Language code from env.detectedLanguages, or 'default' for single-language sites. */
@@ -365,6 +404,15 @@ export interface WizardState {
      * FALLBACK_FOLLOW_UP_DELAY_LIMITS.
      */
     followUpDelayLimits?: FollowUpDelayLimits;
+    /**
+     * The store's coupons a discount code can be cloned from (CON-199).
+     * Optional so pre-existing env fixtures stay valid; absent = none.
+     */
+    discountTemplates?: DiscountTemplate[];
+    /** "Valid for (days)" bounds; absent reads as FALLBACK_DISCOUNT_VALID_DAYS. */
+    discountValidDays?: DiscountValidDays;
+    /** WooCommerce's add-coupon screen (CON-199); absent or '' = no link. */
+    newCouponUrl?: string;
   };
 
   /** Step 1 — Connect. */
@@ -402,6 +450,8 @@ export interface WizardState {
   abandonedCartEnabled: boolean;
   /** Minutes a cart stays untouched before the abandoned-cart trigger fires. */
   abandonedCartCutoffMinutes: number;
+  /** Each automation's "Send a discount code" settings (CON-199). */
+  automationDiscounts: AutomationDiscounts;
 
   /**
    * Transactional emails (PRO-1504, stage 1 — configuration only, no send
@@ -582,6 +632,10 @@ export type WizardAction =
   | { type: 'SET_FIRST_ORDER_ENABLED'; payload: boolean }
   | { type: 'SET_ABANDONED_CART_ENABLED'; payload: boolean }
   | { type: 'SET_ABANDONED_CART_CUTOFF_MINUTES'; payload: number }
+  | {
+      type: 'SET_AUTOMATION_DISCOUNT';
+      payload: { trigger: DiscountTrigger; patch: Partial<AutomationDiscountSetting> };
+    }
   | { type: 'UPSERT_AUTOMATION_MAPPING'; payload: AutomationMapping }
   | { type: 'REMOVE_AUTOMATION_MAPPING'; payload: { triggerType: AutomationTrigger; language: string; accountKey: string } }
   | { type: 'SET_AUTOMATION_FALLBACK'; payload: { triggerType: AutomationTrigger; language: string; accountKey: string } }

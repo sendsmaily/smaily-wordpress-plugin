@@ -1,5 +1,6 @@
 import {
   DEFAULT_SYNC_FIELDS,
+  defaultAutomationDiscounts,
   emptyCredentials,
   FALLBACK_FOLLOW_UP_DELAY_LIMITS,
   idleAsync,
@@ -120,6 +121,7 @@ export function buildSettingsInitialState(env: ServerEnv = {}): WizardState {
     firstOrderEnabled: false,
     abandonedCartEnabled: false,
     abandonedCartCutoffMinutes: 30,
+    automationDiscounts: defaultAutomationDiscounts(),
 
     transactionalEmailsEnabled: false,
     transactionalCredentials: { ...emptyCredentials },

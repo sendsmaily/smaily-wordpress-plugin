@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useReducer } from 'react';
 import { describe, expect, it } from 'vitest';
 
+import { actionToTab } from '../../state/action-to-tab';
 import { buildTabPayload } from '../../state/buildTabPayload';
 import { buildSettingsInitialState } from '../../state/settings-reducer';
 import { type DiscountTrigger, type WizardState } from '../../state/types';
@@ -63,7 +64,9 @@ describe('DiscountCodeSetting (CON-199)', () => {
         abandoned_cart: { enabled: true, templateId: 31, validDays: 14 },
       },
     });
-    expect(latest.dirtyTabs.woocommerce).toBe(true);
+    expect(
+      actionToTab({ type: 'SET_AUTOMATION_DISCOUNT', payload: { trigger: 'welcome', patch: { enabled: true } } }),
+    ).toBe('woocommerce');
   });
 
   it('asks for a coupon while the switch is on and none is picked', () => {

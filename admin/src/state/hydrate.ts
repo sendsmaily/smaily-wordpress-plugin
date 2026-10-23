@@ -1,6 +1,7 @@
 import {
   DEFAULT_CONTACT_SYNC_MODE,
   DEFAULT_SYNC_FIELDS,
+  defaultAutomationDiscounts,
   emptyCredentials,
   FALLBACK_FOLLOW_UP_DELAY_LIMITS,
   idleAsync,
@@ -8,7 +9,10 @@ import {
   idleEngineAutomations,
   normalizeContactSyncMode,
   type AutomationMapping,
+  type AutomationDiscounts,
   type AutomationTrigger,
+  type DiscountTemplate,
+  type DiscountValidDays,
   type FollowUpDelayLimits,
   type RssFeedBootData,
   type TransactionalSendStatus,
@@ -68,6 +72,12 @@ export interface BootPayload {
     consentApiPresent?: boolean;
     /** The follow-up delay's range and default, from EnvDetector::snapshot() (PRO-4095). */
     followUpDelayLimits?: FollowUpDelayLimits;
+    /** The coupons a discount code can be cloned from, from EnvDetector::snapshot() (CON-199). */
+    discountTemplates?: DiscountTemplate[];
+    /** The "Valid for (days)" range and default (CON-199). */
+    discountValidDays?: DiscountValidDays;
+    /** WooCommerce's add-coupon screen (CON-199). */
+    newCouponUrl?: string;
   };
   savedSettings: {
     smailyCredentials: { subdomain: string; username: string; password: string };
@@ -98,6 +108,8 @@ export interface BootPayload {
     welcomeEnabled: boolean;
     firstOrderEnabled: boolean;
     abandonedCartEnabled: boolean;
+    /** Each automation's "Send a discount code" settings (CON-199). Optional for payload compatibility. */
+    automationDiscounts?: AutomationDiscounts;
     /**
      * Saved (trigger, language, accountKey) → workflowId rows.
      * `automationMappings` was previously hard-zeroed in hydrate; the
@@ -202,6 +214,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       firstOrderEnabled: false,
       abandonedCartEnabled: false,
       abandonedCartCutoffMinutes: 30,
+      automationDiscounts: defaultAutomationDiscounts(),
       transactionalEmailsEnabled: false,
       transactionalCredentials: { ...emptyCredentials },
       transactionalConnection: idleAsync,
@@ -262,6 +275,9 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       orderStatuses: env.orderStatuses ?? [],
       consentApiPresent: env.consentApiPresent ?? false,
       followUpDelayLimits: env.followUpDelayLimits,
+      discountTemplates: env.discountTemplates ?? [],
+      discountValidDays: env.discountValidDays,
+      newCouponUrl: env.newCouponUrl ?? '',
     },
     smailyCredentials: { ...s.smailyCredentials },
     smailyConnection: deriveCredentialConnection(s.smailyConnected, s.smailyCredentials),
@@ -277,6 +293,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
     firstOrderEnabled: s.firstOrderEnabled,
     abandonedCartEnabled: s.abandonedCartEnabled,
     abandonedCartCutoffMinutes: s.abandonedCartCutoffMinutes,
+    automationDiscounts: { ...defaultAutomationDiscounts(), ...s.automationDiscounts },
     transactionalEmailsEnabled: s.transactionalEmailsEnabled ?? false,
     transactionalCredentials: {
       ...emptyCredentials,

@@ -43,6 +43,7 @@ export function actionToTab(action: WizardAction): SettingsTabKey | null {
     case 'SET_FIRST_ORDER_ENABLED':
     case 'SET_ABANDONED_CART_ENABLED':
     case 'SET_ABANDONED_CART_CUTOFF_MINUTES':
+    case 'SET_AUTOMATION_DISCOUNT':
     case 'UPSERT_AUTOMATION_MAPPING':
     case 'REMOVE_AUTOMATION_MAPPING':
     case 'SET_AUTOMATION_FALLBACK':
