@@ -135,4 +135,16 @@ final class AutomationDiscountTest extends TestCase {
 		);
 		self::assertSame( array(), AutomationDiscount::restrictions_without( array( 'jane@example.test', 7 ), 'jane@example.test' ) );
 	}
+
+	public function test_a_code_is_restricted_only_to_exactly_the_shoppers_address(): void {
+		// CON-214: what WooCommerce stored must be the address itself, alone.
+		self::assertTrue( AutomationDiscount::restricts_to_exactly( array( 'jane@example.test' ), 'jane@example.test' ) );
+
+		self::assertFalse( AutomationDiscount::restricts_to_exactly( array( 'jne@example.test' ), 'jäne@example.test' ), 'Rewritten: another address.' );
+		self::assertFalse( AutomationDiscount::restricts_to_exactly( array(), 'ä@example.test' ), 'Nothing left: anyone could use it.' );
+		self::assertFalse( AutomationDiscount::restricts_to_exactly( array( 'Jane@example.test' ), 'jane@example.test' ), 'Byte for byte.' );
+		self::assertFalse( AutomationDiscount::restricts_to_exactly( array( 'jane@example.test', 'john@example.test' ), 'jane@example.test' ) );
+		self::assertFalse( AutomationDiscount::restricts_to_exactly( array( '*@example.test' ), '*@example.test' ), 'A wildcard matches other addresses.' );
+		self::assertFalse( AutomationDiscount::restricts_to_exactly( array( '' ), '' ) );
+	}
 }
