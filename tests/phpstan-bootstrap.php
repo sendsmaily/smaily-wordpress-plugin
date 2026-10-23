@@ -20,5 +20,5 @@ if ( ! defined( 'SMAILY_CONNECT_PLUGIN_FILE' ) ) {
 	define( 'SMAILY_CONNECT_PLUGIN_FILE', __DIR__ . '/../smaily-connect.php' );
 }
 if ( ! defined( 'SMAILY_CONNECT_VERSION' ) ) {
-	define( 'SMAILY_CONNECT_VERSION', '3.18.0' );
+	define( 'SMAILY_CONNECT_VERSION', '3.19.0' );
 }
