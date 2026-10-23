@@ -482,8 +482,8 @@ final class Bootstrap {
 	 * backlog guard + enqueueing `automation.abandoned_cart` events for the
 	 * CartFlusher. The legacy status/email double pass this used to bridge to
 	 * (`smaily_connect_cron_abandoned_carts_*`) is retired; its callbacks are
-	 * no longer registered (see the legacy Cron class), so a stray surviving
-	 * WP-Cron event can't fire the old pipeline either.
+	 * gone with the legacy table (CON-182), so a stray surviving WP-Cron event
+	 * can't fire the old pipeline either.
 	 */
 	public function on_abandoned_cart_tick(): void {
 		$this->cart_sweeper()->sweep();

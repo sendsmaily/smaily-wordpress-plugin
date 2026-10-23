@@ -12,7 +12,6 @@ namespace Smaily\Connect;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\DB\Migrator;
-use Smaily\Connect\Migration\LegacyCartDrain;
 use Smaily\Connect\Migration\WPCronAuditor;
 use Smaily\Connect\Smaily\EventQueue;
 
@@ -52,7 +51,6 @@ final class Activation {
 	public static function run(): void {
 		self::set_default_options();
 		self::run_migrations();
-		self::drain_legacy_abandoned_carts();
 		self::cleanup_retired_options();
 		self::purge_autoloaded_profiling_cache();
 		self::reencrypt_legacy_secrets();
@@ -60,27 +58,6 @@ final class Activation {
 		self::schedule_recurring_action_scheduler_jobs();
 		self::clear_action_scheduler_verification();
 		self::stamp_plugin_version();
-	}
-
-	/**
-	 * One-time drain of in-flight legacy abandoned-cart rows into the new
-	 * tracker (PRO-1195 upgrade continuity — a store that just updates the
-	 * plugin loses zero carts). Runs AFTER run_migrations (the tracker table
-	 * must exist); LegacyCartDrain self-guards with an option stamp so every
-	 * later activation/upgrade is a no-op. Read-only on the legacy table and
-	 * schedules NOTHING (F3-53: an upgrade-time migration must never re-arm
-	 * a legacy WP-Cron schedule).
-	 */
-	private static function drain_legacy_abandoned_carts(): void {
-		try {
-			( new LegacyCartDrain() )->maybe_run();
-		} catch ( \Throwable $e ) {
-			// Activation must never fatal on a drain problem — the carts stay
-			// in the legacy table (un-stamped, retried on the next upgrade).
-			\Smaily\Connect\Support\DebugLog::write(
-				sprintf( '[smaily-connect cart.drain] drain failed: %s', $e->getMessage() )
-			);
-		}
 	}
 
 	/**

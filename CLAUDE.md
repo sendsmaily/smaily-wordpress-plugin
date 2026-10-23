@@ -1616,9 +1616,10 @@ repo: a red staleness run is the signal to sync.
   `is_connected()`; it enqueues all registered users (A-filter, F3-20), matching
   the email-sync handler's breadth (neither filters by role).
 - **Abandoned cart is fully on the new path (PRO-1195).** The legacy
-  `Cart`/`Cron` abandoned-cart registrations are removed (classes kept for the
-  upstream diff; the legacy table kept — it's the one-time drain source and
-  the rollback safety net). Pipeline: `CartHookHandler` (guest carts included)
+  `Cart` class and the `Cron` abandoned-cart passes are gone, and schema
+  migration 012 drops the legacy table (CON-182 — after running the one-time
+  drain, because 1.x / 2.0.0 stores never ran it; an unreadable table is never
+  dropped, the migration retries on the next update). Pipeline: `CartHookHandler` (guest carts included)
   → `smly_plus_cart_session` tracker (own scalar JSON shape, never
   `serialize(get_cart())`) → `CartAbandonmentSweeper` on the 15-min
   `smly_plus_abandoned_cart` AS tick (cutoff + the F3-37 backlog guard) →
@@ -1634,7 +1635,10 @@ repo: a red staleness run is the signal to sync.
   `over_10_products`) — merchants' Smaily autoresponder templates depend on
   them, don't "clean them up". One-time drain stamp:
   `smly_plus_cart_legacy_drained` (autoload=false — EnvScrub flushes its
-  per-key cache explicitly).
+  per-key cache explicitly; migration 012 deletes it after the drop).
+  **`dbDelta()` silently ignores `DROP TABLE`** — a schema step it cannot run
+  is a `migrations/NNN-*.php` file returning a callable (`false` = not done,
+  the `Migrator` stops without recording it).
 - **The CartFlusher reads Smaily before every reminder (CON-196).** A consent
   gate (`CartFlusher::consent_refusal()`) does a `get_contact_consent()` GET
   per cart and skips by the contact-sync mode (`no_marketing_consent` /

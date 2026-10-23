@@ -229,7 +229,9 @@ Backfills use chained `as_schedule_single_action` ticks
 
 Custom tables (created/evolved by `DB\Migrator`, plain SQL files in
 `/migrations/*.sql` applied dbDelta-style — a schema change restates the full
-`CREATE TABLE`; schema version in the `smly_plus_schema_version` option):
+`CREATE TABLE`; a step dbDelta cannot run, such as `DROP TABLE`, is a
+`/migrations/NNN-*.php` file returning a callable; schema version in the
+`smly_plus_schema_version` option):
 
 | Table | Purpose |
 |---|---|
@@ -238,7 +240,11 @@ Custom tables (created/evolved by `DB\Migrator`, plain SQL files in
 | `wp_smly_plus_backfill_job` | backfill job state (cursor, counts, `synced_count`) |
 | `wp_smly_plus_automation_mapping` | wizard automation-trigger → Smaily workflow mapping |
 | `wp_smly_plus_cart_session` | abandoned-cart session tracker (PRO-1195 — one row per WC session, guest carts included, scalar-JSON cart shape) |
-| `wp_smly_rec_visitor` | anonymous-visitor merge tracker (created Phase 1; no runtime writer today — identity merge is engine-side, §4.3) |
+
+Schema migration 012 (CON-182) drops two retired tables: the legacy 1.x / 2.0.0
+`wp_smaily_connect_abandoned_carts` (after draining its unsent carts into
+`wp_smly_plus_cart_session`) and `wp_smly_rec_visitor` (never written —
+identity merge is engine-side, §4.3). A fresh install creates neither.
 
 Options: `smly_plus_*` (wizard/settings/credentials — the Smaily API password
 is encrypted via the legacy `Smaily_Connect\Includes\Cypher`, deliberately not

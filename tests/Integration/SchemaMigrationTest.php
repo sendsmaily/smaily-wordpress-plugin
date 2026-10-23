@@ -44,7 +44,6 @@ final class SchemaMigrationTest extends TestCase {
 			'smly_plus_automation_mapping',
 			'smly_plus_cart_session',
 			'smly_rec_event_queue',
-			'smly_rec_visitor',
 		);
 	}
 
@@ -70,13 +69,14 @@ final class SchemaMigrationTest extends TestCase {
 
 	public function test_schema_version_option_matches_highest_migration_file(): void {
 		$migration_dir = SMAILY_CONNECT_PLUGIN_PATH . 'migrations';
-		$files         = glob( $migration_dir . '/[0-9]*-*.sql' );
+		// `.sql` AND `.php` migrations (012 is a `.php` one — CON-182).
+		$files         = (array) glob( $migration_dir . '/[0-9]*-*' );
 		self::assertNotEmpty( $files, 'No migration files found in migrations/. The Migrator has nothing to apply.' );
 
 		$highest = 0;
 		foreach ( $files as $file ) {
-			$basename = basename( $file );
-			if ( preg_match( '/^(\d+)/', $basename, $m ) ) {
+			$basename = basename( (string) $file );
+			if ( preg_match( '/^(\d+)-.+\.(sql|php)$/', $basename, $m ) ) {
 				$version = (int) $m[1];
 				$highest = max( $highest, $version );
 			}

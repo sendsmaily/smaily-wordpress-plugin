@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Migration\LegacyCartDrain;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\RetiredTableFixtures;
 
 /**
  * What this pins (upgrade continuity — Erkki's definition-of-done):
@@ -25,7 +26,8 @@ use Smaily\Connect\Tests\Integration\Support\EnvScrub;
  *     input; a string-items cart still drains (items skipped item-level,
  *     the legacy hardening's semantics);
  *   - the drain is READ-ONLY on the legacy table (rows + mail_sent
- *     untouched — safe rollback) and one-time (option stamp);
+ *     untouched — dropping it is migration 012's next step, CON-182) and
+ *     one-time (option stamp);
  *   - a drained recent cart gets its reminder through the NEW pipeline;
  *     a stale one expires under the F3-37 backlog guard without emailing.
  */
@@ -45,7 +47,9 @@ final class LegacyCartDrainTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
-		$this->wipe_legacy();
+		// The plugin no longer has this table (CON-182) — don't leave the
+		// fixture behind for the schema tests.
+		RetiredTableFixtures::drop_both();
 		$this->wipe_tracker();
 		foreach ( $this->created_users as $user_id ) {
 			wp_delete_user( $user_id );
@@ -164,15 +168,11 @@ final class LegacyCartDrainTest extends TestCase {
 	// --- helpers -------------------------------------------------------------
 
 	/**
-	 * The tests environment never runs the legacy activation, so create the
-	 * legacy cart table through the REAL Lifecycle DDL (reflection — no
-	 * schema duplication).
+	 * The plugin no longer creates the legacy cart table (CON-182 — schema
+	 * migration 012 drops it), so build it with the 2.0.0 DDL.
 	 */
 	private function ensure_legacy_table(): void {
-		$lifecycle = new \Smaily_Connect\Includes\Lifecycle();
-		$method    = new \ReflectionMethod( $lifecycle, 'create_woocommerce_tables' );
-		$method->setAccessible( true );
-		$method->invoke( $lifecycle );
+		RetiredTableFixtures::create_legacy_cart_table();
 	}
 
 	private function make_user( string $slug ): int {

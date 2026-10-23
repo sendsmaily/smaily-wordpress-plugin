@@ -395,6 +395,10 @@ CREATE TABLE {$prefix}smly_plus_automation_mapping (
 ```
 
 ### `smly_rec_visitor`
+> **Retired (CON-182, 2026-10-22):** never built — identity merge is
+> engine-side. Schema migration 012 drops the table; a fresh install does not
+> create it. The design below is kept as history.
+
 Anonymous visitor → identified merge tracking.
 
 ```sql

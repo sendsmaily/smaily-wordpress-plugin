@@ -6,10 +6,6 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
-require_once SMAILY_CONNECT_PLUGIN_PATH . 'integrations/woocommerce/cart.class.php';
-
-use Smaily_Connect\Integrations\WooCommerce\Cart;
-
 class Lifecycle {
 	/**
 	 * Service name.
@@ -55,9 +51,9 @@ class Lifecycle {
 	 *
 	 */
 	public function activate() {
+		// CON-182: the legacy abandoned-cart table is no longer created here
+		// (schema migration 012 drains and drops it on stores that have it).
 		if ( class_exists( 'WooCommerce' ) ) {
-			$this->create_woocommerce_tables();
-
 			// Set to flush rewrite rules during init action if not yet flushed.
 			update_option( 'smaily_connect_flush_rewrite_rules', true );
 		}
@@ -79,42 +75,12 @@ class Lifecycle {
 	 */
 
 	/**
-	 * Checks if additional featured plugins are being activated, creates tables if needed
+	 * Checks if additional featured plugins are being activated.
 	 *
 	 */
 	public function check_for_dependency( $plugin, $network ) {
 		if ( $plugin === 'woocommerce/woocommerce.php' ) {
-			$this->create_woocommerce_tables();
 			update_option( 'smaily_connect_flush_rewrite_rules', true );
-		}
-	}
-
-	/**
-	 * Check if woocommerce related tables have been created, if not create
-	 */
-	private function create_woocommerce_tables() {
-		global $wpdb;
-
-		$charset_collate = $wpdb->get_charset_collate();
-
-		// Create abandoned_cart table if it does not exist.
-		$abandoned_table_name = $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME;
-		$query                = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $abandoned_table_name ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-
-		// Check if the table already exists.
-		if ( $query !== $abandoned_table_name ) {
-			$abandoned = "CREATE TABLE $abandoned_table_name (
-				customer_id int(11) NOT NULL,
-				cart_updated datetime DEFAULT '0000-00-00 00:00:00',
-				cart_content longtext DEFAULT NULL,
-				cart_status varchar(255) DEFAULT NULL,
-				cart_abandoned_time datetime DEFAULT '0000-00-00 00:00:00',
-				mail_sent tinyint(1) DEFAULT NULL,
-				mail_sent_time datetime DEFAULT '0000-00-00 00:00:00',
-				PRIMARY KEY  (customer_id)
-			) $charset_collate;";
-			require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-			dbDelta( $abandoned );
 		}
 	}
 
@@ -139,9 +105,10 @@ class Lifecycle {
 	public static function uninstall() {
 		global $wpdb;
 
-		// Delete Smaily plugin abandoned cart table.
+		// Delete the legacy abandoned-cart table (left only on a store whose
+		// schema migration 012 has not run yet — CON-182).
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- table name is a plugin constant
-		$wpdb->query( 'DROP TABLE IF EXISTS `' . $wpdb->prefix . Cart::ABANDONED_CART_TABLE_NAME . '`' );
+		$wpdb->query( 'DROP TABLE IF EXISTS `' . $wpdb->prefix . 'smaily_connect_abandoned_carts`' );
 
 		Options::delete_all_options();
 

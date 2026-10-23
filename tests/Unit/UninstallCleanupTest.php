@@ -20,6 +20,7 @@ namespace Smaily\Connect\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use Smaily\Connect\Migration\LegacyCartDrain;
 use Smaily\Connect\Notifications\NotificationManager;
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -137,5 +138,30 @@ final class UninstallCleanupTest extends TestCase {
 				"Rec-engine flush hook '{$hook}' must live under the smly_rec_ prefix uninstall.php purges from actionscheduler_actions."
 			);
 		}
+	}
+
+	/**
+	 * Schema migration 012 drops the legacy abandoned-cart table and
+	 * smly_rec_visitor on update (CON-182). A store deleted before that
+	 * migration ran still has them, so uninstall.php drops both itself.
+	 */
+	public function test_drops_the_two_retired_tables_a_store_may_still_have(): void {
+		$source = $this->uninstall_source();
+		foreach ( array( 'smaily_connect_abandoned_carts', 'smly_rec_visitor' ) as $suffix ) {
+			self::assertMatchesRegularExpression(
+				"/\\\$tables = array\\([^)]*'{$suffix}'/s",
+				$source,
+				"uninstall.php must drop {$suffix} (CON-182)."
+			);
+		}
+	}
+
+	/**
+	 * The drain stamp outlives nothing: migration 012 deletes it, and the
+	 * smly_plus_ LIKE sweep catches it on a store deleted before 012 ran.
+	 */
+	public function test_sweeps_the_legacy_cart_drain_stamp_by_the_smly_plus_prefix(): void {
+		self::assertStringStartsWith( 'smly_plus_', LegacyCartDrain::DRAINED_OPTION );
+		self::assertStringContainsString( "esc_like( 'smly_plus_' )", $this->uninstall_source() );
 	}
 }

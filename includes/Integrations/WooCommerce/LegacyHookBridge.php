@@ -40,11 +40,9 @@ defined( 'ABSPATH' ) || exit;
  * save_finish() also calls it for immediate effect within the Finish
  * request.
  *
- * Deliberately leaves NON-sync legacy hooks alone — e.g. cart.class.php's
- * woocommerce_checkout_order_processed → smaily_checkout_delete_cart is
- * cart-abandonment cleanup, not contact sync, and stripping it would break
- * legacy abandoned-cart behaviour. Only Subscriber_Synchronization is
- * targeted.
+ * Deliberately leaves NON-sync legacy hooks alone. Only
+ * Subscriber_Synchronization is targeted. (The legacy cart tracker this used
+ * to name as an example is gone — CON-182.)
  */
 final class LegacyHookBridge {
 

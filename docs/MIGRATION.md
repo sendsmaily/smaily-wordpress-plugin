@@ -145,7 +145,7 @@ until you finish the new setup wizard. Here's what changes immediately:
 | Subscriber sync | Continues via the 2.0.0 code (the new code is gated until the wizard finishes) | None — contacts continue flowing to Smaily |
 | Admin menu | The 2.0.0 "Smaily" pages are replaced by the new **Smaily Connect** menu; the old Settings URL redirects into the wizard | The plugin's admin area looks new |
 | Database tables | New tables (`smly_plus_*`, `smly_rec_*`) are created automatically | Background change; you don't need to do anything |
-| Abandoned-cart table | The 2.0.0 table is kept untouched; any cart in it that was never sent is moved once into the new cart storage | Carts in flight at upgrade time are not lost |
+| Abandoned-cart table | Any cart in the 2.0.0 table that was never sent is moved once into the new cart storage; then the 2.0.0 table is deleted (it held customer carts with no time limit) | Carts in flight at upgrade time are not lost |
 | Scheduled jobs | The three 2.0.0 WP-Cron events are cleared and recurring Action Scheduler jobs are scheduled in their place | More reliable background work; you can monitor in `Tools → Scheduled Actions` |
 
 Deactivating and reactivating the plugin afterwards (or reactivating
@@ -214,7 +214,9 @@ tables exist:
 - `wp_smly_plus_automation_mapping`
 - `wp_smly_plus_cart_session`
 - `wp_smly_rec_event_queue`
-- `wp_smly_rec_visitor`
+
+The 2.0.0 table `wp_smaily_connect_abandoned_carts` is gone after the upgrade —
+its unsent carts are in `wp_smly_plus_cart_session` now.
 
 If any are missing, the activation hook may not have run. See "Activation hook
 didn't fire" in Troubleshooting.
@@ -329,7 +331,8 @@ Your sale prices simply work, with no migration step on your part.
 
 ## Rollback — if you need to go back to 2.0.0
 
-The upgrade is reversible. Your data is not destroyed.
+The upgrade is reversible. Your data is not destroyed, except the 2.0.0
+abandoned-cart table (see below).
 
 wordpress.org keeps every published release of a plugin: on the plugin's page in
 the directory, open **Advanced View** and use the **Previous versions** section
@@ -347,6 +350,10 @@ to download the 2.0.0 ZIP.
 checkout opt-in, abandoned cart, RSS — are untouched, so it picks up where it
 left off. **The one exception is the Smaily API password, and you have to
 re-enter it.**
+
+2.0.0 starts its abandoned-cart table again empty when you activate it: the
+upgrade deleted the 2.0.0 table, so carts that were waiting for a reminder when
+you upgraded or later are not picked up by 2.0.0.
 
 ### You must re-enter the API password after rolling back
 
@@ -399,7 +406,6 @@ DROP TABLE wp_smly_plus_backfill_job;
 DROP TABLE wp_smly_plus_automation_mapping;
 DROP TABLE wp_smly_plus_cart_session;
 DROP TABLE wp_smly_rec_event_queue;
-DROP TABLE wp_smly_rec_visitor;
 DELETE FROM wp_options WHERE option_name LIKE 'smly_plus_%';
 DELETE FROM wp_options WHERE option_name LIKE 'smly_rec_%';
 ```

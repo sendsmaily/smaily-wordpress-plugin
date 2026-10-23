@@ -8741,6 +8741,60 @@ stays `false`); PRO-1742 (independent of the contact-sync switch); PRO-4093
 (the same consent sources for the welcome); PRO-3627 (the purchase marker's
 has-contact read, the pattern copied); CONTACT_SYNC_MODES.md § 6.1.
 
+### CON-182 — Drop the legacy abandoned-cart table and the unused visitor table; drain first (2026-10-22)
+
+**Status: one-way door — built in PR #258, ships only after Erkki approves
+the migration.**
+**Context:** Erkki decided on 2026-10-22 to remove two tables. The legacy
+`{prefix}smaily_connect_abandoned_carts` (1.x / 2.0.0) holds customer ids with
+their serialized carts, has no retention period, and the personal-data eraser
+never read it; PRO-1195 kept it only as the drain source and a rollback net.
+`{prefix}smly_rec_visitor` (migration 005) was reserved for a visitor-merge
+tracker that was never built — identity merge is engine-side; nothing writes it.
+**Decision:**
+- **Schema migration 012** (`migrations/012-drop-retired-tables.php` →
+  `Migration\RetiredTables`) drops both tables with `DROP TABLE IF EXISTS` and
+  deletes the drain stamp `smly_plus_cart_legacy_drained`. It runs through the
+  normal upgrade path (`Bootstrap::maybe_run_upgrade` → `UpgradeLock` →
+  `Activation::run` → `Migrator`).
+- **The drain stays, as step one of migration 012** (it no longer runs from
+  `Activation::run` on its own). Evidence that a store can still update from a
+  version that never drained: `LegacyCartDrain` first shipped in 3.11.2
+  (2026-09-04, the first v3 release in this repository); tags 1.0.0–2.0.0
+  write the legacy table and have no drain; wordpress.org still lists every
+  one of those versions (plugin API 1.2 `versions`, read 2026-10-22). Removing
+  the drain would silently lose the in-flight carts of such a store. A store
+  that drained on 3.11.2+ keeps its stamp, so nothing is copied twice.
+- **Never drop what was not copied:** a failed check for, or read of, the
+  legacy table now THROWS from the drain (it used to stamp as "nothing to
+  drain"). Migration 012 then drops nothing and returns false; the
+  `Migrator` stops without recording version 12, so the next update retries.
+  A failed `DROP` is handled the same way.
+- **`.php` migrations:** `Migrator` now also discovers `NNN-*.php` files that
+  return a callable (`false` = retry later; nothing after it runs). Needed
+  because `dbDelta()` silently ignores `DROP TABLE`.
+- **Fresh install creates neither table:** `migrations/005-create-smly-rec-visitor.sql`
+  is deleted (a store past 005 never re-runs it; 012 drops the table it made)
+  and `Lifecycle::create_woocommerce_tables()` is removed.
+- **Code that read or wrote the legacy table is removed:** the legacy `Cart`
+  class (unregistered since PRO-1195) and the `Cron` abandoned-cart passes
+  (`smaily_abandoned_carts_email` / `_status`, `get_abandoned_carts`,
+  `update_mail_sent_status`). The rest of the legacy `Cron` class stays.
+- **Uninstall** still drops both tables (`uninstall.php` now lists the legacy
+  cart table too — it never did, PRO-1337's list missed it) for a store deleted
+  before 012 ran; the stamp is caught by the `smly_plus_` sweep.
+**Rationale:** the legacy table is personal data with no retention and no
+reader; keeping a rollback net for a pipeline retired since PRO-1195 does not
+justify that. The exporter and eraser never read either table, so a
+customer's export and erasure are unchanged (integration-pinned).
+**Consequence:** after the update a downgrade to an older version cannot
+resume the legacy carts — they were copied into the current tracker first.
+**Supersedes:** PRO-1195's "the legacy table is NOT dropped (safe rollback)".
+**Relationships:** `tests/Integration/RetiredTablesMigrationTest.php`,
+`tests/Unit/Migration/RetiredTablesTest.php`,
+`tests/Unit/Migration/LegacyCartDrainTest.php`, `MigratorTest`,
+`UninstallCleanupTest`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

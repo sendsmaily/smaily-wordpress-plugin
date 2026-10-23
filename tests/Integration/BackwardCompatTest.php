@@ -142,7 +142,9 @@ final class BackwardCompatTest extends TestCase {
 
 	public function test_upgrade_trigger_is_noop_when_version_matches(): void {
 		global $wpdb;
-		$table = $wpdb->prefix . 'smly_rec_visitor';
+		// Any migrator-created table works as the probe (it used to be
+		// smly_rec_visitor, which migration 012 now drops — CON-182).
+		$table = $wpdb->prefix . 'smly_plus_backfill_job';
 
 		update_option( Activation::OPTION_PLUGIN_VERSION, (string) SMAILY_CONNECT_VERSION );
 		// Drop a table directly (bypasses option caches) so we can observe
