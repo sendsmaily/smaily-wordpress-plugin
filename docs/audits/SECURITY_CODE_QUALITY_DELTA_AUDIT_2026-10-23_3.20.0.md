@@ -463,3 +463,108 @@ clean, CI is green, the built ZIP verifies, and Plugin Check adds three
 warnings, two of them from a misspelled ignore. **3.20.0 may proceed once M1
 is accepted or narrowed, M2 is fixed or accepted with exact docs, and L1 and
 L2 are handled at the bump.**
+
+## Disposition (2026-10-23)
+
+| # | Disposition |
+|---|---|
+| M1 (Medium) | **Fixed** in #273 (Refs CON-199) with Erkki's reuse rule (DECISIONS "CON-199" addendum "the 3.20.0 audit's M1 and M2"): before it makes a code, `issue()` looks for the address's code that the same automation made from the same template and that still works — published, unused, unexpired, allowed emails exactly the address (`AutomationDiscount::unused_code()`, over `codes_for_address()`). When one exists, the email carries that code and its own last day again and no coupon is made. Every new code records its automation in `_smaily_connect_trigger` (`META_TRIGGER`); a code without it is never sent again. Pinned in `AutomationDiscountCodeTest`. |
+| M2 (Medium) | **Fixed** in #273: `create()` copies `product_brands` / `exclude_product_brands` from the template's meta (`CLONED_META`) when they hold a non-empty list. Pinned in `AutomationDiscountCodeTest`; the docs site says brands are copied. |
+| L1 (Low) | **Fixed** in the 3.20.0 bump: the two `phpcs:ignore` comments in `AutomationDiscount.php` (`:227`, `:434`) name `WordPress.DB.SlowDBQuery.slow_db_query_meta_query` — confirmed with `phpcs --standard=WordPress --sniffs=WordPress.DB.SlowDBQuery`, which reported that code on both lines before the fix and nothing after. `PluginCheck.Security.DirectDB.UnescapedDBParameter` joins the ignore above the `codes_for_address()` query (`:503`); the false positive is confirmed: `$sql` interpolates `$wpdb->posts`, `$wpdb->postmeta` and the condition `AddressMatch::json_string()` builds from a column expression from code and `%s` placeholders, and every value goes through `prepare()` on the next line. |
+| L2 (Low) | **Fixed** in the 3.20.0 bump: `readme.txt` describes the discount codes under "Automate key WooCommerce moments", lists them under "Privacy and control" (WooCommerce coupons that hold the shopper's address, covered by export and erasure, unused codes deleted 30 days after expiry), adds the code and its last day to the Smaily Public API trigger line, and adds a `= 3.20.0 =` changelog entry and an upgrade notice that names the Disconnect / uninstall change (CON-219). The §16 line under Campaign Intelligence and the uninstall FAQ came with #275 and are not repeated. `= 3.17.1 =` is dropped from Changelog and Upgrade Notice; the Changelog section is 4 586 bytes (4 582 characters) including its heading. |
+| L3, L4 (Low) | **Backlog** — CON-217. |
+| I1 (Info) | CON-216, **accepted by Erkki** (2026-10-23), as recorded above. |
+| I2–I8 (Info) | Accepted as recorded above. The I7 docs line on codes after uninstall stays a backlog candidate. |
+
+## Addendum: post-audit delta (`def155e..2273c24`)
+
+After this report (`def155e`), three PRs landed on `main` before the 3.20.0
+bump: **3 commits, 23 files, +1 150 / −245**; outside `docs/`, `tests/`,
+`STATUS.md` and `CLAUDE.md` 11 files, +205 / −43; shipped PHP 7 files
+(`includes/` + `uninstall.php`), +198 / −37; shipped TypeScript 1 file,
++1 / −1 (the Disconnect confirm text).
+
+- **#273 (Refs CON-199)** — the M1 reuse rule and the M2 brand copy (see
+  Disposition), the docs site and DECISIONS.
+- **#274** — the engine contract synced byte for byte to v1.18.0 (§16 now
+  pauses a store and never deletes it; §23 field changes). The code changes
+  are comments only: `Multilingual\Router`, `Settings\EmailDesignWorkflows`,
+  `Settings\RecEngineSettings` (every changed line in `includes/` is a
+  comment line). No wire shape that the plugin sends or reads changed.
+- **#275 (Part of CON-219)** — Disconnect and uninstall send the contract's
+  §16 disconnect request before they delete the key:
+  `RecEngineSettings::end_engine_connection()` (`:227`), called first by
+  `disconnect()` (`:257`) and by `uninstall.php` (`:74`–`:81`);
+  `Client::store_uninstall()` (`:623`, endpoints-map key `store_uninstall`,
+  fallback `PATH_STORE_UNINSTALL`). The readme, the docs site and the
+  Disconnect confirm text say what the engine does.
+
+**Security look at #273:**
+
+- **No code reaches another address.** `unused_code()` reads only
+  `codes_for_address( $email )` — the plugin's codes (the
+  `_smaily_connect_generated_from` join) whose allowed emails hold the
+  address — and accepts one only when `restricts_to_exactly()` still holds
+  for that address, the trigger meta equals the automation (a string from
+  code, `FIELDS` keys) and the template id matches. A used (`usage_count` >
+  0), unpublished or expired code, or one without an expiry, is skipped. The
+  reused code's last day is read from its own `date_expires`, so an email
+  never promises a longer validity than WooCommerce enforces.
+- **Brand copy.** The two meta values come from the admin-picked template
+  (`template_problem()` still gates it), are copied only as non-empty
+  arrays, and narrow the code — they never widen it. The "another plugin's
+  meta is not copied" rule stands.
+- **Stored data.** One new coupon meta per code (`_smaily_connect_trigger`,
+  the automation's name — no personal data). Fewer coupons are made, so less
+  personal data is stored. The eraser and the janitor are unchanged and
+  still require the marker meta.
+
+**Security look at #275 (the new external HTTP call, also during
+uninstall):**
+
+- **Who can start it.** Disconnect: the existing `POST
+  /rec-engine/disconnect` route (`manage_options` + `wp_rest` nonce,
+  `RecEngineEndpoint::permission_check()`); unchanged. Uninstall: only
+  inside WordPress's plugin Delete flow (`WP_UNINSTALL_PLUGIN` guard, `:44`).
+- **Code loaded during uninstall.** WordPress does not load the plugin for
+  `uninstall.php`, so it requires the plugin's own `vendor/autoload.php`
+  (PSR-4 `Smaily\Connect\` → `includes/`, no `files` autoload, so loading it
+  runs no plugin code) and `includes/smaily-cypher.class.php` (the key is
+  stored encrypted; the class only defines `Cypher`). Both are files of the
+  plugin being deleted; nothing is loaded from outside it. The block runs
+  only when `vendor/autoload.php` exists and catches every `Throwable`, so
+  the option, table and schedule cleanup that follows always runs.
+  Observation, not a finding: a `require_once` of a missing
+  `smaily-cypher.class.php` is a fatal error that `catch` does not stop;
+  every shipped ZIP holds both files (`verify-release-zip.sh` checks
+  `vendor/autoload.php`), so only a hand-damaged install could reach it.
+- **One short attempt.** `request_url( …, true )`: one attempt, `timeout`
+  `BROWSE_TIMEOUT_SECONDS` (3 s, the whole request, connect included),
+  `redirection` 0, no retry, no back-off, no Retry-After wait — the same
+  mode as the `/relay` forward (PRO-3620). The admin's Disconnect or Delete
+  request waits at most about 3 s; an unreachable engine cannot hold it.
+- **The key.** Decrypted in memory by `api_key()` and sent only in the
+  `Authorization` header to the stored base URL / endpoints-map URL — the
+  same host as every other engine call, checked against the
+  `intelligence.smaily.com` rule at exchange time for a connection made
+  since PRO-3623. `redirection` 0 means a redirect cannot carry the header
+  to another host. The gate is `is_connected()` with a stored key and base
+  URL, not `sending_allowed()` (§16 does not answer `tenant_inactive`); a
+  refused key costs one answered request. No request body.
+- **What is logged.** On failure only `DebugLog::write()` (`WP_DEBUG`-gated):
+  the HTTP status and the engine's error code, or the exception class —
+  never the key, the URL, the engine's message or a body. The engine's
+  answer (`status`) is returned, not stored. A `403 tenant_inactive` would
+  set `smly_rec_refused_at`; `disconnect()` deletes that option in the same
+  call and `uninstall.php`'s `smly_rec_%` sweep removes it right after.
+- **Always deletes.** Any answer, error or exception still deletes the key
+  (`disconnect()` deletes after the call; `uninstall.php` sweeps after the
+  `try`). The plugin cannot be left connected by a failed §16 call.
+- **No data deletion.** v1.18.0 §16 pauses a store and keeps its data
+  (#274); the readme, the uninstall FAQ and the docs site say so. During
+  uninstall `SMAILY_CONNECT_VERSION` is undefined, so the request's
+  `User-Agent` names version `0.0.0` (cosmetic).
+
+**Findings: none.** The addendum adds no Medium or Low finding. With M1 and
+M2 fixed in #273, L1 and L2 fixed at the bump, L3 / L4 in the backlog
+(CON-217) and I1 accepted (CON-216), **3.20.0 may proceed.**
