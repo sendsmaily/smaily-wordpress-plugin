@@ -427,7 +427,14 @@ class AutomationDiscount {
 		}
 		$coupon->update_meta_data( self::META_GENERATED_FROM, (string) $template_id );
 
-		if ( $coupon->save() <= 0 ) {
+		try {
+			$saved = $coupon->save();
+		} catch ( \Exception $e ) {
+			// A store-side failure sends the email without a code, like a
+			// template that gives none — never a queue row that fails for it.
+			$saved = 0;
+		}
+		if ( $saved <= 0 ) {
 			return null;
 		}
 
