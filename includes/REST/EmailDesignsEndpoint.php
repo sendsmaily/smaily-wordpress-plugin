@@ -154,9 +154,18 @@ class EmailDesignsEndpoint {
 	 * (§17): https, at most 2048 characters, on the host of the site URL the
 	 * plugin sent at connection time (`plugin_info.site_url`). Anything else
 	 * is left out of the request rather than refused by the engine.
+	 *
+	 * Where PHP's parser and a browser's disagree, the address is left out
+	 * too (CON-206): a backslash (a slash to a browser, so
+	 * `https://evil.example\@shop.example/` goes to evil.example while PHP
+	 * reads the store host), a space or a control character, a user name or
+	 * password, and a port — the store's own admin address has none of them.
 	 */
 	public static function allowed_return_url( string $url, string $site_url ): bool {
 		if ( $url === '' || strlen( $url ) > self::RETURN_URL_MAX ) {
+			return false;
+		}
+		if ( preg_match( '/[\\\\\x00-\x20\x7f]/', $url ) === 1 ) {
 			return false;
 		}
 		$parts     = wp_parse_url( $url );
@@ -165,6 +174,9 @@ class EmailDesignsEndpoint {
 		return is_array( $parts )
 			&& ( $parts['scheme'] ?? '' ) === 'https'
 			&& isset( $parts['host'] )
+			&& ! isset( $parts['user'] )
+			&& ! isset( $parts['pass'] )
+			&& ! isset( $parts['port'] )
 			&& is_string( $site_host )
 			&& strtolower( $parts['host'] ) === strtolower( $site_host );
 	}
