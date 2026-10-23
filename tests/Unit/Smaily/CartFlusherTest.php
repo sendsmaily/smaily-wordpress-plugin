@@ -41,7 +41,7 @@ final class CartFlusherTest extends TestCase {
 	public function test_flush_drains_only_the_cart_event_type(): void {
 		$queue = $this->fake_queue( array() );
 
-		( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory() ) )->flush();
+		( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory(), $this->no_discounts() ) )->flush();
 
 		self::assertSame(
 			array( CartFlusher::DEFAULT_BATCH_SIZE, array( CartFlusher::EVENT_TYPE ), array() ),
@@ -71,7 +71,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory(), $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertSame( array( 1 ), $queue->marked_sent );
@@ -108,7 +108,7 @@ final class CartFlusherTest extends TestCase {
 			)
 		);
 
-		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client ) )->flush();
+		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertSame( 88, $captured['workflow_id'] );
@@ -124,7 +124,7 @@ final class CartFlusherTest extends TestCase {
 		$client = $this->reading_client( self::smaily_contact( '0' ) );
 		$client->expects( $this->never() )->method( 'trigger_automation' );
 
-		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client ) )->flush();
+		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['sent'], 'Unconfigured is a terminal skip (mark_sent) — a retry cannot conjure a workflow.' );
 		self::assertNull( $queue->exchanges[3]['sent'] );
@@ -155,7 +155,7 @@ final class CartFlusherTest extends TestCase {
 			)
 		);
 
-		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client ) )->flush();
+		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( 'permanent_envelope_221: Smaily API returned code 221: no such autoresponder', $queue->marked_failed[0]['error'] );
@@ -198,7 +198,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory(), $this->no_discounts() ) )->flush();
 
 		self::assertSame( 0, $stats['sent'] );
 		self::assertSame( array(), $queue->marked_sent );
@@ -230,7 +230,7 @@ final class CartFlusherTest extends TestCase {
 			)
 		);
 
-		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client ) )->flush();
+		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->attempts );
@@ -263,7 +263,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory(), $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->marked_sent );
@@ -286,7 +286,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory(), $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['retried'], 'ApiException is transient → record_attempt.' );
 		self::assertSame( 5, $queue->attempts[0]['id'] );
@@ -310,7 +310,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory(), $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->attempts );
@@ -328,7 +328,7 @@ final class CartFlusherTest extends TestCase {
 			)
 		);
 
-		$stats = ( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory() ) )->flush();
+		$stats = ( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory(), $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( 'payload_decode_failure', $queue->marked_failed[0]['error'] );
@@ -346,7 +346,8 @@ final class CartFlusherTest extends TestCase {
 			$this->router_returning( false ),
 			static function (): Client {
 				throw new \RuntimeException( 'Smaily credentials are not configured' );
-			}
+			},
+			$this->no_discounts()
 		) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
@@ -365,7 +366,7 @@ final class CartFlusherTest extends TestCase {
 			)
 		);
 
-		$stats = ( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory() ) )->flush();
+		$stats = ( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory(), $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertStringContainsString( '"outcome":"skipped"', (string) $queue->exchanges[8]['response'] );
@@ -380,7 +381,7 @@ final class CartFlusherTest extends TestCase {
 		$queue  = $this->fake_queue( array( $this->cart_event( 20 ) ) );
 		$router = $this->recording_router();
 
-		$stats = ( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ), $this->no_discounts() ) )->flush();
 
 		self::assertSame( array(), $router->calls, 'The reminder would subscribe the shopper.' );
 		self::assertSame( array( 20 => 'no_marketing_consent' ), $queue->marked_skipped );
@@ -395,7 +396,7 @@ final class CartFlusherTest extends TestCase {
 		$queue  = $this->fake_queue( array( $this->cart_event( 21, array( 'user_id' => 42 ) ) ) );
 		$router = $this->recording_router();
 
-		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ), $this->no_discounts() ) )->flush();
 
 		self::assertCount( 1, $router->calls );
 		self::assertSame( array( 21 ), $queue->marked_sent );
@@ -408,7 +409,7 @@ final class CartFlusherTest extends TestCase {
 		$queue  = $this->fake_queue( array( $this->cart_event( 22, array( 'user_id' => 42 ) ) ) );
 		$router = $this->recording_router();
 
-		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ), $this->no_discounts() ) )->flush();
 
 		self::assertSame( array(), $router->calls );
 		self::assertSame( array( 22 => 'no_marketing_consent' ), $queue->marked_skipped );
@@ -433,7 +434,7 @@ final class CartFlusherTest extends TestCase {
 		$queue  = $this->fake_queue( array( $this->cart_event( 23, array( 'newsletter_optin' => true ) ) ) );
 		$router = $this->recording_router();
 
-		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ), $this->no_discounts() ) )->flush();
 
 		self::assertCount( 1, $router->calls );
 		self::assertSame( array( 23 ), $queue->marked_sent );
@@ -448,7 +449,7 @@ final class CartFlusherTest extends TestCase {
 		$queue  = $this->fake_queue( array( $this->cart_event( 24 ) ) );
 		$router = $this->recording_router();
 
-		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_contact( '0' ) ) ) )->flush();
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_contact( '0' ) ), $this->no_discounts() ) )->flush();
 
 		self::assertCount( 1, $router->calls );
 	}
@@ -470,7 +471,7 @@ final class CartFlusherTest extends TestCase {
 		$queue  = $this->fake_queue( array( $this->cart_event( 25, array( 'user_id' => 42, 'newsletter_optin' => true ) ) ) );
 		$router = $this->recording_router();
 
-		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_contact( '1' ) ) ) )->flush();
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_contact( '1' ) ), $this->no_discounts() ) )->flush();
 
 		self::assertSame( array(), $router->calls );
 		self::assertSame( array( 25 => 'unsubscribed' ), $queue->marked_skipped );
@@ -482,7 +483,7 @@ final class CartFlusherTest extends TestCase {
 		$queue  = $this->fake_queue( array( $this->cart_event( 26 ) ) );
 		$router = $this->recording_router();
 
-		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ), $this->no_discounts() ) )->flush();
 
 		self::assertCount( 1, $router->calls );
 		self::assertSame( array( 26 ), $queue->marked_sent );
@@ -501,7 +502,7 @@ final class CartFlusherTest extends TestCase {
 			)
 		);
 
-		$stats = ( new CartFlusher( $queue, $router, static fn () => $client ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( array(), $router->calls );
 		self::assertSame( 1, $stats['retried'] );
@@ -520,7 +521,8 @@ final class CartFlusherTest extends TestCase {
 			static function ( string $account_key ) use ( &$accounts, $client ): Client {
 				$accounts[] = $account_key;
 				return $client;
-			}
+			},
+			$this->no_discounts()
 		) )->flush();
 
 		self::assertSame( array( 'default' ), $accounts );
@@ -557,7 +559,7 @@ final class CartFlusherTest extends TestCase {
 		$discounts = $this->createMock( AutomationDiscount::class );
 		$discounts->expects( self::once() )
 			->method( 'issue' )
-			->with( 'abandoned_cart', self::callback( static fn ( array $p ): bool => $p['email'] === 'buyer@example.test' ), $queue, 41 )
+			->with( 'abandoned_cart', self::callback( static fn ( array $p ): bool => $p['email'] === 'buyer@example.test' ) )
 			->willReturn(
 				array(
 					'fields' => array(
@@ -575,6 +577,7 @@ final class CartFlusherTest extends TestCase {
 		self::assertSame( 'P4XK9M2QRT', $router->posted[0]['abandoned_cart_coupon_code'] );
 		self::assertSame( '2026-10-30', $router->posted[0]['abandoned_cart_coupon_expires_at'] );
 		self::assertSame( 'true', $router->posted[0]['is_abandoned_cart'] );
+		self::assertSame( 'P4XK9M2QRT', $queue->payloads[41]['fields']['abandoned_cart_coupon_code'], 'The code is written into the row, so a retry posts it again.' );
 		self::assertSame( array( 41 ), $queue->marked_sent );
 	}
 
@@ -784,7 +787,19 @@ final class CartFlusherTest extends TestCase {
 			public function store_exchange( int $id, ?string $sent_payload, ?string $last_response ): void {
 				$this->exchanges[ $id ] = array( 'sent' => $sent_payload, 'response' => $last_response );
 			}
+
+			/** @var array<int, array<string, mixed>> */
+			public array $payloads = array();
+
+			public function update_payload( int $id, array $payload ): void {
+				$this->payloads[ $id ] = $payload;
+			}
 		};
+	}
+
+	/** Discount codes off: every row goes without one, and without a note. */
+	private function no_discounts(): AutomationDiscount {
+		return $this->discounts_issuing( array() );
 	}
 
 	private function recording_router(): AutomationRouter {

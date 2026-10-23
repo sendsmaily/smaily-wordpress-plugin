@@ -12,7 +12,7 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Privacy\AddressMatch;
-use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Support\NumberInput;
 
 /**
  * Gives each welcome, first-order and abandoned-cart email the shopper's own
@@ -38,11 +38,12 @@ use Smaily\Connect\Smaily\EventQueue;
  * the plugin made itself. Settings another plugin keeps in its own coupon
  * meta are not copied.
  *
- * Once per queue row: the code and its last day are written into the row's
- * payload before the post (EventQueue::update_payload()), so a retry posts
- * the same code and makes no second coupon. A template that cannot give a
- * code leaves the code out — the email still goes — and returns the reason,
- * which the flusher stores as the Event Log note. So does an address
+ * Once per queue row: issue() returns the code and its last day, and the
+ * flusher writes them into the row's payload before the post
+ * (Smaily\DiscountCodeIssuer), so a retry posts the same code and makes no
+ * second coupon. A template that cannot give a code leaves the code out —
+ * the email still goes — and returns the reason, which the flusher stores
+ * as the Event Log note. So does an address
  * WooCommerce would store otherwise (CON-214, restricts_to_exactly()): a
  * code is never restricted to an address other than the shopper's.
  *
@@ -129,11 +130,7 @@ class AutomationDiscount {
 			$row  = isset( $stored[ $trigger ] ) && is_array( $stored[ $trigger ] ) ? $stored[ $trigger ] : array();
 			$days = isset( $row['valid_days'] ) && is_numeric( $row['valid_days'] ) ? (int) $row['valid_days'] : self::VALID_DAYS_DEFAULT;
 
-			$settings[ $trigger ] = array(
-				'enabled'     => ! empty( $row['enabled'] ),
-				'template_id' => isset( $row['template_id'] ) && is_numeric( $row['template_id'] ) ? max( 0, (int) $row['template_id'] ) : 0,
-				'valid_days'  => max( self::VALID_DAYS_MIN, min( self::VALID_DAYS_MAX, $days ) ),
-			);
+			$settings[ $trigger ] = self::normalize_row( ! empty( $row['enabled'] ), $row['template_id'] ?? null, $days );
 		}
 
 		return $settings;
@@ -158,24 +155,40 @@ class AutomationDiscount {
 				continue;
 			}
 			$row  = $raw[ $trigger ];
-			$days = self::whole_days_or_null( $row['validDays'] ?? null );
+			$days = NumberInput::whole_number_in_range( $row['validDays'] ?? null, self::VALID_DAYS_MIN, self::VALID_DAYS_MAX );
 			if ( $days === null ) {
 				return null;
 			}
 
-			$settings[ $trigger ] = array(
-				'enabled'     => ! empty( $row['enabled'] ),
-				'template_id' => isset( $row['templateId'] ) && is_numeric( $row['templateId'] ) ? max( 0, (int) $row['templateId'] ) : 0,
-				'valid_days'  => $days,
-			);
+			$settings[ $trigger ] = self::normalize_row( ! empty( $row['enabled'] ), $row['templateId'] ?? null, $days );
 		}
 
 		return $settings;
 	}
 
 	/**
+	 * One automation's settings row: a template id that is not a number, or
+	 * is below 0, is none (0), and the days are clamped into range.
+	 *
+	 * @param mixed $template_id
+	 *
+	 * @return array{enabled: bool, template_id: int, valid_days: int}
+	 */
+	private static function normalize_row( bool $enabled, $template_id, int $days ): array {
+		return array(
+			'enabled'     => $enabled,
+			'template_id' => is_numeric( $template_id ) ? max( 0, (int) $template_id ) : 0,
+			'valid_days'  => max( self::VALID_DAYS_MIN, min( self::VALID_DAYS_MAX, $days ) ),
+		);
+	}
+
+	/**
 	 * The coupons a code can be cloned from, for the picker: id and a label
-	 * of code, discount type and amount, by code.
+	 * of code, discount type and amount, by code. The query already keeps
+	 * to template_problem()'s post type, status, plugin-made and discount
+	 * type rules, so only the expiry is left to check; the label is read
+	 * from the post and its meta (primed by the query) the way WC_Coupon
+	 * reads them, without loading a coupon object per post.
 	 *
 	 * @return array<int, array{id: int, label: string}>
 	 */
@@ -210,17 +223,16 @@ class AutomationDiscount {
 		$templates = array();
 		foreach ( $posts as $post ) {
 			$id = $post->ID;
-			if ( self::template_problem( $id ) !== '' ) {
+			if ( self::expired( $id ) ) {
 				continue;
 			}
-			$coupon      = new \WC_Coupon( $id );
 			$templates[] = array(
 				'id'    => $id,
 				'label' => sprintf(
 					'%1$s — %2$s: %3$s',
-					$coupon->get_code(),
-					wc_get_coupon_type( $coupon->get_discount_type() ),
-					wc_format_localized_decimal( $coupon->get_amount() )
+					wc_format_coupon_code( $post->post_title ),
+					wc_get_coupon_type( (string) get_post_meta( $id, 'discount_type', true ) ),
+					wc_format_localized_decimal( wc_format_decimal( get_post_meta( $id, 'coupon_amount', true ) ) )
 				),
 			);
 		}
@@ -248,12 +260,17 @@ class AutomationDiscount {
 		if ( ! in_array( (string) get_post_meta( $template_id, 'discount_type', true ), self::TEMPLATE_TYPES, true ) ) {
 			return sprintf( 'the WooCommerce coupon #%d has a discount type the plugin cannot copy', $template_id );
 		}
-		$expires = get_post_meta( $template_id, 'date_expires', true );
-		if ( is_numeric( $expires ) && (int) $expires > 0 && (int) $expires <= time() ) {
+		if ( self::expired( $template_id ) ) {
 			return sprintf( 'the WooCommerce coupon #%d has expired', $template_id );
 		}
 
 		return '';
+	}
+
+	/** Whether the coupon's stored expiry (`date_expires`) has passed. */
+	private static function expired( int $coupon_id ): bool {
+		$expires = get_post_meta( $coupon_id, 'date_expires', true );
+		return is_numeric( $expires ) && (int) $expires > 0 && (int) $expires <= time();
 	}
 
 	/**
@@ -261,14 +278,15 @@ class AutomationDiscount {
 	 *
 	 * Nothing when the automation's switch is off, or when the row already
 	 * carries its code (a retry — the fields are in its payload). Otherwise a
-	 * new code, written into the row's payload before it is returned; or no
-	 * code and the reason, when the template cannot give one.
+	 * new code, which the caller writes into the row's payload before the
+	 * post (DiscountCodeIssuer); or no code and the reason, when the
+	 * template cannot give one.
 	 *
 	 * @param array<string, mixed> $payload The row's decoded payload.
 	 *
 	 * @return array{fields: array<string, string>, note: string}
 	 */
-	public function issue( string $trigger, array $payload, EventQueue $queue, int $row_id ): array {
+	public function issue( string $trigger, array $payload ): array {
 		$none   = array(
 			'fields' => array(),
 			'note'   => '',
@@ -294,16 +312,11 @@ class AutomationDiscount {
 			);
 		}
 
-		$code_fields = array(
-			$names[0] => $code['code'],
-			$names[1] => $code['last_day'],
-		);
-
-		$payload['fields'] = array_merge( $fields, $code_fields );
-		$queue->update_payload( $row_id, $payload );
-
 		return array(
-			'fields' => $code_fields,
+			'fields' => array(
+				$names[0] => $code['code'],
+				$names[1] => $code['last_day'],
+			),
 			'note'   => '',
 		);
 	}
@@ -597,22 +610,5 @@ class AutomationDiscount {
 		} while ( wc_get_coupon_id_by_code( $code ) > 0 );
 
 		return $code;
-	}
-
-	/**
-	 * A whole number of days within VALID_DAYS_MIN..MAX, or null.
-	 *
-	 * @param mixed $days
-	 */
-	private static function whole_days_or_null( $days ): ?int {
-		if ( is_int( $days ) ) {
-			$value = $days;
-		} elseif ( is_string( $days ) && preg_match( '/^\d+$/', trim( $days ) ) === 1 ) {
-			$value = (int) trim( $days );
-		} else {
-			return null;
-		}
-
-		return $value >= self::VALID_DAYS_MIN && $value <= self::VALID_DAYS_MAX ? $value : null;
 	}
 }

@@ -70,7 +70,8 @@ final class FlusherTest extends TestCase {
 		$flusher = new Flusher(
 			$queue,
 			$this->automation_router_returning_true(),
-			static fn () => $client
+			static fn () => $client,
+			$this->no_discounts()
 		);
 
 		$stats = $flusher->flush();
@@ -111,7 +112,7 @@ final class FlusherTest extends TestCase {
 			}
 		);
 
-		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 'et', $captured['language'] ?? null );
 		self::assertSame( 1, $captured['is_unsubscribed'] ?? null );
@@ -139,7 +140,7 @@ final class FlusherTest extends TestCase {
 			)
 		);
 
-		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client );
+		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() );
 		$flusher->flush();
 
 		self::assertArrayHasKey( 7, $queue->exchanges );
@@ -160,7 +161,7 @@ final class FlusherTest extends TestCase {
 			)
 		);
 
-		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $this->createMock( Client::class ) );
+		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $this->createMock( Client::class ), $this->no_discounts() );
 		$flusher->flush();
 
 		self::assertNull( $queue->exchanges[9]['sent'] );
@@ -204,7 +205,7 @@ final class FlusherTest extends TestCase {
 			}
 		};
 
-		$flusher = new Flusher( $queue, $router, static fn () => null );
+		$flusher = new Flusher( $queue, $router, static fn () => null, $this->no_discounts() );
 		$flusher->flush();
 
 		self::assertCount( 1, $captured );
@@ -228,7 +229,7 @@ final class FlusherTest extends TestCase {
 		$client = $this->createMock( Client::class );
 		$client->expects( $this->never() )->method( 'upsert_subscribers' );
 
-		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client );
+		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() );
 		$stats   = $flusher->flush();
 
 		self::assertSame( 1, $stats['sent'], 'Missing email is terminal-skip → mark_sent.' );
@@ -246,7 +247,7 @@ final class FlusherTest extends TestCase {
 			)
 		);
 
-		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => null );
+		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => null, $this->no_discounts() );
 		$stats   = $flusher->flush();
 
 		self::assertSame( 0, $stats['sent'] );
@@ -266,7 +267,7 @@ final class FlusherTest extends TestCase {
 			)
 		);
 
-		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => null );
+		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => null, $this->no_discounts() );
 		$stats   = $flusher->flush();
 
 		self::assertSame( 1, $stats['failed'] );
@@ -288,7 +289,7 @@ final class FlusherTest extends TestCase {
 		$client->method( 'upsert_subscribers' )
 			->willThrowException( new ApiException( 'rate limited', 429 ) );
 
-		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client );
+		$flusher = new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() );
 		$stats   = $flusher->flush();
 
 		self::assertSame( 0, $stats['sent'] );
@@ -317,7 +318,7 @@ final class FlusherTest extends TestCase {
 		$client->method( 'upsert_subscribers' )
 			->willThrowException( new ApiException( 'Smaily API returned HTTP 401 for POST contact', 401 ) );
 
-		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( 0, $stats['retried'] );
@@ -333,7 +334,7 @@ final class FlusherTest extends TestCase {
 
 		$client = $this->client_answering( 203, 'Invalid data' );
 
-		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( 0, $stats['sent'] );
@@ -376,7 +377,7 @@ final class FlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new Flusher( $queue, $router, static fn () => null ) )->flush();
+		$stats = ( new Flusher( $queue, $router, static fn () => null, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->attempts );
@@ -391,7 +392,7 @@ final class FlusherTest extends TestCase {
 
 		$client = $this->client_answering( 204, 'Invalid email address provided' );
 
-		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->marked_sent );
@@ -406,7 +407,7 @@ final class FlusherTest extends TestCase {
 
 		$client = $this->client_answering( 225, 'Database insert failed' );
 
-		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['retried'] );
 		self::assertSame( array(), $queue->marked_sent );
@@ -431,7 +432,7 @@ final class FlusherTest extends TestCase {
 		$client->method( 'upsert_subscribers' )
 			->willThrowException( new ApiException( 'Smaily API returned HTTP 503 for POST contact', 503 ) );
 
-		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertStringContainsString( 'retry_limit_exceeded', $queue->marked_failed[0]['error'] );
@@ -467,7 +468,7 @@ final class FlusherTest extends TestCase {
 			}
 		};
 
-		$flusher = new Flusher( $queue, $router, static fn () => null );
+		$flusher = new Flusher( $queue, $router, static fn () => null, $this->no_discounts() );
 		$stats   = $flusher->flush();
 
 		self::assertSame( 1, $stats['sent'] );
@@ -536,9 +537,7 @@ final class FlusherTest extends TestCase {
 			->method( 'issue' )
 			->with(
 				'welcome',
-				self::callback( static fn ( array $payload ): bool => $payload['email'] === 'newbie@example.test' ),
-				$queue,
-				5
+				self::callback( static fn ( array $payload ): bool => $payload['email'] === 'newbie@example.test' )
 			)
 			->willReturn(
 				array(
@@ -555,6 +554,8 @@ final class FlusherTest extends TestCase {
 		self::assertSame( 'K7QM2XRT9P', $router->posted[0]['welcome_coupon_code'] );
 		self::assertSame( '2026-10-30', $router->posted[0]['welcome_coupon_expires_at'] );
 		self::assertSame( '2026-10-23 10:00:00', $router->posted[0]['welcome_automation_at'] );
+		self::assertSame( 'K7QM2XRT9P', $queue->payloads[5]['fields']['welcome_coupon_code'], 'The code is written into the row, so a retry posts it again.' );
+		self::assertSame( '2026-10-23 10:00:00', $queue->payloads[5]['fields']['welcome_automation_at'] );
 		self::assertSame( array( 5 ), $queue->marked_sent );
 		self::assertStringNotContainsString( '"note"', (string) $queue->exchanges[5]['response'] );
 	}
@@ -645,7 +646,7 @@ final class FlusherTest extends TestCase {
 			)
 			->willReturn( array( 'code' => 101 ) );
 
-		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertSame( array( 21 ), $queue->marked_sent );
@@ -658,7 +659,7 @@ final class FlusherTest extends TestCase {
 		// Smaily would create the contact as a subscriber.
 		$client->expects( self::never() )->method( 'upsert_subscribers' );
 
-		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( array( 22 ), $queue->marked_sent, 'A skip is terminal — never retried.' );
 		self::assertSame( array(), $queue->attempts );
@@ -680,7 +681,7 @@ final class FlusherTest extends TestCase {
 		);
 		$client->expects( self::never() )->method( 'upsert_subscribers' );
 
-		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['retried'] );
 		self::assertSame( array(), $queue->marked_sent );
@@ -703,7 +704,7 @@ final class FlusherTest extends TestCase {
 		$client->expects( self::never() )->method( 'has_contact' );
 		$client->expects( self::once() )->method( 'upsert_subscribers' )->willReturn( array() );
 
-		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client ) )->flush();
+		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( array( 24 ), $queue->marked_sent );
 	}
@@ -716,7 +717,7 @@ final class FlusherTest extends TestCase {
 		// another's rows.
 		$queue = $this->fake_queue( array() );
 
-		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => null ) )->flush();
+		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => null, $this->no_discounts() ) )->flush();
 
 		self::assertSame(
 			array(
@@ -773,7 +774,26 @@ final class FlusherTest extends TestCase {
 			public function store_exchange( int $id, ?string $sent_payload, ?string $last_response ): void {
 				$this->exchanges[ $id ] = array( 'sent' => $sent_payload, 'response' => $last_response );
 			}
+
+			/** @var array<int, array<string, mixed>> */
+			public array $payloads = array();
+
+			public function update_payload( int $id, array $payload ): void {
+				$this->payloads[ $id ] = $payload;
+			}
 		};
+	}
+
+	/** Discount codes off: every row goes without one, and without a note. */
+	private function no_discounts(): AutomationDiscount {
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->method( 'issue' )->willReturn(
+			array(
+				'fields' => array(),
+				'note'   => '',
+			)
+		);
+		return $discounts;
 	}
 
 	/**
