@@ -556,3 +556,68 @@ which the plugin's own earlier reminders set (M2). Static gates are clean, CI
 is green, the built ZIP verifies, and Plugin Check adds one false positive.
 **3.19.0 may proceed once M1 is fixed or accepted, M2 is accepted, and L1 and
 L6 are handled at the bump.**
+
+---
+
+## Disposition (2026-10-23)
+
+| # | Disposition |
+|---|---|
+| M1 (Medium) | **Fixed** in #265 (Refs CON-173): `Router::resolve_workflow()` uses the pushed workflow only when `Router::takes_pushed_workflow()` holds — the mapped row is on the `default` account and in the store's default language (the `language = 'default'` row, or the row whose language equals the active detector's `get_default_language()`; a Mode B fallback to that row counts). The `transactional` account (follow-up email, order and shipping confirmations), every Mode A language account and a Mode B row of another language keep the mapped workflow. Erkki's interim rule in DECISIONS "CON-173" replaces the Open item; revisit when the engine names a push's account and language (INT-146). Pinned in `RouterTest` and `EmailDesignsTest`. |
+| M2 (Medium) | **Accepted** by Erkki (2026-10-23): no behaviour change; DECISIONS "CON-196" addendum. The docs site ("Who gets an abandoned-cart reminder", EN + ET, #265) tells the merchant that earlier reminders added shoppers as subscribed contacts and names the fields that mark them (`is_abandoned_cart`, `abandoned_cart_automation_at`). |
+| L1 (Low) | **Fixed** in the 3.19.0 bump: `PluginCheck.Security.DirectDB.UnescapedDBParameter` is added to the file-level `phpcs:disable` list of `RetiredTables.php` (`:14`). The false positive is confirmed: `$suffix` iterates over the class constants `LEGACY_CART_TABLE` and `VISITOR_TABLE`, joined to `$wpdb->prefix`; `DROP TABLE` takes no placeholder. |
+| L2 (Low) | **Backlog** — `EmailDesignsEndpoint::allowed_return_url()`: refuse a URL with `\`, user info or a port. |
+| L3 (Low) | **Fixed** in #265: `EmailDesignWorkflows::remember()` keeps an id only for an item with `sent_through: "workflow"`. Pinned in `EmailDesignWorkflowsTest`. |
+| L4 (Low) | **Backlog** — `LegacyCartDrain::drain()`: fail on a tracker write error before migration 012 drops the source, and check that the tracker table exists before the drop. |
+| L5 (Low) | **Backlog** — "Last sent" (CON-170 follow-up): an `(event_type, status, created_at)` index, or no query for a trigger that is switched off. |
+| L6 (Low) | **Fixed** in the 3.19.0 bump: `readme.txt` states the reminder's consent rule in the description and the FAQ, lists the subscription-status read before a reminder under the Smaily Public API, names Edit design in the description and the Campaign Intelligence data list, and adds a `= 3.19.0 =` changelog entry and an upgrade notice that names the table removal and that it cannot be undone (no "Safe update"). `= 3.16.1 =` and `= 3.17.0 =` are dropped from Changelog and Upgrade Notice; the Changelog section is 3 798 characters including its heading. |
+| I1–I8 (Info) | Accepted as recorded above. The I2 liveness notice, the I5 `DATA_MODEL_GDPR.md` clause and the I7 `allowed_classes` change stay backlog candidates. |
+
+## Addendum: post-audit delta (`a165e70..01138dc`)
+
+After the audited state (`a165e70`), four PRs landed on `main` before the
+3.19.0 bump: **4 commits, 13 files, +947 / −81**; outside `docs/` and
+`tests/` 5 files, +69 / −33 (`STATUS.md`, the `blocks/` manifest and
+lockfile, two PHP files); shipped PHP 2 files, +41 / −7; no shipped
+TypeScript.
+
+- **#262** — `STATUS.md` only.
+- **#263 CON-56** — `blocks/package.json` override `markdown-it ^14.3.3`;
+  the `blocks/` lockfile moves `markdown-it` 14.3.2 → 14.3.3 and
+  `launch-editor` 2.14.1 → 2.14.2 (with `shell-quote ^1.10.0`). Build tools
+  only; nothing in the ZIP comes from them.
+- **#264** — this report and its `INDEX.md` row.
+- **#265 (Refs CON-173, CON-196)** — the M1 and L3 fixes and the M2 docs
+  (see Disposition), plus DECISIONS entries.
+
+**Security look at #265** (`Multilingual\Router`, `Settings\EmailDesignWorkflows`):
+
+- **Trust input narrowed, not widened.** The pushed id is used on fewer
+  paths than in the audited state, never on more: every new branch in
+  `takes_pushed_workflow()` returns the mapped match. The id is still the
+  positive integer `remember()` normalised, and an email with no mapped
+  workflow is still not sent (the check runs after the mapped match is
+  resolved).
+- **Fail-closed on the language check.** A mapped row with a `null`
+  language, an empty detector default or a default that does not equal the
+  row's language keeps the mapped workflow. The detector default is read
+  from the multilingual plugin's settings (WPML filter, Polylang,
+  TranslatePress option, site locale) — not from the request, so a shopper
+  cannot steer it, and it gives the same answer in a cron run as in a web
+  request.
+- **Transactional account.** `resolve_transactional()` can return the
+  `language = 'default'` row; the account check runs first, so the
+  `transactional` account never takes a pushed id.
+- **Stored data.** `smly_rec_email_workflows` now holds fewer entries (only
+  `sent_through: "workflow"`); same option, same autoload, same clearing on
+  Disconnect and a new connection. No new SQL: the router's two
+  `prepare()`d mapping reads are unchanged. No REST route, capability or
+  nonce changed.
+- **Docs site.** The new EN + ET paragraphs name contact field names and
+  describe behaviour; no secret, URL or personal data.
+- **#263.** Version-range moves of two dev-only packages inside `blocks/`;
+  no shipped file changes; the 3.19.0 release gate (`INDEX.md`) verifies the
+  four block builds in the ZIP.
+
+**Findings: none.** The addendum adds no Medium or Low finding. With M1
+fixed, M2 accepted and L1, L3 and L6 fixed, **3.19.0 may proceed.**
