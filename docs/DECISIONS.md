@@ -8928,6 +8928,25 @@ the codes and the eraser deletes or anonymises them.
 (`AutomationMarker`, the sibling contact fields); CON-196 (the gate that runs
 first); F3-44 (the exchange note); PRO-4095 (the day-count validation shape).
 
+**Addendum CON-214 (2026-10-23) — a code only for exactly the shopper's
+address.** WooCommerce cannot hold or match a non-ASCII address:
+`WC_Coupon::set_email_restrictions()` runs every allowed email through
+`sanitize_email()`, which drops non-ASCII letters (`jäne@example.test` →
+`jne@example.test`, someone else's address) and can leave nothing (an empty
+list = no restriction), and `WC_Discounts::validate_coupon_allowed_emails()`
+sanitises the buyer's addresses the same way (WooCommerce 10.7). Its checkout
+and `set_billing_email()` refuse such an address through `is_email()`, so a
+code restricted to the exact non-ASCII address could never be used either. So
+`create()` checks what WooCommerce stored before the save
+(`AutomationDiscount::restricts_to_exactly()`): the allowed emails must be
+exactly the lowercased address, alone, with no `*` (WooCommerce reads `*` as
+a wildcard). Otherwise no code is made, the email goes without one, and the
+note reads "Sent without a discount code: WooCommerce cannot restrict a code
+to exactly this email address." The guard is generic — any rewrite of the
+address stops the code, not only a non-ASCII one. CON-213's erasure needs no
+change: every code that now exists holds the address in the form the eraser
+matches.
+
 ### CON-213 — The personal-data export and erasure cover the plugin's discount codes (2026-10-23)
 
 **Context:** CON-199 makes one WooCommerce coupon per discount code sent, its
