@@ -20,8 +20,10 @@ defined( 'ABSPATH' ) || exit;
  * The list is read when the email settings open and when the store returns
  * from the design page — never before a send. This class keeps the ids of
  * the last read, and the send paths read only this copy
- * (Multilingual\Router). The template id is not used: how the plugin sends
- * with an engine template is an open question to the engine (INT-146).
+ * (Multilingual\Router). The template id is not used (contract v1.18.0 makes
+ * it informational). v1.18.0 also gives a transactional email a workflow id
+ * and names the account of every id (`smaily_subdomain`, not served yet);
+ * the plugin does not read either yet (INT-146).
  */
 final class EmailDesignWorkflows {
 
@@ -50,8 +52,9 @@ final class EmailDesignWorkflows {
 	/**
 	 * Keep the workflow ids of one §23 read, replacing those of the last one:
 	 * an email whose id is now empty goes back to its mapped workflow. Only
-	 * an email with `sent_through: "workflow"` has a workflow id (§23); an id
-	 * on any other item is not kept (audit 3.19.0 L3).
+	 * an email with `sent_through: "workflow"` is kept; an id on any other
+	 * item is not (audit 3.19.0 L3; a transactional id, which contract
+	 * v1.18.0 adds, waits for the account check — INT-146).
 	 *
 	 * @param array<int|string, mixed> $emails The §23 `emails` list.
 	 */
