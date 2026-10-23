@@ -13,6 +13,9 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Bootstrap;
+use Smaily\Connect\Multilingual\DetectorFactory;
+use Smaily\Connect\Multilingual\DetectorInterface;
+use Smaily\Connect\Multilingual\Router;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
@@ -28,9 +31,12 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *     the store's site host (the engine answers 422 otherwise).
  *   - The design read-back: the list reaches the admin, and the Smaily
  *     workflow ids in it are stored for the send paths.
- *   - Send time: every plugin email starts with the workflow id the last read
- *     returned, and with the mapped workflow while that id is empty. A send
- *     never asks the engine.
+ *   - Send time: an email mapped to the default Smaily account in the store
+ *     default language starts with the workflow id the last read returned,
+ *     and with the mapped workflow while that id is empty. The transactional
+ *     account, a Mode A language account and a Mode B language other than
+ *     the default keep the mapped workflow (audit 3.19.0 M1). A send never
+ *     asks the engine.
  *   - No connection, a refused account or an engine without the routes: the
  *     routes answer an error (the admin shows no button) and the stored ids
  *     stay as they were.
@@ -67,6 +73,8 @@ final class EmailDesignsTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		delete_option( Router::OPTION_MODE );
+		DetectorFactory::reset();
 		if ( $this->site_url_filter !== null ) {
 			remove_filter( 'site_url', $this->site_url_filter );
 			$this->site_url_filter = null;
@@ -104,25 +112,24 @@ final class EmailDesignsTest extends TestCase {
 		self::assertStringNotContainsString( 'sk_', $serialised );
 	}
 
-	public function test_every_plugin_email_starts_with_the_pushed_workflow_and_with_the_mapped_one_while_it_is_empty(): void {
+	public function test_the_default_account_emails_start_with_the_pushed_workflow_and_the_others_keep_the_mapped_one(): void {
 		$this->connect( 'tok_designs_override' );
 		$this->map_every_trigger();
-
-		$pushed = array();
-		$id     = 9001;
-		foreach ( self::EMAIL_KEYS as $trigger => $email_key ) {
-			$pushed[ $trigger ] = $id;
-			self::$engine->set_email_design( $email_key, $this->pushed( (string) $id ) );
-			++$id;
-		}
+		$pushed = $this->push_every_email();
 		self::assertSame( 200, RestRequestHelper::get( '/rec-engine/emails/designs' )->get_status() );
 
 		$resolver = Bootstrap::instance()->workflow_resolver();
-		foreach ( $pushed as $trigger => $workflow_id ) {
+		foreach ( array( 'welcome', 'first_order', 'abandoned_cart' ) as $trigger ) {
 			$match = $resolver->resolve_workflow( $trigger, null );
 			self::assertNotNull( $match );
-			self::assertSame( $workflow_id, $match->workflow_id, "{$trigger} starts with the workflow the engine pushed." );
-			self::assertSame( $this->account_of( $trigger ), $match->account_key, 'The account stays the mapped one.' );
+			self::assertSame( $pushed[ $trigger ], $match->workflow_id, "{$trigger} starts with the workflow the engine pushed." );
+			self::assertSame( 'default', $match->account_key, 'The account stays the mapped one.' );
+		}
+		foreach ( array( 'follow_up', 'order_confirmation', 'shipping_confirmation' ) as $trigger ) {
+			$match = $resolver->resolve_workflow( $trigger, null );
+			self::assertNotNull( $match );
+			self::assertSame( self::MAPPED_WORKFLOW, $match->workflow_id, "{$trigger} is on the transactional account: the mapped workflow." );
+			self::assertSame( 'transactional', $match->account_key );
 		}
 
 		// The engine's next answer has no workflow for the welcome email (a
@@ -131,6 +138,40 @@ final class EmailDesignsTest extends TestCase {
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
 		self::assertSame( self::MAPPED_WORKFLOW, $resolver->resolve_workflow( 'welcome', null )->workflow_id );
 		self::assertSame( $pushed['first_order'], $resolver->resolve_workflow( 'first_order', null )->workflow_id );
+	}
+
+	public function test_a_mode_a_language_account_keeps_the_mapped_workflow(): void {
+		$this->connect( 'tok_designs_mode_a' );
+		update_option( Router::OPTION_MODE, Router::MODE_A );
+		list( $default, $other ) = $this->two_language_store();
+		$this->map( 'welcome', $default, 'default', 4301 );
+		$this->map( 'welcome', $other, 'account_' . $other, 4302 );
+		$pushed = $this->push_every_email();
+		RestRequestHelper::get( '/rec-engine/emails/designs' );
+
+		$resolver = Bootstrap::instance()->workflow_resolver();
+		self::assertSame( $pushed['welcome'], $resolver->resolve_workflow( 'welcome', $default )->workflow_id, 'The default account in the store default language.' );
+		$match = $resolver->resolve_workflow( 'welcome', $other );
+		self::assertSame( 4302, $match->workflow_id, 'A language account starts its own mapped workflow.' );
+		self::assertSame( 'account_' . $other, $match->account_key );
+	}
+
+	public function test_a_mode_b_language_other_than_the_store_default_keeps_the_mapped_workflow(): void {
+		$this->connect( 'tok_designs_mode_b' );
+		update_option( Router::OPTION_MODE, Router::MODE_B );
+		list( $default, $other ) = $this->two_language_store();
+		foreach ( array( 'welcome', 'first_order', 'abandoned_cart' ) as $trigger ) {
+			$this->map( $trigger, $default, 'default', 4401 );
+			$this->map( $trigger, $other, 'default', 4402 );
+		}
+		$pushed = $this->push_every_email();
+		RestRequestHelper::get( '/rec-engine/emails/designs' );
+
+		$resolver = Bootstrap::instance()->workflow_resolver();
+		foreach ( array( 'welcome', 'first_order', 'abandoned_cart' ) as $trigger ) {
+			self::assertSame( $pushed[ $trigger ], $resolver->resolve_workflow( $trigger, $default )->workflow_id, "{$trigger} in the store default language." );
+			self::assertSame( 4402, $resolver->resolve_workflow( $trigger, $other )->workflow_id, "{$trigger} in {$other} keeps its own workflow." );
+		}
 	}
 
 	public function test_the_first_order_email_reaches_smaily_with_the_pushed_workflow(): void {
@@ -322,19 +363,57 @@ final class EmailDesignsTest extends TestCase {
 
 	/** Map every plugin email to MAPPED_WORKFLOW, as the settings screen does. */
 	private function map_every_trigger(): void {
-		global $wpdb;
 		foreach ( array_keys( self::EMAIL_KEYS ) as $trigger ) {
-			$wpdb->insert(
-				$wpdb->prefix . 'smly_plus_automation_mapping',
-				array(
-					'trigger_type'        => $trigger,
-					'language'            => 'default',
-					'account_key'         => $this->account_of( $trigger ),
-					'workflow_id'         => (string) self::MAPPED_WORKFLOW,
-					'is_default_fallback' => 1,
-				)
-			);
+			$this->map( $trigger, 'default', $this->account_of( $trigger ), self::MAPPED_WORKFLOW, 1 );
 		}
+	}
+
+	private function map( string $trigger, string $language, string $account_key, int $workflow_id, int $is_default_fallback = 0 ): void {
+		global $wpdb;
+		$wpdb->insert(
+			$wpdb->prefix . 'smly_plus_automation_mapping',
+			array(
+				'trigger_type'        => $trigger,
+				'language'            => $language,
+				'account_key'         => $account_key,
+				'workflow_id'         => (string) $workflow_id,
+				'is_default_fallback' => $is_default_fallback,
+			)
+		);
+	}
+
+	/**
+	 * Stands in for a multilingual plugin: an `et` store that also sells in
+	 * `lt`. tearDown() puts the real detector back.
+	 *
+	 * @return array{0: string, 1: string} the default language, another language
+	 */
+	private function two_language_store(): array {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_default_language' )->willReturn( 'et' );
+		$detector->method( 'get_detected_languages' )->willReturn( array( 'et', 'lt' ) );
+		$cached = new \ReflectionProperty( DetectorFactory::class, 'cached' );
+		$cached->setAccessible( true );
+		$cached->setValue( null, $detector );
+
+		return array( 'et', 'lt' );
+	}
+
+	/**
+	 * Push a design of every plugin email, each with its own workflow id.
+	 *
+	 * @return array<string, int> trigger => pushed workflow id
+	 */
+	private function push_every_email(): array {
+		$pushed = array();
+		$id     = 9001;
+		foreach ( self::EMAIL_KEYS as $trigger => $email_key ) {
+			$pushed[ $trigger ] = $id;
+			self::$engine->set_email_design( $email_key, $this->pushed( (string) $id ) );
+			++$id;
+		}
+
+		return $pushed;
 	}
 
 	private function account_of( string $trigger ): string {
