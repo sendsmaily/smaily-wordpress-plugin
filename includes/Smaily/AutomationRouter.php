@@ -93,11 +93,18 @@ class AutomationRouter {
 	 *                                                row alongside contact_data
 	 *                                                (e.g. order context for
 	 *                                                first_order).
+	 * @param (callable(): array<string, string>)|null $before_send Runs once a
+	 *                                                workflow is found, just
+	 *                                                before the post; its fields
+	 *                                                join the address row (the
+	 *                                                discount code, CON-199). A
+	 *                                                skipped send never runs it.
 	 */
 	public function trigger_automation(
 		string $trigger_type,
 		array $contact_data,
-		array $additional_fields = array()
+		array $additional_fields = array(),
+		?callable $before_send = null
 	): bool {
 		// Reset so last_exchange() reflects THIS call — null if it short-circuits
 		// before any HTTP request (no email / no workflow mapped) — F3-44.
@@ -113,6 +120,10 @@ class AutomationRouter {
 		$match = $this->resolver->resolve_workflow( $trigger_type, $language );
 		if ( $match === null ) {
 			return false;
+		}
+
+		if ( $before_send !== null ) {
+			$additional_fields = array_merge( $additional_fields, $before_send() );
 		}
 
 		$address = array_merge(

@@ -99,3 +99,32 @@ describe('hydrateState — the confirmation cards\' send status (PRO-4091)', () 
     expect(hydrateState(boot(['first_name']), true).transactionalStatus).toEqual({});
   });
 });
+
+describe('hydrateState — the automations\' discount codes (CON-199)', () => {
+  it('carries the saved settings, the usable coupons and the add-coupon link', () => {
+    const payload = boot(['first_name']);
+    payload.envSnapshot.discountTemplates = [{ id: 12, label: 'WELCOME15 — Percentage discount: 15' }];
+    payload.envSnapshot.discountValidDays = { min: 1, max: 365, default: 7 };
+    payload.envSnapshot.newCouponUrl = 'https://shop.example.test/wp-admin/post-new.php?post_type=shop_coupon';
+    payload.savedSettings.automationDiscounts = {
+      welcome: { enabled: true, templateId: 12, validDays: 14 },
+      first_order: { enabled: false, templateId: 0, validDays: 7 },
+      abandoned_cart: { enabled: true, templateId: 0, validDays: 3 },
+    };
+
+    const s = hydrateState(payload, true);
+
+    expect(s.automationDiscounts.welcome).toEqual({ enabled: true, templateId: 12, validDays: 14 });
+    expect(s.automationDiscounts.abandoned_cart).toEqual({ enabled: true, templateId: 0, validDays: 3 });
+    expect(s.env.discountTemplates).toEqual([{ id: 12, label: 'WELCOME15 — Percentage discount: 15' }]);
+    expect(s.env.newCouponUrl).toBe('https://shop.example.test/wp-admin/post-new.php?post_type=shop_coupon');
+  });
+
+  it('reads absent settings as off with seven days', () => {
+    expect(hydrateState(boot(['first_name']), true).automationDiscounts.first_order).toEqual({
+      enabled: false,
+      templateId: 0,
+      validDays: 7,
+    });
+  });
+});

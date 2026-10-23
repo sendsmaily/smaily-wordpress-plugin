@@ -3139,3 +3139,65 @@ msgstr ""
 #: admin/src/components/steps/EmailDesigns.tsx:156
 msgid "Design check failed — open the design to fix it"
 msgstr ""
+
+#. translators: 1: the shortest validity in days, 2: the longest.
+#: includes/REST/SettingsEndpoint.php:374
+#, php-format
+msgid "A discount code must be valid for a whole number of days from %1$d to %2$d."
+msgstr ""
+
+#. translators: %s: the code of the coupon the discount code was copied from.
+#: includes/Integrations/WooCommerce/AutomationDiscount.php:414
+#, php-format
+msgid "A single-use code Smaily Connect made from the coupon %s for one shopper."
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:43
+msgid "cannot be used"
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:53
+msgid "Send a discount code"
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:56
+msgid "Each email gets the shopper’s own code, cloned from a WooCommerce coupon: usable once, only with the shopper’s email address, until the end of its last valid day."
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:61
+msgid "Create the discount in WooCommerce first"
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:62
+msgid "Each code is a copy of one of your WooCommerce coupons. In WooCommerce, go to Marketing > Coupons > Add coupon, set the discount — Percentage, Fixed cart or Fixed product, and any usage restrictions — and publish it. Then reload this page: the coupon appears in the list."
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:67
+msgid "Add a coupon in WooCommerce"
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:76
+msgid "Discount (WooCommerce coupon)"
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:81
+msgid "— pick a coupon —"
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:87
+msgid "The list shows your published coupons of WooCommerce’s own discount types that have not expired. Each code copies the coupon’s discount and its restrictions."
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:92
+msgid "Pick a coupon, or switch the discount code off. Until then the email goes without a code."
+msgstr ""
+
+#: admin/src/components/steps/DiscountCodeSetting.tsx:98
+msgid "Valid for (days)"
+msgstr ""
+
+#. translators: 1: the shortest validity in days, 2: the longest.
+#: admin/src/components/steps/DiscountCodeSetting.tsx:112
+#, js-format
+msgid "From %1$d to %2$d days. The code works until the end of that day in the store’s timezone, and never after the coupon’s own expiry date."
+msgstr ""

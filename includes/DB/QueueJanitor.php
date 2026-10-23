@@ -11,6 +11,7 @@ namespace Smaily\Connect\DB;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 
@@ -34,7 +35,9 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
  * 006) keeps the cutoff scan cheap on both tables.
  *
  * The same tick also prunes the plugin's OWN finished Action Scheduler rows
- * (PRO-2438) — see `prune_scheduler_history()`.
+ * (PRO-2438) — see `prune_scheduler_history()` — and deletes the discount
+ * codes the automations made that were never used, 30 days after they
+ * expired (CON-199, AutomationDiscount::delete_expired_unused()).
  */
 class QueueJanitor {
 
@@ -79,6 +82,7 @@ class QueueJanitor {
 	public function on_tick(): void {
 		$this->run();
 		$this->prune_scheduler_history();
+		( new AutomationDiscount() )->delete_expired_unused();
 	}
 
 	/**

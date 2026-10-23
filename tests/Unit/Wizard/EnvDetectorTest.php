@@ -336,6 +336,62 @@ final class EnvDetectorTest extends TestCase {
 		self::assertSame( array(), $snapshot['orderStatuses'] );
 	}
 
+	public function test_saved_settings_carries_each_automations_discount_code_settings(): void {
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = false ) {
+				return $key === 'smly_plus_automation_discounts'
+					? array(
+						'welcome' => array(
+							'enabled'     => true,
+							'template_id' => 12,
+							'valid_days'  => 14,
+						),
+					)
+					: $default;
+			}
+		);
+
+		$saved = ( new EnvDetector() )->saved_settings();
+
+		self::assertSame(
+			array(
+				'welcome'        => array(
+					'enabled'    => true,
+					'templateId' => 12,
+					'validDays'  => 14,
+				),
+				'first_order'    => array(
+					'enabled'    => false,
+					'templateId' => 0,
+					'validDays'  => 7,
+				),
+				'abandoned_cart' => array(
+					'enabled'    => false,
+					'templateId' => 0,
+					'validDays'  => 7,
+				),
+			),
+			$saved['automationDiscounts']
+		);
+	}
+
+	public function test_snapshot_carries_the_discount_code_bounds_and_no_coupons_without_woocommerce(): void {
+		Functions\when( 'get_locale' )->justReturn( 'et_EE' );
+
+		$snapshot = ( new EnvDetector() )->snapshot();
+
+		self::assertSame(
+			array(
+				'min'     => 1,
+				'max'     => 365,
+				'default' => 7,
+			),
+			$snapshot['discountValidDays']
+		);
+		self::assertSame( array(), $snapshot['discountTemplates'] );
+		self::assertSame( '', $snapshot['newCouponUrl'] );
+	}
+
 	public function test_saved_settings_carries_transactional_defaults_when_options_absent(): void {
 		$saved = ( new EnvDetector() )->saved_settings();
 

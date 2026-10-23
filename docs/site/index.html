@@ -744,6 +744,21 @@ td code{white-space:nowrap}
         <p>Use it as the <strong>exit condition</strong> on every follow‑up step of your abandoned‑cart workflow: continue only while <code>abandoned_cart_purchased_at</code> is <strong>earlier than</strong> <code>abandoned_cart_automation_at</code> (or empty) — the shopper has bought when the purchase time is the later of the two. Both checkouts (classic and block) and both guests and logged‑in shoppers are covered, and the purchase counts as soon as the order is placed, without waiting for payment status.</p>
         <p>It is written <strong>only</strong> for a shopper the plugin actually sent a reminder to — an ordinary purchase writes nothing and creates no contact — and only when Smaily already has that shopper as a contact: the field never creates one. When Smaily doesn't have them, nothing is sent, and the Details of the row in the Event Log show it as skipped, with the reason. The reminder's cart and product fields are left exactly as the reminder wrote them. If the shopper buys before the reminder has gone out, the reminder is dropped instead: the Event Log row shows it as cancelled.</p>
       </div>
+      <div class="note">
+        <span class="k">Give each shopper a single‑use discount code</span>
+        <p>Each of the three cards has a <strong>Send a discount code</strong> switch. With it on, every email of that automation carries the shopper's own discount code. The discount itself is one of your WooCommerce coupons — the plugin copies it into a new code for each shopper. Set it up like this:</p>
+        <ol>
+          <li>In WooCommerce, open <span class="path">Marketing → Coupons</span> and press <strong>Add coupon</strong>. Set the discount type (<strong>Percentage discount</strong>, <strong>Fixed cart discount</strong> or <strong>Fixed product discount</strong>), the amount and any restrictions — minimum or maximum spend, products, categories, sale items, free shipping — and publish it. Its own code is never sent: shoppers get copies.</li>
+          <li>Reload this tab. On the automation's card, switch on <strong>Send a discount code</strong>, pick the coupon under <strong>Discount (WooCommerce coupon)</strong> and set <strong>Valid for (days)</strong> (1–365, 7 by default). The list shows your published coupons of WooCommerce's own discount types that have not expired. With none, the card says how to create one and links to WooCommerce's add‑coupon screen.</li>
+          <li>Save, and put the code and its last day into the workflow's email — see <a href="#set-merge-tags">Merge tags</a>.</li>
+        </ol>
+        <ul>
+          <li>Each code copies the coupon's discount and restrictions. It works <strong>once</strong>, only with the shopper's email address, until the end of its last valid day: that many days after the email, in your store's timezone (<span class="path">Settings → General → Timezone</span>), and never after the coupon's own expiry date. After that day, once it was used, or with another email address, WooCommerce itself refuses the code.</li>
+          <li>The code is made when the email is sent. A send that is retried gets the same code. A reminder that is skipped (see above), or an automation with no workflow, makes none.</li>
+          <li>If the coupon can't give a code when the email goes — deleted, in the trash, expired, or of another plugin's discount type — the email goes without a code, and the row's <strong>Details</strong> in the Event Log say why.</li>
+          <li>The codes are ordinary WooCommerce coupons with a random 10‑character code, listed under <span class="path">Marketing → Coupons</span>. Once a day the plugin deletes the codes it made that were never used, 30 days after they expired. A used code stays.</li>
+        </ul>
+      </div>
       <h3>Engine‑run recommendation automations</h3>
       <p>These are triggered by Campaign Intelligence, not by a store event — the engine enrols each contact into the Smaily workflow you pick at the moment it predicts (a replenishment running out, a customer at risk of churning). Per automation you set:</p>
       <ul>
@@ -809,6 +824,21 @@ td code{white-space:nowrap}
         </ul>
         <p>Kasuta seda pooleli jäänud korvi töövoo iga meeldetuletuse <strong>väljumistingimusena</strong>: jätka ainult siis, kui <code>abandoned_cart_purchased_at</code> on <strong>varasem kui</strong> <code>abandoned_cart_automation_at</code> (või tühi) — ostleja on ostnud siis, kui ostu aeg on neist kahest hilisem. Kaetud on mõlemad kassad (klassikaline ja plokk‑kassa) ning nii külalised kui sisse logitud ostlejad, ja ost loeb kohe tellimuse vormistamisel, ootamata makse staatust.</p>
         <p>See kirjutatakse <strong>ainult</strong> sellele ostlejale, kellele plugin päriselt meeldetuletuse saatis — tavaline ost ei kirjuta midagi ega loo kontakti — ja ainult siis, kui see ostleja on Smailys juba kontakt: väli ei loo kunagi kontakti. Kui Smailys teda pole, ei saadeta midagi ja sündmuste logi rea üksikasjad näitavad seda vahele jäetuna koos põhjusega. Meeldetuletuse korvi‑ ja tooteväljad jäävad täpselt sellisteks, nagu meeldetuletus need kirjutas. Kui ostleja ostab enne, kui meeldetuletus on välja läinud, jäetakse meeldetuletus hoopis ära: sündmuste logi rida näitab seda tühistatuna.</p>
+      </div>
+      <div class="note">
+        <span class="k">Anna igale ostlejale ühekordne sooduskood</span>
+        <p>Igal kolmel kaardil on lüliti <strong>Send a discount code</strong> („Saada sooduskood“). Kui see on sees, kannab selle automaatika iga e‑kiri ostleja enda sooduskoodi. Soodustus ise on üks su WooCommerce'i kupongidest — plugin kopeerib selle igale ostlejale uueks koodiks. Seadista see nii:</p>
+        <ol>
+          <li>Ava WooCommerce'is <span class="path">Turundus → Kupongid</span> (Marketing → Coupons) ja vajuta <strong>Lisa kupong</strong> (Add coupon). Määra allahindluse tüüp (protsentuaalne, fikseeritud summa ostukorvilt või fikseeritud summa tootelt), summa ja soovi korral piirangud — minimaalne või maksimaalne summa, tooted, kategooriad, soodushinnaga tooted, tasuta tarne — ning avalda kupong. Kupongi enda koodi ei saadeta kunagi: ostlejad saavad selle koopiad.</li>
+          <li>Laadi see vahekaart uuesti. Lülita automaatika kaardil sisse <strong>Send a discount code</strong>, vali kupong väljal <strong>Discount (WooCommerce coupon)</strong> („Soodustus (WooCommerce'i kupong)“) ja määra <strong>Valid for (days)</strong> („Kehtib (päeva)“) — 1–365, vaikimisi 7. Loendis on su avaldatud ja aegumata kupongid WooCommerce'i enda allahindlustüüpidega. Kui ühtegi pole, ütleb kaart, kuidas see luua, ja viitab WooCommerce'i kupongi lisamise lehele.</li>
+          <li>Salvesta ja lisa kood ning selle viimane päev töövoo e‑kirja — vt <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</li>
+        </ol>
+        <ul>
+          <li>Iga kood kopeerib kupongi soodustuse ja piirangud. See kehtib <strong>üks kord</strong>, ainult ostleja e‑posti aadressiga, kuni oma viimase kehtivuspäeva lõpuni: nii mitu päeva pärast e‑kirja, su poe ajavööndis (<span class="path">Seaded → Üldine → Ajavöönd</span>), ja mitte kunagi pärast kupongi enda aegumiskuupäeva. Pärast seda päeva, pärast kasutamist või teise e‑posti aadressiga keeldub koodist WooCommerce ise.</li>
+          <li>Kood luuakse e‑kirja saatmisel. Uuesti proovitud saatmine saab sama koodi. Vahele jäetud meeldetuletus (vt eespool) või töövoota automaatika koodi ei loo.</li>
+          <li>Kui kupong ei saa kirja saatmise ajal koodi anda — kustutatud, prügikastis, aegunud või mõne teise plugina allahindlustüübiga —, läheb e‑kiri ilma koodita ja sündmuste logi rea <strong>Details</strong> ütleb, miks.</li>
+          <li>Koodid on tavalised WooCommerce'i kupongid juhusliku 10‑märgilise koodiga ja on näha jaotises <span class="path">Turundus → Kupongid</span>. Kord päevas kustutab plugin enda loodud koodid, mida pole kunagi kasutatud, 30 päeva pärast nende aegumist. Kasutatud kood jääb alles.</li>
+        </ul>
       </div>
       <h3>Mootori‑käivitatavad soovitus‑automaatikad</h3>
       <p>Neid käivitab Campaign Intelligence, mitte poe sündmus — mootor lisab iga kontakti sinu valitud Smaily töövoogu hetkel, mil ta ennustab (varu saab otsa, klient ohus lahkuda). Automaatika kohta sead:</p>
@@ -932,6 +962,8 @@ td code{white-space:nowrap}
             <tr><td><code>store</code></td><td>Your store's address (site URL).</td></tr>
             <tr><td><code>first_name</code>, <code>last_name</code>, <code>nickname</code>, <code>user_phone</code>, <code>user_gender</code>, <code>birthday</code>, <code>customer_id</code>, <code>customer_group</code>, <code>first_registered</code>, <code>site_title</code></td><td>Only the fields ticked under <a href="#set-subscribers">Contacts → Fields to sync</a>, and only when the customer has a value.</td></tr>
             <tr><td><code>welcome_automation_at</code></td><td>When this trigger fired (UTC, <code>2026-08-04 14:30:00</code>).</td></tr>
+            <tr><td><code>welcome_coupon_code</code></td><td>The shopper's single‑use discount code, when <a href="#set-automations">Send a discount code</a> is on and a code was made. Left out otherwise, so the code an earlier email gave stays on the contact.</td></tr>
+            <tr><td><code>welcome_coupon_expires_at</code></td><td>That code's last valid day, <code>YYYY-MM-DD</code> in your store's timezone (not UTC): the code works until the end of that day.</td></tr>
           </tbody>
         </table>
       </div>
@@ -944,6 +976,8 @@ td code{white-space:nowrap}
             <tr><td><code>order_total</code></td><td>Order total as a plain number, tax included (<code>24.90</code>).</td></tr>
             <tr><td><code>order_currency</code></td><td>Currency code (<code>EUR</code>).</td></tr>
             <tr><td><code>first_order_automation_at</code></td><td>When this trigger fired (UTC).</td></tr>
+            <tr><td><code>first_order_coupon_code</code></td><td>The shopper's single‑use discount code, when <a href="#set-automations">Send a discount code</a> is on and a code was made. Left out otherwise, so the code an earlier email gave stays on the contact.</td></tr>
+            <tr><td><code>first_order_coupon_expires_at</code></td><td>That code's last valid day, <code>YYYY-MM-DD</code> in your store's timezone (not UTC): the code works until the end of that day.</td></tr>
           </tbody>
         </table>
       </div>
@@ -957,6 +991,8 @@ td code{white-space:nowrap}
             <tr><td><code>language</code></td><td>The shopper's language code (<code>et</code>, <code>en</code>…), when resolved.</td></tr>
             <tr><td><code>is_abandoned_cart</code></td><td>Always <code>true</code>.</td></tr>
             <tr><td><code>abandoned_cart_automation_at</code></td><td>When this trigger fired (UTC).</td></tr>
+            <tr><td><code>abandoned_cart_coupon_code</code></td><td>The shopper's single‑use discount code, when <a href="#set-automations">Send a discount code</a> is on and a code was made. Left out otherwise, so the code an earlier email gave stays on the contact.</td></tr>
+            <tr><td><code>abandoned_cart_coupon_expires_at</code></td><td>That code's last valid day, <code>YYYY-MM-DD</code> in your store's timezone (not UTC): the code works until the end of that day.</td></tr>
             <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>One set per cart product, <code>N</code> = 1…10. Unused slots are sent empty.</td></tr>
             <tr><td><code>product_price_N</code></td><td>The product's current price, formatted with currency (the sale price while on sale).</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>The product's regular price, formatted with currency.</td></tr>
@@ -1035,6 +1071,8 @@ td code{white-space:nowrap}
             <tr><td><code>store</code></td><td>Su poe aadress (saidi URL).</td></tr>
             <tr><td><code>first_name</code>, <code>last_name</code>, <code>nickname</code>, <code>user_phone</code>, <code>user_gender</code>, <code>birthday</code>, <code>customer_id</code>, <code>customer_group</code>, <code>first_registered</code>, <code>site_title</code></td><td>Ainult väljad, mis on märgitud jaotises <a href="#set-subscribers">Kontaktid → Sünkroonitavad väljad</a>, ja ainult siis, kui kliendil on väärtus olemas.</td></tr>
             <tr><td><code>welcome_automation_at</code></td><td>Päästiku käivitumise aeg (UTC, <code>2026-08-04 14:30:00</code>).</td></tr>
+            <tr><td><code>welcome_coupon_code</code></td><td>Ostleja ühekordne sooduskood, kui <a href="#set-automations">Send a discount code</a> on sees ja kood loodi. Muidu ei saadeta, nii et varasema e‑kirja kood jääb kontaktile alles.</td></tr>
+            <tr><td><code>welcome_coupon_expires_at</code></td><td>Selle koodi viimane kehtivuspäev, <code>YYYY-MM-DD</code> su poe ajavööndis (mitte UTC‑s): kood kehtib selle päeva lõpuni.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1047,6 +1085,8 @@ td code{white-space:nowrap}
             <tr><td><code>order_total</code></td><td>Tellimuse kogusumma lihtsa arvuna, koos maksuga (<code>24.90</code>).</td></tr>
             <tr><td><code>order_currency</code></td><td>Valuutakood (<code>EUR</code>).</td></tr>
             <tr><td><code>first_order_automation_at</code></td><td>Päästiku käivitumise aeg (UTC).</td></tr>
+            <tr><td><code>first_order_coupon_code</code></td><td>Ostleja ühekordne sooduskood, kui <a href="#set-automations">Send a discount code</a> on sees ja kood loodi. Muidu ei saadeta, nii et varasema e‑kirja kood jääb kontaktile alles.</td></tr>
+            <tr><td><code>first_order_coupon_expires_at</code></td><td>Selle koodi viimane kehtivuspäev, <code>YYYY-MM-DD</code> su poe ajavööndis (mitte UTC‑s): kood kehtib selle päeva lõpuni.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1060,6 +1100,8 @@ td code{white-space:nowrap}
             <tr><td><code>language</code></td><td>Ostleja keelekood (<code>et</code>, <code>en</code>…), kui see õnnestus tuvastada.</td></tr>
             <tr><td><code>is_abandoned_cart</code></td><td>Alati <code>true</code>.</td></tr>
             <tr><td><code>abandoned_cart_automation_at</code></td><td>Päästiku käivitumise aeg (UTC).</td></tr>
+            <tr><td><code>abandoned_cart_coupon_code</code></td><td>Ostleja ühekordne sooduskood, kui <a href="#set-automations">Send a discount code</a> on sees ja kood loodi. Muidu ei saadeta, nii et varasema e‑kirja kood jääb kontaktile alles.</td></tr>
+            <tr><td><code>abandoned_cart_coupon_expires_at</code></td><td>Selle koodi viimane kehtivuspäev, <code>YYYY-MM-DD</code> su poe ajavööndis (mitte UTC‑s): kood kehtib selle päeva lõpuni.</td></tr>
             <tr><td><code>product_name_N</code>, <code>product_sku_N</code>, <code>product_quantity_N</code>, <code>product_description_N</code>, <code>product_image_url_N</code></td><td>Üks komplekt iga korvis oleva toote kohta, <code>N</code> = 1…10. Kasutamata kohad saadetakse tühjana.</td></tr>
             <tr><td><code>product_price_N</code></td><td>Toote praegune hind koos valuutaga (soodushinna ajal soodushind).</td></tr>
             <tr><td><code>product_base_price_N</code></td><td>Toote tavahind koos valuutaga.</td></tr>
@@ -1719,6 +1761,7 @@ td code{white-space:nowrap}
         <li><strong>Browse events</strong> — only when you enable browse tracking <em>and</em> the shopper said yes to marketing in a consent banner connected to the WP Consent API. The browser itself never sends an email or recommendation id — only an opaque visitor token. If the shopper is logged in and hasn't opted out of personalisation, the plugin attaches their email <em>server‑side</em> before forwarding the event, so recommendations stay linked to their account even mid‑session; the email never reaches the page or the browser.</li>
         <li><strong>Storefront recommendations</strong> — only on a page with the <a href="#set-integrations">Recommendations block</a> and only when the shopper said yes to marketing in a consent banner connected to the WP Consent API. Your store asks Smaily by the WordPress customer id or the visitor token — never by an email — and the browser sends nothing about the shopper.</li>
         <li><strong>Visitor‑token cookie for guest buyers</strong> — when Campaign Intelligence is connected and a shopper places an order <em>without an account</em> after saying yes to marketing cookies in your store's consent banner, the plugin creates a random visitor token, saves it in the <code>smaily_rec_uid</code> cookie (365 days by default) and on the order. It lets Smaily recognise the buyer on a later visit and show them recommendations. Only an explicit yes counts: the banner must come from a consent plugin connected to the WP Consent API and must have stored the shopper's yes (see <a href="#err-companion">Companion plugins</a>). Without such a plugin, without a stored yes — also where the banner treats silence as consent — or when the shopper already has a token, nothing is created. Logged‑in buyers don't get one — they are recognised by their account.</li>
+        <li><strong>Discount codes</strong> — when an automation's <a href="#set-automations">Send a discount code</a> is on, the single‑use WooCommerce coupon the plugin makes for a shopper holds their email address as the only address allowed to use it. Codes never used are deleted 30 days after they expire; a used code stays with your store's coupons. A WordPress erase request does not remove them.</li>
       </ul>
       <p>The optional customer fields beyond email are the ones <em>you</em> tick in <a href="#set-subscribers">Contacts</a>.</p>
     </div>
@@ -1729,6 +1772,7 @@ td code{white-space:nowrap}
         <li><strong>Sirvimissündmused</strong> — ainult siis, kui lubad sirvimise jälgimise <em>ja</em> klient on WP Consent API‑ga ühendatud nõusolekubänneris turundusele "jah" öelnud. Brauser ise ei saada kunagi e‑posti ega soovituse‑id'd — ainult läbipaistmatu külastaja‑tokeni. Kui klient on sisse logitud ja ei ole personaliseerimisest loobunud, lisab plugin tema e‑posti aadressi <em>serveripoolselt</em> enne sündmuse edastamist, et soovitused püsiksid seotuna tema kontoga ka poole sessiooni pealt — e‑post ei jõua kunagi lehele ega brauserisse.</li>
         <li><strong>Poe soovitused</strong> — ainult <a href="#set-integrations">soovituste plokiga</a> lehel ja ainult siis, kui ostja on WP Consent API‑ga ühendatud nõusolekubänneris turundusele "jah" öelnud. Sinu pood küsib Smaily käest WordPressi kliendi‑id või külastaja‑tokeni järgi — mitte kunagi e‑posti järgi — ning brauser ei saada ostja kohta midagi.</li>
         <li><strong>Külastaja‑tokeni küpsis külalisostjale</strong> — kui Campaign Intelligence on ühendatud ja klient vormistab tellimuse <em>ilma kontota</em> pärast seda, kui on su poe küpsisebänneris turundusküpsistele "jah" öelnud, loob plugin juhusliku külastaja‑tokeni ning salvestab selle küpsisesse <code>smaily_rec_uid</code> (vaikimisi 365 päeva) ja tellimusele. Selle abil tunneb Smaily ostja järgmisel külastusel ära ja saab talle soovitusi näidata. Arvesse läheb ainult selgesõnaline "jah": bänner peab tulema WP Consent API‑ga ühendatud nõusolekupluginast ja olema ostja "jah"‑i salvestanud (vt <a href="#err-companion">Kaaslas‑pluginad</a>). Sellise pluginata, salvestatud "jah"‑ita — ka seal, kus bänner loeb vaikimisi nõusolekuks — või kui kliendil on token juba olemas, ei looda midagi. Sisseloginud ostja tokenit ei saa — teda tuntakse ära konto järgi.</li>
+        <li><strong>Sooduskoodid</strong> — kui automaatika <a href="#set-automations">Send a discount code</a> on sees, hoiab plugina ostlejale loodud ühekordne WooCommerce'i kupong tema e‑posti aadressi ainsa aadressina, millega kupongi saab kasutada. Kunagi kasutamata koodid kustutatakse 30 päeva pärast nende aegumist; kasutatud kood jääb su poe kupongide hulka. WordPressi kustutuspäring neid ei eemalda.</li>
       </ul>
       <p>Valikulised kliendiväljad peale e‑posti on need, mille <em>sina</em> märgid jaotises <a href="#set-subscribers">Kontaktid</a>.</p>
     </div>

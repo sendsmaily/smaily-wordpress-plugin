@@ -39,6 +39,7 @@ export function buildTabPayload(
         firstOrderEnabled: state.firstOrderEnabled,
         abandonedCartEnabled: state.abandonedCartEnabled,
         abandonedCartCutoffMinutes: state.abandonedCartCutoffMinutes,
+        automationDiscounts: state.automationDiscounts,
         automationMappings: state.automationMappings,
         orderConfirmationEnabled: state.orderConfirmationEnabled,
         shippingConfirmationEnabled: state.shippingConfirmationEnabled,

@@ -1,6 +1,7 @@
 import {
   DEFAULT_CONTACT_SYNC_MODE,
   DEFAULT_SYNC_FIELDS,
+  defaultAutomationDiscounts,
   emptyCredentials,
   FALLBACK_FOLLOW_UP_DELAY_LIMITS,
   idleAsync,
@@ -68,6 +69,7 @@ export const wizardInitialState: WizardState = {
   firstOrderEnabled: false,
   abandonedCartEnabled: false,
   abandonedCartCutoffMinutes: 30,
+  automationDiscounts: defaultAutomationDiscounts(),
 
   transactionalEmailsEnabled: false,
   transactionalCredentials: { ...emptyCredentials },
@@ -310,6 +312,18 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
 
     case 'SET_ABANDONED_CART_ENABLED':
       return { ...state, abandonedCartEnabled: action.payload };
+
+    case 'SET_AUTOMATION_DISCOUNT':
+      return {
+        ...state,
+        automationDiscounts: {
+          ...state.automationDiscounts,
+          [action.payload.trigger]: {
+            ...state.automationDiscounts[action.payload.trigger],
+            ...action.payload.patch,
+          },
+        },
+      };
 
     case 'SET_ABANDONED_CART_CUTOFF_MINUTES':
       return {

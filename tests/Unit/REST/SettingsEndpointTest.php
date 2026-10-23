@@ -422,6 +422,105 @@ final class SettingsEndpointTest extends TestCase {
 		);
 	}
 
+	public function test_woocommerce_tab_persists_each_automations_discount_code_settings(): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'automationMappings'  => array(),
+				'automationDiscounts' => array(
+					'welcome'        => array(
+						'enabled'    => true,
+						'templateId' => 12,
+						'validDays'  => 14,
+					),
+					'first_order'    => array(
+						'enabled'    => false,
+						'templateId' => 0,
+						'validDays'  => 7,
+					),
+					'abandoned_cart' => array(
+						'enabled'    => true,
+						'templateId' => '31',
+						'validDays'  => '3',
+					),
+				),
+			)
+		);
+
+		self::assertTrue( $endpoint->handle( $request )->get_data()['saved'] );
+		self::assertSame(
+			array(
+				'welcome'        => array(
+					'enabled'     => true,
+					'template_id' => 12,
+					'valid_days'  => 14,
+				),
+				'first_order'    => array(
+					'enabled'     => false,
+					'template_id' => 0,
+					'valid_days'  => 7,
+				),
+				'abandoned_cart' => array(
+					'enabled'     => true,
+					'template_id' => 31,
+					'valid_days'  => 3,
+				),
+			),
+			$this->option_writes['smly_plus_automation_discounts']
+		);
+	}
+
+	/**
+	 * @dataProvider invalid_discount_days
+	 *
+	 * @param mixed $days
+	 */
+	public function test_woocommerce_tab_refuses_a_discount_code_valid_outside_one_to_365_days( $days ): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'automationMappings'  => array(),
+				'welcomeEnabled'      => true,
+				'automationDiscounts' => array(
+					'welcome' => array(
+						'enabled'    => true,
+						'templateId' => 12,
+						'validDays'  => $days,
+					),
+				),
+			)
+		);
+
+		$response = $endpoint->handle( $request );
+
+		self::assertSame( 400, $response->get_status() );
+		self::assertSame( 'automationDiscounts', $response->get_data()['errors'][0]['field'] );
+		self::assertArrayNotHasKey( 'smly_plus_automation_discounts', $this->option_writes );
+		self::assertArrayNotHasKey( 'smly_plus_welcome_enabled', $this->option_writes, 'Nothing on the tab is saved.' );
+	}
+
+	/**
+	 * @return array<string, array{0: mixed}>
+	 */
+	public static function invalid_discount_days(): array {
+		return array(
+			'zero'     => array( 0 ),
+			'too long' => array( 366 ),
+			'fraction' => array( 2.5 ),
+			'text'     => array( 'soon' ),
+		);
+	}
+
 	public function test_woocommerce_tab_accepts_transactional_trigger_mappings(): void {
 		$endpoint        = new SettingsEndpoint();
 		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();

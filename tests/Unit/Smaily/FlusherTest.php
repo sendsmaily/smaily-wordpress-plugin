@@ -11,6 +11,7 @@ namespace Smaily\Connect\Tests\Unit\Smaily;
 
 use Brain\Monkey;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Smaily\ApiException;
 use Smaily\Connect\Smaily\AutomationMarker;
@@ -195,7 +196,8 @@ final class FlusherTest extends TestCase {
 			public function trigger_automation(
 				string $trigger_type,
 				array $contact_data,
-				array $additional_fields = array()
+				array $additional_fields = array(),
+				?callable $before_send = null
 			): bool {
 				$this->sink[] = compact( 'trigger_type', 'contact_data', 'additional_fields' );
 				return true;
@@ -356,7 +358,7 @@ final class FlusherTest extends TestCase {
 		$router = new class extends AutomationRouter {
 			public function __construct() {}
 
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
 				return true;
 			}
 
@@ -458,7 +460,8 @@ final class FlusherTest extends TestCase {
 			public function trigger_automation(
 				string $trigger_type,
 				array $contact_data,
-				array $additional_fields = array()
+				array $additional_fields = array(),
+				?callable $before_send = null
 			): bool {
 				return false; // no workflow mapped — terminal skip
 			}
@@ -469,6 +472,138 @@ final class FlusherTest extends TestCase {
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertSame( 0, $stats['retried'] );
+	}
+
+	// --- the automation's discount code (CON-199) -----------------------------
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function welcome_event( int $id ): array {
+		return array(
+			'id'         => $id,
+			'event_type' => HookHandler::EVENT_AUTOMATION_WELCOME,
+			'payload'    => json_encode(
+				array(
+					'email'  => 'newbie@example.test',
+					'fields' => array( 'welcome_automation_at' => '2026-10-23 10:00:00' ),
+				)
+			),
+		);
+	}
+
+	/**
+	 * A router that finds a workflow, runs before_send like the real one and
+	 * records the address fields it would post.
+	 */
+	private function router_running_before_send(): AutomationRouter {
+		return new class extends AutomationRouter {
+			/** @var array<int, array<string, mixed>> */
+			public array $posted = array();
+
+			public function __construct() {}
+
+			public function trigger_automation(
+				string $trigger_type,
+				array $contact_data,
+				array $additional_fields = array(),
+				?callable $before_send = null
+			): bool {
+				if ( $before_send !== null ) {
+					$additional_fields = array_merge( $additional_fields, $before_send() );
+				}
+				$this->posted[] = $additional_fields;
+				return true;
+			}
+
+			public function last_exchange(): ?array {
+				return array(
+					'request'  => array( 'endpoint' => 'autoresponder' ),
+					'response' => array(
+						'http' => 200,
+						'body' => array( 'code' => 101 ),
+					),
+				);
+			}
+		};
+	}
+
+	public function test_an_automation_posts_the_discount_code_issued_for_its_row(): void {
+		$queue     = $this->fake_queue( array( $this->welcome_event( 5 ) ) );
+		$router    = $this->router_running_before_send();
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->expects( self::once() )
+			->method( 'issue' )
+			->with(
+				'welcome',
+				self::callback( static fn ( array $payload ): bool => $payload['email'] === 'newbie@example.test' ),
+				$queue,
+				5
+			)
+			->willReturn(
+				array(
+					'fields' => array(
+						'welcome_coupon_code'       => 'K7QM2XRT9P',
+						'welcome_coupon_expires_at' => '2026-10-30',
+					),
+					'note'   => '',
+				)
+			);
+
+		( new Flusher( $queue, $router, static fn () => null, $discounts ) )->flush();
+
+		self::assertSame( 'K7QM2XRT9P', $router->posted[0]['welcome_coupon_code'] );
+		self::assertSame( '2026-10-30', $router->posted[0]['welcome_coupon_expires_at'] );
+		self::assertSame( '2026-10-23 10:00:00', $router->posted[0]['welcome_automation_at'] );
+		self::assertSame( array( 5 ), $queue->marked_sent );
+		self::assertStringNotContainsString( '"note"', (string) $queue->exchanges[5]['response'] );
+	}
+
+	public function test_an_email_sent_without_its_discount_code_says_why_in_the_event_log(): void {
+		$queue     = $this->fake_queue( array( $this->welcome_event( 6 ) ) );
+		$router    = $this->router_running_before_send();
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->method( 'issue' )->willReturn(
+			array(
+				'fields' => array(),
+				'note'   => 'Sent without a discount code: the WooCommerce coupon #12 has expired.',
+			)
+		);
+
+		$stats = ( new Flusher( $queue, $router, static fn () => null, $discounts ) )->flush();
+
+		self::assertSame( 1, $stats['sent'], 'The email still goes — it is not a skipped send.' );
+		self::assertArrayNotHasKey( 'welcome_coupon_code', $router->posted[0] );
+		$response = json_decode( (string) $queue->exchanges[6]['response'], true );
+		self::assertSame( 'Sent without a discount code: the WooCommerce coupon #12 has expired.', $response['note'] );
+		self::assertSame( 200, $response['http'], 'The note rides beside Smaily\'s reply.' );
+		self::assertArrayNotHasKey( 'outcome', $response );
+	}
+
+	public function test_no_discount_code_is_made_for_an_automation_without_a_workflow(): void {
+		$queue     = $this->fake_queue( array( $this->welcome_event( 7 ) ) );
+		$resolver  = new class() implements WorkflowResolverInterface {
+			public function resolve_workflow( string $trigger_type, ?string $language ): ?WorkflowMatch {
+				return null;
+			}
+		};
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->expects( self::never() )->method( 'issue' );
+
+		$stats = ( new Flusher( $queue, new AutomationRouter( $resolver, static fn () => null ), static fn () => null, $discounts ) )->flush();
+
+		self::assertSame( 1, $stats['sent'] );
+	}
+
+	public function test_a_contact_sync_never_asks_for_a_discount_code(): void {
+		$queue     = $this->fake_queue( array( $this->contact_sync_event( 8 ) ) );
+		$client    = $this->createMock( Client::class );
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->expects( self::never() )->method( 'issue' );
+
+		( new Flusher( $queue, $this->router_running_before_send(), static fn () => $client, $discounts ) )->flush();
+
+		self::assertSame( array( 8 ), $queue->marked_sent );
 	}
 
 	// --- the abandoned-cart purchase marker never creates a contact (PRO-3627)
@@ -682,7 +817,8 @@ final class FlusherTest extends TestCase {
 			public function trigger_automation(
 				string $trigger_type,
 				array $contact_data,
-				array $additional_fields = array()
+				array $additional_fields = array(),
+				?callable $before_send = null
 			): bool {
 				return true;
 			}

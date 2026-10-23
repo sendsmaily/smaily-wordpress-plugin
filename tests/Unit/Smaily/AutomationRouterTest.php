@@ -158,6 +158,61 @@ final class AutomationRouterTest extends TestCase {
 		);
 	}
 
+	/**
+	 * CON-199: the discount code is made just before the post — only once a
+	 * workflow is found — and its fields ride the address.
+	 */
+	public function test_fields_from_before_send_join_the_address_once_a_workflow_is_found(): void {
+		$resolver = $this->resolverThatReturns( new WorkflowMatch( 9, 'default' ) );
+
+		$sent   = array();
+		$client = $this->createMock( Client::class );
+		$client->method( 'trigger_automation' )->willReturnCallback(
+			static function ( int $workflow, array $addresses ) use ( &$sent ): array {
+				$sent = $addresses[0];
+				return array( 'code' => 101 );
+			}
+		);
+
+		$router = new AutomationRouter( $resolver, static fn (): Client => $client );
+
+		self::assertTrue(
+			$router->trigger_automation(
+				'welcome',
+				array( 'email' => 'a@b.c' ),
+				array( 'welcome_automation_at' => '2026-10-23 10:00:00' ),
+				static fn (): array => array(
+					'welcome_coupon_code'       => 'K7QM2XRT9P',
+					'welcome_coupon_expires_at' => '2026-10-30',
+				)
+			)
+		);
+
+		self::assertSame( 'K7QM2XRT9P', $sent['welcome_coupon_code'] );
+		self::assertSame( '2026-10-30', $sent['welcome_coupon_expires_at'] );
+		self::assertSame( '2026-10-23 10:00:00', $sent['welcome_automation_at'] );
+	}
+
+	public function test_before_send_never_runs_when_no_workflow_is_mapped(): void {
+		$router = new AutomationRouter(
+			$this->resolverThatReturns( null ),
+			function (): Client {
+				self::fail( 'Nothing is sent without a workflow.' );
+			}
+		);
+
+		self::assertFalse(
+			$router->trigger_automation(
+				'welcome',
+				array( 'email' => 'a@b.c' ),
+				array(),
+				function (): array {
+					self::fail( 'A skipped send makes no discount code.' );
+				}
+			)
+		);
+	}
+
 	public function test_lets_api_exception_bubble_for_flusher_retry_handling(): void {
 		$resolver = $this->resolverThatReturns( new WorkflowMatch( 1, 'default' ) );
 
