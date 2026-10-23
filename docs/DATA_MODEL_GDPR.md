@@ -214,7 +214,7 @@ contact refresh is a new action and may sync the contact again.
 
 | Element | Where | What it is | Export (Art 15) | Erase (Art 17) |
 |---|---|---|---|---|
-| `shop_coupon` post with `_smaily_connect_generated_from` meta | WooCommerce's coupons (`wp_posts` + `wp_postmeta`) | One single-use coupon per automation email whose "Send a discount code" is on; its `customer_email` (allowed emails) holds the shopper's lowercased address. The code and its last day also ride the queue row's `payload` (above) | No | **No** — the eraser does not read coupons. An unused code is deleted by the daily janitor 30 days after it expires; a used one stays with WooCommerce's coupon history |
+| `shop_coupon` post with `_smaily_connect_generated_from` meta | WooCommerce's coupons (`wp_posts` + `wp_postmeta`) | One single-use coupon per automation email whose "Send a discount code" is on; its `customer_email` (allowed emails) holds the shopper's lowercased address, and once an order uses it WooCommerce's `_used_by` meta holds the buyer (a guest's billing address). The code and its last day also ride the queue row's `payload` (above) | **Yes** — one "Discount codes" item per code: code, created and expiry time (store time), used yes/no (CON-213) | **Yes** — an unused code is deleted; a used one stays with its order and loses the address from `_used_by` and `customer_email`, where WordPress's anonymised address takes its place when no other is left (CON-213). Matched like the other paths: any letter case, an accent is another address; a merchant's coupon is never touched. Apart from erasure, the daily janitor deletes an unused code 30 days after it expires |
 
 ### Plugin-held — Campaign Intelligence ingest queue (PRO-2384)
 
@@ -313,7 +313,9 @@ Returns the shopper's **rec-engine personal data**, and nothing more:
   engine customer record; plugin rec-meta (the `_smaily_*` markers); the
   block-checkout newsletter consent marker, one item per marked order
   (PRO-3426); the local abandoned-cart tracker rows (PRO-1343) and, narrowly,
-  the Smaily event queue's rows — `event_type` + `created_at` only (PRO-2383).
+  the Smaily event queue's rows — `event_type` + `created_at` only (PRO-2383);
+  the discount codes the plugin made for the address — code, dates, used or
+  not (CON-213).
 - **Not included:** `rec_attribution` (decision logic / trade secret — omitted,
   not flagged as "request separately", because it is not a subject-access right);
   the rec-engine's decision logic / weights (trade secret, as Google/Meta also
@@ -343,7 +345,10 @@ Full deletion, asymmetric to export (export is conservative, erase is complete):
   (PRO-3995); in the Campaign Intelligence queue every row whose stored copy
   carries the address is deleted (PRO-2384), and so is every customer and
   order update for the customer still waiting to be sent, so none of them
-  re-creates the customer in the engine (PRO-3906).
+  re-creates the customer in the engine (PRO-3906); the discount codes the
+  plugin made for the address are deleted when unused, and a used one stays
+  with its order without the address (CON-213) — once more after every
+  eraser has run.
 
 ### Art 21 — Opt-out (profiling objection)
 

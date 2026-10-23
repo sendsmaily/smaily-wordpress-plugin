@@ -11,6 +11,7 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Privacy\AddressMatch;
 use Smaily\Connect\Smaily\EventQueue;
 
 /**
@@ -46,7 +47,10 @@ use Smaily\Connect\Smaily\EventQueue;
  * WooCommerce itself refuses a used, foreign or expired code at checkout
  * (WC_Discounts' usage-limit, allowed-email and expiry checks), so the
  * plugin enforces nothing there. The daily janitor deletes the plugin's
- * codes that were never used, DELETE_AFTER_DAYS after their expiry.
+ * codes that were never used, DELETE_AFTER_DAYS after their expiry. A
+ * personal-data export lists an address's codes, and an erasure deletes
+ * its unused ones and takes the address off the used ones
+ * (codes_for_address(), erase_for_address(); CON-213).
  *
  * Not final: the flusher unit tests mock issue().
  */
@@ -386,6 +390,115 @@ class AutomationDiscount {
 		}
 
 		return $deleted;
+	}
+
+	/**
+	 * The codes the plugin made for one address, oldest first, in any post
+	 * status (CON-213) — for the personal-data exporter and eraser. The
+	 * address is matched in the coupon's allowed emails (`customer_email`
+	 * meta) the way the other erasure paths match it (AddressMatch): letter
+	 * case does not matter, an accent does, so a code for `jäne@…` is not
+	 * `jane@…`'s. Each candidate is checked once more entry by entry. A
+	 * coupon without META_GENERATED_FROM — the merchant's — is never one.
+	 *
+	 * @return \WC_Coupon[]
+	 */
+	public static function codes_for_address( string $email ): array {
+		global $wpdb;
+		if ( ! class_exists( '\WC_Coupon' ) ) {
+			return array();
+		}
+
+		$match = AddressMatch::json_string( 'LOWER( e.meta_value )', $email );
+		if ( $match === null ) {
+			return array();
+		}
+		[ $condition, $patterns ] = $match;
+
+		$sql = "SELECT DISTINCT p.ID FROM {$wpdb->posts} p"
+			. " INNER JOIN {$wpdb->postmeta} g ON g.post_id = p.ID AND g.meta_key = %s"
+			. " INNER JOIN {$wpdb->postmeta} e ON e.post_id = p.ID AND e.meta_key = 'customer_email'"
+			. " WHERE p.post_type = 'shop_coupon' AND {$condition} ORDER BY p.ID ASC";
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The SQL holds table names and placeholders only; every value is prepare()d.
+		$ids = $wpdb->get_col( $wpdb->prepare( $sql, array_merge( array( self::META_GENERATED_FROM ), $patterns ) ) );
+
+		$coupons = array();
+		foreach ( $ids as $id ) {
+			$coupon  = new \WC_Coupon( (int) $id );
+			$allowed = array_filter( $coupon->get_email_restrictions( 'edit' ), 'is_string' );
+			if ( $coupon->get_id() > 0 && count( self::restrictions_without( $allowed, $email ) ) < count( $allowed ) ) {
+				$coupons[] = $coupon;
+			}
+		}
+
+		return $coupons;
+	}
+
+	/**
+	 * Erase one address from the codes the plugin made for it (CON-213). An
+	 * unused code is deleted. A used one stays — its order's coupon line
+	 * still names it — and loses the address: from its allowed emails, where
+	 * WordPress's anonymised address takes its place when no other is left
+	 * (an empty list would let anyone use the code once an order that used
+	 * it is cancelled), and from WooCommerce's `_used_by` record. Both are
+	 * coupon post meta in every storage, written directly: the WooCommerce
+	 * setter rejects or rewrites an address it does not like.
+	 *
+	 * @return array{deleted: int, anonymised: int}
+	 */
+	public static function erase_for_address( string $email ): array {
+		$result = array(
+			'deleted'    => 0,
+			'anonymised' => 0,
+		);
+
+		foreach ( self::codes_for_address( $email ) as $coupon ) {
+			$id = $coupon->get_id();
+			if ( $coupon->get_usage_count( 'edit' ) <= 0 ) {
+				$coupon->delete( true );
+				++$result['deleted'];
+				continue;
+			}
+
+			foreach ( get_post_meta( $id, '_used_by' ) as $used_by ) {
+				if ( is_string( $used_by ) && self::same_address( $used_by, $email ) ) {
+					delete_post_meta( $id, '_used_by', $used_by );
+				}
+			}
+
+			$kept = self::restrictions_without( $coupon->get_email_restrictions( 'edit' ), $email );
+			update_post_meta( $id, 'customer_email', $kept !== array() ? $kept : array( wp_privacy_anonymize_data( 'email' ) ) );
+			++$result['anonymised'];
+		}
+
+		return $result;
+	}
+
+	/**
+	 * A coupon's allowed emails without one address (any letter case; an
+	 * address that differs by an accent, or a wildcard entry, stays).
+	 *
+	 * @param array<int|string, mixed> $restrictions
+	 *
+	 * @return array<int, string>
+	 */
+	public static function restrictions_without( array $restrictions, string $email ): array {
+		$kept = array();
+		foreach ( $restrictions as $restriction ) {
+			if ( ! is_string( $restriction ) ) {
+				continue;
+			}
+			if ( ! self::same_address( $restriction, $email ) ) {
+				$kept[] = $restriction;
+			}
+		}
+		return $kept;
+	}
+
+	/** The same address in any letter case — bytes after lowering, so no accent folding. */
+	private static function same_address( string $a, string $b ): bool {
+		return strtolower( trim( $a ) ) === strtolower( trim( $b ) );
 	}
 
 	/**

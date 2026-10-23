@@ -122,4 +122,17 @@ final class AutomationDiscountTest extends TestCase {
 		self::assertSame( '2026-10-24', $last_day );
 		self::assertSame( ( new \DateTimeImmutable( '2026-10-24 23:59:59', $utc ) )->getTimestamp(), $expires );
 	}
+
+	public function test_an_erasure_takes_out_only_the_requesters_address_in_any_letter_case(): void {
+		// CON-213: a used code keeps every other allowed email.
+		self::assertSame(
+			array( 'jäne@example.test', 'xjane@example.test', '*@example.test', 'john@example.test' ),
+			AutomationDiscount::restrictions_without(
+				array( 'jäne@example.test', 'Jane@Example.test', 'xjane@example.test', ' jane@example.test ', '*@example.test', 'john@example.test' ),
+				'JANE@example.TEST'
+			),
+			'An accent, a longer address and a wildcard are someone else.'
+		);
+		self::assertSame( array(), AutomationDiscount::restrictions_without( array( 'jane@example.test', 7 ), 'jane@example.test' ) );
+	}
 }
