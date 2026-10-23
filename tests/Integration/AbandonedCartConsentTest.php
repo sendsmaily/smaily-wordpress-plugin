@@ -159,6 +159,33 @@ final class AbandonedCartConsentTest extends TestCase {
 		self::assertSame( $expected, EventQueue::skip_reason( (string) $row['last_response'] ) );
 	}
 
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function consent_modes(): array {
+		return array(
+			'Subscribers only'      => array( ContactSyncMode::MODE_CONSENT ),
+			'Checkout opt-in only' => array( ContactSyncMode::MODE_CHECKOUT_OPTIN ),
+		);
+	}
+
+	/**
+	 * CON-202: the shopper fills in the address (one order review, box clear),
+	 * then ticks the box as the last thing before leaving. The box now
+	 * refreshes the order review, so that second review carries the tick.
+	 *
+	 * @dataProvider consent_modes
+	 */
+	public function test_a_tick_made_last_gets_a_reminder( string $mode ): void {
+		$this->set_mode( $mode );
+
+		$email  = $this->abandon_a_cart( 'tick_last' );
+		$bodies = PipelineFixture::flush( CartFlusher::FLUSH_HOOK, self::smaily_not_found() );
+
+		self::assertNotNull( $this->reminder( $bodies ), 'The tick made last is consent for the reminder.' );
+		self::assertSame( 'sent', $this->cart_row( $email )['status'] );
+	}
+
 	public function test_a_tick_does_not_override_an_unsubscribe_in_smaily(): void {
 		$this->set_mode( ContactSyncMode::MODE_CONSENT );
 
@@ -222,7 +249,21 @@ final class AbandonedCartConsentTest extends TestCase {
 	private function abandon_a_cart( string $shopper, bool $untick = false ): string {
 		$product_id = $this->store->make_product( 'Consent Cart Product' );
 
-		if ( $shopper === 'checkout_tick' ) {
+		if ( $shopper === 'tick_last' ) {
+			// A guest who types the address, then ticks the box and leaves:
+			// the address change posts a review with the box clear, and the
+			// tick posts one more that changes nothing else (CON-202).
+			wp_set_current_user( 0 );
+			$this->boot_wc_cart();
+			WC()->cart->add_to_cart( $product_id, 1 );
+			$this->track_cart();
+
+			$email = 'con202-tick-last-' . wp_generate_password( 6, false ) . '@example.test';
+			do_action( 'woocommerce_checkout_update_order_review', self::posted_checkout( $email, false ) );
+			$this->track_cart();
+			do_action( 'woocommerce_checkout_update_order_review', self::posted_checkout( $email, true ) );
+			$this->track_cart();
+		} elseif ( $shopper === 'checkout_tick' ) {
 			// A guest who ticks the box in the classic checkout and leaves.
 			wp_set_current_user( 0 );
 			$this->boot_wc_cart();

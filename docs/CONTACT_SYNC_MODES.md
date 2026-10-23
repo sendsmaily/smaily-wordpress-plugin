@@ -173,7 +173,8 @@ and before the trigger. It reads the contact from Smaily
   so the Event Log reads it "skipped" with the reason and the Sent filter
   leaves it out.
 - The classic checkout reports the box on every order review
-  (`woocommerce_checkout_update_order_review`); `CartHookHandler` stores the
+  (`woocommerce_checkout_update_order_review`), and the box carries
+  `update_totals_on_change`, so a change of the box alone posts one (CON-202); `CartHookHandler` stores the
   last report in the tracker row's own `cart_content` JSON
   (`{"items": [...], "newsletter_optin": true}` while ticked, the plain item
   list otherwise — `CartSessionStore::encode_content()`), no schema change.

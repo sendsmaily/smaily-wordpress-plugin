@@ -418,10 +418,15 @@ class Profile_Settings {
 		$location = get_option( Options::CHECKOUT_SUBSCRIPTION_LOCATION_OPTION, Options::CHECKOUT_SUBSCRIPTION_DEFAULT_LOCATION );
 		$position = get_option( Options::CHECKOUT_SUBSCRIPTION_POSITION_OPTION, Options::CHECKOUT_SUBSCRIPTION_DEFAULT_POSITION );
 
+		// A change of the box refreshes the order review, which is how the
+		// abandoned-cart reminder learns about a tick made last (CON-202).
+		$field          = $this->get_fields()['user_newsletter'];
+		$field['class'] = array_merge( (array) ( $field['class'] ?? array() ), array( 'update_totals_on_change' ) );
+
 		if ( $position === 'before' ) {
-			$checkout_fields[ $location ] = array( 'user_newsletter' => $this->get_fields()['user_newsletter'] ) + $checkout_fields[ $location ];
+			$checkout_fields[ $location ] = array( 'user_newsletter' => $field ) + $checkout_fields[ $location ];
 		} else {
-			$checkout_fields[ $location ]['user_newsletter'] = $this->get_fields()['user_newsletter'];
+			$checkout_fields[ $location ]['user_newsletter'] = $field;
 		}
 	}
 

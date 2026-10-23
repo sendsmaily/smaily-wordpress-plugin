@@ -8707,7 +8707,10 @@ review, so `CartHookHandler` stores the last report in the tracker row's own
 `cart_content` JSON — `{"items": [...], "newsletter_optin": true}` while
 ticked, the plain item list otherwise, so an unticked cart is byte-for-byte
 the shape every earlier version reads — and `upsert()` carries it across the
-cart save that follows the review. No schema change. The block checkout
+cart save that follows the review. The checkout copy of the box carries
+WooCommerce's `update_totals_on_change` class, so a change of the box alone
+posts an order review — without it a tick made last was never reported
+(CON-202). No schema change. The block checkout
 reports the box only with the placed order, so a tick there cannot count. The
 consent inputs ride the queue payload at the top level (`user_id`,
 `newsletter_optin`): the tick as it stood when the sweeper queued the

@@ -417,6 +417,23 @@ final class SubscriberFieldFormsTest extends TestCase {
 	}
 
 	/**
+	 * CON-202: WooCommerce's checkout script posts an order review when a
+	 * checkbox inside an `update_totals_on_change` wrapper changes — that review
+	 * is how the abandoned-cart reminder learns about a tick made last.
+	 */
+	public function test_the_checkout_newsletter_box_refreshes_the_order_review(): void {
+		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
+		wp_set_current_user( 0 );
+
+		$field = $this->checkout_fields()['order']['user_newsletter'];
+		$html  = woocommerce_form_field( 'user_newsletter', array( 'return' => true ) + $field, null );
+
+		self::assertMatchesRegularExpression( '/<p class="form-row[^"]*\bupdate_totals_on_change\b[^"]*"[^>]*id="user_newsletter_field"/', $html );
+		self::assertStringContainsString( 'type="checkbox"', $html );
+		self::assertStringNotContainsString( 'checked', $html, 'The box stays unticked by default.' );
+	}
+
+	/**
 	 * Guards the assumption the selection is read through one interpreter: if
 	 * the canonical name for the birthday field ever stops being reachable
 	 * under the legacy `user_dob` key, the forms above stop matching silently.
