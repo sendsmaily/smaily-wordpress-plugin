@@ -8920,12 +8920,48 @@ Magento had to add its own check: its platform ignores a coupon's end date.
 used code stays. No new Action Scheduler group.
 **Not copied:** settings another plugin keeps in its own coupon meta
 (`woocommerce_coupon_options_save`) — they can be state as well as settings.
-**Accepted limits:** a WordPress personal-data erasure does not delete the
+**Accepted limits:** ~~a WordPress personal-data erasure does not delete the
 shopper's coupons (the docs site's data list says so); an unused one goes 30
-days after its expiry.
+days after its expiry.~~ Superseded by CON-213 (below): the exporter lists
+the codes and the eraser deletes or anonymises them.
 **Relationships:** CON-198 (Magento, the field names); PRO-1681
 (`AutomationMarker`, the sibling contact fields); CON-196 (the gate that runs
 first); F3-44 (the exchange note); PRO-4095 (the day-count validation shape).
+
+### CON-213 — The personal-data export and erasure cover the plugin's discount codes (2026-10-23)
+
+**Context:** CON-199 makes one WooCommerce coupon per discount code sent, its
+allowed emails (`customer_email` meta) = the shopper's lowercased address;
+WooCommerce adds the buyer to the coupon's `_used_by` meta when an order uses
+it (a guest's billing address, lowercased). WordPress's exporter and eraser
+read no coupon, so an erased shopper's address stayed in the store's coupons.
+Approved by Erkki (2026-10-23).
+**Decision:** `AutomationDiscount::codes_for_address()` finds the plugin's
+codes for an address — any post status, only coupons with
+`_smaily_connect_generated_from`, the address matched in `customer_email` by
+`AddressMatch::json_string()` over `LOWER( meta_value )` (the serialized
+array holds it as a quoted string; binary LIKE, so letter case does not
+matter and an accent does, PRO-3986/PRO-3993) and checked again entry by
+entry in PHP. The exporter (page 1) lists each as "Discount codes": code,
+created and expiry time (store time), used yes/no. The eraser (page 1)
+deletes an unused code (`usage_count` 0) and keeps a used one, removing the
+address from `_used_by` and from `customer_email` — where WordPress's
+anonymised address (`wp_privacy_anonymize_data( 'email' )`,
+`deleted@site.invalid`) takes its place when no other address is left.
+**Rationale:** a used code is part of an order: the order's coupon line
+names it, and the coupon is the store's usage record. An empty allowed list
+would let anyone use the code again if the order that used it is cancelled
+(WooCommerce then lowers `usage_count`), so the list never ends empty. The
+meta is written directly, not through `set_email_restrictions()`, which
+throws on an address it rejects and rewrites the others through
+`sanitize_email()`. The pass runs again on `wp_privacy_personal_data_erased`
+(`GdprHandler::after_erasure()`), next to the Smaily queue's second pass: a
+code is made only by a send from that queue, and a send already under way
+when the eraser ran can still make one.
+**Not covered:** WooCommerce's short-lived checkout holds (`_maybe_used_by_*`
+meta) — they expire on their own.
+**Relationships:** CON-199; PRO-3986/PRO-3993 (the address match);
+PRO-2383 (the Smaily queue the codes ride in).
 
 ## How to keep this document going
 

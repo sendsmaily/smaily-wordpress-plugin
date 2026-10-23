@@ -11,6 +11,7 @@ namespace Smaily\Connect\Privacy;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -67,6 +68,10 @@ use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
  *     (`_smaily_newsletter_optin` order meta, PRO-3406/PRO-3426) — exported as
  *     the consent given on that order, removed on erasure. The Smaily contact
  *     keeps its own consent history.
+ *   - And the discount codes the plugin made for the address (CON-213,
+ *     AutomationDiscount): exported (code, dates, used or not); on erasure
+ *     an unused code is deleted and a used one stays with its order without
+ *     the address.
  *
  * The engine call is injected via a closure so tests stand up a mock engine.
  */
@@ -163,6 +168,9 @@ class GdprHandler {
 
 		$this->drop_waiting_updates( $request->email, $this->order_ids_for( $request->email ) );
 		$this->event_queue->erase_for_privacy_request( $request->email );
+		// A queue send already under way when the eraser ran can still have
+		// made a discount code for the address (CON-213).
+		AutomationDiscount::erase_for_address( $request->email );
 	}
 
 	/**
@@ -196,7 +204,8 @@ class GdprHandler {
 	 * until it answers `done` (PRO-3997): every page exports the next
 	 * ORDERS_PER_PAGE orders, and page 1 also exports everything that is not
 	 * about one order — the engine record (one engine call), the identity
-	 * marker, the cart sessions and the Smaily queue rows.
+	 * marker, the cart sessions, the Smaily queue rows and the discount
+	 * codes.
 	 *
 	 * @return array{data: array<int, array<string, mixed>>, done: bool}
 	 */
@@ -211,7 +220,8 @@ class GdprHandler {
 				$items,
 				$this->identity_marker_export_items( $email ),
 				$this->cart_session_export_items( $email ),
-				$this->event_queue_export_items( $email )
+				$this->event_queue_export_items( $email ),
+				$this->discount_code_export_items( $email )
 			);
 		}
 
@@ -230,7 +240,7 @@ class GdprHandler {
 	 * loaded) before the engine call, so no order on a later page sends the
 	 * customer to the engine again after it (PRO-3906); then the engine
 	 * call, the identity marker, the cart sessions, both queues, the refused
-	 * list and the messages.
+	 * list, the discount codes and the messages.
 	 *
 	 * @return array{items_removed: bool, items_retained: bool, messages: array<int, string>, done: bool}
 	 */
@@ -267,6 +277,10 @@ class GdprHandler {
 			$removed = true;
 		}
 		if ( $this->erase_refused_contact( $email ) ) {
+			$removed = true;
+		}
+		$codes = AutomationDiscount::erase_for_address( $email );
+		if ( $codes['deleted'] + $codes['anonymised'] > 0 ) {
 			$removed = true;
 		}
 
@@ -436,6 +450,34 @@ class GdprHandler {
 				array(
 					'event_type' => $row['event_type'],
 					'created_at' => $row['created_at'],
+				)
+			);
+		}
+
+		return $items;
+	}
+
+	/**
+	 * The discount codes the plugin made for this address (CON-213): the
+	 * code, when it was made, when it stops working and whether it was used.
+	 * Dates are store time.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function discount_code_export_items( string $email ): array {
+		$items = array();
+
+		foreach ( AutomationDiscount::codes_for_address( $email ) as $coupon ) {
+			$created = $coupon->get_date_created( 'edit' );
+			$expires = $coupon->get_date_expires( 'edit' );
+			$items[] = $this->group_item(
+				'Discount codes',
+				'discount-code-' . $coupon->get_id(),
+				array(
+					'Code'    => $coupon->get_code( 'edit' ),
+					'Created' => $created !== null ? $created->date_i18n( 'Y-m-d H:i' ) : '',
+					'Expires' => $expires !== null ? $expires->date_i18n( 'Y-m-d H:i' ) : '',
+					'Used'    => $coupon->get_usage_count( 'edit' ) > 0 ? 'Yes' : 'No',
 				)
 			);
 		}
