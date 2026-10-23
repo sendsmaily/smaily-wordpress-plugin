@@ -224,7 +224,7 @@ class AutomationDiscount {
 				'orderby'       => 'title',
 				'order'         => 'ASC',
 				'no_found_rows' => true,
-				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_query_meta_query -- settings screen only, bounded by TEMPLATE_LIST_LIMIT.
+				// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- settings screen only, bounded by TEMPLATE_LIST_LIMIT.
 				'meta_query'    => array(
 					array(
 						'key'     => self::META_GENERATED_FROM,
@@ -431,7 +431,7 @@ class AutomationDiscount {
 					'numberposts'   => self::DELETE_BATCH,
 					'fields'        => 'ids',
 					'no_found_rows' => true,
-					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_query_meta_query -- daily janitor, bounded batches.
+					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- daily janitor, bounded batches.
 					'meta_query'    => array(
 						array(
 							'key'     => self::META_GENERATED_FROM,
@@ -500,7 +500,7 @@ class AutomationDiscount {
 			. " INNER JOIN {$wpdb->postmeta} e ON e.post_id = p.ID AND e.meta_key = 'customer_email'"
 			. " WHERE p.post_type = 'shop_coupon' AND {$condition} ORDER BY p.ID ASC";
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The SQL holds table names and placeholders only; every value is prepare()d.
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- The SQL holds table names, a column expression from code and placeholders only; every value is prepare()d.
 		$ids = $wpdb->get_col( $wpdb->prepare( $sql, array_merge( array( self::META_GENERATED_FROM ), $patterns ) ) );
 
 		$coupons = array();
