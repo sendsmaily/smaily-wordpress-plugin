@@ -8,8 +8,9 @@
  * pattern), and asserts what reaches the wire and what lands in WooCommerce:
  * the clone of the template, its single use, its email restriction and its
  * last day; one coupon per queue row, however often the row is tried; no
- * coupon for a skipped send; WooCommerce's own refusal of a used, foreign or
- * expired code; and the daily cleanup.
+ * coupon for a skipped send; the shopper's unused code sent again instead of
+ * a new one; WooCommerce's own brand restriction copied; WooCommerce's own
+ * refusal of a used, foreign or expired code; and the daily cleanup.
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -39,6 +40,12 @@ final class AutomationDiscountCodeTest extends TestCase {
 	/** @var array<int, int> Coupons this test made itself (templates, seeded codes). */
 	private array $coupons = array();
 
+	/** @var array<int, int> Orders this test made itself. */
+	private array $orders = array();
+
+	/** @var array<int, int> Brand terms this test made. */
+	private array $brands = array();
+
 	/** @var mixed */
 	private $timezone_before;
 
@@ -61,11 +68,22 @@ final class AutomationDiscountCodeTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		foreach ( $this->orders as $order_id ) {
+			$order = wc_get_order( $order_id );
+			if ( $order instanceof \WC_Order ) {
+				$order->delete( true );
+			}
+		}
+		$this->orders = array();
 		$this->store->clean_up();
 		foreach ( array_merge( $this->coupons, $this->generated_coupon_ids() ) as $coupon_id ) {
 			wp_delete_post( $coupon_id, true );
 		}
 		$this->coupons = array();
+		foreach ( $this->brands as $term_id ) {
+			wp_delete_term( $term_id, 'product_brand' );
+		}
+		$this->brands = array();
 		update_option( 'timezone_string', $this->timezone_before );
 
 		HookHandler::reset_seen();
@@ -114,6 +132,152 @@ final class AutomationDiscountCodeTest extends TestCase {
 		// The template itself is untouched.
 		self::assertSame( array(), $template->get_email_restrictions() );
 		self::assertSame( 0, $template->get_usage_limit() );
+
+		// A template without WooCommerce's brand restriction gives a code without one.
+		self::assertFalse( metadata_exists( 'post', $coupon->get_id(), 'product_brands' ) );
+		self::assertFalse( metadata_exists( 'post', $coupon->get_id(), 'exclude_product_brands' ) );
+	}
+
+	/**
+	 * Audit M1 (3.20.0): a second email of the same automation to the same
+	 * address, while its first code is unused and valid, carries that code
+	 * and its last day again — a day count changed since then does not move
+	 * it — and makes no coupon. The address matches in any letter case.
+	 */
+	public function test_a_second_welcome_carries_the_unused_code_again_and_makes_no_coupon(): void {
+		$template_id = $this->make_template();
+		$this->configure( 'welcome', '4242', $template_id, 14, array( 'welcomeEnabled' => true ) );
+
+		$this->enqueue_welcome( 'Repeat-Shopper@Example.test' );
+		$first = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '4242' );
+		self::assertSame( $this->store_day( 14 ), $first['welcome_coupon_expires_at'] );
+
+		$this->configure( 'welcome', '4242', $template_id, 3, array( 'welcomeEnabled' => true ) );
+		$this->enqueue_welcome( 'repeat-shopper@example.test' );
+		$second = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '4242' );
+
+		self::assertSame( $first['welcome_coupon_code'], $second['welcome_coupon_code'], 'The unused code goes out again.' );
+		self::assertSame( $first['welcome_coupon_expires_at'], $second['welcome_coupon_expires_at'], 'With its own last day.' );
+		self::assertCount( 1, $this->generated_coupon_ids(), 'No second coupon is made.' );
+
+		// The Event Log shows the code that went out, on both rows.
+		$rows = $this->rows( HookHandler::EVENT_AUTOMATION_WELCOME );
+		self::assertCount( 2, $rows );
+		foreach ( $rows as $row ) {
+			self::assertSame( EventQueue::STATUS_SENT, $row['status'] );
+			self::assertStringContainsString( (string) $first['welcome_coupon_code'], (string) $row['sent_payload'] );
+		}
+	}
+
+	/**
+	 * @dataProvider spent_codes
+	 *
+	 * @param callable(\WC_Coupon): void $spend What makes the first code no longer usable.
+	 */
+	public function test_once_the_first_code_is_used_or_expired_the_next_email_makes_a_new_one( callable $spend ): void {
+		$template_id = $this->make_template();
+		$this->configure( 'welcome', '4242', $template_id, 7, array( 'welcomeEnabled' => true ) );
+
+		$this->enqueue_welcome( 'spent-code@example.test' );
+		$first = (string) $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '4242' )['welcome_coupon_code'];
+		$spend( new \WC_Coupon( $first ) );
+
+		$this->enqueue_welcome( 'spent-code@example.test' );
+		$second = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '4242' );
+
+		self::assertNotSame( '', (string) $second['welcome_coupon_code'] );
+		self::assertNotSame( $first, $second['welcome_coupon_code'] );
+		self::assertSame( $this->store_day( 7 ), $second['welcome_coupon_expires_at'] );
+		self::assertCount( 2, $this->generated_coupon_ids() );
+	}
+
+	/**
+	 * @return array<string, array{0: callable(\WC_Coupon): void}>
+	 */
+	public static function spent_codes(): array {
+		return array(
+			'used'    => array(
+				static function ( \WC_Coupon $coupon ): void {
+					$coupon->set_usage_count( 1 );
+					$coupon->save();
+				},
+			),
+			'expired' => array(
+				static function ( \WC_Coupon $coupon ): void {
+					$coupon->set_date_expires( time() - 60 );
+					$coupon->save();
+				},
+			),
+			'trashed' => array(
+				static function ( \WC_Coupon $coupon ): void {
+					wp_trash_post( $coupon->get_id() );
+				},
+			),
+		);
+	}
+
+	/**
+	 * Only the same automation's code, for the same address and from the
+	 * coupon picked now, is sent again. A code made before 3.20.0 records
+	 * no automation and is never sent again.
+	 */
+	public function test_a_code_of_another_automation_address_or_coupon_is_never_sent_again(): void {
+		$template_id = $this->make_template();
+		$this->configure( 'welcome', '4242', $template_id, 7, array( 'welcomeEnabled' => true ) );
+
+		$email   = 'one-shopper@example.test';
+		$foreign = array(
+			$this->seed_code_for( $email, $template_id, 'first_order' ),
+			$this->seed_code_for( 'another-shopper@example.test', $template_id, 'welcome' ),
+			$this->seed_code_for( $email, $this->make_template(), 'welcome' ),
+			$this->seed_code_for( $email, $template_id, null ),
+		);
+
+		$this->enqueue_welcome( $email );
+		$code = (string) $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '4242' )['welcome_coupon_code'];
+
+		self::assertNotSame( '', $code );
+		self::assertNotContains( $code, $foreign );
+		self::assertCount( count( $foreign ) + 1, $this->generated_coupon_ids(), 'A new code is made.' );
+	}
+
+	/**
+	 * Audit M2 (3.20.0): WooCommerce's own brand restriction (core since
+	 * 9.6) is coupon meta, not a WC_Coupon prop — the code copies it, so a
+	 * "brand X only" coupon gives codes that work only for brand X.
+	 */
+	public function test_a_code_from_a_brand_restricted_coupon_works_only_for_that_brand(): void {
+		if ( ! taxonomy_exists( 'product_brand' ) ) {
+			self::markTestSkipped( 'This WooCommerce has no brands (core since 9.6).' );
+		}
+		$brand_x = $this->make_brand( 'Smaily Test Brand X' );
+		$brand_y = $this->make_brand( 'Smaily Test Brand Y' );
+
+		$template_id = $this->make_template(
+			array(
+				'minimum_amount' => '',
+				'product_ids'    => array(),
+			)
+		);
+		update_post_meta( $template_id, 'product_brands', array( $brand_x ) );
+		update_post_meta( $template_id, 'exclude_product_brands', array( $brand_y ) );
+		$this->configure( 'welcome', '4242', $template_id, 7, array( 'welcomeEnabled' => true ) );
+
+		$shopper = $this->store->make_user( 'discount-brand' );
+		$this->enqueue_welcome( PipelineFixture::email_of( $shopper ) );
+		$code      = (string) $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '4242' )['welcome_coupon_code'];
+		$coupon_id = ( new \WC_Coupon( $code ) )->get_id();
+
+		self::assertSame( array( $brand_x ), get_post_meta( $coupon_id, 'product_brands', true ) );
+		self::assertSame( array( $brand_y ), get_post_meta( $coupon_id, 'exclude_product_brands', true ) );
+
+		$x_product = $this->store->make_product( 'Brand X Product' );
+		wp_set_object_terms( $x_product, array( $brand_x ), 'product_brand' );
+		$y_product = $this->store->make_product( 'Brand Y Product' );
+		wp_set_object_terms( $y_product, array( $brand_y ), 'product_brand' );
+
+		self::assertTrue( $this->is_valid( $code, $this->order_of( $shopper, $x_product ) ), 'The code works for brand X.' );
+		self::assertInstanceOf( \WP_Error::class, $this->is_valid( $code, $this->order_of( $shopper, $y_product ) ), 'WooCommerce refuses it for another brand.' );
 	}
 
 	public function test_a_retried_send_posts_the_same_code_and_makes_no_second_coupon(): void {
@@ -407,6 +571,51 @@ final class AutomationDiscountCodeTest extends TestCase {
 	}
 
 	/**
+	 * A code as the plugin makes it: unused, valid for a week, restricted to
+	 * $email, made from $template_id for $trigger (null: a code made before
+	 * the plugin recorded the automation). Returns its code.
+	 */
+	private function seed_code_for( string $email, int $template_id, ?string $trigger ): string {
+		$coupon = new \WC_Coupon();
+		$coupon->set_code( 'smly-seeded-' . strtolower( wp_generate_password( 8, false ) ) );
+		$coupon->set_discount_type( 'percent' );
+		$coupon->set_amount( '10' );
+		$coupon->set_usage_limit( 1 );
+		$coupon->set_usage_limit_per_user( 1 );
+		$coupon->set_email_restrictions( array( $email ) );
+		$coupon->set_date_expires( time() + 7 * DAY_IN_SECONDS );
+		$coupon->update_meta_data( AutomationDiscount::META_GENERATED_FROM, (string) $template_id );
+		if ( $trigger !== null ) {
+			$coupon->update_meta_data( '_smaily_connect_trigger', $trigger );
+		}
+		$id = (int) $coupon->save();
+		self::assertGreaterThan( 0, $id );
+		$this->coupons[] = $id;
+		return $coupon->get_code();
+	}
+
+	private function make_brand( string $name ): int {
+		$term = wp_insert_term( $name . ' ' . wp_generate_password( 6, false ), 'product_brand' );
+		self::assertIsArray( $term );
+		$this->brands[] = (int) $term['term_id'];
+		return (int) $term['term_id'];
+	}
+
+	/** A pending order of one $product_id for the user, billed to their email. */
+	private function order_of( int $user_id, int $product_id ): \WC_Order {
+		$order = wc_create_order();
+		$order->set_customer_id( $user_id );
+		$order->set_billing_email( PipelineFixture::email_of( $user_id ) );
+		$order->add_product( wc_get_product( $product_id ), 1 );
+		$order->calculate_totals();
+		$order->set_status( 'pending' );
+		$this->orders[] = (int) $order->save();
+		return $order;
+	}
+
+	/**
+	 * The plugin's codes in any post status, the trash included.
+	 *
 	 * @return array<int, int>
 	 */
 	private function generated_coupon_ids(): array {
@@ -415,7 +624,7 @@ final class AutomationDiscountCodeTest extends TestCase {
 			get_posts(
 				array(
 					'post_type'   => 'shop_coupon',
-					'post_status' => 'any',
+					'post_status' => array( 'publish', 'draft', 'pending', 'private', 'future', 'trash' ),
 					'numberposts' => -1,
 					'fields'      => 'ids',
 					// phpcs:ignore WordPress.DB.SlowDBQuery.slow_query_meta_key
@@ -536,6 +745,16 @@ final class AutomationDiscountCodeTest extends TestCase {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE event_type = %s", $event_type ), ARRAY_A );
 		self::assertCount( 1, $rows );
 		return $rows[0];
+	}
+
+	/**
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function rows( string $event_type ): array {
+		global $wpdb;
+		$table = QueueRowFixture::table( EventQueue::TABLE_SUFFIX );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE event_type = %s ORDER BY id ASC", $event_type ), ARRAY_A );
 	}
 
 	private function make_due( int $id ): void {

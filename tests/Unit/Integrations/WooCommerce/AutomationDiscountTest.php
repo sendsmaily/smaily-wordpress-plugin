@@ -123,6 +123,19 @@ final class AutomationDiscountTest extends TestCase {
 		self::assertSame( ( new \DateTimeImmutable( '2026-10-24 23:59:59', $utc ) )->getTimestamp(), $expires );
 	}
 
+	public function test_a_code_sent_again_carries_the_last_day_it_was_made_with(): void {
+		// Audit M1: an unused code goes out again with the last day read back
+		// from its stored expiry — the same day the first email gave.
+		$tallinn = new \DateTimeZone( 'Europe/Tallinn' );
+		$now     = ( new \DateTimeImmutable( '2026-10-23 22:30:00', new \DateTimeZone( 'UTC' ) ) )->getTimestamp();
+		$capped  = ( new \DateTimeImmutable( '2026-10-27 00:00:00', $tallinn ) )->getTimestamp();
+
+		foreach ( array( null, $capped ) as $template_expires ) {
+			[ $expires, $last_day ] = AutomationDiscount::expiry( $now, 7, $tallinn, $template_expires );
+			self::assertSame( $last_day, AutomationDiscount::last_day( $expires, $tallinn ) );
+		}
+	}
+
 	public function test_an_erasure_takes_out_only_the_requesters_address_in_any_letter_case(): void {
 		// CON-213: a used code keeps every other allowed email.
 		self::assertSame(

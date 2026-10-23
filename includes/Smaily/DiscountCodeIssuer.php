@@ -18,9 +18,10 @@ use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
  * and CartFlusher share.
  *
  * fields() runs as the router's `before_send` — once a workflow is found,
- * just before the post — and gets the row's code from AutomationDiscount. A
- * new code is written into the row's payload before it is returned, so a
- * retry carries the code its first attempt made and makes no second coupon.
+ * just before the post — and gets the row's code from AutomationDiscount (a
+ * new one, or the address's unused one sent again). The code is written into
+ * the row's payload before it is returned, so a retry carries the code its
+ * first attempt got and makes no second coupon.
  * When the email goes without its code, the reason is kept until the
  * flusher stores the row's exchange: noted() adds it to the reply as the
  * Event Log `note`, and forgets it for the next row.

@@ -8966,6 +8966,41 @@ address stops the code, not only a non-ASCII one. CON-213's erasure needs no
 change: every code that now exists holds the address in the form the eraser
 matches.
 
+**Addendum — the 3.20.0 audit's M1 and M2 (2026-10-23, Erkki's decision).**
+*M1, one working code per shopper and automation.* Before, every email made a
+new code with no limit per address: a guest who ticked the newsletter box at
+every checkout got a new welcome code after every order, and every cart
+reminder made a new one. Now `issue()` first looks for the address's code
+that the SAME automation made from the SAME template and that still works —
+published, `usage_count` 0, `date_expires` in the future, allowed emails
+exactly the address (`AutomationDiscount::unused_code()`, over
+`codes_for_address()`, so the address matches as CON-213 matches it: any
+letter case, accents count). When one exists, the email carries that code
+and its own last day again (read back from its `date_expires`; a day count
+changed since then does not move it) and no coupon is made; with several,
+the newest. A used, expired or trashed code does not count: the next email
+makes a new one. Every code now records its automation in coupon meta
+`_smaily_connect_trigger` (`META_TRIGGER`). A code made before this change
+has none and is never sent again — the simplest rule, and those codes expire
+within their `valid_days`. The template must match too, so a merchant who
+picks another coupon gets the new discount into the next email instead of
+the old one. The retry rule is unchanged (a retried row posts the code stored
+in its payload), and the Event Log shows the code that went out in the row's
+sent payload, a reused one included. A template that cannot give a code
+still sends the email without one, before any reuse is looked for.
+*M2, the brand restriction is copied.* WooCommerce's Brands (core since 9.6)
+keep a coupon's "Brands" / "Exclude brands" restriction in coupon meta
+`product_brands` / `exclude_product_brands` (arrays of `product_brand` term
+ids), read by `WC_Brands_Coupons` through the `woocommerce_coupon_is_valid`
+and `woocommerce_coupon_is_valid_for_product` filters (WooCommerce 10.7) — not
+`WC_Coupon` props, so `get_data()` left them out and a "brand X only"
+template gave codes valid for any product. `create()` now copies both keys
+from the template's meta (`CLONED_META`) when they hold a non-empty list; a
+store without them (WooCommerce before 9.6, or a coupon without a brand
+restriction) gets codes exactly as before. This is WooCommerce's own
+configuration, so the "Not copied" rule above (another plugin's coupon meta)
+still stands.
+
 ### CON-213 — The personal-data export and erasure cover the plugin's discount codes (2026-10-23)
 
 **Context:** CON-199 makes one WooCommerce coupon per discount code sent, its
