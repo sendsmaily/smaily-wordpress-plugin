@@ -26,6 +26,10 @@ final class RetiredTableFixtures {
 
 	public const VISITOR_TABLE = 'smly_rec_visitor';
 
+	public const CART_TRACKER_TABLE = 'smly_plus_cart_session';
+
+	private const HIDDEN_CART_TRACKER_TABLE = 'smly_plus_cart_session_hidden';
+
 	public static function create_legacy_cart_table(): void {
 		global $wpdb;
 		$table = $wpdb->prefix . self::LEGACY_CART_TABLE;
@@ -65,6 +69,28 @@ final class RetiredTableFixtures {
 		foreach ( array( self::LEGACY_CART_TABLE, self::VISITOR_TABLE ) as $suffix ) {
 			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}{$suffix}" );
 		}
+	}
+
+	/**
+	 * Move the cart tracker (`smly_plus_cart_session`) out of the way, so a
+	 * test sees a store whose tracker table is missing (CON-207). Its rows
+	 * are kept; restore_cart_tracker() puts it back.
+	 */
+	public static function hide_cart_tracker(): void {
+		global $wpdb;
+		$wpdb->query( "RENAME TABLE {$wpdb->prefix}" . self::CART_TRACKER_TABLE . " TO {$wpdb->prefix}" . self::HIDDEN_CART_TRACKER_TABLE );
+	}
+
+	/**
+	 * Undo hide_cart_tracker(). A no-op when the tracker was not hidden.
+	 */
+	public static function restore_cart_tracker(): void {
+		global $wpdb;
+		if ( ! self::exists( self::HIDDEN_CART_TRACKER_TABLE ) ) {
+			return;
+		}
+		$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}" . self::CART_TRACKER_TABLE );
+		$wpdb->query( "RENAME TABLE {$wpdb->prefix}" . self::HIDDEN_CART_TRACKER_TABLE . " TO {$wpdb->prefix}" . self::CART_TRACKER_TABLE );
 	}
 
 	public static function exists( string $suffix ): bool {

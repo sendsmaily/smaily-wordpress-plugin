@@ -34,6 +34,8 @@ use Smaily\Connect\Tests\Integration\Support\RetiredTableFixtures;
  *     after draining the legacy carts a 1.x / 2.0.0 store never drained;
  *   - a store that drained on an earlier version is not drained twice;
  *   - a second run of the migration is a clean no-op;
+ *   - without the cart tracker table nothing is drained or dropped, and the
+ *     next update does both once the tracker is there (CON-207);
  *   - the personal-data exporter and eraser answer the same for a customer
  *     before and after the drop (neither ever read either table).
  */
@@ -51,6 +53,7 @@ final class RetiredTablesMigrationTest extends TestCase {
 
 	protected function tearDown(): void {
 		global $wpdb;
+		RetiredTableFixtures::restore_cart_tracker();
 		RetiredTableFixtures::drop_both();
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->query( "DELETE FROM {$wpdb->prefix}smly_plus_cart_session" );
@@ -121,6 +124,36 @@ final class RetiredTablesMigrationTest extends TestCase {
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ) );
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::VISITOR_TABLE ) );
 		self::assertSame( 12, (int) get_option( Constants::OPTION_SCHEMA_VERSION ) );
+	}
+
+	public function test_without_the_cart_tracker_nothing_is_dropped_and_the_next_update_retries(): void {
+		global $wpdb;
+		$this->arrange_store_before_migration_012();
+		$user = $this->make_user( 'no-tracker' );
+		RetiredTableFixtures::seed_legacy_cart( $user, gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS ) );
+
+		RetiredTableFixtures::hide_cart_tracker();
+		$suppressed = $wpdb->suppress_errors( true );
+		try {
+			Bootstrap::instance()->maybe_run_upgrade();
+		} finally {
+			$wpdb->suppress_errors( $suppressed );
+			RetiredTableFixtures::restore_cart_tracker();
+		}
+
+		self::assertTrue( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ), 'The legacy carts had nowhere to go: the table stays.' );
+		self::assertTrue( RetiredTableFixtures::exists( RetiredTableFixtures::VISITOR_TABLE ) );
+		self::assertSame( 11, (int) get_option( Constants::OPTION_SCHEMA_VERSION ), 'Migration 012 is not recorded, so the next update runs it again.' );
+		self::assertFalse( get_option( self::DRAINED_OPTION ), 'Nothing was drained, so nothing is stamped.' );
+		self::assertNull( $this->tracker_row( (string) $user ) );
+
+		// The next update, with the tracker there.
+		update_option( Activation::OPTION_PLUGIN_VERSION, '0.0.0-pre' );
+		Bootstrap::instance()->maybe_run_upgrade();
+
+		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ) );
+		self::assertSame( 12, (int) get_option( Constants::OPTION_SCHEMA_VERSION ) );
+		self::assertNotNull( $this->tracker_row( (string) $user ), 'The retry copied the cart before the drop.' );
 	}
 
 	public function test_the_personal_data_export_is_the_same_before_and_after_the_drop(): void {
