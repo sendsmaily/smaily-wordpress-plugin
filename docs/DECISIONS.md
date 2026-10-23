@@ -8845,6 +8845,11 @@ tracker that was never built — identity merge is engine-side; nothing writes i
   class (unregistered since PRO-1195) and the `Cron` abandoned-cart passes
   (`smaily_abandoned_carts_email` / `_status`, `get_abandoned_carts`,
   `update_mail_sent_status`). The rest of the legacy `Cron` class stays.
+  *Addendum (2026-10-23):* the passes' now-uncalled helpers are removed too
+  (`prepare_user_data`, `prepare_products_data`, `automation_router`,
+  `get_sale_price_with_tax`, `get_base_price_with_tax`, `format_price`,
+  `get_product_image_url`; none is a hook callback); `Cron` keeps only the
+  `cron_schedules` filter and the unregistered `smaily_sync_subscribers`.
 - **Uninstall** still drops both tables (`uninstall.php` now lists the legacy
   cart table too — it never did, PRO-1337's list missed it) for a store deleted
   before 012 ran; the stamp is caught by the `smly_plus_` sweep.
