@@ -49,7 +49,9 @@ final class EmailDesignWorkflows {
 
 	/**
 	 * Keep the workflow ids of one §23 read, replacing those of the last one:
-	 * an email whose id is now empty goes back to its mapped workflow.
+	 * an email whose id is now empty goes back to its mapped workflow. Only
+	 * an email with `sent_through: "workflow"` has a workflow id (§23); an id
+	 * on any other item is not kept (audit 3.19.0 L3).
 	 *
 	 * @param array<int|string, mixed> $emails The §23 `emails` list.
 	 */
@@ -59,7 +61,8 @@ final class EmailDesignWorkflows {
 			if ( ! is_array( $item )
 				|| ! in_array( $item['email_key'] ?? null, self::EMAIL_KEYS, true )
 				|| ! in_array( $item['kind'] ?? null, self::KINDS, true )
-				|| ! in_array( $item['smaily_state'] ?? null, self::STATES_WITH_IDS, true ) ) {
+				|| ! in_array( $item['smaily_state'] ?? null, self::STATES_WITH_IDS, true )
+				|| ( $item['sent_through'] ?? null ) !== 'workflow' ) {
 				continue;
 			}
 			$id = $item['smaily_workflow_id'] ?? null;
