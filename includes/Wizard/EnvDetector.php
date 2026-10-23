@@ -16,6 +16,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Constants;
+use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\PolylangAdapter;
@@ -64,6 +65,9 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *     orderStatuses: array<{slug, name}>,
  *     consentApiPresent: bool,
  *     followUpDelayLimits: { min: int, max: int, default: int },
+ *     discountTemplates: array<{id, label}>,
+ *     discountValidDays: { min: int, max: int, default: int },
+ *     newCouponUrl: string,
  *   }
  *
  * The React bundle reads everything that's not in WizardState.env
@@ -93,6 +97,9 @@ class EnvDetector {
 	 *   orderStatuses: array<int, array{slug: string, name: string}>,
 	 *   consentApiPresent: bool,
 	 *   followUpDelayLimits: array{min: int, max: int, default: int},
+	 *   discountTemplates: array<int, array{id: int, label: string}>,
+	 *   discountValidDays: array{min: int, max: int, default: int},
+	 *   newCouponUrl: string,
 	 * }
 	 */
 	public function snapshot(): array {
@@ -124,6 +131,16 @@ class EnvDetector {
 				'max'     => TransactionalGate::FOLLOW_UP_DELAY_MAX,
 				'default' => TransactionalGate::FOLLOW_UP_DELAY_DEFAULT,
 			),
+			// CON-199 — the coupons an automation's discount code can be
+			// cloned from, the "Valid for (days)" bounds, and WooCommerce's
+			// add-coupon screen for a store that has no usable coupon yet.
+			'discountTemplates'   => AutomationDiscount::templates(),
+			'discountValidDays'   => array(
+				'min'     => AutomationDiscount::VALID_DAYS_MIN,
+				'max'     => AutomationDiscount::VALID_DAYS_MAX,
+				'default' => AutomationDiscount::VALID_DAYS_DEFAULT,
+			),
+			'newCouponUrl'        => class_exists( '\WC_Coupon' ) ? admin_url( 'post-new.php?post_type=shop_coupon' ) : '',
 		);
 	}
 
@@ -496,6 +513,8 @@ class EnvDetector {
 			// cast read a disabled array ({enabled: false}) as TRUE.
 			'abandonedCartEnabled'          => \Smaily_Connect\Includes\Options::abandoned_cart_status()['enabled'],
 			'automationMappings'            => $this->automation_mappings(),
+			// CON-199: each automation's "Send a discount code" settings.
+			'automationDiscounts'           => $this->automation_discounts(),
 
 			// Transactional emails (PRO-1504, stage 1 — configuration only,
 			// no send path yet). Separate Smaily account bound under
@@ -530,6 +549,23 @@ class EnvDetector {
 			// tohi kunagi olla client-side koodis").
 			'recEngine'                     => $this->rec_engine_snapshot(),
 		);
+	}
+
+	/**
+	 * AutomationDiscount::settings() in the admin bundle's field names.
+	 *
+	 * @return array<string, array{enabled: bool, templateId: int, validDays: int}>
+	 */
+	private function automation_discounts(): array {
+		$discounts = array();
+		foreach ( AutomationDiscount::settings() as $trigger => $setting ) {
+			$discounts[ $trigger ] = array(
+				'enabled'    => $setting['enabled'],
+				'templateId' => $setting['template_id'],
+				'validDays'  => $setting['valid_days'],
+			);
+		}
+		return $discounts;
 	}
 
 	/**

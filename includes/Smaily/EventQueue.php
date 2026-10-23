@@ -604,6 +604,25 @@ class EventQueue {
 		return isset( $decoded['reason'] ) && is_string( $decoded['reason'] ) ? $decoded['reason'] : '';
 	}
 
+	/**
+	 * Replace a row's payload before it is sent (CON-199): the discount code
+	 * made for the row is stored first, so a retry posts the same code and
+	 * never makes a second one. The contact key stays — the address does not
+	 * change.
+	 *
+	 * @param array<string, mixed> $payload
+	 */
+	public function update_payload( int $id, array $payload ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->table_name(),
+			array( 'payload' => (string) wp_json_encode( $payload ) ),
+			array( 'id' => $id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
+
 	public function mark_sent( int $id ): void {
 		global $wpdb;
 		$wpdb->update(

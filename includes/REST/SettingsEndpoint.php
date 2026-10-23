@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Integrations\WooCommerce\LegacyHookBridge;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\SetupState;
@@ -359,6 +360,28 @@ class SettingsEndpoint {
 			}
 		}
 
+		// The automations' discount codes (CON-199), checked the same way.
+		$discounts = null;
+		if ( array_key_exists( 'automationDiscounts', $data ) ) {
+			$discounts = AutomationDiscount::from_request( $data['automationDiscounts'] );
+			if ( $discounts === null ) {
+				return $this->error_response(
+					array(
+						array(
+							'field'   => 'automationDiscounts',
+							'message' => sprintf(
+								/* translators: 1: the shortest validity in days, 2: the longest. */
+								__( 'A discount code must be valid for a whole number of days from %1$d to %2$d.', 'smaily-connect' ),
+								AutomationDiscount::VALID_DAYS_MIN,
+								AutomationDiscount::VALID_DAYS_MAX
+							),
+						),
+					),
+					400
+				);
+			}
+		}
+
 		$welcome  = ! empty( $data['welcomeEnabled'] );
 		$first    = ! empty( $data['firstOrderEnabled'] );
 		$cart     = ! empty( $data['abandonedCartEnabled'] );
@@ -370,6 +393,9 @@ class SettingsEndpoint {
 
 		update_option( 'smly_plus_welcome_enabled', $welcome );
 		update_option( 'smly_plus_first_order_enabled', $first );
+		if ( $discounts !== null ) {
+			update_option( AutomationDiscount::OPTION, $discounts );
+		}
 
 		/*
 		 * The legacy cron pass reads this option as an ARRAY

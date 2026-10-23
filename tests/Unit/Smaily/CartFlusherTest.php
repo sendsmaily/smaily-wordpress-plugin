@@ -568,21 +568,7 @@ final class CartFlusherTest extends TestCase {
 				)
 			);
 
-		$router = new class extends AutomationRouter {
-			/** @var array<int, array<string, mixed>> */
-			public array $posted = array();
-
-			public function __construct() {}
-
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
-				$this->posted[] = array_merge( $additional_fields, $before_send !== null ? $before_send() : array() );
-				return true;
-			}
-
-			public function last_exchange(): ?array {
-				return array( 'response' => array( 'http' => 200, 'body' => array( 'code' => 101 ) ) );
-			}
-		};
+		$router = $this->router_running_before_send();
 
 		( new CartFlusher( $queue, $router, $this->subscribed_factory(), $discounts ) )->flush();
 
@@ -621,7 +607,7 @@ final class CartFlusherTest extends TestCase {
 
 		$stats = ( new CartFlusher(
 			$queue,
-			$this->recording_router(),
+			$this->router_running_before_send(),
 			$this->subscribed_factory(),
 			$this->discounts_issuing( array(), 'Sent without a discount code: no WooCommerce coupon is picked.' )
 		) )->flush();
@@ -633,6 +619,34 @@ final class CartFlusherTest extends TestCase {
 	}
 
 	// --- helpers -------------------------------------------------------------
+
+	/**
+	 * A router that finds a workflow, runs before_send like the real one and
+	 * records the address fields it would post.
+	 */
+	private function router_running_before_send(): AutomationRouter {
+		return new class extends AutomationRouter {
+			/** @var array<int, array<string, mixed>> */
+			public array $posted = array();
+
+			public function __construct() {}
+
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
+				$this->posted[] = array_merge( $additional_fields, $before_send !== null ? $before_send() : array() );
+				return true;
+			}
+
+			public function last_exchange(): ?array {
+				return array(
+					'request'  => array( 'endpoint' => 'autoresponder' ),
+					'response' => array(
+						'http' => 200,
+						'body' => array( 'code' => 101 ),
+					),
+				);
+			}
+		};
+	}
 
 	private function stub_status_option( int $autoresponder_id, string $mode = ContactSyncMode::MODE_CONSENT ): void {
 		Functions\when( 'get_option' )->alias(

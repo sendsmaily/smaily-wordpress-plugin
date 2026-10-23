@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal config exceptions are surfaced to admins / logged, never echoed to a browser.
 
+use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Integrations\WooCommerce\CartHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
@@ -939,7 +940,8 @@ final class Bootstrap {
 				$this->automation_router(),
 				static function ( string $account_key ) use ( $bootstrap ): Client {
 					return $bootstrap->smaily_client( $account_key );
-				}
+				},
+				new AutomationDiscount()
 			);
 		}
 
@@ -962,7 +964,8 @@ final class Bootstrap {
 				$this->automation_router(),
 				static function ( string $account_key ) use ( $bootstrap ): Client {
 					return $bootstrap->smaily_client( $account_key );
-				}
+				},
+				new AutomationDiscount()
 			);
 		}
 
