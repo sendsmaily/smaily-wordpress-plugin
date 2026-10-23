@@ -166,8 +166,12 @@ export interface DiscountTemplate {
   label: string;
 }
 
-/** The "Valid for (days)" range and default, as the server validates it (CON-199). */
-export interface DiscountValidDays {
+/**
+ * A day-count setting's range and default, as the server validates it —
+ * the follow-up delay (PRO-4095) and a discount code's "Valid for (days)"
+ * (CON-199).
+ */
+export interface DayRangeLimits {
   min: number;
   max: number;
   default: number;
@@ -177,7 +181,7 @@ export interface DiscountValidDays {
  * AutomationDiscount::VALID_DAYS_* — read only when the boot payload
  * carries no discountValidDays (no payload at all, or a test fixture).
  */
-export const FALLBACK_DISCOUNT_VALID_DAYS: DiscountValidDays = { min: 1, max: 365, default: 7 };
+export const FALLBACK_DISCOUNT_VALID_DAYS: DayRangeLimits = { min: 1, max: 365, default: 7 };
 
 /** Every automation off, with the default days — the state before anything is saved. */
 export function defaultAutomationDiscounts(): AutomationDiscounts {
@@ -340,18 +344,11 @@ export function normalizeContactSyncMode(value: string | undefined): ContactSync
     : DEFAULT_CONTACT_SYNC_MODE;
 }
 
-/** The follow-up delay's range and default in days, as the server validates it (PRO-4095). */
-export interface FollowUpDelayLimits {
-  min: number;
-  max: number;
-  default: number;
-}
-
 /**
  * TransactionalGate::FOLLOW_UP_DELAY_* — read only when the boot payload
  * carries no followUpDelayLimits (no payload at all, or a test fixture).
  */
-export const FALLBACK_FOLLOW_UP_DELAY_LIMITS: FollowUpDelayLimits = { min: 1, max: 90, default: 7 };
+export const FALLBACK_FOLLOW_UP_DELAY_LIMITS: DayRangeLimits = { min: 1, max: 90, default: 7 };
 
 export interface WizardState {
   /** True when rendering inside Settings tabs (sub-PR 2.F). */
@@ -403,14 +400,14 @@ export interface WizardState {
      * Optional so pre-existing env fixtures stay valid; absent reads as
      * FALLBACK_FOLLOW_UP_DELAY_LIMITS.
      */
-    followUpDelayLimits?: FollowUpDelayLimits;
+    followUpDelayLimits?: DayRangeLimits;
     /**
      * The store's coupons a discount code can be cloned from (CON-199).
      * Optional so pre-existing env fixtures stay valid; absent = none.
      */
     discountTemplates?: DiscountTemplate[];
     /** "Valid for (days)" bounds; absent reads as FALLBACK_DISCOUNT_VALID_DAYS. */
-    discountValidDays?: DiscountValidDays;
+    discountValidDays?: DayRangeLimits;
     /** WooCommerce's add-coupon screen (CON-199); absent or '' = no link. */
     newCouponUrl?: string;
   };

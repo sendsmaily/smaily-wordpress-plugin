@@ -339,9 +339,16 @@ final class AutomationDiscountCodeTest extends TestCase {
 		update_post_meta( $other_type, 'discount_type', 'store_credit' );
 		$generated = $this->seed_generated_code( -5, 0 );
 
-		$listed = array_column( AutomationDiscount::templates(), 'id' );
+		$labels = array_column( AutomationDiscount::templates(), 'label', 'id' );
+		$listed = array_keys( $labels );
 
 		self::assertContains( $usable, $listed );
+		$coupon = new \WC_Coupon( $usable );
+		self::assertSame(
+			sprintf( '%1$s — %2$s: %3$s', $coupon->get_code(), wc_get_coupon_type( $coupon->get_discount_type() ), wc_format_localized_decimal( $coupon->get_amount() ) ),
+			$labels[ $usable ],
+			'The label reads what the coupon itself does.'
+		);
 		self::assertNotContains( $draft, $listed );
 		self::assertNotContains( $expired, $listed );
 		self::assertNotContains( $other_type, $listed );

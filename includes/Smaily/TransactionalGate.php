@@ -15,6 +15,7 @@ use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Support\ContactLanguageResolver;
+use Smaily\Connect\Support\NumberInput;
 
 /**
  * Single source of truth for "is a transactional send allowed to happen for
@@ -335,15 +336,7 @@ class TransactionalGate {
 	 * @param mixed $days
 	 */
 	public static function delay_days_or_null( $days ): ?int {
-		if ( is_int( $days ) ) {
-			$value = $days;
-		} elseif ( is_string( $days ) && preg_match( '/^\d+$/', trim( $days ) ) === 1 ) {
-			$value = (int) trim( $days );
-		} else {
-			return null;
-		}
-
-		return $value >= self::FOLLOW_UP_DELAY_MIN && $value <= self::FOLLOW_UP_DELAY_MAX ? $value : null;
+		return NumberInput::whole_number_in_range( $days, self::FOLLOW_UP_DELAY_MIN, self::FOLLOW_UP_DELAY_MAX );
 	}
 
 	/**

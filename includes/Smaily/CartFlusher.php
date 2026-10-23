@@ -106,20 +106,17 @@ class CartFlusher {
 	/** The contact-sync mode, read afresh for every flush (its own memo must not outlive one). */
 	private ?ContactSyncMode $mode = null;
 
-	/** Makes the reminders' discount codes (CON-199); null makes none. */
-	private ?AutomationDiscount $discounts;
-
-	/** Why the reminder currently being dispatched went without its discount code, or ''. */
-	private string $discount_note = '';
+	/** The reminders' discount codes (CON-199). */
+	private DiscountCodeIssuer $discount_codes;
 
 	/**
 	 * @param callable(string $account_key): Client $client_factory
 	 */
-	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, ?AutomationDiscount $discounts = null ) {
+	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, AutomationDiscount $discounts ) {
 		$this->queue          = $queue;
 		$this->router         = $router;
 		$this->client_factory = $client_factory;
-		$this->discounts      = $discounts;
+		$this->discount_codes = new DiscountCodeIssuer( $queue, $discounts );
 	}
 
 	/**
@@ -145,7 +142,6 @@ class CartFlusher {
 			$id = (int) ( $event['id'] ?? 0 );
 
 			$this->current_exchange = null;
-			$this->discount_note    = '';
 
 			try {
 				$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
@@ -217,9 +213,7 @@ class CartFlusher {
 			'language' => isset( $payload['language'] ) ? (string) $payload['language'] : '',
 		);
 
-		$discount_fields = function () use ( $id, $payload ): array {
-			return $this->discount_fields( $id, $payload );
-		};
+		$discount_fields = fn (): array => $this->discount_codes->fields( $id, 'abandoned_cart', $payload );
 
 		try {
 			if ( $this->router->trigger_automation( 'abandoned_cart', $contact, $fields, $discount_fields ) ) {
@@ -318,25 +312,6 @@ class CartFlusher {
 	}
 
 	/**
-	 * The discount code fields for the reminder about to be posted (CON-199)
-	 * — keeping the reason when it goes without its code.
-	 *
-	 * @param array<string, mixed> $payload
-	 *
-	 * @return array<string, string>
-	 */
-	private function discount_fields( int $id, array $payload ): array {
-		if ( $this->discounts === null ) {
-			return array();
-		}
-
-		$issued              = $this->discounts->issue( 'abandoned_cart', $payload, $this->queue, $id );
-		$this->discount_note = $issued['note'];
-
-		return $issued['fields'];
-	}
-
-	/**
 	 * @return array<string, mixed>
 	 *
 	 * @throws TerminalDispatchException When the payload isn't a valid JSON-encoded array.
@@ -360,6 +335,9 @@ class CartFlusher {
 	 * Smaily reply, or a "skipped" marker when nothing was POSTed.
 	 */
 	private function record_exchange( int $id ): void {
+		// A reminder that went without its discount code says why (CON-199).
+		$response = $this->discount_codes->noted( $this->current_exchange['response'] ?? null );
+
 		if ( $this->current_exchange === null ) {
 			$this->queue->store_exchange(
 				$id,
@@ -374,12 +352,7 @@ class CartFlusher {
 			return;
 		}
 
-		$request  = $this->current_exchange['request'] ?? null;
-		$response = $this->current_exchange['response'] ?? null;
-		if ( $this->discount_note !== '' && is_array( $response ) ) {
-			// The reminder went without its discount code: say why (CON-199).
-			$response['note'] = $this->discount_note;
-		}
+		$request = $this->current_exchange['request'] ?? null;
 		$this->queue->store_exchange( $id, $this->trim_json( $request ), $this->trim_json( $response ) );
 	}
 

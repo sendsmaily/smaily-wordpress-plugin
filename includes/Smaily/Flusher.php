@@ -100,20 +100,17 @@ final class Flusher {
 	 */
 	private ?string $skip_note = null;
 
-	/** Makes the automations' discount codes (CON-199); null makes none. */
-	private ?AutomationDiscount $discounts;
-
-	/** Why the event currently being dispatched went without its discount code, or ''. */
-	private string $discount_note = '';
+	/** The automations' discount codes (CON-199). */
+	private DiscountCodeIssuer $discount_codes;
 
 	/**
 	 * @param callable(string $account_key): Client $client_factory
 	 */
-	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, ?AutomationDiscount $discounts = null ) {
+	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, AutomationDiscount $discounts ) {
 		$this->queue          = $queue;
 		$this->router         = $router;
 		$this->client_factory = $client_factory;
-		$this->discounts      = $discounts;
+		$this->discount_codes = new DiscountCodeIssuer( $queue, $discounts );
 	}
 
 	/**
@@ -142,7 +139,6 @@ final class Flusher {
 			// Reset so the stored exchange reflects THIS event (F3-44).
 			$this->current_exchange = null;
 			$this->skip_note        = null;
-			$this->discount_note    = '';
 
 			try {
 				$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
@@ -285,34 +281,13 @@ final class Flusher {
 				$trigger,
 				$contact_data,
 				$fields,
-				function () use ( $id, $trigger, $payload ): array {
-					return $this->discount_fields( $id, $trigger, $payload );
-				}
+				fn (): array => $this->discount_codes->fields( $id, $trigger, $payload )
 			);
 		} finally {
 			// null when the router short-circuited before any request (no
 			// workflow) — record_exchange() then stores a skip marker (F3-44).
 			$this->current_exchange = $this->router->last_exchange();
 		}
-	}
-
-	/**
-	 * The discount code fields for the row about to be posted (CON-199) —
-	 * keeping the reason when it goes without its code.
-	 *
-	 * @param array<string, mixed> $payload
-	 *
-	 * @return array<string, string>
-	 */
-	private function discount_fields( int $id, string $trigger, array $payload ): array {
-		if ( $this->discounts === null ) {
-			return array();
-		}
-
-		$issued              = $this->discounts->issue( $trigger, $payload, $this->queue, $id );
-		$this->discount_note = $issued['note'];
-
-		return $issued['fields'];
 	}
 
 	/**
@@ -341,6 +316,9 @@ final class Flusher {
 	 * or a purchase marker for an address Smaily does not have).
 	 */
 	private function record_exchange( int $id ): void {
+		// An email that went without its discount code says why (CON-199).
+		$response = $this->discount_codes->noted( $this->current_exchange['response'] ?? null );
+
 		if ( $this->current_exchange === null ) {
 			$this->queue->store_exchange(
 				$id,
@@ -355,12 +333,7 @@ final class Flusher {
 			return;
 		}
 
-		$request  = $this->current_exchange['request'] ?? null;
-		$response = $this->current_exchange['response'] ?? null;
-		if ( $this->discount_note !== '' && is_array( $response ) ) {
-			// The email went without its discount code: say why (CON-199).
-			$response['note'] = $this->discount_note;
-		}
+		$request = $this->current_exchange['request'] ?? null;
 		$this->queue->store_exchange( $id, $this->trim_json( $request ), $this->trim_json( $response ) );
 	}
 

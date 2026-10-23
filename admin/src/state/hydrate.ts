@@ -11,9 +11,8 @@ import {
   type AutomationMapping,
   type AutomationDiscounts,
   type AutomationTrigger,
+  type DayRangeLimits,
   type DiscountTemplate,
-  type DiscountValidDays,
-  type FollowUpDelayLimits,
   type RssFeedBootData,
   type TransactionalSendStatus,
   type TransactionalTrigger,
@@ -71,11 +70,11 @@ export interface BootPayload {
     /** Whether the WP Consent API is active, from EnvDetector::snapshot() (PRO-3673). */
     consentApiPresent?: boolean;
     /** The follow-up delay's range and default, from EnvDetector::snapshot() (PRO-4095). */
-    followUpDelayLimits?: FollowUpDelayLimits;
+    followUpDelayLimits?: DayRangeLimits;
     /** The coupons a discount code can be cloned from, from EnvDetector::snapshot() (CON-199). */
     discountTemplates?: DiscountTemplate[];
     /** The "Valid for (days)" range and default (CON-199). */
-    discountValidDays?: DiscountValidDays;
+    discountValidDays?: DayRangeLimits;
     /** WooCommerce's add-coupon screen (CON-199). */
     newCouponUrl?: string;
   };

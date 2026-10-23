@@ -19,7 +19,6 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
-use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 
 final class AutomationDiscountPrivacyTest extends TestCase {
@@ -173,7 +172,7 @@ final class AutomationDiscountPrivacyTest extends TestCase {
 
 	/** A code made the way an automation email makes it; returns the coupon id. */
 	private function issue( string $trigger, string $email ): int {
-		$issued = ( new AutomationDiscount() )->issue( $trigger, array( 'email' => $email ), new EventQueue(), 0 );
+		$issued = ( new AutomationDiscount() )->issue( $trigger, array( 'email' => $email ) );
 		$code   = (string) ( $issued['fields'][ AutomationDiscount::FIELDS[ $trigger ][0] ] ?? '' );
 		self::assertNotSame( '', $code, 'issue() made a code: ' . $issued['note'] );
 
