@@ -226,6 +226,54 @@ final class AutomationDiscountCodeTest extends TestCase {
 		);
 	}
 
+	/**
+	 * CON-214: WooCommerce rewrites an allowed email through sanitize_email(),
+	 * which drops every non-ASCII letter, and compares the buyer's address
+	 * the same way. A code for `jäne@…` would be restricted to `jne@…` —
+	 * someone else's address — and an address that sanitises to nothing
+	 * would leave the code open to anyone. A wildcard is WooCommerce's
+	 * "any address that matches". None of them gets a code.
+	 *
+	 * @dataProvider addresses_woocommerce_cannot_restrict_a_code_to
+	 */
+	public function test_an_address_woocommerce_would_store_otherwise_gets_no_code_and_the_note_says_why( string $email, string $rewritten ): void {
+		// What WooCommerce itself does with the address.
+		$probe = new \WC_Coupon();
+		$probe->set_email_restrictions( array( $email ) );
+		self::assertSame( $rewritten, implode( ',', $probe->get_email_restrictions( 'edit' ) ) );
+
+		$template_id = $this->make_template();
+		$this->configure( 'welcome', '4242', $template_id, 7, array( 'welcomeEnabled' => true ) );
+
+		$this->enqueue_welcome( $email );
+		$address = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '4242' );
+
+		self::assertSame( $email, $address['email'], 'The email still goes to the shopper.' );
+		self::assertArrayNotHasKey( 'welcome_coupon_code', $address );
+		self::assertArrayNotHasKey( 'welcome_coupon_expires_at', $address );
+		self::assertSame( array(), $this->generated_coupon_ids(), 'No code is made — none restricted to another address.' );
+		if ( $rewritten !== '' ) {
+			self::assertSame( array(), AutomationDiscount::codes_for_address( $rewritten ) );
+		}
+
+		$row = $this->only_row( HookHandler::EVENT_AUTOMATION_WELCOME );
+		self::assertSame( EventQueue::STATUS_SENT, $row['status'] );
+		$response = json_decode( (string) $row['last_response'], true );
+		self::assertSame( 'Sent without a discount code: WooCommerce cannot restrict a code to exactly this email address.', (string) $response['note'] );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: string}>
+	 */
+	public static function addresses_woocommerce_cannot_restrict_a_code_to(): array {
+		return array(
+			'a non-ASCII letter in the name'   => array( 'jäne@example.test', 'jne@example.test' ),
+			'a non-ASCII letter in the domain' => array( 'jane@exämple.test', 'jane@exmple.test' ),
+			'nothing left after sanitising'    => array( 'ä@example.test', '' ),
+			'a wildcard'                       => array( '*@example.test', '*@example.test' ),
+		);
+	}
+
 	public function test_no_code_is_sent_while_no_template_is_picked(): void {
 		$this->configure( 'welcome', '4242', 0, 7, array( 'welcomeEnabled' => true ) );
 

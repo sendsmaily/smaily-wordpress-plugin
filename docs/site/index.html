@@ -755,7 +755,7 @@ td code{white-space:nowrap}
         <ul>
           <li>Each code copies the coupon's discount and restrictions. It works <strong>once</strong>, only with the shopper's email address, until the end of its last valid day: that many days after the email, in your store's timezone (<span class="path">Settings → General → Timezone</span>), and never after the coupon's own expiry date. After that day, once it was used, or with another email address, WooCommerce itself refuses the code.</li>
           <li>The code is made when the email is sent. A send that is retried gets the same code. A reminder that is skipped (see above), or an automation with no workflow, makes none.</li>
-          <li>If the coupon can't give a code when the email goes — deleted, in the trash, expired, or of another plugin's discount type — the email goes without a code, and the row's <strong>Details</strong> in the Event Log say why.</li>
+          <li>If the coupon can't give a code when the email goes — deleted, in the trash, expired, or of another plugin's discount type — the email goes without a code, and the row's <strong>Details</strong> in the Event Log say why. The same happens for an email address with a letter outside A–Z, such as ä or õ: WooCommerce would change the address, so the code would not work for the shopper.</li>
           <li>The codes are ordinary WooCommerce coupons with a random 10‑character code, listed under <span class="path">Marketing → Coupons</span>. Once a day the plugin deletes the codes it made that were never used, 30 days after they expired. A used code stays.</li>
         </ul>
       </div>
@@ -836,7 +836,7 @@ td code{white-space:nowrap}
         <ul>
           <li>Iga kood kopeerib kupongi soodustuse ja piirangud. See kehtib <strong>üks kord</strong>, ainult ostleja e‑posti aadressiga, kuni oma viimase kehtivuspäeva lõpuni: nii mitu päeva pärast e‑kirja, su poe ajavööndis (<span class="path">Seaded → Üldine → Ajavöönd</span>), ja mitte kunagi pärast kupongi enda aegumiskuupäeva. Pärast seda päeva, pärast kasutamist või teise e‑posti aadressiga keeldub koodist WooCommerce ise.</li>
           <li>Kood luuakse e‑kirja saatmisel. Uuesti proovitud saatmine saab sama koodi. Vahele jäetud meeldetuletus (vt eespool) või töövoota automaatika koodi ei loo.</li>
-          <li>Kui kupong ei saa kirja saatmise ajal koodi anda — kustutatud, prügikastis, aegunud või mõne teise plugina allahindlustüübiga —, läheb e‑kiri ilma koodita ja sündmuste logi rea <strong>Details</strong> ütleb, miks.</li>
+          <li>Kui kupong ei saa kirja saatmise ajal koodi anda — kustutatud, prügikastis, aegunud või mõne teise plugina allahindlustüübiga —, läheb e‑kiri ilma koodita ja sündmuste logi rea <strong>Details</strong> ütleb, miks. Sama juhtub e‑posti aadressiga, milles on täht väljastpoolt A–Z, näiteks ä või õ: WooCommerce muudaks aadressi ja kood ei töötaks ostleja jaoks.</li>
           <li>Koodid on tavalised WooCommerce'i kupongid juhusliku 10‑märgilise koodiga ja on näha jaotises <span class="path">Turundus → Kupongid</span>. Kord päevas kustutab plugin enda loodud koodid, mida pole kunagi kasutatud, 30 päeva pärast nende aegumist. Kasutatud kood jääb alles.</li>
         </ul>
       </div>

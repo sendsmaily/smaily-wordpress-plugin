@@ -42,7 +42,9 @@ use Smaily\Connect\Smaily\EventQueue;
  * payload before the post (EventQueue::update_payload()), so a retry posts
  * the same code and makes no second coupon. A template that cannot give a
  * code leaves the code out — the email still goes — and returns the reason,
- * which the flusher stores as the Event Log note.
+ * which the flusher stores as the Event Log note. So does an address
+ * WooCommerce would store otherwise (CON-214, restricts_to_exactly()): a
+ * code is never restricted to an address other than the shopper's.
  *
  * WooCommerce itself refuses a used, foreign or expired code at checkout
  * (WC_Discounts' usage-limit, allowed-email and expiry checks), so the
@@ -284,11 +286,11 @@ class AutomationDiscount {
 		}
 
 		$problem = class_exists( '\WC_Coupon' ) ? self::template_problem( $setting['template_id'] ) : 'WooCommerce is not active';
-		$code    = $problem === '' ? $this->create( $setting['template_id'], $setting['valid_days'], $email ) : null;
-		if ( $code === null ) {
+		$code    = $problem === '' ? $this->create( $setting['template_id'], $setting['valid_days'], $email ) : $problem;
+		if ( is_string( $code ) ) {
 			return array(
 				'fields' => array(),
-				'note'   => sprintf( self::NOTE, $problem !== '' ? $problem : sprintf( 'WooCommerce could not save a code from the coupon #%d', $setting['template_id'] ) ),
+				'note'   => sprintf( self::NOTE, $code ),
 			);
 		}
 
@@ -496,6 +498,20 @@ class AutomationDiscount {
 		return $kept;
 	}
 
+	/**
+	 * Whether a coupon's allowed emails, as WooCommerce stored them, are
+	 * exactly this one address and nothing else (CON-214). WooCommerce
+	 * passes each allowed email through sanitize_email(), which drops
+	 * non-ASCII letters (`jäne@…` becomes `jne@…`, someone else's address)
+	 * and can leave nothing (an empty list: anyone may use the code); and it
+	 * reads `*` as "any characters", so an address with one matches others.
+	 *
+	 * @param array<int|string, mixed> $restrictions
+	 */
+	public static function restricts_to_exactly( array $restrictions, string $email ): bool {
+		return $email !== '' && strpos( $email, '*' ) === false && array_values( $restrictions ) === array( $email );
+	}
+
 	/** The same address in any letter case — bytes after lowering, so no accent folding. */
 	private static function same_address( string $a, string $b ): bool {
 		return strtolower( trim( $a ) ) === strtolower( trim( $b ) );
@@ -504,9 +520,13 @@ class AutomationDiscount {
 	/**
 	 * Clone the template into the shopper's code.
 	 *
-	 * @return array{code: string, last_day: string}|null Null when WooCommerce refused a setting or the save.
+	 * The reason no code was made instead, when WooCommerce refused a setting
+	 * or the save, or would restrict the code to anything but the shopper's
+	 * address.
+	 *
+	 * @return array{code: string, last_day: string}|string
 	 */
-	private function create( int $template_id, int $days, string $email ): ?array {
+	private function create( int $template_id, int $days, string $email ): array|string {
 		$template         = new \WC_Coupon( $template_id );
 		$template_expires = $template->get_date_expires( 'edit' );
 
@@ -535,8 +555,15 @@ class AutomationDiscount {
 		);
 		// A setting WooCommerce refused is not set — a code without its
 		// email restriction would work for anyone, so none is made.
+		$cannot_save = sprintf( 'WooCommerce could not save a code from the coupon #%d', $template_id );
 		if ( is_wp_error( $cloned ) || is_wp_error( $own ) ) {
-			return null;
+			return $cannot_save;
+		}
+		// WooCommerce rewrites an allowed email it does not like instead of
+		// refusing it — a code restricted to anything but the shopper's own
+		// address is someone else's, so none is made.
+		if ( ! self::restricts_to_exactly( $coupon->get_email_restrictions( 'edit' ), $email ) ) {
+			return 'WooCommerce cannot restrict a code to exactly this email address';
 		}
 		$coupon->update_meta_data( self::META_GENERATED_FROM, (string) $template_id );
 
@@ -548,7 +575,7 @@ class AutomationDiscount {
 			$saved = 0;
 		}
 		if ( $saved <= 0 ) {
-			return null;
+			return $cannot_save;
 		}
 
 		return array(
