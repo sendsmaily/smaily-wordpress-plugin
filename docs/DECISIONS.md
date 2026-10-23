@@ -8710,8 +8710,9 @@ the shape every earlier version reads — and `upsert()` carries it across the
 cart save that follows the review. No schema change. The block checkout
 reports the box only with the placed order, so a tick there cannot count. The
 consent inputs ride the queue payload at the top level (`user_id`,
-`newsletter_optin`) and the WP record is read at send time, so a change
-between sweep and send counts. The mode is read afresh each flush.
+`newsletter_optin`): the tick as it stood when the sweeper queued the
+reminder, while the WP record and Smaily are read at send time. The mode is
+read afresh each flush.
 **Rule 3 refined (Erkki):** a write that changes other fields or triggers an
 automation never sends a subscription status (account register / created /
 profile update, import and daily refresh, purchase marker, profiling-consent

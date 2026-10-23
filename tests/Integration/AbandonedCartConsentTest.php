@@ -172,10 +172,7 @@ final class AbandonedCartConsentTest extends TestCase {
 	public function test_a_box_unticked_again_is_no_consent(): void {
 		$this->set_mode( ContactSyncMode::MODE_CONSENT );
 
-		$email = $this->abandon_a_cart( 'checkout_tick' );
-		// The shopper clears the box; the next order review reports that.
-		do_action( 'woocommerce_checkout_update_order_review', self::posted_checkout( $email, false ) );
-
+		$email  = $this->abandon_a_cart( 'checkout_tick', true );
 		$bodies = PipelineFixture::flush( CartFlusher::FLUSH_HOOK, self::smaily_not_found() );
 
 		self::assertNull( $this->reminder( $bodies ) );
@@ -219,8 +216,10 @@ final class AbandonedCartConsentTest extends TestCase {
 	/**
 	 * Track one shopper's cart, age it past the cutoff and let the sweeper
 	 * queue the reminder. Returns the cart's email.
+	 *
+	 * @param bool $untick For the classic-checkout tick: the shopper clears the box again before leaving.
 	 */
-	private function abandon_a_cart( string $shopper ): string {
+	private function abandon_a_cart( string $shopper, bool $untick = false ): string {
 		$product_id = $this->store->make_product( 'Consent Cart Product' );
 
 		if ( $shopper === 'checkout_tick' ) {
@@ -235,6 +234,12 @@ final class AbandonedCartConsentTest extends TestCase {
 			// The order review recalculates the cart, which saves the
 			// tracker row again — the tick must survive that.
 			$this->track_cart();
+
+			if ( $untick ) {
+				// The next order review reports the cleared box.
+				do_action( 'woocommerce_checkout_update_order_review', self::posted_checkout( $email, false ) );
+				$this->track_cart();
+			}
 		} else {
 			$user_id = $this->store->make_user( 'con196-' . str_replace( '_', '-', $shopper ) );
 			$email   = PipelineFixture::email_of( $user_id );
