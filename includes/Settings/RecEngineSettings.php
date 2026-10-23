@@ -11,7 +11,11 @@ namespace Smaily\Connect\Settings;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Smaily\RecEngine\ApiException;
+use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\ExchangeResult;
+use Smaily\Connect\Support\DebugLog;
+use Throwable;
 
 /**
  * Storage + accessor for the rec-engine `POST /setup/exchange` response.
@@ -202,16 +206,57 @@ class RecEngineSettings {
 	}
 
 	/**
+	 * Tell the engine this connection ends (contract §16 "disconnect",
+	 * CON-219) while the key is still stored. The engine revokes the key; a
+	 * store left with no active connection is paused, never deleted, and a
+	 * new setup exchange resumes it. Called by disconnect() and by
+	 * uninstall.php, each BEFORE it deletes the key.
+	 *
+	 * Gate: is_connected() with a stored key and base URL — NOT
+	 * sending_allowed(): a refused (suspended) account may still disconnect
+	 * (§16 does not answer `403 tenant_inactive`), and a refused or revoked
+	 * key at worst costs one answered request. One attempt of at most
+	 * Client::BROWSE_TIMEOUT_SECONDS. Nothing is ever thrown: a refused key,
+	 * an unreachable engine or any error must not keep the plugin from
+	 * deleting its key.
+	 *
+	 * @return string The engine's answer (`store_paused` or
+	 *                `connection_removed`), or '' when nothing was sent or
+	 *                the request failed.
+	 */
+	public function end_engine_connection(): string {
+		if ( ! $this->is_connected() ) {
+			return '';
+		}
+		$api_key  = $this->api_key();
+		$base_url = $this->base_url();
+		if ( $api_key === '' || $base_url === '' ) {
+			return '';
+		}
+
+		try {
+			$answer = ( new Client( $api_key, $base_url, $this->endpoints(), 1, $this ) )->store_uninstall();
+		} catch ( ApiException $e ) {
+			DebugLog::write( sprintf( '[smaily-connect rec-engine] Disconnect request (§16) failed: HTTP %d %s', $e->getCode(), $e->error_code() ) );
+			return '';
+		} catch ( Throwable $e ) {
+			DebugLog::write( sprintf( '[smaily-connect rec-engine] Disconnect request (§16) failed: %s', get_class( $e ) ) );
+			return '';
+		}
+
+		return isset( $answer['status'] ) && is_string( $answer['status'] ) ? $answer['status'] : '';
+	}
+
+	/**
 	 * Wipe every rec-engine option so the next boot reverts to
 	 * not-connected. Called by the "Disconnect" button in Step 4.
 	 *
-	 * Deliberately makes NO engine call — never the §16 request (CON-51,
-	 * DECISIONS). Since contract v1.18.0 §16 only revokes the calling key
-	 * and pauses a store left with no connection; whether the plugin calls
-	 * it is still Erkki's open decision (INT-145). The api_key stays valid
-	 * on the engine side until revoked there; the plugin just stops sending it.
+	 * First tells the engine the connection ends (end_engine_connection(),
+	 * §16, CON-219); whatever the engine answers, the options are deleted.
 	 */
 	public function disconnect(): void {
+		$this->end_engine_connection();
+
 		$keys = array(
 			self::OPTION_CONNECTED,
 			self::OPTION_API_KEY,

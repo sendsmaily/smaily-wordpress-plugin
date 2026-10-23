@@ -13,11 +13,10 @@
  *      every `smly_rec_*` row — the rec-engine connection (per-connection API
  *      key, tenant identity, endpoints map, config, connected flag —
  *      `Settings\RecEngineSettings` — plus `NotificationManager::
- *      OPTION_DOWN_SINCE`) (PRO-1337). This is a full irrecoverable local
- *      delete: no engine-side revoke call is made, so the api_key stays valid
- *      on the engine until rotated/revoked in the engine admin; a re-install
- *      needs a fresh setup token (per-connection keys since engine migration
- *      0036, so no other store is affected).
+ *      OPTION_DOWN_SINCE`) (PRO-1337). Before that sweep the plugin tells
+ *      the engine the connection ends (contract §16 "disconnect", CON-219):
+ *      the engine revokes the key and pauses a store left with no connection,
+ *      never deletes it. A re-install needs a fresh setup token.
  *   2. The explicit `smaily_connect_*` option keys this plugin owns
  *      (credentials, sync settings, schema-version marker), plus the
  *      `smly_profiling_optouts` durable opt-out registry (PRO-1194/PRO-1336).
@@ -65,19 +64,31 @@ $wpdb->query(
 	)
 );
 
+// Tell the engine the connection ends (contract §16 "disconnect", CON-219)
+// while the key is still stored — the smly_rec_* sweep below deletes it. The
+// engine revokes the key; a store left with no connection is paused, never
+// deleted. The plugin is not loaded during uninstall, so its autoloader and
+// the Cypher class (the key is stored encrypted) are loaded here. One
+// attempt of at most 3 seconds; nothing it answers or throws stops the
+// cleanup below.
+if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+	try {
+		require_once __DIR__ . '/vendor/autoload.php';
+		require_once __DIR__ . '/includes/smaily-cypher.class.php';
+		( new \Smaily\Connect\Settings\RecEngineSettings() )->end_engine_connection();
+	} catch ( \Throwable $smaily_connect_error ) {
+		unset( $smaily_connect_error );
+	}
+}
+
 // Every `smly_rec_*` row: the rec-engine connection (Settings\
 // RecEngineSettings — per-connection API key, base URL, tenant id/name,
 // endpoints map, config, connected flag, issued_at) plus
 // NotificationManager::OPTION_DOWN_SINCE (`smly_rec_health_down_since`). A
 // LIKE-prefix delete, like the smly_plus_* sweep above, so a future
 // smly_rec_* option doesn't need a new uninstall.php line to be swept.
-// Approved design (PRO-1337): full irrecoverable local delete — no network
-// call to the engine is made here, and never the contract §16 store-deletion
-// request (CON-51, DECISIONS: the store's engine data is deleted when the
-// merchant closes the Smaily account), so the api_key remains valid engine-side
-// until revoked/rotated in the engine admin; a re-install needs a fresh
-// setup token (per-connection keys since engine migration 0036, so this
-// can't affect any other store).
+// Full irrecoverable local delete (PRO-1337); a re-install needs a fresh
+// setup token.
 $wpdb->query(
 	$wpdb->prepare(
 		"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s",

@@ -36,8 +36,9 @@ defined( 'ABSPATH' ) || exit;
  *   - 5xx (500/502/503/504) → same backoff, max 5 attempts.
  *   - 4xx (non-429) → no retry, throw ApiException with the body's
  *     error_code so the caller can branch on `api_key_revoked` etc.
- *   - Exception: ingest_browse() (the storefront `/relay` forward) makes
- *     ONE short attempt and never retries or waits (PRO-3620).
+ *   - Exception: ingest_browse() (the storefront `/relay` forward) and
+ *     store_uninstall() (Disconnect / uninstall, CON-219) make ONE short
+ *     attempt and never retry or wait (PRO-3620).
  *
  * Version handling (contract §3): every response carries
  * `X-Engine-Version`. The client warns (error_log) on a major-version
@@ -125,6 +126,10 @@ class Client {
 	// placeholder like `{email}` — substituted, never sprintf'd.
 	public const PATH_EMAILS_DESIGN_LINK_TMPL = '/api/v1/emails/{email_key}/design-link';
 	public const PATH_EMAILS_DESIGNS          = '/api/v1/emails/designs';
+	// §16 disconnect (contract v1.14.0; "disconnect" since v1.18.0, CON-219).
+	// Map key `store_uninstall`; a connection exchanged before v1.14.0 has no
+	// such key, so this fallback serves it.
+	public const PATH_STORE_UNINSTALL = '/api/v1/store/uninstall';
 
 	/** Default in-request retry ceiling — generous for one-shot calls (ping, setup). */
 	public const DEFAULT_MAX_ATTEMPTS = 5;
@@ -133,7 +138,8 @@ class Client {
 	 * The whole-request bound, connect included, on a browse forward
 	 * (PRO-3620). Browse is sent from inside a shopper's storefront request
 	 * (the `/relay` proxy), so it gets one attempt of at most this long — the
-	 * same bound the Magento relay uses (PRO-3575).
+	 * same bound the Magento relay uses (PRO-3575). store_uninstall() uses the
+	 * same bound: Disconnect and uninstall wait on it (CON-219).
 	 */
 	public const BROWSE_TIMEOUT_SECONDS = 3;
 
@@ -600,6 +606,24 @@ class Client {
 		return $this->request_url( 'GET', $this->resolve_url( 'emails_designs', self::PATH_EMAILS_DESIGNS ) );
 	}
 
+	/**
+	 * Tell the engine this connection ends (§16 "disconnect", CON-219): the
+	 * engine revokes the calling key; a store left with no active connection
+	 * is paused — no recommendations, no writes to Smaily, no engine emails —
+	 * never deleted, and a new setup exchange resumes it. No request body.
+	 *
+	 * Sent from Disconnect and from uninstall while the admin waits, so it is
+	 * ONE attempt bounded by BROWSE_TIMEOUT_SECONDS (the whole request,
+	 * connect included), no redirect, no retry and no Retry-After wait.
+	 *
+	 * @return array<string, mixed> `{ok, status: connection_removed|store_paused, other_connections_remain}`.
+	 *
+	 * @throws ApiException On 4xx/5xx or network failure.
+	 */
+	public function store_uninstall(): array {
+		return $this->request_url( 'POST', $this->resolve_url( 'store_uninstall', self::PATH_STORE_UNINSTALL ), null, true );
+	}
+
 	// ---------------------------------------------------------------
 	// Private request engine.
 	// ---------------------------------------------------------------
@@ -668,7 +692,8 @@ class Client {
 	 * @param array<string, mixed>|null $body           Request body for non-GET methods.
 	 * @param bool                      $single_attempt One attempt bounded by BROWSE_TIMEOUT_SECONDS,
 	 *                                                  no redirect, no retry and no Retry-After wait
-	 *                                                  (ingest_browse(), PRO-3620).
+	 *                                                  (ingest_browse(), PRO-3620; store_uninstall(),
+	 *                                                  CON-219).
 	 *
 	 * @return array<string, mixed>
 	 *

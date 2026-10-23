@@ -1749,8 +1749,8 @@ msgid "active"
 msgstr "aktiivne"
 
 #: admin/src/components/steps/Step4Recommendations.tsx:185
-msgid "Disconnect Smaily Campaign Intelligence? The plugin will stop syncing data; existing campaigns on the engine side continue to work until you remove them there."
-msgstr "Kas katkestada Smaily Campaign Intelligence'i ühendus? Plugin lõpetab andmete sünkroonimise; mootori-poolsed olemasolevad kampaaniad töötavad edasi, kuni need sealt eemaldad."
+msgid "Disconnect Smaily Campaign Intelligence? The plugin stops syncing data and tells Campaign Intelligence that this connection ends. If your store has no other connection, Campaign Intelligence pauses it: no recommendations and none of its automated emails until you connect again. Your data is kept."
+msgstr "Kas katkestada Smaily Campaign Intelligence'i ühendus? Plugin lõpetab andmete sünkroonimise ja annab Campaign Intelligence'ile teada, et see ühendus lõpeb. Kui su poel teist ühendust ei ole, paneb Campaign Intelligence poe pausile: soovitusi ei anta ja selle automaatseid e-kirju ei saadeta, kuni ühendad uuesti. Sinu andmed jäävad alles."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:196
 msgid "Disconnected."

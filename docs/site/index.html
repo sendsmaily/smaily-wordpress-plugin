@@ -1181,7 +1181,7 @@ td code{white-space:nowrap}
         <li><strong>Browse tracking</strong> — captures product and category views to power "similar products" recommendations. Off by default; only runs when the visitor has granted marketing consent (see <a href="#step4">Step 4</a>).</li>
         <li><strong>Recommendation attribution</strong> — credits store purchases to the recommendation that drove them. It runs automatically once the engine is connected: when a shopper lands from a recommendation link, the plugin captures the attribution parameters and stamps them onto the resulting order. No consent gate and nothing to switch on. The capture happens both on the server and in the browser (a small script the plugin loads on your storefront), so it keeps working behind a page cache and with browse tracking switched off. A click on the <a href="#set-integrations">Recommendations block</a> is credited to the store, and a later email click to the email — the last click wins.</li>
       </ul>
-      <p><strong>Test</strong> confirms the connection is healthy. <strong>Disconnect</strong> stops recommendations and ingest; reconnecting needs a fresh setup link.</p>
+      <p><strong>Test</strong> confirms the connection is healthy. <strong>Disconnect</strong> stops ingest and tells Campaign Intelligence that this connection ends; if your store has no other connection, Campaign Intelligence pauses the store (no recommendations, none of its automated emails) and keeps its data. Reconnecting needs a fresh setup link and ends the pause.</p>
     </div>
     <div data-lang="et">
       <p>Kui ühendatud, näitab see vahekaart ühendust (koos <strong>Test</strong> ja <strong>Disconnect</strong>) ning lisaks:</p>
@@ -1190,7 +1190,7 @@ td code{white-space:nowrap}
         <li><strong>Browse tracking</strong> — jäädvustab toote‑ ja kategooria‑vaatamised, et toita "sarnaste toodete" soovitusi. Vaikimisi väljas; töötab ainult siis, kui külastaja on andnud turundusnõusoleku (vt <a href="#step4">4. samm</a>).</li>
         <li><strong>Recommendation attribution</strong> — omistab poe ostud soovitusele, mis need tõi. See töötab automaatselt, niipea kui mootor on ühendatud: kui klient saabub soovituslingilt, jäädvustab plugin atribuutsiooni‑parameetrid ja märgib need tekkivale tellimusele. Nõusoleku‑väravat pole ja midagi pole sisse lülitada. Jäädvustamine toimub nii serveris kui ka brauseris (plugin laadib poe lehele väikese skripti), nii et see töötab ka lehecache'i taga ja siis, kui sirvimise jälgimine on välja lülitatud. Klikk <a href="#set-integrations">soovituste plokil</a> omistatakse poele ja hilisem e‑kirja klikk e‑kirjale — kehtib viimane klikk.</li>
       </ul>
-      <p><strong>Test</strong> kinnitab, et ühendus on terve. <strong>Disconnect</strong> peatab soovitused ja andmevoo; taasühendamiseks on vaja uut seadistuslinki.</p>
+      <p><strong>Test</strong> kinnitab, et ühendus on terve. <strong>Disconnect</strong> peatab andmevoo ja annab Campaign Intelligence'ile teada, et see ühendus lõpeb; kui su poel teist ühendust ei ole, paneb Campaign Intelligence poe pausile (soovitusi ei anta ja selle automaatseid e‑kirju ei saadeta) ning hoiab poe andmed alles. Taasühendamiseks on vaja uut seadistuslinki ja see lõpetab pausi.</p>
     </div>
   </div>
 
@@ -1727,13 +1727,13 @@ td code{white-space:nowrap}
     <div data-lang="en">
       <ul>
         <li><strong>Disconnect Smaily</strong> — contact sync stops until you reconnect. Existing contacts and Smaily automations are untouched.</li>
-        <li><strong>Disconnect Campaign Intelligence</strong> — recommendations and data ingest stop. Reconnecting needs a fresh one‑time setup link.</li>
+        <li><strong>Disconnect Campaign Intelligence</strong> — data ingest stops and the plugin tells Campaign Intelligence that this connection ends. If your store has no other connection, Campaign Intelligence pauses the store: it issues no recommendations and sends none of its automated emails, and it keeps your store's data. Reconnecting needs a fresh one‑time setup link and ends the pause.</li>
       </ul>
     </div>
     <div data-lang="et">
       <ul>
         <li><strong>Disconnect Smaily</strong> — kontakti‑sünk peatub kuni taasühendamiseni. Olemasolevaid kontakte ja Smaily automaatikaid ei puudutata.</li>
-        <li><strong>Disconnect Campaign Intelligence</strong> — soovitused ja andmevoog peatuvad. Taasühendamiseks on vaja värsket ühekordset seadistuslinki.</li>
+        <li><strong>Disconnect Campaign Intelligence</strong> — andmevoog peatub ja plugin annab Campaign Intelligence'ile teada, et see ühendus lõpeb. Kui su poel teist ühendust ei ole, paneb Campaign Intelligence poe pausile: soovitusi ei anta ja selle automaatseid e‑kirju ei saadeta, aga poe andmed jäävad alles. Taasühendamiseks on vaja värsket ühekordset seadistuslinki ja see lõpetab pausi.</li>
       </ul>
     </div>
   </div>
@@ -1741,10 +1741,10 @@ td code{white-space:nowrap}
   <div class="sub" id="faq-uninstall">
     <h2><span data-lang="en">Does uninstalling delete my data?</span><span data-lang="et">Kas eemaldamine kustutab andmed?</span></h2>
     <div data-lang="en">
-      <p>Uninstalling the plugin removes its settings and local queue data from your WordPress site. Your <strong>Smaily contacts</strong> and any <strong>Campaign Intelligence</strong> data persist — deliberately, so you can change platforms without losing your marketing history. Per‑customer erasure is always available (see below), and your stored Smaily credentials are removed on uninstall. The plugin never asks Campaign Intelligence to delete your store's data — not on uninstall and not on <strong>Disconnect</strong>; that data is deleted when you close your Smaily account.</p>
+      <p>Uninstalling the plugin removes its settings and local queue data from your WordPress site. Your <strong>Smaily contacts</strong> and any <strong>Campaign Intelligence</strong> data persist — deliberately, so you can change platforms without losing your marketing history. Per‑customer erasure is always available (see below), and your stored Smaily credentials are removed on uninstall. On uninstall, as on <strong>Disconnect</strong>, the plugin tells Campaign Intelligence that this connection ends: if your store has no other connection, Campaign Intelligence stops using your store's data at once and keeps it. Your store's data is deleted when you close your Smaily account.</p>
     </div>
     <div data-lang="et">
-      <p>Plugina eemaldamine kustutab su WordPressi saidilt selle seaded ja kohaliku järjekorra andmed. Su <strong>Smaily kontaktid</strong> ja mis tahes <strong>Campaign Intelligence'i</strong> andmed jäävad alles — meelega, et saaksid platvormi vahetada ilma turundusajalugu kaotamata. Kliendipõhine kustutamine on alati saadaval (vt allpool) ja su salvestatud Smaily andmed eemaldatakse eemaldamisel. Plugin ei palu kunagi Campaign Intelligence'il su poe andmeid kustutada — ei eemaldamisel ega <strong>Disconnect</strong>'i korral; need andmed kustutatakse, kui sulged oma Smaily konto.</p>
+      <p>Plugina eemaldamine kustutab su WordPressi saidilt selle seaded ja kohaliku järjekorra andmed. Su <strong>Smaily kontaktid</strong> ja mis tahes <strong>Campaign Intelligence'i</strong> andmed jäävad alles — meelega, et saaksid platvormi vahetada ilma turundusajalugu kaotamata. Kliendipõhine kustutamine on alati saadaval (vt allpool) ja su salvestatud Smaily andmed eemaldatakse eemaldamisel. Eemaldamisel, nagu ka <strong>Disconnect</strong>'i korral, annab plugin Campaign Intelligence'ile teada, et see ühendus lõpeb: kui su poel teist ühendust ei ole, lõpetab Campaign Intelligence su poe andmete kasutamise kohe ja hoiab need alles. Su poe andmed kustutatakse, kui sulged oma Smaily konto.</p>
     </div>
   </div>
   <hr class="secend">

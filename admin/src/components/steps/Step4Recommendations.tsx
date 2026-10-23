@@ -288,7 +288,7 @@ function ConnectedView({
   const handleDisconnect = async (): Promise<void> => {
     const confirmed = window.confirm(
       __(
-        'Disconnect Smaily Campaign Intelligence? The plugin will stop syncing data; existing campaigns on the engine side continue to work until you remove them there.',
+        'Disconnect Smaily Campaign Intelligence? The plugin stops syncing data and tells Campaign Intelligence that this connection ends. If your store has no other connection, Campaign Intelligence pauses it: no recommendations and none of its automated emails until you connect again. Your data is kept.',
         'smaily-connect',
       ),
     );
