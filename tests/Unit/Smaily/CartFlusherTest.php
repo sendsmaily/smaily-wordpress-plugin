@@ -12,6 +12,7 @@ namespace Smaily\Connect\Tests\Unit\Smaily;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Smaily\ApiException;
 use Smaily\Connect\Smaily\AutomationRouter;
 use Smaily\Connect\Smaily\CartFlusher;
@@ -57,7 +58,7 @@ final class CartFlusherTest extends TestCase {
 
 			public function __construct() {}
 
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
 				$this->calls[] = compact( 'trigger_type', 'contact_data', 'additional_fields' );
 				return true;
 			}
@@ -178,7 +179,7 @@ final class CartFlusherTest extends TestCase {
 
 			public function __construct() {}
 
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
 				$this->current = (array) array_shift( $this->answers );
 				return true;
 			}
@@ -244,7 +245,7 @@ final class CartFlusherTest extends TestCase {
 		$router = new class extends AutomationRouter {
 			public function __construct() {}
 
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
 				return true;
 			}
 
@@ -276,7 +277,7 @@ final class CartFlusherTest extends TestCase {
 		$router = new class extends AutomationRouter {
 			public function __construct() {}
 
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
 				throw new ApiException( 'rate limited', 429 );
 			}
 
@@ -300,7 +301,7 @@ final class CartFlusherTest extends TestCase {
 		$router = new class extends AutomationRouter {
 			public function __construct() {}
 
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
 				throw new ApiException( 'Smaily API returned HTTP 403 for POST autoresponder', 403 );
 			}
 
@@ -525,6 +526,112 @@ final class CartFlusherTest extends TestCase {
 		self::assertSame( array( 'default' ), $accounts );
 	}
 
+	// --- the reminder's discount code (CON-199) --------------------------------
+
+	/**
+	 * @param array<string, string> $fields
+	 */
+	private function discounts_issuing( array $fields, string $note = '' ): AutomationDiscount {
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->method( 'issue' )->willReturn(
+			array(
+				'fields' => $fields,
+				'note'   => $note,
+			)
+		);
+		return $discounts;
+	}
+
+	public function test_a_reminder_the_consent_gate_stops_makes_no_discount_code(): void {
+		$queue     = $this->fake_queue( array( $this->cart_event( 40 ) ) );
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->expects( self::never() )->method( 'issue' );
+
+		( new CartFlusher( $queue, $this->recording_router(), fn () => $this->reading_client( self::smaily_unknown() ), $discounts ) )->flush();
+
+		self::assertSame( array( 40 => 'no_marketing_consent' ), $queue->marked_skipped );
+	}
+
+	public function test_a_routed_reminder_posts_the_discount_code_issued_for_its_row(): void {
+		$queue     = $this->fake_queue( array( $this->cart_event( 41 ) ) );
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->expects( self::once() )
+			->method( 'issue' )
+			->with( 'abandoned_cart', self::callback( static fn ( array $p ): bool => $p['email'] === 'buyer@example.test' ), $queue, 41 )
+			->willReturn(
+				array(
+					'fields' => array(
+						'abandoned_cart_coupon_code'       => 'P4XK9M2QRT',
+						'abandoned_cart_coupon_expires_at' => '2026-10-30',
+					),
+					'note'   => '',
+				)
+			);
+
+		$router = new class extends AutomationRouter {
+			/** @var array<int, array<string, mixed>> */
+			public array $posted = array();
+
+			public function __construct() {}
+
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
+				$this->posted[] = array_merge( $additional_fields, $before_send !== null ? $before_send() : array() );
+				return true;
+			}
+
+			public function last_exchange(): ?array {
+				return array( 'response' => array( 'http' => 200, 'body' => array( 'code' => 101 ) ) );
+			}
+		};
+
+		( new CartFlusher( $queue, $router, $this->subscribed_factory(), $discounts ) )->flush();
+
+		self::assertSame( 'P4XK9M2QRT', $router->posted[0]['abandoned_cart_coupon_code'] );
+		self::assertSame( '2026-10-30', $router->posted[0]['abandoned_cart_coupon_expires_at'] );
+		self::assertSame( 'true', $router->posted[0]['is_abandoned_cart'] );
+		self::assertSame( array( 41 ), $queue->marked_sent );
+	}
+
+	public function test_the_legacy_autoresponder_reminder_carries_the_discount_code_too(): void {
+		$this->stub_status_option( 88 );
+		$queue = $this->fake_queue( array( $this->cart_event( 42 ) ) );
+
+		$posted = array();
+		$client = $this->reading_client( self::smaily_contact( '0' ) );
+		$client->method( 'trigger_automation' )->willReturnCallback(
+			static function ( int $workflow_id, array $addresses ) use ( &$posted ): array {
+				$posted = $addresses[0];
+				return array( 'code' => 101 );
+			}
+		);
+
+		( new CartFlusher(
+			$queue,
+			$this->router_returning( false ),
+			static fn () => $client,
+			$this->discounts_issuing( array( 'abandoned_cart_coupon_code' => 'P4XK9M2QRT', 'abandoned_cart_coupon_expires_at' => '2026-10-30' ) )
+		) )->flush();
+
+		self::assertSame( 'P4XK9M2QRT', $posted['abandoned_cart_coupon_code'] );
+		self::assertSame( '2026-10-30', $posted['abandoned_cart_coupon_expires_at'] );
+	}
+
+	public function test_a_reminder_sent_without_its_discount_code_says_why_in_the_event_log(): void {
+		$queue = $this->fake_queue( array( $this->cart_event( 43 ) ) );
+
+		$stats = ( new CartFlusher(
+			$queue,
+			$this->recording_router(),
+			$this->subscribed_factory(),
+			$this->discounts_issuing( array(), 'Sent without a discount code: no WooCommerce coupon is picked.' )
+		) )->flush();
+
+		self::assertSame( 1, $stats['sent'] );
+		$response = json_decode( (string) $queue->exchanges[43]['response'], true );
+		self::assertSame( 'Sent without a discount code: no WooCommerce coupon is picked.', $response['note'] );
+		self::assertSame( 200, $response['http'] );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	private function stub_status_option( int $autoresponder_id, string $mode = ContactSyncMode::MODE_CONSENT ): void {
@@ -673,7 +780,7 @@ final class CartFlusherTest extends TestCase {
 
 			public function __construct() {}
 
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
 				$this->calls[] = compact( 'trigger_type', 'contact_data', 'additional_fields' );
 				return true;
 			}
@@ -698,7 +805,7 @@ final class CartFlusherTest extends TestCase {
 				$this->result = $result;
 			}
 
-			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
 				return $this->result;
 			}
 
