@@ -33,6 +33,25 @@ function statusTone(status: string): PillTone {
 }
 
 /**
+ * The status word a row shows — on its pill and in Details alike (CON-2).
+ * A withdrawn abandoned-cart reminder (PRO-2372) and a row skipped for good
+ * (PRO-4098) are stored `sent` (terminal, never retried) but nothing was
+ * sent, so they read "cancelled" / "skipped" instead.
+ */
+function statusLabel(row: EventRow): string {
+  if (row.cancelled) {
+    return __('cancelled', 'smaily-connect');
+  }
+  if (row.skipped) {
+    return __('skipped', 'smaily-connect');
+  }
+  if (row.scheduled_for !== '') {
+    return __('scheduled', 'smaily-connect');
+  }
+  return row.status;
+}
+
+/**
  * Event Log (PLUGIN.md §13) — read-only diagnostic view over both durable
  * queues. The merchant answers "did X sync?" (status column) and the developer
  * "why not?" (last_error + the drill-down payload). Recovery (retry) is 3.10.1.
@@ -311,17 +330,9 @@ export function EventLog(): React.JSX.Element {
                   <td className="py-2 pr-3 font-mono">{row.event_type}</td>
                   <td className="py-2 pr-3 font-mono text-text-secondary">{row.entity_id || '—'}</td>
                   <td className="py-2 pr-3">
-                    {/* A withdrawn abandoned-cart reminder is stored `sent`
-                        (terminal, never retried) but nothing was sent — say
-                        so on the row itself, not only in Details (PRO-2372). */}
+                    {/* Said on the row itself, not only in Details (PRO-2372). */}
                     <Pill tone={row.cancelled || row.skipped ? 'neutral' : statusTone(row.status)} dot>
-                      {row.cancelled
-                        ? __('cancelled', 'smaily-connect')
-                        : row.skipped
-                          ? __('skipped', 'smaily-connect')
-                          : row.scheduled_for !== ''
-                            ? __('scheduled', 'smaily-connect')
-                            : row.status}
+                      {statusLabel(row)}
                     </Pill>
                   </td>
                   <td className="py-2 pr-3">
@@ -482,7 +493,7 @@ function EventDetailModal({
           </div>
           <div>
             <dt className="text-text-tertiary">{__('Status', 'smaily-connect')}</dt>
-            <dd>{event.status}</dd>
+            <dd>{statusLabel(event)}</dd>
           </div>
           <div>
             <dt className="text-text-tertiary">{__('Entity', 'smaily-connect')}</dt>

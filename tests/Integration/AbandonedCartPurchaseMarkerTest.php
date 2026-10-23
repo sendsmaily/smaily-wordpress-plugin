@@ -287,7 +287,7 @@ final class AbandonedCartPurchaseMarkerTest extends TestCase {
 		PipelineFixture::rewind_tracker_row( 30 * MINUTE_IN_SECONDS );
 		do_action( 'smly_plus_abandoned_cart' );
 
-		return PipelineFixture::flush( CartFlusher::FLUSH_HOOK );
+		return PipelineFixture::flush( CartFlusher::FLUSH_HOOK, PipelineFixture::subscribed_contact_read() );
 	}
 
 	/**

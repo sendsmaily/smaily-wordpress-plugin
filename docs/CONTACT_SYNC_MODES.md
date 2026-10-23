@@ -152,6 +152,40 @@ contact-sync posture the store picked.
 our hand-written Smaily API docs in `../re/docs` (separate task) so the behaviour
 relied on here is recorded on the Smaily side too.
 
+### 6.1 Who gets an abandoned-cart reminder (CON-196, Erkki 2026-10-23)
+
+`force_opt_in=false` keeps an unsubscribe, but Smaily still creates an address
+it does not have as a **subscribed** contact when an automation is triggered
+for it. A reminder to a shopper who never consented therefore subscribed them.
+`CartFlusher` now gates every reminder at send time, after it decodes the row
+and before the trigger. It reads the contact from Smaily
+(`Client::get_contact_consent()`, the "default" account) for every cart:
+
+| Preset | Reminder goes out when |
+|---|---|
+| 1. All customers | always, unless Smaily has the contact unsubscribed |
+| 2. Subscribers only | the cart's WP user has `user_newsletter=1`, OR the box is ticked in this unfinished classic checkout, OR Smaily has the contact subscribed |
+| 3. Checkout opt-in only | the box is ticked in this unfinished classic checkout, OR Smaily has the contact subscribed (the preset keeps no store record for accounts) |
+
+- A contact Smaily has as unsubscribed gets no reminder in **any** preset (skip
+  reason `unsubscribed`); presets 2/3 otherwise skip with
+  `no_marketing_consent`. The row closes through `EventQueue::mark_skipped()`,
+  so the Event Log reads it "skipped" with the reason and the Sent filter
+  leaves it out.
+- The classic checkout reports the box on every order review
+  (`woocommerce_checkout_update_order_review`); `CartHookHandler` stores the
+  last report in the tracker row's own `cart_content` JSON
+  (`{"items": [...], "newsletter_optin": true}` while ticked, the plain item
+  list otherwise — `CartSessionStore::encode_content()`), no schema change.
+  The block checkout reports the box only with the placed order, so a tick
+  there cannot count.
+- A Smaily read that fails takes the normal retry path — never a blind send.
+- Independent of the "Sync contacts to Smaily" switch (PRO-1678/PRO-1742).
+- Accepted limits: a contact deleted in Smaily reads as not found, so preset 1
+  enrols it again as subscribed; in preset 2 with `include_guests` off a
+  guest's earlier tick never reached Smaily, so a returning guest is reminded
+  only after ticking the box again in the classic checkout.
+
 ## 7. Architecture (CC-1 single source)
 
 One decision core, consumed by every surface:
@@ -239,8 +273,8 @@ the existing `Card` / `Toggle` / `Checkbox` / `Banner` primitives:
 - **Rec-engine customer ingest** (`CustomerHookHandler`) — a different
   destination (the recommendations engine, gated by `is_connected()`), not Smaily
   contacts.
-- **Abandoned-cart as a feature** keeps its own enable toggle; only its automation
-  `force_opt_in` is mode-driven.
+- **Abandoned-cart as a feature** keeps its own enable toggle; who gets a
+  reminder follows the preset (§ 6.1, CON-196).
 
 **Resolved decisions (Erkki, 2026-06-30):**
 1. Preset 1 automation `force_opt_in`: **default `false`** (honour unsubscribes

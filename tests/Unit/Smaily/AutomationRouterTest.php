@@ -84,8 +84,10 @@ final class AutomationRouterTest extends TestCase {
 				42,
 				$this->callback(
 					static function ( array $addresses ): bool {
+						// No subscription status rides a trigger (CON-196 rule 3).
 						return $addresses[0]['email'] === 'a@b.c'
-							&& $addresses[0]['first_name'] === 'Anna';
+							&& $addresses[0]['first_name'] === 'Anna'
+							&& ! array_key_exists( 'is_unsubscribed', $addresses[0] );
 					}
 				),
 				// A trigger never re-subscribes a contact (PRO-1716).

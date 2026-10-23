@@ -16,6 +16,7 @@ use Smaily\Connect\Smaily\ApiException;
 use Smaily\Connect\Smaily\AutomationRouter;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\Client;
+use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\EventQueue;
 
 require_once dirname( __DIR__, 3 ) . '/includes/smaily-options.class.php';
@@ -39,7 +40,7 @@ final class CartFlusherTest extends TestCase {
 	public function test_flush_drains_only_the_cart_event_type(): void {
 		$queue = $this->fake_queue( array() );
 
-		( new CartFlusher( $queue, $this->router_returning( true ), static fn () => null ) )->flush();
+		( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory() ) )->flush();
 
 		self::assertSame(
 			array( CartFlusher::DEFAULT_BATCH_SIZE, array( CartFlusher::EVENT_TYPE ), array() ),
@@ -69,7 +70,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, static fn () => null ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertSame( array( 1 ), $queue->marked_sent );
@@ -90,7 +91,7 @@ final class CartFlusherTest extends TestCase {
 		$queue = $this->fake_queue( array( $this->cart_event( 2 ) ) );
 
 		$captured = array();
-		$client   = $this->createMock( Client::class );
+		$client   = $this->reading_client( self::smaily_contact( '0' ) );
 		$client->expects( $this->once() )
 			->method( 'trigger_automation' )
 			->willReturnCallback(
@@ -119,7 +120,7 @@ final class CartFlusherTest extends TestCase {
 	public function test_no_mapping_and_no_autoresponder_is_a_terminal_skip_with_a_skip_marker(): void {
 		$queue = $this->fake_queue( array( $this->cart_event( 3 ) ) );
 
-		$client = $this->createMock( Client::class );
+		$client = $this->reading_client( self::smaily_contact( '0' ) );
 		$client->expects( $this->never() )->method( 'trigger_automation' );
 
 		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client ) )->flush();
@@ -141,7 +142,7 @@ final class CartFlusherTest extends TestCase {
 			'code'    => 221,
 			'message' => 'no such autoresponder',
 		);
-		$client = $this->createMock( Client::class );
+		$client = $this->reading_client( self::smaily_contact( '0' ) );
 		$client->method( 'trigger_automation' )->willReturn( $body );
 		$client->method( 'last_exchange' )->willReturn(
 			array(
@@ -196,7 +197,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, static fn () => null ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
 
 		self::assertSame( 0, $stats['sent'] );
 		self::assertSame( array(), $queue->marked_sent );
@@ -216,7 +217,7 @@ final class CartFlusherTest extends TestCase {
 			'code'    => 203,
 			'message' => 'Invalid data',
 		);
-		$client = $this->createMock( Client::class );
+		$client = $this->reading_client( self::smaily_contact( '0' ) );
 		$client->method( 'trigger_automation' )->willReturn( $body );
 		$client->method( 'last_exchange' )->willReturn(
 			array(
@@ -261,7 +262,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, static fn () => null ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->marked_sent );
@@ -284,7 +285,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, static fn () => null ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
 
 		self::assertSame( 1, $stats['retried'], 'ApiException is transient → record_attempt.' );
 		self::assertSame( 5, $queue->attempts[0]['id'] );
@@ -308,7 +309,7 @@ final class CartFlusherTest extends TestCase {
 			}
 		};
 
-		$stats = ( new CartFlusher( $queue, $router, static fn () => null ) )->flush();
+		$stats = ( new CartFlusher( $queue, $router, $this->subscribed_factory() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->attempts );
@@ -326,7 +327,7 @@ final class CartFlusherTest extends TestCase {
 			)
 		);
 
-		$stats = ( new CartFlusher( $queue, $this->router_returning( true ), static fn () => null ) )->flush();
+		$stats = ( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( 'payload_decode_failure', $queue->marked_failed[0]['error'] );
@@ -363,22 +364,180 @@ final class CartFlusherTest extends TestCase {
 			)
 		);
 
-		$stats = ( new CartFlusher( $queue, $this->router_returning( true ), static fn () => null ) )->flush();
+		$stats = ( new CartFlusher( $queue, $this->router_returning( true ), $this->subscribed_factory() ) )->flush();
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertStringContainsString( '"outcome":"skipped"', (string) $queue->exchanges[8]['response'] );
 	}
 
+	/**
+	 * CON-196: Smaily creates an address an automation is triggered for as a
+	 * subscribed contact. In the two consent modes a shopper with no consent
+	 * anywhere gets no reminder; the row closes as skipped with the reason.
+	 */
+	public function test_consent_mode_skips_a_shopper_with_no_consent_anywhere(): void {
+		$queue  = $this->fake_queue( array( $this->cart_event( 20 ) ) );
+		$router = $this->recording_router();
+
+		$stats = ( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+
+		self::assertSame( array(), $router->calls, 'The reminder would subscribe the shopper.' );
+		self::assertSame( array( 20 => 'no_marketing_consent' ), $queue->marked_skipped );
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertArrayNotHasKey( 20, $queue->exchanges, 'The skip keeps its reason — no exchange overwrites it.' );
+		self::assertSame( 1, $stats['skipped'] );
+	}
+
+	public function test_consent_mode_sends_to_a_shopper_the_store_has_as_subscribed(): void {
+		Functions\expect( 'get_user_meta' )->once()->with( 42, 'user_newsletter', true )->andReturn( '1' );
+
+		$queue  = $this->fake_queue( array( $this->cart_event( 21, array( 'user_id' => 42 ) ) ) );
+		$router = $this->recording_router();
+
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+
+		self::assertCount( 1, $router->calls );
+		self::assertSame( array( 21 ), $queue->marked_sent );
+	}
+
+	public function test_checkout_only_mode_keeps_no_store_record_for_an_account(): void {
+		$this->stub_status_option( 0, ContactSyncMode::MODE_CHECKOUT_OPTIN );
+		Functions\when( 'get_user_meta' )->justReturn( '1' );
+
+		$queue  = $this->fake_queue( array( $this->cart_event( 22, array( 'user_id' => 42 ) ) ) );
+		$router = $this->recording_router();
+
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+
+		self::assertSame( array(), $router->calls );
+		self::assertSame( array( 22 => 'no_marketing_consent' ), $queue->marked_skipped );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function consent_modes(): array {
+		return array(
+			'consent'        => array( ContactSyncMode::MODE_CONSENT ),
+			'checkout_optin' => array( ContactSyncMode::MODE_CHECKOUT_OPTIN ),
+		);
+	}
+
+	/**
+	 * @dataProvider consent_modes
+	 */
+	public function test_a_tick_in_this_classic_checkout_counts_as_consent( string $mode ): void {
+		$this->stub_status_option( 0, $mode );
+
+		$queue  = $this->fake_queue( array( $this->cart_event( 23, array( 'newsletter_optin' => true ) ) ) );
+		$router = $this->recording_router();
+
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+
+		self::assertCount( 1, $router->calls );
+		self::assertSame( array( 23 ), $queue->marked_sent );
+	}
+
+	/**
+	 * @dataProvider consent_modes
+	 */
+	public function test_a_subscribed_smaily_contact_counts_as_consent( string $mode ): void {
+		$this->stub_status_option( 0, $mode );
+
+		$queue  = $this->fake_queue( array( $this->cart_event( 24 ) ) );
+		$router = $this->recording_router();
+
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_contact( '0' ) ) ) )->flush();
+
+		self::assertCount( 1, $router->calls );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function every_mode(): array {
+		return self::consent_modes() + array( 'legitimate_interest' => array( ContactSyncMode::MODE_LEGITIMATE_INTEREST ) );
+	}
+
+	/**
+	 * @dataProvider every_mode
+	 */
+	public function test_a_contact_unsubscribed_in_smaily_gets_no_reminder_in_any_mode( string $mode ): void {
+		$this->stub_status_option( 0, $mode );
+		Functions\when( 'get_user_meta' )->justReturn( '1' );
+
+		$queue  = $this->fake_queue( array( $this->cart_event( 25, array( 'user_id' => 42, 'newsletter_optin' => true ) ) ) );
+		$router = $this->recording_router();
+
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_contact( '1' ) ) ) )->flush();
+
+		self::assertSame( array(), $router->calls );
+		self::assertSame( array( 25 => 'unsubscribed' ), $queue->marked_skipped );
+	}
+
+	public function test_legitimate_interest_sends_to_an_address_smaily_does_not_have(): void {
+		$this->stub_status_option( 0, ContactSyncMode::MODE_LEGITIMATE_INTEREST );
+
+		$queue  = $this->fake_queue( array( $this->cart_event( 26 ) ) );
+		$router = $this->recording_router();
+
+		( new CartFlusher( $queue, $router, fn () => $this->reading_client( self::smaily_unknown() ) ) )->flush();
+
+		self::assertCount( 1, $router->calls );
+		self::assertSame( array( 26 ), $queue->marked_sent );
+	}
+
+	public function test_a_failed_read_is_retried_and_nothing_is_sent_blind(): void {
+		$queue  = $this->fake_queue( array( $this->cart_event( 27 ) ) );
+		$router = $this->recording_router();
+
+		$client = $this->createMock( Client::class );
+		$client->method( 'get_contact_consent' )->willThrowException( new ApiException( 'Smaily API returned HTTP 503 for GET contact', 503 ) );
+		$client->method( 'last_exchange' )->willReturn(
+			array(
+				'request'  => array( 'method' => 'GET', 'endpoint' => 'contact' ),
+				'response' => array( 'http' => 503 ),
+			)
+		);
+
+		$stats = ( new CartFlusher( $queue, $router, static fn () => $client ) )->flush();
+
+		self::assertSame( array(), $router->calls );
+		self::assertSame( 1, $stats['retried'] );
+		self::assertSame( 27, $queue->attempts[0]['id'] );
+		self::assertStringContainsString( '"http":503', (string) $queue->exchanges[27]['response'], 'The failed read is kept for the Event Log (F3-44).' );
+	}
+
+	public function test_the_contact_is_read_from_the_default_account(): void {
+		$queue    = $this->fake_queue( array( $this->cart_event( 28 ) ) );
+		$accounts = array();
+		$client   = $this->reading_client( self::smaily_contact( '0' ) );
+
+		( new CartFlusher(
+			$queue,
+			$this->recording_router(),
+			static function ( string $account_key ) use ( &$accounts, $client ): Client {
+				$accounts[] = $account_key;
+				return $client;
+			}
+		) )->flush();
+
+		self::assertSame( array( 'default' ), $accounts );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
-	private function stub_status_option( int $autoresponder_id ): void {
+	private function stub_status_option( int $autoresponder_id, string $mode = ContactSyncMode::MODE_CONSENT ): void {
 		Functions\when( 'get_option' )->alias(
-			static function ( string $key, $fallback = false ) use ( $autoresponder_id ) {
+			static function ( string $key, $fallback = false ) use ( $autoresponder_id, $mode ) {
 				if ( $key === \Smaily_Connect\Includes\Options::ABANDONED_CART_STATUS_OPTION ) {
 					return array(
 						'enabled'          => true,
 						'autoresponder_id' => $autoresponder_id,
 					);
+				}
+				if ( $key === ContactSyncMode::OPTION_MODE ) {
+					return $mode;
 				}
 				return $fallback;
 			}
@@ -386,9 +545,59 @@ final class CartFlusherTest extends TestCase {
 	}
 
 	/**
+	 * What Client::get_contact_consent() returns for a contact Smaily has.
+	 *
 	 * @return array<string, mixed>
 	 */
-	private function cart_event( int $id ): array {
+	private static function smaily_contact( string $is_unsubscribed ): array {
+		return array(
+			'found'                   => true,
+			'is_unsubscribed'         => $is_unsubscribed,
+			'smaily_rec_profiling'    => null,
+			'smaily_rec_profiling_ts' => null,
+		);
+	}
+
+	/**
+	 * What Client::get_contact_consent() returns for an address Smaily does not have.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function smaily_unknown(): array {
+		return array(
+			'found'                   => false,
+			'is_unsubscribed'         => null,
+			'smaily_rec_profiling'    => null,
+			'smaily_rec_profiling_ts' => null,
+		);
+	}
+
+	/**
+	 * A "default" account client whose contact read answers $consent.
+	 *
+	 * @param array<string, mixed> $consent
+	 */
+	private function reading_client( array $consent ): Client {
+		$client = $this->createMock( Client::class );
+		$client->method( 'get_contact_consent' )->willReturn( $consent );
+		return $client;
+	}
+
+	/**
+	 * A client factory for the routed path: the contact read finds the
+	 * shopper subscribed, so the consent gate lets the reminder through.
+	 */
+	private function subscribed_factory(): callable {
+		$client = $this->reading_client( self::smaily_contact( '0' ) );
+		return static fn () => $client;
+	}
+
+	/**
+	 * @param array<string, mixed> $extra Top-level payload keys (user_id, newsletter_optin).
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function cart_event( int $id, array $extra = array() ): array {
 		return array(
 			'id'         => $id,
 			'event_type' => CartFlusher::EVENT_TYPE,
@@ -400,7 +609,7 @@ final class CartFlusherTest extends TestCase {
 						'is_abandoned_cart' => 'true',
 						'product_name_1'    => 'Koeratoit',
 					),
-				)
+				) + $extra
 			),
 		);
 	}
@@ -444,8 +653,39 @@ final class CartFlusherTest extends TestCase {
 				$this->attempts[] = compact( 'id', 'error', 'retry_in_seconds' );
 			}
 
+			/** @var array<int, string> */
+			public array $marked_skipped = array();
+
+			public function mark_skipped( int $id, string $reason ): void {
+				$this->marked_skipped[ $id ] = $reason;
+			}
+
 			public function store_exchange( int $id, ?string $sent_payload, ?string $last_response ): void {
 				$this->exchanges[ $id ] = array( 'sent' => $sent_payload, 'response' => $last_response );
+			}
+		};
+	}
+
+	private function recording_router(): AutomationRouter {
+		return new class extends AutomationRouter {
+			/** @var array<int, array<string, mixed>> */
+			public array $calls = array();
+
+			public function __construct() {}
+
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array() ): bool {
+				$this->calls[] = compact( 'trigger_type', 'contact_data', 'additional_fields' );
+				return true;
+			}
+
+			public function last_exchange(): ?array {
+				return array(
+					'request'  => array( 'endpoint' => 'autoresponder' ),
+					'response' => array(
+						'http' => 200,
+						'body' => array( 'code' => 101 ),
+					),
+				);
 			}
 		};
 	}

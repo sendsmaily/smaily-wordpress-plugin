@@ -6,7 +6,8 @@ import { __ } from '@admin/lib/i18n';
  * TransactionalGate::REASON_*, TransactionalFlusher::REASON_NO_BILLING_EMAIL
  * and the follow-up email's due-time reasons (PRO-4095) — plus `workflow_inactive`, which only this screen can tell (it holds the
  * Smaily workflow list). One wording for both places that show a reason:
- * the card's status line and the Event Log's skipped row.
+ * the card's status line and the Event Log's skipped row. The Event Log
+ * also shows a skipped abandoned-cart reminder's reason through it (CON-196).
  */
 export function transactionalReasonMessage(reason: string): string {
   switch (reason) {
@@ -45,6 +46,15 @@ export function transactionalReasonMessage(reason: string): string {
         'When the wait ended, the order was no longer at a status ticked for the follow-up email.',
         'smaily-connect',
       );
+    // An abandoned-cart reminder the contact-sync mode does not allow
+    // (CartFlusher::REASON_*, CON-196).
+    case 'no_marketing_consent':
+      return __(
+        'The shopper has not subscribed to marketing emails, neither in the store nor in Smaily.',
+        'smaily-connect',
+      );
+    case 'unsubscribed':
+      return __('The shopper has unsubscribed from marketing emails in Smaily.', 'smaily-connect');
     default:
       return reason;
   }

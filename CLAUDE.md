@@ -273,9 +273,12 @@ call is still captured; fields trim to ~10 KB and are janitor-pruned. A terminal
 stores `last_response={outcome:"skipped"}` — that's how you tell a row marked "sent"
 that never actually POSTed (the #58922 confusion). Stored for ALL rows, success too.
 The Event Log list reads that outcome on a `sent` row of EITHER queue as **skipped**
-(`EventsEndpoint::is_skipped()`), and its Sent filter leaves those rows out with the
-SQL twin in `branch()` (PRO-4098) — a new terminal skip must keep the `skipped`
-outcome, or it reads "sent" again.
+(`EventsEndpoint::is_skipped()`, PRO-4098) — a new terminal skip must keep the `skipped`
+outcome, or it reads "sent" again. The Sent filter leaves out every `sent` row whose
+outcome is `skipped` or a withdrawn reminder's `cancelled` (CON-2): one list,
+`EventsEndpoint::NOTHING_SENT_OUTCOMES`, read by `sent_nothing()` and its SQL twin in
+`branch()` — a new "nothing went out" outcome goes into that list. Details shows the
+same status word as the row's pill (`statusLabel()` in `EventLog.tsx`).
 
 ### Trashing a product fires NO catalog hook — it's kept as `in_stock=false`
 `before_delete_post` is **permanent-delete-only**; trashing routes through
@@ -1636,6 +1639,16 @@ repo: a red staleness run is the signal to sync.
   **`dbDelta()` silently ignores `DROP TABLE`** — a schema step it cannot run
   is a `migrations/NNN-*.php` file returning a callable (`false` = not done,
   the `Migrator` stops without recording it).
+- **The CartFlusher reads Smaily before every reminder (CON-196).** A consent
+  gate (`CartFlusher::consent_refusal()`) does a `get_contact_consent()` GET
+  per cart and skips by the contact-sync mode (`no_marketing_consent` /
+  `unsubscribed`, DECISIONS "CON-196"). Test trap: an integration test that
+  flushes the cart queue must answer that GET — in the default consent mode a
+  reminder to an unknown address is skipped. Pass
+  `PipelineFixture::subscribed_contact_read()` to `PipelineFixture::flush()`.
+  The classic checkout's newsletter tick lives in the tracker's `cart_content`
+  (`CartSessionStore::encode_content()`/`decode_content()` — read it only
+  through those).
 
 ---
 
