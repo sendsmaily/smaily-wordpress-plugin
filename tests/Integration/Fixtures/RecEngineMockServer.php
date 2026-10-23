@@ -229,6 +229,26 @@ final class RecEngineMockServer {
 		return (array) ( $this->state()['last_automations_config_put'] ?? array() );
 	}
 
+	/**
+	 * Every §16 disconnect the engine received, oldest first:
+	 * `{key, body}` — the Bearer key it carried and its raw body.
+	 *
+	 * @return array<int, array{key: string, body: string}>
+	 */
+	public function store_uninstall_requests(): array {
+		return (array) ( $this->state()['store_uninstall_requests'] ?? array() );
+	}
+
+	/** Play an engine whose §16 disconnect fails with a 500. */
+	public function set_store_uninstall_fails( bool $fails ): void {
+		$this->write_state( array( 'store_uninstall_fails' => $fails ) );
+	}
+
+	/** Play a store with another active connection: §16 answers `connection_removed`. */
+	public function set_store_other_connections( bool $others ): void {
+		$this->write_state( array( 'store_other_connections' => $others ) );
+	}
+
 	/** Zero the request counter so a test can assert "no request since here". */
 	public function reset_request_count(): void {
 		$this->write_state( array( 'request_count' => 0 ) );

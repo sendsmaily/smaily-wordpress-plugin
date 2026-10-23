@@ -57,8 +57,9 @@ save_state( $state_file, $state );
 // — byte-identical for a suspended and a purged tenant, `tenant_status`
 // included, which is a FIXED string senders must not branch on. The
 // unauthenticated setup-exchange route is deliberately exempt: that is how a
-// new connection is established after a deactivation.
-if ( ! empty( $state['tenant_inactive'] ) && $path !== '/api/setup/exchange' ) {
+// new connection is established after a deactivation. §16 disconnect is
+// exempt too: the contract says a suspended store may still disconnect.
+if ( ! empty( $state['tenant_inactive'] ) && $path !== '/api/setup/exchange' && $path !== '/api/v1/store/uninstall' ) {
 	reply(
 		403,
 		array(
@@ -227,7 +228,8 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				'automations_catalog'     => $engine_base . '/api/v1/automations/catalog',
 				'automations_config'      => $engine_base . '/api/v1/automations/config',
 				// Keys the live engine returns since contract v1.14.0–v1.17.0
-				// (the plugin calls none of them yet). `{key}` / `{email_key}`
+				// (the plugin calls `store_uninstall` — §16, CON-219 — and the
+				// two `emails_*` keys). `{key}` / `{email_key}`
 				// are placeholders like `{email}`; the reply must still pass
 				// SetupExchange::is_allowed_reply(). §19/§20's keys are left
 				// out: the engine returns them only once those are live.
@@ -281,6 +283,41 @@ if ( $method === 'GET' && $path === '/api/v1/ingest/ping' ) {
 			'tenant_status'       => 'active',
 			'endpoints_available' => array( 'catalog', 'customers', 'orders', 'browse', 'identity_merge' ),
 			'server_time'         => gmdate( 'c' ),
+		)
+	);
+}
+
+// §16 disconnect (contract v1.18.0, CON-219). The engine revokes the calling
+// connection's key; a store left with no active connection is paused, never
+// deleted. No request body; both answers are 200. A test plays a store with
+// another connection (`store_other_connections` → `connection_removed`) or a
+// failing engine (`store_uninstall_fails` → 500). Every call is recorded with
+// the key it carried and its raw body, so a test can prove the plugin sent
+// its stored key — i.e. called before it deleted it — and nothing else.
+if ( $method === 'POST' && $path === '/api/v1/store/uninstall' ) {
+	require_bearer_auth();
+
+	$requests   = ( isset( $state['store_uninstall_requests'] ) && is_array( $state['store_uninstall_requests'] ) )
+		? $state['store_uninstall_requests']
+		: array();
+	$requests[] = array(
+		'key'  => (string) preg_replace( '/^Bearer\s+/', '', (string) $_SERVER['HTTP_AUTHORIZATION'] ),
+		'body' => (string) file_get_contents( 'php://input' ),
+	);
+	$state['store_uninstall_requests'] = $requests;
+	save_state( $state_file, $state );
+
+	if ( ! empty( $state['store_uninstall_fails'] ) ) {
+		reply( 500, array( 'error' => 'internal_error', 'message' => 'Mock engine failure.' ) );
+	}
+
+	$others = ! empty( $state['store_other_connections'] );
+	reply(
+		200,
+		array(
+			'ok'                       => true,
+			'status'                   => $others ? 'connection_removed' : 'store_paused',
+			'other_connections_remain' => $others,
 		)
 	);
 }
