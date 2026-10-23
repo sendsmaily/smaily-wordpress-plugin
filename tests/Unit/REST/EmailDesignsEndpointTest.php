@@ -99,6 +99,43 @@ final class EmailDesignsEndpointTest extends TestCase {
 		}
 	}
 
+	/**
+	 * PHP's URL parser and a browser disagree on these: PHP reads the store
+	 * host, a browser goes elsewhere (a backslash is a slash to it) or carries
+	 * a user name or a port the store's admin address never has (CON-206).
+	 */
+	public function test_design_link_leaves_out_a_return_url_with_a_backslash_user_info_or_a_port(): void {
+		$refused = array(
+			'https://evil.example\\@shop.example/wp-admin/',
+			'https://shop.example\\evil/wp-admin/',
+			'https://shop.example/wp-admin/\\evil',
+			'https://evil.example@shop.example/wp-admin/',
+			'https://user:pass@shop.example/wp-admin/',
+			'https://@shop.example/wp-admin/',
+			'https://shop.example:8443/wp-admin/',
+			'https://shop.example:443/wp-admin/',
+			"https://shop.example/wp-admin/\tadmin.php",
+			'https://shop.example/wp-admin/ admin.php',
+		);
+		foreach ( $refused as $return_url ) {
+			$client = $this->stub_client( array( 'url' => 'https://engine.unit/design/email/dl_1', 'expires_at' => 'x' ) );
+
+			$this->endpoint( new FakeRecEngineSettings(), $client )->design_link( $this->link_request( 'plugin.welcome', $return_url ) );
+
+			self::assertArrayNotHasKey( 'return_url', $client->received['body'], $return_url );
+		}
+	}
+
+	public function test_the_store_admin_address_passes_the_return_url_check(): void {
+		foreach ( array(
+			'https://shop.example/wp-admin/admin.php?page=smaily-connect-settings#automations',
+			'https://SHOP.example/wp-admin/admin.php?page=smaily-connect-settings',
+			'https://shop.example/wp-admin/admin.php?page=smaily-connect-settings&return=https%3A%2F%2Fshop.example%2F',
+		) as $return_url ) {
+			self::assertTrue( EmailDesignsEndpoint::allowed_return_url( $return_url, 'https://shop.example' ), $return_url );
+		}
+	}
+
 	public function test_design_link_leaves_out_a_language_that_is_not_a_two_letter_code(): void {
 		Functions\when( 'get_user_locale' )->justReturn( 'fur' );
 		$client = $this->stub_client( array( 'url' => 'https://engine.unit/design/email/dl_1', 'expires_at' => 'x' ) );

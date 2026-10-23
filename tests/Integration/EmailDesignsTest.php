@@ -28,7 +28,8 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *
  *   - The design-link proxy: the one-time URL reaches the admin, the engine
  *     gets the admin's language, and a `return_url` only when it is https on
- *     the store's site host (the engine answers 422 otherwise).
+ *     the store's site host (the engine answers 422 otherwise), with no
+ *     backslash, user info or port (CON-206).
  *   - The design read-back: the list reaches the admin, and the Smaily
  *     workflow ids in it are stored for the send paths.
  *   - Send time: an email mapped to the default Smaily account in the store
@@ -326,6 +327,16 @@ final class EmailDesignsTest extends TestCase {
 			RestRequestHelper::post( '/rec-engine/emails/design-link', array( 'email_key' => 'replenish_due', 'return_url' => 'https://elsewhere.example/wp-admin/' ) )->get_status()
 		);
 		self::assertArrayNotHasKey( 'return_url', self::$engine->last_design_link_request()['body'] );
+
+		// PHP's parser reads the store host in these; a browser does not
+		// (a backslash is a slash to it), or adds a user name or a port.
+		foreach ( array( 'https://elsewhere.example\\@shop.example/wp-admin/', 'https://user:pass@shop.example/wp-admin/', 'https://shop.example:8443/wp-admin/' ) as $return_url ) {
+			self::assertSame(
+				200,
+				RestRequestHelper::post( '/rec-engine/emails/design-link', array( 'email_key' => 'replenish_due', 'return_url' => $return_url ) )->get_status()
+			);
+			self::assertArrayNotHasKey( 'return_url', self::$engine->last_design_link_request()['body'], $return_url );
+		}
 	}
 
 	public function test_the_mock_refuses_a_return_url_on_another_host_like_the_engine(): void {
