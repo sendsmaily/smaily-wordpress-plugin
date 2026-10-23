@@ -156,6 +156,33 @@ final class CartHookHandlerTest extends TestCase {
 		);
 	}
 
+	/**
+	 * CON-196: the classic checkout reports the newsletter box on every order
+	 * review; the last report is the cart's tick (unticking clears it).
+	 */
+	public function test_classic_checkout_posted_newsletter_box_is_recorded_on_the_cart(): void {
+		$handler = $this->handler( 'guest-token', null );
+
+		$handler->on_checkout_update_order_review( 'billing_email=guest%40example.test&user_newsletter=1' );
+		$handler->on_checkout_update_order_review( 'billing_email=guest%40example.test' );
+
+		self::assertSame(
+			array(
+				array( 'guest-token', true ),
+				array( 'guest-token', false ),
+			),
+			$this->store->optins
+		);
+	}
+
+	public function test_the_newsletter_box_is_not_recorded_while_tracking_is_off(): void {
+		$this->stub_gates( false, true );
+
+		$this->handler( 'guest-token', null )->on_checkout_update_order_review( 'billing_email=guest%40example.test&user_newsletter=1' );
+
+		self::assertSame( array(), $this->store->optins );
+	}
+
 	public function test_invalid_posted_email_is_ignored(): void {
 		$handler = $this->handler( 'guest-token', null );
 		$handler->on_checkout_update_order_review( 'billing_email=not-an-email' );
@@ -320,6 +347,13 @@ final class CartHookHandlerTest extends TestCase {
 
 			public function set_identity( string $cart_token, string $email, string $first_name, string $last_name ): void {
 				$this->identities[] = compact( 'cart_token', 'email', 'first_name', 'last_name' );
+			}
+
+			/** @var array<int, array{0: string, 1: bool}> */
+			public array $optins = array();
+
+			public function set_newsletter_optin( string $cart_token, bool $ticked ): void {
+				$this->optins[] = array( $cart_token, $ticked );
 			}
 
 			public function delete_by_token( string $cart_token ): void {

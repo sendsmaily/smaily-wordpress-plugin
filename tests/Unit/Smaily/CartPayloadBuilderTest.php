@@ -311,6 +311,44 @@ final class CartPayloadBuilderTest extends TestCase {
 		self::assertSame( 'et', $payload['language'] );
 	}
 
+	/**
+	 * CON-196: the send-time consent gate needs the cart's WP user and a
+	 * newsletter tick from the unfinished classic checkout. Both ride the
+	 * queue payload at the top level — never in `fields`, so never on the wire.
+	 */
+	public function test_a_ticked_cart_carries_the_tick_and_its_products(): void {
+		$this->products[11] = $this->product( 'Koeratoit' );
+
+		$payload = $this->builder()->build(
+			$this->row( '{"items":[{"product_id":11,"variation_id":0,"quantity":2}],"newsletter_optin":true}' )
+		);
+
+		self::assertNotNull( $payload );
+		self::assertTrue( $payload['newsletter_optin'] );
+		self::assertSame( '2', $payload['fields']['product_quantity_1'], 'The items are read from the ticked shape too.' );
+		self::assertArrayNotHasKey( 'newsletter_optin', $payload['fields'] );
+	}
+
+	public function test_an_unticked_cart_carries_no_tick(): void {
+		$payload = $this->builder()->build( $this->row() );
+
+		self::assertNotNull( $payload );
+		self::assertArrayNotHasKey( 'newsletter_optin', $payload );
+		self::assertArrayNotHasKey( 'user_id', $payload, 'A guest cart has no WP user.' );
+	}
+
+	public function test_an_account_cart_carries_its_user_id(): void {
+		Functions\when( 'get_userdata' )->justReturn( false );
+		$row            = $this->row();
+		$row['user_id'] = '42';
+
+		$payload = $this->builder()->build( $row );
+
+		self::assertNotNull( $payload );
+		self::assertSame( 42, $payload['user_id'] );
+		self::assertArrayNotHasKey( 'user_id', $payload['fields'] );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**

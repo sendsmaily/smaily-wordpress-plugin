@@ -456,6 +456,10 @@ final class BackfillJobTest extends TestCase {
 		( new BackfillJob( $this->capturing_client() ) )->process_batch( 10 );
 
 		self::assertSame( 'et', $this->captured_payload['language'] ?? null );
+		// CON-196 rule 3: the import and the daily refresh change other
+		// fields, so they never send a subscription status — one that did
+		// would re-subscribe a contact who unsubscribed in Smaily.
+		self::assertArrayNotHasKey( 'is_unsubscribed', $this->captured_payload );
 	}
 
 	public function test_should_start_refresh_true_when_never_run(): void {

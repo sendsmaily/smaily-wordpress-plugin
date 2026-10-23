@@ -1635,6 +1635,16 @@ repo: a red staleness run is the signal to sync.
   them, don't "clean them up". One-time drain stamp:
   `smly_plus_cart_legacy_drained` (autoload=false — EnvScrub flushes its
   per-key cache explicitly).
+- **The CartFlusher reads Smaily before every reminder (CON-196).** A consent
+  gate (`CartFlusher::consent_refusal()`) does a `get_contact_consent()` GET
+  per cart and skips by the contact-sync mode (`no_marketing_consent` /
+  `unsubscribed`, DECISIONS "CON-196"). Test trap: an integration test that
+  flushes the cart queue must answer that GET — in the default consent mode a
+  reminder to an unknown address is skipped. Pass
+  `PipelineFixture::subscribed_contact_read()` to `PipelineFixture::flush()`.
+  The classic checkout's newsletter tick lives in the tracker's `cart_content`
+  (`CartSessionStore::encode_content()`/`decode_content()` — read it only
+  through those).
 
 ---
 

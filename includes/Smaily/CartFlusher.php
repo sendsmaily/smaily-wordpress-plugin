@@ -22,6 +22,10 @@ use Smaily\Connect\Support\DebugLog;
  * two drains from consuming each other's rows, same discipline as the
  * rec-engine flushers).
  *
+ * A consent gate runs first (CON-196, consent_refusal()): a reminder the
+ * contact-sync mode does not allow closes as skipped with its reason
+ * (EventQueue::mark_skipped), so the Event Log never reads it as sent.
+ *
  * Dispatch, mirroring the retired legacy pass's F3-54 router-first order —
  * the SAME Smaily autoresponder destination, so an upgrading store needs
  * zero reconfiguration:
@@ -66,6 +70,12 @@ class CartFlusher {
 
 	public const DEFAULT_BATCH_SIZE = 50;
 
+	/** Skip reason: a consent mode, and the shopper consented nowhere (CON-196). */
+	public const REASON_NO_MARKETING_CONSENT = 'no_marketing_consent';
+
+	/** Skip reason: Smaily has the contact as unsubscribed — any mode (CON-196). */
+	public const REASON_UNSUBSCRIBED = 'unsubscribed';
+
 	/** Cap (chars) on each stored exchange field so the queue stays bounded (F3-44). */
 	private const EXCHANGE_MAX = 10000;
 
@@ -86,6 +96,9 @@ class CartFlusher {
 	/** @var bool One "no workflow configured" log line per flush, not per cart (F3-54 parity). */
 	private bool $unconfigured_logged = false;
 
+	/** The contact-sync mode, read afresh for every flush (its own memo must not outlive one). */
+	private ?ContactSyncMode $mode = null;
+
 	/**
 	 * @param callable(string $account_key): Client $client_factory
 	 */
@@ -98,7 +111,7 @@ class CartFlusher {
 	/**
 	 * Process up to $batch_size pending abandoned-cart events.
 	 *
-	 * @return array{processed: int, sent: int, failed: int, retried: int}
+	 * @return array{processed: int, sent: int, failed: int, retried: int, skipped: int}
 	 */
 	public function flush( int $batch_size = self::DEFAULT_BATCH_SIZE ): array {
 		$stats = array(
@@ -106,9 +119,11 @@ class CartFlusher {
 			'sent'      => 0,
 			'failed'    => 0,
 			'retried'   => 0,
+			'skipped'   => 0,
 		);
 
 		$this->unconfigured_logged = false;
+		$this->mode                = new ContactSyncMode();
 
 		foreach ( $this->queue->pending( $batch_size, array( self::EVENT_TYPE ) ) as $event ) {
 			++$stats['processed'];
@@ -119,7 +134,15 @@ class CartFlusher {
 
 			try {
 				$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
-				$this->dispatch( $payload );
+
+				$skip = $this->dispatch( $payload );
+				if ( $skip !== '' ) {
+					// Closed for good with its reason; nothing was sent, so
+					// no exchange is stored over it (CON-196).
+					$this->queue->mark_skipped( $id, $skip );
+					++$stats['skipped'];
+					continue;
+				}
 
 				// An HTTP 200 can still carry a refusal in Smaily's body code —
 				// fail or retry it by the code, never mark it sent (PRO-3862).
@@ -147,19 +170,29 @@ class CartFlusher {
 	}
 
 	/**
-	 * Router-first, legacy-autoresponder fallback (F3-54 order).
+	 * Consent gate (CON-196), then router-first, legacy-autoresponder
+	 * fallback (F3-54 order).
 	 *
 	 * @param array<string, mixed> $payload
+	 *
+	 * @return string '' when the row is done (sent, or a terminal skip that
+	 *                records its own note); else a REASON_* code — the
+	 *                reminder may not go out.
 	 *
 	 * @throws TerminalDispatchException Deterministic failure — never retried.
 	 * @throws ApiException              Transient API failure — retried.
 	 */
-	private function dispatch( array $payload ): void {
+	private function dispatch( array $payload ): string {
 		$email = isset( $payload['email'] ) ? (string) $payload['email'] : '';
 		if ( $email === '' ) {
 			// Terminal skip — the sweeper only enqueues rows with an email,
 			// so this is a defensive path; a retry can't grow an email.
-			return;
+			return '';
+		}
+
+		$refused = $this->consent_refusal( $email, $payload );
+		if ( $refused !== '' ) {
+			return $refused;
 		}
 
 		$fields = isset( $payload['fields'] ) && is_array( $payload['fields'] ) ? $payload['fields'] : array();
@@ -171,7 +204,7 @@ class CartFlusher {
 
 		try {
 			if ( $this->router->trigger_automation( 'abandoned_cart', $contact, $fields ) ) {
-				return;
+				return '';
 			}
 		} finally {
 			$this->current_exchange = $this->router->last_exchange();
@@ -190,7 +223,7 @@ class CartFlusher {
 			// Terminal skip: mark_sent semantics with a "skipped" exchange
 			// marker — the row is visible in the Event Log, never eternally
 			// retried.
-			return;
+			return '';
 		}
 
 		$address = array_merge( array( 'email' => $email ), $fields );
@@ -203,6 +236,66 @@ class CartFlusher {
 			// flush() reads a non-101 body code in this exchange (PRO-3862).
 			$this->current_exchange = $client->last_exchange();
 		}
+
+		return '';
+	}
+
+	/**
+	 * Why this reminder may not go out, or '' when it may (CON-196). Smaily
+	 * creates an address an automation is triggered for as a subscribed
+	 * contact, so the reminder goes out only where that is the shopper's
+	 * consent or the store's lawful basis:
+	 *
+	 *   - Smaily has the contact as unsubscribed → never, in any mode;
+	 *   - legitimate interest → otherwise always;
+	 *   - consent / checkout opt-in → only with the shopper's consent: the
+	 *     store's record (`user_newsletter`, consent mode only — checkout-only
+	 *     keeps none for an account), the newsletter box ticked in this
+	 *     unfinished classic checkout, or a subscribed Smaily contact.
+	 *
+	 * The contact is read from the "default" account, where contact sync
+	 * keeps it. A read that fails throws, so the row takes the normal retry
+	 * path and nothing is sent blind; its request is kept for the Event Log
+	 * (F3-44). Independent of the "Sync contacts to Smaily" switch.
+	 *
+	 * @param array<string, mixed> $payload
+	 *
+	 * @throws ApiException When Smaily cannot be read.
+	 */
+	private function consent_refusal( string $email, array $payload ): string {
+		$client = ( $this->client_factory )( 'default' );
+		try {
+			$contact = $client->get_contact_consent( $email );
+		} catch ( ApiException $e ) {
+			$this->current_exchange = $client->last_exchange();
+			throw $e;
+		}
+
+		if ( $contact['found'] && $contact['is_unsubscribed'] === '1' ) {
+			return self::REASON_UNSUBSCRIBED;
+		}
+
+		$mode = $this->mode ?? new ContactSyncMode();
+		if ( ! $mode->requires_optin() ) {
+			return '';
+		}
+
+		if ( $contact['found'] && $contact['is_unsubscribed'] === '0' ) {
+			return '';
+		}
+
+		if ( ( $payload['newsletter_optin'] ?? false ) === true ) {
+			return '';
+		}
+
+		$user_id = isset( $payload['user_id'] ) ? (int) $payload['user_id'] : 0;
+		if ( $mode->mode() === ContactSyncMode::MODE_CONSENT && $user_id > 0
+			&& (int) get_user_meta( $user_id, ContactAudience::OPTIN_META, true ) === 1
+		) {
+			return '';
+		}
+
+		return self::REASON_NO_MARKETING_CONSENT;
 	}
 
 	/**

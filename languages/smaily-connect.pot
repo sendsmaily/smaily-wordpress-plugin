@@ -2983,6 +2983,14 @@ msgstr ""
 msgid "When the wait ended, the order was no longer at a status ticked for the follow-up email."
 msgstr ""
 
+#: admin/src/lib/transactional-reasons.ts:43
+msgid "The shopper has not subscribed to marketing emails, neither in the store nor in Smaily."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:48
+msgid "The shopper has unsubscribed from marketing emails in Smaily."
+msgstr ""
+
 #: admin/src/state/engine-automations.ts:87
 msgid "Workflow id must be a numeric string."
 msgstr ""

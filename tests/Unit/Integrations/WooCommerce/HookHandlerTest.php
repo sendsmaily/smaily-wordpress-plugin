@@ -237,6 +237,38 @@ final class HookHandlerTest extends TestCase {
 		self::assertArrayNotHasKey( 'is_unsubscribed', $this->enqueued[0]['payload'] );
 	}
 
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function account_write_paths(): array {
+		return array(
+			'user_register'      => array( 'on_user_register' ),
+			'created_customer'   => array( 'on_woocommerce_created_customer' ),
+			'profile_update'     => array( 'on_profile_update' ),
+		);
+	}
+
+	/**
+	 * CON-196 rule 3: a write that changes other fields never sends a
+	 * subscription status, so it cannot re-subscribe a contact who
+	 * unsubscribed in Smaily (Smaily keeps the status it has when the key is
+	 * absent). Only the shopper's own opt-in or a deliberate change of the
+	 * consent field sends one.
+	 *
+	 * @dataProvider account_write_paths
+	 */
+	public function test_an_account_write_never_carries_a_subscription_status( string $method ): void {
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 42, 'a@b.c', 'Mari', 'Maasikas' ) );
+
+		( new HookHandler( $this->queue ) )->{$method}( 42 );
+
+		self::assertNotSame( array(), $this->enqueued, 'The write must reach the queue for this case to mean anything.' );
+		foreach ( $this->enqueued as $row ) {
+			self::assertArrayNotHasKey( 'is_unsubscribed', $row['payload'] );
+			self::assertArrayNotHasKey( 'is_unsubscribed', $row['payload']['fields'] ?? array() );
+		}
+	}
+
 	public function test_newsletter_optout_enqueues_unsubscribe_consent_event(): void {
 		// Default consent mode; setUp stubs user_newsletter='1' (opted in) → the
 		// pre-write old value; new value 0 → opt-out.
@@ -810,6 +842,7 @@ final class HookHandlerTest extends TestCase {
 			array_keys( $marker['payload']['fields'] ),
 			'Only the purchase marker rides — the reminder\'s product fields belong to the reminder send (PRO-1680).'
 		);
+		self::assertArrayNotHasKey( 'is_unsubscribed', $marker['payload'], 'The marker never sends a subscription status (CON-196).' );
 	}
 
 	public function test_block_checkout_purchase_marks_the_contact_too(): void {

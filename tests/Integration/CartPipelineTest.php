@@ -14,6 +14,7 @@ use Smaily\Connect\Integrations\WooCommerce\CartHookHandler;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\PipelineFixture;
 use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
 
 /**
@@ -621,11 +622,17 @@ final class CartPipelineTest extends TestCase {
 
 	/**
 	 * A pre_http_request fake: captures the POST body, replies Smaily 101.
+	 * The contact read (GET) answers that Smaily has the shopper subscribed,
+	 * which the default consent mode needs before a reminder goes out
+	 * (CON-196 — AbandonedCartConsentTest pins that rule).
 	 *
 	 * @param mixed $captured By-ref capture target.
 	 */
 	private function fake_transport( &$captured ): callable {
 		return static function ( $pre, $args ) use ( &$captured ) {
+			if ( ( $args['method'] ?? '' ) === 'GET' ) {
+				return ( PipelineFixture::subscribed_contact_read() )();
+			}
 			$captured = isset( $args['body'] ) ? $args['body'] : null;
 			return array(
 				'headers'  => array(),

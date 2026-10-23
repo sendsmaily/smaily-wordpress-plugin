@@ -91,6 +91,31 @@ final class PipelineFixture {
 		return $bodies;
 	}
 
+	/**
+	 * A contact read (GET) answering that Smaily has the shopper as a
+	 * subscribed contact — what an abandoned-cart reminder needs in the
+	 * default consent mode before it may go out (CON-196). Pass it to flush().
+	 *
+	 * @return callable(): array<string, mixed>
+	 */
+	public static function subscribed_contact_read(): callable {
+		return static fn (): array => array(
+			'headers'  => array(),
+			'body'     => (string) wp_json_encode(
+				array(
+					'email'           => 'subscribed@example.test',
+					'is_unsubscribed' => '0',
+				)
+			),
+			'response' => array(
+				'code'    => 200,
+				'message' => 'OK',
+			),
+			'cookies'  => array(),
+			'filename' => '',
+		);
+	}
+
 	/** Age every cart-tracker row so the sweeper's cutoff has passed. */
 	public static function rewind_tracker_row( int $seconds ): void {
 		global $wpdb;

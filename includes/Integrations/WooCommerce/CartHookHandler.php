@@ -122,7 +122,9 @@ class CartHookHandler {
 
 	/**
 	 * Classic checkout AJAX (`woocommerce_checkout_update_order_review`) —
-	 * the moment a GUEST's typed billing email becomes visible server-side.
+	 * the moment a GUEST's typed billing email becomes visible server-side,
+	 * and the newsletter box with it. The block checkout reports the box only
+	 * with the placed order, so there a tick cannot count for the reminder.
 	 *
 	 * @param string $posted_data The serialized checkout form data WC posts.
 	 */
@@ -137,6 +139,13 @@ class CartHookHandler {
 		}
 
 		parse_str( $posted_data, $form );
+
+		// The newsletter box, as this order review reports it (CON-196): a
+		// tick in this unfinished checkout is consent for the reminder.
+		$this->store->set_newsletter_optin(
+			$token,
+			isset( $form['user_newsletter'] ) && is_string( $form['user_newsletter'] ) && (int) $form['user_newsletter'] === 1
+		);
 
 		$email = isset( $form['billing_email'] ) && is_string( $form['billing_email'] )
 			? sanitize_email( wp_unslash( $form['billing_email'] ) )

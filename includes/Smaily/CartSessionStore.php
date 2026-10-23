@@ -20,9 +20,11 @@ use Smaily\Connect\Privacy\AddressMatch;
  *
  * One row per WC session (`cart_token` = WC session customer id — the user id
  * for logged-in customers, an opaque hash for guests). `cart_content` is OUR
- * OWN minimal JSON shape ([{product_id, variation_id, quantity}]), never a
- * serialized WC object — the F3-53 poison class was `serialize(get_cart())`
- * rows deserializing to something a later plugin version couldn't read.
+ * OWN minimal JSON shape ([{product_id, variation_id, quantity}], wrapped
+ * with the classic checkout's newsletter tick while it is ticked — see
+ * encode_content()), never a serialized WC object — the F3-53 poison class
+ * was `serialize(get_cart())` rows deserializing to something a later plugin
+ * version couldn't read.
  *
  * Lifecycle: upsert on cart activity → (email captured when known) → the
  * sweeper (CartAbandonmentSweeper) enqueues one reminder per row past the
@@ -73,19 +75,26 @@ class CartSessionStore {
 			return;
 		}
 
-		$json = wp_json_encode( array_values( $items ) );
-		if ( $json === false ) {
-			return;
-		}
-
 		$now     = current_time( 'mysql', true );
 		$updated = $cart_updated ?? $now;
 		$table   = $this->table_name();
 
 		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- {$table} is $this->table_name(), a hardcoded internal constant, not user input; the only real value goes through $wpdb->prepare().
-		$existing_id = $wpdb->get_var(
-			$wpdb->prepare( "SELECT id FROM {$table} WHERE cart_token = %s", $cart_token )
+		$existing    = $wpdb->get_row(
+			$wpdb->prepare( "SELECT id, cart_content FROM {$table} WHERE cart_token = %s", $cart_token ),
+			ARRAY_A
 		);
+		$existing_id = is_array( $existing ) ? $existing['id'] : null;
+
+		// A cart change keeps the newsletter tick the checkout reported for
+		// this session (CON-196): the classic order review saves the cart
+		// right after it reports the box.
+		$ticked = is_array( $existing ) && ( self::decode_content( (string) $existing['cart_content'] )['newsletter_optin'] ?? false );
+
+		$json = self::encode_content( $items, $ticked );
+		if ( $json === null ) {
+			return;
+		}
 
 		if ( $existing_id === null ) {
 			$wpdb->insert(
@@ -159,6 +168,86 @@ class CartSessionStore {
 		}
 
 		$wpdb->update( $this->table_name(), $data, array( 'cart_token' => $cart_token ), $formats, array( '%s' ) );
+	}
+
+	/**
+	 * Record whether the shopper has the newsletter box ticked in this
+	 * session's unfinished classic checkout (CON-196) — the last report
+	 * wins, so unticking clears it. No-op when the session has no tracked
+	 * cart.
+	 */
+	public function set_newsletter_optin( string $cart_token, bool $ticked ): void {
+		global $wpdb;
+
+		if ( $cart_token === '' ) {
+			return;
+		}
+
+		$table = $this->table_name();
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- {$table} is $this->table_name(), a hardcoded internal constant, not user input; the only real value goes through $wpdb->prepare().
+		$content = $wpdb->get_var( $wpdb->prepare( "SELECT cart_content FROM {$table} WHERE cart_token = %s", $cart_token ) );
+		if ( $content === null ) {
+			return;
+		}
+
+		$decoded = self::decode_content( (string) $content );
+		if ( $decoded === null || $decoded['newsletter_optin'] === $ticked ) {
+			return;
+		}
+
+		$json = self::encode_content( $decoded['items'], $ticked );
+		if ( $json === null ) {
+			return;
+		}
+
+		$wpdb->update( $table, array( 'cart_content' => $json ), array( 'cart_token' => $cart_token ), array( '%s' ), array( '%s' ) );
+	}
+
+	/**
+	 * `cart_content` as written: the item list, or — only while the shopper
+	 * has the newsletter box ticked in the classic checkout (CON-196) —
+	 * `{"items": [...], "newsletter_optin": true}`. An unticked cart keeps
+	 * the plain list every earlier version wrote and reads.
+	 *
+	 * @param array<int, array<string, mixed>> $items
+	 */
+	public static function encode_content( array $items, bool $newsletter_optin ): ?string {
+		$items = array_values( $items );
+		$json  = wp_json_encode(
+			$newsletter_optin
+				? array(
+					'items'            => $items,
+					'newsletter_optin' => true,
+				)
+				: $items
+		);
+
+		return is_string( $json ) ? $json : null;
+	}
+
+	/**
+	 * Read either `cart_content` shape (see encode_content()). Null when the
+	 * value is not ours — treat stored rows as wire input (F3-53).
+	 *
+	 * @return array{items: array<int, mixed>, newsletter_optin: bool}|null
+	 */
+	public static function decode_content( string $json ): ?array {
+		$decoded = json_decode( $json, true );
+		if ( ! is_array( $decoded ) ) {
+			return null;
+		}
+
+		if ( array_key_exists( 'items', $decoded ) ) {
+			return array(
+				'items'            => is_array( $decoded['items'] ) ? array_values( $decoded['items'] ) : array(),
+				'newsletter_optin' => ( $decoded['newsletter_optin'] ?? false ) === true,
+			);
+		}
+
+		return array(
+			'items'            => array_values( $decoded ),
+			'newsletter_optin' => false,
+		);
 	}
 
 	public function delete_by_token( string $cart_token ): void {

@@ -8682,6 +8682,62 @@ closed by this entry), PRO-2391 (the IIFE passes, re-checked by
 `bin/check-bundle-scope.sh`), PRO-3444 / CON-56 (the `blocks/` major, not
 touched).
 
+### CON-196 — An abandoned-cart reminder follows the contact-sync mode's consent rule (2026-10-23)
+
+**Context:** every cart with an email got a reminder in all three contact-sync
+modes; nothing checked consent. `force_opt_in=false` (PRO-1716) keeps an
+unsubscribe, but Smaily creates an address it does not have as a
+**subscribed** contact when an automation is triggered for it — so in the two
+consent modes a reminder to a shopper who never agreed to marketing emails
+also subscribed them. Raised from the Magento twin; design approved by Erkki
+(2026-10-23).
+**Decision:** a gate in `CartFlusher` just before the trigger (not in the
+15-minute sweeper). It reads the contact from Smaily for every cart
+(`Client::get_contact_consent()`, "default" account). A contact Smaily has as
+unsubscribed is skipped in every mode (`unsubscribed`). Under "All customers"
+everything else goes out. Under "Subscribers only" and "Checkout opt-in only"
+the reminder goes out only with consent — the cart's WP user has
+`user_newsletter=1` (consent mode only; checkout-only keeps no store record
+for accounts), the newsletter box is ticked in this unfinished classic
+checkout, or Smaily has the contact subscribed — else `no_marketing_consent`.
+A skip is `EventQueue::mark_skipped()` (Event Log "skipped" + reason, out of
+the Sent filter, PRO-4098); a failed read takes the RetryPolicy path.
+**Design choices:** the classic checkout reports the box on every order
+review, so `CartHookHandler` stores the last report in the tracker row's own
+`cart_content` JSON — `{"items": [...], "newsletter_optin": true}` while
+ticked, the plain item list otherwise, so an unticked cart is byte-for-byte
+the shape every earlier version reads — and `upsert()` carries it across the
+cart save that follows the review. No schema change. The block checkout
+reports the box only with the placed order, so a tick there cannot count. The
+consent inputs ride the queue payload at the top level (`user_id`,
+`newsletter_optin`): the tick as it stood when the sweeper queued the
+reminder, while the WP record and Smaily are read at send time. The mode is
+read afresh each flush.
+**Rule 3 refined (Erkki):** a write that changes other fields or triggers an
+automation never sends a subscription status (account register / created /
+profile update, import and daily refresh, purchase marker, profiling-consent
+write, automation triggers) — pinned by unit tests on their payloads. A
+deliberate change of the consent field itself (`user_newsletter` 0→1 by
+staff, an import, WP-CLI) is a consent act and keeps sending
+`is_unsubscribed=0`. Elementor / CF7 / newsletter block, Event Log Retry and
+the pre-wizard legacy sync are unchanged.
+**Accepted limits:** a contact deleted in Smaily reads as not found, so "All
+customers" enrols it again as subscribed. With "include guests" off in
+consent mode a guest's earlier tick never reached Smaily, so a returning guest
+is reminded only after ticking the box again in the classic checkout. One
+extra Smaily read per reminder.
+**Alternatives:** gate in the sweeper — rejected: consent can change between
+sweep and send, and a skip there leaves no Event Log row. A new tracker
+column for the tick — rejected: a schema migration for one flag. Reading
+consent only from the store — rejected: checkout-only keeps no record and a
+Smaily-side subscription is consent too.
+**Relationships:** narrows PRO-1678 for the two consent modes — triggering an
+automation for a non-contact still adds them as subscribed, but the abandoned
+cart no longer triggers one without consent there; PRO-1716 (`force_opt_in`
+stays `false`); PRO-1742 (independent of the contact-sync switch); PRO-4093
+(the same consent sources for the welcome); PRO-3627 (the purchase marker's
+has-contact read, the pattern copied); CONTACT_SYNC_MODES.md § 6.1.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

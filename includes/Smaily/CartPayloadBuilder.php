@@ -53,7 +53,8 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *     columns when there is no WP user.
  *
  * Returns the payload the CartFlusher dispatches:
- *   { email, language?, fields: { ... } }
+ *   { email, language?, fields: { ... }, user_id?, newsletter_optin? }
+ * — the last two only feed the send-time consent gate (CON-196).
  * `language` is mirrored into fields when the merchant's field selection has
  * it enabled (legacy address parity) AND at the top level (the router's
  * workflow-language resolution reads it there).
@@ -99,10 +100,11 @@ class CartPayloadBuilder {
 			return null;
 		}
 
-		$items = json_decode( isset( $row['cart_content'] ) ? (string) $row['cart_content'] : '', true );
-		if ( ! is_array( $items ) ) {
+		$content = CartSessionStore::decode_content( isset( $row['cart_content'] ) ? (string) $row['cart_content'] : '' );
+		if ( $content === null ) {
 			return null;
 		}
+		$items = $content['items'];
 
 		$sync_fields = get_option(
 			\Smaily_Connect\Includes\Options::ABANDONED_CART_FIELDS_OPTION,
@@ -135,6 +137,16 @@ class CartPayloadBuilder {
 			// Top level drives the router's per-language workflow lookup;
 			// omit-on-empty per F3-47 rule 2.
 			$payload['language'] = $language;
+		}
+
+		// What the CartFlusher's consent gate reads at send time (CON-196) —
+		// top level, so neither ever reaches Smaily.
+		$user_id = isset( $row['user_id'] ) ? (int) $row['user_id'] : 0;
+		if ( $user_id > 0 ) {
+			$payload['user_id'] = $user_id;
+		}
+		if ( $content['newsletter_optin'] ) {
+			$payload['newsletter_optin'] = true;
 		}
 
 		return $payload;

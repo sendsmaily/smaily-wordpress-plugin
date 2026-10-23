@@ -402,6 +402,38 @@ describe('EventLog', () => {
     expect(screen.queryByRole('button', { name: 'Send again' })).not.toBeInTheDocument();
   });
 
+  it.each([
+    {
+      reason: 'no_marketing_consent',
+      text: 'The shopper has not subscribed to marketing emails, neither in the store nor in Smaily.',
+    },
+    { reason: 'unsubscribed', text: 'The shopper has unsubscribed from marketing emails in Smaily.' },
+  ])('says why an abandoned-cart reminder was skipped: $reason (CON-196)', async ({ reason, text }) => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [
+        {
+          ...ROW,
+          id: 63,
+          source: 'smaily' as const,
+          event_type: 'automation.abandoned_cart',
+          status: 'sent',
+          last_error: '',
+          skipped: true,
+          skip_reason: reason,
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+
+    render(<EventLog />);
+
+    expect(await screen.findByText('skipped')).toBeInTheDocument();
+    expect(screen.getByText(text)).toBeInTheDocument();
+  });
+
   it('reads any other skipped row as skipped, even with no reason (PRO-4098)', async () => {
     vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
       events: [{ ...ROW, id: 62, status: 'sent', last_error: '', skipped: true }],
