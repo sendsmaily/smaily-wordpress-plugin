@@ -341,8 +341,9 @@ final class CartHookHandlerTest extends TestCase {
 			/** @var array<int, array{0: string, 1: string}> */
 			public array $email_cleanups = array();
 
-			public function upsert( string $cart_token, int $user_id, string $email, string $first_name, string $last_name, array $items, ?string $cart_updated = null ): void {
+			public function upsert( string $cart_token, int $user_id, string $email, string $first_name, string $last_name, array $items, ?string $cart_updated = null ): bool {
 				$this->upserts[] = compact( 'cart_token', 'user_id', 'email', 'first_name', 'last_name', 'items', 'cart_updated' );
+				return true;
 			}
 
 			public function set_identity( string $cart_token, string $email, string $first_name, string $last_name ): void {

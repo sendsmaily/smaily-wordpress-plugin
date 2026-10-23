@@ -1,7 +1,8 @@
 <?php
 /**
  * RetiredTables (schema migration 012, CON-182) — the drain-before-drop order
- * and the retry-instead-of-lose rule, with a recording $wpdb.
+ * and the retry-instead-of-lose rule, with a recording $wpdb. Nothing is
+ * drained or dropped while the cart tracker table is missing (CON-207).
  *
  * @package Smaily\Connect\Tests
  */
@@ -18,7 +19,7 @@ use Smaily\Connect\Migration\RetiredTables;
 
 final class RetiredTablesTest extends TestCase {
 
-	/** @var object{prefix: string, queries: array<int, string>, fail: bool} */
+	/** @var object{prefix: string, last_error: string, queries: array<int, string>, fail: bool, tracker: string|null, tracker_error: string} */
 	private object $wpdb;
 
 	protected function setUp(): void {
@@ -30,6 +31,9 @@ final class RetiredTablesTest extends TestCase {
 			/** @var array<int, string> */
 			public array $queries = array();
 			public bool $fail     = false;
+			public string $last_error    = '';
+			public ?string $tracker      = 'wp_smly_plus_cart_session';
+			public string $tracker_error = '';
 
 			/**
 			 * @return int|false
@@ -37,6 +41,19 @@ final class RetiredTablesTest extends TestCase {
 			public function query( string $sql ) {
 				$this->queries[] = $sql;
 				return $this->fail ? false : 0;
+			}
+
+			public function esc_like( string $text ): string {
+				return addcslashes( $text, '_%\\' );
+			}
+
+			public function prepare( string $query, string ...$args ): string {
+				return vsprintf( str_replace( '%s', "'%s'", $query ), $args );
+			}
+
+			public function get_var( string $query ): ?string {
+				$this->last_error = $this->tracker_error;
+				return $this->tracker;
 			}
 		};
 		$GLOBALS['wpdb'] = $this->wpdb;
@@ -79,6 +96,27 @@ final class RetiredTablesTest extends TestCase {
 
 		self::assertFalse( ( new RetiredTables( $drain ) )->run() );
 		self::assertSame( array(), $this->wpdb->queries, 'The legacy carts must not be dropped uncopied.' );
+	}
+
+	public function test_without_the_cart_tracker_nothing_is_drained_or_dropped(): void {
+		$this->wpdb->tracker = null;
+		$drain               = $this->createMock( LegacyCartDrain::class );
+		$drain->expects( self::never() )->method( 'maybe_run' );
+		Functions\expect( 'delete_option' )->never();
+
+		self::assertFalse( ( new RetiredTables( $drain ) )->run() );
+		self::assertSame( array(), $this->wpdb->queries, 'The legacy carts have nowhere to go: the table stays.' );
+	}
+
+	public function test_a_failed_check_for_the_cart_tracker_drops_nothing_and_asks_for_a_retry(): void {
+		$this->wpdb->tracker       = null;
+		$this->wpdb->tracker_error = 'Lost connection to MySQL server';
+		$drain                     = $this->createMock( LegacyCartDrain::class );
+		$drain->expects( self::never() )->method( 'maybe_run' );
+		Functions\expect( 'delete_option' )->never();
+
+		self::assertFalse( ( new RetiredTables( $drain ) )->run() );
+		self::assertSame( array(), $this->wpdb->queries );
 	}
 
 	public function test_a_failed_drop_keeps_the_stamp_and_asks_for_a_retry(): void {

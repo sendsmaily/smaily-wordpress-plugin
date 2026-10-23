@@ -28,6 +28,8 @@ use Smaily\Connect\Tests\Integration\Support\RetiredTableFixtures;
  *   - the drain is READ-ONLY on the legacy table (rows + mail_sent
  *     untouched — dropping it is migration 012's next step, CON-182) and
  *     one-time (option stamp);
+ *   - a cart the tracker does not take stops the drain without the stamp,
+ *     so migration 012 keeps the legacy table and retries (CON-207);
  *   - a drained recent cart gets its reminder through the NEW pipeline;
  *     a stale one expires under the F3-37 backlog guard without emailing.
  */
@@ -47,6 +49,7 @@ final class LegacyCartDrainTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		RetiredTableFixtures::restore_cart_tracker();
 		// The plugin no longer has this table (CON-182) — don't leave the
 		// fixture behind for the schema tests.
 		RetiredTableFixtures::drop_both();
@@ -129,6 +132,32 @@ final class LegacyCartDrainTest extends TestCase {
 
 		// One-time: the second run is a stamped no-op.
 		self::assertNull( ( new LegacyCartDrain() )->maybe_run() );
+	}
+
+	public function test_a_cart_the_tracker_does_not_take_stops_the_drain_without_the_stamp(): void {
+		global $wpdb;
+		$user = $this->make_user( 'drain-no-tracker' );
+		$this->seed_legacy_cart(
+			$user,
+			gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS ),
+			serialize( array( 'k1' => array( 'product_id' => 11, 'quantity' => 1 ) ) ) // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize
+		);
+
+		RetiredTableFixtures::hide_cart_tracker();
+		$suppressed = $wpdb->suppress_errors( true );
+		$thrown     = null;
+		try {
+			( new LegacyCartDrain() )->maybe_run();
+		} catch ( \RuntimeException $e ) {
+			$thrown = $e;
+		} finally {
+			$wpdb->suppress_errors( $suppressed );
+			RetiredTableFixtures::restore_cart_tracker();
+		}
+
+		self::assertNotNull( $thrown, 'A cart the tracker did not take must fail the drain, not count as copied.' );
+		self::assertFalse( get_option( LegacyCartDrain::DRAINED_OPTION ), 'A failed drain is not stamped, so the next update drains again.' );
+		self::assertSame( 1, $this->legacy_count(), 'The legacy row is untouched.' );
 	}
 
 	public function test_drained_recent_cart_reminds_and_stale_cart_expires_under_the_guard(): void {

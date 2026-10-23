@@ -59,6 +59,11 @@ class CartSessionStore {
 	 *                                                        (The legacy drain passes the
 	 *                                                        original timestamp through so
 	 *                                                        the backlog guard still applies.)
+	 *
+	 * @return bool Whether the row is stored. False when the database refused
+	 *              the write, and when there was nothing to store (an empty
+	 *              token, content that does not encode). The legacy drain reads
+	 *              it (CON-207); the live tracker does not need it.
 	 */
 	public function upsert(
 		string $cart_token,
@@ -68,11 +73,11 @@ class CartSessionStore {
 		string $last_name,
 		array $items,
 		?string $cart_updated = null
-	): void {
+	): bool {
 		global $wpdb;
 
 		if ( $cart_token === '' ) {
-			return;
+			return false;
 		}
 
 		$now     = current_time( 'mysql', true );
@@ -93,11 +98,11 @@ class CartSessionStore {
 
 		$json = self::encode_content( $items, $ticked );
 		if ( $json === null ) {
-			return;
+			return false;
 		}
 
 		if ( $existing_id === null ) {
-			$wpdb->insert(
+			return $wpdb->insert(
 				$table,
 				array(
 					'cart_token'   => $cart_token,
@@ -110,8 +115,7 @@ class CartSessionStore {
 					'created_at'   => $now,
 				),
 				array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s' )
-			);
-			return;
+			) !== false;
 		}
 
 		$data    = array(
@@ -135,7 +139,8 @@ class CartSessionStore {
 			}
 		}
 
-		$wpdb->update( $table, $data, array( 'id' => (int) $existing_id ), $formats, array( '%d' ) );
+		// 0 rows changed is a stored row too: the same cart saved again.
+		return $wpdb->update( $table, $data, array( 'id' => (int) $existing_id ), $formats, array( '%d' ) ) !== false;
 	}
 
 	/**

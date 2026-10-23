@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- one-time DROP of the plugin's own retired tables on upgrade; names are prefix + constants.
 
+use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Support\DebugLog;
 
 /**
@@ -29,9 +30,12 @@ use Smaily\Connect\Support\DebugLog;
  * which write the legacy table and have no drain (it first shipped in
  * 3.11.2), so a store can update straight from a version that never drained
  * its in-flight carts. The drain is a no-op on a store that already ran it
- * (its option stamp). When the drain cannot read the table, nothing is
- * dropped and run() returns false: the Migrator then leaves the schema
- * version where it is and the step is retried on the next upgrade.
+ * (its option stamp). When the drain cannot read the table or the cart
+ * tracker does not store a cart, nothing is dropped and run() returns false:
+ * the Migrator then leaves the schema version where it is and the step is
+ * retried on the next upgrade. The same holds, before the drain starts, when
+ * the cart tracker table (`smly_plus_cart_session`) is not there to take the
+ * carts (CON-207).
  */
 class RetiredTables {
 
@@ -50,6 +54,17 @@ class RetiredTables {
 	 */
 	public function run(): bool {
 		global $wpdb;
+
+		if ( ! $this->cart_tracker_exists() ) {
+			DebugLog::write(
+				sprintf(
+					'[smaily-connect migration.012] The cart tracker table %s%s is missing - legacy table kept, retried on the next update.',
+					$wpdb->prefix,
+					CartSessionStore::TABLE_SUFFIX
+				)
+			);
+			return false;
+		}
 
 		try {
 			$this->drain->maybe_run();
@@ -76,5 +91,19 @@ class RetiredTables {
 		delete_option( LegacyCartDrain::DRAINED_OPTION );
 
 		return true;
+	}
+
+	/**
+	 * Whether the table the drain copies the legacy carts into exists. A
+	 * failed check counts as "not there": nothing is dropped on a guess.
+	 */
+	private function cart_tracker_exists(): bool {
+		global $wpdb;
+
+		$table  = $wpdb->prefix . CartSessionStore::TABLE_SUFFIX;
+		$found  = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) );
+		$failed = (string) $wpdb->last_error !== '';
+
+		return ! $failed && $found === $table;
 	}
 }
