@@ -317,6 +317,8 @@ final class CartPayloadBuilderTest extends TestCase {
 	 * queue payload at the top level — never in `fields`, so never on the wire.
 	 */
 	public function test_a_ticked_cart_carries_the_tick_and_its_products(): void {
+		$this->products[11] = $this->product( 'Koeratoit' );
+
 		$payload = $this->builder()->build(
 			$this->row( '{"items":[{"product_id":11,"variation_id":0,"quantity":2}],"newsletter_optin":true}' )
 		);
