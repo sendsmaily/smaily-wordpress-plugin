@@ -386,6 +386,29 @@ final class ClientTest extends TestCase {
 		self::assertNull( $consent['smaily_rec_profiling_ts'] );
 	}
 
+	public function test_a_profiling_consent_write_sends_no_subscription_status(): void {
+		// CON-196 rule 3: the profiling preference is another field — the
+		// write leaves the contact's subscription as Smaily has it.
+		$captured = null;
+		Functions\when( 'wp_remote_post' )->alias(
+			function ( $url, $args ) use ( &$captured ) {
+				$captured = $args['body'];
+				return $this->successful_response( '{"code":101}' );
+			}
+		);
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( '{"code":101}' );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+
+		( new Client( 'demo', 'alice', 's3cret' ) )->write_profiling_consent( 'shopper@example.test', false, '2026-10-23T10:00:00Z' );
+
+		self::assertIsArray( $captured );
+		self::assertSame(
+			array( 'email', 'smaily_rec_profiling', 'smaily_rec_profiling_ts' ),
+			array_keys( $captured[0] )
+		);
+	}
+
 	private function successful_response( string $body ): array {
 		return array(
 			'response' => array( 'code' => 200 ),

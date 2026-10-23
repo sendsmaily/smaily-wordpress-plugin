@@ -147,7 +147,7 @@ final class AutomationMarkerPipelineTest extends TestCase {
 		PipelineFixture::rewind_tracker_row( 30 * MINUTE_IN_SECONDS );
 		do_action( 'smly_plus_abandoned_cart' );
 
-		$address = $this->automation_address( PipelineFixture::flush( CartFlusher::FLUSH_HOOK ), '6262' );
+		$address = $this->automation_address( PipelineFixture::flush( CartFlusher::FLUSH_HOOK, PipelineFixture::subscribed_contact_read() ), '6262' );
 
 		self::assertMatchesRegularExpression( self::MARKER_FORMAT, $address['abandoned_cart_automation_at'] );
 		self::assertSame( 'true', $address['is_abandoned_cart'], 'The legacy template flag keeps its exact name and meaning.' );
