@@ -61,9 +61,13 @@ final class Router implements WorkflowResolverInterface {
 
 	private Credentials $credentials;
 
-	public function __construct( ?EmailDesignWorkflows $designs = null, ?Credentials $credentials = null ) {
+	/** Null: the active multilingual plugin's detector, asked at send time. */
+	private ?DetectorInterface $detector;
+
+	public function __construct( ?EmailDesignWorkflows $designs = null, ?Credentials $credentials = null, ?DetectorInterface $detector = null ) {
 		$this->designs     = $designs ?? new EmailDesignWorkflows();
 		$this->credentials = $credentials ?? new Credentials();
+		$this->detector    = $detector;
 	}
 
 	/**
@@ -73,15 +77,18 @@ final class Router implements WorkflowResolverInterface {
 	 * pushed the email's design to Smaily, its workflow takes the mapped
 	 * one's place — but only when the mapped row sends through the Smaily
 	 * account that holds that workflow (contract §23 `smaily_subdomain`,
-	 * CON-218). The mapping still decides whether the email is sent at all,
-	 * and through which account and language.
+	 * CON-218) and is the store's default language (is_default_language()).
+	 * The mapping still decides whether the email is sent at all, and
+	 * through which account and language.
 	 */
 	public function resolve_workflow( string $trigger_type, ?string $language ): ?WorkflowMatch {
 		$match = isset( TransactionalGate::TRIGGERS[ $trigger_type ] )
 			? $this->resolve_transactional( $trigger_type, $language )
 			: $this->resolve_marketing( $trigger_type, $language );
 
-		if ( $match === null || $this->designs->account( $trigger_type ) === '' ) {
+		if ( $match === null
+			|| $this->designs->account( $trigger_type ) === ''
+			|| ! $this->is_default_language( $match ) ) {
 			return $match;
 		}
 
@@ -92,6 +99,28 @@ final class Router implements WorkflowResolverInterface {
 		}
 
 		return new WorkflowMatch( $pushed, $match->account_key, $match->matched_language );
+	}
+
+	/**
+	 * The engine pushes one design per email and does not say that it
+	 * covers every language (INT-146); it may be written in one. So only the
+	 * mapped row of the store's default language takes it: the single
+	 * `default` row of a one-workflow mapping, or the row whose language is
+	 * the detector's default (a fallback to that row counts — the shopper
+	 * gets the default-language email anyway). Another language keeps its
+	 * mapped workflow (CON-218).
+	 */
+	private function is_default_language( WorkflowMatch $mapped ): bool {
+		if ( $mapped->matched_language === null ) {
+			return false;
+		}
+		if ( $mapped->matched_language === self::LANGUAGE_DEFAULT ) {
+			return true;
+		}
+
+		$default = ( $this->detector ?? DetectorFactory::create() )->get_default_language();
+
+		return $default !== '' && $mapped->matched_language === $default;
 	}
 
 	private function resolve_marketing( string $trigger_type, ?string $language ): ?WorkflowMatch {

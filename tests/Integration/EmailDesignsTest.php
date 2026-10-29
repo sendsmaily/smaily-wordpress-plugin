@@ -34,10 +34,12 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *     workflow ids in it are stored for the send paths.
  *   - Send time: an email starts with the workflow id the last read returned
  *     only when its mapped Smaily account is the account the engine named
- *     for that id (`smaily_subdomain`, CON-218) — the transactional account
- *     of the follow-up and both confirmations included. An email on another
- *     account, or an id with no named account, keeps the mapped workflow, as
- *     it does while the id is empty. A send never asks the engine.
+ *     for that id (`smaily_subdomain`, CON-218) and the email is in the
+ *     store's default language — the transactional account of the follow-up
+ *     and both confirmations included. An email on another account, in
+ *     another language (Mode A, Mode B), or an id with no named account,
+ *     keeps the mapped workflow, as it does while the id is empty. A send
+ *     never asks the engine.
  *   - No connection, a refused account or an engine without the routes: the
  *     routes answer an error (the admin shows no button) and the stored ids
  *     stay as they were.
@@ -161,7 +163,7 @@ final class EmailDesignsTest extends TestCase {
 		}
 	}
 
-	public function test_a_mode_a_language_account_takes_the_pushed_workflow_only_when_the_engine_names_it(): void {
+	public function test_in_mode_a_only_the_default_language_account_takes_the_pushed_workflow(): void {
 		$this->connect( 'tok_designs_mode_a' );
 		update_option( Router::OPTION_MODE, Router::MODE_A );
 		list( $default, $other ) = $this->two_language_store();
@@ -169,17 +171,24 @@ final class EmailDesignsTest extends TestCase {
 		$this->map( 'welcome', $other, 'account_' . $other, 4302 );
 		$this->store_credentials( 'default', self::MAIN_ACCOUNT );
 		$this->store_credentials( 'account_' . $other, 'shop-' . $other );
-		self::$engine->set_email_design( 'plugin.welcome', $this->pushed( '9101', 'shop-' . $other ) );
+		self::$engine->set_email_design( 'plugin.welcome', $this->pushed( '9101' ) );
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
 
 		$resolver = Bootstrap::instance()->workflow_resolver();
-		$match    = $resolver->resolve_workflow( 'welcome', $other );
-		self::assertSame( 9101, $match->workflow_id, 'The language account the engine names.' );
-		self::assertSame( 'account_' . $other, $match->account_key );
-		self::assertSame( 4301, $resolver->resolve_workflow( 'welcome', $default )->workflow_id, 'The main account is not the named one.' );
+		$match    = $resolver->resolve_workflow( 'welcome', $default );
+		self::assertSame( 9101, $match->workflow_id, 'The default language\'s account is the named one.' );
+		self::assertSame( 'default', $match->account_key );
+		self::assertSame( 4302, $resolver->resolve_workflow( 'welcome', $other )->workflow_id, 'Another language account keeps its workflow.' );
+
+		// The engine names the other language's account: a pushed design
+		// may be in one language only, so that account keeps its workflow.
+		self::$engine->set_email_design( 'plugin.welcome', $this->pushed( '9102', 'shop-' . $other ) );
+		RestRequestHelper::get( '/rec-engine/emails/designs' );
+		self::assertSame( 4302, $resolver->resolve_workflow( 'welcome', $other )->workflow_id );
+		self::assertSame( 4301, $resolver->resolve_workflow( 'welcome', $default )->workflow_id );
 	}
 
-	public function test_every_mode_b_language_on_the_named_account_takes_the_pushed_workflow(): void {
+	public function test_in_mode_b_only_the_default_language_takes_the_pushed_workflow(): void {
 		$this->connect( 'tok_designs_mode_b' );
 		update_option( Router::OPTION_MODE, Router::MODE_B );
 		list( $default, $other ) = $this->two_language_store();
@@ -193,8 +202,8 @@ final class EmailDesignsTest extends TestCase {
 
 		$resolver = Bootstrap::instance()->workflow_resolver();
 		foreach ( array( 'welcome', 'first_order', 'abandoned_cart' ) as $trigger ) {
-			self::assertSame( $pushed[ $trigger ], $resolver->resolve_workflow( $trigger, $default )->workflow_id, "{$trigger} in {$default}." );
-			self::assertSame( $pushed[ $trigger ], $resolver->resolve_workflow( $trigger, $other )->workflow_id, "{$trigger} in {$other}: the rule is the account, not the language." );
+			self::assertSame( $pushed[ $trigger ], $resolver->resolve_workflow( $trigger, $default )->workflow_id, "{$trigger} in the store default language." );
+			self::assertSame( 4402, $resolver->resolve_workflow( $trigger, $other )->workflow_id, "{$trigger} in {$other}, on the named account, keeps its own workflow." );
 		}
 	}
 

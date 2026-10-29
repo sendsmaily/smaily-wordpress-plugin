@@ -12,6 +12,7 @@ namespace Smaily\Connect\Tests\Unit\Multilingual;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Multilingual\Router;
 use Smaily\Connect\Settings\CredentialSet;
 use Smaily\Connect\Settings\Credentials;
@@ -391,7 +392,41 @@ final class RouterTest extends TestCase {
 		self::assertSame( 9001, $match->workflow_id );
 	}
 
-	public function test_a_mode_a_language_account_takes_the_pushed_workflow_only_when_it_is_the_named_account(): void {
+	public function test_a_mode_a_default_language_account_takes_the_pushed_workflow_when_it_is_the_named_account(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		$this->stub_options(
+			array(
+				Router::OPTION_MODE          => Router::MODE_A,
+				EmailDesignWorkflows::OPTION => array( 'plugin.abandoned_cart' => $this->pushed( 9003, 'shop-et' ) ),
+			)
+		);
+
+		$wpdb->row_queue = array(
+			array( 'workflow_id' => '52', 'account_key' => 'et_account', 'language' => 'et' ),
+			array( 'workflow_id' => '51', 'account_key' => 'lt_account', 'language' => 'lt' ),
+		);
+
+		$router = new Router(
+			null,
+			$this->credentials(
+				array(
+					'et_account' => 'shop-et',
+					'lt_account' => 'shop-lt',
+				)
+			),
+			$this->detector( 'et' )
+		);
+		$et = $router->resolve_workflow( 'abandoned_cart', 'et' );
+		$lt = $router->resolve_workflow( 'abandoned_cart', 'lt' );
+
+		self::assertSame( 9003, $et->workflow_id, 'The default language\'s account is the named one.' );
+		self::assertSame( 'et_account', $et->account_key );
+		self::assertSame( 'et', $et->matched_language );
+		self::assertSame( 51, $lt->workflow_id, 'Another language account keeps its mapped workflow.' );
+	}
+
+	public function test_a_mode_a_account_of_another_language_keeps_its_workflow_even_when_it_is_the_named_account(): void {
 		$wpdb            = $this->fake_wpdb();
 		$GLOBALS['wpdb'] = $wpdb;
 		$this->stub_options(
@@ -410,21 +445,18 @@ final class RouterTest extends TestCase {
 			null,
 			$this->credentials(
 				array(
-					'lt_account' => 'shop-lt',
 					'et_account' => 'shop-et',
+					'lt_account' => 'shop-lt',
 				)
-			)
+			),
+			$this->detector( 'et' )
 		);
-		$lt = $router->resolve_workflow( 'abandoned_cart', 'lt' );
-		$et = $router->resolve_workflow( 'abandoned_cart', 'et' );
 
-		self::assertSame( 9003, $lt->workflow_id );
-		self::assertSame( 'lt_account', $lt->account_key );
-		self::assertSame( 'lt', $lt->matched_language );
-		self::assertSame( 52, $et->workflow_id, 'Another language account keeps its mapped workflow.' );
+		self::assertSame( 51, $router->resolve_workflow( 'abandoned_cart', 'lt' )->workflow_id, 'A pushed design may be in one language only.' );
+		self::assertSame( 52, $router->resolve_workflow( 'abandoned_cart', 'et' )->workflow_id, 'The default language\'s account is not the named one.' );
 	}
 
-	public function test_every_mode_b_language_on_the_named_account_takes_the_pushed_workflow(): void {
+	public function test_a_mode_b_store_takes_the_pushed_workflow_only_in_its_default_language(): void {
 		$wpdb            = $this->fake_wpdb();
 		$GLOBALS['wpdb'] = $wpdb;
 		$this->stub_options(
@@ -439,14 +471,13 @@ final class RouterTest extends TestCase {
 			array( 'workflow_id' => '42', 'account_key' => 'default', 'language' => 'en' ),
 		);
 
-		$router = new Router( null, $this->credentials( array( 'default' => 'shopexample' ) ) );
+		$router = new Router( null, $this->credentials( array( 'default' => 'shopexample' ) ), $this->detector( 'et' ) );
 		$et     = $router->resolve_workflow( 'welcome', 'et' );
 		$en     = $router->resolve_workflow( 'welcome', 'en' );
 
 		self::assertSame( 9001, $et->workflow_id );
 		self::assertSame( 'et', $et->matched_language );
-		self::assertSame( 9001, $en->workflow_id, 'The rule is the account; the language is not part of it (contract §23).' );
-		self::assertSame( 'en', $en->matched_language );
+		self::assertSame( 42, $en->workflow_id, 'Another language on the named account keeps its mapped workflow.' );
 	}
 
 	public function test_a_pushed_workflow_does_not_start_an_unmapped_email(): void {
@@ -467,6 +498,14 @@ final class RouterTest extends TestCase {
 			'workflow_id' => $workflow_id,
 			'subdomain'   => $subdomain,
 		);
+	}
+
+	/** A detector whose store default language is $default. */
+	private function detector( string $default ): DetectorInterface {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_default_language' )->willReturn( $default );
+
+		return $detector;
 	}
 
 	/**
