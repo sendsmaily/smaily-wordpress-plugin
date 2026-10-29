@@ -105,6 +105,19 @@ class LandingCapture {
 			return;
 		}
 
+		$this->store( $get );
+	}
+
+	/**
+	 * Write the attribution cookies the given params resolve to (resolve()'s
+	 * rules), behind the same gates for every caller: the landing request
+	 * itself (capture()) and the `/land` route the storefront scripts post a
+	 * cached landing's values to (LandEndpoint, CON-250).
+	 *
+	 * @param array<string, mixed> $params Raw params, keyed by the link's own param names.
+	 * @return array<int, string> The slots written; empty when none was.
+	 */
+	public function store( array $params ): array {
 		/**
 		 * Master switch for server-side recommendation-attribution capture.
 		 * Return false to disable it entirely (e.g. a merchant whose consent
@@ -114,26 +127,26 @@ class LandingCapture {
 		 */
 		if ( ! (bool) apply_filters( 'smaily_connect_capture_attribution', true ) ) {
 			DebugLog::write( '[smaily-connect landing-capture] skipped: disabled by smaily_connect_capture_attribution filter' );
-			return;
+			return array();
 		}
 
 		// Only meaningful when the engine is connected: rec links exist only for a
 		// connected tenant, and orders are only ingested then.
 		if ( ! $this->settings->is_connected() ) {
 			DebugLog::write( '[smaily-connect landing-capture] bailed: rec-engine not connected (is_connected=false) — connect the engine in Settings → Campaign Intelligence' );
-			return;
+			return array();
 		}
 
 		// Cookies are response headers — once output has started we cannot set them.
 		if ( $this->headers_already_sent() ) {
 			DebugLog::write( '[smaily-connect landing-capture] bailed: headers already sent (a theme/plugin printed output before template_redirect)' );
-			return;
+			return array();
 		}
 
-		$captures = $this->resolve( $get );
+		$captures = $this->resolve( $params );
 		if ( array() === $captures ) {
 			DebugLog::write( '[smaily-connect landing-capture] bailed: a trigger param was present but no valid attribution value resolved (param shape mismatch?)' );
-			return;
+			return array();
 		}
 
 		$config = $this->settings->config();
@@ -148,6 +161,8 @@ class LandingCapture {
 		// The single success line: which signals were captured (no values — the
 		// rec_id is a uuid, but keep the log shape-only). Visible under WP_DEBUG.
 		DebugLog::write( sprintf( '[smaily-connect landing-capture] captured: %s', implode( ',', array_keys( $captures ) ) ) );
+
+		return array_keys( $captures );
 	}
 
 	/**
