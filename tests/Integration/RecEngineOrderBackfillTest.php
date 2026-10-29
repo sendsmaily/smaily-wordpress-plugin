@@ -21,7 +21,6 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
-use Smaily\Connect\Tests\Integration\Support\DebugLogReader;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
 
@@ -199,12 +198,23 @@ final class RecEngineOrderBackfillTest extends TestCase {
 		$this->make_order( 'completed', (int) strtotime( '-61 months' ) );
 		$this->truncate_queue();
 
-		$log = DebugLogReader::start();
-		$job = $this->job();
-		$job->start();
+		// DebugLog writes through error_log() under WP_DEBUG; where that goes
+		// depends on the environment (CI's wp-env has no debug.log), so the
+		// test points it at its own file for the start.
+		self::assertTrue( defined( 'WP_DEBUG' ) && WP_DEBUG, 'The suite runs with WP_DEBUG on (.wp-env.json).' );
+		$log_file = (string) tempnam( sys_get_temp_dir(), 'smaily-history-log' );
+		$previous = (string) ini_set( 'error_log', $log_file );
+		try {
+			$job = $this->job();
+			$job->start();
+		} finally {
+			ini_set( 'error_log', $previous );
+		}
 		$this->run_to_end( $job );
 
-		self::assertStringContainsString( 'the import uses the default 18 / 60 months', $log->new_tail() );
+		$logged = (string) file_get_contents( $log_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		unlink( $log_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+		self::assertStringContainsString( 'the import uses the default 18 / 60 months', $logged );
 		self::assertSame( 1, (int) $this->read_backfill_row()['total_count'] );
 		self::assertSame( array( $recent ), $this->sent_order_ids(), 'An order older than 60 months is not sent.' );
 	}

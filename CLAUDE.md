@@ -1297,6 +1297,13 @@ The legacy CI leg runs on WC 10.7 legacy storage, not the pilot's WC 6.9.4 —
 a pilot-only bug still needs the pilot-stack override (see "Integration
 baseline is WP 7.1" below).
 
+### A test of a `DebugLog` line points `error_log` at its own file (CON-245)
+CI's wp-env writes no `wp-content/debug.log` that `DebugLogReader` can tail: a
+test that asserted a `DebugLog::write()` line through it read `''` on both CI
+legs. Set `ini_set( 'error_log', <tempnam file> )` around the call, restore it
+in `finally`, and read that file (`RecEngineOrderBackfillTest`'s default-window
+test).
+
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with
 `wc_get_order( $id )->delete( true )`. `wp_delete_post( $order_id, true )` does
