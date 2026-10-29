@@ -225,6 +225,21 @@ class IngestQueue {
 		return $found !== null;
 	}
 
+	/** The newest row id of an event type, 0 when it has none. */
+	public function last_id( string $event_type ): int {
+		global $wpdb;
+
+		$table = $this->table_name();
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$id = $wpdb->get_var(
+			$wpdb->prepare( "SELECT MAX(id) FROM {$table} WHERE event_type = %s", $event_type )
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+
+		return (int) $id;
+	}
+
 	public function mark_sent( int $id ): void {
 		global $wpdb;
 		$wpdb->update(

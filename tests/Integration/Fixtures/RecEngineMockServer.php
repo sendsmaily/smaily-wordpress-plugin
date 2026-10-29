@@ -177,6 +177,16 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * The `config.history` block the ping answers with (contract v1.20.0 §2);
+	 * null leaves `config` out, as an engine before v1.20.0 does.
+	 *
+	 * @param array<string, mixed>|null $history
+	 */
+	public function set_ping_history( ?array $history ): void {
+		$this->write_state( array( 'ping_history' => $history ) );
+	}
+
+	/**
 	 * Seed the §15 storefront answer for one shopper (the store's customer id).
 	 *
 	 * @param array<int, array<string, mixed>> $slots

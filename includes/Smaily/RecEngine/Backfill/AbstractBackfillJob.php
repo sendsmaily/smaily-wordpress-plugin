@@ -24,7 +24,8 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
  * SAME `smly_rec_event_queue` and drain through the SAME `AbstractD6Flusher`
  * (so D6 error-split, retry, and engine dedup are reused, not reimplemented).
  *
- * Resumable: the cursor (last-seen entity id) lives in the
+ * Resumable: the cursor (last-seen entity id, or a job's own state through
+ * initial_cursor() / next_page() — the orders import's window) lives in the
  * `smly_plus_backfill_job` row, so a tick that times out or crashes continues
  * from the saved cursor — never from the start. The `(job_type, target)` UNIQUE
  * key lets the rec-engine rows (target `rec_engine`) coexist with the legacy
@@ -79,17 +80,48 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	/** Engine batch cap for this domain (catalog/customers 100, orders 50). */
 	abstract protected function batch_size(): int;
 
-	/** Total records to backfill (for the progress denominator). */
+	/**
+	 * Total records to backfill (for the progress denominator). start() calls
+	 * it after initial_cursor(), so a job can count what that cursor covers.
+	 */
 	abstract protected function count_total(): int;
 
 	/**
 	 * The next page of entity ids strictly after $after_id, ascending, capped
 	 * at $limit. MUST be a real `WHERE id > cursor ORDER BY id LIMIT` so the
 	 * walk is resumable and can't shift under inserts/deletes (unlike offset).
+	 * An id walk implements it; a job with its own cursor overrides
+	 * next_page() instead (the orders import).
 	 *
 	 * @return int[]
 	 */
-	abstract protected function fetch_ids_after( int $after_id, int $limit ): array;
+	protected function fetch_ids_after( int $after_id, int $limit ): array {
+		throw new \LogicException( static::class . ' implements neither fetch_ids_after() nor next_page().' );
+	}
+
+	/**
+	 * The cursor a new run starts from; null = the id walk's start.
+	 */
+	protected function initial_cursor(): ?string {
+		return null;
+	}
+
+	/**
+	 * The next page after $cursor: its entity ids, the cursor after it, and
+	 * whether it is the last page. The default walks ids ascending.
+	 *
+	 * @return array{ids: int[], cursor: string, completed: bool}
+	 */
+	protected function next_page( string $cursor, int $limit ): array {
+		$after = (int) $cursor;
+		$ids   = $this->fetch_ids_after( $after, $limit );
+
+		return array(
+			'ids'       => $ids,
+			'cursor'    => (string) ( empty( $ids ) ? $after : (int) end( $ids ) ),
+			'completed' => count( $ids ) < $limit,
+		);
+	}
 
 	/**
 	 * Enqueue one record into the shared ingest queue — mirroring the domain's
@@ -103,18 +135,20 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	public function start(): int {
 		global $wpdb;
 
-		$total = $this->count_total();
-		$table = $this->table_name();
+		$cursor = $this->initial_cursor();
+		$total  = $this->count_total();
+		$table  = $this->table_name();
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$table} (job_type, target, status, total_count, processed_count, started_at) VALUES (%s, %s, %s, %d, %d, %s) ON DUPLICATE KEY UPDATE status = VALUES(status), total_count = VALUES(total_count), processed_count = 0, cursor_value = NULL, started_at = VALUES(started_at), completed_at = NULL, error_message = NULL",
+				"INSERT INTO {$table} (job_type, target, status, total_count, processed_count, cursor_value, started_at) VALUES (%s, %s, %s, %d, %d, NULLIF( %s, '' ), %s) ON DUPLICATE KEY UPDATE status = VALUES(status), total_count = VALUES(total_count), processed_count = 0, cursor_value = VALUES(cursor_value), started_at = VALUES(started_at), completed_at = NULL, error_message = NULL",
 				$this->job_type(),
 				self::TARGET,
 				'running',
 				$total,
 				0,
+				$cursor ?? '',
 				current_time( 'mysql', true )
 			)
 		);
@@ -155,8 +189,6 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 			return $this->batch_result( 0, 0, 0, 0, true );
 		}
 
-		$after = isset( $state['cursor_value'] ) ? (int) $state['cursor_value'] : 0;
-
 		// The merchant cancelled the import (Cancel / Hold back) after Action
 		// Scheduler had already claimed this tick (PRO-3821), or an earlier
 		// batch failed (PRO-3890): send nothing, leave the row as it is, and
@@ -189,7 +221,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		}
 
 		try {
-			return $this->walk_batch( $state, $after, $batch_size );
+			return $this->walk_batch( $state, (string) ( $state['cursor_value'] ?? '' ), $batch_size );
 		} catch ( \Throwable $e ) {
 			// Anything but the engine's own errors (the flusher handles those):
 			// a database error, a product that cannot be built. Left to escape,
@@ -213,10 +245,11 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 * @param array<string, mixed> $state The job row this batch read.
 	 * @return array{processed: int, sent: int, failed: int, remaining: int, completed: bool}
 	 */
-	private function walk_batch( array $state, int $after, int $batch_size ): array {
+	private function walk_batch( array $state, string $cursor, int $batch_size ): array {
 		global $wpdb;
 
-		$ids = $this->fetch_ids_after( $after, $batch_size );
+		$page = $this->next_page( $cursor, $batch_size );
+		$ids  = $page['ids'];
 
 		foreach ( $ids as $entity_id ) {
 			$this->enqueue_record( (int) $entity_id );
@@ -227,8 +260,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		$flush = $this->drain_queue();
 
 		$processed = (int) $state['processed_count'] + count( $ids );
-		$cursor    = empty( $ids ) ? $after : (int) end( $ids );
-		$completed = count( $ids ) < $batch_size;
+		$completed = $page['completed'];
 
 		// Written only while the row is still running: a cancel that lands
 		// while this batch sends stays a cancel (PRO-3821).
@@ -236,7 +268,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 			$this->table_name(),
 			array(
 				'processed_count' => $processed,
-				'cursor_value'    => (string) $cursor,
+				'cursor_value'    => $page['cursor'],
 				'status'          => $completed ? 'completed' : 'running',
 				'completed_at'    => $completed ? current_time( 'mysql', true ) : null,
 			),
