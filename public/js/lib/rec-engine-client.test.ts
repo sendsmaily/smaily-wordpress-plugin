@@ -387,6 +387,20 @@ describe('RecEngineClient (3.4.2 cookies + URL-param capture)', () => {
     vi.unstubAllGlobals();
   });
 
+  it('captureUrlParams posts the landing to the store route, whatever the consent (CON-250)', () => {
+    const fetchMock = makeFetchMock();
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.replaceState({}, '', `/landing?smaily_rec=${REC_UUID}`);
+    client = new RecEngineClient(makeConfig({ consentChecker: () => false, landUrl: '/wp-json/smaily-connect/v1/land' }));
+
+    client.captureUrlParams();
+
+    // Attribution is consent-ungated (F3-46); the browse events stay gated.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/wp-json/smaily-connect/v1/land');
+    vi.unstubAllGlobals();
+  });
+
   it('ensureSession generates a v4 session cookie when absent and reuses it', () => {
     client = new RecEngineClient(makeConfig());
 

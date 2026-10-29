@@ -143,9 +143,14 @@ Four separate mechanisms — do not conflate them (F3-46/F3-49):
    `init()` *before* consent is resolved). The browser path exists because a
    full-page cache (confirmed on MiuMjau) serves most landing hits without
    ever running PHP, so `LandingCapture` never fires there — `captureUrlParams()`
-   is the only thing left that can see the URL param; it writes only those
-   three cookies and never sends anything, so it's safe to run consent-
-   independently. Checkout stamps the cookies onto the order either way.
+   is the only thing left that can see the URL param; it touches only those
+   three cookies and sends nothing to the engine, so it's safe to run consent-
+   independently. Since CON-250 it has the store's server set them: it posts
+   the checked values to the public `POST /smaily-connect/v1/land`
+   (`REST\LandEndpoint` → `LandingCapture::store()`, same rules), because
+   Safari keeps a script-set cookie 7 days at most; it writes the cookies
+   itself only when that request fails. Checkout stamps the cookies onto the
+   order either way.
    **Consent-UNgated** by design (F3-46/PRO-1388) — first-party functional
    signal, independent of the beacon toggle/consent gate. Contract v1.9.0's
    context cookie rule lives in both writers: a `smaily_rec` landing without
