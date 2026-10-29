@@ -131,6 +131,20 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		public function set_param( string $key, $value ): void {
 			$this->params[ $key ] = $value;
 		}
+		/** @param array<string, mixed> $params */
+		public function set_query_params( array $params ): void {
+			$this->params = array_merge( $this->params, $params );
+		}
+		/** @var array<string, mixed> The POST body, read only through get_body_params(). */
+		private array $body_params = array();
+		/** @return array<string, mixed> */
+		public function get_body_params(): array {
+			return $this->body_params;
+		}
+		/** @param array<string, mixed> $params */
+		public function set_body_params( array $params ): void {
+			$this->body_params = $params;
+		}
 		/** @var array<string, string> Keyed the way WP canonicalizes them: lower case, `-` → `_`. */
 		private array $headers = array();
 		public function get_header( string $key ): ?string {

@@ -12,6 +12,7 @@ namespace Smaily\Connect\REST;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Bootstrap;
+use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -143,6 +144,10 @@ final class EndpointRegistry {
 					return $bootstrap->storefront_recommendations();
 				}
 			),
+			new LandEndpoint(
+				new RecEngineSettings(),
+				new LandingCapture( new RecEngineSettings() )
+			),
 		);
 	}
 
@@ -252,6 +257,12 @@ final class EndpointRegistry {
 			array(
 				'method' => 'GET',
 				'path'   => '/recommendations',
+			),
+			// The public campaign-click landing the storefront scripts post
+			// to, so the server sets the attribution cookies (CON-250).
+			array(
+				'method' => 'POST',
+				'path'   => '/land',
 			),
 		);
 	}
