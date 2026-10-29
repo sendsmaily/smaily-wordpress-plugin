@@ -40,6 +40,7 @@ defined by the endpoint classes in `includes/REST/` and consumed by
 | GET | `/rec-engine/automations/config` | `AutomationsEndpoint` | Proxy: engine §12 config |
 | PUT | `/rec-engine/automations/config` | `AutomationsEndpoint` | Proxy: engine §13 config PUT (engine 422 passes through verbatim; engine 401 → 502 `api_key_rejected`) |
 | POST | `/relay` | `BeaconEndpoint` | **Public** browse-event proxy — see §1.1 |
+| POST | `/land` | `LandEndpoint` | **Public**: sets the email-click attribution cookies with `Set-Cookie` from the storefront scripts' posted values (CON-250; `LandingCapture` rules; same-origin only, per-address limit, `no-store`) |
 
 ### 1.1 `POST /relay` — the public browse-beacon proxy
 
