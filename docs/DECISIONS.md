@@ -9090,6 +9090,56 @@ a live key.
 RecEngineDisconnectTest.php` and `tests/Integration/RecEngineDisconnectTest.php`
 (the mock's §16 route).
 
+### CON-245 — The orders import sends the history window newest first, like the Magento extension (2026-10-29)
+
+**Context:** `OrderBackfillJob` walked every sale order `id > cursor`,
+oldest first, with no date limit. Contract v1.20.0 (§1/§2 `config.history`,
+§5 history horizon, §25 sender rules) asks a connector to send the last
+`start_months` (18) months first, then older orders newest first down to
+`horizon_months` (60), and no older order — the engine does not store one.
+An oldest-first sender reaches the engine's start part only after its whole
+history has arrived.
+**Decision (product owner, 2026-10-29: follow the Magento extension, its
+`HistoryConfig` + `HistoryImport`):**
+- **Window source:** `RecEngine\HistoryConfig::for_new_import()`, read once
+  per `start()` — the ping's `config.history` (one attempt, only when
+  `sending_allowed()`), else the setup exchange's stored block
+  (`RecEngineSettings::config()['history']`), else 18 / 60 / `newest_first`,
+  logged (WP_DEBUG). A block whose months are not whole numbers or whose
+  start part exceeds the horizon is not used. The ping's block is not stored.
+- **Window:** `until` = the start time (UTC) — an order placed later is the
+  live sync's; `start_from` / `horizon` = calendar months back from it.
+- **Order:** by order date (`table_spec()`'s new `created_col`: HPOS
+  `date_created_gmt`, legacy `post_date_gmt`), then id, both descending — the
+  start part (`start_from`..`until`), then the background part
+  (`horizon`..`until`); the status denylist (F3-42) is unchanged.
+  `total_count` = the sale orders inside the window, the same set the walk
+  reads.
+- **State:** JSON in the existing `cursor_value` column — no schema change:
+  `until`, `start_from`, `horizon`, `after` (`date|id` of the last order read)
+  and `start_part_queued_to` (the newest `order.upsert` queue row id once the
+  start part is read; null before — for the §25 progress report, CON-248).
+  A cursor of an earlier version (a bare order id) gets a new window and
+  starts from the newest order again; the engine updates an order it has.
+- **Shared base:** `AbstractBackfillJob` gains `initial_cursor()` and
+  `next_page()` hooks; their defaults are the int id walk, so the catalog and
+  customer imports are unchanged.
+**Rationale:** the engine can start on the orders it needs most within the
+first pages, and the store never reads or sends an order the engine would
+skip. Magento parity keeps one rule across connectors.
+**Alternatives:** keep oldest first and only cut at the horizon — rejected:
+the start part still arrives last. A separate start-part pass with its own
+cursor — rejected: newest first is one walk, the start part is its first
+segment. New state columns — rejected: the cursor column is opaque by design
+(migration 002) and 255 characters hold the state.
+**Relationships:** contract v1.20.0 §1, §2, §5, §25; F3-25 (backfill
+architecture), F3-42 (status denylist), PRO-3435 (both order storages in CI).
+Siblings not built here: CON-246 (customer scope), CON-247 (imports on
+connect), CON-248 (§25 progress), CON-236 (pace). Pinned by
+`tests/Unit/Smaily/RecEngine/HistoryConfigTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/OrderBackfillJobTest.php` and
+`tests/Integration/RecEngineOrderBackfillTest.php` (the mock's ping window).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

@@ -113,7 +113,8 @@ dispatches `contacts` (legacy Smaily), `products`, `customers`, `orders`
 (`Smaily\RecEngine\Backfill\*BackfillJob`), driven by chained
 single Action Scheduler actions and reported through `/backfill/status`.
 `OrderBackfillJob` is HPOS-aware (reads `wc_orders` or `wp_posts` via
-`table_spec()`).
+`table_spec()`) and walks the orders newest first inside the engine's history
+window (`HistoryConfig`, contract §25; DECISIONS CON-245).
 
 ## 4. Storefront pieces
 
