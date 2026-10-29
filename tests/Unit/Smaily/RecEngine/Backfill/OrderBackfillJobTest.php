@@ -1,9 +1,8 @@
 <?php
 /**
- * Unit: OrderBackfillJob's pure storage-mode mapping (3.5.2) + the single-source
- * mapped-status list. The HPOS path runs no integration query (the pilot is
- * legacy), so its table/column mapping is verified here as a forward-compat
- * guarantee — see STATUS / CLAUDE "OrderBackfill HPOS path".
+ * Unit: OrderBackfillJob's pure storage-mode mapping (3.5.2), the single-source
+ * mapped-status list and the history window's dates (CON-245). The walk itself
+ * runs against both order storages in RecEngineOrderBackfillTest.
  *
  * @package Smaily\Connect\Tests\Unit\Smaily\RecEngine\Backfill
  */
@@ -25,6 +24,7 @@ final class OrderBackfillJobTest extends TestCase {
 		self::assertSame( 'post_type', $spec['type_col'] );
 		self::assertSame( 'post_status', $spec['status_col'] );
 		self::assertSame( 'post_modified_gmt', $spec['modified_col'] );
+		self::assertSame( 'post_date_gmt', $spec['created_col'], 'The order date in UTC.' );
 	}
 
 	public function test_hpos_table_spec_targets_wc_orders(): void {
@@ -34,6 +34,29 @@ final class OrderBackfillJobTest extends TestCase {
 		self::assertSame( 'type', $spec['type_col'] );
 		self::assertSame( 'status', $spec['status_col'] );
 		self::assertSame( 'date_updated_gmt', $spec['modified_col'] );
+		self::assertSame( 'date_created_gmt', $spec['created_col'], 'The order date in UTC.' );
+	}
+
+	public function test_the_window_counts_calendar_months_back_from_the_start(): void {
+		$window = OrderBackfillJob::window(
+			array(
+				'start_months'   => 18,
+				'horizon_months' => 60,
+				'order'          => 'newest_first',
+			),
+			(int) gmmktime( 12, 0, 0, 10, 29, 2026 )
+		);
+
+		self::assertSame(
+			array(
+				'until'                => '2026-10-29 12:00:00',
+				'start_from'           => '2025-04-29 12:00:00',
+				'horizon'              => '2021-10-29 12:00:00',
+				'after'                => '',
+				'start_part_queued_to' => null,
+			),
+			$window
+		);
 	}
 
 	public function test_non_sale_statuses_are_the_single_source_for_the_filter(): void {

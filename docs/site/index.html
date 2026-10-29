@@ -1463,8 +1463,8 @@ td code{white-space:nowrap}
       <p>Each is a one‑time bulk import that runs in the background — you can leave the page and it keeps going. It is <strong>safe to re‑run</strong>: duplicates are impossible by design, because every record carries a stable id. Start the <strong>Contacts</strong> import with <strong>Start import</strong>, and the <strong>Products</strong>, <strong>Customers</strong> and <strong>Orders</strong> imports with <strong>Import now</strong> — the same button runs an import again.</p>
       <p>The <strong>Products</strong> import is the one exception to "you start it": connecting Campaign Intelligence starts it for you, and you can hold it back from the notice before anything is sent (see <a href="#step4">Step 4</a>).</p>
       <div class="note tip">
-        <span class="k">Full history, no window</span>
-        <p>The Orders import brings in your <strong>whole order history</strong> — there is no 60‑day or any other cutoff. It counts only real sales: draft, pending, failed and trashed orders are skipped (they aren't sales), and a custom shipping status like "shipped" still counts.</p>
+        <span class="k">The last five years, newest first</span>
+        <p>The Orders import brings in the orders of the <strong>history window Campaign Intelligence sets</strong> — by default the last <strong>60 months</strong> — newest first: the last 18 months go first, then the older orders. An older order is not sent, and an order placed while the import runs reaches the engine through the ongoing sync instead. It counts only real sales: draft, pending, failed and trashed orders are skipped (they aren't sales), and a custom shipping status like "shipped" still counts.</p>
       </div>
     </div>
     <div data-lang="et">
@@ -1476,8 +1476,8 @@ td code{white-space:nowrap}
       <p>Iga import on ühekordne masssiire, mis käib taustal — võid lehelt lahkuda ja see jätkab. <strong>Kordamine on ohutu</strong>: duplikaadid on disaini poolest võimatud, sest iga kirje kannab stabiilset id'd. <strong>Contacts</strong> impordi käivitad nupuga <strong>Alusta importi</strong>, <strong>Products</strong>, <strong>Customers</strong> ja <strong>Orders</strong> impordid nupuga <strong>Impordi kohe</strong> — sama nupp käivitab impordi ka uuesti.</p>
       <p><strong>Products</strong> import on erand reeglist "sina käivitad": Campaign Intelligence'i ühendamine käivitab selle sinu eest ja teatest saad selle peatada enne, kui midagi saadetakse (vt <a href="#step4">4. samm</a>).</p>
       <div class="note tip">
-        <span class="k">Terve ajalugu, ilma aknata</span>
-        <p>Tellimuste import toob sisse su <strong>kogu tellimuste ajaloo</strong> — 60‑päeva ega muud lõikepiiri pole. See loeb ainult päris müügid: mustand‑, ootel, ebaõnnestunud ja prügikasti‑tellimused jäetakse vahele (need pole müügid), aga kohandatud tarnestaatus nagu "shipped" loeb ikka.</p>
+        <span class="k">Viimased viis aastat, uuemad enne</span>
+        <p>Tellimuste import toob sisse <strong>Campaign Intelligence'i määratud ajaloo akna</strong> tellimused — vaikimisi viimased <strong>60 kuud</strong> — uuemad enne: kõigepealt viimased 18 kuud, siis vanemad tellimused. Vanemat tellimust ei saadeta ja impordi ajal tehtud tellimus jõuab mootorisse jooksva sünkroonimisega. See loeb ainult päris müügid: mustand‑, ootel, ebaõnnestunud ja prügikasti‑tellimused jäetakse vahele (need pole müügid), aga kohandatud tarnestaatus nagu "shipped" loeb ikka.</p>
       </div>
     </div>
   </div>
@@ -1705,10 +1705,10 @@ td code{white-space:nowrap}
   <div class="sub" id="faq-orders">
     <h2><span data-lang="en">Why do I see fewer orders than expected?</span><span data-lang="et">Miks näen oodatust vähem tellimusi?</span></h2>
     <div data-lang="en">
-      <p>The Orders import brings in your <strong>full history</strong> — there is no time window. If a count looks low, it's because only <strong>real sales</strong> are counted: draft, pending, failed and trashed orders are excluded (they aren't completed sales), and a store with many orders often has far fewer <em>unique customers</em> because of repeat buyers.</p>
+      <p>The Orders import brings in the orders of the <strong>last 60 months</strong> (the history window Campaign Intelligence sets) — an older order is not sent. If a count looks low, it's because only <strong>real sales</strong> are counted: draft, pending, failed and trashed orders are excluded (they aren't completed sales), and a store with many orders often has far fewer <em>unique customers</em> because of repeat buyers.</p>
     </div>
     <div data-lang="et">
-      <p>Tellimuste import toob sisse su <strong>terve ajaloo</strong> — ajaakent pole. Kui number tundub madal, on põhjus, et loetakse ainult <strong>päris müügid</strong>: mustand‑, ootel, ebaõnnestunud ja prügikasti‑tellimused on välja jäetud (need pole lõpetatud müügid), ja paljude tellimustega poel on korduvostjate tõttu sageli palju vähem <em>unikaalseid kliente</em>.</p>
+      <p>Tellimuste import toob sisse <strong>viimase 60 kuu</strong> tellimused (Campaign Intelligence'i määratud ajaloo aken) — vanemat tellimust ei saadeta. Kui number tundub madal, on põhjus, et loetakse ainult <strong>päris müügid</strong>: mustand‑, ootel, ebaõnnestunud ja prügikasti‑tellimused on välja jäetud (need pole lõpetatud müügid), ja paljude tellimustega poel on korduvostjate tõttu sageli palju vähem <em>unikaalseid kliente</em>.</p>
     </div>
   </div>
 

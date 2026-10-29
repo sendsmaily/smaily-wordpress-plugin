@@ -9093,6 +9093,103 @@ a live key.
 RecEngineDisconnectTest.php` and `tests/Integration/RecEngineDisconnectTest.php`
 (the mock's §16 route).
 
+### CON-250 — The store's server sets the email-click cookies through `POST /land` (2026-10-29)
+
+**Context:** behind a full-page cache a landing from a Smaily email never runs
+PHP, so `LandingCapture` is blind and the storefront scripts (`sc-landing.js`,
+`sc-runtime.js`, both through `public/js/lib/attribution.ts`) wrote the
+visitor-token, rec id and context cookies from JavaScript. Safari keeps a
+cookie page JavaScript sets for 7 days at most (24 hours after a link with
+tracking parameters), so the 365-day visitor token was gone by the next visit:
+later visits, guest orders and the Recommendations block no longer knew the
+shopper, and the 30-day rec id and context were cut short the same way.
+**Decision (Erkki, 2026-10-29):** the scripts post the checked click values
+to a store route, `POST /wp-json/smaily-connect/v1/land`
+(`REST\LandEndpoint`), which sets the cookies with `Set-Cookie`; a script
+writes the cookies itself only when the request fails (non-2xx or network
+error), or when its boot blob carries no `landUrl`. Magento parity: the
+extension's `smaily/attribution/land` (connect-magento PR #205).
+- **One implementation:** the route calls `LandingCapture::store()` — the
+  same `resolve()` rules (UUID rec id, the engine's `vt_` token only, the
+  context cookie rule), cookie names, lifetimes and attributes, and the same
+  gates (connection, the `smaily_connect_capture_attribution` switch) as the
+  landing request. The scripts post under the link's default field names
+  (`smaily_rec`/`smaily_vt`/`smaily_ctx`), whatever the engine config calls
+  the URL params; the route reads the form body only.
+- **Guards:** 404 when not connected; a per-address limit
+  (`RequestThrottle`, `REMOTE_ADDR` only, 30 a minute — Magento's figure);
+  403 and no cookie unless `Sec-Fetch-Site` is `same-origin` — a page
+  elsewhere must not plant a visitor token, and a request with no such header
+  is refused too (the script then writes the cookies itself, as before); 400
+  when nothing posted has its shape; 204 on success. Every answer is
+  `Cache-Control: no-store, private`.
+- **Consent unchanged:** attribution capture stays consent-ungated (F3-46);
+  the marketing-consent rule for the visitor token on `/relay`, the login
+  merge and `/recommendations` is untouched.
+- **`sc-landing.js` boot blob:** `landUrl` is the one addition to its names
+  and TTLs; it still carries no `/relay` URL and sends nothing to the engine.
+**Rationale:** a `Set-Cookie` cookie keeps its lifetime in every browser, and
+the fallback keeps today's behaviour wherever the route cannot answer.
+**Alternatives:** keep the JavaScript write — rejected: Safari's cap defeats
+the visitor token's purpose. Accept a request without `Sec-Fetch-Site` when
+its `Origin` matches the site — not done: the fallback already covers those
+browsers, and an exact rule is easier to reason about.
+**Relationships:** F3-46 (consent-ungated attribution), PRO-1767 (the two
+storefront bundles), PRO-3857 (`vt_` only from a link), PRO-3620
+(`REMOTE_ADDR`-only limit), contract v1.9.0 (context cookie rule). Pinned by
+`tests/Unit/REST/LandEndpointTest.php`, `tests/Integration/LandEndpointTest.php`
+and `public/js/lib/attribution.test.ts`.
+
+### CON-245 — The orders import sends the history window newest first, like the Magento extension (2026-10-29)
+
+**Context:** `OrderBackfillJob` walked every sale order `id > cursor`,
+oldest first, with no date limit. Contract v1.20.0 (§1/§2 `config.history`,
+§5 history horizon, §25 sender rules) asks a connector to send the last
+`start_months` (18) months first, then older orders newest first down to
+`horizon_months` (60), and no older order — the engine does not store one.
+An oldest-first sender reaches the engine's start part only after its whole
+history has arrived.
+**Decision (product owner, 2026-10-29: follow the Magento extension, its
+`HistoryConfig` + `HistoryImport`):**
+- **Window source:** `RecEngine\HistoryConfig::for_new_import()`, read once
+  per `start()` — the ping's `config.history` (one attempt, only when
+  `sending_allowed()`), else the setup exchange's stored block
+  (`RecEngineSettings::config()['history']`), else 18 / 60 / `newest_first`,
+  logged (WP_DEBUG). A block whose months are not whole numbers or whose
+  start part exceeds the horizon is not used. The ping's block is not stored.
+- **Window:** `until` = the start time (UTC) — an order placed later is the
+  live sync's; `start_from` / `horizon` = calendar months back from it.
+- **Order:** by order date (`table_spec()`'s new `created_col`: HPOS
+  `date_created_gmt`, legacy `post_date_gmt`), then id, both descending — the
+  start part (`start_from`..`until`), then the background part
+  (`horizon`..`until`); the status denylist (F3-42) is unchanged.
+  `total_count` = the sale orders inside the window, the same set the walk
+  reads.
+- **State:** JSON in the existing `cursor_value` column — no schema change:
+  `until`, `start_from`, `horizon`, `after` (`date|id` of the last order read)
+  and `start_part_queued_to` (the newest `order.upsert` queue row id once the
+  start part is read; null before — for the §25 progress report, CON-248).
+  A cursor of an earlier version (a bare order id) gets a new window and
+  starts from the newest order again; the engine updates an order it has.
+- **Shared base:** `AbstractBackfillJob` gains `initial_cursor()` and
+  `next_page()` hooks; their defaults are the int id walk, so the catalog and
+  customer imports are unchanged.
+**Rationale:** the engine can start on the orders it needs most within the
+first pages, and the store never reads or sends an order the engine would
+skip. Magento parity keeps one rule across connectors.
+**Alternatives:** keep oldest first and only cut at the horizon — rejected:
+the start part still arrives last. A separate start-part pass with its own
+cursor — rejected: newest first is one walk, the start part is its first
+segment. New state columns — rejected: the cursor column is opaque by design
+(migration 002) and 255 characters hold the state.
+**Relationships:** contract v1.20.0 §1, §2, §5, §25; F3-25 (backfill
+architecture), F3-42 (status denylist), PRO-3435 (both order storages in CI).
+Siblings not built here: CON-246 (customer scope), CON-247 (imports on
+connect), CON-248 (§25 progress), CON-236 (pace). Pinned by
+`tests/Unit/Smaily/RecEngine/HistoryConfigTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/OrderBackfillJobTest.php` and
+`tests/Integration/RecEngineOrderBackfillTest.php` (the mock's ping window).
+
 ### CON-218 — A pushed workflow is used only on the Smaily account the engine names, in the default language (2026-10-29)
 
 **Context:** contract v1.18.0 §23 (INT-146) gives a `smaily_workflow_id` to
@@ -9153,53 +9250,6 @@ fixes (#265); contract §23 (v1.18.0), INT-146. Pinned by
 `tests/Unit/Settings/EmailDesignWorkflowsTest.php`,
 `tests/Unit/Multilingual/RouterTest.php` and
 `tests/Integration/EmailDesignsTest.php` (the mock serves `smaily_subdomain`).
-
-### CON-250 — The store's server sets the email-click cookies through `POST /land` (2026-10-29)
-
-**Context:** behind a full-page cache a landing from a Smaily email never runs
-PHP, so `LandingCapture` is blind and the storefront scripts (`sc-landing.js`,
-`sc-runtime.js`, both through `public/js/lib/attribution.ts`) wrote the
-visitor-token, rec id and context cookies from JavaScript. Safari keeps a
-cookie page JavaScript sets for 7 days at most (24 hours after a link with
-tracking parameters), so the 365-day visitor token was gone by the next visit:
-later visits, guest orders and the Recommendations block no longer knew the
-shopper, and the 30-day rec id and context were cut short the same way.
-**Decision (Erkki, 2026-10-29):** the scripts post the checked click values
-to a store route, `POST /wp-json/smaily-connect/v1/land`
-(`REST\LandEndpoint`), which sets the cookies with `Set-Cookie`; a script
-writes the cookies itself only when the request fails (non-2xx or network
-error), or when its boot blob carries no `landUrl`. Magento parity: the
-extension's `smaily/attribution/land` (connect-magento PR #205).
-- **One implementation:** the route calls `LandingCapture::store()` — the
-  same `resolve()` rules (UUID rec id, the engine's `vt_` token only, the
-  context cookie rule), cookie names, lifetimes and attributes, and the same
-  gates (connection, the `smaily_connect_capture_attribution` switch) as the
-  landing request. The scripts post under the link's default field names
-  (`smaily_rec`/`smaily_vt`/`smaily_ctx`), whatever the engine config calls
-  the URL params; the route reads the form body only.
-- **Guards:** 404 when not connected; a per-address limit
-  (`RequestThrottle`, `REMOTE_ADDR` only, 30 a minute — Magento's figure);
-  403 and no cookie unless `Sec-Fetch-Site` is `same-origin` — a page
-  elsewhere must not plant a visitor token, and a request with no such header
-  is refused too (the script then writes the cookies itself, as before); 400
-  when nothing posted has its shape; 204 on success. Every answer is
-  `Cache-Control: no-store, private`.
-- **Consent unchanged:** attribution capture stays consent-ungated (F3-46);
-  the marketing-consent rule for the visitor token on `/relay`, the login
-  merge and `/recommendations` is untouched.
-- **`sc-landing.js` boot blob:** `landUrl` is the one addition to its names
-  and TTLs; it still carries no `/relay` URL and sends nothing to the engine.
-**Rationale:** a `Set-Cookie` cookie keeps its lifetime in every browser, and
-the fallback keeps today's behaviour wherever the route cannot answer.
-**Alternatives:** keep the JavaScript write — rejected: Safari's cap defeats
-the visitor token's purpose. Accept a request without `Sec-Fetch-Site` when
-its `Origin` matches the site — not done: the fallback already covers those
-browsers, and an exact rule is easier to reason about.
-**Relationships:** F3-46 (consent-ungated attribution), PRO-1767 (the two
-storefront bundles), PRO-3857 (`vt_` only from a link), PRO-3620
-(`REMOTE_ADDR`-only limit), contract v1.9.0 (context cookie rule). Pinned by
-`tests/Unit/REST/LandEndpointTest.php`, `tests/Integration/LandEndpointTest.php`
-and `public/js/lib/attribution.test.ts`.
 
 ## How to keep this document going
 
