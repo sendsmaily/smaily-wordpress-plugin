@@ -24,6 +24,13 @@ header( 'Content-Type: application/json' );
 header( 'Cache-Control: no-store' );
 header( 'X-Engine-Version: 1.0.0' );
 
+// Contract v1.20.0 `config.history` (§1 setup exchange, §2 ping, §25).
+const MOCK_HISTORY_CONFIG = array(
+	'start_months'   => 18,
+	'horizon_months' => 60,
+	'order'          => 'newest_first',
+);
+
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $path   = parse_url( $_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH ) ?? '/';
 
@@ -214,6 +221,10 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				'ingest_customers'        => $engine_base . '/api/v1/ingest/customers',
 				'ingest_orders'           => $engine_base . '/api/v1/ingest/orders',
 				'ingest_browse'           => $engine_base . '/api/v1/ingest/browse',
+				// v1.20.0 §25 (the plugin does not call it yet). §24's
+				// `console_entry` is left out: the engine returns it only
+				// while console entry is switched on.
+				'ingest_history_progress' => $engine_base . '/api/v1/ingest/history/progress',
 				'identity_merge'          => $engine_base . '/api/v1/identity/merge',
 				// `{email}` placeholder mirrors the LIVE engine endpoints map. A
 				// `%s` here would mask a client that fails to substitute `{email}`
@@ -249,6 +260,9 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				'rate_limit_browse'    => 500,
 				'rate_limit_other'     => 100,
 				'batch_size_max'       => 100,
+				// v1.20.0: a nested object in `config` — the stored config
+				// must still parse and every flat key keep working.
+				'history'              => MOCK_HISTORY_CONFIG,
 			),
 			'issued_at'       => gmdate( 'c' ),
 		)
@@ -283,6 +297,7 @@ if ( $method === 'GET' && $path === '/api/v1/ingest/ping' ) {
 			'tenant_status'       => 'active',
 			'endpoints_available' => array( 'catalog', 'customers', 'orders', 'browse', 'identity_merge' ),
 			'server_time'         => gmdate( 'c' ),
+			'config'              => array( 'history' => MOCK_HISTORY_CONFIG ),
 		)
 	);
 }
@@ -955,9 +970,14 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/orders' ) {
 	$seen         = ( isset( $state['order_event_ids'] ) && is_array( $state['order_event_ids'] ) )
 		? $state['order_event_ids']
 		: array();
-	$processed    = 0;
-	$deduplicated = 0;
-	$errors       = array();
+	$processed      = 0;
+	$deduplicated   = 0;
+	$errors         = array();
+	$skipped_orders = array();
+	// Contract v1.20.0 §5 history horizon: an order older than
+	// now − horizon_months gets 200, is not stored, is not an error and its
+	// event_id is not registered.
+	$horizon = strtotime( '-' . MOCK_HISTORY_CONFIG['horizon_months'] . ' months' );
 	foreach ( $orders as $index => $order ) {
 		$external_id = isset( $order['external_order_id'] ) ? (string) $order['external_order_id'] : '';
 		$email       = isset( $order['customer_email'] ) ? (string) $order['customer_email'] : '';
@@ -1057,6 +1077,16 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/orders' ) {
 			continue;
 		}
 
+		$ordered_at = isset( $order['ordered_at'] ) && is_string( $order['ordered_at'] ) ? strtotime( $order['ordered_at'] ) : false;
+		if ( $ordered_at !== false && $ordered_at < $horizon ) {
+			$skipped_orders[] = array(
+				'index'             => $index,
+				'external_order_id' => $external_id,
+				'reason'            => 'older_than_retention',
+			);
+			continue;
+		}
+
 		if ( $event_id !== '' && in_array( $event_id, $seen, true ) ) {
 			++$deduplicated;
 			continue;
@@ -1084,6 +1114,11 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/orders' ) {
 		'deduplicated' => $deduplicated,
 		'errors'       => $errors,
 	);
+	// Both fields only when the batch held an order past the horizon (§5).
+	if ( $skipped_orders !== array() ) {
+		$response['skipped']        = count( $skipped_orders );
+		$response['skipped_orders'] = $skipped_orders;
+	}
 	if ( $processed === 0 && $deduplicated > 0 && $errors === array() ) {
 		$response['deduplicated_all'] = true;
 	}

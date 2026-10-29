@@ -87,6 +87,33 @@ final class OrderFlusherTest extends TestCase {
 		self::assertSame( array(), $queue->attempts );
 	}
 
+	public function test_an_order_older_than_the_history_horizon_is_marked_sent_and_not_retried(): void {
+		// Contract v1.20.0 §5: the engine answers an order older than the
+		// history horizon with 200 and lists it in skipped_orders[], not in
+		// errors[]. It is not an error and must not be retried.
+		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ), $this->upsert_row( 2, 101, 'u2' ) ) );
+		$client = $this->d6_client(
+			array(
+				'ok'             => true,
+				'processed'      => 1,
+				'deduplicated'   => 0,
+				'errors'         => array(),
+				'skipped'        => 1,
+				'skipped_orders' => array(
+					array( 'index' => 0, 'external_order_id' => '100', 'reason' => 'older_than_retention' ),
+				),
+			)
+		);
+		$flush  = $this->fake_flusher( $queue, $client, true, array( 100 => true, 101 => true ) );
+
+		$stats = $flush->flush();
+
+		self::assertSame( array( 1, 2 ), $queue->sent, 'A skipped order leaves the queue like an accepted one.' );
+		self::assertSame( array(), $queue->failed );
+		self::assertSame( array(), $queue->attempts );
+		self::assertSame( 2, $stats['sent'] );
+	}
+
 	public function test_terminal_4xx_marks_whole_batch_failed(): void {
 		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ), $this->upsert_row( 2, 101, 'u2' ) ) );
 		$client = $this->throwing_client( new ApiException( 400, 'validation_failed', 'bad batch' ) );

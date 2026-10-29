@@ -612,6 +612,48 @@ final class RecEngineOrdersTest extends TestCase {
 		self::assertSame( $field, $response['errors'][0]['field'] ?? null );
 	}
 
+	public function test_mock_skips_an_order_older_than_the_history_horizon_like_the_live_engine(): void {
+		// Contract v1.20.0 §5 mock fidelity: an order older than 60 months gets
+		// 200 and lands in skipped_orders[], not errors[], while its batch mate
+		// is written. Raw wire shape through the Client, as the checks above.
+		$settings = new RecEngineSettings();
+		$client   = new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
+		$order    = static function ( string $suffix, string $ordered_at ): array {
+			return array(
+				'event_id'          => 'horizon-' . $suffix . '-' . wp_generate_uuid4(),
+				'external_order_id' => 'WC-HORIZON-' . $suffix,
+				'customer_email'    => 'horizon@example.test',
+				'ordered_at'        => $ordered_at,
+				'total_amount'      => 10.0,
+				'currency'          => 'EUR',
+				'status'            => 'completed',
+				'items'             => array(
+					array(
+						'sku'        => 'woo-1',
+						'qty'        => 1,
+						'unit_price' => 10.0,
+						'line_total' => 10.0,
+					),
+				),
+			);
+		};
+
+		$response = $client->ingest_orders(
+			array(
+				$order( 'OLD', gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( '-61 months' ) ) ),
+				$order( 'NEW', gmdate( 'Y-m-d\TH:i:s\Z' ) ),
+			)
+		);
+
+		self::assertSame( 1, $response['processed'] ?? null, 'The order inside the horizon is written.' );
+		self::assertSame( array(), $response['errors'] ?? null, 'A skipped order is not an error.' );
+		self::assertSame( 1, $response['skipped'] ?? null );
+		self::assertSame(
+			array( array( 'index' => 0, 'external_order_id' => 'WC-HORIZON-OLD', 'reason' => 'older_than_retention' ) ),
+			$response['skipped_orders'] ?? null
+		);
+	}
+
 	/**
 	 * @return array<string, array{0:string}>
 	 */

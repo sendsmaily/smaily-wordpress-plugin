@@ -25,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Shared (here): the flush() skeleton (gate → drain → build → send → split),
  * the errors[].index → batch_rows[index] split, the
- * processed+deduplicated+errors==total invariant, and the ApiException
+ * processed+deduplicated+skipped+errors==total invariant, and the ApiException
  * terminal-4xx / transient-retry policy.
  *
  * Per-endpoint (subclass): event_types(), batch_size(), endpoint_label(),
@@ -223,27 +223,31 @@ abstract class AbstractD6Flusher {
 
 	/**
 	 * The engine's counts must reconcile with the batch size:
-	 * processed + deduplicated + errors.length == total. A mismatch is an
-	 * engine-side bug; log it (the row states already followed errors[], which
-	 * is authoritative).
+	 * processed + deduplicated + skipped + errors.length == total. `skipped`
+	 * (contract v1.20.0 §5) counts orders older than the history horizon that
+	 * the engine answered 200 and did not store; it is absent (= 0) when none
+	 * were. A mismatch is an engine-side bug; log it (the row states already
+	 * followed errors[], which is authoritative).
 	 *
 	 * @param array<string, mixed> $response
 	 */
 	private function assert_invariant( array $response, int $total, int $error_count ): void {
 		$processed    = isset( $response['processed'] ) ? (int) $response['processed'] : 0;
 		$deduplicated = isset( $response['deduplicated'] ) ? (int) $response['deduplicated'] : 0;
+		$skipped      = isset( $response['skipped'] ) ? (int) $response['skipped'] : 0;
 
-		if ( $processed + $deduplicated + $error_count === $total ) {
+		if ( $processed + $deduplicated + $skipped + $error_count === $total ) {
 			return;
 		}
 
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		\Smaily\Connect\Support\DebugLog::write(
 			sprintf(
-				'[smaily-connect] D6 invariant violation on %s ingest: processed(%d) + deduplicated(%d) + errors(%d) != batch(%d). Engine-side bug?',
+				'[smaily-connect] D6 invariant violation on %s ingest: processed(%d) + deduplicated(%d) + skipped(%d) + errors(%d) != batch(%d). Engine-side bug?',
 				$this->endpoint_label(),
 				$processed,
 				$deduplicated,
+				$skipped,
 				$error_count,
 				$total
 			)

@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.18
+# Smaily Recommendation Engine — API Contract v1.20
 
-**Version**: 1.18.0
+**Version**: 1.20.0
 **Published**: 2026-05-19
-**Last updated**: 2026-10-23 (v1.18.0 — §16 becomes "disconnect": it revokes the calling connection's key, a store with no connection left is paused, never deleted, and a store's data is deleted when the merchant closes the Smaily account; the test send is a button, not a go-live condition; the store switches real sends on without waiting for its Smaily sender, and the email starts once its workflow is active (§12 `notice`); the ramp counts from the first real send after the switch-on; an automatic stop holds until an operator review, and a test email and the reactions to it do not count toward it; the design page may be framed in the store's admin and posts a message on save and close; §23 gives a workflow id and its Smaily account for every email the plugin triggers and marks the workflows the engine created. MINOR bump: one live behaviour change (§16). §12 `notice`, §19, §20, §22 Embedding and the §23 additions are published before they are live: see the availability note in each section — INT-145, INT-151, INT-150, INT-147, INT-146)
+**Last updated**: 2026-10-28 (v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -69,6 +69,8 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
    - [POST /api/v1/onboarding/start](#21-post-apiv1onboardingstart)
    - [POST /api/v1/emails/{email_key}/design-link](#22-post-apiv1emailsemail_keydesign-link)
    - [GET /api/v1/emails/designs](#23-get-apiv1emailsdesigns)
+   - [POST /api/v1/console/entry](#24-post-apiv1consoleentry)
+   - [POST /api/v1/ingest/history/progress](#25-post-apiv1ingesthistoryprogress)
 9. [Appendices](#appendices)
 
 ---
@@ -112,6 +114,8 @@ Authorization: Bearer sk_<random_32_chars>
 ```
 
 The API key is tenant-scoped, obtained via `POST /api/setup/exchange`. **The API key must never appear in client-side code** (JavaScript, mobile app bundle). A plugin-side server proxy is required for browse events.
+
+**Console entry** (v1.19.0). With the API key, a connection can request a one-time console entry link for its own store ([§24](#24-post-apiv1consoleentry)). The link signs in only an existing console user of that store. Treat the API key as a credential that opens the store's console: keep it on the shop's server, and ask the Smaily operator to revoke it when it may have leaked.
 
 The setup endpoint (`POST /api/setup/exchange`) and, since v1.16.0, the onboarding start (`POST /api/v1/onboarding/start`, [§21](#21-post-apiv1onboardingstart)) are the **only** unauthenticated endpoints. The setup endpoint accepts a setup token instead of an API key; the onboarding start accepts the store's Smaily API login.
 
@@ -278,6 +282,7 @@ HTTP 400 Bad Request
 | `/api/v1/ingest/catalog` | 100 requests | per 1 second |
 | `/api/v1/ingest/customers` | 100 requests | per 1 second |
 | `/api/v1/ingest/orders` | 100 requests | per 1 second |
+| `/api/v1/ingest/history` | 100 requests | per 1 second |
 | `/api/v1/identity/merge` | 100 requests | per 1 second |
 | `/api/v1/automations/{key}/setup-link` | 10 requests | per 60 seconds |
 | `/api/v1/automations/{key}/test-send` | 10 requests | per 3600 seconds |
@@ -288,13 +293,15 @@ HTTP 400 Bad Request
 | `/api/v1/notifications/ingest` | 100 requests | per 1 second |
 | `/api/v1/recommendations/customer` | 100 requests | per 1 second |
 | `/api/v1/store/branding` | 10 requests | per 60 seconds |
+| `/api/v1/console/entry` | 10 requests | per 60 seconds |
 | `/api/v1/customer/...` (GDPR) | 10 requests | per 60 seconds |
 | `/api/setup/exchange` | 10 requests | per 60 seconds (per IP) |
 | `/api/v1/onboarding/...` | 10 requests | per 60 seconds (per IP) |
+| `/api/console-entry/...` | 10 requests | per 60 seconds (per IP) |
 
 **Identity**: authenticated requests are tracked by `<tenant_id>:<endpoint_prefix>`. The anonymous setup-exchange and onboarding endpoints are tracked by `ip:<ip>`.
 
-A more specific prefix wins: the three `/api/v1/automations/{key}/...` rows come before the `/api/v1/automations/...` row (v1.15.0). For the three `{key}` rows the prefix does not include the key: one limit covers all emails of the store. Test sends from the setup page and the design page (§22), for every email, count toward the same test-send limit. The `/api/v1/emails/{email_key}/design-link` row comes before the `/api/v1/emails/...` row; its prefix does not include the key: one limit covers all emails of the store (v1.17.0). Design links and setup links (§17) count separately. The onboarding start window's own calls (reading its link, submitting the form) share the `/api/v1/onboarding/...` bucket with the start call, per IP (v1.16.0). The setup-link, branding and both emails rows are live; the test-send and go-live rows apply once their endpoints are live (§19, §20).
+A more specific prefix wins: the three `/api/v1/automations/{key}/...` rows come before the `/api/v1/automations/...` row (v1.15.0). For the three `{key}` rows the prefix does not include the key: one limit covers all emails of the store. Test sends from the setup page and the design page (§22), for every email, count toward the same test-send limit. The `/api/v1/emails/{email_key}/design-link` row comes before the `/api/v1/emails/...` row; its prefix does not include the key: one limit covers all emails of the store (v1.17.0). Design links and setup links (§17) count separately. The onboarding start window's own calls (reading its link, submitting the form) share the `/api/v1/onboarding/...` bucket with the start call, per IP (v1.16.0). The setup-link, branding and both emails rows are live; the test-send and go-live rows apply once their endpoints are live (§19, §20). The `/api/console-entry/...` row covers the console entry page's own call (redeeming the link). It is the engine page's call, not a plugin call, and it is tracked by `ip:<ip>` (v1.19.0). Both console entry rows apply once §24 is live.
 
 **Storage**: in-memory per Vercel instance (MVP; not shared across instances). Redis-backed global rate limiting is deferred to v2. For the pilot scale (one tenant, single Vercel instance handling traffic), per-instance limits are sufficient.
 
@@ -451,6 +458,7 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
     "ingest_customers":  "https://intelligence.smaily.com/api/v1/ingest/customers",
     "ingest_orders":     "https://intelligence.smaily.com/api/v1/ingest/orders",
     "ingest_browse":     "https://intelligence.smaily.com/api/v1/ingest/browse",
+    "ingest_history_progress": "https://intelligence.smaily.com/api/v1/ingest/history/progress",
     "identity_merge":    "https://intelligence.smaily.com/api/v1/identity/merge",
     "customer_export":   "https://intelligence.smaily.com/api/v1/customer/{email}/export",
     "customer_delete":   "https://intelligence.smaily.com/api/v1/customer/{email}",
@@ -467,7 +475,8 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
     "automations_test_send":   "https://intelligence.smaily.com/api/v1/automations/{key}/test-send",
     "automations_go_live":     "https://intelligence.smaily.com/api/v1/automations/{key}/go-live",
     "emails_design_link":      "https://intelligence.smaily.com/api/v1/emails/{email_key}/design-link",
-    "emails_designs":          "https://intelligence.smaily.com/api/v1/emails/designs"
+    "emails_designs":          "https://intelligence.smaily.com/api/v1/emails/designs",
+    "console_entry":           "https://intelligence.smaily.com/api/v1/console/entry"
   },
   "config": {
     "tracking_cookie_name": "smaily_rec_uid",
@@ -484,13 +493,18 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
     "supported_languages": ["et", "en"],
     "url_param_visitor_token": "smaily_vt",
     "url_param_rec_id": "smaily_rec",
-    "url_param_context": "smaily_ctx"
+    "url_param_context": "smaily_ctx",
+    "history": {
+      "start_months": 18,
+      "horizon_months": 60,
+      "order": "newest_first"
+    }
   },
   "issued_at": "2026-05-19T10:15:23Z"
 }
 ```
 
-**Endpoint map convention**: keys use `ingest_*`, `identity_*`, `customer_*`, `recommendations_*`, `automations_*`, `store_*`, `emails_*` prefixes for the categories. Plugin code should read endpoint URLs from this map (`endpoints[ingest_catalog]`) rather than concatenating base URL + hardcoded paths. This way, future path migrations on the engine side don't require plugin updates — only the setup-response map changes.
+**Endpoint map convention**: keys use `ingest_*`, `identity_*`, `customer_*`, `recommendations_*`, `automations_*`, `store_*`, `emails_*`, `console_*` prefixes for the categories. Plugin code should read endpoint URLs from this map (`endpoints[ingest_catalog]`) rather than concatenating base URL + hardcoded paths. This way, future path migrations on the engine side don't require plugin updates — only the setup-response map changes.
 
 > **Deprecated keys** (v1.9.1, PRO-3793): `recommendations_preview` and `recommendations_issue` point at routes that the engine retired on 2026-07-13 (PRO-1295); they answer `404`. The setup response still carries both keys, so the map shape does not change, but plugins must not call them. Contract 2.0 removes both keys. Storefront recommendations use `recommendations_customer` ([§15](#15-post-apiv1recommendationscustomer)).
 
@@ -499,6 +513,10 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
 > **Automation setup keys** (v1.15.0): `automations_setup_link` ([§17](#17-post-apiv1automationskeysetup-link)), `store_branding` ([§18](#18-put-apiv1storebranding)), `automations_test_send` ([§19](#19-post-apiv1automationskeytest-send)) and `automations_go_live` ([§20](#20-post-apiv1automationskeygo-live)). `{key}` is a placeholder, like `{email}` in `customer_export`: the plugin replaces it with a catalogue `key` (URL-encoded). **The engine returns `automations_setup_link` and `store_branding` now** (since 2026-10-22); `automations_test_send` and `automations_go_live` are returned once §19 and §20 are live, and until then the key is absent. A connection set up before v1.15.0, or before the endpoint went live, has no key and uses the fallback path constant. An endpoint that is not live yet answers `404`; the plugin treats `404` as "not available yet" and keeps its current behaviour.
 
 > **Email design keys** (v1.17.0): `emails_design_link` ([§22](#22-post-apiv1emailsemail_keydesign-link)) and `emails_designs` ([§23](#23-get-apiv1emailsdesigns)). `{email_key}` is a placeholder: the plugin replaces it with an email key (URL-encoded; the dot needs no encoding). **The engine returns both keys now** (since 2026-10-22). A connection set up before the endpoints went live has no key and uses the fallback path constant.
+
+> **Console entry key** (v1.19.0): `console_entry` ([§24](#24-post-apiv1consoleentry)). **The engine returns the key only while console entry is switched on**; until then the key is absent and the endpoint answers `404`. A connection set up before v1.19.0, or before console entry went live, has no key and uses the fallback path constant `/api/v1/console/entry`.
+
+> **History import** (v1.20.0): `config.history` says how much order history to send and in which order — `start_months` 18 (the start part), `horizon_months` 60 (the oldest order to send, the same for every sector pack), `order` `newest_first` ([§25](#25-post-apiv1ingesthistoryprogress)); `ingest_history_progress` is the progress call. A connection set up before v1.20.0 has neither: it reads `config.history` from the ping ([§2](#2-get-apiv1ingestping)) and uses the fallback path constant `/api/v1/ingest/history/progress`. When neither the exchange nor the ping has the block, use 18 / 60 / `newest_first`.
 
 **Response 410 Gone** (token expired or used):
 ```json
@@ -547,9 +565,14 @@ User-Agent: SmailyRecEngine-WooPlugin/0.1.0
   "tenant_id": "550e8400-...",
   "industry": "pet",
   "engine_version": "1.0.0",
-  "ts": "2026-05-19T10:15:23Z"
+  "ts": "2026-05-19T10:15:23Z",
+  "config": {
+    "history": { "start_months": 18, "horizon_months": 60, "order": "newest_first" }
+  }
 }
 ```
+
+`config.history` (v1.20.0) is the same block as in the setup exchange ([§1](#1-post-apisetupexchange)). Read it before each history import ([§25](#25-post-apiv1ingesthistoryprogress)), so a change reaches an installed plugin without reconnecting.
 
 **Response 401** if the API key is invalid (see Authentication).
 
@@ -908,6 +931,8 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 
 **Rate limit**: 100 req/sec, **1..100 customers per request**. The `customers` wrapper must be an array of 1–100 items — a non-array (or empty / >100) `customers` is a `400 validation_failed` (the wrapper is all-or-nothing). Per-**item** validation failures do not fail the batch; they are reported per item in `errors[]` (see the response below).
 
+**Which customers to send** (v1.20.0, data minimisation). Send (a) every customer the connector's own contact sync puts into Smaily, by the sync mode the store chose (for example newsletter subscribers in a consent mode, every registered customer in a legitimate-interest mode), and (b) every customer with an order inside `now − config.history.horizon_months` (60 months). Leave out every other customer — for example, in a consent mode, a customer account that never bought and never subscribed. The rule is what the connector itself syncs, never "is a contact in the Smaily account", which a connector cannot know (Erkki 2026-10-28). In a history import, send every customer in scope **in the start part**, before the background part ([§25](#25-post-apiv1ingesthistoryprogress)): the engine's measurement group is drawn from the customers that exist when the store owner switches it on, and a customer that arrives later is not measured. Guest buyers arrive with their orders, as before.
+
 **Request body**:
 ```json
 {
@@ -983,6 +1008,9 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 **Auth**: `Authorization: Bearer sk_...`
 
 **Rate limit**: 100 req/sec, **1..50 orders per request** (orders + items can be sizable together). The `orders` wrapper must be an array of 1–50 items — a non-array (or empty / >50) `orders` is a `400 validation_failed` (the wrapper is all-or-nothing). Per-**order** validation failures do not fail the batch; they are reported per item in `errors[]` (see the response below).
+
+<a id="history-horizon"></a>
+**History horizon** (v1.20.0). Send no order older than `now − config.history.horizon_months` (60 months, [§25](#25-post-apiv1ingesthistoryprogress)). The engine answers such an order with HTTP 200 and does not store it: the order is in `skipped_orders[]` with `reason: "older_than_retention"` (see the response below), not in `errors[]`, no import error is recorded and its `event_id` is not registered. Do not retry it. Live orders are unaffected.
 
 **Request body**:
 ```json
@@ -1093,9 +1121,10 @@ A later sync that adds a `smaily_visitor_token` binds it to the order's customer
 ```
 
 - `processed` = orders UPSERTed; `deduplicated` = orders whose `event_id` was already seen; `errors` = orders that failed per-item validation, as `{index, external_order_id?, field, message}` (`index` is position in `orders[]`). Each order is validated independently — an invalid order goes to `errors[]` and is not written, while valid orders in the same batch still process. A rejected order's `event_id` is not registered (a corrected retry processes).
-- **Invariant:** `processed + deduplicated + errors.length == total orders`.
+- `skipped` and `skipped_orders` (v1.20.0) are present **only** when the batch held an order older than the [history horizon](#history-horizon): `skipped` = the number of such orders; `skipped_orders` = one `{index, external_order_id, reason}` per order, with `reason: "older_than_retention"`. A skipped order is not written and is not an error. When both fields are absent, read `skipped` as 0. Example: `{"ok":true,"processed":49,"deduplicated":0,"errors":[],"skipped":1,"skipped_orders":[{"index":7,"external_order_id":"WC-101","reason":"older_than_retention"}]}`.
+- **Invariant:** `processed + deduplicated + skipped + errors.length == total orders`.
 - `deduplicated_all: true` is added when every order was deduplicated (pure no-op retry), e.g. `{"ok":true,"processed":0,"deduplicated":1,"errors":[],"deduplicated_all":true}`.
-- The response carries **no** `created`/`updated`/`skipped`, no `request_id`, and **no attribution counts** — attribution is computed asynchronously (below).
+- The response carries **no** `created`/`updated`, no `request_id`, and **no attribution counts** — attribution is computed asynchronously (below).
 
 **Attribution is asynchronous.** The orders ingest route only **stores** the attribution signals (`smaily_rec_id` / `smaily_visitor_token` / `session_id` / `smaily_rec_ctx`) on the order. A separate cron (`process-order-attributions`, every 15 minutes) then computes `rec_attribution` rows via the 4-step matching below — **after** ingest, once browse events and recommendations have settled. Attribution counts are therefore **not** in the ingest response.
 
@@ -1378,7 +1407,7 @@ GDPR data export. Returns all engine-held data for the customer.
       "browse_events": "14 months",
       "email_events": "14 months",
       "recommendations": "730 days",
-      "orders": "indefinite: kept as long as the merchant uses the service, or until deleted on request",
+      "orders": "60 months from the order date; an order still linked to a purchase-attribution record is kept as long as that record",
       "replaced_recommendations": "180 days after the replacement; one still linked to a click or purchase record is kept as long as that record, at most 730 days",
       "decision_log": "30 days",
       "visitor_tokens": "14 months from the token's last activity (its creation, or the latest order that carried it)",
@@ -1394,7 +1423,7 @@ GDPR data export. Returns all engine-held data for the customer.
       "browse_events": "comparison with the same month last year (seasonal purchases), plus two months of margin",
       "email_events": "comparison with the same month last year (seasonal purchases), plus two months of margin",
       "recommendations": "two-year reporting and purchase look-back",
-      "orders": "providing the service",
+      "orders": "learning buying patterns and timing reminders; purchases older than five years change the recommendations of very few customers. The store keeps its own accounting records itself",
       "replaced_recommendations": "crediting a later click or purchase to the email that showed the product, and not repeating products too soon",
       "decision_log": "explaining why a recommendation was chosen (support and error tracing)",
       "visitor_tokens": "recognising a returning shopper in the store (storefront recommendations, crediting a purchase) across a year of repeat purchases, plus two months of margin",
@@ -1481,9 +1510,9 @@ GDPR data export. Returns all engine-held data for the customer.
 }
 ```
 
-> **`data_retention_policy`** (v1.13.0, PRO-4108) lists every kind of data the engine's privacy policy (§4 "How long we keep data") lists, with the period after which the engine's nightly cleanup deletes it. Each value is a human-readable string — show it, do not parse it. `recommendations` is the period for an issued recommendation that was not replaced by a newer one; `replaced_recommendations` is the period for a replaced one. `orders`, `customers` and `catalog` are never deleted automatically while the store uses the service; their values start with `indefinite`. When the merchant closes the store's Smaily account, all of the store's data is deleted; removing the plugin only pauses the store ([§16](#16-post-apiv1storeuninstall)). Keys are only added, never renamed or removed, within contract 1.x.
+> **`data_retention_policy`** (v1.13.0, PRO-4108) lists every kind of data the engine's privacy policy (§4 "How long we keep data") lists, with the period after which the engine's nightly cleanup deletes it. Each value is a human-readable string — show it, do not parse it. `recommendations` is the period for an issued recommendation that was not replaced by a newer one; `replaced_recommendations` is the period for a replaced one. `orders` are deleted 60 months after the order date (v1.19.1, INT-185). `customers` and `catalog` are never deleted automatically while the store uses the service; their values start with `indefinite`. When the merchant closes the store's Smaily account, all of the store's data is deleted; removing the plugin only pauses the store ([§16](#16-post-apiv1storeuninstall)). Keys are only added, never renamed or removed, within contract 1.x.
 
-> **`data_retention_purpose`** (v1.14.0, PRO-4116) has the same keys as `data_retention_policy` and says why each period is as long as it is. Each value is a human-readable string — show it, do not parse it. The three tiers: behavioural signals (`browse_events` for identified and anonymous visitors, `email_events`) are kept **14 months from the event**; visitor tokens **14 months from their last activity**; outcomes (`recommendations`, `rec_attribution`, `customer_engagement_history`) **730 days**; master data (`customers`, `orders`, `catalog`) while the store uses the service.
+> **`data_retention_purpose`** (v1.14.0, PRO-4116) has the same keys as `data_retention_policy` and says why each period is as long as it is. Each value is a human-readable string — show it, do not parse it. The three tiers: behavioural signals (`browse_events` for identified and anonymous visitors, `email_events`) are kept **14 months from the event**; visitor tokens **14 months from their last activity**; outcomes (`recommendations`, `rec_attribution`, `customer_engagement_history`) **730 days**; orders **60 months from the order date** (v1.19.1); master data (`customers`, `catalog`) while the store uses the service.
 
 > **Note**: `order_items` is a **top-level** array (not nested under `orders`); join on `order_id`. The export does **not** include a `rec_attribution` array (the engine's export omits attribution rows) — if the plugin needs attribution data for a subject-access request, request it separately; it is not part of this endpoint's payload today.
 
@@ -2350,7 +2379,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/store/uninstall \
 
 | Field | Notes |
 | --- | --- |
-| `url` | Opaque one-time URL. Open it at once in a **new browser tab** (top-level navigation). A setup link is never framed: the engine refuses to show it in a frame. A design link (§22) may be framed once [§22 Embedding](#embedding) is live. Do not store, log or send it anywhere else. |
+| `url` | Opaque one-time URL. Open it at once in a **new browser tab** (top-level navigation). A setup link is never framed: the engine refuses to show it in a frame. A design link (§22) may be framed under [§22 Embedding](#embedding). Do not store, log or send it anywhere else. |
 | `expires_at` | Issue time + **5 minutes**. |
 
 **Rules**:
@@ -2876,8 +2905,6 @@ Engine emails keep the v1.15.0 design check: locked recommendation blocks, the u
 
 #### Embedding
 
-> **Not live yet** (v1.18.0, INT-147): the engine still serves every page with `frame-ancestors 'self'` and keeps the page's session in a `SameSite=Lax` cookie, so a design page in a frame shows nothing. Until the engine announces Embedding, open the design link in a new tab (§17) as today.
-
 **(v1.18.0, INT-147)** The page that a design link opens — the design page, or the setup page for an engine email key — may be shown in a frame (`<iframe>`) inside the store's admin. A new tab (§17) stays allowed.
 
 1. **Who may frame it.** The same origins that §21 `opener_origin` accepts (Erkki 2026-10-23), for the connection whose API key minted the link: (a) the origin of the connection's `plugin_info.site_url` (§1); (b) `https://admin.shopify.com`; (c) the app hosts the engine lists — the same list as for `opener_origin` (ask Smaily to add a Shopify app host, or a Magento admin that runs on its own host). The engine serves the page with `Content-Security-Policy: frame-ancestors <those origins>`, for example `frame-ancestors https://shop.example https://admin.shopify.com`. Scheme, host and port must match exactly; subdomains do not match. Browsers check every ancestor frame, so every page between the top window and the design page must be on one of those origins: an embedded Shopify app (`admin.shopify.com`, then the app host, then the design page) can frame it once its app host is listed. An origin under (a) that is not `https` is not accepted.
@@ -3059,6 +3086,234 @@ The push is **not live yet**. The contract does not name the Smaily calls; it na
 ```bash
 curl -X GET "https://intelligence.smaily.com/api/v1/emails/designs?email_key=plugin.abandoned_cart" \
   -H "Authorization: Bearer sk_..."
+```
+
+---
+
+### 24. POST /api/v1/console/entry
+
+> **Not live yet.** The engine has console entry switched off (an engine flag). Until the engine announces that it switches console entry on for connectors, every call answers `404 not_found`, the console entry page answers `404`, and the setup exchange (§1) does not return the `console_entry` key. The plugin treats `404` as "not available" and hides the "Open Campaign Intelligence" button or shows the console address (`https://intelligence.smaily.com/login`) instead. **The engine announces when it switches console entry on.**
+
+**One-time link that opens the store's Campaign Intelligence console for the shop admin who pressed "Open Campaign Intelligence"** (v1.19.0, INT-180, Erkki's decisions 2026-10-26 and 2026-10-27). Call it when the shop admin presses the button in the plugin. Call it once per press, never on page load and never in the background.
+
+**URL**: `POST /api/v1/console/entry`
+
+**Auth**: `Authorization: Bearer sk_...` — the connection's own API key. The store is the API key's store. Call it **server-to-server** (from the shop's backend): the API key never reaches the browser. A connection that still uses the store's legacy key (a key from before per-connection keys) gets `404`, because the engine cannot re-check or revoke that key's link on its own; a new setup exchange (§1) gives the connection its own key.
+
+**Rate limit**: 10 requests per 60 seconds per store.
+
+**Request body**:
+
+```json
+{
+  "email": "owner@shop.example"
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `email` | string (email), max 254 | The email of the shop admin who is signed in to the plugin and pressed the button. Not a customer's email. The engine compares it without case and surrounding spaces. **Shopify**: send it only when Shopify marks the staff email as verified. |
+
+**Response 200 OK** — for every valid request, whether or not the email belongs to a console user of this store (`Cache-Control: no-store`):
+
+```json
+{
+  "url": "https://intelligence.smaily.com/console-entry#g=seg_Qm9v…",
+  "expires_at": "2026-10-27T09:05:00.000Z"
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `url` | Opaque one-time URL. Open it at once in a **new browser tab** (top-level navigation, not a frame). Do not change, store, log or send it anywhere else. The grant is in the URL fragment (`#g=…`), which the browser does not send to any server. |
+| `expires_at` | Issue time + **5 minutes**. |
+
+The response is the same for a console user and for anyone else. The plugin needs no branch: it opens the link in both cases. The console entry page decides.
+
+**What the console entry page does** (engine-hosted; the plugin builds nothing for it; Estonian or English by the browser's language):
+
+1. Reads the grant from the fragment, removes the fragment from the address bar, and sends the grant to the engine in a POST body.
+2. The engine redeems the grant (one time, within 5 minutes). At that moment it checks that the API key that asked for the link is still active and that the store is still active, and then checks the email against the store's console users.
+3. **The email belongs to a console user whose access is this store only**: the engine signs the person in and opens the store's console (`/console/<tenant_id>/home`) with the user's own role (`editor` or `viewer`). An editor gets the restricted session of rule 5.
+4. **The email belongs to a console user whose access covers more stores, or to an engine operator**: the page opens the console sign-in page (`/login`). The email is not filled in, because the engine puts no email in a URL. The person signs in with the link the engine sends to that mailbox, as today.
+5. **Anyone else** — an unknown email, a disabled user, a user of another store only: the invite page. It says: "You do not have access to this store's Campaign Intelligence. Ask the store owner to invite you." It names the store and links to the console sign-in page. It does not say why access is missing.
+6. **An expired, used or unknown link, or a link whose API key was revoked or whose store stopped being active after it was issued**: "This link has expired or is not valid. Open the console again from your store." and nothing else.
+7. **The engine cannot open the session**: "Campaign Intelligence could not open. Open the console again from your store."
+
+**Rules**:
+
+1. **One time.** The first opening redeems the link. Mint a new link for each press.
+2. **Five minutes.** The link stops working at `expires_at`.
+3. **Own store only.** The link reaches only the API key's store. It never signs in a person whose console access covers another store (page step 4).
+4. **No user creation.** The link never creates a console user, never adds a store to a user, never changes a role, and never re-enables a disabled user. Store owners invite team members in the console (Settings → Team).
+5. **Session.** A signed-in person gets a normal console session, the same as after the sign-in email: it lasts until the person signs out or the session expires. It is not the 60-minute setup session of §17. **Restricted editor** (Erkki, 2026-10-27): in a session that a console entry link opened, an editor cannot invite team members, resend an invitation or create a setup link (Settings → Connections). The console hides these controls and the engine refuses these calls. The same user gets them by signing in with the sign-in email. So a leaked API key cannot create access that outlives the key's revocation. Revoking the API key afterwards does not end a session that already exists; disabling the console user does.
+6. **Notice to the user.** The first time a given API key signs a console user in, the engine emails that user: "You opened Campaign Intelligence for <store> from your store's plugin at <time>. If this was not you, tell the store owner." Later entries with the same key send no email. The notice is best effort: an email that cannot be sent does not stop the entry.
+7. **No email in logs.** The engine never writes the request's `email` or the link to a log. It stores the email on the one-time grant only. Grants are deleted with the store's data.
+
+**Errors**:
+
+| Status | `error` | Meaning | What the plugin shows |
+| --- | --- | --- | --- |
+| 400 | `validation_failed` | `email` is missing or not an email (`errors[]` names the field `email`). | Its own error; a plugin bug. |
+| 401 | `unauthorised` / `api_key_revoked` | See [Authentication](#authentication). | The reconnect path. |
+| 403 | `tenant_inactive` | The store is suspended, or its deletion was requested. | "This store is no longer active in Campaign Intelligence." |
+| 404 | `not_found` | Console entry is switched off, or the connection uses the store's legacy key. | Hide the button, or show the console address. |
+| 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). | Try again in a minute. |
+
+**Endpoint map key**: `console_entry` ([§1](#1-post-apisetupexchange)), returned only while console entry is switched on. A connection set up before v1.19.0, or before console entry went live, does not have the key — use the fallback path constant `/api/v1/console/entry`.
+
+**Audit log**: every redemption that reaches a decision (page steps 3–5) writes one row (`admin_audit_log`, action `console.entry`), with the store's tenant id, the API key id and the outcome (`signed_in`, `sign_in_page`, `invite_page`). A `signed_in` row names the console user as the actor. The other outcomes name no person (the actor is `plugin:<key_id>`). An invalid link writes no row. The grant itself records the issue time, the issuing IP and the API key id.
+
+**Idempotency**: none. Each call mints a new link; a link that is not opened expires unused.
+
+**How the plugin uses it**:
+
+1. Show an "Open Campaign Intelligence" button in the shop admin, to admins who may manage the plugin, and only while the plugin has an engine connection.
+2. On click, the browser opens a blank tab at once (so that no popup blocker stops it), then asks the shop backend for the link.
+3. The shop backend checks the admin's own session, permission and CSRF token, and calls §24 with that admin's email.
+4. The browser sets the blank tab's location to `url`. When the call fails, the plugin shows its own error.
+
+```js
+button.addEventListener('click', async () => {
+  const tab = window.open('about:blank', '_blank');
+  if (tab) tab.opener = null;
+  const res = await fetch('/shop-admin/smaily-intelligence/console-entry', { method: 'POST' }); // the shop backend, admin session + CSRF
+  const { url } = await res.json(); // never logged, never stored
+  if (tab) tab.location.href = url;
+  else window.location.href = url;
+});
+```
+
+Do not call §24 without an admin's click. Do not store, log, cache or prefetch the URL. Do not open it in a frame: the console does not run in a frame. **Shopify**: the embedded app opens the link top-level, outside the admin iframe.
+
+**Curl example**:
+
+```bash
+curl -X POST https://intelligence.smaily.com/api/v1/console/entry \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"email":"owner@shop.example"}'
+```
+
+---
+
+### 25. POST /api/v1/ingest/history/progress
+
+**The connector reports where its history import stands** (v1.20.0, INT-185). The store's onboarding reads it: step 3 ("History imported") is done once the start part is in, and the console shows how far the rest has come.
+
+**Terms**:
+
+| Term | Meaning |
+| --- | --- |
+| **start part** | The whole catalogue, every customer in scope ([§4](#4-post-apiv1ingestcustomers)) and the orders of the last `config.history.start_months` (18) months. |
+| **background part** | The rest of the orders, newest first, from the start window back to the horizon. |
+| **horizon** | `config.history.horizon_months` (60) months back from now, the same for every sector pack. The connector sends no older order ([§5](#history-horizon)). |
+| **history import** | One run of the connector's history sending, named by its `import_id`. "Send history again" in the store's admin starts a new import. |
+
+**URL**: `POST /api/v1/ingest/history/progress`
+
+**Auth**: `Authorization: Bearer sk_...` — the connection's own API key. The store is the API key's store.
+
+**Rate limit**: 100 requests per second per store (the ingest tier).
+
+**When to call**: at each phase change (`started`, `start_part_complete`, `complete`), and at most every 5 minutes while the import runs. Each call carries the counts so far.
+
+**Request body**:
+
+```json
+{
+  "import_id": "mag-2026-10-27-1",
+  "phase": "start_part_complete",
+  "horizon_start": "2021-10-27",
+  "platform_oldest_available": "2013-08-30",
+  "entities": {
+    "catalog":   { "expected": 3100,  "sent": 3100 },
+    "customers": { "expected": 21480, "sent": 21480 },
+    "orders":    { "expected": 41200, "sent": 15800, "oldest_sent_at": "2025-04-27" },
+    "buyers":    { "expected": 14550 }
+  }
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `import_id` | string, 1–128, letters, digits and `. _ : -` only | The connector's own id of this import. A new id is a new import (an explicit "send history again"). Never put an address or any personal data in it. |
+| `phase` | `started` \| `start_part_complete` \| `complete` | `started`: the import began. `start_part_complete`: the whole catalogue, every customer in scope (§4) and the orders of the last `config.history.start_months` months are sent. `complete`: every order since `horizon_start` is sent, or every order the platform holds if it holds less. |
+| `horizon_start` | date (`YYYY-MM-DD` or ISO 8601) | The oldest order date the connector will send: `now − config.history.horizon_months`. |
+| `platform_oldest_available` | date or `null`, optional | The oldest order the platform can give (Shopify without `read_all_orders`: 60 days). Lets the engine say "complete to the platform's limit". |
+| `entities.catalog`, `entities.customers`, `entities.orders` | object, required | `sent` (integer ≥ 0, required): rows sent and accepted so far in this import. `expected` (integer ≥ 0 or `null`, optional): the number in scope, counted by the platform; omit it when counting is too expensive. |
+| `entities.orders.oldest_sent_at` | date or `null`, optional | The oldest order date sent so far. Newest first, so it moves back in time. |
+| `entities.buyers` | object, optional | `expected` (integer ≥ 0 or `null`, optional): the number of distinct customers with a purchase order (`completed` or `processing`) since `horizon_start`, counted by the platform (one `COUNT(DISTINCT customer)`). With it, the engine can show the store owner what share of the customer base it already knows ("we know N% of your customer base"). Without it, the engine shows only the months that have arrived. |
+
+No date may be more than one day ahead of the engine's clock. Counts and dates only — the body never carries a person's data.
+
+**Response 200 OK**:
+
+```json
+{
+  "ok": true,
+  "stale": false,
+  "import_id": "mag-2026-10-27-1",
+  "phase": "start_part_complete",
+  "start_part_complete_at": "2026-10-27T14:02:11.000Z",
+  "complete_at": null,
+  "history": { "start_months": 18, "horizon_months": 60, "order": "newest_first" }
+}
+```
+
+| Field | Notes |
+| --- | --- |
+| `stale` | `true` when the call named an earlier phase than the engine already holds for this `import_id`; nothing changed. |
+| `import_id`, `phase` | The import and the phase the engine holds for the store after the call. |
+| `start_part_complete_at`, `complete_at` | When the engine first received that phase for this import (engine time), or `null`. A `complete` call also sets `start_part_complete_at` when it is not set. |
+| `history` | The current `config.history` ([§1](#1-post-apisetupexchange)). |
+
+**Rules**:
+
+1. **Idempotent per `import_id`.** Repeating a call changes nothing but the counts. A phase is never moved back: a call with an earlier phase than the stored one is stale and changes nothing. Each phase's time is the time of the first call that reached it.
+2. **One import per engine store.** The engine stores the progress per engine store (tenant) and keeps the store's latest import. A call with another `import_id` — from this connection or another connection of the same store — replaces it and starts over at its phase.
+3. **A connector with several engine stores reports each one separately.** A connector that serves several engine stores (for example one engine store per Smaily account) reports each store's import to that store's API key. One call never covers two engine stores.
+4. **`complete` implies the start part.** A connector may go from `started` to `complete` directly (a small store).
+5. **Send again = a new import.** "Send history again" in the store's admin starts a new `import_id` with `started`. Only a new import, or `complete`, makes the engine analyse the history again; the rows of the background part never do.
+
+**Errors**:
+
+| Status | `error` | Meaning |
+| --- | --- | --- |
+| 400 | `invalid_json` | The body is not JSON. |
+| 400 | `validation_failed` | A field is missing or out of range (`details` names it). Fix the call; do not retry it unchanged. |
+| 401 | `unauthorised` / `api_key_revoked` | See [Authentication](#authentication). |
+| 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
+| 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). |
+| 500 | `db_failure` | The engine did not store the call. Retry with backoff; the call is idempotent. |
+
+**Endpoint map key**: `ingest_history_progress` ([§1](#1-post-apisetupexchange)). A connection set up before v1.20.0 uses the fallback path constant `/api/v1/ingest/history/progress`.
+
+#### Sender rules (one list for WooCommerce, Shopify and Magento)
+
+1. Read `config.history` from the setup exchange or, before each import, from the ping (fallback when absent: 18 / 60 / `newest_first`).
+2. Call progress with `started`.
+3. Send the whole catalogue (§3).
+4. Send every customer in scope (§4): the customers the connector's contact sync puts into Smaily, plus every customer with an order on or after `horizon_start`. Leave out every other customer.
+5. Send orders **newest first**, from now back to `now − start_months`.
+6. Call progress with `start_part_complete`, the counts and `oldest_sent_at`.
+7. Continue orders newest first down to `horizon_start`, or the platform's limit. Call progress at most every 5 minutes.
+8. Call progress with `complete`.
+9. Never send an order older than `horizon_start`. The engine does not store it ([§5 History horizon](#history-horizon)).
+10. Live events (new orders, customer changes, stock) keep flowing during the import, as before.
+11. Send more than one order request per minute: at one 50-order request a minute, 80,000 orders take more than a day. The engine accepts 100 requests per second.
+
+#### Without the call
+
+A connector that never calls §25 keeps working. The engine then treats the start part as in when the import has settled (fewer than 50 catalogue, customer and order rows in 15 minutes) and every full month of the last `start_months` — from the store's first order inside the horizon — has orders. A store with fewer than 200 orders inside the horizon needs only the import to settle. When some of those months have no orders, the store can confirm in its console that its history is complete, and the confirmation covers those months. The engine never infers `complete`. An oldest-first sender reaches the start part only after its whole history has arrived.
+
+**Curl example**:
+
+```bash
+curl -X POST https://intelligence.smaily.com/api/v1/ingest/history/progress \
+  -H "Authorization: Bearer sk_..." \
+  -H "Content-Type: application/json" \
+  -d '{"import_id":"woo-1","phase":"started","horizon_start":"2021-10-28","entities":{"catalog":{"sent":0},"customers":{"sent":0},"orders":{"sent":0}}}'
 ```
 
 ---
@@ -3430,6 +3685,31 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **§23.** `smaily_workflow_id` for every email kind, order and shipping confirmations included; new `smaily_subdomain` (the account that holds the ids) and `created_by` (`engine` / `other`). The plugin starts plugin and transactional emails with the workflow id, on that account only, and shows its edit button next to an automation only for `created_by: "engine"`. Creating a Smaily automation from the plugin is not in this version.
 - **What the plugin does.** Call §16 on uninstall and on disconnect; treat `store_paused` like `connection_removed`, and do not tell the shop admin that the store's data will be deleted. Do not require a test send before go-live; tell the shop admin that a test address joins the Smaily list; show §12 `notice`. Use §23 workflow ids with `smaily_subdomain`, for transactional emails too. Optionally frame the design page and listen for its messages. **A plugin that does none of this keeps working unchanged.**
 - 2026-10-23: §16 (disconnect and pause), the §11 labels and the §12 blocker list are live. §12 `notice`, §19, §20, §22 Embedding and the §23 additions are not live yet.
+- 2026-10-23: §22 Embedding is live.
+
+**v1.19.0** (2026-10-27) — **The plugin opens the store's console**. MINOR bump per the [Versioning](#versioning) rule (a new endpoint; backward-compatible). §24 is published before it is live: see its availability note. INT-180, Erkki's decisions 2026-10-26 and 2026-10-27:
+- **The gap.** A shop admin in the plugin had no direct way into the store's console: the person had to know the console address and sign in with an email link.
+- **§24 console entry** (new). `POST /api/v1/console/entry` with the store's API key and the signed-in admin's email. The answer is always `200 { url, expires_at }`, a one-time link valid 5 minutes, with the grant in the URL fragment. Endpoint map key `console_entry`, returned only while console entry is switched on.
+- **Who gets in.** An existing console user whose access is this store only is signed in with the user's own role. A user with access to more stores, and an engine operator, get the console sign-in page. Anyone else gets "ask the store owner to invite you". The plugin cannot create console users.
+- **Restricted editor.** An editor who enters through the link cannot invite team members or create setup links in that session. Signing in with the sign-in email gives the same user full editor rights.
+- **Security.** The link is single-use, checks the requesting API key and the store again at redemption, writes a `console.entry` audit row, and emails the user on the first entry through each API key. A connection with the store's legacy key gets `404`.
+- **Authentication.** A connection's API key can now open the store's console for an existing console user. Keep it on the shop's server.
+- **What the plugin does.** To use it: add the button, call §24 from the shop backend with the admin's email, open `url` in a new tab; treat `404` as "not available". **A plugin that does none of this keeps working unchanged.**
+- 2026-10-27: §24 is not live yet (engine flag off). The engine announces when it switches console entry on.
+
+**v1.19.1** (2026-10-27) — **§8: orders are kept 60 months from the order date**. PATCH bump per the [Versioning](#versioning) rule (a stated retention period changes; no endpoint, field or shape changes). INT-185, Erkki's decision 2026-10-27:
+- **The rule.** The engine keeps an order and its items 60 months from the order date; the nightly cleanup deletes older ones. An order that a purchase-attribution record still names is kept as long as that record. Customers and the catalog are kept while the store uses the service, as before. The store keeps its own accounting records itself.
+- **§8 export.** `data_retention_policy.orders` and `data_retention_purpose.orders` state the new period and its purpose. No key is added, renamed or removed.
+- **What the plugin does.** Nothing is required. The engine does not store an order older than 60 months, so there is no need to send one.
+
+**v1.20.0** (2026-10-28) — **History import in two parts**. MINOR bump per the [Versioning](#versioning) rule (a new endpoint and new response fields; backward-compatible). INT-185, Erkki's decisions 2026-10-27 and 2026-10-28:
+- **The gap.** A connector sent its whole history oldest first, and the store's onboarding waited for all of it. A large store waited a day or more.
+- **§1 and §2: `config.history`** — `start_months` 18, `horizon_months` 60 (the same for every sector pack), `order` `newest_first`; §1 endpoint map key `ingest_history_progress`.
+- **§4: which customers to send.** The customers the connector's own contact sync puts into Smaily (by its sync mode), plus every customer with an order inside 60 months; every other customer is left out. All of them in the start part.
+- **§5: the history horizon.** Send no order older than 60 months. Such an order gets `200` and is not stored: the response then carries `skipped` and `skipped_orders: [{index, external_order_id, reason: "older_than_retention"}]`. The invariant is `processed + deduplicated + skipped + errors.length == total orders`. Both fields are absent when nothing was skipped, so every other response keeps its shape.
+- **§25 history progress** (new). `POST /api/v1/ingest/history/progress`: `started` → `start_part_complete` → `complete`, idempotent per `import_id`, counts and dates only. Progress is stored per engine store; a connector that serves several engine stores reports each one with that store's API key. The optional `entities.buyers.expected` lets the engine show what share of the customer base it knows.
+- **Without the call.** A plugin that never calls §25 keeps working: the engine treats the start part as in when the import has settled and every full month of the last 18 has orders (under 200 orders: settled alone). It never infers `complete`.
+- **What the plugin does.** Send newest first, the start part first, customers in scope only, no order older than 60 months, and call §25 at each phase change. **A plugin that does none of this keeps working unchanged.**
 
 ### Appendix F: Migration notes
 
