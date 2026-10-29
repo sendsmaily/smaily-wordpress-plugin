@@ -89,8 +89,9 @@ WC hook ──► HookHandler ──► IngestQueue row ──► Flusher (AS jo
 - **Flusher** — extends `AbstractD6Flusher`; drains a batch on its own Action
   Scheduler hook and applies the **D6 error contract** (F3-18): the batch
   endpoint returns `200 {ok, processed, deduplicated, errors:[{index, field,
-  message}]}` with the invariant `processed + deduplicated + errors.length ==
-  total`; `errors[].index` maps back to the batch rows (index-aligned), errored
+  message}]}` with the invariant `processed + deduplicated + skipped +
+  errors.length == total` (`skipped`, absent = 0, counts orders older than the
+  60-month history horizon, contract v1.20.0 §5); `errors[].index` maps back to the batch rows (index-aligned), errored
   rows are marked `failed`, the rest `sent`. `CustomerFlusher` is the reference
   implementation. Exception: `CatalogRemoveFlusher` (§3b tombstones, PRO-1230)
   is NOT D6 — its response has no per-item `errors[]` and `not_found` counts as
