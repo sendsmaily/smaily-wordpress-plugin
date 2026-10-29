@@ -12,6 +12,7 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Constants;
 use Smaily\Connect\REST\LandEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
@@ -219,7 +220,7 @@ class StorefrontBeacon {
 				'recId'   => $this->config_int( $config, 'rec_id_ttl_days', 30 ),
 				'context' => $this->config_int( $config, 'context_ttl_days', 30 ),
 			),
-			'landUrl'       => esc_url_raw( rest_url( 'smaily-connect/v1' . LandEndpoint::ROUTE ) ),
+			'landUrl'       => esc_url_raw( rest_url( Constants::REST_NAMESPACE . LandEndpoint::ROUTE ) ),
 		);
 	}
 
