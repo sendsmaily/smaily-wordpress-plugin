@@ -77,6 +77,8 @@ final class StorefrontBeaconTest extends TestCase {
 		self::assertSame( 'smaily_vt', $config['urlParams']['visitorToken'] );
 		self::assertSame( 30, $config['cookieTtlDays']['recId'] );
 		self::assertSame( 365, $config['cookieTtlDays']['visitor'] );
+		// The runtime posts a landing to the store route too (CON-250).
+		self::assertStringEndsWith( '/smaily-connect/v1/land', (string) $config['landUrl'] );
 	}
 
 	public function test_beacon_config_falls_back_to_defaults_without_engine_config(): void {
@@ -109,7 +111,8 @@ final class StorefrontBeaconTest extends TestCase {
 		$boot = (string) wp_scripts()->get_data( StorefrontBeacon::HANDLE_LANDING, 'before' )[1];
 		self::assertStringContainsString( 'window.smailyConnectLanding', $boot );
 		self::assertStringContainsString( 'smaily_rec_id', $boot, 'The writer needs the cookie names.' );
-		self::assertStringNotContainsString( 'relay', $boot, 'No proxy URL — this bundle sends nothing.' );
+		self::assertStringNotContainsString( 'relay', $boot, 'No proxy URL — this bundle sends nothing to the engine.' );
+		self::assertStringContainsString( 'smaily-connect\\/v1\\/land', $boot, 'The store route that sets the cookies (CON-250).' );
 	}
 
 	public function test_enqueues_only_the_runtime_when_tracking_is_on(): void {
@@ -152,7 +155,8 @@ final class StorefrontBeaconTest extends TestCase {
 		EnvSeed::connect();
 		$config = $this->beacon()->attribution_config();
 
-		self::assertSame( array( 'cookieNames', 'urlParams', 'cookieTtlDays' ), array_keys( $config ) );
+		self::assertSame( array( 'cookieNames', 'urlParams', 'cookieTtlDays', 'landUrl' ), array_keys( $config ) );
+		self::assertStringEndsWith( '/smaily-connect/v1/land', (string) $config['landUrl'] );
 		self::assertSame( 'smaily_rec_id', $config['cookieNames']['recId'] );
 		self::assertArrayNotHasKey( 'session', $config['cookieNames'], 'The session cookie belongs to the browse runtime.' );
 		self::assertSame( 'smaily_rec', $config['urlParams']['recId'] );

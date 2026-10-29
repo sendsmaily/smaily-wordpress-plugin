@@ -64,10 +64,13 @@ final class EndpointRegistryTest extends TestCase {
 		// Public storefront recommendations (PRO-3835).
 		self::assertContains( 'GET /recommendations', $paths );
 
+		// Public campaign-click landing (CON-250).
+		self::assertContains( 'POST /land', $paths );
+
 		// Pin the TOTAL so a route can't silently drop out of the list
 		// (PRO-1258: the /events triple was missing for months and nothing
 		// failed). A new endpoint bumps this number on purpose.
-		self::assertCount( 20, $paths );
+		self::assertCount( 21, $paths );
 		self::assertSame( $paths, array_unique( $paths ), 'Duplicate method+path pair in expected_routes()' );
 	}
 

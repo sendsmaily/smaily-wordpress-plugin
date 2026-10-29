@@ -962,10 +962,12 @@ Two facts that must stay true when you touch it:
   PRO-2391 EVERY entry has its own pass anyway (IIFE output needs it — see
   "Every shipped bundle is an IIFE" above); a new storefront entry gets its
   own `--mode`.
-- **The tiny bundle stays tiny** (~1.2 kB): URL params → cookies → strip. No
+- **The tiny bundle stays tiny** (~1.9 kB minified since CON-250): URL params →
+  the store's `/land` route (cookies only on its failure) → strip. No engine
   transport, no consent surface, no session cookie, no `/relay` URL in its boot
   blob (`window.smailyConnectLanding` carries cookie names / param names / TTLs
-  and nothing else) — that minimalism is why it can load consent-independently.
+  and the `landUrl`, nothing else) — that minimalism is why it can load
+  consent-independently.
 
 ### Every shipped bundle is an IIFE — never `es` output for a classic `<script>` (PRO-2391)
 `admin.js`, `sc-runtime.js`, `sc-landing.js` and `sc-recs.js` are all
@@ -1078,6 +1080,21 @@ Two things that must stay true:
 - **`headers_already_sent()` is a test seam** — PHPUnit's own progress output makes the
   bare `headers_sent()` true mid-suite, so both the unit and integration tests override
   it; never inline `headers_sent()` back or the write-path tests can't run.
+- **The browser capture has the SERVER set the cookies: `POST /land` (CON-250).**
+  Safari keeps a cookie page JavaScript sets for 7 days at most (24 h after a tracking
+  link), so both storefront scripts (`attribution.ts`) post the checked values to
+  `/wp-json/smaily-connect/v1/land` (`REST\LandEndpoint`, boot-blob key `landUrl`) and
+  write the cookies themselves only when it fails. The route calls
+  `LandingCapture::store()` — the same `resolve()` rules, names, lifetimes and gates as
+  the landing request; never give it a second rule set. It reads the form body under the
+  link's DEFAULT field names (`smaily_rec`/`smaily_vt`/`smaily_ctx`), whatever the engine
+  config calls the URL params. Guards: 404 disconnected, `RequestThrottle` 30/min per
+  `REMOTE_ADDR` (never a forwarding header), 403 + no cookie unless `Sec-Fetch-Site:
+  same-origin` (a missing header is refused too — the script's fallback covers it), 400
+  when nothing has its shape, `Cache-Control: no-store, private` always. Neutral name —
+  no tracker word (F3-41). Consent-ungated like the rest of attribution (F3-46). A
+  real `Set-Cookie` cannot be seen in PHPUnit (headers already sent), so the tests use a
+  recorder `LandingCapture`.
 
 The click→land→buy→attribute round-trip (does the cookie set on a real landing, does a
 test purchase carry `smaily_rec_id`, does the engine credit it via path-1) is a **manual

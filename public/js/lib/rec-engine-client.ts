@@ -67,6 +67,9 @@ export interface RecEngineClientConfig {
    */
   cookieTtlDays?: AttributionTtlDays;
 
+  /** The store route that sets the attribution cookies with `Set-Cookie` (CON-250). */
+  landUrl?: string;
+
   /** Batch window in milliseconds before the buffer flushes. Defaults to 30_000. */
   batchWindowMs?: number;
 
@@ -266,8 +269,10 @@ export class RecEngineClient {
    * independence because a full-page cache can serve the landing hit without
    * ever executing PHP, so `LandingCapture` never runs on that request. This
    * method writes ONLY the attribution cookies (visitor/rec/ctx) — it creates
-   * no session cookie and sends nothing; the anonymous session and every
-   * event send stay fully consent-gated (see ensureSession / track / flush).
+   * no session cookie and sends nothing to the engine (its one request is to
+   * the store's own `/land` route, which sets the cookies — CON-250); the
+   * anonymous session and every event send stay fully consent-gated (see
+   * ensureSession / track / flush).
    *
    * The capture itself lives in `attribution.ts`, shared with the
    * attribution-only bundle a browse-tracking-off store loads instead of this
@@ -283,6 +288,7 @@ export class RecEngineClient {
         recId: this.cookieTtl('recId'),
         context: this.cookieTtl('context'),
       },
+      landUrl: this.config.landUrl,
     });
   }
 
