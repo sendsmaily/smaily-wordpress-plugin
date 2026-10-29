@@ -8655,7 +8655,8 @@ engine's workflow (see follow-up below); hardcode the button list — rejected
 by §23.
 **Interim rule (Erkki, 2026-10-23 — 3.19.0 audit M1; replaces the "Open"
 item; SUPERSEDED 2026-10-29 by "CON-218" — the account the engine names
-decides, with no language condition):** the override applied ONLY when the mapped row is on the `default`
+replaces the `default`-account condition; the default-language condition
+stays):** the override applied ONLY when the mapped row is on the `default`
 account AND its language is the store's default language — the
 `language='default'` row (single mode, Mode C, a one-row mapping) or the row
 whose language equals the active detector's `get_default_language()` (Mode
@@ -9092,7 +9093,7 @@ a live key.
 RecEngineDisconnectTest.php` and `tests/Integration/RecEngineDisconnectTest.php`
 (the mock's §16 route).
 
-### CON-218 — A pushed workflow is used only on the Smaily account the engine names (2026-10-29)
+### CON-218 — A pushed workflow is used only on the Smaily account the engine names, in the default language (2026-10-29)
 
 **Context:** contract v1.18.0 §23 (INT-146) gives a `smaily_workflow_id` to
 every email the plugin starts, the order and shipping confirmations included
@@ -9103,7 +9104,8 @@ plugin followed the CON-173 interim rule (3.19.0 audit M1): a pushed id only
 on the `default` account in the store's default language, and no id kept for
 a transactional item (audit L3). The engine does not push and does not serve
 `smaily_subdomain` yet; this must ship before it does.
-**Decision:** **supersedes the CON-173 interim rule and the L3 restriction.**
+**Decision:** **supersedes the CON-173 interim rule's account condition and
+the L3 restriction; its default-language condition stays.**
 - `EmailDesignWorkflows::remember()` keeps, per email key, the workflow id
   together with the account the engine names (`{workflow_id, subdomain}` in
   `smly_rec_email_workflows`), for `kind` `plugin`/`transactional` and
@@ -9114,7 +9116,10 @@ a transactional item (audit L3). The engine does not push and does not serve
 - `Multilingual\Router::resolve_workflow()` — still the one chokepoint for all
   six emails (AutomationRouter; TransactionalGate for the follow-up and both
   confirmations) — takes the pushed id only when the mapped row's account
-  (`Credentials::get( account_key )->subdomain`) is the named account. The
+  (`Credentials::get( account_key )->subdomain`) is the named account AND the
+  row is the store's default language (`Router::is_default_language()`: the
+  `language='default'` row, or the row whose language is the active
+  detector's `get_default_language()`; a fallback to that row counts). The
   credentials are read only when the email has a pushed id with an account.
   Account and language stay the mapped ones; no mapped workflow → still no
   send.
@@ -9122,20 +9127,28 @@ a transactional item (audit L3). The engine does not push and does not serve
   matter"). The plugin had no subdomain normaliser to reuse; the stored
   credentials hold a bare subdomain (the Smaily client builds
   `https://{subdomain}.sendsmaily.net` from it), so nothing else is stripped.
-- **No language condition.** §23's rule names only the account. A Mode B
-  store's languages on the named account all take the one pushed workflow; a
-  Mode A language account takes it only when it is the named account.
-**Rationale:** the account is what made the interim rule necessary (workflow
-ids are numbered per account); now the engine names it, so the plugin can use
-the id exactly where it is valid, transactional account included, and nowhere
-else. Keeping the check in the router keeps one rule for every send path.
-**Alternatives:** keep the default-language condition on top of the account
-check — not taken: the contract states the account as the whole rule, and
-the story replaces the interim rule. Store an id without an account and
-decide at send time — not taken: it can never pass the check.
+- **The language condition stays (Erkki, 2026-10-29).** §23's rule names
+  only the account, but the engine pushes ONE design per email and does not
+  say that it covers every language — it may be written in one. So a Mode B
+  store's other languages on the named account keep their mapped workflows,
+  and in Mode A only the default language's account takes the id, when it is
+  the named account. **The language question stays open** pending INT-146
+  (the orchestrator asks the engine whether a pushed design covers every
+  language); widen `Router::is_default_language()` when it answers.
+**Rationale:** the account is what made the interim rule's account half
+necessary (workflow ids are numbered per account); now the engine names it,
+so the plugin uses the id where it is valid — transactional account included
+— and nowhere else. The language half guards a different risk (a one-language
+design sent to shoppers of another language) that the contract does not yet
+answer. Keeping both checks in the router keeps one rule for every send path.
+**Alternatives:** the account as the whole rule, as §23 states it — not
+taken (Erkki, 2026-10-29): it would send one design to every language of a
+Mode B store before the engine confirms the design covers them. Store an id
+without an account and decide at send time — not taken: it can never pass
+the check.
 **Behaviour today:** none changes. The engine serves null ids and no
 `smaily_subdomain`, so no id is kept.
-**Relationships:** supersedes CON-173's interim rule and 3.19.0 audit M1/L3
+**Relationships:** supersedes the account half of CON-173's interim rule and the 3.19.0 audit M1/L3
 fixes (#265); contract §23 (v1.18.0), INT-146. Pinned by
 `tests/Unit/Settings/EmailDesignWorkflowsTest.php`,
 `tests/Unit/Multilingual/RouterTest.php` and
