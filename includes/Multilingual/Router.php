@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
+use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\WorkflowMatch;
@@ -58,64 +59,39 @@ final class Router implements WorkflowResolverInterface {
 
 	private EmailDesignWorkflows $designs;
 
-	/** Null: the active multilingual plugin's detector, asked at send time. */
-	private ?DetectorInterface $detector;
+	private Credentials $credentials;
 
-	public function __construct( ?EmailDesignWorkflows $designs = null, ?DetectorInterface $detector = null ) {
-		$this->designs  = $designs ?? new EmailDesignWorkflows();
-		$this->detector = $detector;
+	public function __construct( ?EmailDesignWorkflows $designs = null, ?Credentials $credentials = null ) {
+		$this->designs     = $designs ?? new EmailDesignWorkflows();
+		$this->credentials = $credentials ?? new Credentials();
 	}
 
 	/**
 	 * Every email the plugin starts resolves its workflow here — welcome,
-	 * first order and abandoned cart through AutomationRouter, the three
-	 * transactional emails through TransactionalGate. When the engine has
+	 * first order and abandoned cart through AutomationRouter, the follow-up
+	 * and both confirmations through TransactionalGate. When the engine has
 	 * pushed the email's design to Smaily, its workflow takes the mapped
-	 * one's place (CON-173) — but only on the `default` account in the
-	 * store's default language (takes_pushed_workflow()). The mapping still
-	 * decides whether the email is sent at all, and through which account
-	 * and language.
+	 * one's place — but only when the mapped row sends through the Smaily
+	 * account that holds that workflow (contract §23 `smaily_subdomain`,
+	 * CON-218). The mapping still decides whether the email is sent at all,
+	 * and through which account and language.
 	 */
 	public function resolve_workflow( string $trigger_type, ?string $language ): ?WorkflowMatch {
 		$match = isset( TransactionalGate::TRIGGERS[ $trigger_type ] )
 			? $this->resolve_transactional( $trigger_type, $language )
 			: $this->resolve_marketing( $trigger_type, $language );
 
-		if ( $match === null ) {
-			return null;
+		if ( $match === null || $this->designs->account( $trigger_type ) === '' ) {
+			return $match;
 		}
 
-		$pushed = $this->designs->workflow_id( $trigger_type );
-		if ( $pushed <= 0 || ! $this->takes_pushed_workflow( $match ) ) {
+		$account = $this->credentials->get( $match->account_key );
+		$pushed  = $account !== null ? $this->designs->workflow_id( $trigger_type, $account->subdomain ) : 0;
+		if ( $pushed <= 0 ) {
 			return $match;
 		}
 
 		return new WorkflowMatch( $pushed, $match->account_key, $match->matched_language );
-	}
-
-	/**
-	 * The engine pushes one workflow per email and does not yet say into
-	 * which Smaily account or for which language (CON-173, audit 3.19.0 M1).
-	 * Contract v1.18.0 adds the account (`smaily_subdomain`) but the engine
-	 * does not serve it yet, and names no language; the plugin does not read
-	 * it yet (INT-146).
-	 * Its id is known to fit only the `default` account in the store's
-	 * default language: the single `default` row of a one-workflow mapping,
-	 * or the row of the default language. The transactional account
-	 * (follow-up email, confirmations), a Mode A language account and a
-	 * Mode B row of another language keep the mapped workflow.
-	 */
-	private function takes_pushed_workflow( WorkflowMatch $mapped ): bool {
-		if ( $mapped->account_key !== 'default' || $mapped->matched_language === null ) {
-			return false;
-		}
-		if ( $mapped->matched_language === self::LANGUAGE_DEFAULT ) {
-			return true;
-		}
-
-		$default = ( $this->detector ?? DetectorFactory::create() )->get_default_language();
-
-		return $default !== '' && $mapped->matched_language === $default;
 	}
 
 	private function resolve_marketing( string $trigger_type, ?string $language ): ?WorkflowMatch {

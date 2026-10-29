@@ -884,7 +884,7 @@ final class Bootstrap {
 
 	public function workflow_resolver(): WorkflowResolverInterface {
 		if ( $this->resolver === null ) {
-			$this->resolver = new MultilingualRouter();
+			$this->resolver = new MultilingualRouter( null, $this->credentials() );
 		}
 
 		return $this->resolver;
