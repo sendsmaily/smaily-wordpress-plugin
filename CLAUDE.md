@@ -1689,12 +1689,17 @@ own event types — this prevents one flusher consuming another's rows).
 
 D6 contract (F3-18): batch ingest returns `200 {ok, processed, deduplicated,
 errors:[{index, <natural_key>?, field, message}]}`. Invariant: `processed +
-deduplicated + errors.length == total`. The flusher maps `errors[].index ->
+deduplicated + skipped + errors.length == total` — `skipped` (absent = 0) is
+the orders endpoint's count of orders older than the 60-month history horizon,
+listed in `skipped_orders[]`, not stored by the engine and marked sent here (contract
+v1.20.0 §5, CON-228). The flusher maps `errors[].index ->
 batch_rows[index]` (index-aligned parallel arrays), marks errored rows failed,
 the rest sent. CustomerFlusher is the reference implementation.
 
 
 ## Linear discipline (Smaily process bridge)
+
+Track: Growth · product owner: Erkki
 
 This repository is engineering truth — STATUS/DECISIONS/docs stay canonical here. Linear is the coordination and visibility layer. Full process: Outline → Processes → "Agent-Driven Development"; compact guide: Linear document "Linear workflow guide for AI agents" (attached to MGMT-5). Three rules for every agent working here:
 
