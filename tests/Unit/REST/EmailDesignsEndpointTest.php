@@ -181,6 +181,7 @@ final class EmailDesignsEndpointTest extends TestCase {
 					'sent_through'       => 'workflow',
 					'smaily_state'       => 'pushed',
 					'smaily_workflow_id' => '456',
+					'smaily_subdomain'   => 'shopexample',
 				),
 			),
 		);
@@ -189,17 +190,22 @@ final class EmailDesignsEndpointTest extends TestCase {
 
 		self::assertSame( 200, $response->get_status() );
 		self::assertSame( $body, $response->get_data() );
-		self::assertSame( 456, ( new EmailDesignWorkflows() )->workflow_id( 'welcome' ) );
+		self::assertSame( 456, ( new EmailDesignWorkflows() )->workflow_id( 'welcome', 'shopexample' ) );
 	}
 
 	public function test_a_failed_designs_read_keeps_the_stored_ids(): void {
-		$this->options[ EmailDesignWorkflows::OPTION ] = array( 'plugin.welcome' => 456 );
+		$this->options[ EmailDesignWorkflows::OPTION ] = array(
+			'plugin.welcome' => array(
+				'workflow_id' => 456,
+				'subdomain'   => 'shopexample',
+			),
+		);
 
 		$response = $this->endpoint( new FakeRecEngineSettings(), $this->stub_client( null, new ApiException( 404, 'not_found', 'No route' ) ) )
 			->designs( new WP_REST_Request() );
 
 		self::assertSame( 404, $response->get_status() );
-		self::assertSame( 456, ( new EmailDesignWorkflows() )->workflow_id( 'welcome' ) );
+		self::assertSame( 456, ( new EmailDesignWorkflows() )->workflow_id( 'welcome', 'shopexample' ) );
 	}
 
 	private function link_request( string $email_key, ?string $return_url = null ): WP_REST_Request {

@@ -1857,8 +1857,9 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
  * Email designs (§22–§23, contract v1.17.0). One item per email key the
  * store can design: every §11 catalogue key plus the six v1.17.0 starters.
  * Like the live engine before the Smaily push is live, every item says
- * `smaily_state: "not_available"` with null ids; a test patches an item
- * (`email_design_patches`, e.g. a pushed workflow id) or plays an engine that
+ * `smaily_state: "not_available"` with null ids and a null account
+ * (`smaily_subdomain`, v1.18.0); a test patches an item
+ * (`email_design_patches`, e.g. a pushed workflow id and its account) or plays an engine that
  * does not offer the routes yet (`email_designs_unavailable` → the 404 an
  * unknown route gets).
  */
@@ -1890,6 +1891,7 @@ function email_design_items( array $state ): array {
 			'smaily_state'       => 'not_available',
 			'smaily_template_id' => null,
 			'smaily_workflow_id' => null,
+			'smaily_subdomain'   => null,
 			'smaily_pushed_at'   => null,
 			'updated_at'         => null,
 		);

@@ -32,12 +32,14 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *     backslash, user info or port (CON-206).
  *   - The design read-back: the list reaches the admin, and the Smaily
  *     workflow ids in it are stored for the send paths.
- *   - Send time: an email mapped to the default Smaily account in the store
- *     default language starts with the workflow id the last read returned,
- *     and with the mapped workflow while that id is empty. The transactional
- *     account, a Mode A language account and a Mode B language other than
- *     the default keep the mapped workflow (audit 3.19.0 M1). A send never
- *     asks the engine.
+ *   - Send time: an email starts with the workflow id the last read returned
+ *     only when its mapped Smaily account is the account the engine named
+ *     for that id (`smaily_subdomain`, CON-218) and the email is in the
+ *     store's default language — the transactional account of the follow-up
+ *     and both confirmations included. An email on another account, in
+ *     another language (Mode A, Mode B), or an id with no named account,
+ *     keeps the mapped workflow, as it does while the id is empty. A send
+ *     never asks the engine.
  *   - No connection, a refused account or an engine without the routes: the
  *     routes answer an error (the admin shows no button) and the stored ids
  *     stay as they were.
@@ -56,6 +58,10 @@ final class EmailDesignsTest extends TestCase {
 	);
 
 	private const MAPPED_WORKFLOW = 4242;
+
+	/** The subdomains of the store's main and transactional Smaily accounts. */
+	private const MAIN_ACCOUNT          = 'shopexample';
+	private const TRANSACTIONAL_ACCOUNT = 'shopexample-tx';
 
 	private static ?RecEngineMockServer $engine = null;
 
@@ -113,51 +119,76 @@ final class EmailDesignsTest extends TestCase {
 		self::assertStringNotContainsString( 'sk_', $serialised );
 	}
 
-	public function test_the_default_account_emails_start_with_the_pushed_workflow_and_the_others_keep_the_mapped_one(): void {
+	public function test_every_email_starts_with_the_pushed_workflow_on_the_account_the_engine_names(): void {
 		$this->connect( 'tok_designs_override' );
 		$this->map_every_trigger();
+		$this->store_credentials( 'default', self::MAIN_ACCOUNT );
+		$this->store_credentials( 'transactional', self::TRANSACTIONAL_ACCOUNT );
 		$pushed = $this->push_every_email();
 		self::assertSame( 200, RestRequestHelper::get( '/rec-engine/emails/designs' )->get_status() );
 
 		$resolver = Bootstrap::instance()->workflow_resolver();
-		foreach ( array( 'welcome', 'first_order', 'abandoned_cart' ) as $trigger ) {
+		foreach ( array_keys( self::EMAIL_KEYS ) as $trigger ) {
 			$match = $resolver->resolve_workflow( $trigger, null );
 			self::assertNotNull( $match );
 			self::assertSame( $pushed[ $trigger ], $match->workflow_id, "{$trigger} starts with the workflow the engine pushed." );
-			self::assertSame( 'default', $match->account_key, 'The account stays the mapped one.' );
-		}
-		foreach ( array( 'follow_up', 'order_confirmation', 'shipping_confirmation' ) as $trigger ) {
-			$match = $resolver->resolve_workflow( $trigger, null );
-			self::assertNotNull( $match );
-			self::assertSame( self::MAPPED_WORKFLOW, $match->workflow_id, "{$trigger} is on the transactional account: the mapped workflow." );
-			self::assertSame( 'transactional', $match->account_key );
+			self::assertSame( $this->account_of( $trigger ), $match->account_key, 'The account stays the mapped one.' );
 		}
 
 		// The engine's next answer has no workflow for the welcome email (a
 		// push that has not happened): the mapped workflow is used again.
-		self::$engine->set_email_design( 'plugin.welcome', array( 'smaily_workflow_id' => null ) );
+		self::$engine->set_email_design( 'plugin.welcome', array( 'smaily_workflow_id' => null, 'smaily_subdomain' => null ) );
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
 		self::assertSame( self::MAPPED_WORKFLOW, $resolver->resolve_workflow( 'welcome', null )->workflow_id );
 		self::assertSame( $pushed['first_order'], $resolver->resolve_workflow( 'first_order', null )->workflow_id );
 	}
 
-	public function test_a_mode_a_language_account_keeps_the_mapped_workflow(): void {
+	public function test_an_email_on_another_account_or_with_no_named_account_keeps_the_mapped_workflow(): void {
+		$this->connect( 'tok_designs_other_account' );
+		$this->map_every_trigger();
+		$this->store_credentials( 'default', 'othershop' );
+		$this->store_credentials( 'transactional', self::TRANSACTIONAL_ACCOUNT );
+		$this->push_every_email();
+		// The engine names the main account for the confirmations, and no
+		// account for the welcome email (the engine before v1.18.0 is live).
+		foreach ( array( 'transactional.order_confirmation', 'transactional.shipping_confirmation', 'plugin.follow_up' ) as $email_key ) {
+			self::$engine->set_email_design( $email_key, array( 'smaily_subdomain' => self::MAIN_ACCOUNT ) );
+		}
+		self::$engine->set_email_design( 'plugin.welcome', array( 'smaily_subdomain' => null ) );
+		RestRequestHelper::get( '/rec-engine/emails/designs' );
+
+		$resolver = Bootstrap::instance()->workflow_resolver();
+		foreach ( array_keys( self::EMAIL_KEYS ) as $trigger ) {
+			self::assertSame( self::MAPPED_WORKFLOW, $resolver->resolve_workflow( $trigger, null )->workflow_id, "{$trigger} keeps the workflow the store picked." );
+		}
+	}
+
+	public function test_in_mode_a_only_the_default_language_account_takes_the_pushed_workflow(): void {
 		$this->connect( 'tok_designs_mode_a' );
 		update_option( Router::OPTION_MODE, Router::MODE_A );
 		list( $default, $other ) = $this->two_language_store();
 		$this->map( 'welcome', $default, 'default', 4301 );
 		$this->map( 'welcome', $other, 'account_' . $other, 4302 );
-		$pushed = $this->push_every_email();
+		$this->store_credentials( 'default', self::MAIN_ACCOUNT );
+		$this->store_credentials( 'account_' . $other, 'shop-' . $other );
+		self::$engine->set_email_design( 'plugin.welcome', $this->pushed( '9101' ) );
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
 
 		$resolver = Bootstrap::instance()->workflow_resolver();
-		self::assertSame( $pushed['welcome'], $resolver->resolve_workflow( 'welcome', $default )->workflow_id, 'The default account in the store default language.' );
-		$match = $resolver->resolve_workflow( 'welcome', $other );
-		self::assertSame( 4302, $match->workflow_id, 'A language account starts its own mapped workflow.' );
-		self::assertSame( 'account_' . $other, $match->account_key );
+		$match    = $resolver->resolve_workflow( 'welcome', $default );
+		self::assertSame( 9101, $match->workflow_id, 'The default language\'s account is the named one.' );
+		self::assertSame( 'default', $match->account_key );
+		self::assertSame( 4302, $resolver->resolve_workflow( 'welcome', $other )->workflow_id, 'Another language account keeps its workflow.' );
+
+		// The engine names the other language's account: a pushed design
+		// may be in one language only, so that account keeps its workflow.
+		self::$engine->set_email_design( 'plugin.welcome', $this->pushed( '9102', 'shop-' . $other ) );
+		RestRequestHelper::get( '/rec-engine/emails/designs' );
+		self::assertSame( 4302, $resolver->resolve_workflow( 'welcome', $other )->workflow_id );
+		self::assertSame( 4301, $resolver->resolve_workflow( 'welcome', $default )->workflow_id );
 	}
 
-	public function test_a_mode_b_language_other_than_the_store_default_keeps_the_mapped_workflow(): void {
+	public function test_in_mode_b_only_the_default_language_takes_the_pushed_workflow(): void {
 		$this->connect( 'tok_designs_mode_b' );
 		update_option( Router::OPTION_MODE, Router::MODE_B );
 		list( $default, $other ) = $this->two_language_store();
@@ -165,28 +196,41 @@ final class EmailDesignsTest extends TestCase {
 			$this->map( $trigger, $default, 'default', 4401 );
 			$this->map( $trigger, $other, 'default', 4402 );
 		}
+		$this->store_credentials( 'default', self::MAIN_ACCOUNT );
 		$pushed = $this->push_every_email();
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
 
 		$resolver = Bootstrap::instance()->workflow_resolver();
 		foreach ( array( 'welcome', 'first_order', 'abandoned_cart' ) as $trigger ) {
 			self::assertSame( $pushed[ $trigger ], $resolver->resolve_workflow( $trigger, $default )->workflow_id, "{$trigger} in the store default language." );
-			self::assertSame( 4402, $resolver->resolve_workflow( $trigger, $other )->workflow_id, "{$trigger} in {$other} keeps its own workflow." );
+			self::assertSame( 4402, $resolver->resolve_workflow( $trigger, $other )->workflow_id, "{$trigger} in {$other}, on the named account, keeps its own workflow." );
+		}
+	}
+
+	public function test_the_confirmation_gate_opens_with_the_pushed_workflow_of_the_transactional_account(): void {
+		$this->connect( 'tok_designs_gate' );
+		$this->map_every_trigger();
+		$this->store_credentials( 'transactional', self::TRANSACTIONAL_ACCOUNT );
+		foreach ( array( 'smly_plus_transactional_emails_enabled', 'smly_plus_order_confirmation_enabled', 'smly_plus_shipping_confirmation_enabled', 'smly_plus_follow_up_enabled' ) as $option ) {
+			update_option( $option, '1' );
+		}
+		$pushed = $this->push_every_email();
+		RestRequestHelper::get( '/rec-engine/emails/designs' );
+
+		$gate = Bootstrap::instance()->transactional_gate();
+		foreach ( array( 'order_confirmation', 'shipping_confirmation', 'follow_up' ) as $trigger ) {
+			$match = $gate->resolve_if_open( $trigger );
+			self::assertNotNull( $match, "{$trigger}: the gate is open." );
+			self::assertSame( $pushed[ $trigger ], $match->workflow_id, "{$trigger} is sent with the workflow the engine pushed." );
+			self::assertSame( 'transactional', $match->account_key );
 		}
 	}
 
 	public function test_the_first_order_email_reaches_smaily_with_the_pushed_workflow(): void {
 		$this->connect( 'tok_designs_send' );
 		$this->map_every_trigger();
-		update_option(
-			'smaily_connect_api_credentials',
-			array(
-				'subdomain' => 'testsub',
-				'username'  => 'tester',
-				'password'  => \Smaily_Connect\Includes\Cypher::encrypt( 'test-password' ),
-			)
-		);
-		self::$engine->set_email_design( 'plugin.first_order', $this->pushed( '777' ) );
+		$this->store_credentials( 'default', 'testsub' );
+		self::$engine->set_email_design( 'plugin.first_order', $this->pushed( '777', 'TestSub' ) );
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
 
 		$captured = null;
@@ -220,6 +264,7 @@ final class EmailDesignsTest extends TestCase {
 	public function test_a_send_uses_the_stored_ids_until_the_next_read(): void {
 		$this->connect( 'tok_designs_stored' );
 		$this->map_every_trigger();
+		$this->store_credentials( 'default', self::MAIN_ACCOUNT );
 		self::$engine->set_email_design( 'plugin.abandoned_cart', $this->pushed( '500' ) );
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
 
@@ -237,6 +282,7 @@ final class EmailDesignsTest extends TestCase {
 	public function test_an_engine_without_the_routes_shows_nothing_and_keeps_the_stored_ids(): void {
 		$this->connect( 'tok_designs_unavailable' );
 		$this->map_every_trigger();
+		$this->store_credentials( 'default', self::MAIN_ACCOUNT );
 		self::$engine->set_email_design( 'plugin.welcome', $this->pushed( '600' ) );
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
 
@@ -277,8 +323,10 @@ final class EmailDesignsTest extends TestCase {
 	public function test_disconnecting_forgets_the_pushed_workflows(): void {
 		$this->connect( 'tok_designs_disconnect' );
 		$this->map_every_trigger();
+		$this->store_credentials( 'default', self::MAIN_ACCOUNT );
 		self::$engine->set_email_design( 'plugin.welcome', $this->pushed( '700' ) );
 		RestRequestHelper::get( '/rec-engine/emails/designs' );
+		self::assertSame( 700, Bootstrap::instance()->workflow_resolver()->resolve_workflow( 'welcome', null )->workflow_id );
 
 		self::assertSame( 200, RestRequestHelper::post( '/rec-engine/disconnect' )->get_status() );
 
@@ -410,8 +458,22 @@ final class EmailDesignsTest extends TestCase {
 		return array( 'et', 'lt' );
 	}
 
+	/** Save a Smaily account's credentials, as the settings screen does. */
+	private function store_credentials( string $account_key, string $subdomain ): void {
+		update_option(
+			$account_key === 'default' ? 'smaily_connect_api_credentials' : 'smly_plus_credentials_' . $account_key,
+			array(
+				'subdomain' => $subdomain,
+				'username'  => 'tester',
+				'password'  => \Smaily_Connect\Includes\Cypher::encrypt( 'test-password' ),
+			)
+		);
+	}
+
 	/**
-	 * Push a design of every plugin email, each with its own workflow id.
+	 * Push a design of every plugin email, each with its own workflow id, on
+	 * the account each one is mapped to — the transactional account's in an
+	 * upper-case spelling, since the case of a subdomain does not matter.
 	 *
 	 * @return array<string, int> trigger => pushed workflow id
 	 */
@@ -419,8 +481,9 @@ final class EmailDesignsTest extends TestCase {
 		$pushed = array();
 		$id     = 9001;
 		foreach ( self::EMAIL_KEYS as $trigger => $email_key ) {
+			$account            = $this->account_of( $trigger ) === 'transactional' ? strtoupper( self::TRANSACTIONAL_ACCOUNT ) : self::MAIN_ACCOUNT;
 			$pushed[ $trigger ] = $id;
-			self::$engine->set_email_design( $email_key, $this->pushed( (string) $id ) );
+			self::$engine->set_email_design( $email_key, $this->pushed( (string) $id, $account ) );
 			++$id;
 		}
 
@@ -432,11 +495,11 @@ final class EmailDesignsTest extends TestCase {
 	}
 
 	/**
-	 * A §23 item after a push to Smaily.
+	 * A §23 item after a push to Smaily, into the account $subdomain.
 	 *
 	 * @return array<string, mixed>
 	 */
-	private function pushed( string $workflow_id ): array {
+	private function pushed( string $workflow_id, string $subdomain = self::MAIN_ACCOUNT ): array {
 		return array(
 			'design_state'       => 'edited',
 			'subject'            => 'Hello',
@@ -444,6 +507,7 @@ final class EmailDesignsTest extends TestCase {
 			'smaily_state'       => 'pushed',
 			'smaily_template_id' => '123',
 			'smaily_workflow_id' => $workflow_id,
+			'smaily_subdomain'   => $subdomain,
 			'smaily_pushed_at'   => gmdate( 'Y-m-d\TH:i:s.000\Z' ),
 			'updated_at'         => gmdate( 'Y-m-d\TH:i:s.000\Z' ),
 		);
