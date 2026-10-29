@@ -8632,7 +8632,8 @@ editor and starts the email with the pushed workflow.
 - **Id override:** every §23 read stores the `smaily_workflow_id` of the six
   plugin emails (`smly_rec_email_workflows`, autoload=false; only kinds
   `plugin`/`transactional`, only `sent_through: "workflow"` — 3.19.0 audit
-  L3, §23 gives a workflow id to no other item — only `smaily_state`
+  L3, §23 gives a workflow id to no other item; since CON-218 also
+  `transactional`, with the named account — only `smaily_state`
   pending/pushed/failed, numeric ids). `Multilingual\Router::resolve_workflow()` — the one place every
   plugin email resolves its workflow — swaps the mapped workflow id for the
   stored one and keeps the mapped account and language, under the interim
@@ -8653,7 +8654,9 @@ workflow — not taken: it needs a guess at which Smaily account holds the
 engine's workflow (see follow-up below); hardcode the button list — rejected
 by §23.
 **Interim rule (Erkki, 2026-10-23 — 3.19.0 audit M1; replaces the "Open"
-item):** the override applies ONLY when the mapped row is on the `default`
+item; SUPERSEDED 2026-10-29 by "CON-218" — the account the engine names
+replaces the `default`-account condition; the default-language condition
+stays):** the override applied ONLY when the mapped row is on the `default`
 account AND its language is the store's default language — the
 `language='default'` row (single mode, Mode C, a one-row mapping) or the row
 whose language equals the active detector's `get_default_language()` (Mode
@@ -9136,6 +9139,117 @@ storefront bundles), PRO-3857 (`vt_` only from a link), PRO-3620
 (`REMOTE_ADDR`-only limit), contract v1.9.0 (context cookie rule). Pinned by
 `tests/Unit/REST/LandEndpointTest.php`, `tests/Integration/LandEndpointTest.php`
 and `public/js/lib/attribution.test.ts`.
+
+### CON-245 — The orders import sends the history window newest first, like the Magento extension (2026-10-29)
+
+**Context:** `OrderBackfillJob` walked every sale order `id > cursor`,
+oldest first, with no date limit. Contract v1.20.0 (§1/§2 `config.history`,
+§5 history horizon, §25 sender rules) asks a connector to send the last
+`start_months` (18) months first, then older orders newest first down to
+`horizon_months` (60), and no older order — the engine does not store one.
+An oldest-first sender reaches the engine's start part only after its whole
+history has arrived.
+**Decision (product owner, 2026-10-29: follow the Magento extension, its
+`HistoryConfig` + `HistoryImport`):**
+- **Window source:** `RecEngine\HistoryConfig::for_new_import()`, read once
+  per `start()` — the ping's `config.history` (one attempt, only when
+  `sending_allowed()`), else the setup exchange's stored block
+  (`RecEngineSettings::config()['history']`), else 18 / 60 / `newest_first`,
+  logged (WP_DEBUG). A block whose months are not whole numbers or whose
+  start part exceeds the horizon is not used. The ping's block is not stored.
+- **Window:** `until` = the start time (UTC) — an order placed later is the
+  live sync's; `start_from` / `horizon` = calendar months back from it.
+- **Order:** by order date (`table_spec()`'s new `created_col`: HPOS
+  `date_created_gmt`, legacy `post_date_gmt`), then id, both descending — the
+  start part (`start_from`..`until`), then the background part
+  (`horizon`..`until`); the status denylist (F3-42) is unchanged.
+  `total_count` = the sale orders inside the window, the same set the walk
+  reads.
+- **State:** JSON in the existing `cursor_value` column — no schema change:
+  `until`, `start_from`, `horizon`, `after` (`date|id` of the last order read)
+  and `start_part_queued_to` (the newest `order.upsert` queue row id once the
+  start part is read; null before — for the §25 progress report, CON-248).
+  A cursor of an earlier version (a bare order id) gets a new window and
+  starts from the newest order again; the engine updates an order it has.
+- **Shared base:** `AbstractBackfillJob` gains `initial_cursor()` and
+  `next_page()` hooks; their defaults are the int id walk, so the catalog and
+  customer imports are unchanged.
+**Rationale:** the engine can start on the orders it needs most within the
+first pages, and the store never reads or sends an order the engine would
+skip. Magento parity keeps one rule across connectors.
+**Alternatives:** keep oldest first and only cut at the horizon — rejected:
+the start part still arrives last. A separate start-part pass with its own
+cursor — rejected: newest first is one walk, the start part is its first
+segment. New state columns — rejected: the cursor column is opaque by design
+(migration 002) and 255 characters hold the state.
+**Relationships:** contract v1.20.0 §1, §2, §5, §25; F3-25 (backfill
+architecture), F3-42 (status denylist), PRO-3435 (both order storages in CI).
+Siblings not built here: CON-246 (customer scope), CON-247 (imports on
+connect), CON-248 (§25 progress), CON-236 (pace). Pinned by
+`tests/Unit/Smaily/RecEngine/HistoryConfigTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/OrderBackfillJobTest.php` and
+`tests/Integration/RecEngineOrderBackfillTest.php` (the mock's ping window).
+
+### CON-218 — A pushed workflow is used only on the Smaily account the engine names, in the default language (2026-10-29)
+
+**Context:** contract v1.18.0 §23 (INT-146) gives a `smaily_workflow_id` to
+every email the plugin starts, the order and shipping confirmations included
+(`sent_through: "transactional"`), and names the Smaily account that holds it
+(`smaily_subdomain`). The rule: use the id only when that account is the one
+the plugin sends the email from, else keep the current workflow. Until now the
+plugin followed the CON-173 interim rule (3.19.0 audit M1): a pushed id only
+on the `default` account in the store's default language, and no id kept for
+a transactional item (audit L3). The engine does not push and does not serve
+`smaily_subdomain` yet; this must ship before it does.
+**Decision:** **supersedes the CON-173 interim rule's account condition and
+the L3 restriction; its default-language condition stays.**
+- `EmailDesignWorkflows::remember()` keeps, per email key, the workflow id
+  together with the account the engine names (`{workflow_id, subdomain}` in
+  `smly_rec_email_workflows`), for `kind` `plugin`/`transactional` and
+  `sent_through` `workflow`/`transactional`. An id with no account — null,
+  missing, empty, or not a §23 subdomain (letters, digits, `-`, ≤ 64) after
+  trimming and lower-casing — is not kept: it fits no account. An entry stored
+  before this change (a bare number) reads as "no account".
+- `Multilingual\Router::resolve_workflow()` — still the one chokepoint for all
+  six emails (AutomationRouter; TransactionalGate for the follow-up and both
+  confirmations) — takes the pushed id only when the mapped row's account
+  (`Credentials::get( account_key )->subdomain`) is the named account AND the
+  row is the store's default language (`Router::is_default_language()`: the
+  `language='default'` row, or the row whose language is the active
+  detector's `get_default_language()`; a fallback to that row counts). The
+  credentials are read only when the email has a pushed id with an account.
+  Account and language stay the mapped ones; no mapped workflow → still no
+  send.
+- **Comparison:** trimmed and case-insensitive (§21/§23: "case does not
+  matter"). The plugin had no subdomain normaliser to reuse; the stored
+  credentials hold a bare subdomain (the Smaily client builds
+  `https://{subdomain}.sendsmaily.net` from it), so nothing else is stripped.
+- **The language condition stays (Erkki, 2026-10-29).** §23's rule names
+  only the account, but the engine pushes ONE design per email and does not
+  say that it covers every language — it may be written in one. So a Mode B
+  store's other languages on the named account keep their mapped workflows,
+  and in Mode A only the default language's account takes the id, when it is
+  the named account. **The language question stays open** pending INT-146
+  (the orchestrator asks the engine whether a pushed design covers every
+  language); widen `Router::is_default_language()` when it answers.
+**Rationale:** the account is what made the interim rule's account half
+necessary (workflow ids are numbered per account); now the engine names it,
+so the plugin uses the id where it is valid — transactional account included
+— and nowhere else. The language half guards a different risk (a one-language
+design sent to shoppers of another language) that the contract does not yet
+answer. Keeping both checks in the router keeps one rule for every send path.
+**Alternatives:** the account as the whole rule, as §23 states it — not
+taken (Erkki, 2026-10-29): it would send one design to every language of a
+Mode B store before the engine confirms the design covers them. Store an id
+without an account and decide at send time — not taken: it can never pass
+the check.
+**Behaviour today:** none changes. The engine serves null ids and no
+`smaily_subdomain`, so no id is kept.
+**Relationships:** supersedes the account half of CON-173's interim rule and the 3.19.0 audit M1/L3
+fixes (#265); contract §23 (v1.18.0), INT-146. Pinned by
+`tests/Unit/Settings/EmailDesignWorkflowsTest.php`,
+`tests/Unit/Multilingual/RouterTest.php` and
+`tests/Integration/EmailDesignsTest.php` (the mock serves `smaily_subdomain`).
 
 ## How to keep this document going
 

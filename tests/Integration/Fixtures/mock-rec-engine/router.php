@@ -287,19 +287,26 @@ if ( $method === 'GET' && $path === '/api/v1/ingest/ping' ) {
 	$tenant_id   = isset( $state['tenant_id'] ) ? (string) $state['tenant_id'] : '';
 	$tenant_name = isset( $state['tenant_name'] ) ? (string) $state['tenant_name'] : 'Mock Tenant';
 
-	reply(
-		200,
-		array(
-			'ok'                  => true,
-			'tenant_id'           => $tenant_id,
-			'tenant_name'         => $tenant_name,
-			'engine_version'      => '1.0.0',
-			'tenant_status'       => 'active',
-			'endpoints_available' => array( 'catalog', 'customers', 'orders', 'browse', 'identity_merge' ),
-			'server_time'         => gmdate( 'c' ),
-			'config'              => array( 'history' => MOCK_HISTORY_CONFIG ),
-		)
+	$ping = array(
+		'ok'                  => true,
+		'tenant_id'           => $tenant_id,
+		'tenant_name'         => $tenant_name,
+		'engine_version'      => '1.0.0',
+		'tenant_status'       => 'active',
+		'endpoints_available' => array( 'catalog', 'customers', 'orders', 'browse', 'identity_merge' ),
+		'server_time'         => gmdate( 'c' ),
+		'config'              => array( 'history' => MOCK_HISTORY_CONFIG ),
 	);
+	// A test sets another history window (`ping_history`), or null for an
+	// engine before v1.20.0, whose ping has no `config` (CON-245).
+	if ( array_key_exists( 'ping_history', $state ) ) {
+		if ( is_array( $state['ping_history'] ) ) {
+			$ping['config'] = array( 'history' => $state['ping_history'] );
+		} else {
+			unset( $ping['config'] );
+		}
+	}
+	reply( 200, $ping );
 }
 
 // §16 disconnect (contract v1.18.0, CON-219). The engine revokes the calling
@@ -1850,8 +1857,9 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
  * Email designs (§22–§23, contract v1.17.0). One item per email key the
  * store can design: every §11 catalogue key plus the six v1.17.0 starters.
  * Like the live engine before the Smaily push is live, every item says
- * `smaily_state: "not_available"` with null ids; a test patches an item
- * (`email_design_patches`, e.g. a pushed workflow id) or plays an engine that
+ * `smaily_state: "not_available"` with null ids and a null account
+ * (`smaily_subdomain`, v1.18.0); a test patches an item
+ * (`email_design_patches`, e.g. a pushed workflow id and its account) or plays an engine that
  * does not offer the routes yet (`email_designs_unavailable` → the 404 an
  * unknown route gets).
  */
@@ -1883,6 +1891,7 @@ function email_design_items( array $state ): array {
 			'smaily_state'       => 'not_available',
 			'smaily_template_id' => null,
 			'smaily_workflow_id' => null,
+			'smaily_subdomain'   => null,
 			'smaily_pushed_at'   => null,
 			'updated_at'         => null,
 		);

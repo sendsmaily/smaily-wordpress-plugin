@@ -62,6 +62,7 @@ use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
+use Smaily\Connect\Smaily\RecEngine\HistoryConfig;
 use Smaily\Connect\Smaily\RecEngine\IngestFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
@@ -363,14 +364,31 @@ final class Bootstrap {
 					$this->ingest_queue(),
 					$this->customer_flusher()
 				);
-			case 'orders': // 3.5.2 rec-engine order backfill (HPOS-aware, sale states).
+			case 'orders': // 3.5.2 rec-engine order backfill (HPOS-aware, sale states, newest first — CON-245).
 				return new OrderBackfillJob(
 					$this->ingest_queue(),
-					$this->order_flusher()
+					$this->order_flusher(),
+					$this->history_config()
 				);
 			default:
 				return null;
 		}
+	}
+
+	/**
+	 * The engine's history window for an orders import (CON-245). The ping
+	 * makes one attempt: the merchant's Import now waits on it, and the
+	 * stored window is the answer when it fails.
+	 */
+	public function history_config(): HistoryConfig {
+		$bootstrap = $this;
+
+		return new HistoryConfig(
+			$this->rec_engine_settings(),
+			static function () use ( $bootstrap ): RecEngineClient {
+				return $bootstrap->rec_client( 1 );
+			}
+		);
 	}
 
 	/**
@@ -884,7 +902,7 @@ final class Bootstrap {
 
 	public function workflow_resolver(): WorkflowResolverInterface {
 		if ( $this->resolver === null ) {
-			$this->resolver = new MultilingualRouter();
+			$this->resolver = new MultilingualRouter( null, $this->credentials() );
 		}
 
 		return $this->resolver;

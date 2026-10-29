@@ -1268,10 +1268,18 @@ bucket per proxy address — the fix is the server's real-IP config, there is de
 trust-this-header filter. (DECISIONS PRO-3620.)
 
 ### Order storage: CI runs the integration suite on BOTH legacy and HPOS (PRO-3435)
-OrderBackfillJob (3.5.2) reads orders with a direct `WHERE id > cursor` query
-against whichever table is active — `wc_orders` (HPOS) or `wp_posts` (legacy) —
+OrderBackfillJob (3.5.2) reads orders with a direct keyset query against
+whichever table is active — `wc_orders` (HPOS) or `wp_posts` (legacy) —
 detected via `OrderUtil::custom_orders_table_usage_is_enabled()`. The table +
-column mapping is a pure method (`OrderBackfillJob::table_spec`). The
+column mapping is a pure method (`OrderBackfillJob::table_spec`). Since CON-245
+the walk is newest first by order date (`created_col`: `date_created_gmt` /
+`post_date_gmt`, then id) inside the history window `start()` fixes from the
+engine's `config.history` (`RecEngine\HistoryConfig`: ping, else the stored
+setup-exchange block, else 18 / 60): the start part down to `start_from`, then
+down to `horizon`, nothing placed after `until`. Its cursor is JSON in
+`cursor_value` (window + `date|id` + `start_part_queued_to`), not an id — the
+catalog and customer imports keep the int id cursor (`AbstractBackfillJob::
+next_page()`'s default). The
 personal-data exporter/eraser does the same since PRO-3908/PRO-3986
 (`GdprHandler::order_ids_sql()`). The PILOT is WC 6.9.4 → **legacy storage**;
 newer stores run HPOS (the default since WC 8.2). Both paths reach real stores.
@@ -1305,6 +1313,13 @@ PRO-3435 covered LEGACY only). So:
 The legacy CI leg runs on WC 10.7 legacy storage, not the pilot's WC 6.9.4 —
 a pilot-only bug still needs the pilot-stack override (see "Integration
 baseline is WP 7.1" below).
+
+### A test of a `DebugLog` line points `error_log` at its own file (CON-245)
+CI's wp-env writes no `wp-content/debug.log` that `DebugLogReader` can tail: a
+test that asserted a `DebugLog::write()` line through it read `''` on both CI
+legs. Set `ini_set( 'error_log', <tempnam file> )` around the call, restore it
+in `finally`, and read that file (`RecEngineOrderBackfillTest`'s default-window
+test).
 
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with
