@@ -11,11 +11,20 @@
  * `LandingCapture` is blind behind a full-page cache. Two writers of the same
  * cookies must never drift apart, so neither one owns the logic.
  *
+ * The store's server sets the cookies (CON-250): the capture posts the
+ * checked values to the store's `/land` route (`landUrl`, LandEndpoint), which
+ * answers with `Set-Cookie`. Safari keeps a cookie page JavaScript sets for 7
+ * days at most (24 hours after a link with tracking parameters), so a
+ * script-set 365-day visitor token was gone by the next visit. The capture
+ * writes the cookies itself only when that request fails, or when there is no
+ * `landUrl` to post to.
+ *
  * Consent-INDEPENDENT by decision (F3-46 / PRO-1388): these are first-party
  * attribution cookies, the same ones `LandingCapture` writes server-side
  * unconditionally. This module writes ONLY those three — it creates no session
- * cookie and sends nothing. The anonymous session and every event send stay
- * fully consent-gated inside RecEngineClient.
+ * cookie and sends nothing to the engine; its one request goes to the store's
+ * own `/land` route. The anonymous session and every event send stay fully
+ * consent-gated inside RecEngineClient.
  */
 
 /** Cookie names for the three attribution slots (engine config `*_cookie_name`). */
@@ -46,6 +55,8 @@ export interface AttributionConfig {
   cookieNames: AttributionCookieNames;
   urlParams: AttributionUrlParams;
   cookieTtlDays: AttributionTtlDays;
+  /** The store route that sets the cookies with `Set-Cookie` (CON-250). */
+  landUrl?: string;
 }
 
 /** §6 defaults, used when the engine config carries no override. */
@@ -54,6 +65,13 @@ export const DEFAULT_URL_PARAMS: AttributionUrlParams = {
   recId: 'smaily_rec',
   context: 'smaily_ctx',
 };
+
+/**
+ * The field names the `/land` route reads: the link's default param names,
+ * which `LandingCapture::resolve()` reads, whatever the engine config calls
+ * the params in the URL.
+ */
+const LAND_FIELDS: AttributionUrlParams = { ...DEFAULT_URL_PARAMS };
 
 export const DEFAULT_TTL_DAYS: AttributionTtlDays = { visitor: 365, recId: 30, context: 30 };
 
@@ -99,13 +117,36 @@ export function writeCookie(name: string, value: string, ttlDays: number): void 
 }
 
 /**
+ * Post the checked values to the store's `/land` route, which sets the
+ * cookies with `Set-Cookie`. Resolves true when the store set them. A form
+ * body keeps it a simple request (no CORS preflight); `keepalive` lets it
+ * finish when the shopper leaves the page at once.
+ */
+function postLanding(url: string, fields: Record<string, string>): Promise<boolean> {
+  return fetch(url, {
+    method: 'POST',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    keepalive: true,
+    body: new URLSearchParams(fields),
+  }).then(
+    (response) => response.ok,
+    () => false,
+  );
+}
+
+/**
  * Inspect the current URL for the campaign-click params and persist them as
  * cookies, then strip them from the URL via history.replaceState. Returns true
  * if any param was captured.
  *
- * ORDER MATTERS: every captured value is written to its cookie BEFORE the URL
- * is stripped. Stripping first would lose the attribution silently if a cookie
- * write threw. The replaceState runs once, after all saves.
+ * With `config.landUrl` the store's server sets the cookies (CON-250): the
+ * checked values are posted there, and written here only when that request
+ * fails. Without a `landUrl` (or `fetch`) they are written here at once.
+ *
+ * ORDER MATTERS: every value is read and checked, and a cookie written here
+ * at once is written, BEFORE the URL is stripped. The replaceState runs once,
+ * after all of that.
  */
 export function captureAttributionParams(config: AttributionConfig): boolean {
   if (typeof window === 'undefined' || typeof document === 'undefined' || !window.location) {
@@ -114,16 +155,24 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
 
   const url = new URL(window.location.href);
   const params = url.searchParams;
-  const written = new Set<string>();
-  const mapping: Array<{ param: string; cookie: string; ttl: number; isValid?: (v: string) => boolean }> = [
+  const taken = new Set<string>();
+  const mapping: Array<{
+    param: string;
+    field: string;
+    cookie: string;
+    ttl: number;
+    isValid?: (v: string) => boolean;
+  }> = [
     {
       param: config.urlParams.visitorToken,
+      field: LAND_FIELDS.visitorToken,
       cookie: config.cookieNames.visitor,
       ttl: config.cookieTtlDays.visitor,
       isValid: (v) => VISITOR_TOKEN_PATTERN.test(v),
     },
     {
       param: config.urlParams.recId,
+      field: LAND_FIELDS.recId,
       cookie: config.cookieNames.recId,
       ttl: config.cookieTtlDays.recId,
       // A rec id that isn't a UUID is not one the engine will accept on the
@@ -133,23 +182,25 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
     },
     {
       param: config.urlParams.context,
+      field: LAND_FIELDS.context,
       cookie: config.cookieNames.context,
       ttl: config.cookieTtlDays.context,
       // Context cookie rule (contract v1.9.0): a context is set only together
       // with a rec id, so it comes after the rec id in this list.
-      isValid: (v) => written.has(config.urlParams.recId) && CONTEXT_PATTERN.test(v),
+      isValid: (v) => taken.has(config.urlParams.recId) && CONTEXT_PATTERN.test(v),
     },
   ];
 
-  let captured = false;
+  const writes: Array<{ cookie: string; value: string; ttl: number }> = [];
+  const fields: Record<string, string> = {};
   let present = false;
-  // 1) SAVE every present value to its cookie first.
-  for (const { param, cookie, ttl, isValid } of mapping) {
+  // 1) READ and check every present value.
+  for (const { param, field, cookie, ttl, isValid } of mapping) {
     const value = params.get(param);
     if (value !== null && value !== '' && (isValid === undefined || isValid(value))) {
-      writeCookie(cookie, value, ttl);
-      written.add(param);
-      captured = true;
+      writes.push({ cookie, value, ttl });
+      fields[field] = value;
+      taken.add(param);
     }
     if (params.has(param)) {
       params.delete(param);
@@ -160,15 +211,34 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
   // a context without a rec id is not written (above), and a landing that set
   // the rec id without a valid context clears the context,
   // so both cookies describe the same landing — an email click after a
-  // storefront click must not leave `storefront` standing.
-  if (written.has(config.urlParams.recId) && !written.has(config.urlParams.context)) {
-    writeCookie(config.cookieNames.context, '', 0);
+  // storefront click must not leave `storefront` standing. The `/land` route
+  // applies the same rule to a rec id posted without a context.
+  if (taken.has(config.urlParams.recId) && !taken.has(config.urlParams.context)) {
+    writes.push({ cookie: config.cookieNames.context, value: '', ttl: 0 });
   }
-  // 2) Only now strip the params from the visible URL.
+
+  const writeCookies = (): void => {
+    for (const { cookie, value, ttl } of writes) {
+      writeCookie(cookie, value, ttl);
+    }
+  };
+  // 2) The store's server sets the cookies; written here only when it can't.
+  if (writes.length > 0) {
+    if (config.landUrl && typeof fetch === 'function') {
+      void postLanding(config.landUrl, fields).then((stored) => {
+        if (!stored) {
+          writeCookies();
+        }
+      });
+    } else {
+      writeCookies();
+    }
+  }
+  // 3) Only now strip the params from the visible URL.
   if (present) {
     const search = params.toString();
     const newUrl = url.pathname + (search ? '?' + search : '') + url.hash;
     window.history.replaceState(window.history.state, '', newUrl);
   }
-  return captured;
+  return taken.size > 0;
 }
