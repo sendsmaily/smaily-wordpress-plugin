@@ -12,6 +12,7 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\REST\LandEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
 
@@ -190,10 +191,12 @@ class StorefrontBeacon {
 
 	/**
 	 * The AttributionConfig the attribution-only bundle expects — everything
-	 * needed to read the campaign params and write the three first-party
-	 * cookies, and nothing else (no proxy URL, no session cookie, no page
-	 * context). The browse runtime's config is this plus its own fields.
-	 * Public so tests can assert it.
+	 * needed to read the campaign params and have the three first-party
+	 * cookies set, and nothing else (no proxy URL, no session cookie, no page
+	 * context): the cookie and param names, the TTLs, and the store's `/land`
+	 * route that sets the cookies from the server (`landUrl`, CON-250). The
+	 * browse runtime's config is this plus its own fields. Public so tests can
+	 * assert it.
 	 *
 	 * @return array<string, mixed>
 	 */
@@ -216,6 +219,7 @@ class StorefrontBeacon {
 				'recId'   => $this->config_int( $config, 'rec_id_ttl_days', 30 ),
 				'context' => $this->config_int( $config, 'context_ttl_days', 30 ),
 			),
+			'landUrl'       => esc_url_raw( rest_url( 'smaily-connect/v1' . LandEndpoint::ROUTE ) ),
 		);
 	}
 
@@ -240,6 +244,7 @@ class StorefrontBeacon {
 			'cookieNames'    => $cookie_names,
 			'urlParams'      => $attribution['urlParams'],
 			'cookieTtlDays'  => $attribution['cookieTtlDays'],
+			'landUrl'        => $attribution['landUrl'],
 			'sessionTtlDays' => $this->config_int( $config, 'session_ttl_days', 30 ),
 		);
 	}

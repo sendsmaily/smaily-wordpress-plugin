@@ -167,7 +167,9 @@ export function init(): RecEngineClient | null {
 
   // Attribution-cookie capture (visitor/rec/ctx) runs unconditionally, before
   // consent is resolved (PRO-1388) — it writes no session cookie and sends
-  // nothing, so it is safe consent-independent; see the doc comment on
+  // nothing to the engine (only the click's values to the store's own `/land`
+  // route, which sets the cookies — CON-250), so it is safe
+  // consent-independent; see the doc comment on
   // RecEngineClient.captureUrlParams for why (full-page caches skip PHP).
   client.captureUrlParams();
 

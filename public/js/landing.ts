@@ -7,9 +7,12 @@
  * executes the server-side LandingCapture.
  *
  * It is deliberately the SMALLEST thing that writes the cookies: URL params in,
- * three first-party cookies out, params stripped. No event pipeline, no
- * transport, no consent surface, no session cookie — those live in the browse
- * runtime and stay behind the browse toggle + marketing consent.
+ * three first-party cookies out, params stripped. The cookies are set by the
+ * store's server through the `/land` route (CON-250; the boot blob's `landUrl`
+ * is the one addition to its names and TTLs), and written here only when that
+ * request fails. No event pipeline, no engine transport, no consent surface,
+ * no session cookie — those live in the browse runtime and stay behind the
+ * browse toggle + marketing consent.
  *
  * Exports nothing (all logic is in lib/attribution.ts, tested there), so the
  * built bundle has no top-level export and loads outside a module context.

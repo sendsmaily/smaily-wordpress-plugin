@@ -9154,6 +9154,53 @@ fixes (#265); contract §23 (v1.18.0), INT-146. Pinned by
 `tests/Unit/Multilingual/RouterTest.php` and
 `tests/Integration/EmailDesignsTest.php` (the mock serves `smaily_subdomain`).
 
+### CON-250 — The store's server sets the email-click cookies through `POST /land` (2026-10-29)
+
+**Context:** behind a full-page cache a landing from a Smaily email never runs
+PHP, so `LandingCapture` is blind and the storefront scripts (`sc-landing.js`,
+`sc-runtime.js`, both through `public/js/lib/attribution.ts`) wrote the
+visitor-token, rec id and context cookies from JavaScript. Safari keeps a
+cookie page JavaScript sets for 7 days at most (24 hours after a link with
+tracking parameters), so the 365-day visitor token was gone by the next visit:
+later visits, guest orders and the Recommendations block no longer knew the
+shopper, and the 30-day rec id and context were cut short the same way.
+**Decision (Erkki, 2026-10-29):** the scripts post the checked click values
+to a store route, `POST /wp-json/smaily-connect/v1/land`
+(`REST\LandEndpoint`), which sets the cookies with `Set-Cookie`; a script
+writes the cookies itself only when the request fails (non-2xx or network
+error), or when its boot blob carries no `landUrl`. Magento parity: the
+extension's `smaily/attribution/land` (connect-magento PR #205).
+- **One implementation:** the route calls `LandingCapture::store()` — the
+  same `resolve()` rules (UUID rec id, the engine's `vt_` token only, the
+  context cookie rule), cookie names, lifetimes and attributes, and the same
+  gates (connection, the `smaily_connect_capture_attribution` switch) as the
+  landing request. The scripts post under the link's default field names
+  (`smaily_rec`/`smaily_vt`/`smaily_ctx`), whatever the engine config calls
+  the URL params; the route reads the form body only.
+- **Guards:** 404 when not connected; a per-address limit
+  (`RequestThrottle`, `REMOTE_ADDR` only, 30 a minute — Magento's figure);
+  403 and no cookie unless `Sec-Fetch-Site` is `same-origin` — a page
+  elsewhere must not plant a visitor token, and a request with no such header
+  is refused too (the script then writes the cookies itself, as before); 400
+  when nothing posted has its shape; 204 on success. Every answer is
+  `Cache-Control: no-store, private`.
+- **Consent unchanged:** attribution capture stays consent-ungated (F3-46);
+  the marketing-consent rule for the visitor token on `/relay`, the login
+  merge and `/recommendations` is untouched.
+- **`sc-landing.js` boot blob:** `landUrl` is the one addition to its names
+  and TTLs; it still carries no `/relay` URL and sends nothing to the engine.
+**Rationale:** a `Set-Cookie` cookie keeps its lifetime in every browser, and
+the fallback keeps today's behaviour wherever the route cannot answer.
+**Alternatives:** keep the JavaScript write — rejected: Safari's cap defeats
+the visitor token's purpose. Accept a request without `Sec-Fetch-Site` when
+its `Origin` matches the site — not done: the fallback already covers those
+browsers, and an exact rule is easier to reason about.
+**Relationships:** F3-46 (consent-ungated attribution), PRO-1767 (the two
+storefront bundles), PRO-3857 (`vt_` only from a link), PRO-3620
+(`REMOTE_ADDR`-only limit), contract v1.9.0 (context cookie rule). Pinned by
+`tests/Unit/REST/LandEndpointTest.php`, `tests/Integration/LandEndpointTest.php`
+and `public/js/lib/attribution.test.ts`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
