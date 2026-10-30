@@ -129,6 +129,14 @@ final class EndpointRegistry {
 					return new RecEngineClient( $api_key, $base_url, $endpoints, 1 );
 				}
 			),
+			// "Open Campaign Intelligence" (CON-228, contract §24). One call
+			// per press: console_entry() is the Client's single-attempt mode.
+			new ConsoleEntryEndpoint(
+				new RecEngineSettings(),
+				static function ( string $api_key, string $base_url, array $endpoints ): RecEngineClient {
+					return new RecEngineClient( $api_key, $base_url, $endpoints, 1 );
+				}
+			),
 			new BeaconEndpoint(
 				new RecEngineSettings(),
 				static function ( string $api_key, string $base_url ): RecEngineClient {
@@ -242,6 +250,11 @@ final class EndpointRegistry {
 			array(
 				'method' => 'POST',
 				'path'   => '/rec-engine/emails/design-link',
+			),
+			// "Open Campaign Intelligence" (CON-228, contract §24). POST only.
+			array(
+				'method' => 'POST',
+				'path'   => '/rec-engine/console-entry',
 			),
 			// The public browse-beacon proxy. Registered unconditionally; the
 			// gate (connected + browse-tracking on) lives in the handler, which

@@ -9255,6 +9255,69 @@ fixes (#265); contract §23 (v1.18.0), INT-146. Pinned by
 `tests/Unit/Multilingual/RouterTest.php` and
 `tests/Integration/EmailDesignsTest.php` (the mock serves `smaily_subdomain`).
 
+### CON-228 — "Open Campaign Intelligence" opens the console through a one-time §24 link, asked for per click (2026-10-30)
+
+**Context:** a shop admin had no direct way from the plugin into the store's
+Campaign Intelligence console: the person had to know the console address and
+sign in with an email link. Contract v1.19.0 §24 (INT-180) gives a one-time
+console sign-in: the shop backend calls `POST /api/v1/console/entry` with the
+connection's API key and the signed-in admin's email, and the engine answers
+`{url, expires_at}` — a link valid 5 minutes, the grant in the URL fragment.
+The engine's console page decides who gets in: only an existing console user
+whose access is this store only is signed in; anyone else sees the sign-in
+page or "ask the store owner to invite you". The engine has §24 switched off
+until it announces it, so today every call answers `404`.
+**Decision:** the Settings engine connection card (Step 4's connected view in
+Settings only, not the wizard) has an "Open Campaign Intelligence" button
+(`admin/src/components/steps/OpenConsoleButton.tsx`) while `is_connected()`;
+the page itself needs `manage_options`. The click opens a blank tab in the
+click handler (pop-up blockers allow it), sets `opener = null`, and calls the
+admin-only `POST /smaily-connect/v1/rec-engine/console-entry`
+(`REST\ConsoleEntryEndpoint`), then sends the tab to the link; on a failure it
+closes the tab and shows the message on the card.
+- **The route** checks a signed-in user, a valid `wp_rest` nonce in
+  `X-WP-Nonce` (checked in the route itself, not left to cookie auth alone)
+  and `manage_options`, answers POST only, and calls the engine only when
+  `sending_allowed()`. It sends the CURRENT WP user's own email — the browser
+  sends nothing — through `Client::console_entry()` (endpoints-map key
+  `console_entry`, fallback `Client::PATH_CONSOLE_ENTRY`).
+- **One call per click:** `console_entry()` uses the Client's single-attempt
+  mode (3 s for the whole request, no redirect, no retry, no Retry-After wait),
+  as §16 disconnect does — the admin waits on it, and §24 allows 10 calls a
+  minute per store.
+- **Never kept:** no option, transient, queue row, F3-44 exchange or debug log
+  of the link or the email; every answer carries `Cache-Control: no-store,
+  private`. The JS keeps the link only long enough to set the tab's address.
+- **Engine answers:** `404` → the route answers `404 not_available` with
+  `console_url` (the stored engine origin + `/login`), and the button goes away
+  for the rest of the page view, with the console address in its place (or
+  "not available yet" when no origin is stored); `401` → `502
+  api_key_rejected`, and the card names the reconnect path (Disconnect, then a
+  new setup link); `403 tenant_inactive` → `403 tenant_inactive` ("This store
+  is no longer active in Campaign Intelligence."; Client records the refusal
+  centrally, as for every call); `429` → `429 rate_limited` with the engine's
+  `Retry-After` seconds, used in the message only
+  (`ApiException::retry_after()`, new); anything else → `502
+  engine_unavailable`.
+**Rationale:** the contract's flow, unchanged: the API key stays on the
+server, the CSRF and capability checks are the shop's, and the link is opened
+top-level in a new tab and never stored. Hiding the button after a `404`
+keeps a switched-off engine from offering a button that cannot work, without
+probing the engine on page load (§24 forbids calling it without a click).
+**Alternatives:** probe §24 on page load to decide whether to show the button
+— rejected: §24 says call it only on a click. Open the console in a modal or
+an iframe — out of scope: the console does not run in a frame (INT-180).
+Create console users from the plugin — out of scope: the link never creates a
+user; store owners invite in the console.
+**Relationships:** contract §24 (v1.19.0), CON-219 (the single-attempt mode
+for an admin-waited call), CON-173 (the same blank-tab pattern for "Edit
+design"), PRO-1893 (`sending_allowed()`, the central `tenant_inactive`
+record). Pinned by `tests/Unit/Smaily/RecEngine/ClientConsoleEntryTest.php`,
+`tests/Unit/REST/ConsoleEntryEndpointTest.php`,
+`tests/Integration/ConsoleEntryTest.php` (the mock's §24 route and its
+`console_entry_status` switch) and
+`admin/src/components/steps/OpenConsoleButton.test.tsx`.
+
 ### CON-246 — Only customers in scope reach the engine; a registered buyer's order sends the buyer (2026-10-30)
 
 **Context:** the customer import (`CustomerBackfillJob`) and the live

@@ -2196,6 +2196,7 @@ msgid "Connect Campaign Intelligence to unlock"
 msgstr "Aktiveeri Campaign Intelligence tööriist, et"
 
 #: admin/src/components/steps/EngineAutomationsSection.tsx:67
+#: admin/src/components/steps/OpenConsoleButton.tsx:63
 msgid "Open Campaign Intelligence"
 msgstr "Ava Campaign Intelligence"
 
@@ -3107,6 +3108,7 @@ msgid "The shopper has unsubscribed from marketing emails in Smaily."
 msgstr "Ostleja on Smailys turunduskirjadest loobunud."
 
 #: admin/src/components/steps/EmailDesigns.tsx:102
+#: admin/src/components/steps/OpenConsoleButton.tsx:36
 msgid "Your browser blocked the new tab. Allow pop-ups for this page and try again."
 msgstr "Brauser blokeeris uue vahekaardi. Luba sellel lehel hüpikaknad ja proovi uuesti."
 
@@ -3201,3 +3203,41 @@ msgstr "Kehtib (päeva)"
 #, js-format
 msgid "From %1$d to %2$d days. The code works until the end of that day in the store’s timezone, and never after the coupon’s own expiry date."
 msgstr "%1$d kuni %2$d päeva. Kood kehtib selle päeva lõpuni poe ajavööndis ja mitte kunagi pärast kupongi enda aegumiskuupäeva."
+
+#: includes/REST/ConsoleEntryEndpoint.php:93
+msgid "Your session has expired. Reload the page and try again."
+msgstr "Seanss on aegunud. Laadi leht uuesti ja proovi siis uuesti."
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:71
+msgid "Opening Campaign Intelligence from the plugin is not available yet. Open the console and sign in there:"
+msgstr "Campaign Intelligence'i avamine pluginast ei ole veel saadaval. Ava konsool ja logi seal sisse:"
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:77
+msgid "Opening Campaign Intelligence from the plugin is not available yet."
+msgstr "Campaign Intelligence'i avamine pluginast ei ole veel saadaval."
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:88
+msgid "Campaign Intelligence did not accept this store’s connection. Disconnect here and connect again with a new setup link from Campaign Intelligence."
+msgstr "Campaign Intelligence ei aktsepteerinud selle poe ühendust. Katkesta siin ühendus ja ühenda uuesti uue seadistuslingiga Campaign Intelligence'ist."
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:90
+msgid "This store is no longer active in Campaign Intelligence."
+msgstr "See pood ei ole Campaign Intelligence'is enam aktiivne."
+
+#. translators: %d is a number of seconds.
+#: admin/src/components/steps/OpenConsoleButton.tsx:95
+#, js-format
+msgid "Too many attempts. Try again in %d seconds."
+msgstr "Liiga palju katseid. Proovi uuesti %d sekundi pärast."
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:98
+msgid "Too many attempts. Try again in a minute."
+msgstr "Liiga palju katseid. Proovi minuti pärast uuesti."
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:100
+msgid "Your WordPress user has no valid email address. Add one to your profile and try again."
+msgstr "Sinu WordPressi kasutajal ei ole kehtivat e-posti aadressi. Lisa see oma profiili ja proovi uuesti."
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:102
+msgid "Campaign Intelligence could not be opened. Try again in a minute."
+msgstr "Campaign Intelligence'i ei õnnestunud avada. Proovi minuti pärast uuesti."
