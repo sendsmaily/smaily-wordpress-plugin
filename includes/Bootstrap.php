@@ -62,6 +62,7 @@ use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
+use Smaily\Connect\Smaily\RecEngine\CustomerScope;
 use Smaily\Connect\Smaily\RecEngine\HistoryConfig;
 use Smaily\Connect\Smaily\RecEngine\IngestFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
@@ -359,10 +360,11 @@ final class Bootstrap {
 				}
 			case 'products': // 3.5.0 rec-engine catalog backfill.
 				return $this->catalog_backfill_job();
-			case 'customers': // 3.5.1 rec-engine customer backfill (A-filter).
+			case 'customers': // 3.5.1 rec-engine customer backfill (the §4 customer scope — CON-246).
 				return new CustomerBackfillJob(
 					$this->ingest_queue(),
-					$this->customer_flusher()
+					$this->customer_flusher(),
+					$this->customer_scope()
 				);
 			case 'orders': // 3.5.2 rec-engine order backfill (HPOS-aware, sale states, newest first — CON-245).
 				return new OrderBackfillJob(
@@ -373,6 +375,15 @@ final class Bootstrap {
 			default:
 				return null;
 		}
+	}
+
+	/**
+	 * Which registered users the engine gets as customers (contract §4,
+	 * CON-246) — shared by the customer import, the live customer sync and
+	 * the order hook's buyer row.
+	 */
+	public function customer_scope(): CustomerScope {
+		return new CustomerScope( $this->rec_engine_settings() );
 	}
 
 	/**
@@ -576,24 +587,30 @@ final class Bootstrap {
 		add_action( 'untrashed_post', array( $catalog, 'on_save_product' ), 10, 1 );
 
 		// Rec-engine customer ingest (Phase 3.3.3). Self-gates on
-		// is_connected() like catalog; enqueues every registered user
-		// (A-filter) on the §488 hook set, routed to the customer flusher.
+		// is_connected() like catalog; enqueues a user in the §4 customer
+		// scope (CON-246) on the §488 hook set + an opt-in meta change,
+		// routed to the customer flusher.
 		$customer = new CustomerHookHandler(
 			$this->ingest_queue(),
-			$this->rec_engine_settings()
+			$this->rec_engine_settings(),
+			$this->customer_scope()
 		);
 		add_action( 'user_register', array( $customer, 'on_user_register' ), 10, 1 );
 		add_action( 'profile_update', array( $customer, 'on_profile_update' ), 10, 1 );
 		add_action( 'woocommerce_created_customer', array( $customer, 'on_woocommerce_created_customer' ), 10, 1 );
 		add_action( 'woocommerce_save_account_details', array( $customer, 'on_save_account_details' ), 10, 1 );
+		add_action( 'added_user_meta', array( $customer, 'on_user_meta_changed' ), 10, 3 );
+		add_action( 'updated_user_meta', array( $customer, 'on_user_meta_changed' ), 10, 3 );
 
 		// Rec-engine order ingest (Phase 3.3-orders.3). Self-gates on
 		// is_connected(); enqueues on order-status changes whose mapped engine
-		// status changes to a confirmed purchase (OrderHookHandler).
+		// status changes to a confirmed purchase (OrderHookHandler), and the
+		// registered buyer's customer row once per order (CON-246).
 		$order = new OrderHookHandler(
 			$this->ingest_queue(),
 			$this->order_payload_builder(),
-			$this->rec_engine_settings()
+			$this->rec_engine_settings(),
+			$this->customer_scope()
 		);
 		add_action( 'woocommerce_order_status_changed', array( $order, 'on_order_status_changed' ), 10, 3 );
 		// A PARTIAL refund changes no status, so it needs its own hook to reach

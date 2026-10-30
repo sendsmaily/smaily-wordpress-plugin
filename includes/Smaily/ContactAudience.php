@@ -129,6 +129,35 @@ final class ContactAudience {
 		);
 	}
 
+	/**
+	 * The SQL twin of should_sync_user() as a WHERE condition on a user-id
+	 * column, and its prepare() arguments — for a query that pages over the
+	 * users table (the engine customer import's scope, CON-246). MUST agree
+	 * with should_sync_user(), like count_audience().
+	 *
+	 *   - sync switched off / checkout_optin → no user
+	 *   - legitimate_interest                → every user
+	 *   - consent                            → users with user_newsletter=1
+	 *
+	 * @param string $id_column A trusted column expression, e.g. `u.ID`.
+	 * @return array{0: string, 1: array<int, string>}
+	 */
+	public function user_id_sql( string $id_column ): array {
+		if ( ! ContactSyncMode::sync_enabled() || ! $this->mode->syncs_accounts() ) {
+			return array( '0 = 1', array() );
+		}
+
+		if ( ! $this->mode->requires_optin() ) {
+			return array( '1 = 1', array() );
+		}
+
+		global $wpdb;
+		return array(
+			"{$id_column} IN ( SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = %s AND meta_value = '1' )",
+			array( self::OPTIN_META ),
+		);
+	}
+
 	private function opted_in( int $user_id ): bool {
 		if ( $user_id <= 0 || ! function_exists( 'get_user_meta' ) ) {
 			return false;

@@ -420,7 +420,7 @@ function ConnectedView({
           <BackfillPanel
             jobType="customers"
             label={__('Customers', 'smaily-connect')}
-            recordCount={state.env.storeTotals.customers}
+            recordCount={state.env.storeTotals.engineCustomers}
           />
           <BackfillPanel
             jobType="orders"

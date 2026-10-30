@@ -12,6 +12,8 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
+use Smaily\Connect\Smaily\RecEngine\CustomerScope;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
@@ -46,10 +48,15 @@ use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
  * (different destination). Per-request `$seen` dedupe keyed by order id.
  * Guest orders work without a payload-carried path — the row carries the
  * order id, and the engine auto-creates the customer from customer_email.
+ * A registered buyer's own `customer` row is queued with the order, once
+ * per order (enqueue_buyer(), CON-246).
  *
  * Not final: tests subclass to record enqueues through a doubled IngestQueue.
  */
 class OrderHookHandler {
+
+	/** Order meta: this order's registered buyer was queued as a customer (CON-246). */
+	public const BUYER_QUEUED_META = '_smly_rec_buyer_queued';
 
 	/** @var array<int, bool> per-request dedupe keyed by order id. */
 	private static array $seen = array();
@@ -57,11 +64,13 @@ class OrderHookHandler {
 	private IngestQueue $queue;
 	private OrderPayloadBuilder $builder;
 	private RecEngineSettings $settings;
+	private CustomerScope $scope;
 
-	public function __construct( IngestQueue $queue, OrderPayloadBuilder $builder, RecEngineSettings $settings ) {
+	public function __construct( IngestQueue $queue, OrderPayloadBuilder $builder, RecEngineSettings $settings, ?CustomerScope $scope = null ) {
 		$this->queue    = $queue;
 		$this->builder  = $builder;
 		$this->settings = $settings;
+		$this->scope    = $scope ?? new CustomerScope( $settings );
 	}
 
 	/**
@@ -108,6 +117,70 @@ class OrderHookHandler {
 			OrderFlusher::FLUSH_HOOK,
 			OrderFlusher::AS_GROUP
 		);
+
+		$this->enqueue_buyer( $order_id );
+	}
+
+	/**
+	 * Queue the registered buyer's `customer` record once per order (contract
+	 * v1.20.0 §4, CON-246): a buyer with a sale order inside the horizon is in
+	 * the engine's customer scope, and an account that only now bought — out
+	 * of scope until this order — would otherwise never reach the engine. The
+	 * row carries the WP user id, the `external_id` the customer builder sends.
+	 *
+	 * Once per order, not per status change: the order meta BUYER_QUEUED_META
+	 * is written the first time, whatever happens next. No row when a pending
+	 * customer row for that user already waits (it is built fresh at send and
+	 * covers this order), for a guest order, or for a user out of scope (an
+	 * order placed before the horizon, a deleted account).
+	 */
+	private function enqueue_buyer( int $order_id ): void {
+		if ( $this->buyer_marked( $order_id ) ) {
+			return;
+		}
+
+		$customer_id = $this->order_customer_id( $order_id );
+		if ( $customer_id <= 0 ) {
+			return;
+		}
+		$this->mark_buyer( $order_id );
+
+		if ( $this->queue->has_pending_for( CustomerFlusher::EVENT_CUSTOMER_UPSERT, (string) $customer_id ) ) {
+			return;
+		}
+		if ( ! $this->scope->includes_user( $customer_id ) ) {
+			return;
+		}
+
+		$this->queue->enqueue(
+			CustomerFlusher::EVENT_CUSTOMER_UPSERT,
+			(string) $customer_id,
+			array(),
+			null,
+			CustomerFlusher::FLUSH_HOOK,
+			CustomerFlusher::AS_GROUP
+		);
+	}
+
+	/** The order's WP customer id, 0 for a guest or an order that cannot be loaded. Test seam. */
+	protected function order_customer_id( int $order_id ): int {
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		return $order instanceof \WC_Order ? (int) $order->get_customer_id() : 0;
+	}
+
+	/** Has this order's buyer already been queued? Test seam. */
+	protected function buyer_marked( int $order_id ): bool {
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		return $order instanceof \WC_Order && (string) $order->get_meta( self::BUYER_QUEUED_META ) !== '';
+	}
+
+	/** Record that this order's buyer was queued. Test seam. */
+	protected function mark_buyer( int $order_id ): void {
+		$order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : false;
+		if ( $order instanceof \WC_Order ) {
+			$order->update_meta_data( self::BUYER_QUEUED_META, '1' );
+			$order->save_meta_data();
+		}
 	}
 
 	/**

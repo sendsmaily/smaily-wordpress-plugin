@@ -287,7 +287,7 @@ class OrderBackfillJob extends AbstractBackfillJob {
 	 * @return array{0: string, 1: array<int, string|int>}
 	 */
 	private function sale_orders_where( array $spec, string $from, string $until ): array {
-		$statuses     = $this->non_sale_status_slugs();
+		$statuses     = self::non_sale_status_slugs();
 		$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
 		return array(
@@ -302,10 +302,12 @@ class OrderBackfillJob extends AbstractBackfillJob {
 	 * (OrderPayloadBuilder::non_sale_wc_statuses). WC order statuses are stored
 	 * WITH the `wc-` prefix; WP core post statuses (draft / auto-draft / trash)
 	 * are stored WITHOUT it — prefix only the WC ones so both forms match.
+	 * Public for the customer scope's buyer query (CustomerScope, CON-246),
+	 * which must read the same sale orders as this import.
 	 *
 	 * @return string[]
 	 */
-	private function non_sale_status_slugs(): array {
+	public static function non_sale_status_slugs(): array {
 		$wp_core = array( 'draft', 'auto-draft', 'trash' );
 		return array_map(
 			static function ( string $status ) use ( $wp_core ): string {

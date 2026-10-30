@@ -27,7 +27,9 @@ use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\ContactSyncMode;
+use Smaily\Connect\Smaily\RecEngine\Backfill\CustomerBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\CustomerScope;
 use Smaily\Connect\Smaily\SubscriberPayloadBuilder;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
@@ -57,6 +59,7 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *     hposActive:         bool,
  *     storeTotals: {
  *       customers: int,
+ *       engineCustomers: int,
  *       orders:    int,
  *       products:  int,
  *     },
@@ -87,7 +90,7 @@ class EnvDetector {
 	 *   cf7Present: bool,
 	 *   wcActive: bool,
 	 *   hposActive: bool,
-	 *   storeTotals: array{customers: int, orders: int, products: int},
+	 *   storeTotals: array{customers: int, engineCustomers: int, orders: int, products: int},
 	 *   rss: array{
 	 *     baseUrl: string,
 	 *     categories: array<int, array{slug: string, name: string}>,
@@ -233,14 +236,29 @@ class EnvDetector {
 	}
 
 	/**
-	 * @return array{customers: int, orders: int, products: int}
+	 * @return array{customers: int, engineCustomers: int, orders: int, products: int}
 	 */
 	private function store_totals(): array {
 		return array(
-			'customers' => $this->customers_count(),
-			'orders'    => $this->orders_count(),
-			'products'  => $this->products_count(),
+			'customers'       => $this->customers_count(),
+			'engineCustomers' => $this->engine_customers_count(),
+			'orders'          => $this->orders_count(),
+			'products'        => $this->products_count(),
 		);
+	}
+
+	/**
+	 * The users the Campaign Intelligence customer import sends — its own
+	 * count (contract §4 customer scope, CON-246), so the Customers panel's
+	 * "N customers to import" is the number the import walks, not every
+	 * WordPress user. 0 without a live database (the unit suite).
+	 */
+	private function engine_customers_count(): int {
+		global $wpdb;
+		if ( ! $wpdb instanceof \wpdb ) {
+			return 0;
+		}
+		return CustomerBackfillJob::count_in_scope( new CustomerScope( new RecEngineSettings() ) );
 	}
 
 	/**
