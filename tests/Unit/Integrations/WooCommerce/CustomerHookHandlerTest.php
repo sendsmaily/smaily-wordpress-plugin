@@ -1,8 +1,9 @@
 <?php
 /**
  * CustomerHookHandler tests — user hooks → customer.upsert rows routed to
- * the customer flush hook, the is_connected gate, the A-filter (every
- * registered user, no role check), and per-request dedupe.
+ * the customer flush hook, the is_connected gate, the §4 customer scope
+ * (CON-246: only an in-scope user is queued), the opt-in meta trigger and
+ * per-request dedupe.
  *
  * @package Smaily\Connect\Tests
  */
@@ -14,7 +15,9 @@ namespace Smaily\Connect\Tests\Unit\Integrations\WooCommerce;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
+use Smaily\Connect\Smaily\RecEngine\CustomerScope;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 
 final class CustomerHookHandlerTest extends TestCase {
@@ -68,16 +71,51 @@ final class CustomerHookHandlerTest extends TestCase {
 		);
 	}
 
-	public function test_a_filter_enqueues_any_user_without_role_check(): void {
-		// The handler never inspects roles — every registered user is enqueued
-		// (consistent with the email-sync handler; see DECISIONS 3.3.3).
+	public function test_a_user_out_of_scope_is_not_enqueued_on_any_hook(): void {
+		// CON-246: an account the contact sync leaves out and that has no
+		// order inside the horizon (e.g. an admin) never reaches the engine.
+		$queue   = $this->fake_queue();
+		$handler = $this->handler( $queue, true, array( 7 ) );
+
+		$handler->on_user_register( 999 );
+		$handler->on_profile_update( 999 );
+		$handler->on_woocommerce_created_customer( 999 );
+		$handler->on_save_account_details( 999 );
+		$handler->on_user_meta_changed( 1, 999, ContactAudience::OPTIN_META );
+
+		self::assertSame( array(), $queue->enqueued );
+	}
+
+	public function test_an_opt_in_meta_change_enqueues_an_in_scope_user(): void {
 		$queue   = $this->fake_queue();
 		$handler = $this->handler( $queue, true );
 
-		$handler->on_user_register( 999 ); // could be an admin; still enqueued.
+		$handler->on_user_meta_changed( 11, 42, ContactAudience::OPTIN_META );
 
-		self::assertCount( 1, $queue->enqueued );
-		self::assertSame( '999', $queue->enqueued[0]['entity_id'] );
+		self::assertSame( array( '42' ), array_column( $queue->enqueued, 'entity_id' ) );
+	}
+
+	public function test_another_meta_key_is_ignored(): void {
+		$queue   = $this->fake_queue();
+		$handler = $this->handler( $queue, true );
+
+		$handler->on_user_meta_changed( 11, 42, 'billing_phone' );
+
+		self::assertSame( array(), $queue->enqueued );
+	}
+
+	public function test_a_user_that_enters_the_scope_later_in_the_request_is_still_enqueued(): void {
+		// The registration form writes the opt-in after user_register: the
+		// first check is out of scope and must not mark the user seen.
+		$queue   = $this->fake_queue();
+		$ids     = new \ArrayObject( array() );
+		$handler = $this->handler_with_scope( $queue, $this->scope_over( $ids ) );
+
+		$handler->on_user_register( 42 );
+		$ids->append( 42 );
+		$handler->on_user_meta_changed( 11, 42, ContactAudience::OPTIN_META );
+
+		self::assertSame( array( '42' ), array_column( $queue->enqueued, 'entity_id' ) );
 	}
 
 	public function test_invalid_user_id_is_ignored(): void {
@@ -119,8 +157,8 @@ final class CustomerHookHandlerTest extends TestCase {
 		};
 	}
 
-	private function handler( IngestQueue $queue, bool $connected ): CustomerHookHandler {
-		$settings = new class( $connected ) extends RecEngineSettings {
+	private function settings( bool $connected ): RecEngineSettings {
+		return new class( $connected ) extends RecEngineSettings {
 			private bool $connected;
 			public function __construct( bool $connected ) {
 				$this->connected = $connected;
@@ -129,7 +167,45 @@ final class CustomerHookHandlerTest extends TestCase {
 				return $this->connected;
 			}
 		};
+	}
 
-		return new CustomerHookHandler( $queue, $settings );
+	/**
+	 * A scope whose answer is a fixed set of user ids; null = every user.
+	 *
+	 * @param int[]|null $in_scope
+	 */
+	private function scope( ?array $in_scope ): CustomerScope {
+		return $in_scope === null ? $this->scope_over( null ) : $this->scope_over( new \ArrayObject( $in_scope ) );
+	}
+
+	/**
+	 * A scope over a set the test can change between calls; null = every user.
+	 *
+	 * @param \ArrayObject<int, int>|null $ids
+	 */
+	private function scope_over( ?\ArrayObject $ids ): CustomerScope {
+		return new class( $this->settings( true ), $ids ) extends CustomerScope {
+			/** @var \ArrayObject<int, int>|null */
+			private ?\ArrayObject $ids;
+			/** @param \ArrayObject<int, int>|null $ids */
+			public function __construct( RecEngineSettings $settings, ?\ArrayObject $ids ) {
+				parent::__construct( $settings );
+				$this->ids = $ids;
+			}
+			public function includes_user( int $user_id ): bool {
+				return $this->ids === null || in_array( $user_id, $this->ids->getArrayCopy(), true );
+			}
+		};
+	}
+
+	/**
+	 * @param int[]|null $in_scope
+	 */
+	private function handler( IngestQueue $queue, bool $connected, ?array $in_scope = null ): CustomerHookHandler {
+		return new CustomerHookHandler( $queue, $this->settings( $connected ), $this->scope( $in_scope ) );
+	}
+
+	private function handler_with_scope( IngestQueue $queue, CustomerScope $scope ): CustomerHookHandler {
+		return new CustomerHookHandler( $queue, $this->settings( true ), $scope );
 	}
 }

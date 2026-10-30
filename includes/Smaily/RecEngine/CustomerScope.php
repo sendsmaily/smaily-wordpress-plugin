@@ -138,7 +138,7 @@ class CustomerScope {
 
 		list( $sql, $args ) = self::buyers_sql( OrderBackfillJob::uses_hpos(), $wpdb->prefix, $since, $user_id );
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- the placeholders are in $sql (buyers_sql()).
 		return $wpdb->get_var( $wpdb->prepare( $sql . ' LIMIT 1', $args ) ) !== null;
 	}
 }

@@ -113,6 +113,29 @@ final class ContactAudienceTest extends TestCase {
 		self::assertSame( 0, $this->audience()->count_audience(), 'And the backfill estimate must say so rather than promising a sync that will not happen.' );
 	}
 
+	public function test_user_id_sql_agrees_with_should_sync_user_per_mode(): void {
+		// The SQL twin the engine customer import pages with (CON-246).
+		$GLOBALS['wpdb'] = (object) array( 'usermeta' => 'wp_usermeta' );
+		try {
+			$this->options[ ContactSyncMode::OPTION_MODE ] = ContactSyncMode::MODE_LEGITIMATE_INTEREST;
+			self::assertSame( array( '1 = 1', array() ), $this->audience()->user_id_sql( 'u.ID' ) );
+
+			$this->options[ ContactSyncMode::OPTION_MODE ] = ContactSyncMode::MODE_CHECKOUT_OPTIN;
+			self::assertSame( array( '0 = 1', array() ), $this->audience()->user_id_sql( 'u.ID' ) );
+
+			$this->options[ ContactSyncMode::OPTION_MODE ] = ContactSyncMode::MODE_CONSENT;
+			list( $sql, $args ) = $this->audience()->user_id_sql( 'u.ID' );
+			self::assertSame( "u.ID IN ( SELECT user_id FROM wp_usermeta WHERE meta_key = %s AND meta_value = '1' )", $sql );
+			self::assertSame( array( ContactAudience::OPTIN_META ), $args );
+
+			$this->options[ ContactSyncMode::OPTION_MODE ]         = ContactSyncMode::MODE_LEGITIMATE_INTEREST;
+			$this->options[ ContactSyncMode::OPTION_SYNC_ENABLED ] = '';
+			self::assertSame( array( '0 = 1', array() ), $this->audience()->user_id_sql( 'u.ID' ), 'Sync switched off → no user, whatever the mode.' );
+		} finally {
+			unset( $GLOBALS['wpdb'] );
+		}
+	}
+
 	private function audience(): ContactAudience {
 		return new ContactAudience( new ContactSyncMode() );
 	}

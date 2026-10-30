@@ -1652,8 +1652,18 @@ repo: a red staleness run is the signal to sync.
     connected, regardless of wizard state.
 - These target **different destinations** (Smaily contact-API vs rec-engine), so
   there's no double-sync conflict. The CustomerHookHandler (rec-engine) uses
-  `is_connected()`; it enqueues all registered users (A-filter, F3-20), matching
-  the email-sync handler's breadth (neither filters by role).
+  `is_connected()`; since CON-246 it enqueues only a user in the engine's
+  customer scope (contract §4: the contact-sync audience, or a sale order
+  inside the history horizon — `RecEngine\CustomerScope`, the same rule the
+  customer import's page query applies). The F3-20 "every registered user"
+  A-filter is superseded. Neither path filters by role. An order of a
+  registered buyer also queues that buyer's `customer` row, once per order
+  (order meta `_smly_rec_buyer_queued`, OrderHookHandler).
+  **Integration-test trap:** a test that expects the live hook to queue a
+  new user must put that user in scope — the default mode is consent, so set
+  `legitimate_interest` (or opt the user in), as `RecEngineCustomersTest`
+  does. `CustomerScope` builds a fresh `ContactAudience` per check, so a mode
+  change through `update_option()` applies at once (no memo to clear).
 - **Abandoned cart is fully on the new path (PRO-1195).** The legacy
   `Cart` class and the `Cron` abandoned-cart passes are gone, and schema
   migration 012 drops the legacy table (CON-182 — after running the one-time

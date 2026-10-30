@@ -1185,6 +1185,10 @@ after W5.
 
 ### F3-20: Customer ingest enqueues every registered user (A-filter)
 
+> **Superseded by CON-246 (2026-10-30):** only a user in the contract §4
+> customer scope is sent — the contact-sync audience, or a sale order inside
+> the history horizon. Kept below as the record of the earlier rule.
+
 **Context:** which WP users should the customer hooks (`user_register`,
 `profile_update`, `woocommerce_created_customer`,
 `woocommerce_save_account_details`) enqueue as rec-engine customers?
@@ -9250,6 +9254,75 @@ fixes (#265); contract §23 (v1.18.0), INT-146. Pinned by
 `tests/Unit/Settings/EmailDesignWorkflowsTest.php`,
 `tests/Unit/Multilingual/RouterTest.php` and
 `tests/Integration/EmailDesignsTest.php` (the mock serves `smaily_subdomain`).
+
+### CON-246 — Only customers in scope reach the engine; a registered buyer's order sends the buyer (2026-10-30)
+
+**Context:** the customer import (`CustomerBackfillJob`) and the live
+customer sync (`CustomerHookHandler`) sent every WordPress user (the F3-20
+A-filter), admins and never-bought accounts included. Contract v1.20.0 §4
+(data minimisation) says: send the customers the connector's own contact
+sync puts into Smaily, plus every customer with an order inside
+`config.history.horizon_months`; leave out the rest.
+**Decision (product owner, 2026-10-29: the scope applies to the import AND
+the live sync; the Magento extension's `EngineCustomerScope` is the model):**
+**supersedes F3-20.**
+- **One rule, `RecEngine\CustomerScope`:** a registered user is in scope
+  when (a) `ContactAudience::should_sync_user()` says yes (the audience the
+  contact import and its estimate use — `sync_enabled()` and the mode
+  included; the checkout-only mode syncs no accounts, so there only (b)
+  applies), or (b) the user has a sale order (status NOT IN
+  `non_sale_wc_statuses()`, F3-42 / CC-9) placed at or after `now −
+  horizon_months`. No role filter.
+- **Import:** the scope is part of the page query and the count — `u.ID IN
+  (audience)` OR `u.ID IN (buyers)`, a semi-join against the active order
+  table (`OrderBackfillJob::table_spec()`: HPOS `wc_orders.customer_id`,
+  legacy `_customer_user` postmeta). `ContactAudience::user_id_sql()` is the
+  SQL twin of `should_sync_user()`. The Customers panel's "N customers to
+  import" reads the same count (`EnvDetector` `storeTotals.engineCustomers`,
+  `CustomerBackfillJob::count_in_scope()`); `storeTotals.customers` stays the
+  WordPress user total the contact import step shows.
+- **Live sync:** the same rule per user before enqueueing. A user is marked
+  seen only when a row is queued, and `added_user_meta` / `updated_user_meta`
+  on `user_newsletter` is a trigger, so an opt-in written after
+  `user_register` still queues the user.
+- **Horizon source:** `HistoryConfig::stored()` — the setup exchange's stored
+  `config.history`, else 60 months — never a ping (it runs on hooks and once
+  per import batch). The orders import keeps reading the ping at its start
+  (CON-245); the two differ only while a ping-only change has not reached the
+  stored block.
+- **Buyer row:** `OrderHookHandler` queues the registered buyer's
+  `customer.upsert` (entity = the WP user id, the `external_id` the builder
+  sends) right after it queues the order, gated like the order enqueue
+  (`is_connected()`, a sale-state change). Once per order: order meta
+  `_smly_rec_buyer_queued` is written the first time. No row when a pending
+  `customer.upsert` for that user already waits (`IngestQueue::
+  has_pending_for()` — the waiting row is built fresh at send), for a guest,
+  or for a user out of scope.
+**Rationale:** the contract's rule and data minimisation: an account that
+never bought and never subscribed (an admin, a staff login) is no customer
+of the store, and the engine cannot use it. The scope in the SQL keeps the
+import from reading those accounts at all and keeps the progress total true.
+Without the buyer row, an account that was out of scope until its first
+order would never reach the engine.
+**Alternatives:** a per-row PHP check in the import — rejected: it reads and
+counts every account, and the total would not match what is sent. A ping on
+every hook for the horizon — rejected: a request per profile save. A buyer
+row on every status change — rejected: the brief's "once per order", and the
+engine already gets the order. A flush-time scope check — not taken: the
+brief puts the check before enqueueing.
+**Out of scope:** guests (visitor token), deleting already-sent out-of-scope
+customers from the engine, the import sequence on connect (CON-247) and §25
+progress (CON-248).
+**Relationships:** contract v1.20.0 §4, §25; supersedes F3-20; F3-42 (status
+denylist), F3-48 (ContactAudience), PRO-1742 (`sync_enabled()`), CON-245
+(HistoryConfig, horizon arithmetic), PRO-3435 (both storages in CI). Pinned
+by `tests/Unit/Smaily/RecEngine/CustomerScopeTest.php`,
+`tests/Unit/Integrations/WooCommerce/CustomerHookHandlerTest.php`,
+`tests/Unit/Integrations/WooCommerce/OrderHookHandlerBuyerTest.php`,
+`tests/Unit/Smaily/ContactAudienceTest.php`,
+`tests/Integration/RecEngineCustomerBackfillTest.php`,
+`tests/Integration/RecEngineCustomersTest.php` and
+`tests/Integration/RecEngineOrderBuyerCustomerTest.php`.
 
 ## How to keep this document going
 

@@ -70,14 +70,15 @@ class CustomerBackfillJob extends AbstractBackfillJob {
 	protected function fetch_ids_after( int $after_id, int $limit ): array {
 		global $wpdb;
 		list( $where, $args ) = $this->scope->where_sql( 'u.ID', time() );
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// The scope's own placeholders sit in $where, between the two here.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 		$ids = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT u.ID FROM {$wpdb->users} u WHERE u.ID > %d AND {$where} ORDER BY u.ID ASC LIMIT %d",
 				array_merge( array( $after_id ), $args, array( $limit ) )
 			)
 		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 
 		return array_map( 'intval', $ids );
 	}
