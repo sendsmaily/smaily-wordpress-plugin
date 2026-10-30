@@ -1468,6 +1468,10 @@ td code{white-space:nowrap}
         <span class="k">The last five years, newest first</span>
         <p>The Orders import brings in the orders of the <strong>history window Campaign Intelligence sets</strong> — by default the last <strong>60 months</strong> — newest first: the last 18 months go first, then the older orders. An older order is not sent, and an order placed while the import runs reaches the engine through the ongoing sync instead. It counts only real sales: draft, pending, failed and trashed orders are skipped (they aren't sales), and a custom shipping status like "shipped" still counts.</p>
       </div>
+      <div class="note tip">
+        <span class="k">Which customers are sent</span>
+        <p>Campaign Intelligence gets only the customers it can use: every customer your <a href="#set-subscribers">contact sync</a> sends to Smaily (with <strong>Subscribers only</strong>, the customers who subscribed; with <strong>All customers</strong>, every registered customer), plus every registered customer with an order inside the same history window. Any other account — for example a staff or admin login that never bought and never subscribed — is not sent. The <strong>Customers</strong> import counts and sends exactly these, and the ongoing sync follows the same rule: a customer who subscribes, or places an order, is sent then. Guest buyers reach the engine with their orders.</p>
+      </div>
     </div>
     <div data-lang="et">
       <p>Importe on neli:</p>
@@ -1480,6 +1484,10 @@ td code{white-space:nowrap}
       <div class="note tip">
         <span class="k">Viimased viis aastat, uuemad enne</span>
         <p>Tellimuste import toob sisse <strong>Campaign Intelligence'i määratud ajaloo akna</strong> tellimused — vaikimisi viimased <strong>60 kuud</strong> — uuemad enne: kõigepealt viimased 18 kuud, siis vanemad tellimused. Vanemat tellimust ei saadeta ja impordi ajal tehtud tellimus jõuab mootorisse jooksva sünkroonimisega. See loeb ainult päris müügid: mustand‑, ootel, ebaõnnestunud ja prügikasti‑tellimused jäetakse vahele (need pole müügid), aga kohandatud tarnestaatus nagu "shipped" loeb ikka.</p>
+      </div>
+      <div class="note tip">
+        <span class="k">Milliseid kliente saadetakse</span>
+        <p>Campaign Intelligence saab ainult kliendid, keda ta kasutada saab: iga kliendi, kelle su <a href="#set-subscribers">kontaktide sünkroonimine</a> Smailysse saadab (valikuga <strong>Subscribers only</strong> uudiskirja tellinud kliendid, valikuga <strong>All customers</strong> iga registreeritud klient), ja lisaks iga registreeritud kliendi, kellel on sama ajaloo akna sees tellimus. Muud kontot — näiteks töötaja või administraatori kontot, mis pole kunagi ostnud ega tellinud — ei saadeta. <strong>Customers</strong> import loeb ja saadab täpselt need ning jooksev sünkroonimine järgib sama reeglit: klient, kes tellib uudiskirja või teeb tellimuse, saadetakse siis. Külalisostjad jõuavad mootorisse koos oma tellimustega.</p>
       </div>
     </div>
   </div>
@@ -1595,7 +1603,7 @@ td code{white-space:nowrap}
         <li><strong>Email‑link attribution</strong> — it is functional and always runs. The visitor token from a Smaily email link is stored, but the Recommendations block uses it only with consent.</li>
         <li><strong>Contact sync to Smaily</strong> — it follows your consent preset (see <a href="#set-subscribers">Contacts</a>).</li>
         <li><strong>Automated emails</strong> — they have their own settings.</li>
-        <li><strong>Orders and customers sent to Campaign Intelligence</strong> — they always sync. Smaily applies a shopper's profiling objection.</li>
+        <li><strong>Orders and customers sent to Campaign Intelligence</strong> — they always sync: the orders, and the customers your contact sync sends to Smaily plus every customer with an order in the history window (see <a href="#imp-what">Which customers are sent</a>). Smaily applies a shopper's profiling objection.</li>
       </ul>
       <div class="note">
         <span class="k">WordPress, not app permissions</span>
@@ -1621,7 +1629,7 @@ td code{white-space:nowrap}
         <li><strong>E‑kirja lingi atributsioon</strong> — see on funktsionaalne ja töötab alati. Smaily e‑kirja lingist tulnud külastaja‑token salvestatakse, aga soovituste plokk kasutab seda ainult nõusolekuga.</li>
         <li><strong>Kontaktide sünkroonimine Smailysse</strong> — see järgib sinu nõusoleku eelseadistust (vt <a href="#set-subscribers">Kontaktid</a>).</li>
         <li><strong>Automaatsed e‑kirjad</strong> — neil on oma seaded.</li>
-        <li><strong>Campaign Intelligence'isse saadetavad tellimused ja kliendid</strong> — need sünkivad alati. Ostja profileerimise vastuväidet rakendab Smaily.</li>
+        <li><strong>Campaign Intelligence'isse saadetavad tellimused ja kliendid</strong> — need sünkivad alati: tellimused ning kliendid, kelle su kontaktide sünkroonimine Smailysse saadab, ja lisaks iga klient, kellel on ajaloo akna sees tellimus (vt <a href="#imp-what">Milliseid kliente saadetakse</a>). Ostja profileerimise vastuväidet rakendab Smaily.</li>
       </ul>
       <div class="note">
         <span class="k">WordPress, mitte äpi‑õigused</span>

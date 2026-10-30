@@ -225,6 +225,30 @@ class IngestQueue {
 		return $found !== null;
 	}
 
+	/**
+	 * Is a row of this event type for this entity still pending (due or
+	 * retry-parked)? Lets a caller skip queuing a duplicate that the waiting
+	 * row will cover — the flusher builds both from current state at send.
+	 */
+	public function has_pending_for( string $event_type, string $entity_id ): bool {
+		global $wpdb;
+
+		$table = $this->table_name();
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$found = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE status = %s AND event_type = %s AND entity_id = %s LIMIT 1",
+				self::STATUS_PENDING,
+				$event_type,
+				$entity_id
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+
+		return $found !== null;
+	}
+
 	/** The newest row id of an event type, 0 when it has none. */
 	public function last_id( string $event_type ): int {
 		global $wpdb;

@@ -53,6 +53,8 @@ export interface BootPayload {
     hposActive: boolean;
     storeTotals: {
       customers: number;
+      /** Absent from a boot blob written before CON-246. */
+      engineCustomers?: number;
       orders: number;
       products: number;
     };
@@ -194,7 +196,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
         detectedLanguages: [],
         elementorPresent: false,
         cf7Present: false,
-        storeTotals: { customers: 0, orders: 0, products: 0 },
+        storeTotals: { customers: 0, engineCustomers: 0, orders: 0, products: 0 },
         rss: null,
         docsUrl: '',
         orderStatuses: [],
@@ -268,7 +270,10 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       detectedLanguages: env.detectedLanguages,
       elementorPresent: env.elementorPresent,
       cf7Present: env.cf7Present,
-      storeTotals: env.storeTotals,
+      storeTotals: {
+        ...env.storeTotals,
+        engineCustomers: env.storeTotals.engineCustomers ?? 0,
+      },
       rss: env.rss ?? null,
       docsUrl: env.docsUrl ?? '',
       orderStatuses: env.orderStatuses ?? [],

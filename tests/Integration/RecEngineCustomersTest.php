@@ -14,6 +14,8 @@ namespace Smaily\Connect\Tests\Integration;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\ContactAudience;
+use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
@@ -51,6 +53,9 @@ final class RecEngineCustomersTest extends TestCase {
 		RecEngineMockServer::reset();
 		CustomerHookHandler::reset_seen();
 		$this->connect();
+		// Every registered user is in the contact audience in this mode, so
+		// the live hook queues each new user (the §4 customer scope, CON-246).
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_LEGITIMATE_INTEREST );
 	}
 
 	protected function tearDown(): void {
@@ -58,7 +63,41 @@ final class RecEngineCustomersTest extends TestCase {
 			wp_delete_user( $user_id );
 		}
 		$this->created_users = array();
+		delete_option( ContactSyncMode::OPTION_MODE );
 		parent::tearDown();
+	}
+
+	public function test_a_new_account_out_of_scope_is_not_queued(): void {
+		// CON-246: in the consent mode (the default) an account that has not
+		// subscribed and has no order — an administrator here — never reaches
+		// the engine.
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+		$queue = new IngestQueue();
+		$this->truncate_customer_rows();
+
+		$this->make_user( 'cust-admin-scope@example.test', 'administrator' );
+
+		self::assertSame( array(), $queue->pending( 10, array( CustomerFlusher::EVENT_CUSTOMER_UPSERT ) ) );
+	}
+
+	public function test_a_subscription_puts_the_account_in_scope(): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+		$queue = new IngestQueue();
+		$this->truncate_customer_rows();
+		$user_id = $this->make_user( 'cust-optin-scope@example.test', 'customer' );
+		self::assertSame( array(), $queue->pending( 10, array( CustomerFlusher::EVENT_CUSTOMER_UPSERT ) ) );
+
+		update_user_meta( $user_id, ContactAudience::OPTIN_META, '1' );
+
+		$pending = $queue->pending( 10, array( CustomerFlusher::EVENT_CUSTOMER_UPSERT ) );
+		self::assertCount( 1, $pending, 'The opt-in meta write queues the customer.' );
+		self::assertSame( (string) $user_id, $pending[0]['entity_id'] );
+	}
+
+	private function truncate_customer_rows(): void {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}smly_rec_event_queue WHERE event_type = %s", CustomerFlusher::EVENT_CUSTOMER_UPSERT ) );
 	}
 
 	public function test_d6_partial_success_marks_errored_row_failed_and_rest_sent(): void {
@@ -154,7 +193,7 @@ final class RecEngineCustomersTest extends TestCase {
 		return $this->make_user( $email );
 	}
 
-	private function make_user( string $email ): int {
+	private function make_user( string $email, string $role = 'customer' ): int {
 		$existing = get_user_by( 'email', $email );
 		if ( $existing instanceof \WP_User ) {
 			wp_delete_user( $existing->ID );
@@ -167,7 +206,7 @@ final class RecEngineCustomersTest extends TestCase {
 				'user_pass'  => wp_generate_password( 16 ),
 				'first_name' => 'Test',
 				'last_name'  => 'Customer',
-				'role'       => 'customer',
+				'role'       => $role,
 			)
 		);
 
