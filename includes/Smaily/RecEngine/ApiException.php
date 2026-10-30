@@ -56,10 +56,10 @@ final class ApiException extends Exception {
 		?int $retry_after = null
 	) {
 		parent::__construct( $message, $http_status );
-		$this->error_code = $error_code;
-		$this->request_id = isset( $body['request_id'] ) ? (string) $body['request_id'] : null;
-		$this->details    = ( isset( $body['details'] ) && is_array( $body['details'] ) ) ? $body['details'] : array();
-		$this->errors     = ( isset( $body['errors'] ) && is_array( $body['errors'] ) ) ? $body['errors'] : array();
+		$this->error_code  = $error_code;
+		$this->request_id  = isset( $body['request_id'] ) ? (string) $body['request_id'] : null;
+		$this->details     = ( isset( $body['details'] ) && is_array( $body['details'] ) ) ? $body['details'] : array();
+		$this->errors      = ( isset( $body['errors'] ) && is_array( $body['errors'] ) ) ? $body['errors'] : array();
 		$this->retry_after = ( $retry_after !== null && $retry_after > 0 ) ? $retry_after : null;
 	}
 
