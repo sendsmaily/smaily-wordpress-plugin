@@ -69,6 +69,11 @@ final class RecEngineOrderBuyerCustomerTest extends TestCase {
 
 	public function test_a_registered_buyers_order_queues_the_customer_once_per_order(): void {
 		$buyer = $this->make_user( 'buyer-once@example.test' );
+		// WooCommerce marks a buyer "paying" on the first completed order and
+		// saves the profile, and that profile_update queues an in-scope customer
+		// through the live customer sync — a different trigger. Mark the buyer
+		// paying up front so only the order hook's buyer row is counted here.
+		update_user_meta( $buyer, 'paying_customer', 1 );
 		self::assertSame( 0, $this->rows( CustomerFlusher::EVENT_CUSTOMER_UPSERT, $buyer ), 'Out of scope before the order.' );
 
 		$order_id = $this->make_order( $buyer, 'pending' );
