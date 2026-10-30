@@ -260,6 +260,24 @@ final class RecEngineMockServer {
 	}
 
 	/** Zero the request counter so a test can assert "no request since here". */
+	/**
+	 * Play an engine §24 refusal (CON-228): 404 (console entry switched off),
+	 * 401, 403 (`tenant_inactive`) or 429 (with `Retry-After: 37`); 0 answers
+	 * the link again.
+	 */
+	public function set_console_entry_status( int $status ): void {
+		$this->write_state( array( 'console_entry_status' => $status ) );
+	}
+
+	/**
+	 * Every §24 call the engine received, each `{email}`.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function console_entry_requests(): array {
+		return (array) ( $this->state()['console_entry_requests'] ?? array() );
+	}
+
 	public function reset_request_count(): void {
 		$this->write_state( array( 'request_count' => 0 ) );
 	}

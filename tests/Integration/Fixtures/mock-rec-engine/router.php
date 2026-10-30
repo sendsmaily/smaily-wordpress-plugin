@@ -1957,6 +1957,71 @@ if ( empty( $state['email_designs_unavailable'] ) && $method === 'POST' && preg_
 	);
 }
 
+// §24 console entry (contract v1.19.0, CON-228). `{email}` body, max 254;
+// 200 `{url, expires_at}` for every valid request (`Cache-Control: no-store`,
+// sent above). The engine has the route switched off until it announces it;
+// a test plays that, and the other refusals, with `console_entry_status`
+// (404 not_found, 401 api_key_revoked, 403 tenant_inactive, 429
+// rate_limit_exceeded + Retry-After). Every call is counted with the email it
+// carried, so a test can prove one press = one call with the admin's email.
+// The setup exchange above leaves the `console_entry` map key out (the engine
+// returns it only while console entry is on), so the plugin's fallback path
+// is what reaches this route.
+if ( $method === 'POST' && $path === '/api/v1/console/entry' ) {
+	require_bearer_auth();
+
+	$body  = json_decode( (string) file_get_contents( 'php://input' ), true );
+	$email = is_array( $body ) && isset( $body['email'] ) ? $body['email'] : null;
+
+	$requests   = ( isset( $state['console_entry_requests'] ) && is_array( $state['console_entry_requests'] ) )
+		? $state['console_entry_requests']
+		: array();
+	$requests[] = array( 'email' => $email );
+	$state['console_entry_requests'] = $requests;
+	save_state( $state_file, $state );
+
+	$forced = isset( $state['console_entry_status'] ) ? (int) $state['console_entry_status'] : 0;
+	if ( $forced === 404 ) {
+		reply( 404, array( 'error' => 'not_found', 'message' => 'Not found.' ) );
+	}
+	if ( $forced === 401 ) {
+		reply( 401, array( 'error' => 'api_key_revoked', 'message' => 'API key has been revoked.' ) );
+	}
+	if ( $forced === 403 ) {
+		reply(
+			403,
+			array(
+				'error'         => 'tenant_inactive',
+				'message'       => 'This tenant is currently deactivated. Contact engine administrator.',
+				'tenant_status' => 'suspended',
+			)
+		);
+	}
+	if ( $forced === 429 ) {
+		header( 'Retry-After: 37' );
+		reply( 429, array( 'error' => 'rate_limit_exceeded', 'message' => 'Too many requests.' ) );
+	}
+
+	if ( ! is_string( $email ) || strlen( $email ) > 254 || filter_var( trim( $email ), FILTER_VALIDATE_EMAIL ) === false ) {
+		reply(
+			400,
+			array(
+				'error'  => 'validation_failed',
+				'errors' => array( array( 'field' => 'email', 'message' => 'Must be an email.' ) ),
+			)
+		);
+	}
+
+	$engine_base = sprintf( 'http://%s', $_SERVER['HTTP_HOST'] ?? 'localhost:9876' );
+	reply(
+		200,
+		array(
+			'url'        => $engine_base . '/console-entry#g=seg_' . bin2hex( random_bytes( 8 ) ),
+			'expires_at' => gmdate( 'Y-m-d\\TH:i:s.000\\Z', time() + 300 ),
+		)
+	);
+}
+
 // Fallback.
 reply(
 	404,

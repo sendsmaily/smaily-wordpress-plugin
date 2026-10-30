@@ -39,6 +39,7 @@ defined by the endpoint classes in `includes/REST/` and consumed by
 | GET | `/rec-engine/automations/catalog` | `AutomationsEndpoint` | Proxy: engine §11 trigger catalog (no cache — engine is the source of truth) |
 | GET | `/rec-engine/automations/config` | `AutomationsEndpoint` | Proxy: engine §12 config |
 | PUT | `/rec-engine/automations/config` | `AutomationsEndpoint` | Proxy: engine §13 config PUT (engine 422 passes through verbatim; engine 401 → 502 `api_key_rejected`) |
+| POST | `/rec-engine/console-entry` | `ConsoleEntryEndpoint` | "Open Campaign Intelligence" (CON-228): engine §24 with the signed-in admin's own email → a one-time console link `{url, expires_at}`; POST only, nonce checked in the route, one single-attempt engine call per click, never stored, `no-store, private`; engine 404 → `404 not_available` + `console_url`, 401 → `502 api_key_rejected`, 403 → `403 tenant_inactive`, 429 → `429 rate_limited` + `retry_after` |
 | POST | `/relay` | `BeaconEndpoint` | **Public** browse-event proxy — see §1.1 |
 | POST | `/land` | `LandEndpoint` | **Public**: sets the email-click attribution cookies with `Set-Cookie` from the storefront scripts' posted values (CON-250; `LandingCapture` rules; same-origin only, per-address limit, `no-store`) |
 
