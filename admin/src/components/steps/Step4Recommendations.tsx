@@ -10,6 +10,7 @@ import { cancelBackfill } from '../../api/backfill';
 import { type WizardAction, type WizardState } from '../../state/types';
 import { Banner, Button, Card, Input, Label, Toggle } from '../primitives';
 import { BackfillPanel } from '../BackfillPanel';
+import { OpenConsoleButton } from './OpenConsoleButton';
 import { __, sprintf } from '@admin/lib/i18n';
 
 export interface Step4RecommendationsProps {
@@ -102,6 +103,7 @@ export function Step4Recommendations({
           state={state}
           dispatch={dispatch}
           catalogImportDelay={catalogImportDelay}
+          inSettings={inSettings}
         />
       ) : (
         <SetupCard dispatch={dispatch} onConnected={setCatalogImportDelay} />
@@ -246,10 +248,12 @@ function ConnectedView({
   state,
   dispatch,
   catalogImportDelay,
+  inSettings,
 }: {
   state: WizardState;
   dispatch: Dispatch<WizardAction>;
   catalogImportDelay: number | null;
+  inSettings: boolean;
 }): React.JSX.Element {
   type FeatureKey = keyof WizardState['recEngineFeatures'];
 
@@ -361,6 +365,14 @@ function ConnectedView({
           >
             {pingMessage}
           </Banner>
+        )}
+        {/* CON-228: Settings only, and only while connected (this view is
+            the connected one). The page itself needs manage_options, and
+            the route checks it again with the session and the nonce. */}
+        {inSettings && (
+          <div className="mt-4">
+            <OpenConsoleButton />
+          </div>
         )}
       </Card>
 

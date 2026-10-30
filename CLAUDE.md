@@ -1254,8 +1254,9 @@ header-proof** (Magento's PRO-3575 hardening, mirrored). (1) `Client::ingest_bro
 ONE attempt bounded by `Client::BROWSE_TIMEOUT_SECONDS` (3 s, the WHOLE request, connect
 included — WP's `timeout` is curl's total timeout), `redirection` 0, no retry, no back-off,
 no Retry-After wait — whatever `$max_attempts` the client was built with. It is the only
-browse call, and `/relay` its only caller; the only other call in that single-attempt mode is
-`Client::store_uninstall()` (§16 disconnect, CON-219 — the admin waits on it), and every
+browse call, and `/relay` its only caller; the only other calls in that single-attempt mode
+are `Client::store_uninstall()` (§16 disconnect, CON-219) and `Client::console_entry()`
+(§24, the "Open Campaign Intelligence" button, CON-228) — the admin waits on both — and every
 other engine call keeps the retry policy
 (don't route a flusher/backfill through `ingest_browse`'s single-attempt mode, and don't
 "restore" retries on it). A failure is a 502 and a lost batch — by design. (2) The rate

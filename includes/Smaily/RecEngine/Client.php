@@ -36,9 +36,10 @@ defined( 'ABSPATH' ) || exit;
  *   - 5xx (500/502/503/504) → same backoff, max 5 attempts.
  *   - 4xx (non-429) → no retry, throw ApiException with the body's
  *     error_code so the caller can branch on `api_key_revoked` etc.
- *   - Exception: ingest_browse() (the storefront `/relay` forward) and
- *     store_uninstall() (Disconnect / uninstall, CON-219) make ONE short
- *     attempt and never retry or wait (PRO-3620).
+ *   - Exception: ingest_browse() (the storefront `/relay` forward),
+ *     store_uninstall() (Disconnect / uninstall, CON-219) and
+ *     console_entry() (the "Open Campaign Intelligence" button, CON-228)
+ *     make ONE short attempt and never retry or wait (PRO-3620).
  *
  * Version handling (contract §3): every response carries
  * `X-Engine-Version`. The client warns (error_log) on a major-version
@@ -130,6 +131,9 @@ class Client {
 	// Map key `store_uninstall`; a connection exchanged before v1.14.0 has no
 	// such key, so this fallback serves it.
 	public const PATH_STORE_UNINSTALL = '/api/v1/store/uninstall';
+	// §24 console entry (v1.19.0, CON-228). Map key `console_entry`, which the
+	// engine returns only while console entry is switched on.
+	public const PATH_CONSOLE_ENTRY = '/api/v1/console/entry';
 
 	/** Default in-request retry ceiling — generous for one-shot calls (ping, setup). */
 	public const DEFAULT_MAX_ATTEMPTS = 5;
@@ -624,6 +628,26 @@ class Client {
 		return $this->request_url( 'POST', $this->resolve_url( 'store_uninstall', self::PATH_STORE_UNINSTALL ), null, true );
 	}
 
+	/**
+	 * A one-time link that opens the store's Campaign Intelligence console
+	 * (§24 console entry, CON-228) for the shop admin who pressed "Open
+	 * Campaign Intelligence". `$email` is that admin's own email, never a
+	 * customer's. The answer is `{url, expires_at}` for every valid request:
+	 * the console page, not the plugin, decides who gets in.
+	 *
+	 * The admin waits on it and each press must cost exactly one engine call,
+	 * so it is ONE attempt bounded by BROWSE_TIMEOUT_SECONDS, no redirect, no
+	 * retry and no Retry-After wait (as store_uninstall()). The link is never
+	 * stored or logged here.
+	 *
+	 * @return array<string, mixed> `{url, expires_at}`.
+	 *
+	 * @throws ApiException On 4xx (404 while console entry is off) / 5xx or network failure.
+	 */
+	public function console_entry( string $email ): array {
+		return $this->request_url( 'POST', $this->resolve_url( 'console_entry', self::PATH_CONSOLE_ENTRY ), array( 'email' => $email ), true );
+	}
+
 	// ---------------------------------------------------------------
 	// Private request engine.
 	// ---------------------------------------------------------------
@@ -693,7 +717,7 @@ class Client {
 	 * @param bool                      $single_attempt One attempt bounded by BROWSE_TIMEOUT_SECONDS,
 	 *                                                  no redirect, no retry and no Retry-After wait
 	 *                                                  (ingest_browse(), PRO-3620; store_uninstall(),
-	 *                                                  CON-219).
+	 *                                                  CON-219; console_entry(), CON-228).
 	 *
 	 * @return array<string, mixed>
 	 *
@@ -771,7 +795,9 @@ class Client {
 				$this->record_tenant_refusal( $error_code );
 			}
 
-			throw new ApiException( $status, $error_code, $message, $decoded );
+			$retry_after = $status === 429 ? (int) wp_remote_retrieve_header( $response, 'retry-after' ) : 0;
+
+			throw new ApiException( $status, $error_code, $message, $decoded, $retry_after > 0 ? $retry_after : null );
 		}
 	}
 

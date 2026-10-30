@@ -1756,6 +1756,7 @@ msgid "Connect Campaign Intelligence to unlock"
 msgstr ""
 
 #: admin/src/components/steps/EngineAutomationsSection.tsx:67
+#: admin/src/components/steps/OpenConsoleButton.tsx:63
 msgid "Open Campaign Intelligence"
 msgstr ""
 
@@ -3107,6 +3108,7 @@ msgid "products"
 msgstr ""
 
 #: admin/src/components/steps/EmailDesigns.tsx:102
+#: admin/src/components/steps/OpenConsoleButton.tsx:36
 msgid "Your browser blocked the new tab. Allow pop-ups for this page and try again."
 msgstr ""
 
@@ -3200,4 +3202,42 @@ msgstr ""
 #: admin/src/components/steps/DiscountCodeSetting.tsx:112
 #, js-format
 msgid "From %1$d to %2$d days. The code works until the end of that day in the store’s timezone, and never after the coupon’s own expiry date."
+msgstr ""
+
+#: includes/REST/ConsoleEntryEndpoint.php:93
+msgid "Your session has expired. Reload the page and try again."
+msgstr ""
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:71
+msgid "Opening Campaign Intelligence from the plugin is not available yet. Open the console and sign in there:"
+msgstr ""
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:77
+msgid "Opening Campaign Intelligence from the plugin is not available yet."
+msgstr ""
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:88
+msgid "Campaign Intelligence did not accept this store’s connection. Disconnect here and connect again with a new setup link from Campaign Intelligence."
+msgstr ""
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:90
+msgid "This store is no longer active in Campaign Intelligence."
+msgstr ""
+
+#. translators: %d is a number of seconds.
+#: admin/src/components/steps/OpenConsoleButton.tsx:95
+#, js-format
+msgid "Too many attempts. Try again in %d seconds."
+msgstr ""
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:98
+msgid "Too many attempts. Try again in a minute."
+msgstr ""
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:100
+msgid "Your WordPress user has no valid email address. Add one to your profile and try again."
+msgstr ""
+
+#: admin/src/components/steps/OpenConsoleButton.tsx:102
+msgid "Campaign Intelligence could not be opened. Try again in a minute."
 msgstr ""

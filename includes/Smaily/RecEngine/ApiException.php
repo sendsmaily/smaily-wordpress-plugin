@@ -42,21 +42,35 @@ final class ApiException extends Exception {
 	private array $details;
 	/** @var array<int, mixed> */
 	private array $errors;
+	private ?int $retry_after;
 
 	/**
-	 * @param array<string, mixed> $body Parsed JSON body from the engine response, if any.
+	 * @param array<string, mixed> $body        Parsed JSON body from the engine response, if any.
+	 * @param int|null             $retry_after A 429's `Retry-After` in seconds, when the engine sent one.
 	 */
 	public function __construct(
 		int $http_status,
 		string $error_code,
 		string $message,
-		array $body = array()
+		array $body = array(),
+		?int $retry_after = null
 	) {
 		parent::__construct( $message, $http_status );
 		$this->error_code = $error_code;
 		$this->request_id = isset( $body['request_id'] ) ? (string) $body['request_id'] : null;
 		$this->details    = ( isset( $body['details'] ) && is_array( $body['details'] ) ) ? $body['details'] : array();
 		$this->errors     = ( isset( $body['errors'] ) && is_array( $body['errors'] ) ) ? $body['errors'] : array();
+		$this->retry_after = ( $retry_after !== null && $retry_after > 0 ) ? $retry_after : null;
+	}
+
+	/**
+	 * The `Retry-After` seconds of a final 429, or null when the engine sent
+	 * none (or the failure was not a 429). Read by a caller that only tells
+	 * the admin when to try again (CON-228); the retry loop reads the header
+	 * itself.
+	 */
+	public function retry_after(): ?int {
+		return $this->retry_after;
 	}
 
 	public function error_code(): string {

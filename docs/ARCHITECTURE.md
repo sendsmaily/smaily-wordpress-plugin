@@ -281,7 +281,10 @@ Subscribers (sync mode + backfill) → WooCommerce (automations incl. engine-run
 automations section) → Recommendations (engine setup-token exchange) →
 Integrations → Done. The Settings view reuses the same step components as tabs
 and adds the Event Log (queue observability, F3-44 request/response details,
-retry).
+retry). The Settings engine connection card also has "Open Campaign
+Intelligence" (CON-228): a blank tab opened in the click, then a one-time
+console link from `POST /rec-engine/console-entry` (engine §24, the signed-in
+admin's own email, never stored).
 
 Gutenberg blocks live separately in `blocks/` (`newsletter-signup`,
 `checkout-optin`, `landingpage`) with their own `@wordpress/scripts` build.
