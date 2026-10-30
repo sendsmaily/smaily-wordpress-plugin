@@ -66,13 +66,6 @@ export const DEFAULT_URL_PARAMS: AttributionUrlParams = {
   context: 'smaily_ctx',
 };
 
-/**
- * The field names the `/land` route reads: the link's default param names,
- * which `LandingCapture::resolve()` reads, whatever the engine config calls
- * the params in the URL.
- */
-const LAND_FIELDS: AttributionUrlParams = { ...DEFAULT_URL_PARAMS };
-
 export const DEFAULT_TTL_DAYS: AttributionTtlDays = { visitor: 365, recId: 30, context: 30 };
 
 /**
@@ -158,6 +151,11 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
   const taken = new Set<string>();
   const mapping: Array<{
     param: string;
+    /**
+     * The field name the `/land` route reads: the link's default param name,
+     * which `LandingCapture::resolve()` reads, whatever the engine config
+     * calls the param in the URL.
+     */
     field: string;
     cookie: string;
     ttl: number;
@@ -165,14 +163,14 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
   }> = [
     {
       param: config.urlParams.visitorToken,
-      field: LAND_FIELDS.visitorToken,
+      field: DEFAULT_URL_PARAMS.visitorToken,
       cookie: config.cookieNames.visitor,
       ttl: config.cookieTtlDays.visitor,
       isValid: (v) => VISITOR_TOKEN_PATTERN.test(v),
     },
     {
       param: config.urlParams.recId,
-      field: LAND_FIELDS.recId,
+      field: DEFAULT_URL_PARAMS.recId,
       cookie: config.cookieNames.recId,
       ttl: config.cookieTtlDays.recId,
       // A rec id that isn't a UUID is not one the engine will accept on the
@@ -182,7 +180,7 @@ export function captureAttributionParams(config: AttributionConfig): boolean {
     },
     {
       param: config.urlParams.context,
-      field: LAND_FIELDS.context,
+      field: DEFAULT_URL_PARAMS.context,
       cookie: config.cookieNames.context,
       ttl: config.cookieTtlDays.context,
       // Context cookie rule (contract v1.9.0): a context is set only together
