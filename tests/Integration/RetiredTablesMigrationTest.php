@@ -82,7 +82,7 @@ final class RetiredTablesMigrationTest extends TestCase {
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ), 'A fresh install must not create the legacy abandoned-cart table.' );
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::VISITOR_TABLE ), 'A fresh install must not create smly_rec_visitor.' );
 		self::assertSame( $this->highest_migration(), (int) get_option( Constants::OPTION_SCHEMA_VERSION ) );
-		self::assertSame( 12, $this->highest_migration(), 'Migration 012 is the drop.' );
+		self::assertStringEndsWith( '012-drop-retired-tables.php', ( new Migrator() )->discover()[12] ?? '', 'Migration 012 is the drop.' );
 	}
 
 	public function test_an_update_drains_the_legacy_carts_then_drops_both_tables(): void {
@@ -94,7 +94,7 @@ final class RetiredTablesMigrationTest extends TestCase {
 
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ), 'The update drops the legacy abandoned-cart table.' );
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::VISITOR_TABLE ), 'The update drops smly_rec_visitor.' );
-		self::assertSame( 12, (int) get_option( Constants::OPTION_SCHEMA_VERSION ) );
+		self::assertSame( $this->highest_migration(), (int) get_option( Constants::OPTION_SCHEMA_VERSION ), 'Migration 012 and every later one ran.' );
 		self::assertNotNull( $this->tracker_row( (string) $user ), 'The in-flight legacy cart was drained into the tracker before the drop.' );
 		self::assertFalse( get_option( self::DRAINED_OPTION ), 'The drain stamp is removed with the table it guarded.' );
 	}
@@ -119,11 +119,11 @@ final class RetiredTablesMigrationTest extends TestCase {
 		update_option( Constants::OPTION_SCHEMA_VERSION, 11, false );
 		$applied = ( new Migrator() )->migrate();
 
-		self::assertSame( array( 12 ), $applied );
+		self::assertSame( range( 12, $this->highest_migration() ), $applied, 'Migration 012 and every later one run again, cleanly (013 is a dbDelta no-op on a table that has its column).' );
 		self::assertSame( '', $wpdb->last_error );
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ) );
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::VISITOR_TABLE ) );
-		self::assertSame( 12, (int) get_option( Constants::OPTION_SCHEMA_VERSION ) );
+		self::assertSame( $this->highest_migration(), (int) get_option( Constants::OPTION_SCHEMA_VERSION ), 'Migration 012 and every later one ran.' );
 	}
 
 	public function test_without_the_cart_tracker_nothing_is_dropped_and_the_next_update_retries(): void {
@@ -152,7 +152,7 @@ final class RetiredTablesMigrationTest extends TestCase {
 		Bootstrap::instance()->maybe_run_upgrade();
 
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ) );
-		self::assertSame( 12, (int) get_option( Constants::OPTION_SCHEMA_VERSION ) );
+		self::assertSame( $this->highest_migration(), (int) get_option( Constants::OPTION_SCHEMA_VERSION ), 'Migration 012 and every later one ran.' );
 		self::assertNotNull( $this->tracker_row( (string) $user ), 'The retry copied the cart before the drop.' );
 	}
 

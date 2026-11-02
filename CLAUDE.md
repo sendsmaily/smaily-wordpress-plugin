@@ -481,7 +481,10 @@ card's Import now begins a new one, Products/Customers Import now none.
 **Integration-test trap:** a `do_action( HistoryProgress::HOOK )` run does not
 consume the action AS has queued — the import's first check sits at +180 s
 after a connect; `HistoryProgress::forget()` in tearDown clears it, and the
-option is in `EnvScrub`'s flush list.
+option is in `EnvScrub`'s flush list. **Migration-test trap (hit by migration
+013):** a test of one migration that pins the schema version to that
+migration's number goes red when the next migration lands — assert the
+highest migration file instead (`RetiredTablesMigrationTest`).
 
 ### Use the IsoDate helper for datetimes — never raw format
 The engine's strict Zod `.datetime()` requires Z-suffix (`Y-m-d\TH:i:s\Z`), NOT
