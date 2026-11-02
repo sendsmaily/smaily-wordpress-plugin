@@ -451,7 +451,15 @@ What data is used.
   marketing cookies and place an order without an account, we also set the
   `smaily_rec_uid` cookie with a random visitor token and store it with your
   order, so that we can recognise you and show you recommendations on a
-  later visit.
+  later visit. If you have accepted marketing cookies and log in to your
+  account, we also set the `smaily_rec_uid` cookie with a random visitor
+  token and link it to your account, so that we can show you
+  recommendations in our store on a later visit, also after you log out.
+  Each time you log in with marketing cookies accepted, the cookie's period
+  starts again. The cookie stays in your browser after you log out; on a
+  shared computer, the next person using that browser may see product
+  recommendations based on your account, but not your name or other
+  personal details.
 - Abandoned-cart reminders (if enabled, separate from the profiling described
   above): if you leave items in your cart without completing checkout, we
   may store your cart contents, e-mail address and name for a short time in
@@ -541,7 +549,14 @@ Milliseid andmeid kasutatakse.
   turundusküpsisteks ja vormistad tellimuse ilma kontota, paigaldame ka
   küpsise `smaily_rec_uid` juhusliku külastajatunnusega ja salvestame selle
   sinu tellimusele, et tunda sind järgmisel külastusel ära ja näidata sulle
-  soovitusi.
+  soovitusi. Kui oled andnud nõusoleku turundusküpsisteks ja logid oma
+  kontole sisse, paigaldame ka küpsise `smaily_rec_uid` juhusliku
+  külastajatunnusega ja seome selle sinu kontoga, et näidata sulle meie poes
+  soovitusi ka järgmisel külastusel, ka pärast väljalogimist. Iga kord, kui
+  logid sisse ja oled turundusküpsistega nõustunud, algab küpsise
+  säilitusaeg uuesti. Küpsis jääb pärast väljalogimist sinu brauserisse;
+  jagatud arvutis võib järgmine selle brauseri kasutaja näha sinu konto
+  põhjal soovitatud tooteid, kuid mitte sinu nime ega muid isikuandmeid.
 - Hüljatud ostukorvi meeldetuletused (kui funktsioon on sisse lülitatud,
   eraldiseisev eespool kirjeldatud profileerimisest): kui jätad ostukorvi
   tellimust vormistamata, võime lühikeseks ajaks salvestada sinu ostukorvi
@@ -602,6 +617,7 @@ või kustutame kohe, kui vormistad tellimuse või tühjendad ostukorvi.
 | Pseudonymous visitor token / session id; the CLIENT never adds rec_id/email to browse | F3-49 (`enrich()` sends `session_id` + `smaily_visitor_token` only). PRO-1389 addendum: for a logged-in, non-opted-out session, `BeaconEndpoint::attach_logged_in_identity()` attaches `customer_email` SERVER-side (from the WP auth cookie) on the outbound engine request only — never in the JS blob or the `/relay` response; an opted-out contact's event stays anonymous, not dropped |
 | Attribution cookies `smaily_rec_id`/`smaily_rec_ctx` 30 d, `smaily_rec_uid` 365 d (defaults; engine config can override) | `LandingCapture` (`rec_id_ttl_days` 30, `context_ttl_days` 30, `cookie_ttl_days` 365); set consent-ungated per F3-46 (Erkki) — hence they MUST be disclosed in the policy |
 | A guest buyer with marketing-cookie consent gets a store-created `smaily_rec_uid` token, also stored with the order | `GuestVisitorToken` (PRO-3845): at classic + block checkout, only for a guest (no account on the order, nobody logged in), only on an explicit yes (`MarketingConsent`, PRO-3849: the WP Consent API consent cookie for the beacon's category — `marketing` by default — is `allow` AND `wp_has_consent()` is true for it; no WP Consent API, no stored `allow` = no token — Magento PRO-3664 parity), only when the browser has no valid token; same cookie name/TTL/attributes as `LandingCapture`; the token goes on `_smaily_visitor_token` order meta and the §5 `smaily_visitor_token` field. Covered by the existing export/erase of that meta (`GdprHandler`) and the engine's `visitor_tokens` erase |
+| A customer with marketing-cookie consent gets a store-created `smaily_rec_uid` token at login; each consenting login renews the cookie; it stays after logout (shared-browser trade-off) | `IdentityHookHandler::on_login()` (CON-251, contract §7): at `wp_login`, never in cron or WP-CLI, only on an explicit yes (`MarketingConsent`), only when sending is allowed and the profiling gate passes, only when the browser has no valid token; the token is made by `LandingCapture::issue_visitor_token()` (same format, cookie name, TTL and attributes as the guest token) and sent in the §7 identity merge, never stored on the store side. An existing token is renewed (`renew_visitor_token()`, same value) under the same gates; nothing listens on `wp_logout`. DECISIONS "CON-251" records the shared-browser trade-off |
 | Opt-out via My Account, still receives emails | `ProfilingConsentAccount` (My Account dashboard section "Smaily Campaign Intelligence", checkbox "Use my data for personalised recommendations" / et: "Kasuta minu andmeid personaalsete soovituste jaoks") |
 | "Up to 24 hours to take effect across all systems" | `ProfilingConsent` daily-TTL cache: a WP-side opt-out is immediate (cache + engine §10 fire at once); a Smaily-side opt-out propagates at the next cache refresh, ≤ 24 h (see the fail-open review below) |
 | Access / erasure | `GdprHandler` — WP Privacy API exporter (Art 15) + eraser (Art 17); erase = engine §9 CASCADE + plugin `_smaily_*` meta removal |

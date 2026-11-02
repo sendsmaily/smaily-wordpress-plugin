@@ -377,12 +377,6 @@ class LandingCapture {
 	}
 
 	/**
-	 * The actual header write. Isolated so tests can capture the values without
-	 * emitting real Set-Cookie headers. Attributes mirror the contract
-	 * §"Cookie names" table + the JS capture: SameSite=Lax, Secure on https,
-	 * HttpOnly=false (the beacon proxy reads these cookies client-side).
-	 */
-	/**
 	 * Whether the response headers have already been sent (cookies can't be set
 	 * after that). A seam so tests can exercise the write path — PHPUnit's own
 	 * progress output makes the bare headers_sent() true mid-suite, which never
@@ -392,6 +386,15 @@ class LandingCapture {
 		return headers_sent();
 	}
 
+	/**
+	 * The actual header write. Isolated so tests can capture the values without
+	 * emitting real Set-Cookie headers. Attributes mirror the contract
+	 * §"Cookie names" table + the JS capture: SameSite=Lax, Secure on https,
+	 * HttpOnly=false. No storefront script reads these cookies (the visitor
+	 * token is read on the server, PRO-3860), but the scripts write them with
+	 * `document.cookie` when the `/land` request fails (CON-250), and a script
+	 * cannot replace an HttpOnly cookie.
+	 */
 	protected function send_cookie( string $name, string $value, int $expires ): void {
 		setcookie(
 			$name,

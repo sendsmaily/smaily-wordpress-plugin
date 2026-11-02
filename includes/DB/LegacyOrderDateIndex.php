@@ -106,7 +106,7 @@ class LegacyOrderDateIndex {
 		$this->connected = $connected ?? static function (): bool {
 			return ( new RecEngineSettings() )->is_connected();
 		};
-		$this->storage = $storage ?? static function (): string {
+		$this->storage   = $storage ?? static function (): string {
 			if ( ! class_exists( 'WooCommerce' ) ) {
 				return self::STORAGE_NONE;
 			}
