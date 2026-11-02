@@ -11,6 +11,7 @@ namespace Smaily\Connect\DB;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Support\DebugLog;
 
@@ -22,16 +23,21 @@ use Smaily\Connect\Support\DebugLog;
  * class adds one index, INDEX on (post_type, post_date_gmt, ID), to the
  * posts table once, so a page is an index range read (about 1–4 ms).
  *
- *   - Only where it is used: WooCommerce active and NOT on HPOS. An HPOS
- *     store reads `wc_orders`, whose `date_created` index already serves the
- *     query; the posts table is never touched there. Nothing is recorded for
- *     an HPOS store or one without WooCommerce, so a store that switches to
- *     legacy storage later gets the index within the hour (the next check
- *     of Bootstrap::register_action_scheduler_jobs()).
- *   - Never in a request: ensure_scheduled() (called from the hourly
- *     recurring-jobs check) only schedules one Action Scheduler action;
- *     run() is that action. The plugin update and admin requests never run
- *     the ALTER.
+ *   - Only where it is used: a store connected to Campaign Intelligence
+ *     (RecEngineSettings::is_connected() — Erkki, 2026-11-02: the core table
+ *     is not altered on a store that never uses the import), with WooCommerce
+ *     active and NOT on HPOS. An HPOS store reads `wc_orders`, whose
+ *     `date_created` index already serves the query; the posts table is
+ *     never touched there. Nothing is recorded for a store that does not
+ *     qualify, so a store that connects or switches to legacy storage later
+ *     still gets the index. A store that disconnects keeps it.
+ *   - Never in a request: ensure_scheduled() only schedules one Action
+ *     Scheduler action; run() is that action. It is called from the hourly
+ *     recurring-jobs check (Bootstrap::register_action_scheduler_jobs()) and
+ *     right after a successful connect, so the index is usually in before
+ *     the orders import, which starts after the products and customers
+ *     imports (CON-247). The plugin update and admin requests never run the
+ *     ALTER.
  *   - Idempotent: SHOW INDEX first. This index, or any index whose first two
  *     columns are (post_type, post_date_gmt), counts as present.
  *   - Online DDL: `ALGORITHM=INPLACE, LOCK=NONE` (reads and writes go on
@@ -89,10 +95,17 @@ class LegacyOrderDateIndex {
 	/** @var callable(): string */
 	private $storage;
 
+	/** @var callable(): bool */
+	private $connected;
+
 	/**
-	 * @param (callable(): string)|null $storage The order storage: STORAGE_LEGACY, STORAGE_HPOS or STORAGE_NONE (no WooCommerce).
+	 * @param (callable(): string)|null $storage   The order storage: STORAGE_LEGACY, STORAGE_HPOS or STORAGE_NONE (no WooCommerce).
+	 * @param (callable(): bool)|null   $connected Whether the store is connected to Campaign Intelligence; default RecEngineSettings::is_connected().
 	 */
-	public function __construct( ?callable $storage = null ) {
+	public function __construct( ?callable $storage = null, ?callable $connected = null ) {
+		$this->connected = $connected ?? static function (): bool {
+			return ( new RecEngineSettings() )->is_connected();
+		};
 		$this->storage = $storage ?? static function (): string {
 			if ( ! class_exists( 'WooCommerce' ) ) {
 				return self::STORAGE_NONE;
@@ -103,11 +116,11 @@ class LegacyOrderDateIndex {
 
 	/**
 	 * Schedule the action when an attempt is due and none is scheduled.
-	 * Cheap on a store that needs nothing: the storage check and one
-	 * get_option().
+	 * Cheap on a store that needs nothing: one or two get_option() reads and
+	 * the storage check.
 	 */
 	public function ensure_scheduled(): void {
-		if ( ( $this->storage )() !== self::STORAGE_LEGACY ) {
+		if ( $this->skip_reason() !== '' ) {
 			return;
 		}
 		$due = self::due_at( self::read_state(), time() );
@@ -123,11 +136,12 @@ class LegacyOrderDateIndex {
 	/**
 	 * The Action Scheduler action: add the index if it is due and missing.
 	 *
-	 * @return string What happened: 'not_legacy', 'not_due', STATUS_PRESENT, STATUS_ADDED or STATUS_FAILED.
+	 * @return string What happened: 'not_connected', 'not_legacy', 'not_due', STATUS_PRESENT, STATUS_ADDED or STATUS_FAILED.
 	 */
 	public function run(): string {
-		if ( ( $this->storage )() !== self::STORAGE_LEGACY ) {
-			return 'not_legacy';
+		$skip = $this->skip_reason();
+		if ( $skip !== '' ) {
+			return $skip;
 		}
 		$state = self::read_state();
 		$now   = time();
@@ -164,6 +178,20 @@ class LegacyOrderDateIndex {
 			)
 		);
 		return self::STATUS_FAILED;
+	}
+
+	/**
+	 * Why this store gets no index now ('not_connected', 'not_legacy'), or ''
+	 * when it qualifies. The connection is read first: it is one option.
+	 */
+	private function skip_reason(): string {
+		if ( ! ( $this->connected )() ) {
+			return 'not_connected';
+		}
+		if ( ( $this->storage )() !== self::STORAGE_LEGACY ) {
+			return 'not_legacy';
+		}
+		return '';
 	}
 
 	/**

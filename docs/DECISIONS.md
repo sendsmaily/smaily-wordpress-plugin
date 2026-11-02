@@ -9741,7 +9741,7 @@ clock), `tests/Unit/Smaily/RecEngine/CustomerFlusherTest.php`,
 `tests/Integration/RecEngineImportPaceTest.php` (the mock's
 `ingest_throttle` switch).
 
-### CON-259 — A legacy-storage store gets one index on the posts table for the orders import, added in the background (2026-11-02)
+### CON-259 — A connected legacy-storage store gets one index on the posts table for the orders import, added in the background (2026-11-02)
 
 **Context:** on legacy order storage the orders import (CON-245) reads its
 pages from `wp_posts`, newest first by `post_date_gmt`, then `ID`. WordPress
@@ -9755,18 +9755,34 @@ on 2026-11-02.**
 - **The index:** `smaily_connect_order_date` on `{$wpdb->posts}`
   `(post_type, post_date_gmt, ID)` — plugin-prefixed, so uninstall drops ours
   and never another index. `DB\LegacyOrderDateIndex` owns it.
-- **Only where it is used:** WooCommerce active and NOT on HPOS
-  (`OrderBackfillJob::uses_hpos()`, i.e. `OrderUtil::
-  custom_orders_table_usage_is_enabled()`). Not gated on a Campaign
-  Intelligence connection: the import can start minutes after a connect, and
-  the hourly check would add it later than the import needs it.
-- **Never in a request:** `Bootstrap::register_action_scheduler_jobs()` (the
-  hourly recurring-jobs check, cleared by Activation = the upgrade path) calls
-  `ensure_scheduled()`, which only schedules ONE single Action Scheduler
-  action (`smly_plus_order_date_index`, group
+- **Only where it is used (Erkki, 2026-11-02):** a store connected to
+  Campaign Intelligence (`RecEngineSettings::is_connected()`), with
+  WooCommerce active and NOT on HPOS (`OrderBackfillJob::uses_hpos()`, i.e.
+  `OrderUtil::custom_orders_table_usage_is_enabled()`). Erkki's reason: don't
+  alter WordPress's core table on a store that never uses the import (an
+  email-only store). `is_connected()`, not `sending_allowed()`: adding the
+  index sends nothing, and a refused account's rows resume on a new
+  connection. A store that is not connected gets nothing scheduled and no
+  state written. A store that disconnects keeps the index; uninstall drops it.
+- **Never in a request:** `ensure_scheduled()` only schedules ONE single
+  Action Scheduler action (`smly_plus_order_date_index`, group
   `smaily-connect-order-date-index`, listed in `Deactivation::AS_GROUPS`).
-  The ALTER runs in that action — never in `admin_init`, never in the upgrade
-  request (PRO-2434's lesson: a long schema step per admin request).
+  Two callers: `Bootstrap::register_action_scheduler_jobs()` (the hourly
+  recurring-jobs check, cleared by Activation = the upgrade path), and the
+  successful setup exchange, right after it starts the imports
+  (`EndpointRegistry`'s connect callback). The ALTER runs in that action —
+  never in `admin_init`, never in the upgrade or the connect request
+  (PRO-2434's lesson: a long schema step per admin request).
+- **Early enough for the import (CON-247):** a connect starts the products
+  import held back 3 minutes (`CatalogImportOnConnect::DELAY_SECONDS`), then
+  the customers import, and only then the orders import. The hourly check
+  alone could land up to an hour after the connect — on a store with a small
+  catalogue and customer list the orders import starts within minutes, and a
+  large order history could be mostly read by then. So the connect also
+  schedules the action at once: Action Scheduler runs it on its next queue
+  run (about a minute), inside the 3-minute hold-back, before the orders
+  import's first page. If that action fails or is missed, the hourly check
+  schedules it again; the import never waits for it.
 - **Idempotent:** `SHOW INDEX` first. Our index, or any index whose first two
   columns are `(post_type, post_date_gmt)` (InnoDB appends the primary key),
   counts as present — the state is set to `present` and nothing is added.
@@ -9790,8 +9806,9 @@ on 2026-11-02.**
   ALTER, so a run the host kills (`running` older than an hour) counts as
   failed. The import works exactly as before without the index.
 - **HPOS → legacy later:** nothing is recorded for an HPOS store (or one
-  without WooCommerce), so a store that switches to legacy storage gets the
-  index within the hour (the next recurring-jobs check). **Legacy → HPOS:**
+  without WooCommerce, or one not connected), so a connected store that
+  switches to legacy storage gets the index within the hour (the next
+  recurring-jobs check). **Legacy → HPOS:**
   the index stays (harmless; the posts table still holds every other post
   type; uninstall drops it).
 - **Uninstall drops it, deactivation leaves it.** `uninstall.php` loads the
@@ -9822,8 +9839,10 @@ one-time, online, bounded schema change that leaves on uninstall.
 **Alternatives:** add it in a migration (Migrator / `dbDelta()`) — rejected:
 migrations run inside the upgrade request (`admin_init`), and dbDelta()
 would need the whole core `CREATE TABLE` restated. Retry until it succeeds —
-rejected: a host that forbids ALTER would retry forever. Gate on a Campaign
-Intelligence connection — rejected (see above). Change the query to sort by
+rejected: a host that forbids ALTER would retry forever. Add it on every
+legacy-storage store, connected or not (the first version of this change) —
+rejected by Erkki on 2026-11-02 (see above). Rely on the hourly check alone
+after a connect — rejected: it can land after the orders import. Change the query to sort by
 `post_date` — rejected: the local date is not monotonic across DST and
 timezone changes, CON-245's window is in UTC, and `type_status_date` puts
 `post_status` before the date, so the `NOT IN` filter still sorts.

@@ -1,7 +1,8 @@
 <?php
 /**
  * The orders-import index on a legacy posts table (CON-259), on the real
- * MariaDB: added once by the action, a second run is a no-op, the import's
+ * MariaDB: nothing on a store not connected to Campaign Intelligence; on a
+ * connected one added once by the action, a second run is a no-op, the import's
  * real page query reads it without a filesort and returns the same orders,
  * deactivation leaves it, uninstall's drop() removes it — and on HPOS the
  * posts table is not touched at all. CI runs this on both order storages
@@ -21,6 +22,7 @@ use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\Deactivation;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\EnvSeed;
 
 final class LegacyOrderDateIndexTest extends TestCase {
 
@@ -34,6 +36,7 @@ final class LegacyOrderDateIndexTest extends TestCase {
 			self::markTestSkipped( 'WooCommerce not active.' );
 		}
 		EnvScrub::reset();
+		EnvSeed::connect();
 		LegacyOrderDateIndex::drop();
 		$this->forget_state();
 		as_unschedule_all_actions( '', array(), LegacyOrderDateIndex::AS_GROUP );
@@ -44,7 +47,33 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		LegacyOrderDateIndex::drop();
 		$this->forget_state();
 		as_unschedule_all_actions( '', array(), LegacyOrderDateIndex::AS_GROUP );
+		EnvScrub::reset();
 		parent::tearDown();
+	}
+
+	public function test_a_store_not_connected_to_campaign_intelligence_gets_nothing(): void {
+		$this->require_storage( false );
+		EnvScrub::reset();
+		$index  = new LegacyOrderDateIndex();
+		$before = $this->posts_indexes();
+
+		$index->ensure_scheduled();
+		self::assertSame( 'not_connected', $index->run() );
+
+		self::assertSame( $before, $this->posts_indexes() );
+		self::assertCount( 0, $this->pending_actions() );
+		self::assertSame( array(), LegacyOrderDateIndex::read_state(), 'Nothing is recorded: a later connect still gets the index.' );
+
+		// Connecting later: the same check schedules it and the action adds it.
+		EnvSeed::connect();
+		$index->ensure_scheduled();
+		self::assertCount( 1, $this->pending_actions() );
+		self::assertSame( LegacyOrderDateIndex::STATUS_ADDED, $index->run() );
+
+		// Disconnecting keeps it.
+		EnvScrub::reset();
+		self::assertSame( 'not_connected', $index->run() );
+		self::assertSame( array( 'post_type', 'post_date_gmt', 'ID' ), $this->columns_of( LegacyOrderDateIndex::INDEX ) );
 	}
 
 	public function test_on_legacy_storage_the_action_adds_the_index_once(): void {

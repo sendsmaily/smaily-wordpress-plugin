@@ -119,10 +119,13 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		parent::tearDown();
 	}
 
-	private static function on( string $storage ): LegacyOrderDateIndex {
+	private static function on( string $storage, bool $connected = true ): LegacyOrderDateIndex {
 		return new LegacyOrderDateIndex(
 			static function () use ( $storage ): string {
 				return $storage;
+			},
+			static function () use ( $connected ): bool {
+				return $connected;
 			}
 		);
 	}
@@ -201,7 +204,29 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		self::assertSame( array(), $this->options, 'Nothing is recorded, so a later switch to legacy storage still gets the index.' );
 	}
 
-	public function test_a_legacy_store_schedules_one_action_while_it_is_due(): void {
+	public function test_a_store_not_connected_to_campaign_intelligence_gets_nothing(): void {
+		Functions\expect( 'as_has_scheduled_action' )->never();
+		Functions\expect( 'as_schedule_single_action' )->never();
+		$storage_read = false;
+		$index        = new LegacyOrderDateIndex(
+			static function () use ( &$storage_read ): string {
+				$storage_read = true;
+				return LegacyOrderDateIndex::STORAGE_LEGACY;
+			},
+			static function (): bool {
+				return false;
+			}
+		);
+
+		$index->ensure_scheduled();
+		self::assertSame( 'not_connected', $index->run() );
+
+		self::assertFalse( $storage_read, 'The connection is checked first.' );
+		self::assertSame( array(), $this->wpdb->queries, 'No table is touched.' );
+		self::assertSame( array(), $this->options, 'Nothing is recorded, so a later connect still gets the index.' );
+	}
+
+	public function test_a_connected_legacy_store_schedules_one_action_while_it_is_due(): void {
 		Functions\expect( 'as_has_scheduled_action' )
 			->once()
 			->with( LegacyOrderDateIndex::HOOK, array(), LegacyOrderDateIndex::AS_GROUP )
@@ -242,8 +267,8 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		self::assertSame( array(), $this->options );
 	}
 
-	public function test_a_missing_index_is_added_online_with_a_short_lock_wait(): void {
-		self::assertSame( LegacyOrderDateIndex::STATUS_ADDED, self::on( LegacyOrderDateIndex::STORAGE_LEGACY )->run() );
+	public function test_a_connected_legacy_store_gets_the_index_online_with_a_short_lock_wait(): void {
+		self::assertSame( LegacyOrderDateIndex::STATUS_ADDED, self::on( LegacyOrderDateIndex::STORAGE_LEGACY, true )->run() );
 
 		self::assertSame(
 			array( 'ALTER TABLE wp_posts ADD INDEX smaily_connect_order_date (post_type, post_date_gmt, ID), ALGORITHM=INPLACE, LOCK=NONE' ),

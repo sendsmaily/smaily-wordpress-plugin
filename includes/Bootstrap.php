@@ -922,9 +922,10 @@ final class Bootstrap {
 		$this->history_progress()->ensure_scheduled();
 
 		// The orders-import index on a legacy posts table (CON-259): one
-		// single action while it is due — on legacy storage only, and never
-		// again once it is added or has failed MAX_ATTEMPTS times. A store
-		// that switches from HPOS to legacy storage gets it within the hour.
+		// single action while it is due — on a connected store on legacy
+		// storage only, and never again once it is added or has failed
+		// MAX_ATTEMPTS times. A store that switches from HPOS to legacy
+		// storage gets it within the hour; a connect schedules it at once.
 		( new LegacyOrderDateIndex() )->ensure_scheduled();
 
 		update_option( self::OPTION_AS_JOBS_VERIFIED, time(), false );
