@@ -6,7 +6,8 @@
  *
  * CON-251 (contract v1.22.0 §7): a consenting shopper with no visitor-token
  * cookie gets a new store token at login, set by the server and sent in the
- * merge; every login that carries a token calls the merge once.
+ * merge; every login that carries a token calls the merge once; with consent
+ * a login writes an existing token's cookie again with a fresh lifetime.
  *
  * The real WP user / engine round trip is integration-tested
  * (RecEngineIdentityMergeTest). Here the consent answer is the protected
@@ -172,7 +173,7 @@ final class IdentityHookHandlerTest extends TestCase {
 
 		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
 
-		self::assertSame( array(), $cookies->written, 'An existing token is never replaced.' );
+		self::assertSame( array( 'smaily_rec_uid' => self::STORE_TOKEN ), $cookies->written, 'An existing token is never replaced, only renewed.' );
 		self::assertSame( self::STORE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
 	}
 
@@ -183,7 +184,7 @@ final class IdentityHookHandlerTest extends TestCase {
 
 		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
 
-		self::assertSame( array(), $cookies->written );
+		self::assertSame( array( 'smaily_rec_uid' => self::ENGINE_TOKEN ), $cookies->written, 'The `vt_` cookie is renewed too, with consent.' );
 		self::assertSame( self::ENGINE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
 	}
 
@@ -290,7 +291,8 @@ final class IdentityHookHandlerTest extends TestCase {
 		$handler->on_login( 'mari', $this->user() );
 		$handler->on_login( 'mari', $this->user() );
 
-		self::assertCount( 1, $cookies->writes, 'One token for the browser.' );
+		self::assertCount( 2, $cookies->writes, 'Created at the first login, renewed at the second.' );
+		self::assertSame( $cookies->writes[0][1], $cookies->writes[1][1], 'One token for the browser.' );
 		self::assertCount( 2, $client->merges );
 		self::assertSame( $client->merges[0]['smaily_visitor_token'] ?? null, $client->merges[1]['smaily_visitor_token'] ?? 'missing' );
 	}
@@ -303,6 +305,81 @@ final class IdentityHookHandlerTest extends TestCase {
 		$this->handler( $client, false )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $client->merges );
+	}
+
+	// --- Erkki 2026-11-02: a consenting login renews the cookie ------------
+
+	/**
+	 * @dataProvider existing_tokens
+	 */
+	public function test_a_consenting_login_renews_the_cookie_with_the_same_value_and_a_fresh_lifetime( string $token ): void {
+		$_COOKIE['smaily_rec_uid'] = $token;
+		$client                    = $this->recording_client();
+		$cookies                   = $this->recording_cookies();
+
+		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+
+		self::assertCount( 1, $cookies->writes );
+		self::assertSame( array( 'smaily_rec_uid', $token ), array_slice( $cookies->writes[0], 0, 2 ), 'Same cookie, same value.' );
+		self::assertEqualsWithDelta( time() + 365 * 86400, $cookies->writes[0][2], 5, 'A fresh lifetime from now.' );
+		self::assertSame( $token, $client->merges[0]['smaily_visitor_token'] ?? null );
+	}
+
+	/**
+	 * @dataProvider existing_tokens
+	 */
+	public function test_without_consent_the_cookie_is_not_renewed( string $token ): void {
+		$_COOKIE['smaily_anon_sid'] = 'anon-1';
+		$_COOKIE['smaily_rec_uid']  = $token;
+		$client                     = $this->recording_client();
+		$cookies                    = $this->recording_cookies();
+
+		$this->handler( $client, false, $cookies )->on_login( 'mari', $this->user() );
+
+		self::assertSame( array(), $cookies->writes );
+		self::assertCount( 1, $client->merges, 'The merge itself keeps today\'s rules.' );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function existing_tokens(): array {
+		return array(
+			'store token'  => array( self::STORE_TOKEN ),
+			'engine token' => array( self::ENGINE_TOKEN ),
+		);
+	}
+
+	public function test_no_renewal_when_the_headers_are_already_sent_and_the_merge_still_goes(): void {
+		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
+		$client                    = $this->recording_client();
+		$cookies                   = $this->recording_cookies( true );
+
+		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+
+		self::assertSame( array(), $cookies->writes );
+		self::assertSame( self::STORE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
+	}
+
+	public function test_no_renewal_for_a_shopper_who_objected_to_profiling(): void {
+		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
+		$profiling                 = $this->createMock( ProfilingConsent::class );
+		$profiling->method( 'may_profile' )->willReturn( false );
+		$cookies = $this->recording_cookies();
+
+		$this->handler( $this->recording_client(), true, $cookies, $profiling )->on_login( 'mari', $this->user() );
+
+		self::assertSame( array(), $cookies->writes );
+	}
+
+	public function test_no_renewal_in_cron(): void {
+		Functions\when( 'wp_doing_cron' )->justReturn( true );
+		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
+		$cookies                   = $this->recording_cookies();
+
+		$this->handler( $this->recording_client(), true, $cookies )->on_login( 'mari', $this->user() );
+
+		self::assertSame( array(), $cookies->writes );
 	}
 
 	// --- doubles ----------------------------------------------------------
@@ -347,7 +424,7 @@ final class IdentityHookHandlerTest extends TestCase {
 			/** @var array<string, int> */
 			public array $expires = array();
 
-			/** @var array<int, string> */
+			/** @var array<int, array{0: string, 1: string, 2: int}> name, value, expires */
 			public array $writes = array();
 
 			private bool $headers_sent;
@@ -364,7 +441,7 @@ final class IdentityHookHandlerTest extends TestCase {
 			protected function send_cookie( string $name, string $value, int $expires ): void {
 				$this->written[ $name ] = $value;
 				$this->expires[ $name ] = $expires;
-				$this->writes[]         = $name;
+				$this->writes[]         = array( $name, $value, $expires );
 			}
 		};
 	}

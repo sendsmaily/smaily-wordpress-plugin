@@ -150,7 +150,7 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 		);
 	}
 
-	public function test_the_next_login_merges_the_same_token_again_and_creates_none(): void {
+	public function test_the_next_login_renews_the_cookie_and_the_merge_renews_the_token(): void {
 		$cookies = $this->recording_cookies();
 		$user    = get_userdata( $this->user_id );
 		self::assertInstanceOf( \WP_User::class, $user );
@@ -160,7 +160,11 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 		$token = $cookies->written[ self::VISITOR_COOKIE ] ?? '';
 		$this->handler( $cookies, true )->on_login( $user->user_login, $user );
 
-		self::assertCount( 1, $cookies->writes, 'The second login keeps the token.' );
+		// Erkki, 2026-11-02: the second login writes the same cookie again,
+		// same value, with a fresh engine-config lifetime from now.
+		self::assertCount( 2, $cookies->writes );
+		self::assertSame( array( self::VISITOR_COOKIE, $token ), array_slice( $cookies->writes[1], 0, 2 ), 'The second login keeps the token value.' );
+		self::assertEqualsWithDelta( time() + self::COOKIE_DAYS * 86400, $cookies->writes[1][2], 10, 'A fresh lifetime from now.' );
 		self::assertSame( 2, self::$engine->state()['merge_count'] ?? null, 'One merge per login.' );
 		self::assertSame( 2, self::$engine->state()['visitor_token_bindings'][ $token ]['merges'] ?? null, 'The engine renewed the token at the second login.' );
 		$received = self::$engine->state()['last_merge_received'] ?? null;
@@ -187,6 +191,21 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 		self::$engine->reset_request_count();
 		self::assertSame( '', $this->consenting_guest_cards() );
 		self::assertSame( 0, self::$engine->request_count() );
+	}
+
+	public function test_without_marketing_consent_an_engine_token_is_merged_but_its_cookie_is_not_renewed(): void {
+		self::assertFalse( function_exists( 'wp_has_consent' ), 'Precondition: no WP Consent API on the test site.' );
+		$cookies                         = $this->recording_cookies();
+		$user                            = get_userdata( $this->user_id );
+		$_COOKIE[ self::VISITOR_COOKIE ] = 'vt_fromemaillink123';
+		self::assertInstanceOf( \WP_User::class, $user );
+
+		$this->handler( $cookies, null )->on_login( $user->user_login, $user );
+
+		self::assertSame( array(), $cookies->writes, 'No renewal without consent.' );
+		$received = self::$engine->state()['last_merge_received'] ?? null;
+		self::assertIsArray( $received );
+		self::assertSame( 'vt_fromemaillink123', $received['smaily_visitor_token'], 'A `vt_` token keeps today\'s rules: merged without consent.' );
 	}
 
 	// ---- Helpers ---------------------------------------------------------
@@ -229,7 +248,7 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 			/** @var array<string, int> */
 			public array $expires = array();
 
-			/** @var array<int, string> */
+			/** @var array<int, array{0: string, 1: string, 2: int}> name, value, expires */
 			public array $writes = array();
 
 			protected function headers_already_sent(): bool {
@@ -239,7 +258,7 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 			protected function send_cookie( string $name, string $value, int $expires ): void {
 				$this->written[ $name ] = $value;
 				$this->expires[ $name ] = $expires;
-				$this->writes[]         = $name;
+				$this->writes[]         = array( $name, $value, $expires );
 			}
 		};
 	}

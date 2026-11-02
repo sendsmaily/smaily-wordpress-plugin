@@ -344,6 +344,23 @@ final class LandingCaptureTest extends TestCase {
 		self::assertSame( $token, $writer->current_visitor_token() );
 	}
 
+	public function test_a_renewed_visitor_token_keeps_its_value_and_gets_a_fresh_lifetime(): void {
+		// CON-251 (Erkki, 2026-11-02): a consenting login renews the cookie.
+		$writer = $this->recording_capture( true, array( 'tracking_cookie_name' => 'acme_vt', 'cookie_ttl_days' => 10 ) );
+
+		self::assertTrue( $writer->renew_visitor_token( 'vs_0123456789ABCDEFabcdef' ) );
+		self::assertSame( 'vs_0123456789ABCDEFabcdef', $writer->written['acme_vt'] ?? null );
+		self::assertEqualsWithDelta( time() + 10 * 86400, $writer->expires['acme_vt'], 5 );
+	}
+
+	public function test_a_value_outside_the_token_shape_is_not_renewed(): void {
+		$writer = $this->recording_capture( true, array() );
+
+		self::assertFalse( $writer->renew_visitor_token( 'visitor-abc' ) );
+		self::assertFalse( $writer->renew_visitor_token( '' ) );
+		self::assertSame( array(), $writer->written );
+	}
+
 	public function test_current_visitor_token_ignores_a_value_outside_the_token_shape(): void {
 		$_COOKIE['smaily_rec_uid'] = 'visitor-abc';
 

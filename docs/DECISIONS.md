@@ -9787,9 +9787,24 @@ token bound to another customer, so that merge binds nothing by the token.
 a stranger again, the problem this Story solves. Replace a token bound to
 another customer at login — not possible: the plugin cannot see the
 binding, and the contract says to keep the cookie.
-**Not done:** the cookie's own expiry is not refreshed at a later login; the
-engine renews the token's 14 months, the 365-day cookie keeps its first
-date. The Magento extension creates no token at login yet (its
+**A consenting login renews the cookie (Erkki, 2026-11-02).** When a login
+carries an existing token and `MarketingConsent::given()` (fail-closed), the
+handler writes the same cookie again through
+`LandingCapture::renew_visitor_token()`: the same value, the engine config's
+cookie name, and `cookie_ttl_days` counted from now; never in cron or
+WP-CLI, never for a contact who objected to profiling, and not when the
+headers are already sent (the merge still goes). Without it a
+returning customer's 365-day cookie expired on its first date while the
+engine kept renewing the token. **A `vt_` cookie is renewed too, but only
+with consent:** the merge renews a `vt_` token of the same customer in the
+engine as well (§7: "a token (`vs_` or `vt_`) already bound to the same
+customer is renewed"; §5 and §15 count every token's lifetime from its
+last order or merge), so the browser follows the engine for both shapes.
+Sending a `vt_` token stays consent-ungated (F3-46), but a renewal keeps
+an identifier in the browser longer than the email click did, which is a
+marketing choice — so without consent neither cookie is renewed, and the
+`vt_` token is still merged as before.
+**Not done:** the Magento extension creates no token at login yet (its
 `CustomerLogin` observer sends the cookies it finds).
 **Relationships:** F3-27 (the login merge), PRO-3845 (the checkout token,
 same issuer), PRO-3857 / PRO-3860 (a `vs_` token only with consent), F3-46

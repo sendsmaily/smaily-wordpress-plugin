@@ -1212,7 +1212,9 @@ engine config's `tracking_cookie_name` / `cookie_ttl_days`), and only when the
 browser has no token in either shape and `MarketingConsent::given()`: a guest's
 checkout (`GuestVisitorToken`, PRO-3845) and a login (`IdentityHookHandler::
 on_login()`, contract §7 v1.22.0 — never in cron / WP-CLI, never for a contact
-who objected to profiling). An existing token is never replaced, and logout
+who objected to profiling). An existing token is never replaced — with consent a login
+writes it again, same value, fresh lifetime (`LandingCapture::
+renew_visitor_token()`, `vt_` too; Erkki 2026-11-02) — and logout
 leaves the cookie on purpose (Erkki, 2026-11-02 — the shared-browser trade-off
 is in DECISIONS "CON-251"): nothing may clear it on `wp_logout`. Every login
 that carries a token calls the merge ONCE (each merge renews the token's 14

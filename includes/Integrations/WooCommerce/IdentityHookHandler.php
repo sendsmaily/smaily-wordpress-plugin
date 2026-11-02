@@ -49,7 +49,8 @@ use Smaily\Connect\Support\MarketingConsent;
  * still recognised, and the storefront recommendations ask for it by the
  * token. Without consent no token is created and no `vs_` token is sent; an
  * engine `vt_` token from an email link is sent as before. An existing token
- * is never replaced.
+ * is never replaced; with consent, a login writes its cookie again with the
+ * same value and a fresh lifetime (Erkki, 2026-11-02).
  *
  * Gate: only while a rec-engine tenant is connected. One merge per login:
  * every login that carries a visitor token calls the merge, because each merge
@@ -134,6 +135,13 @@ class IdentityHookHandler {
 		if ( $create ) {
 			// '' when the response headers are already sent (no cookie, no token).
 			$token = $this->cookies->issue_visitor_token();
+		} elseif ( $token !== '' && $this->may_create_token() && $this->marketing_consent_given() ) {
+			// The browser keeps its token: a consenting login renews the cookie's
+			// lifetime from now, same value (Erkki, 2026-11-02). A `vt_` cookie too —
+			// the merge renews a `vt_` token of the same customer in the engine as
+			// well (§7) — but only with consent, because a renewal keeps a marketing
+			// identifier in the browser longer than the shopper's last choice did.
+			$this->cookies->renew_visitor_token( $token );
 		}
 
 		// This anon session was already bound to this user: leave it out. A token
