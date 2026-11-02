@@ -1306,7 +1306,9 @@ are `Client::store_uninstall()` (§16 disconnect, CON-219) and `Client::console_
 (§24, the "Open Campaign Intelligence" button, CON-228) — the admin waits on both — and
 `Client::history_progress()` (§25, CON-248: its own AS action must never hold up the
 import's batches; the caller retries 5 minutes later) — and every
-other engine call keeps the retry policy
+other engine call keeps the retry policy (a history import's sends are built
+with `max_attempts` 1 and a 10 s timeout, `Bootstrap::import_rec_client()`,
+CON-236 — the row-level retry still applies, the single-attempt mode does not)
 (don't route a flusher/backfill through `ingest_browse`'s single-attempt mode, and don't
 "restore" retries on it). A failure is a 502 and a lost batch — by design. (2) The rate
 limit keys on `REMOTE_ADDR` only, never a forwarding header, and the per-IP counter ALWAYS
@@ -1363,6 +1365,31 @@ PRO-3435 covered LEGACY only). So:
 The legacy CI leg runs on WC 10.7 legacy storage, not the pilot's WC 6.9.4 —
 a pilot-only bug still needs the pilot-stack override (see "Integration
 baseline is WP 7.1" below).
+
+### A history import tick is one paced run — test it on a fake clock (CON-236)
+`Bootstrap::on_backfill_tick()` gives a Products/Customers/Orders import one
+`AbstractBackfillJob::process_run()`: batch after batch at
+`Backfill\ImportPace::REQUESTS_PER_SECOND` (5, the ONE pace setting) until the
+import ends, `RUN_BUDGET_SECONDS` (40) is spent, a request fails as a whole (a
+429 sets the next tick after the engine's `retry_after_seconds`), sending is
+not allowed, or `BACKLOG_ROWS` (2,000) of its kind wait in the queue.
+`process_batch()` is still ONE batch — the integration tests that drive an
+import batch by batch keep calling it. Rules:
+- **An import's flusher is its own instance on `Bootstrap::import_rec_client()`**
+  (one attempt, 10 s). Never hand an import the memoized live flusher: its
+  2-attempt client can sleep a Retry-After (up to 60 s) inside the run and
+  breaks the "40 s + one 10 s request" arithmetic (DECISIONS "CON-236").
+- **A unit test that calls `process_run()` passes a
+  `Tests\Unit\Support\FakeClockImportPace`** — the real pace sleeps 200 ms a
+  request and runs up to 40 s. Its fake `$wpdb` must APPLY `update()` to the
+  state `get_row()` returns: a run re-reads the job row every batch, so a
+  static row reads the same page again until the budget ends.
+- The method is `process_run()`, not `run()`: `CatalogBackfillJobTest`'s job
+  double has its own `run( int $id )` helper, and a base `run()` is a fatal
+  signature clash there.
+- The mock's `ingest_throttle` switch (`RecEngineMockServer::
+  set_ingest_throttle( $after, $wait )`) answers the §2 429 — wait in the
+  body, no header, as the live engine does.
 
 ### A test of a `DebugLog` line points `error_log` at its own file (CON-245)
 CI's wp-env writes no `wp-content/debug.log` that `DebugLogReader` can tail: a

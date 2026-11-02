@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Smaily\RecEngine;
 
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportPace;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportRows;
 
 defined( 'ABSPATH' ) || exit;
@@ -103,11 +104,24 @@ abstract class AbstractD6Flusher {
 	}
 
 	/**
+	 * Rows of this flusher's event types still waiting to be sent — due now
+	 * or parked for a later retry. Read by an import run's backlog guard
+	 * (ImportPace::BACKLOG_ROWS, CON-236).
+	 */
+	public function backlog(): int {
+		return $this->queue->pending_count( $this->event_types() );
+	}
+
+	/**
 	 * Process up to $batch_size due rows (defaults to the endpoint's cap).
+	 *
+	 * An import run passes its $pace (CON-236): the request waits its turn,
+	 * and a request that fails as a whole ends the run (a 429 with the
+	 * engine's wait).
 	 *
 	 * @return array{processed: int, sent: int, failed: int, retried: int, skipped: int}
 	 */
-	public function flush( ?int $batch_size = null ): array {
+	public function flush( ?int $batch_size = null, ?ImportPace $pace = null ): array {
 		$stats = array(
 			'processed' => 0,
 			'sent'      => 0,
@@ -151,10 +165,17 @@ abstract class AbstractD6Flusher {
 			return $stats;
 		}
 
+		if ( $pace !== null ) {
+			$pace->await_turn();
+		}
+
 		try {
 			$response = $this->send( $objects );
 			$this->apply_response( $response, $batch_rows, $objects, $stats );
 		} catch ( ApiException $e ) {
+			if ( $pace !== null ) {
+				$pace->record_failure( $e );
+			}
 			$terminal = $this->is_terminal( $e );
 			foreach ( $batch_rows as $index => $row ) {
 				$this->handle_failure( $row, $objects[ $index ], $e, $terminal, $stats );
@@ -314,7 +335,9 @@ abstract class AbstractD6Flusher {
 			return;
 		}
 
-		$this->queue->record_attempt( $id, $message, $this->backoff_seconds( $attempts + 1 ) );
+		// A 429 parks the row for at least the engine's wait (contract §2).
+		$retry_in = max( $this->backoff_seconds( $attempts + 1 ), $e->getCode() === 429 ? (int) $e->retry_after() : 0 );
+		$this->queue->record_attempt( $id, $message, $retry_in );
 		$this->queue->store_exchange( $id, $sent, $response );
 		++$stats['retried'];
 	}

@@ -1718,7 +1718,7 @@ td code{white-space:nowrap}
         <li><strong>Near‑real‑time</strong> — when a customer or order changes, WooCommerce fires a hook and the plugin queues the change straight away. A live edit (e.g. a product price) typically reaches its destination within about a minute.</li>
         <li><strong>Every 15 minutes (background)</strong> — an <strong>Action Scheduler</strong> job retries anything still queued, processes abandoned carts, and mirrors state back where needed.</li>
       </ul>
-      <p>One‑time imports run when you press <strong>Start import</strong> (Contacts) or <strong>Import now</strong> (Campaign Intelligence) and then continue in the background. The Campaign Intelligence imports — products, then customers, then orders — also start on their own, one after another, when you connect Campaign Intelligence.</p>
+      <p>One‑time imports run when you press <strong>Start import</strong> (Contacts) or <strong>Import now</strong> (Campaign Intelligence) and then continue in the background. The Campaign Intelligence imports — products, then customers, then orders — also start on their own, one after another, when you connect Campaign Intelligence. A Campaign Intelligence import sends in runs of up to 40 seconds, at most five requests a second, with half a minute between runs; when the engine asks it to slow down, the next run waits as long as the engine asks. New orders and other changes keep going out while an import runs.</p>
     </div>
     <div data-lang="et">
       <p>Smaily Connect töötab kahel kiirusel:</p>
@@ -1726,7 +1726,7 @@ td code{white-space:nowrap}
         <li><strong>Peaaegu reaalajas</strong> — kui klient või tellimus muutub, käivitab WooCommerce hooki ja plugin paneb muudatuse kohe järjekorda. Reaalne muudatus (nt toote hind) jõuab sihtkohta tavaliselt umbes minutiga.</li>
         <li><strong>Iga 15 minuti järel (taust)</strong> — <strong>Action Scheduleri</strong> töö kordab kõike, mis veel järjekorras, töötleb hüljatud korve ja peegeldab seisu vajadusel tagasi.</li>
       </ul>
-      <p>Ühekordsed impordid käivituvad, kui vajutad <strong>Alusta importi</strong> (kontaktid) või <strong>Impordi kohe</strong> (Campaign Intelligence), ja jätkavad seejärel taustal. Campaign Intelligence'i impordid — tooted, siis kliendid ja siis tellimused — käivituvad ka iseenesest, üksteise järel, kui ühendad Campaign Intelligence'i.</p>
+      <p>Ühekordsed impordid käivituvad, kui vajutad <strong>Alusta importi</strong> (kontaktid) või <strong>Impordi kohe</strong> (Campaign Intelligence), ja jätkavad seejärel taustal. Campaign Intelligence'i impordid — tooted, siis kliendid ja siis tellimused — käivituvad ka iseenesest, üksteise järel, kui ühendad Campaign Intelligence'i. Campaign Intelligence'i import saadab andmeid kuni 40 sekundi pikkuste käikudena, kõige rohkem viis päringut sekundis, ja käikude vahel on pool minutit; kui mootor palub aeglasemalt saata, ootab järgmine käik nii kaua, kui mootor palub. Uued tellimused ja muud muudatused lähevad impordi ajal edasi.</p>
     </div>
   </div>
 

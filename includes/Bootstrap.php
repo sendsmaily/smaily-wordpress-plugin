@@ -54,6 +54,7 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CustomerBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportPace;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\Client;
@@ -328,11 +329,14 @@ final class Bootstrap {
 	}
 
 	/**
-	 * AS callback for BackfillJobInterface::TICK_HOOK. Processes one batch
-	 * (≤100 users by default per BackfillJob) and reschedules another
-	 * tick 30s out if the job hasn't reached its terminal state.
+	 * AS callback for BackfillJobInterface::TICK_HOOK. The contact import
+	 * processes one batch (≤100 users by default per BackfillJob); a Campaign
+	 * Intelligence import makes one run — batch after batch at ImportPace's
+	 * pace for up to its budget (CON-236). Either reschedules another tick if
+	 * the job hasn't reached its terminal state: 30 s out, or after the wait
+	 * an engine 429 asked for.
 	 *
-	 * @param string $job_type Currently only "contacts"; Phase 3 adds more.
+	 * @param string $job_type "contacts", "products", "customers" or "orders".
 	 */
 	public function on_backfill_tick( string $job_type = 'contacts' ): void {
 		$job = $this->make_backfill_job( $job_type );
@@ -341,13 +345,19 @@ final class Bootstrap {
 			return;
 		}
 
-		$result = $job->process_batch();
+		if ( $job instanceof AbstractBackfillJob ) {
+			$result   = $job->process_run();
+			$next_run = $result['next_run_in'];
+		} else {
+			$result   = $job->process_batch();
+			$next_run = ImportPace::NEXT_RUN_SECONDS;
+		}
 
 		// Reschedule until the job reaches its terminal state — each tick
 		// resumes from the saved cursor (resumable; never restarts).
 		if ( empty( $result['completed'] ) && function_exists( 'as_schedule_single_action' ) ) {
 			as_schedule_single_action(
-				time() + 30,
+				time() + $next_run,
 				BackfillJobInterface::TICK_HOOK,
 				array( 'job_type' => $job_type ),
 				EventQueue::AS_GROUP
@@ -392,15 +402,26 @@ final class Bootstrap {
 			case 'products': // 3.5.0 rec-engine catalog backfill.
 				return $this->catalog_backfill_job();
 			case 'customers': // 3.5.1 rec-engine customer backfill (the §4 customer scope — CON-246).
+				// An import's own flusher sends with import_rec_client() (CON-236).
 				return new CustomerBackfillJob(
 					$this->ingest_queue(),
-					$this->customer_flusher(),
+					new CustomerFlusher(
+						$this->ingest_queue(),
+						$this->customer_payload_builder(),
+						$this->rec_engine_settings(),
+						array( $this, 'import_rec_client' )
+					),
 					$this->customer_scope()
 				);
 			case 'orders': // 3.5.2 rec-engine order backfill (HPOS-aware, sale states, newest first — CON-245).
 				return new OrderBackfillJob(
 					$this->ingest_queue(),
-					$this->order_flusher(),
+					new OrderFlusher(
+						$this->ingest_queue(),
+						$this->order_payload_builder(),
+						$this->rec_engine_settings(),
+						array( $this, 'import_rec_client' )
+					),
 					$this->history_config()
 				);
 			default:
@@ -483,9 +504,17 @@ final class Bootstrap {
 	 * two can never walk the catalog differently.
 	 */
 	public function catalog_backfill_job(): CatalogBackfillJob {
+		// Its own flusher: the import's requests are one short attempt
+		// (import_rec_client(), CON-236); the live catalog sync keeps
+		// ingest_flusher() and its retry.
 		return new CatalogBackfillJob(
 			$this->ingest_queue(),
-			$this->ingest_flusher(),
+			new IngestFlusher(
+				$this->ingest_queue(),
+				$this->catalog_payload_builder(),
+				$this->rec_engine_settings(),
+				array( $this, 'import_rec_client' )
+			),
 			$this->catalog_payload_builder(),
 			$this->multilingual_detector()
 		);
@@ -1150,6 +1179,16 @@ final class Bootstrap {
 			$settings,
 			$timeout
 		);
+	}
+
+	/**
+	 * The engine client of a history import's sends (CON-236): ONE attempt of
+	 * at most ImportPace::REQUEST_TIMEOUT_SECONDS, so a run's last request
+	 * ends inside the time the run is given. A failed request is retried at
+	 * the row level (the queue's back-off), never inside the run.
+	 */
+	public function import_rec_client(): RecEngineClient {
+		return $this->rec_client( 1, ImportPace::REQUEST_TIMEOUT_SECONDS );
 	}
 
 	/**

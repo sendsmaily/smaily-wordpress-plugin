@@ -226,6 +226,35 @@ class IngestQueue {
 	}
 
 	/**
+	 * How many rows of these event types still wait to be sent — due now or
+	 * parked for a later retry. The import run's backlog guard (CON-236).
+	 *
+	 * @param array<int, string> $event_types
+	 */
+	public function pending_count( array $event_types ): int {
+		global $wpdb;
+
+		if ( $event_types === array() ) {
+			return 0;
+		}
+
+		$table        = $this->table_name();
+		$placeholders = implode( ', ', array_fill( 0, count( $event_types ), '%s' ) );
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		$count = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE status = %s AND event_type IN ( {$placeholders} )",
+				self::STATUS_PENDING,
+				...array_values( $event_types )
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+
+		return (int) $count;
+	}
+
+	/**
 	 * Is a row of this event type for this entity still pending (due or
 	 * retry-parked)? Lets a caller skip queuing a duplicate that the waiting
 	 * row will cover — the flusher builds both from current state at send.
