@@ -1711,8 +1711,8 @@ msgid "Regenerate the link"
 msgstr "Loo link uuesti"
 
 #: admin/src/components/steps/Step4Recommendations.tsx:410
-msgid "Catalog import started"
-msgstr "Kataloogi import käivitus"
+msgid "Imports started"
+msgstr "Impordid käivitusid"
 
 #: admin/src/components/steps/Step4Recommendations.tsx:419
 msgid "Hold back"
@@ -1721,16 +1721,16 @@ msgstr "Peata import"
 #. translators: %d: minutes until the catalog import starts.
 #: admin/src/components/steps/Step4Recommendations.tsx:425
 #, js-format
-msgid "Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about %d minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below."
-msgstr "Kogu sinu tootekataloog saadetakse Campaign Intelligence'i üks kord, taustal, umbes %d minuti pärast. Selle peatamiseks vajuta enne seda „Peata import“: midagi ei saadeta ja impordi saad hiljem käivitada allpool jaotises „Tooted“ nupuga „Impordi kohe“."
+msgid "Your product catalog, then your customers, then your orders go to Campaign Intelligence once, one after another, in the background. The first products go out in about %d minutes. To hold the imports back, press Hold back before then: nothing is sent, and you can start each import later with its Import now below."
+msgstr "Sinu tootekataloog, seejärel kliendid ja siis tellimused saadetakse Campaign Intelligence'i üks kord, üksteise järel, taustal. Esimesed tooted lähevad teele umbes %d minuti pärast. Impordide peatamiseks vajuta enne seda „Peata import“: midagi ei saadeta ja iga impordi saad hiljem käivitada allpool selle nupuga „Impordi kohe“."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:401
-msgid "Catalog import held back"
-msgstr "Kataloogi import peatatud"
+msgid "Imports held back"
+msgstr "Impordid peatatud"
 
 #: admin/src/components/steps/Step4Recommendations.tsx:401
-msgid "The catalog import is cancelled. Start it any time with Import now under Products below."
-msgstr "Kataloogi import on katkestatud. Saad selle igal ajal käivitada allpool jaotises „Tooted“ nupuga „Impordi kohe“."
+msgid "The imports are cancelled. Start each one any time with its Import now below."
+msgstr "Impordid on katkestatud. Igaühe saad igal ajal käivitada allpool selle nupuga „Impordi kohe“."
 
 #. translators: %s: error message.
 #: admin/src/components/steps/Step4Recommendations.tsx:433
@@ -1790,8 +1790,8 @@ msgid "below to seed history into the engine; future changes sync on their own. 
 msgstr "allpool, et täita mootor ajalooga; tulevased muudatused sünkroonitakse ise. Sirvimistelemeetria on ainus erand — see on valitav ja seadistatakse eraldi allpool."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:290
-msgid "The catalog import starts on its own when you connect Campaign Intelligence; run it again any time with Import now under Products. Import your existing customers and orders into the engine once so recommendations have history to learn from. Imports run in the background in batches, and future changes sync on their own."
-msgstr "Kataloogi import käivitub iseenesest, kui ühendad Campaign Intelligence'i; uuesti saad selle igal ajal käivitada jaotises „Tooted“ nupuga „Impordi kohe“. Impordi oma olemasolevad kliendid ja tellimused korra mootorisse, et soovitustel oleks ajalugu, millest õppida. Impordid töötavad taustal pakkidena ja tulevased muudatused sünkroonitakse ise."
+msgid "When you connect Campaign Intelligence, the imports start on their own, one after another: products, then customers, then orders, so recommendations have history to learn from. Import now runs one import again, and only that one. Imports run in the background in batches, and future changes sync on their own."
+msgstr "Kui ühendad Campaign Intelligence'i, käivituvad impordid iseenesest, üksteise järel: tooted, seejärel kliendid ja siis tellimused, et soovitustel oleks ajalugu, millest õppida. „Impordi kohe“ käivitab ühe impordi uuesti, ja ainult selle. Impordid töötavad taustal pakkidena ja tulevased muudatused sünkroonitakse ise."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:299
 msgid "Products"

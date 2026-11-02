@@ -22,6 +22,7 @@ use LogicException;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\REST\RecEngineEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily_Connect\Includes\Cypher;
 use WP_Error;
 use WP_REST_Request;
@@ -120,6 +121,17 @@ final class RecEngineDisconnectTest extends TestCase {
 		self::assertTrue( $request['key_stored'], 'The call is made while the key is still stored.' );
 		self::assertArrayNotHasKey( RecEngineSettings::OPTION_API_KEY, $this->options, 'The key is deleted afterwards.' );
 		self::assertArrayNotHasKey( RecEngineSettings::OPTION_CONNECTED, $this->options );
+	}
+
+	public function test_disconnect_ends_the_imports_the_connection_started(): void {
+		// CON-247: the remaining imports of the sequence never start on a
+		// disconnected store; a new connection starts its own sequence.
+		$this->connected( array( 'store_uninstall' => self::MAP_URL ) );
+		$this->options[ ImportsOnConnect::OPTION ] = array( 'customers', 'orders' );
+
+		( new RecEngineSettings() )->disconnect();
+
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION, $this->options );
 	}
 
 	public function test_a_connection_without_the_map_key_uses_the_fallback_path(): void {
