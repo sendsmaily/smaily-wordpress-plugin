@@ -13,7 +13,10 @@
  *   npx @wordpress/env run tests-cli wp eval-file \
  *     wp-content/plugins/smaily-connect/bin/measure-order-walk.php 100000
  *
- * The site must be on legacy order storage (wp wc hpos disable). Pass
+ * The site must be on legacy order storage (wp wc hpos disable). It prints
+ * whether the CON-259 index (DB\LegacyOrderDateIndex) is present; drop it
+ * with `wp eval 'Smaily\Connect\DB\LegacyOrderDateIndex::drop();'` to
+ * measure the walk without it. Pass
  * `cleanup` instead of a count to delete orders a crashed run left.
  * Dev tooling only: bin/ is not in the release ZIP (.zipignore).
  *
@@ -24,6 +27,7 @@ defined( 'ABSPATH' ) || exit;
 
 // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped, WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.WP.AlternativeFunctions -- dev tooling: a CLI measurement seeding and removing its own rows.
 use Smaily\Connect\Bootstrap;
+use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 
 const SMAILY_MEASURE_ORDER_SLUG = 'smaily-measure-order-';
@@ -134,6 +138,9 @@ try {
 		end( $times ),
 		(string) $wpdb->db_version()
 	);
+	// CON-259: whether the orders-import index is on the posts table — the
+	// plan below reads it (no filesort) when it is.
+	echo 'index=', LegacyOrderDateIndex::present_index() ?? 'none', "\n";
 	foreach ( $plan as $step ) {
 		printf( "plan table=%s type=%s key=%s rows=%s extra=%s\n", $step['table'] ?? '', $step['type'] ?? '', $step['key'] ?? '', $step['rows'] ?? '', $step['Extra'] ?? '' );
 	}

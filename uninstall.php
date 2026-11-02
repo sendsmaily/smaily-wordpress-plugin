@@ -24,7 +24,8 @@
  *      `smly_rec_event_queue` table), plus the two retired tables schema
  *      migration 012 drops (`smaily_connect_abandoned_carts`,
  *      `smly_rec_visitor`) for a store deleted before that migration ran.
- *   4. User-meta freshness markers seeded by BackfillJob.
+ *   4. User-meta freshness markers seeded by BackfillJob, and the
+ *      orders-import index on the posts table (CON-259) when it exists.
  *   5. Cron events + Action Scheduler actions the plugin scheduled (both
  *      `smly_plus_*` and `smly_rec_*` hooks — the latter are the four
  *      rec-engine flush ticks, PRO-1337).
@@ -181,6 +182,17 @@ foreach ( $tables as $suffix ) {
 
 // --- 3. User meta freshness markers seeded by BackfillJob. ----------------
 delete_metadata( 'user', 0, '_smaily_synced_at', '', true );
+
+// The orders-import index a legacy-storage store got on the posts table
+// (CON-259, DB\LegacyOrderDateIndex): dropped when it exists, never another
+// index. The class needs only $wpdb, so it is loaded on its own; nothing it
+// throws stops the cleanup below.
+try {
+	require_once __DIR__ . '/includes/DB/LegacyOrderDateIndex.php';
+	\Smaily\Connect\DB\LegacyOrderDateIndex::drop();
+} catch ( \Throwable $smaily_connect_error ) {
+	unset( $smaily_connect_error );
+}
 
 // --- 4. Cron + Action Scheduler events. -----------------------------------
 //

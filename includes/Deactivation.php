@@ -11,6 +11,7 @@ namespace Smaily\Connect;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
@@ -31,7 +32,9 @@ use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
  *     recreates the recurring actions (Bootstrap::register_action_scheduler_jobs
  *     on init, Activation::run) which drain those rows again.
  *   - DB tables and option values are preserved; uninstall.php is
- *     responsible for full data removal when the user opts in.
+ *     responsible for full data removal when the user opts in. The
+ *     orders-import index on a legacy posts table (CON-259,
+ *     DB\LegacyOrderDateIndex) stays too: uninstall drops it.
  *
  * Legacy WP-Cron schedules registered by Smaily_Connect\Includes\Lifecycle
  * (smaily_connect_cron_sync_subscribers, abandoned-cart cron) are cleared by
@@ -54,6 +57,7 @@ final class Deactivation {
 		CatalogRemoveFlusher::AS_GROUP,
 		CatalogManifest::AS_GROUP,
 		HistoryProgress::AS_GROUP,
+		LegacyOrderDateIndex::AS_GROUP,
 	);
 
 	public static function run(): void {
