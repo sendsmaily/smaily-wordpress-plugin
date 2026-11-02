@@ -46,7 +46,7 @@ final class ApiException extends Exception {
 
 	/**
 	 * @param array<string, mixed> $body        Parsed JSON body from the engine response, if any.
-	 * @param int|null             $retry_after A 429's `Retry-After` in seconds, when the engine sent one.
+	 * @param int|null             $retry_after A 429's wait in seconds (`retry_after_seconds` or `Retry-After`), when the engine sent one.
 	 */
 	public function __construct(
 		int $http_status,
@@ -64,10 +64,12 @@ final class ApiException extends Exception {
 	}
 
 	/**
-	 * The `Retry-After` seconds of a final 429, or null when the engine sent
-	 * none (or the failure was not a 429). Read by a caller that only tells
-	 * the admin when to try again (CON-228); the retry loop reads the header
-	 * itself.
+	 * The wait in seconds a final 429 asked for — the body's
+	 * `retry_after_seconds`, else the `Retry-After` header — or null when the
+	 * engine named none (or the failure was not a 429). Read by a caller that
+	 * tells the admin when to try again (CON-228) and by an import run that
+	 * schedules its next run after it (CON-236); the retry loop reads the
+	 * answer itself.
 	 */
 	public function retry_after(): ?int {
 		return $this->retry_after;

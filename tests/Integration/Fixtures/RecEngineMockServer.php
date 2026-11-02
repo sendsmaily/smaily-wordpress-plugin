@@ -177,6 +177,23 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * Play an engine that rate-limits ingest (contract §2, CON-236): after
+	 * $after ingest batch requests are answered, every further one answers
+	 * 429 with `retry_after_seconds` in the body. Null switches it off.
+	 */
+	public function set_ingest_throttle( ?int $after, int $retry_after_seconds = 5 ): void {
+		$this->write_state(
+			array(
+				'ingest_throttle'      => $after === null ? null : array(
+					'after'               => $after,
+					'retry_after_seconds' => $retry_after_seconds,
+				),
+				'ingest_throttle_seen' => 0,
+			)
+		);
+	}
+
+	/**
 	 * The `config.history` block the ping answers with (contract v1.20.0 §2);
 	 * null leaves `config` out, as an engine before v1.20.0 does.
 	 *

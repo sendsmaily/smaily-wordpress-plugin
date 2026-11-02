@@ -61,6 +61,39 @@ final class ClientRetryAfterCapTest extends TestCase {
 		self::assertSame( array( 5, 5, 5, 5 ), $client->sleeps );
 	}
 
+	/**
+	 * Contract §2: the engine names its wait in the 429 body
+	 * (`retry_after_seconds`) and sends no Retry-After header. The client
+	 * waits it out between attempts, and the final 429 carries it to the
+	 * caller — an import run schedules its next run after it (CON-236).
+	 */
+	public function test_the_bodys_retry_after_seconds_is_the_wait_and_reaches_the_caller(): void {
+		$this->engine_answers( 429, '', '{"error":"rate_limit_exceeded","retry_after_seconds":7}' );
+		$client = $this->client();
+
+		$e = $this->final_error( $client );
+
+		self::assertSame( array( 7, 7, 7, 7 ), $client->sleeps );
+		self::assertSame( 7, $e->retry_after() );
+	}
+
+	public function test_the_body_wins_over_the_header_and_the_header_serves_without_it(): void {
+		$this->engine_answers( 429, '30', '{"error":"rate_limit_exceeded","retry_after_seconds":4}' );
+		self::assertSame( 4, $this->final_error( $this->client() )->retry_after() );
+
+		$this->engine_answers( 429, '30' );
+		self::assertSame( 30, $this->final_error( $this->client() )->retry_after() );
+	}
+
+	private function final_error( Client $client ): ApiException {
+		try {
+			$client->ingest_catalog( array( array( 'sku' => 'woo-1', 'event_id' => 'u1' ) ) );
+		} catch ( ApiException $e ) {
+			return $e;
+		}
+		self::fail( 'An engine that keeps refusing must throw after the last attempt.' );
+	}
+
 	private function send_catalog( Client $client ): void {
 		try {
 			$client->ingest_catalog( array( array( 'sku' => 'woo-1', 'event_id' => 'u1' ) ) );
@@ -73,7 +106,7 @@ final class ClientRetryAfterCapTest extends TestCase {
 	/**
 	 * Every request answers the given status with the given Retry-After.
 	 */
-	private function engine_answers( int $status, string $retry_after ): void {
+	private function engine_answers( int $status, string $retry_after, string $body = '{"error":"engine_busy"}' ): void {
 		Functions\when( 'wp_remote_request' )->alias(
 			function (): array {
 				++$this->requests;
@@ -82,7 +115,7 @@ final class ClientRetryAfterCapTest extends TestCase {
 		);
 		Functions\when( 'is_wp_error' )->justReturn( false );
 		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( $status );
-		Functions\when( 'wp_remote_retrieve_body' )->justReturn( '{"error":"engine_busy"}' );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
 		Functions\when( 'wp_remote_retrieve_header' )->alias(
 			static function ( $response, string $header ) use ( $retry_after ): string {
 				return $header === 'retry-after' ? $retry_after : '';

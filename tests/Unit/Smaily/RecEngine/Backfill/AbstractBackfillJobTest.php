@@ -1,8 +1,11 @@
 <?php
 /**
  * AbstractBackfillJob — a batch that hits an unexpected error stops the
- * import (PRO-3890), and a running import nothing drives counts as stalled
- * (PRO-3886). Real WP + WC + Action Scheduler: RecEngineImportStopTest.
+ * import (PRO-3890), a running import nothing drives counts as stalled
+ * (PRO-3886), and one run sends page after page at the import pace until the
+ * import ends, the budget is spent, the engine answers 429 or the backlog
+ * guard stops it (CON-236, on a fake clock). Real WP + WC + Action Scheduler:
+ * RecEngineImportStopTest, RecEngineImportPaceTest.
  *
  * @package Smaily\Connect\Tests
  */
@@ -16,8 +19,11 @@ use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\RecEngine\AbstractD6Flusher;
+use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportPace;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Tests\Unit\Support\FakeClockImportPace;
 
 final class AbstractBackfillJobTest extends TestCase {
 
@@ -148,6 +154,253 @@ final class AbstractBackfillJobTest extends TestCase {
 		self::assertSame( array(), $job->outside_a_batch(), 'Outside a batch nothing is marked.' );
 	}
 
+	public function test_a_run_sends_page_after_page_at_the_pace_until_the_import_ends(): void {
+		$wpdb            = $this->fake_wpdb( $this->walk_state( 7 ) );
+		$GLOBALS['wpdb'] = $wpdb;
+		$engine          = $this->engine();
+		$job             = $this->paged_job( range( 1, 7 ), 2, $engine );
+		$pace            = new FakeClockImportPace();
+
+		$result = $job->process_run( $pace );
+
+		self::assertTrue( $result['completed'], 'One run read the whole import.' );
+		self::assertSame( 7, $result['processed'] );
+		self::assertSame( 7, $result['sent'] );
+		self::assertSame( range( 1, 7 ), $job->enqueued );
+		self::assertSame( 'completed', $wpdb->state['status'] );
+		self::assertSame( 4, $pace->turns, 'Four pages, one paced request each.' );
+		self::assertEqualsWithDelta( 0.6, $pace->clock, 0.0001, 'Four requests start 0.2 s apart.' );
+		self::assertSame( ImportPace::NEXT_RUN_SECONDS, $result['next_run_in'] );
+	}
+
+	public function test_a_run_starts_no_request_after_its_budget(): void {
+		$wpdb                  = $this->fake_wpdb( $this->walk_state( 100 ) );
+		$GLOBALS['wpdb']       = $wpdb;
+		$engine                = $this->engine();
+		$job                   = $this->paged_job( range( 1, 100 ), 2, $engine );
+		$pace                  = new FakeClockImportPace();
+		$pace->request_seconds = 5.0;
+
+		$result = $job->process_run( $pace );
+
+		self::assertFalse( $result['completed'] );
+		self::assertSame( 8, $pace->turns, 'Requests start at 0, 5, … 35 s; none at 40 s.' );
+		self::assertSame( 16, $result['processed'] );
+		self::assertSame( '16', (string) $wpdb->state['cursor_value'], 'The next run resumes after the last page read.' );
+		self::assertSame( 'running', $wpdb->state['status'] );
+		self::assertSame( ImportPace::NEXT_RUN_SECONDS, $result['next_run_in'] );
+	}
+
+	public function test_a_429_ends_the_run_and_the_next_run_waits_the_engines_wait(): void {
+		$GLOBALS['wpdb'] = $this->fake_wpdb( $this->walk_state( 20 ) );
+		$engine          = $this->engine( 3, new ApiException( 429, 'rate_limit_exceeded', 'slow down', array(), 17 ) );
+		$job             = $this->paged_job( range( 1, 20 ), 2, $engine );
+		$pace            = new FakeClockImportPace();
+
+		$result = $job->process_run( $pace );
+
+		self::assertFalse( $result['completed'] );
+		self::assertSame( 3, $pace->turns, 'Nothing is sent after the 429.' );
+		self::assertSame( 6, $result['processed'], 'The throttled page is read; its rows wait in the queue.' );
+		self::assertSame( 4, $result['sent'] );
+		self::assertSame( 17, $result['next_run_in'] );
+	}
+
+	public function test_the_backlog_guard_reads_no_page_while_2000_rows_wait(): void {
+		$wpdb            = $this->fake_wpdb( $this->walk_state( 20 ) );
+		$GLOBALS['wpdb'] = $wpdb;
+		$engine          = $this->engine();
+		$engine->backlog = ImportPace::BACKLOG_ROWS;
+		$job             = $this->paged_job( range( 1, 20 ), 2, $engine );
+
+		$result = $job->process_run( new FakeClockImportPace() );
+
+		self::assertSame( array(), $job->enqueued, 'No page is read.' );
+		self::assertSame( array(), $wpdb->updates, 'The cursor stays where it is.' );
+		self::assertFalse( $result['completed'] );
+		self::assertSame( ImportPace::NEXT_RUN_SECONDS, $result['next_run_in'] );
+
+		$engine->backlog = ImportPace::BACKLOG_ROWS - 1;
+		self::assertTrue( $job->process_run( new FakeClockImportPace() )['completed'], 'Below the guard the run goes on.' );
+	}
+
+	public function test_a_run_that_may_not_send_reads_nothing_and_ends(): void {
+		$GLOBALS['wpdb'] = $this->fake_wpdb( $this->walk_state( 20 ) );
+		$engine          = $this->engine();
+		$engine->allowed = false;
+		$job             = $this->paged_job( range( 1, 20 ), 2, $engine );
+
+		$result = $job->process_run( new FakeClockImportPace() );
+
+		self::assertSame( array(), $job->enqueued );
+		self::assertFalse( $result['completed'], 'Paused, not lost (PRO-1893).' );
+		self::assertSame( ImportPace::NEXT_RUN_SECONDS, $result['next_run_in'] );
+	}
+
+	public function test_a_cancel_during_a_run_stops_it_at_the_next_page(): void {
+		$wpdb            = $this->fake_wpdb( $this->walk_state( 20 ) );
+		$GLOBALS['wpdb'] = $wpdb;
+		$engine          = $this->engine();
+		$engine->on_send = static function () use ( $wpdb ): void {
+			$wpdb->state['status'] = BackfillJobInterface::STATUS_CANCELLED;
+		};
+		$job             = $this->paged_job( range( 1, 20 ), 2, $engine );
+
+		$result = $job->process_run( new FakeClockImportPace() );
+
+		self::assertSame( array( 1, 2 ), $job->enqueued, 'The page that was sending finishes; no other is read.' );
+		self::assertSame( BackfillJobInterface::STATUS_CANCELLED, $wpdb->state['status'], 'PRO-3821: the cancel stays.' );
+		self::assertTrue( $result['completed'], 'No further tick.' );
+	}
+
+	/**
+	 * A running import at its start, $total records to walk.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function walk_state( int $total ): array {
+		return array_merge(
+			$this->state( 'running' ),
+			array(
+				'cursor_value'    => '0',
+				'processed_count' => '0',
+				'total_count'     => (string) $total,
+			)
+		);
+	}
+
+	/**
+	 * A flusher double that sends whatever the job queued: one paced request
+	 * per pass, the $fail_on-th request failing with $error.
+	 */
+	private function engine( int $fail_on = 0, ?ApiException $error = null ): AbstractD6Flusher {
+		return new class( $fail_on, $error ) extends AbstractD6Flusher {
+			public int $queued   = 0;
+			public int $backlog  = 0;
+			public bool $allowed = true;
+			public int $requests = 0;
+			/** @var callable|null */
+			public $on_send;
+			private int $fail_on;
+			private ?ApiException $error;
+
+			public function __construct( int $fail_on, ?ApiException $error ) {
+				$this->fail_on = $fail_on;
+				$this->error   = $error;
+			}
+
+			public function sending_allowed(): bool {
+				return $this->allowed;
+			}
+
+			public function backlog(): int {
+				return $this->backlog;
+			}
+
+			public function flush( ?int $batch_size = null, ?ImportPace $pace = null ): array {
+				$stats = array(
+					'processed' => 0,
+					'sent'      => 0,
+					'failed'    => 0,
+					'retried'   => 0,
+					'skipped'   => 0,
+				);
+				if ( $this->queued === 0 ) {
+					return $stats;
+				}
+				if ( $pace !== null ) {
+					$pace->await_turn();
+				}
+				++$this->requests;
+				$stats['processed'] = $this->queued;
+				if ( $this->on_send !== null ) {
+					( $this->on_send )();
+				}
+				if ( $this->requests === $this->fail_on && $this->error !== null ) {
+					if ( $pace !== null ) {
+						$pace->record_failure( $this->error );
+					}
+					$stats['retried'] = $this->queued;
+				} else {
+					$stats['sent'] = $this->queued;
+				}
+				$this->queued = 0;
+				return $stats;
+			}
+
+			protected function event_types(): array {
+				return array( 'customer.upsert' );
+			}
+
+			protected function batch_size(): int {
+				return 100;
+			}
+
+			protected function endpoint_label(): string {
+				return 'customers';
+			}
+
+			protected function send( array $batch ): array {
+				return array();
+			}
+
+			protected function row_to_object( array $row ): ?array {
+				return null;
+			}
+		};
+	}
+
+	/**
+	 * An id walk over $ids, $batch_size a page, queuing into $engine.
+	 *
+	 * @param int[] $ids
+	 */
+	private function paged_job( array $ids, int $batch_size, AbstractD6Flusher $engine ): AbstractBackfillJob {
+		return new class( $this->createMock( IngestQueue::class ), $engine, $ids, $batch_size ) extends AbstractBackfillJob {
+			/** @var int[] */
+			public array $enqueued = array();
+			/** @var int[] */
+			private array $ids;
+			private int $size;
+
+			/** @param int[] $ids */
+			public function __construct( IngestQueue $queue, AbstractD6Flusher $flusher, array $ids, int $size ) {
+				parent::__construct( $queue, $flusher );
+				$this->ids  = $ids;
+				$this->size = $size;
+			}
+
+			public function job_type(): string {
+				return 'customers';
+			}
+
+			protected function batch_size(): int {
+				return $this->size;
+			}
+
+			protected function count_total(): int {
+				return count( $this->ids );
+			}
+
+			protected function fetch_ids_after( int $after_id, int $limit ): array {
+				$after = array_values(
+					array_filter(
+						$this->ids,
+						static function ( int $id ) use ( $after_id ): bool {
+							return $id > $after_id;
+						}
+					)
+				);
+				return array_slice( $after, 0, $limit );
+			}
+
+			protected function enqueue_record( int $entity_id ): void {
+				$this->enqueued[] = $entity_id;
+				++$this->flusher->queued;
+			}
+		};
+	}
+
 	/** @return array<string, mixed> */
 	private function state( string $status, ?int $started = null ): array {
 		return array(
@@ -202,7 +455,7 @@ final class AbstractBackfillJobTest extends TestCase {
 			/** @var array<int, array<string, mixed>> */
 			public array $updates = array();
 			/** @var array<string, mixed> */
-			private array $state;
+			public array $state;
 
 			/** @param array<string, mixed> $row */
 			public function __construct( array $row ) {
@@ -224,6 +477,10 @@ final class AbstractBackfillJobTest extends TestCase {
 			 */
 			public function update( string $table, array $data, array $where, $format = null, $where_format = null ): int {
 				$this->updates[] = compact( 'table', 'data', 'where' );
+				if ( isset( $where['status'] ) && $where['status'] !== $this->state['status'] ) {
+					return 0;
+				}
+				$this->state = array_merge( $this->state, $data );
 				return 1;
 			}
 		};

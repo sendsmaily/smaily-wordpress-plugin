@@ -30,7 +30,8 @@ defined( 'ABSPATH' ) || exit;
  * the real wp_remote_post body for each.
  *
  * Retry policy (RECENGINE_API_CONTRACT.md §6):
- *   - 429 + Retry-After header → respect the header (waiting at most
+ *   - 429 + `retry_after_seconds` (body) or Retry-After header → respect
+ *     it (waiting at most
  *     MAX_RETRY_AFTER_SECONDS, PRO-3817), exponential
  *     backoff (1s, 2s, 4s, 8s, 16s), max 5 attempts.
  *   - 5xx (500/502/503/504) → same backoff, max 5 attempts.
@@ -807,7 +808,7 @@ class Client {
 
 			$is_retryable = ( $status === 429 || ( $status >= 500 && $status < 600 ) );
 			if ( $is_retryable && $attempts < $max_attempts ) {
-				$retry_after = (int) wp_remote_retrieve_header( $response, 'retry-after' );
+				$retry_after = self::retry_after_of( $decoded, $response );
 				$sleep_for   = $retry_after > 0 ? min( $retry_after, self::MAX_RETRY_AFTER_SECONDS ) : $backoff;
 				$this->sleep_with_backoff( $sleep_for );
 				$backoff *= 2;
@@ -821,10 +822,27 @@ class Client {
 				$this->record_tenant_refusal( $error_code );
 			}
 
-			$retry_after = $status === 429 ? (int) wp_remote_retrieve_header( $response, 'retry-after' ) : 0;
+			$retry_after = $status === 429 ? self::retry_after_of( $decoded, $response ) : 0;
 
 			throw new ApiException( $status, $error_code, $message, $decoded, $retry_after > 0 ? $retry_after : null );
 		}
+	}
+
+	/**
+	 * The wait, in seconds, an engine answer asks for: the body's
+	 * `retry_after_seconds` (contract §2 — the engine's own field; it emits
+	 * no `Retry-After` header today), else the `Retry-After` header, else 0.
+	 *
+	 * @param array<string, mixed> $decoded  The decoded answer body.
+	 * @param array<string, mixed> $response The wp_remote_request() answer.
+	 */
+	private static function retry_after_of( array $decoded, array $response ): int {
+		$body = $decoded['retry_after_seconds'] ?? null;
+		if ( is_numeric( $body ) && (int) ceil( (float) $body ) > 0 ) {
+			return (int) ceil( (float) $body );
+		}
+
+		return max( 0, (int) wp_remote_retrieve_header( $response, 'retry-after' ) );
 	}
 
 	/**

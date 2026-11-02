@@ -77,6 +77,34 @@ if ( ! empty( $state['tenant_inactive'] ) && $path !== '/api/setup/exchange' && 
 	);
 }
 
+// Rate-limit switch (contract §2, CON-236). A test sets `ingest_throttle`
+// ({after, retry_after_seconds}); the ingest batch routes (catalog,
+// customers, orders) then answer the §2 429 once `after` of them have been
+// answered — the wait in the body and no Retry-After header, as the live
+// engine does.
+if ( isset( $state['ingest_throttle'] ) && is_array( $state['ingest_throttle'] )
+	&& $method === 'POST'
+	&& in_array( $path, array( '/api/v1/ingest/catalog', '/api/v1/ingest/customers', '/api/v1/ingest/orders' ), true )
+) {
+	$throttle_seen                  = (int) ( $state['ingest_throttle_seen'] ?? 0 );
+	$state['ingest_throttle_seen'] = $throttle_seen + 1;
+	save_state( $state_file, $state );
+	if ( $throttle_seen >= (int) ( $state['ingest_throttle']['after'] ?? 0 ) ) {
+		$wait = (int) ( $state['ingest_throttle']['retry_after_seconds'] ?? 5 );
+		header( 'X-RateLimit-Limit: 100' );
+		header( 'X-RateLimit-Remaining: 0' );
+		reply(
+			429,
+			array(
+				'error'               => 'rate_limit_exceeded',
+				'message'             => sprintf( 'Rate limit exceeded. Retry after %d seconds.', $wait ),
+				'retry_after_seconds' => $wait,
+				'timestamp'           => gmdate( 'Y-m-d\TH:i:s\Z' ),
+			)
+		);
+	}
+}
+
 /**
  * Automation trigger catalog (§11) — shared by GET /automations/catalog and
  * the PUT /automations/config trigger_key validation ("tundmatu trigger").
