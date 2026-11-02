@@ -17,11 +17,18 @@ export interface AutomationSectionProps {
   trigger: AutomationTrigger;
   title: string;
   description: string;
-  /** When the toggle is off, mapping rows are dimmed but stay visible. */
+  /**
+   * When the switch is off the card shows only its title, description and
+   * switch; everything below it is not rendered (CON-255). The values stay
+   * in the reducer state, so the save keeps them and switching the card on
+   * again shows them.
+   */
   isEnabled: boolean;
   onEnabledChange: (enabled: boolean) => void;
-  /** Extra row (e.g. abandoned-cart cutoff slider) rendered above the table. */
+  /** The automation's own settings (e.g. the abandoned-cart cutoff), below the workflow. */
   extras?: React.ReactNode;
+  /** The "Send a discount code" block (CON-199) — always the last thing on the card. */
+  discount?: React.ReactNode;
   /**
    * Fixes the mapping row(s) to a specific Smaily account instead of the
    * multilingual-mode-derived one — used by triggers bound to a separate
@@ -43,7 +50,15 @@ export interface AutomationSectionProps {
 }
 
 /**
- * One automation trigger section — welcome / first_order / abandoned_cart.
+ * One automation trigger section — welcome / first_order / abandoned_cart,
+ * and the transactional triggers.
+ *
+ * Progressive disclosure (CON-255): while the switch is off the card is its
+ * title, description and switch only. Switched on, it shows in this order:
+ * the workflow (per language, or one), "Edit design", the automation's own
+ * settings (`extras`), and the discount code block (`discount`) last.
+ * Nothing here clears state on hide — the reducer keeps the mappings and
+ * settings, and the save payload is built from the state, not the DOM.
  *
  * Renders three UI shapes depending on multilingual mode:
  *
@@ -70,6 +85,7 @@ export function AutomationSection({
   isEnabled,
   onEnabledChange,
   extras,
+  discount,
   accountKeyOverride,
   active = isEnabled,
   emailKey,
@@ -99,30 +115,36 @@ export function AutomationSection({
         )}
       />
 
-      {emailKey !== undefined && <EditDesign emailKey={emailKey} />}
+      {isEnabled && (
+        <>
+          <div className="mt-5">
+            {isMultiRow ? (
+              <MultiLanguageRows
+                state={state}
+                dispatch={dispatch}
+                trigger={trigger}
+                rows={rows}
+                isModeA={isModeA}
+                accountKey={accountKeyOverride}
+              />
+            ) : (
+              <SingleRow
+                state={state}
+                dispatch={dispatch}
+                trigger={trigger}
+                rows={rows}
+                accountKey={accountKeyOverride}
+              />
+            )}
+          </div>
 
-      {extras}
+          {emailKey !== undefined && <EditDesign emailKey={emailKey} />}
 
-      <div className={isEnabled ? 'mt-5' : 'mt-5 opacity-50 pointer-events-none'}>
-        {isMultiRow ? (
-          <MultiLanguageRows
-            state={state}
-            dispatch={dispatch}
-            trigger={trigger}
-            rows={rows}
-            isModeA={isModeA}
-            accountKey={accountKeyOverride}
-          />
-        ) : (
-          <SingleRow
-            state={state}
-            dispatch={dispatch}
-            trigger={trigger}
-            rows={rows}
-            accountKey={accountKeyOverride}
-          />
-        )}
-      </div>
+          {extras}
+
+          {discount}
+        </>
+      )}
     </Card>
   );
 }

@@ -449,6 +449,25 @@ final class AutomationDiscountCodeTest extends TestCase {
 		self::assertStringContainsString( 'no WooCommerce coupon is picked', (string) $response['note'] );
 	}
 
+	/**
+	 * CON-255: switching the automation off keeps its saved discount setting,
+	 * and no code is made while it is off — also for a row queued before the
+	 * switch, which the queue still sends.
+	 */
+	public function test_no_code_is_made_while_the_automation_is_switched_off(): void {
+		$template_id = $this->make_template();
+		$this->configure( 'welcome', '4242', $template_id, 7, array( 'welcomeEnabled' => false ) );
+		self::assertTrue( AutomationDiscount::settings()['welcome']['enabled'], 'The saved discount setting is kept.' );
+
+		$this->enqueue_welcome( 'automation-off@example.test' );
+		$address = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '4242' );
+
+		self::assertArrayNotHasKey( 'welcome_coupon_code', $address );
+		self::assertSame( array(), $this->generated_coupon_ids(), 'No coupon is made for an automation that is off.' );
+		$response = json_decode( (string) $this->only_row( HookHandler::EVENT_AUTOMATION_WELCOME )['last_response'], true );
+		self::assertArrayNotHasKey( 'note', (array) $response );
+	}
+
 	public function test_woocommerce_takes_the_code_once_only_from_the_shopper_and_not_after_its_last_day(): void {
 		$template_id = $this->make_template(
 			array(

@@ -70,6 +70,16 @@ final class AutomationDiscountPrivacyTest extends TestCase {
 				'abandoned_cart' => $enabled,
 			)
 		);
+		// issue() makes a code only for an automation that is on (CON-255).
+		update_option( 'smly_plus_welcome_enabled', true );
+		update_option( 'smly_plus_first_order_enabled', true );
+		update_option(
+			\Smaily_Connect\Includes\Options::ABANDONED_CART_STATUS_OPTION,
+			array(
+				'enabled'          => true,
+				'autoresponder_id' => 0,
+			)
+		);
 	}
 
 	protected function tearDown(): void {
@@ -83,6 +93,9 @@ final class AutomationDiscountPrivacyTest extends TestCase {
 			wp_delete_post( $id, true );
 		}
 		delete_option( AutomationDiscount::OPTION );
+		delete_option( 'smly_plus_welcome_enabled' );
+		delete_option( 'smly_plus_first_order_enabled' );
+		delete_option( \Smaily_Connect\Includes\Options::ABANDONED_CART_STATUS_OPTION );
 		$this->coupons  = array();
 		$this->orders   = array();
 		$this->products = array();

@@ -17,6 +17,9 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
+use Smaily_Connect\Includes\Options;
+
+require_once dirname( __DIR__, 4 ) . '/includes/smaily-options.class.php';
 
 final class AutomationDiscountTest extends TestCase {
 
@@ -83,6 +86,83 @@ final class AutomationDiscountTest extends TestCase {
 		);
 		self::assertFalse( $settings['first_order']['enabled'] );
 		self::assertSame( 7, $settings['first_order']['valid_days'] );
+	}
+
+	/**
+	 * CON-255: turning an automation off keeps its saved discount setting,
+	 * and issue() then makes no code. Each automation is read through the
+	 * switch its own sending reads.
+	 *
+	 * @dataProvider automation_switches
+	 *
+	 * @param mixed $off The stored value of the automation's switch while it is off.
+	 * @param mixed $on  The stored value while it is on.
+	 */
+	public function test_no_code_is_made_for_an_automation_that_is_switched_off( string $trigger, string $option, $off, $on ): void {
+		$switch = $off;
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $fallback = false ) use ( &$switch, $option ) {
+				if ( $key === AutomationDiscount::OPTION ) {
+					$saved = array(
+						'enabled'     => true,
+						'template_id' => 12,
+						'valid_days'  => 7,
+					);
+					return array(
+						'welcome'        => $saved,
+						'first_order'    => $saved,
+						'abandoned_cart' => $saved,
+					);
+				}
+				return $key === $option ? $switch : $fallback;
+			}
+		);
+		// Reached only once the gate lets issue() look at the template.
+		Functions\when( 'get_post' )->justReturn( null );
+
+		$payload = array(
+			'email'  => 'jane@example.test',
+			'fields' => array(),
+		);
+		$issued  = ( new AutomationDiscount() )->issue( $trigger, $payload );
+
+		self::assertFalse( AutomationDiscount::automation_enabled( $trigger ) );
+		self::assertSame(
+			array(
+				'fields' => array(),
+				'note'   => '',
+			),
+			$issued,
+			'An automation that is off gets no code and no note — its discount setting is only kept.'
+		);
+
+		$switch = $on;
+		$issued = ( new AutomationDiscount() )->issue( $trigger, $payload );
+
+		self::assertTrue( AutomationDiscount::automation_enabled( $trigger ) );
+		self::assertStringStartsWith( 'Sent without a discount code: ', $issued['note'], 'Switched on, issue() goes on to the template.' );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: string, 2: mixed, 3: mixed}>
+	 */
+	public static function automation_switches(): array {
+		return array(
+			'welcome'        => array( 'welcome', 'smly_plus_welcome_enabled', '', '1' ),
+			'first order'    => array( 'first_order', 'smly_plus_first_order_enabled', false, true ),
+			'abandoned cart' => array(
+				'abandoned_cart',
+				Options::ABANDONED_CART_STATUS_OPTION,
+				array(
+					'enabled'          => false,
+					'autoresponder_id' => 0,
+				),
+				array(
+					'enabled'          => true,
+					'autoresponder_id' => 0,
+				),
+			),
+		);
 	}
 
 	public function test_a_codes_last_day_is_that_many_days_after_today_in_the_store_timezone(): void {

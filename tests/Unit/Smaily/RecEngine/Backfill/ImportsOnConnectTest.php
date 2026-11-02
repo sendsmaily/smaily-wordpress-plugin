@@ -273,6 +273,50 @@ final class ImportsOnConnectTest extends TestCase {
 		self::assertArrayNotHasKey( ImportsOnConnect::OPTION, $this->options );
 	}
 
+	public function test_after_an_update_a_held_back_catalog_import_starts_nothing(): void {
+		// Erkki, 2026-11-02: Hold back promised that nothing is sent.
+		$this->row( 'products', 'cancelled' );
+
+		self::assertFalse( $this->sequence()->start_after_update() );
+
+		self::assertSame( array(), $this->started );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION, $this->options );
+		self::assertSame( 'cancelled', $this->rows['products']['status'], 'The held-back import is left untouched.' );
+		self::assertSame( '1', $this->options[ ImportsOnConnect::OPTION_UPDATE_CHECKED ], 'Decided once.' );
+	}
+
+	public function test_after_an_update_a_cancelled_customers_import_is_skipped_and_the_orders_import_starts(): void {
+		$this->row( 'products', 'completed' );
+		$this->row( 'customers', 'cancelled' );
+
+		self::assertTrue( $this->sequence()->start_after_update() );
+
+		self::assertSame( array( 'orders' ), $this->started );
+		self::assertSame( array( 'orders' ), $this->options[ ImportsOnConnect::OPTION ] );
+		self::assertSame( 'cancelled', $this->rows['customers']['status'], 'The cancelled import is left untouched.' );
+	}
+
+	public function test_after_an_update_nothing_starts_when_the_only_unfinished_part_was_cancelled(): void {
+		$this->row( 'products', 'completed' );
+		$this->row( 'customers', 'completed' );
+		$this->row( 'orders', 'cancelled' );
+
+		self::assertFalse( $this->sequence()->start_after_update() );
+
+		self::assertSame( array(), $this->started );
+	}
+
+	public function test_after_an_update_a_failed_or_stalled_part_runs_again(): void {
+		$this->row( 'products', 'completed' );
+		$this->row( 'customers', 'running', time() - AbstractBackfillJob::STALL_GRACE_SECONDS - 1 );
+		$this->row( 'orders', 'failed' );
+
+		self::assertTrue( $this->sequence()->start_after_update() );
+
+		self::assertSame( array( 'customers' ), $this->started, 'The stalled customers import is started again.' );
+		self::assertSame( array( 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ], 'The failed orders import follows.' );
+	}
+
 	public function test_after_an_update_nothing_starts_when_customers_and_orders_completed(): void {
 		$this->row( 'customers', 'completed' );
 		$this->row( 'orders', 'completed' );

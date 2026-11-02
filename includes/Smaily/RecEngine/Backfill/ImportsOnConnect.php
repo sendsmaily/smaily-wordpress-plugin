@@ -49,10 +49,12 @@ use Smaily\Connect\Smaily\EventQueue;
  * extends a sequence.
  *
  * A store connected before this release starts the sequence once after the
- * update (start_after_update()): only when sending is allowed, only when its
- * customers or orders import never completed, and from the first part that
- * never completed — a completed part is skipped. OPTION_UPDATE_CHECKED makes
- * it one-time, whatever the outcome.
+ * update (start_after_update()): only when sending is allowed, never when the
+ * merchant held back or cancelled the products import, and only when its
+ * customers or orders import never completed and was not cancelled. It starts
+ * from the first part that never completed; a completed or cancelled part is
+ * skipped, a failed or stalled one runs again (Erkki, 2026-11-02: "Respect
+ * Hold back"). OPTION_UPDATE_CHECKED makes it one-time, whatever the outcome.
  */
 final class ImportsOnConnect {
 
@@ -145,15 +147,24 @@ final class ImportsOnConnect {
 			return false;
 		}
 
-		if ( $this->completed( 'customers' ) && $this->completed( 'orders' ) ) {
+		// Hold back promised that nothing is sent: a store whose merchant
+		// held back or cancelled the catalog import gets no import at all.
+		if ( $this->last_status( self::PARTS[0] ) === BackfillJobInterface::STATUS_CANCELLED ) {
 			return false;
 		}
 
+		// The parts nobody finished and nobody stopped: a completed or a
+		// cancelled part is skipped; a failed, stalled or never-run one runs.
 		$parts = array();
 		foreach ( self::PARTS as $part ) {
-			if ( ! $this->completed( $part ) ) {
+			$status = $this->last_status( $part );
+			if ( $status !== BackfillJobInterface::STATUS_COMPLETED && $status !== BackfillJobInterface::STATUS_CANCELLED ) {
 				$parts[] = $part;
 			}
+		}
+
+		if ( array_intersect( $parts, array( 'customers', 'orders' ) ) === array() ) {
+			return false;
 		}
 
 		if ( ! $this->acquire_lock() ) {
@@ -299,10 +310,11 @@ final class ImportsOnConnect {
 			&& ! AbstractBackfillJob::is_stalled( $job_type, $row );
 	}
 
-	private function completed( string $job_type ): bool {
+	/** The status of a type's last run; '' when it never ran. */
+	private function last_status( string $job_type ): string {
 		$row = ( $this->state_reader )( $job_type );
 
-		return is_array( $row ) && ( $row['status'] ?? '' ) === BackfillJobInterface::STATUS_COMPLETED;
+		return is_array( $row ) ? (string) ( $row['status'] ?? '' ) : '';
 	}
 
 	private function job( string $job_type ): ?AbstractBackfillJob {

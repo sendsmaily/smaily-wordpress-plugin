@@ -155,3 +155,115 @@ describe('AutomationSection workflow menu', () => {
     expect(buildTabPayload(latest, 'woocommerce')['automationMappings']).toEqual([welcomeMapping('22')]);
   });
 });
+
+/** A card whose switch really toggles the welcome flag, with a settings row and a discount block. */
+function TogglingHarness({
+  initial,
+  onState,
+}: {
+  initial: WizardState;
+  onState?: (state: WizardState) => void;
+}): React.JSX.Element {
+  const [state, dispatch] = useReducer(wizardReducer, initial);
+  onState?.(state);
+  return (
+    <AutomationSection
+      state={state}
+      dispatch={dispatch}
+      trigger="welcome"
+      title="Welcome email"
+      description="Sent when a shopper subscribes."
+      isEnabled={state.welcomeEnabled}
+      onEnabledChange={(enabled) => dispatch({ type: 'SET_WELCOME_ENABLED', payload: enabled })}
+      extras={<p>The automation’s own setting</p>}
+      discount={<p>The discount block</p>}
+    />
+  );
+}
+
+function follows(a: Element, b: Element): boolean {
+  return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+}
+
+describe('AutomationSection progressive disclosure (CON-255)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    _resetUseWorkflowsCache();
+    workflowsMock.mockResolvedValue({
+      workflows: [
+        { id: '11', name: 'Welcome A', status: 'ACTIVE' },
+        { id: '22', name: 'Welcome B', status: 'ACTIVE' },
+      ],
+    });
+  });
+
+  afterEach(() => {
+    _resetUseWorkflowsCache();
+  });
+
+  it('shows only the title, description and switch while the automation is off', () => {
+    render(<TogglingHarness initial={{ ...stateWith([welcomeMapping('22')]), welcomeEnabled: false }} />);
+
+    expect(screen.getByRole('heading', { name: 'Welcome email' })).toBeInTheDocument();
+    expect(screen.getByText('Sent when a shopper subscribes.')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Enable welcome email' })).not.toBeChecked();
+
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText('The automation’s own setting')).not.toBeInTheDocument();
+    expect(screen.queryByText('The discount block')).not.toBeInTheDocument();
+    expect(workflowsMock).not.toHaveBeenCalled();
+  });
+
+  it('shows the workflow, then the automation’s own settings, then the discount block last once on', async () => {
+    render(<TogglingHarness initial={{ ...stateWith([]), welcomeEnabled: true }} />);
+    await screen.findByRole('option', { name: 'Welcome A' });
+
+    const toggle = screen.getByRole('switch', { name: 'Enable welcome email' });
+    const workflow = screen.getByRole('combobox');
+    const settings = screen.getByText('The automation’s own setting');
+    const discount = screen.getByText('The discount block');
+
+    expect(follows(toggle, workflow)).toBe(true);
+    expect(follows(workflow, settings)).toBe(true);
+    expect(follows(settings, discount)).toBe(true);
+  });
+
+  it('shows the per-language workflow table first on a multilingual store', async () => {
+    render(
+      <TogglingHarness
+        initial={{ ...stateWith([welcomeMapping('11', 'et')], ['et', 'en']), welcomeEnabled: true }}
+      />,
+    );
+    await screen.findAllByRole('option', { name: 'Welcome A' });
+
+    const table = screen.getAllByRole('table')[0]!;
+    expect(follows(table, screen.getByText('The automation’s own setting'))).toBe(true);
+    expect(follows(screen.getByText('The automation’s own setting'), screen.getByText('The discount block'))).toBe(true);
+  });
+
+  it('keeps the saved workflows in the save while off and shows them again when switched back on', async () => {
+    let latest: WizardState = {
+      ...stateWith([welcomeMapping('22', 'et'), welcomeMapping('11', 'en')], ['et', 'en']),
+      welcomeEnabled: true,
+    };
+    render(<TogglingHarness initial={latest} onState={(s) => { latest = s; }} />);
+    await screen.findAllByRole('option', { name: 'Welcome A' });
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable welcome email' }));
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({
+      welcomeEnabled: false,
+      automationMappings: [welcomeMapping('22', 'et'), welcomeMapping('11', 'en')],
+    });
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable welcome email' }));
+    const [et, en] = await screen.findAllByRole<HTMLSelectElement>('combobox');
+    expect(et).toHaveValue('22');
+    expect(en).toHaveValue('11');
+    expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({
+      welcomeEnabled: true,
+      automationMappings: [welcomeMapping('22', 'et'), welcomeMapping('11', 'en')],
+    });
+  });
+});

@@ -29,7 +29,8 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *   - Hold back ends the sequence, and "Import now" on one card starts that
  *     import only;
  *   - a store connected before this release starts the sequence once after
- *     the update, from the first part that never completed;
+ *     the update, from the first part that never completed — never after a
+ *     held-back catalog import, and skipping a cancelled part;
  *   - a refused account moves nothing.
  */
 final class RecEngineImportsOnConnectTest extends TestCase {
@@ -117,32 +118,70 @@ final class RecEngineImportsOnConnectTest extends TestCase {
 	public function test_a_store_connected_before_the_update_starts_the_sequence_once(): void {
 		$this->connect( 'tok_sequence_update' );
 		// The store as it stood before this release: the catalog import ran on
-		// connect, the customers and orders imports never ran, no sequence.
+		// connect, the customers import failed, the orders import never ran,
+		// no sequence.
 		$this->unschedule_all();
 		ImportsOnConnect::forget();
 		$this->set_status( 'products', BackfillJobInterface::STATUS_COMPLETED );
+		RestRequestHelper::post( '/backfill/start', array( 'job_type' => 'customers' ) );
+		$this->unschedule_all();
+		$this->set_status( 'customers', BackfillJobInterface::STATUS_FAILED );
 		delete_option( ImportsOnConnect::OPTION_UPDATE_CHECKED );
 
 		do_action( ImportsOnConnect::HOOK );
 
 		self::assertSame( BackfillJobInterface::STATUS_COMPLETED, $this->status( 'products' ), 'The completed catalog import is not run again.' );
-		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->status( 'customers' ) );
+		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->status( 'customers' ), 'The failed customers import runs again.' );
 		self::assertTrue( $this->tick_queued( 'customers' ) );
 		self::assertNull( $this->status( 'orders' ), 'The orders import follows the customers.' );
 		self::assertSame( array( 'customers', 'orders' ), $this->stored_sequence() );
 		self::assertSame( '1', get_option( ImportsOnConnect::OPTION_UPDATE_CHECKED ) );
 
-		// Once only: with the sequence gone and the customers import stopped,
+		// Once only: with the sequence gone and the customers import failed,
 		// a later check starts nothing again.
 		$this->unschedule_all();
 		ImportsOnConnect::forget();
-		$this->set_status( 'customers', BackfillJobInterface::STATUS_CANCELLED );
+		$this->set_status( 'customers', BackfillJobInterface::STATUS_FAILED );
 
 		do_action( ImportsOnConnect::HOOK );
 
-		self::assertSame( BackfillJobInterface::STATUS_CANCELLED, $this->status( 'customers' ) );
+		self::assertSame( BackfillJobInterface::STATUS_FAILED, $this->status( 'customers' ) );
 		self::assertNull( $this->status( 'orders' ) );
 		self::assertSame( array(), $this->stored_sequence() );
+	}
+
+	public function test_after_the_update_a_held_back_catalog_import_starts_nothing(): void {
+		$this->connect( 'tok_sequence_update_held' );
+		RestRequestHelper::post( '/backfill/cancel', array( 'job_type' => 'products' ) );
+		$this->unschedule_all();
+		delete_option( ImportsOnConnect::OPTION_UPDATE_CHECKED );
+
+		do_action( ImportsOnConnect::HOOK );
+
+		self::assertSame( BackfillJobInterface::STATUS_CANCELLED, $this->status( 'products' ), 'The held-back import is left untouched.' );
+		self::assertNull( $this->status( 'customers' ) );
+		self::assertNull( $this->status( 'orders' ) );
+		self::assertSame( array(), $this->stored_sequence() );
+		self::assertSame( '1', get_option( ImportsOnConnect::OPTION_UPDATE_CHECKED ), 'Decided once.' );
+	}
+
+	public function test_after_the_update_a_cancelled_customers_import_is_skipped_and_the_orders_import_starts(): void {
+		$this->connect( 'tok_sequence_update_cancelled' );
+		$this->unschedule_all();
+		ImportsOnConnect::forget();
+		$this->set_status( 'products', BackfillJobInterface::STATUS_COMPLETED );
+		$start = RestRequestHelper::post( '/backfill/start', array( 'job_type' => 'customers' ) );
+		self::assertSame( 200, $start->get_status() );
+		RestRequestHelper::post( '/backfill/cancel', array( 'job_type' => 'customers' ) );
+		$this->unschedule_all();
+		delete_option( ImportsOnConnect::OPTION_UPDATE_CHECKED );
+
+		do_action( ImportsOnConnect::HOOK );
+
+		self::assertSame( BackfillJobInterface::STATUS_CANCELLED, $this->status( 'customers' ), 'The cancelled import is left untouched.' );
+		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->status( 'orders' ) );
+		self::assertTrue( $this->tick_queued( 'orders' ) );
+		self::assertSame( array( 'orders' ), $this->stored_sequence() );
 	}
 
 	public function test_a_refused_account_moves_nothing(): void {
