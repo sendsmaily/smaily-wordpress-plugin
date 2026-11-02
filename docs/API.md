@@ -166,6 +166,7 @@ The React admin bundle additionally expects `window.wp.i18n` (enqueued with a
 | `bin/walk-*.cjs` | Live-walk scripts per surface (catalog, orders, browse, GDPR, automations, …) — run against the SANDBOX tenant only; see [`DEVELOPER.md`](DEVELOPER.md#live-walks-real-engine) |
 | `bin/build-i18n.sh` | The i18n build (TSX transpile + md5-named script-translation JSON) |
 | `bin/check-contract-staleness.sh` | CI guard: md5-compares our vendored contract copy against the engine repo |
+| `bin/measure-order-walk.php` | Measurement (`wp eval-file`, legacy order storage): times every page of the orders import on N seeded orders, prints the query plan, sends nothing, deletes what it seeded (CON-236) |
 
 ## 6. Outbound APIs (pointers only)
 
