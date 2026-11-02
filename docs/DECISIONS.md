@@ -9718,6 +9718,9 @@ change, a one-way door for Erkki. Without it a large legacy store's orders
 import runs below the pace (each page adds its query time) — still minutes
 of run time instead of hours. `bin/measure-order-walk.php` measures the same
 on a wp-env site (seeds by SQL, sends nothing, deletes what it seeded).
+**Update (CON-259, 2026-11-02):** Erkki approved the index; a legacy-storage
+store now gets it in a background action (`DB\LegacyOrderDateIndex`) — see
+the CON-259 entry.
 **Rationale:** Magento parity (one pace for every connector, INT-185); an
 80,000-order history takes about 1,600 order requests, which at the pace is a
 few minutes of run time instead of 13+ hours.
@@ -9796,6 +9799,119 @@ contract §5, §7, §15. Pinned by
 `tests/Integration/RecEngineLoginVisitorTokenTest.php` (the mock binds a
 merged token and answers §15 by it — `visitor_token_bindings`,
 `merge_count`).
+
+### CON-259 — A connected legacy-storage store gets one index on the posts table for the orders import, added in the background (2026-11-02)
+
+**Context:** on legacy order storage the orders import (CON-245) reads its
+pages from `wp_posts`, newest first by `post_date_gmt`, then `ID`. WordPress
+indexes `post_date`, not `post_date_gmt`, so every page sorted every order in
+the window: 73 ms a page at 50,000 orders, 105 ms at 100,000 (p95 216 ms), a
+filesort each time (CON-236's measurement). An index on
+`(post_type, post_date_gmt, ID)` takes a page to about 1–4 ms. A new index on
+a core WordPress table is a one-way door; **Erkki approved this schema change
+on 2026-11-02.**
+**Decision:**
+- **The index:** `smaily_connect_order_date` on `{$wpdb->posts}`
+  `(post_type, post_date_gmt, ID)` — plugin-prefixed, so uninstall drops ours
+  and never another index. `DB\LegacyOrderDateIndex` owns it.
+- **Only where it is used (Erkki, 2026-11-02):** a store connected to
+  Campaign Intelligence (`RecEngineSettings::is_connected()`), with
+  WooCommerce active and NOT on HPOS (`OrderBackfillJob::uses_hpos()`, i.e.
+  `OrderUtil::custom_orders_table_usage_is_enabled()`). Erkki's reason: don't
+  alter WordPress's core table on a store that never uses the import (an
+  email-only store). `is_connected()`, not `sending_allowed()`: adding the
+  index sends nothing, and a refused account's rows resume on a new
+  connection. A store that is not connected gets nothing scheduled and no
+  state written. A store that disconnects keeps the index; uninstall drops it.
+- **Never in a request:** `ensure_scheduled()` only schedules ONE single
+  Action Scheduler action (`smly_plus_order_date_index`, group
+  `smaily-connect-order-date-index`, listed in `Deactivation::AS_GROUPS`).
+  Two callers: `Bootstrap::register_action_scheduler_jobs()` (the hourly
+  recurring-jobs check, cleared by Activation = the upgrade path), and the
+  successful setup exchange, right after it starts the imports
+  (`EndpointRegistry`'s connect callback). The ALTER runs in that action —
+  never in `admin_init`, never in the upgrade or the connect request
+  (PRO-2434's lesson: a long schema step per admin request).
+- **Early enough for the import (CON-247):** a connect starts the products
+  import held back 3 minutes (`CatalogImportOnConnect::DELAY_SECONDS`), then
+  the customers import, and only then the orders import. The hourly check
+  alone could land up to an hour after the connect — on a store with a small
+  catalogue and customer list the orders import starts within minutes, and a
+  large order history could be mostly read by then. So the connect also
+  schedules the action at once: Action Scheduler runs it on its next queue
+  run (about a minute), inside the 3-minute hold-back, before the orders
+  import's first page. If that action fails or is missed, the hourly check
+  schedules it again; the import never waits for it.
+- **Idempotent:** `SHOW INDEX` first. Our index, or any index whose first two
+  columns are `(post_type, post_date_gmt)` (InnoDB appends the primary key),
+  counts as present — the state is set to `present` and nothing is added.
+- **Online DDL:** `ALTER TABLE … ADD INDEX …, ALGORITHM=INPLACE, LOCK=NONE`
+  (reads and writes go on during the build). Only when the server refuses
+  that clause (error 1845/1846, or a syntax error from a server that does not
+  know it — `is_clause_refused()`) does it try a plain `ADD INDEX`. The
+  session's `lock_wait_timeout` is set to 5 s for the statement and restored
+  after: an online ALTER still needs a brief exclusive metadata lock, and with
+  the server default (a day in MariaDB, a year in MySQL) one open long
+  transaction would make every later query on the posts table queue behind
+  the waiting ALTER. With 5 s the attempt fails instead. Database errors are
+  suppressed (not printed, not in the PHP log by `$wpdb`) and recorded by the
+  class; the run raises PHP's time limit to 900 s where the host allows.
+- **Failure:** a failed attempt (permissions, a lock-wait timeout, a host that
+  forbids ALTER on core tables) writes a debug-log line and the state
+  `smly_plus_order_date_index` (autoload=false) `{status: failed, attempts,
+  at, error}`; the error has its quoted parts removed (a denied ALTER names
+  the database user and host). It is tried again a day later, **at most 3
+  attempts in all**, then never again. An attempt is counted BEFORE the
+  ALTER, so a run the host kills (`running` older than an hour) counts as
+  failed. The import works exactly as before without the index.
+- **HPOS → legacy later:** nothing is recorded for an HPOS store (or one
+  without WooCommerce, or one not connected), so a connected store that
+  switches to legacy storage gets the index within the hour (the next
+  recurring-jobs check). **Legacy → HPOS:**
+  the index stays (harmless; the posts table still holds every other post
+  type; uninstall drops it).
+- **Uninstall drops it, deactivation leaves it.** `uninstall.php` loads the
+  class file on its own (it needs only `$wpdb`) and calls
+  `LegacyOrderDateIndex::drop()`, which drops `smaily_connect_order_date`
+  only when `SHOW INDEX` finds it. The state option goes with the
+  `smly_plus_*` sweep.
+**Measurement (AC 3):** `EXPLAIN` of the import's real page query on WordPress
+7.1's `wp_posts` schema in a throwaway `mariadb:lts` (MariaDB 12.3, the CI
+image) — 200, 600, 2,000 and 50,000 orders, and 300 orders among 50,000
+other posts: without the index `type_status_date` + "Using filesort" (a full
+scan at 200); with it `key = smaily_connect_order_date`, `range`, Extra
+"Using where" / "Using index condition; Using where" — **no filesort** in
+every case, with or without an `ANALYZE` after the ALTER. The plan is stable,
+so `tests/Integration/LegacyOrderDateIndexTest.php` asserts it on CI's legacy
+leg (600 seeded orders) and that the page holds the same orders before and
+after. The query itself is unchanged. The ALTER took 0.46 s on 266,666 rows
+of that table (rows with little content; a real table with post content
+takes longer — it reads the whole clustered index).
+**HPOS (out of scope, report only):** WooCommerce 10.7's `wc_orders` has
+`KEY date_created (date_created_gmt)` (plus `type_status_date (type, status,
+date_created_gmt)`, which the `NOT IN` status filter cannot use for the
+order). With 50,000 orders the import's HPOS page query reads `date_created`
+backwards, Extra "Using where" — no filesort. No change to HPOS tables.
+**Rationale:** a large legacy store's orders import ran below the CON-236 pace
+because each page's sort cost up to 100+ ms; the index removes that for a
+one-time, online, bounded schema change that leaves on uninstall.
+**Alternatives:** add it in a migration (Migrator / `dbDelta()`) — rejected:
+migrations run inside the upgrade request (`admin_init`), and dbDelta()
+would need the whole core `CREATE TABLE` restated. Retry until it succeeds —
+rejected: a host that forbids ALTER would retry forever. Add it on every
+legacy-storage store, connected or not (the first version of this change) —
+rejected by Erkki on 2026-11-02 (see above). Rely on the hourly check alone
+after a connect — rejected: it can land after the orders import. Change the query to sort by
+`post_date` — rejected: the local date is not monotonic across DST and
+timezone changes, CON-245's window is in UTC, and `type_status_date` puts
+`post_status` before the date, so the `NOT IN` filter still sorts.
+**Relationships:** CON-236 (measurement, `bin/measure-order-walk.php`, which
+now prints whether the index is present), CON-245 (the newest-first walk),
+PRO-2433 (AS groups cancelled on deactivation), PRO-2434 (no long schema step
+per admin request), PRO-2437 (the hourly recurring-jobs check), PRO-3435
+(both order storages in CI). Pinned by
+`tests/Unit/DB/LegacyOrderDateIndexTest.php` and
+`tests/Integration/LegacyOrderDateIndexTest.php`.
 
 ## How to keep this document going
 

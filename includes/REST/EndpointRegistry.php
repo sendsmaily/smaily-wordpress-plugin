@@ -12,6 +12,7 @@ namespace Smaily\Connect\REST;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Bootstrap;
+use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Settings\EmailDesignWorkflows;
@@ -125,8 +126,13 @@ final class EndpointRegistry {
 				// Connecting starts the catalog, customers and orders imports,
 				// one after another (CON-247; the catalog first, held back —
 				// PRO-3743), through the jobs the "Import now" buttons start.
+				// It also schedules the legacy posts-table index (CON-259) —
+				// only the action; the ALTER runs in the background, usually
+				// before the orders import reaches its first page.
 				static function () use ( $bootstrap ): bool {
-					return $bootstrap->imports_on_connect()->start();
+					$started = $bootstrap->imports_on_connect()->start();
+					( new LegacyOrderDateIndex() )->ensure_scheduled();
+					return $started;
 				}
 			),
 			new AutomationsEndpoint(

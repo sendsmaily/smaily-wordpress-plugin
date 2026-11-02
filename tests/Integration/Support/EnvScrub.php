@@ -158,6 +158,9 @@ final class EnvScrub {
 			// Same class again (CON-248): the history import's progress state is
 			// autoload=false and asserted on by RecEngineHistoryProgressTest.
 			\Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress::OPTION,
+			// Same class again (CON-259): the orders-import index's state is
+			// autoload=false and asserted on by LegacyOrderDateIndexTest.
+			\Smaily\Connect\DB\LegacyOrderDateIndex::OPTION,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

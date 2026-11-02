@@ -26,6 +26,7 @@ use Smaily\Connect\Integrations\WooCommerce\OrderHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Integrations\WooCommerce\TransactionalEmailHookHandler;
+use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Notifications\NotificationManager;
 use Smaily\Connect\Privacy\GdprHandler;
@@ -237,6 +238,9 @@ final class Bootstrap {
 		// The §25 history progress report (CON-248): its own action, so a
 		// slow or failed report never holds up an import batch.
 		add_action( HistoryProgress::HOOK, array( $this, 'on_history_progress' ) );
+		// The orders-import index on a legacy posts table (CON-259): added in
+		// this background action, never in the update or an admin request.
+		add_action( LegacyOrderDateIndex::HOOK, array( $this, 'on_order_date_index' ) );
 
 		// Storefront browse-beacon enqueue (3.4.3). wp_enqueue_scripts is a
 		// front-end-only hook; StorefrontBeacon::enqueue() self-gates on
@@ -384,6 +388,13 @@ final class Bootstrap {
 	 */
 	public function on_history_progress(): void {
 		$this->history_progress()->run();
+	}
+
+	/**
+	 * AS callback for LegacyOrderDateIndex::HOOK (CON-259).
+	 */
+	public function on_order_date_index(): void {
+		( new LegacyOrderDateIndex() )->run();
 	}
 
 	/**
@@ -909,6 +920,13 @@ final class Bootstrap {
 		// reactivation while an import is in progress. A single action that
 		// re-arms itself only while the import runs.
 		$this->history_progress()->ensure_scheduled();
+
+		// The orders-import index on a legacy posts table (CON-259): one
+		// single action while it is due — on a connected store on legacy
+		// storage only, and never again once it is added or has failed
+		// MAX_ATTEMPTS times. A store that switches from HPOS to legacy
+		// storage gets it within the hour; a connect schedules it at once.
+		( new LegacyOrderDateIndex() )->ensure_scheduled();
 
 		update_option( self::OPTION_AS_JOBS_VERIFIED, time(), false );
 	}
