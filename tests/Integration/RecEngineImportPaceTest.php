@@ -128,8 +128,14 @@ final class RecEngineImportPaceTest extends TestCase {
 		self::assertSame( 'running', $this->read_backfill_row( 'customers' )['status'] );
 	}
 
+	/**
+	 * The tick's import reads 100 customers a page; with the admin, 100 more
+	 * make the first page full, so the throttled page is not the last one —
+	 * a 429 on the last page ends the walk, and its parked rows go out with
+	 * the recurring flusher.
+	 */
 	public function test_the_tick_reschedules_a_throttled_import_after_the_engines_wait(): void {
-		$this->make_users( 2 );
+		$this->make_users( 100 );
 		$this->truncate_queue();
 
 		$bootstrap = Bootstrap::instance();
