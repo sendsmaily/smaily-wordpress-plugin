@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.20
+# Smaily Recommendation Engine — API Contract v1.21
 
-**Version**: 1.20.0
+**Version**: 1.21.0
 **Published**: 2026-05-19
-**Last updated**: 2026-10-28 (v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-02 (v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -100,6 +100,7 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
 - Visitor tokens: opaque strings of up to 64 characters — store, forward and compare a token exactly as received; do not depend on its length or characters. Engine-issued (email links, `smaily_vt`): `vt_` + exactly 10 characters `[a-z0-9]`. Store-created at checkout (v1.11.0, [§5](#store-created-visitor-token)): `vs_` + exactly 22 characters `[A-Za-z0-9]`
 - Order `external_id`: text, plugin/platform-defined
 - SKU: text, max 64 characters
+- Website code (v1.21.0): the platform's own stable website code (Magento: the website `code`, for example `base`, `lv`), a string of 1–64 characters, compared exactly as sent. The connector always names the website itself; the engine never derives one (a language can exist on several websites)
 
 **Paid Smaily package required.** Connect works only with a paid Smaily package: the engine reads and writes the store's Smaily data through the Smaily API, and Smaily gives API access only to paid packages. An account without one gets Smaily code 227 ("A paid package is required"). When the engine reports `smaily_paid_package_required` (§21), the plugin tells the store that its Smaily package does not include API access and offers the package upgrade instead of onboarding.
 
@@ -436,11 +437,21 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
     "ecommerce_platform": "woocommerce",
     "ecommerce_platform_version": "8.5.1",
     "site_url": "https://erkkipood.ee"
-  }
+  },
+  "store_config": { "customer_account_scope": "website" }
 }
 ```
 
 `plugin_info` is recorded in the audit log (`tenant_setup_tokens.used_from_plugin`). This tells Erkki which plugin version the client connected with.
+
+<a id="store-config"></a>
+**`store_config`** (v1.21.0, optional) — how the store's platform is set up. A single-website store leaves it out.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `store_config.customer_account_scope` | `"global"` \| `"website"` | NO | How the platform shares customer accounts between websites. `global`: one account per person (Magento "Share Customer Accounts: Global"). `website`: one account per person per website (Magento "Per Website"), so one email can have a store customer id on each website. Absent = `global`. |
+
+An unknown value is stored as absent (`global`), never a `400`: a failed setup exchange costs the whole connection. When the platform setting changes later, send the new value with the next history import's `started` call ([§25](#25-post-apiv1ingesthistoryprogress)) — a change of the setting moves accounts, so the connector re-sends its customers through a history import anyway. A request without `store_config` leaves the stored value as it is.
 
 **Response 200 OK**:
 ```json
@@ -689,12 +700,35 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 | `description` | string \| `{lang: string}` | NO | Short description (max 500 characters) |
 | `image_url` | string (URL) \| `{lang: string}` | NO | Product image URL. **Stored as a representative scalar only** — there is no `image_url_i18n` column, so the `{lang}` form is accepted but not stored per-language. |
 | `product_url` | string (URL) \| `{lang: string}` | YES | Product page URL. **Required, non-empty** — an empty string `""` is rejected (400), mirroring `category_path`. No silent fallback to `product_base_url + sku`. |
+| `websites` | object \| `null` | NO | (v1.21.0) The websites that sell the product, with its link on each. See [Several websites](#catalog-websites). Absent or `null` = sold on every website with the row's values. |
 | `external_id` | string | NO | Plugin/platform internal ID (for debugging/traceability). |
 | `tags` | object | NO | Best-effort mapping (engine uses immediately). Includes the optional `category_defaulted` marker — see [below](#category-defaulted). |
 | `raw_attributes` | object | NO | Raw platform data. **Currently stored verbatim and not processed** — the AI mapping wizard / `unmapped_attributes` flow is planned, not yet implemented. |
 | `product_type` | string | NO | Platform product type — WC `simple`/`variable`/`grouped`/`external` **plus gift-card plugins' custom types** (`pw-gift-card`, `gift-card`, `gift_card`, `wc_gc`, …). The **robust non-product signal**: the engine derives `recommendable` from this (gift-card types → excluded). Send it; do not hard-filter on it yourself. |
 | `is_virtual` | boolean | NO | WC virtual flag. **Stored as signal, not auto-excluding** — a legitimate digital/virtual-goods store sells these. Lets the engine distinguish a digital store from a config artifact. |
 | `is_downloadable` | boolean | NO | WC downloadable flag. Same semantics as `is_virtual` — stored, not auto-excluding. |
+
+<a name="catalog-websites"></a>
+**Several websites** (v1.21.0, INT-171). A store whose platform runs several websites from one installation (Magento) sends, on each product, the websites that sell it:
+
+```json
+"websites": {
+  "base": { "product_url": { "et": "https://shop.ee/p", "en": "https://shop.ee/en/p", "ru": "https://shop.ee/ru/p" } },
+  "lv":   { "product_url": { "lv": "https://shop.lv/p", "en": "https://shop.lv/en/p", "ru": "https://shop.lv/ru/p" } }
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `websites` | object | NO | Key = website code (string, 1–64). One entry for each website that sells the product, and none for other websites. |
+| `websites.<code>.product_url` | string (URL) \| `{lang: string}` | YES, in an entry | The product's link on this website, per store-view language. Same rules as the row's `product_url` (non-empty); a string is stored as `{default: "..."}`. |
+
+- `websites` absent or `null` = the product is sold on every website with the row's values (every row of a single-website store).
+- `websites` = `{}` = the product is sold on no website.
+- The row's own `name`, `description` and `product_url` stay required and keep their meaning: the per-language text applies on every website.
+- **Send the whole row** ([lifecycle](#catalog-sync-lifecycle)) covers `websites`: a later sync that omits the field clears it, and the product reads as sold everywhere again. A multi-website connector sends `websites` on every row of every sync.
+- An invalid entry (a key that is empty or longer than 64 characters, a missing or empty `product_url`) fails the product in `errors[]`, as an invalid row `product_url` does.
+- What the engine does with it: a customer whose website ([§4](#customer-website)) some product of the store lists is never recommended a product that website does not sell, and every link the engine sends — the Smaily `rec_N_link_url` and the storefront `product_url` ([§15](#15-post-apiv1recommendationscustomer)) — is the link of the customer's website (or of the storefront request's website), in the render language, falling back inside that website's entry (tenant default → `en` → `default` → first). A customer without a website, or whose website no product lists, keeps the row's values.
 
 <a name="sale-semantics"></a>
 **Sale semantics** (D2 Variant 1, Shopify convention):
@@ -726,7 +760,7 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
    - **Archive / unpublish** → re-send the row via §3 with `in_stock=false`.
    - **Platform hard delete** → [§3b](#3b-post-apiv1ingestcatalogremove) with the parent `product_id`.
 
-   **Send the whole row, not a patch.** The UPSERT replaces every sender-owned column with the value in the request, so an optional field that a change omits (`compare_price`, `description`, `image_url`, …) is cleared. Only `tags` is merged (keys the request does not set are kept).
+   **Send the whole row, not a patch.** The UPSERT replaces every sender-owned column with the value in the request, so an optional field that a change omits (`compare_price`, `description`, `image_url`, `websites`, …) is cleared. Only `tags` is merged (keys the request does not set are kept).
 3. **Full import by hand.** The merchant can start a full import at any time. It uses the same §3 batches as the setup import and is safe to repeat (natural-key UPSERT, [Idempotency](#idempotency)). It does **not** remove products that are missing from it — absence counts only in the nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest).
 4. **No scheduled full re-sync.** The engine does not need a periodic full re-sync and does not expect one. A sender that still runs one causes no harm (the UPSERT is idempotent, and back-in-stock detection only reacts to a real stock transition), but it is not part of this contract.
 5. **Nightly manifest (v1.12.0).** Once a night the sender sends the store's complete product list — `sku` + `in_stock` only — to [§3c](#3c-post-apiv1ingestcatalogmanifest). It heals lost stock-change and delete events, and tells the operator when a full import is needed.
@@ -886,6 +920,7 @@ Send nothing else (no names, prices or descriptions). Unknown keys are ignored. 
 **When and what to send.**
 - Once a night, at a quiet hour. Build the list immediately before sending it.
 - The list covers the **whole store catalog**, however many connections feed this tenant. A product left out is treated as deleted.
+- The list covers **every website of the store** (v1.21.0). It has no website field: a range change on one website is a §3 re-send of the product with its new `websites`.
 - A store with more than 50,000 products cannot use this endpoint yet; it must not send a partial list.
 
 **What the engine does** with each difference:
@@ -965,6 +1000,14 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 | `phone` | string | NO | |
 | `first_seen_at` | ISO 8601 | NO | Registration timestamp (if different from row creation). Not overwritten on update (earliest wins). |
 | `external_id` | string | NO | Platform-internal user_id |
+| `website` | string | NO | (v1.21.0) The code of the website this customer account belongs to (Magento: the website of `customer.website_id`). The row's `external_id` and `language` belong to this website. An invalid value is ignored, never rejected. See [Several websites](#customer-website). |
+
+<a id="customer-website"></a>
+**Several websites** (v1.21.0, INT-171).
+- **One row per account.** In Per Website mode ([§1 `store_config`](#store-config)) send one row for each account; two rows can carry the same `email` with different `website`, `external_id` and `language`, also in one batch. The engine keeps one customer per email (the Smaily contact is one per email) and keeps the store's customer id and language of each website.
+- **The customer's website** is the website of the customer's newest order that names one ([§5](#5-post-apiv1ingestorders) `website`, any status); without such an order, the website of the latest customer row that named one. The engine recomputes it from the orders it holds, so the order in which rows arrive does not matter.
+- **The customer's `external_id` and `language`** are those of the account on the customer's website, when the engine has one. A row without `website` writes both as before 1.21.0. A row for another website is kept for that website only.
+- Identity stays `(tenant_id, email)`. Nothing else in §4 changes. A customer with no website (data from before 1.21.0, a guest without orders) keeps today's behaviour everywhere.
 
 > **Note on consent**: consent is **not part of the customers contract**. The engine does not accept, store, or process any `consent.*` fields — Smaily owns consent (it will not send to a contact without marketing consent regardless of engine data). Do not send consent fields; they are ignored.
 
@@ -1065,6 +1108,7 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 | `smaily_rec_id` | UUID v4 string | NO | Attribution: which recommendation was clicked pre-purchase (from cookie). Stored; consumed by the async attribution cron (see below). **UUID-validated — a malformed value rejects the whole order** (see below). |
 | `smaily_visitor_token` | string | NO | Visitor token from the visitor-token cookie: an engine-issued `vt_` token, or a token the store created at checkout (`vs_`, v1.11.0 — [below](#store-created-visitor-token)). Stored; attribution is async. Also binds the token to the order's customer (below). |
 | `smaily_rec_ctx` | string | NO | Attribution: context (from the `smaily_rec_ctx` cookie). Never decides *which* recommendation matches. Since v1.9.0 it decides the **channel**: `storefront` with a cookie match = a storefront credit (§15). Forward it on every order that carries `smaily_rec_id`. |
+| `website` | string | NO | (v1.21.0) The code of the website the order was placed on (Magento: the website of `order.store_id`). An invalid value is ignored, never rejected; no order is rejected for a missing or unknown website. A later sync of the same order replaces the stored value, as the other order columns (the attribution-field exception does not apply). Sets the customer's website ([§4](#customer-website)). |
 | `session_id` | string | NO | Accept-and-ignore (PRO-1544): stored on the order, but no longer read by the attribution matcher — the browse-event/`session_id` matching step it used to feed was removed in PRO-1524. Kept accepting it so senders don't need a plugin update. |
 | `items[]` | array | YES | Order line items |
 | `items[].sku` | string | YES | |
@@ -2211,10 +2255,16 @@ A returning guest shopper (no store customer account), named by the visitor toke
 | `customer_external_id` | string | ONE OF | The **store's own customer id** of the logged-in shopper — the `external_id` the plugin sends on [`POST /api/v1/ingest/customers`](#4-post-apiv1ingestcustomers) (WooCommerce user id, Shopify customer id, Magento customer id). 1–255 characters. |
 | `smaily_visitor_token` | string | ONE OF | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)) — the `smaily_vt` value of an engine link, or the token the store created at checkout and sent on the order (v1.11.0, [§5](#store-created-visitor-token)). 1–255 characters. Send it for a shopper who has no store customer id, so a guest shopper can be shown their recommendations. |
 | `limit` | integer | NO | Default `9`, max `9`. A value above 9 is clamped, not rejected. |
+| `website` | string | NO | (v1.21.0) The code of the website the shopper is on now (the current store's website). A single-website store leaves it out. An invalid value is ignored. |
 
 **At least one of `customer_external_id` and `smaily_visitor_token` is required.** When the request carries both, **`customer_external_id` wins and the token is ignored entirely** — the engine does not fall back to the token when the customer id finds nobody, because on a shared browser the cookie can belong to a different person than the logged-in shopper.
 
 **Which customer a visitor token names** (v1.11.0; one rule since v1.13.0). The customer the token is bound to in this tenant, while the token is valid. An engine email-link token (`vt_`) is bound to the customer the engine issued it for. Every token is valid for **14 months from its last activity** (v1.14.0): its issue, or the latest order of its customer that carried it — a store-created `vs_` token or a `vt_` token; an order never shortens a token's lifetime ([§5](#store-created-visitor-token)). The cookie and the token may expire at different times. An expired token, a token of another tenant, and a value the engine does not know are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
+
+**Several websites** (v1.21.0, INT-171).
+- **Which customer the id names.** In a Per Website store ([§1 `store_config`](#store-config)) with a request `website`, `customer_external_id` is matched against the customer id the engine holds for that website ([§4](#customer-website)). In every other case (`global` or no scope, or no `website` in the request) it is matched against the customer's `external_id`, as before. A customer id that the engine does not hold for that website is an unknown shopper (the empty answer below).
+- **Which website the slots render.** The request's `website`, else the customer's website. Links are that website's ([§3 Several websites](#catalog-websites)); the language is the customer's language on that website when known, else the customer's language, else the tenant default.
+- **A product the request website does not sell** is left out, as a slot without a catalog row is. Without a request `website`, nothing is left out for this reason (the engine already keeps such products out of the customer's recommendations).
 
 **Never send an email address, name or other contact detail** in this request. The shopper is named by the store's id or the visitor token only. Unknown fields are ignored.
 
@@ -2249,7 +2299,7 @@ A returning guest shopper (no store customer account), named by the visitor toke
 | `rec_id` | The recommendation (UUID). The same id is in the customer's email fields. |
 | `sku` | The canonical catalog key ([§3](#3-post-apiv1ingestcatalog)) — the stable product identity. |
 | `external_id` | The catalog row's `external_id`, **nullable**. When null, use `sku` (for `woo-` and `shp-` keys the platform id is the `sku` without its prefix). On a multilingual stand-in row it can differ from the id in `sku`; render with `external_id`, identify with `sku`. |
-| `name`, `description`, `product_url` | Localized in the customer's language (`customers.language`), else the tenant default — as in the email. `description` is not truncated. |
+| `name`, `description`, `product_url` | Localized in the customer's language (`customers.language`), else the tenant default — as in the email. `description` is not truncated. With several websites (v1.21.0), `product_url` is the render website's link and the language is the customer's on that website (see above). |
 | `price`, `compare_price` | Numbers; `compare_price` nullable. Read live from the catalog at request time. No currency — render in the store's own. |
 | `in_stock` | Live from the catalog. **Informational** — an out-of-stock slot is not removed. Re-check price and stock locally before rendering. |
 | `image_url` | Nullable. |
@@ -2260,7 +2310,7 @@ A returning guest shopper (no store customer account), named by the visitor toke
 
 **Attribution.** A purchase whose last landing was a storefront link (order `smaily_rec_ctx: "storefront"`, matched by `smaily_rec_id`) is credited to the **storefront**: it names no email campaign, and an earlier email click on the same `rec_id` does not count. An email click after the storefront click overwrites both cookies, and the purchase is credited to the email. Last touch wins.
 
-**Caching.** The engine answers with `Cache-Control: no-store, private`. Cache in the plugin's own server-side store, keyed by tenant + a **hash** of the identifier the request sent (`customer_external_id`, else `smaily_visitor_token`), for about 1 hour. Never let a shared or CDN cache hold a response across shoppers.
+**Caching.** The engine answers with `Cache-Control: no-store, private`. Cache in the plugin's own server-side store, keyed by tenant + website (v1.21.0; the `website` the request sent, empty when none) + a **hash** of the identifier the request sent (`customer_external_id`, else `smaily_visitor_token`), for about 1 hour. Never let a shared or CDN cache hold a response across shoppers.
 
 **Timeouts.** Ask from a background request after the page has loaded, so a slower answer does not delay the page. The 1-second client timeout of v1.9.x no longer applies (v1.10.0): the engine ends a request after 10 seconds, so use a client timeout of at most 10 seconds, and render nothing (or the last cached answer) on a timeout or an error.
 
@@ -3243,6 +3293,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/console/entry \
 | `platform_oldest_available` | date or `null`, optional | The oldest order the platform can give (Shopify without `read_all_orders`: 60 days). Lets the engine say "complete to the platform's limit". |
 | `entities.catalog`, `entities.customers`, `entities.orders` | object, required | `sent` (integer ≥ 0, required): rows sent and accepted so far in this import. `expected` (integer ≥ 0 or `null`, optional): the number in scope, counted by the platform; omit it when counting is too expensive. |
 | `entities.orders.oldest_sent_at` | date or `null`, optional | The oldest order date sent so far. Newest first, so it moves back in time. |
+| `store_config` | object, optional | (v1.21.0) Only on `started`: the platform setup as on the setup exchange ([§1 `store_config`](#store-config)). Send it when `customer_account_scope` changed since the setup exchange; the engine stores it as on §1 (an unknown value is stored as absent, never a `400`). Ignored on the other phases. |
 | `entities.buyers` | object, optional | `expected` (integer ≥ 0 or `null`, optional): the number of distinct customers with a purchase order (`completed` or `processing`) since `horizon_start`, counted by the platform (one `COUNT(DISTINCT customer)`). With it, the engine can show the store owner what share of the customer base it already knows ("we know N% of your customer base"). Without it, the engine shows only the months that have arrived. |
 
 No date may be more than one day ahead of the engine's clock. Counts and dates only — the body never carries a person's data.
@@ -3710,6 +3761,18 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **§25 history progress** (new). `POST /api/v1/ingest/history/progress`: `started` → `start_part_complete` → `complete`, idempotent per `import_id`, counts and dates only. Progress is stored per engine store; a connector that serves several engine stores reports each one with that store's API key. The optional `entities.buyers.expected` lets the engine show what share of the customer base it knows.
 - **Without the call.** A plugin that never calls §25 keeps working: the engine treats the start part as in when the import has settled and every full month of the last 18 has orders (under 200 orders: settled alone). It never infers `complete`.
 - **What the plugin does.** Send newest first, the start part first, customers in scope only, no order older than 60 months, and call §25 at each phase change. **A plugin that does none of this keeps working unchanged.**
+
+**v1.21.0** (2026-11-02) — **One engine store with several websites**. MINOR bump per the [Versioning](#versioning) rule (new optional fields; backward-compatible). INT-171, Erkki's decisions 2026-11-02:
+- **The gap.** A Magento installation with several websites feeds one engine store. In Per Website account mode one person has an account, a customer id and a language on each website, and the engine kept only the last ones sent: the storefront found the person on one website only, and the language flipped with each sync. The catalog's links per language came from the first store view, so a customer of one website could get another website's link, or a product that website does not sell.
+- **§1 `store_config.customer_account_scope`** (new, optional): `global` | `website`; absent = `global`; an unknown value is stored as absent, never a `400`.
+- **§25 `store_config`** (new, optional, on `started` only): a later change of the setting reaches the engine with the next history import.
+- **§3 `websites`** (new, optional): `{code: {product_url}}`, one entry per website that sells the product; absent = every website, `{}` = none; omission clears it ("send the whole row"); an invalid entry fails the product.
+- **§3c**: the manifest covers every website; no field change.
+- **§4 `website`** (new, optional): one row per account; the engine keeps each website's id and language under one customer per email. The customer's website = the newest order's that names one, else the latest customer row's.
+- **§5 `website`** (new, optional): the website of the order, replaced on re-sync.
+- **§15 `website`** (new, optional request field): in Per Website mode the id is matched per website; slots render the website's links and language and leave out a product it does not sell; the plugin's cache key adds the website.
+- **Not in 1.21.0:** per-website price, compare price, currency, stock, `name` and `description` (the row's values apply on every website); a website on browse events (§6) and identity merge (§7) — they match the customer's own website's id, as before; a Smaily payload change.
+- **What the plugin does.** A single-website store needs nothing. A multi-website connector sends `store_config` on the setup exchange (or with the next history import's `started`), `website` on every customer and order row and on the storefront call (and in its cache key), and `websites` on every catalog row. After it starts sending: one full catalog import and a history re-send (§25, new `import_id`) of customers and orders. **A plugin that does none of this keeps working unchanged.**
 
 ### Appendix F: Migration notes
 

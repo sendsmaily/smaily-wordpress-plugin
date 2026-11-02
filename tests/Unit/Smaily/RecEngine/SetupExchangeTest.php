@@ -170,6 +170,32 @@ final class SetupExchangeTest extends TestCase {
 	}
 
 	/**
+	 * Contract v1.21.0 §1: `store_config.customer_account_scope` is optional and
+	 * absent = `global`. A WordPress site is one website with one account per
+	 * email, which is `global`, so the exchange sends no `store_config` — only
+	 * the token and the plugin info.
+	 */
+	public function test_the_exchange_sends_only_the_token_and_the_plugin_info(): void {
+		$sent = null;
+		Functions\expect( 'wp_remote_post' )
+			->once()
+			->andReturnUsing(
+				static function ( string $url, array $args ) use ( &$sent ): array {
+					$sent = json_decode( (string) $args['body'], true );
+					return array( 'reply' );
+				}
+			);
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( (string) json_encode( $this->reply() ) );
+
+		( new SetupExchange() )->exchange( 'tok_abc', self::BASE );
+
+		self::assertIsArray( $sent );
+		self::assertSame( array( 'setup_token', 'plugin_info' ), array_keys( $sent ) );
+		self::assertSame( 'tok_abc', $sent['setup_token'] );
+	}
+
+	/**
 	 * @return array<string, mixed>
 	 */
 	private function reply(): array {
