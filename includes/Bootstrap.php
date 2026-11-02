@@ -52,6 +52,8 @@ use Smaily\Connect\Smaily\ContactReconciler;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CustomerBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\EventQueue;
@@ -226,6 +228,10 @@ final class Bootstrap {
 		// REST endpoints + the AS callback that drives the backfill loop.
 		add_action( 'rest_api_init', array( $this, 'register_rest_endpoints' ) );
 		add_action( BackfillJobInterface::TICK_HOOK, array( $this, 'on_backfill_tick' ), 10, 1 );
+		// The imports a connection starts one after another (CON-247): the
+		// check finds a part that stalled, and runs the one-time start after
+		// an update.
+		add_action( ImportsOnConnect::HOOK, array( $this, 'on_import_sequence_check' ) );
 
 		// Storefront browse-beacon enqueue (3.4.3). wp_enqueue_scripts is a
 		// front-end-only hook; StorefrontBeacon::enqueue() self-gates on
@@ -342,7 +348,21 @@ final class Bootstrap {
 				array( 'job_type' => $job_type ),
 				EventQueue::AS_GROUP
 			);
+			return;
 		}
+
+		// A Campaign Intelligence import ended: the next import of the
+		// sequence a connection started begins now (CON-247).
+		if ( $job instanceof AbstractBackfillJob ) {
+			$this->imports_on_connect()->advance();
+		}
+	}
+
+	/**
+	 * AS callback for ImportsOnConnect::HOOK (CON-247).
+	 */
+	public function on_import_sequence_check(): void {
+		$this->imports_on_connect()->run_check();
 	}
 
 	/**
@@ -403,8 +423,26 @@ final class Bootstrap {
 	}
 
 	/**
-	 * The catalog import a successful setup exchange starts (PRO-3743), on the
-	 * same products job the "Import now" button starts.
+	 * The imports a successful setup exchange starts, one after another —
+	 * products, customers, orders (CON-247) — on the same jobs the "Import
+	 * now" buttons start.
+	 */
+	public function imports_on_connect(): ImportsOnConnect {
+		$bootstrap = $this;
+
+		return new ImportsOnConnect(
+			$this->rec_engine_settings(),
+			static function ( string $job_type ) use ( $bootstrap ): ?AbstractBackfillJob {
+				$job = $bootstrap->make_backfill_job( $job_type );
+
+				return $job instanceof AbstractBackfillJob ? $job : null;
+			}
+		);
+	}
+
+	/**
+	 * The catalog import a successful setup exchange starts first (PRO-3743),
+	 * on the same products job the "Import now" button starts.
 	 */
 	public function catalog_import_on_connect(): CatalogImportOnConnect {
 		return new CatalogImportOnConnect( $this->catalog_backfill_job() );
@@ -801,6 +839,12 @@ final class Bootstrap {
 		if ( ! as_has_scheduled_action( QueueJanitor::HOOK, array(), QueueJanitor::AS_GROUP ) ) {
 			as_schedule_recurring_action( time(), DAY_IN_SECONDS, QueueJanitor::HOOK, array(), QueueJanitor::AS_GROUP );
 		}
+
+		// The imports a connection starts (CON-247): re-arm the sequence
+		// check after a reactivation, and arm the one-time start after an
+		// update. A single action, not a recurring one — it re-arms itself
+		// only while a sequence waits.
+		$this->imports_on_connect()->ensure_check_scheduled();
 
 		update_option( self::OPTION_AS_JOBS_VERIFIED, time(), false );
 	}

@@ -20,6 +20,7 @@ use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Smaily\AutomationRouter;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 
 final class BootstrapTest extends TestCase {
 
@@ -133,6 +134,15 @@ final class BootstrapTest extends TestCase {
 		// Every recurring job is checked, and the missing ones re-armed.
 		Functions\expect( 'as_has_scheduled_action' )->times( 12 )->andReturn( false );
 		Functions\expect( 'as_schedule_recurring_action' )->times( 12 );
+		// CON-247: the one-time import start after an update is still to
+		// decide (its marker is unset), so its check is armed once.
+		Functions\expect( 'as_next_scheduled_action' )
+			->once()
+			->with( ImportsOnConnect::HOOK, array(), EventQueue::AS_GROUP )
+			->andReturn( false );
+		Functions\expect( 'as_schedule_single_action' )
+			->once()
+			->with( \Mockery::type( 'int' ), ImportsOnConnect::HOOK, array(), EventQueue::AS_GROUP );
 		Functions\expect( 'update_option' )
 			->once()
 			->with( Bootstrap::OPTION_AS_JOBS_VERIFIED, \Mockery::type( 'int' ), false );

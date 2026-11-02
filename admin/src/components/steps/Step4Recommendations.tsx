@@ -45,9 +45,10 @@ export function Step4Recommendations({
   inSettings = false,
 }: Step4RecommendationsProps): React.JSX.Element {
   const isConnected = state.recEngineConnection.kind === 'success';
-  // Set by this page's own Connect (PRO-3743): the exchange answers whether
-  // it queued the catalog import, and only then is the hold-back notice shown
-  // — with the import's start delay; null while no import was started.
+  // Set by this page's own Connect (PRO-3743, CON-247): the exchange answers
+  // whether it queued the catalog import — the first of the imports that run
+  // one after another — and only then is the hold-back notice shown, with the
+  // import's start delay; null while no import was started.
   const [catalogImportDelay, setCatalogImportDelay] = useState<number | null>(null);
 
   return (
@@ -377,7 +378,7 @@ function ConnectedView({
       </Card>
 
       {catalogImportDelay !== null && (
-        <CatalogImportNotice
+        <ImportsNotice
           delaySeconds={catalogImportDelay}
           onHeldBack={() => setProductsPanelKey((key) => key + 1)}
         />
@@ -406,7 +407,7 @@ function ConnectedView({
       <Card
         title={__('Import existing data', 'smaily-connect')}
         description={__(
-          'The catalog import starts on its own when you connect Campaign Intelligence; run it again any time with Import now under Products. Import your existing customers and orders into the engine once so recommendations have history to learn from. Imports run in the background in batches, and future changes sync on their own.',
+          'When you connect Campaign Intelligence, the imports start on their own, one after another: products, then customers, then orders, so recommendations have history to learn from. Import now runs one import again, and only that one. Imports run in the background in batches, and future changes sync on their own.',
           'smaily-connect',
         )}
       >
@@ -497,12 +498,14 @@ function ConnectedView({
 }
 
 /**
- * Connecting started the full catalog import (PRO-3743). Its first batch waits
- * a few minutes, so the merchant can hold it back here before anything is
- * sent — Hold back is the existing products import cancel. After that the
- * Products "Import now" control starts it again, as it always has.
+ * Connecting started the imports, one after another: the catalog, then the
+ * customers, then the orders (PRO-3743, CON-247). The catalog's first batch
+ * waits a few minutes, so the merchant can hold them back here before anything
+ * is sent — Hold back is the existing products import cancel, and a cancel
+ * also ends the sequence, so the customers and orders imports do not start.
+ * After that each card's "Import now" starts its own import, as it always has.
  */
-function CatalogImportNotice({
+function ImportsNotice({
   delaySeconds,
   onHeldBack,
 }: {
@@ -527,9 +530,9 @@ function CatalogImportNotice({
 
   if (status === 'held') {
     return (
-      <Banner tone="info" title={__('Catalog import held back', 'smaily-connect')}>
+      <Banner tone="info" title={__('Imports held back', 'smaily-connect')}>
         {__(
-          'The catalog import is cancelled. Start it any time with Import now under Products below.',
+          'The imports are cancelled. Start each one any time with its Import now below.',
           'smaily-connect',
         )}
       </Banner>
@@ -539,7 +542,7 @@ function CatalogImportNotice({
   return (
     <Banner
       tone="info"
-      title={__('Catalog import started', 'smaily-connect')}
+      title={__('Imports started', 'smaily-connect')}
       actions={
         <Button
           variant="secondary"
@@ -555,7 +558,7 @@ function CatalogImportNotice({
       {sprintf(
         /* translators: %d: minutes until the catalog import starts. */
         __(
-          'Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about %d minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below.',
+          'Your product catalog, then your customers, then your orders go to Campaign Intelligence once, one after another, in the background. The first products go out in about %d minutes. To hold the imports back, press Hold back before then: nothing is sent, and you can start each import later with its Import now below.',
           'smaily-connect',
         ),
         Math.max(1, Math.round(delaySeconds / 60)),

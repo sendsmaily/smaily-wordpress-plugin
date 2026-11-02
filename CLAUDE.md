@@ -439,6 +439,26 @@ in the dev cli container, then `bash bin/lib-smly-snapshot.sh snapshot`): it
 aborts unless the tenant is "Beauty Synthetic (live-walk)" on
 intelligence.smaily.com and prints only the gates and the engine's counts.
 
+### Connecting starts three imports in a row — and an update starts them once (CON-247)
+`RecEngine\Backfill\ImportsOnConnect` owns the sequence `products →
+customers → orders` (option `smly_rec_import_sequence`, the running part
+first). It moves on from two places only: `Bootstrap::on_backfill_tick` when a
+batch ends a Campaign Intelligence import, and the single AS action
+`smly_rec_import_sequence_check` (group `smaily-connect`), which re-arms itself
+every 15 min while a sequence waits and is re-armed by the hourly
+`register_action_scheduler_jobs` pass. A cancel ends the sequence
+(`BackfillEndpoint` calls `ImportsOnConnect::forget()`), a failure or stall
+does not. Rules: a new way to start an import that should NOT chain must not
+call `advance()`; a new way that cancels one must call `forget()`.
+**Integration-test trap:** a test that connects through the setup-exchange
+route now stores a sequence, so a later `do_action( TICK_HOOK, 'products' )`
+that completes the import STARTS the customers import (and its tick) in that
+test — scrub with `EnvScrub::reset()` (the options are in its flush list) or
+`ImportsOnConnect::forget()`. **Dev wp-env:** the first check after this code
+is mounted runs the one-time after-update start — on a connected dev site whose
+customers/orders imports never completed it sends that history to the
+connected tenant (check the tenant is the sandbox, never `MiuMjau`).
+
 ### Use the IsoDate helper for datetimes — never raw format
 The engine's strict Zod `.datetime()` requires Z-suffix (`Y-m-d\TH:i:s\Z`), NOT
 `+00:00`. Raw `gmdate('c')` / `$date->format('c')` produces `+00:00` and the

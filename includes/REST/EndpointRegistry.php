@@ -18,6 +18,7 @@ use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
 use Smaily\Connect\Smaily\RecEngine\SetupExchange;
 use Smaily\Connect\Smaily\TransactionalResend;
@@ -72,6 +73,11 @@ final class EndpointRegistry {
 					// One dispatch for all job types (contacts + rec-engine),
 					// shared with Bootstrap::on_backfill_tick.
 					return $bootstrap->make_backfill_job( $job_type );
+				},
+				// A cancelled Campaign Intelligence import ends the imports a
+				// connection started one after another (CON-247).
+				static function (): void {
+					ImportsOnConnect::forget();
 				}
 			),
 			new WorkflowsEndpoint(
@@ -104,10 +110,11 @@ final class EndpointRegistry {
 				static function ( string $api_key, string $base_url ): RecEngineClient {
 					return new RecEngineClient( $api_key, $base_url );
 				},
-				// Connecting starts the full catalog import (PRO-3743) through
-				// the same products job the "Import now" button starts.
+				// Connecting starts the catalog, customers and orders imports,
+				// one after another (CON-247; the catalog first, held back —
+				// PRO-3743), through the jobs the "Import now" buttons start.
 				static function () use ( $bootstrap ): bool {
-					return $bootstrap->catalog_import_on_connect()->start();
+					return $bootstrap->imports_on_connect()->start();
 				}
 			),
 			new AutomationsEndpoint(

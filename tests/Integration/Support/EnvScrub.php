@@ -148,6 +148,13 @@ final class EnvScrub {
 			// Same class again (PRO-3988): the contact import's refused-contact
 			// list is autoload=false and asserted on by ContactBackfillAudienceTest.
 			\Smaily\Connect\Smaily\BackfillJob::OPTION_REFUSED,
+			// Same class again (CON-247): the import sequence a connection
+			// starts and its one-time after-update marker are autoload=false
+			// and asserted on by RecEngineImportsOnConnectTest; a cached
+			// sequence would also let one test's ticks start another's imports.
+			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION,
+			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION_UPDATE_CHECKED,
+			'smly_rec_import_sequence_lock',
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

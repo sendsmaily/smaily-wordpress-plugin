@@ -71,11 +71,23 @@ class BackfillEndpoint {
 	private $job_factory;
 
 	/**
+	 * Runs after a Campaign Intelligence import is cancelled: ends the
+	 * imports a connection started one after another, so nothing else starts
+	 * by itself (CON-247). Null = nothing to end.
+	 *
+	 * @var (callable(): void)|null
+	 */
+	private $on_engine_cancel;
+
+	/**
 	 * @param callable(string $job_type): ?BackfillJobInterface $job_factory
 	 *   Factory producing the job for a job_type, or null when unconfigured.
+	 * @param (callable(): void)|null $on_engine_cancel
+	 *   Runs after a products / customers / orders cancel.
 	 */
-	public function __construct( callable $job_factory ) {
-		$this->job_factory = $job_factory;
+	public function __construct( callable $job_factory, ?callable $on_engine_cancel = null ) {
+		$this->job_factory      = $job_factory;
+		$this->on_engine_cancel = $on_engine_cancel;
 	}
 
 	public function register(): void {
@@ -469,6 +481,12 @@ class BackfillEndpoint {
 				array( 'job_type' => $job_type ),
 				EventQueue::AS_GROUP
 			);
+		}
+
+		// The merchant stopped an import: the imports a connection started
+		// one after another stop with it (CON-247).
+		if ( $job_type !== BackfillJob::BACKFILL_TYPE && $this->on_engine_cancel !== null ) {
+			( $this->on_engine_cancel )();
 		}
 
 		return new WP_REST_Response(

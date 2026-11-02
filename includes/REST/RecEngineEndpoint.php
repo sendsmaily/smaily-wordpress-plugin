@@ -62,8 +62,9 @@ class RecEngineEndpoint {
 	private $client_factory;
 
 	/**
-	 * Runs once a connection is saved; answers whether it started the catalog
-	 * import (PRO-3743).
+	 * Runs once a connection is saved: starts the catalog, customers and
+	 * orders imports one after another (CON-247) and answers whether it
+	 * started the catalog import, the first of them (PRO-3743).
 	 *
 	 * @var callable(): bool
 	 */

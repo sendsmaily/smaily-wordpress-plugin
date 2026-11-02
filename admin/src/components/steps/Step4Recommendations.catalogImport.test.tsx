@@ -46,7 +46,7 @@ async function connect(): Promise<void> {
   await screen.findByText('Acme Pets');
 }
 
-describe('Step4Recommendations — connecting starts the catalog import (PRO-3743)', () => {
+describe('Step4Recommendations — connecting starts the imports, catalog first (PRO-3743, CON-247)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(STATUS);
@@ -57,7 +57,7 @@ describe('Step4Recommendations — connecting starts the catalog import (PRO-374
   });
 
   it.each([false, true])(
-    'tells the merchant the catalog import started, with Hold back (inSettings=%s)',
+    'tells the merchant the imports started, with Hold back (inSettings=%s)',
     async (inSettings) => {
       vi.spyOn(recEngineApi, 'setupExchange').mockResolvedValue({
         ...CONNECTED,
@@ -67,8 +67,9 @@ describe('Step4Recommendations — connecting starts the catalog import (PRO-374
       render(<Harness inSettings={inSettings} />);
       await connect();
 
-      expect(screen.getByText('Catalog import started')).toBeInTheDocument();
-      expect(screen.getByText(/starting in about 3 minutes/)).toBeInTheDocument();
+      expect(screen.getByText('Imports started')).toBeInTheDocument();
+      expect(screen.getByText(/then your customers, then your orders/)).toBeInTheDocument();
+      expect(screen.getByText(/go out in about 3 minutes/)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Hold back' })).toBeInTheDocument();
     },
   );
@@ -82,7 +83,7 @@ describe('Step4Recommendations — connecting starts the catalog import (PRO-374
     render(<Harness />);
     await connect();
 
-    expect(screen.queryByText('Catalog import started')).not.toBeInTheDocument();
+    expect(screen.queryByText('Imports started')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Hold back' })).not.toBeInTheDocument();
   });
 
@@ -97,9 +98,9 @@ describe('Step4Recommendations — connecting starts the catalog import (PRO-374
     await connect();
     fireEvent.click(screen.getByRole('button', { name: 'Hold back' }));
 
-    await screen.findByText('Catalog import held back');
+    await screen.findByText('Imports held back');
     expect(cancel).toHaveBeenCalledWith('products');
-    expect(screen.queryByText('Catalog import started')).not.toBeInTheDocument();
+    expect(screen.queryByText('Imports started')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Hold back' })).not.toBeInTheDocument();
   });
 

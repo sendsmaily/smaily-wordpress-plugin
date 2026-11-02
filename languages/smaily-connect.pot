@@ -2373,7 +2373,7 @@ msgid "below to seed history into the engine; future changes sync on their own. 
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:290
-msgid "The catalog import starts on its own when you connect Campaign Intelligence; run it again any time with Import now under Products. Import your existing customers and orders into the engine once so recommendations have history to learn from. Imports run in the background in batches, and future changes sync on their own."
+msgid "When you connect Campaign Intelligence, the imports start on their own, one after another: products, then customers, then orders, so recommendations have history to learn from. Import now runs one import again, and only that one. Imports run in the background in batches, and future changes sync on their own."
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:299
@@ -2427,15 +2427,15 @@ msgid "Browsing telemetry only fires when the visitor has granted marketing cons
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:401
-msgid "Catalog import held back"
+msgid "Imports held back"
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:401
-msgid "The catalog import is cancelled. Start it any time with Import now under Products below."
+msgid "The imports are cancelled. Start each one any time with its Import now below."
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:410
-msgid "Catalog import started"
+msgid "Imports started"
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:419
@@ -2445,7 +2445,7 @@ msgstr ""
 #. translators: %d: minutes until the catalog import starts.
 #: admin/src/components/steps/Step4Recommendations.tsx:425
 #, js-format
-msgid "Your whole product catalog goes to Campaign Intelligence once, in the background, starting in about %d minutes. To hold it back, press Hold back before then: nothing is sent, and you can start the import later with Import now under Products below."
+msgid "Your product catalog, then your customers, then your orders go to Campaign Intelligence once, one after another, in the background. The first products go out in about %d minutes. To hold the imports back, press Hold back before then: nothing is sent, and you can start each import later with its Import now below."
 msgstr ""
 
 #. translators: %s: error message.

@@ -7169,6 +7169,12 @@ profiling carry-over), Magento PRO-3619 (the same fix).
 
 ### PRO-3743 — Connecting Campaign Intelligence starts the catalog import, with a hold-back window (2026-10-05)
 
+> **Partly superseded by CON-247 (2026-11-02):** connecting now starts the
+> customers and orders imports too, one after another after the catalog
+> import; "customers and orders still start only by hand" below no longer
+> holds. The catalog part — the delay, Hold back, a running import left
+> alone — is unchanged.
+
 **Context:** Erkki's 2026-10-04 decision for every store plugin (Magento
 PRO-3741), contract v1.8.3 §3: the full catalog reaches the engine once, at
 setup, then only changes. Before this, a merchant who connected but never
@@ -9386,6 +9392,77 @@ by `tests/Unit/Smaily/RecEngine/CustomerScopeTest.php`,
 `tests/Integration/RecEngineCustomerBackfillTest.php`,
 `tests/Integration/RecEngineCustomersTest.php` and
 `tests/Integration/RecEngineOrderBuyerCustomerTest.php`.
+
+### CON-247 — Connecting starts the catalog, customers and orders imports one after another; connected stores start them once after the update (2026-11-02)
+
+**Context:** since PRO-3743 a connection started only the products import;
+the customers and orders imports waited for the merchant's "Import now", and
+the three could run side by side in any order. The Magento extension
+(`Model/Backfill/ImportsOnConnect`) queues all three on connect, and its tick
+runs them in that order.
+**Decision (product owner, 2026-10-29: follow the Magento extension):**
+**supersedes PRO-3743's "customers and orders start only by hand".**
+- **Sequence:** `RecEngine\Backfill\ImportsOnConnect` stores the import
+  types still to run in `smly_rec_import_sequence` (autoload=false; the
+  running part first). A successful setup exchange starts the products import
+  through `CatalogImportOnConnect` (delay and Hold back unchanged) and stores
+  `products, customers, orders`. Each part starts when the one before it has
+  ended, its first batch `NEXT_PART_DELAY` (5 s) out. The orders part keeps
+  CON-245 (`HistoryConfig::for_new_import()`, newest first), the customers
+  part CON-246 (`CustomerScope`) — the sequence calls the same `start()` the
+  cards call.
+- **What moves it:** the backfill tick, when a batch ends its import
+  (`Bootstrap::on_backfill_tick` → `advance()`), and a single AS action
+  `smly_rec_import_sequence_check` (group `smaily-connect`, already in
+  `Deactivation::AS_GROUPS`) every 15 min while a sequence waits — it finds a
+  part that stalled (PRO-3886), which no tick reports. The hourly-verified
+  recurring-job registration re-arms the check after a reactivation. An
+  `add_option()` lock keeps the tick and the check from starting a part twice.
+- **A part ends** completed, failed or stalled → the next part starts: a
+  failure does not hold back the imports after it, as in Magento (a failed
+  job is no longer active; PRO-3927 sets a stalled one aside so the queue
+  behind it runs). The failed card shows its failure and its Import now.
+  **Cancelled → the sequence ends** (deliberate difference from Magento,
+  whose catalog hold-back does not hold back the other two): Hold back
+  promises "nothing is sent", so `/backfill/cancel` of any Campaign
+  Intelligence import deletes the sequence at once, and `advance()` ends it
+  on a cancelled part it meets. A part already running when its turn comes
+  (an Import now) is not restarted; the sequence waits for it.
+- **Import now** starts that one import and never starts or extends a
+  sequence. **Disconnect** deletes the sequence (`RecEngineSettings::
+  disconnect()`); a **new connection** replaces it with all three parts (a
+  reconnect re-sends the history, as Magento's queues all three again). While
+  `sending_allowed()` is false (a refused tenant, PRO-1893) nothing moves and
+  no check is re-armed.
+- **After the update (one-time):** the first check on a store runs
+  `start_after_update()`: when `sending_allowed()`, no sequence is stored and
+  the customers or orders import's last run is not `completed`, it starts the
+  sequence from the first part whose last run is not `completed` (a
+  `completed` part is skipped; `failed` / `cancelled` / never run / stalled
+  count as never completed). `smly_rec_import_sequence_update_checked` is
+  written before anything else, so it decides once, whatever the outcome.
+  It sends a connected store's history to its tenant without a merchant
+  click — accepted by Erkki (2026-10-29); the release notes say it.
+**Rationale:** the engine gets the catalog before the orders that reference
+it and the customers before their orders, and a merchant no longer has to
+know that two more imports exist. The stored list reuses the existing jobs,
+cancel and status routes — no new import machinery and no schema change. A
+self-re-arming single action, not a recurring one, leaves no action running
+on a store with nothing to import (the PRO-2433 residue lesson).
+**Alternatives:** start all three at once (rejected: they run side by side,
+not in order — the problem this fixes); a recurring check (rejected: an
+action every 15 min forever for a one-time job); stop the sequence on a
+failure (rejected: Magento runs the next import); let a cancel continue the
+sequence as in Magento (rejected: it breaks Hold back's "nothing is sent").
+**Out of scope:** the pace of each import (CON-236), §25 progress reporting
+(CON-248); showing "waits for the previous import" on a card.
+**Relationships:** supersedes part of PRO-3743; CON-245, CON-246, PRO-3886 /
+PRO-3890 (stall and failure), PRO-1893 (`sending_allowed()`), PRO-2433 /
+PRO-2437 (AS groups, hourly registration). Pinned by
+`tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php`,
+`tests/Unit/REST/BackfillEndpointTest.php`,
+`tests/Unit/Settings/RecEngineDisconnectTest.php` and
+`tests/Integration/RecEngineImportsOnConnectTest.php`.
 
 ## How to keep this document going
 

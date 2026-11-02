@@ -392,6 +392,29 @@ final class BackfillEndpointTest extends TestCase {
 		self::assertSame( BackfillJobInterface::TICK_HOOK, $unscheduled[0]['hook'] );
 	}
 
+	public function test_cancelling_an_engine_import_ends_the_imports_a_connection_started(): void {
+		// CON-247: the merchant stopped an import (Hold back or Cancel), so
+		// the customers and orders imports must not start by themselves.
+		Functions\when( 'as_unschedule_all_actions' )->justReturn( 1 );
+		$GLOBALS['wpdb'] = $this->fake_wpdb_for_cancel( true );
+
+		$ended    = array();
+		$endpoint = new BackfillEndpoint(
+			fn (): BackfillJob => $this->fake_job( 0 ),
+			static function () use ( &$ended ): void {
+				$ended[] = true;
+			}
+		);
+
+		foreach ( array( 'contacts', 'products' ) as $job_type ) {
+			$request = new WP_REST_Request();
+			$request->set_param( 'job_type', $job_type );
+			$endpoint->cancel( $request );
+		}
+
+		self::assertCount( 1, $ended, 'Only the Campaign Intelligence cancel ends the sequence, not the contact import\'s.' );
+	}
+
 	public function test_cancel_returns_false_when_no_rows_were_updated(): void {
 		$request = new WP_REST_Request();
 		$request->set_param( 'job_type', 'contacts' );
