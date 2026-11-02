@@ -33,7 +33,11 @@ use WP_REST_Response;
  *                               "processed": int, "total": int,
  *                               "percent": int, "eta_seconds": int|null,
  *                               "error": string|null,
- *                               "refused": {count, contacts}|null}
+ *                               "refused": {count, contacts}|null,
+ *                               "history": {part, sent, expected, percent,
+ *                                           start_months, horizon_months}|null}
+ *                            (`history`: orders only — the §25 history
+ *                            import's part being sent, CON-248)
  *
  *   POST   /backfill/cancel  body: {"job_type": "contacts"}
  *                            → {"cancelled": bool}
@@ -80,14 +84,37 @@ class BackfillEndpoint {
 	private $on_engine_cancel;
 
 	/**
+	 * Runs right before a Campaign Intelligence import starts from its card
+	 * (Import now): the orders import begins a new §25 history import
+	 * (CON-248). Null = nothing to do.
+	 *
+	 * @var (callable(string): void)|null
+	 */
+	private $before_engine_start;
+
+	/**
+	 * The Orders card's history bar (CON-248): the part being sent and how
+	 * much of it the engine has, for an orders state row; null = none.
+	 *
+	 * @var (callable(array<string, mixed>): ?array<string, mixed>)|null
+	 */
+	private $history_card;
+
+	/**
 	 * @param callable(string $job_type): ?BackfillJobInterface $job_factory
 	 *   Factory producing the job for a job_type, or null when unconfigured.
 	 * @param (callable(): void)|null $on_engine_cancel
 	 *   Runs after a products / customers / orders cancel.
+	 * @param (callable(string): void)|null $before_engine_start
+	 *   Runs before a products / customers / orders Import now starts the job.
+	 * @param (callable(array<string, mixed>): ?array<string, mixed>)|null $history_card
+	 *   The Orders card's history bar for the orders state row.
 	 */
-	public function __construct( callable $job_factory, ?callable $on_engine_cancel = null ) {
-		$this->job_factory      = $job_factory;
-		$this->on_engine_cancel = $on_engine_cancel;
+	public function __construct( callable $job_factory, ?callable $on_engine_cancel = null, ?callable $before_engine_start = null, ?callable $history_card = null ) {
+		$this->job_factory         = $job_factory;
+		$this->on_engine_cancel    = $on_engine_cancel;
+		$this->before_engine_start = $before_engine_start;
+		$this->history_card        = $history_card;
 	}
 
 	public function register(): void {
@@ -169,6 +196,10 @@ class BackfillEndpoint {
 			);
 		}
 
+		if ( $job_type !== BackfillJob::BACKFILL_TYPE && $this->before_engine_start !== null ) {
+			( $this->before_engine_start )( $job_type );
+		}
+
 		$job_id = $job->start();
 		\Smaily\Connect\Support\DebugLog::write( sprintf( '[smaily-connect backfill.endpoint.start] start() returned row_id=%d', $job_id ) );
 
@@ -219,6 +250,7 @@ class BackfillEndpoint {
 					'started_at'        => null,
 					'completed_at'      => null,
 					'audience_estimate' => $this->contact_audience_estimate( $job_type, 'idle' ),
+					'history'           => null,
 				),
 				200
 			);
@@ -248,6 +280,14 @@ class BackfillEndpoint {
 			$job_type,
 			isset( $row['started_at'] ) ? (string) $row['started_at'] : null
 		);
+		// A Campaign Intelligence run started since CON-248 counts the rows
+		// the engine accepted (sent_count, migration 013): only this import's
+		// rows, without the live sync's and without an order the engine
+		// skipped as older than the horizon. An older run keeps the queue
+		// count above.
+		if ( $job_type !== BackfillJob::BACKFILL_TYPE && isset( $row['sent_count'] ) ) {
+			$counts['sent'] = (int) $row['sent_count'];
+		}
 
 		// Surface started_at + completed_at so the React UI can render
 		// "Last run: 2026-05-21 10:42, 142 / 142" between runs. Previously
@@ -275,6 +315,7 @@ class BackfillEndpoint {
 				'started_at'        => isset( $row['started_at'] ) ? (string) $row['started_at'] : null,
 				'completed_at'      => isset( $row['completed_at'] ) ? (string) $row['completed_at'] : null,
 				'audience_estimate' => $this->contact_audience_estimate( $job_type, $status ),
+				'history'           => $job_type === 'orders' && $this->history_card !== null ? ( $this->history_card )( $row ) : null,
 			),
 			200
 		);

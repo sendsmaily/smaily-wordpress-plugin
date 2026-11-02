@@ -221,9 +221,9 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				'ingest_customers'        => $engine_base . '/api/v1/ingest/customers',
 				'ingest_orders'           => $engine_base . '/api/v1/ingest/orders',
 				'ingest_browse'           => $engine_base . '/api/v1/ingest/browse',
-				// v1.20.0 §25 (the plugin does not call it yet). §24's
-				// `console_entry` is left out: the engine returns it only
-				// while console entry is switched on.
+				// v1.20.0 §25 (CON-248 calls it). §24's `console_entry` is
+				// left out: the engine returns it only while console entry
+				// is switched on.
 				'ingest_history_progress' => $engine_base . '/api/v1/ingest/history/progress',
 				'identity_merge'          => $engine_base . '/api/v1/identity/merge',
 				// `{email}` placeholder mirrors the LIVE engine endpoints map. A
@@ -2018,6 +2018,104 @@ if ( $method === 'POST' && $path === '/api/v1/console/entry' ) {
 		array(
 			'url'        => $engine_base . '/console-entry#g=seg_' . bin2hex( random_bytes( 8 ) ),
 			'expires_at' => gmdate( 'Y-m-d\\TH:i:s.000\\Z', time() + 300 ),
+		)
+	);
+}
+
+// §25 history progress (contract v1.20.0, CON-248). Validates the body the
+// way the engine's schema does — `import_id` 1–128 of letters, digits and
+// `. _ : -`, `phase` one of the three, `horizon_start` a date, the three
+// required entities each with a whole `sent` ≥ 0 and an `expected` that is a
+// whole number ≥ 0 or null — and answers `400 validation_failed` otherwise.
+// Every call is recorded as received, so a test can read the phases in order
+// and their counts. A phase is never moved back (rule 1: an earlier phase is
+// `stale` and changes nothing); another `import_id` replaces the import (rule
+// 2). A test plays a failing engine with `history_progress_status` (500 →
+// db_failure; 0 answers normally again).
+if ( $method === 'POST' && $path === '/api/v1/ingest/history/progress' ) {
+	require_bearer_auth();
+
+	$body     = json_decode( (string) file_get_contents( 'php://input' ), true );
+	$requests = ( isset( $state['history_progress_requests'] ) && is_array( $state['history_progress_requests'] ) )
+		? $state['history_progress_requests']
+		: array();
+	$requests[] = $body;
+	$state['history_progress_requests'] = $requests;
+	save_state( $state_file, $state );
+
+	$forced = isset( $state['history_progress_status'] ) ? (int) $state['history_progress_status'] : 0;
+	if ( $forced === 500 ) {
+		reply( 500, array( 'error' => 'db_failure', 'message' => 'The engine did not store the call.' ) );
+	}
+
+	$phases = array( 'started', 'start_part_complete', 'complete' );
+	$field  = null;
+	if ( ! is_array( $body ) ) {
+		reply( 400, array( 'error' => 'invalid_json', 'message' => 'The body is not JSON.' ) );
+	}
+	if ( ! is_string( $body['import_id'] ?? null ) || preg_match( '/^[A-Za-z0-9._:-]{1,128}$/', $body['import_id'] ) !== 1 ) {
+		$field = 'import_id';
+	} elseif ( ! in_array( $body['phase'] ?? null, $phases, true ) ) {
+		$field = 'phase';
+	} elseif ( ! is_string( $body['horizon_start'] ?? null ) || preg_match( '/^\d{4}-\d{2}-\d{2}/', $body['horizon_start'] ) !== 1 ) {
+		$field = 'horizon_start';
+	} else {
+		foreach ( array( 'catalog', 'customers', 'orders' ) as $entity ) {
+			$counts = $body['entities'][ $entity ] ?? null;
+			if ( ! is_array( $counts ) || ! is_int( $counts['sent'] ?? null ) || $counts['sent'] < 0 ) {
+				$field = 'entities.' . $entity . '.sent';
+				break;
+			}
+			if ( array_key_exists( 'expected', $counts ) && $counts['expected'] !== null && ( ! is_int( $counts['expected'] ) || $counts['expected'] < 0 ) ) {
+				$field = 'entities.' . $entity . '.expected';
+				break;
+			}
+		}
+	}
+	if ( $field !== null ) {
+		reply(
+			400,
+			array(
+				'error'   => 'validation_failed',
+				'details' => array( array( 'field' => $field, 'message' => 'Invalid value.' ) ),
+			)
+		);
+	}
+
+	$held  = ( isset( $state['history_progress_held'] ) && is_array( $state['history_progress_held'] ) ) ? $state['history_progress_held'] : array();
+	$stale = false;
+	$now   = gmdate( 'Y-m-d\TH:i:s.000\Z' );
+	if ( ( $held['import_id'] ?? null ) !== $body['import_id'] ) {
+		$held = array(
+			'import_id'              => $body['import_id'],
+			'phase'                  => $body['phase'],
+			'start_part_complete_at' => null,
+			'complete_at'            => null,
+		);
+	} elseif ( array_search( $body['phase'], $phases, true ) < array_search( $held['phase'], $phases, true ) ) {
+		$stale = true;
+	} else {
+		$held['phase'] = $body['phase'];
+	}
+	if ( ! $stale && $held['phase'] !== 'started' && $held['start_part_complete_at'] === null ) {
+		$held['start_part_complete_at'] = $now;
+	}
+	if ( ! $stale && $held['phase'] === 'complete' && $held['complete_at'] === null ) {
+		$held['complete_at'] = $now;
+	}
+	$state['history_progress_held'] = $held;
+	save_state( $state_file, $state );
+
+	reply(
+		200,
+		array(
+			'ok'                     => true,
+			'stale'                  => $stale,
+			'import_id'              => $held['import_id'],
+			'phase'                  => $held['phase'],
+			'start_part_complete_at' => $held['start_part_complete_at'],
+			'complete_at'            => $held['complete_at'],
+			'history'                => MOCK_HISTORY_CONFIG,
 		)
 	);
 }

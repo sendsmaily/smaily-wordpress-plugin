@@ -131,6 +131,109 @@ final class BackfillEndpointTest extends TestCase {
 		self::assertSame( array(), $enqueued );
 	}
 
+	public function test_import_now_on_the_orders_card_begins_a_history_import_before_the_run_starts(): void {
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 3,
+				'status'          => BackfillJobInterface::STATUS_RUNNING,
+				'processed_count' => '0',
+				'total_count'     => '40',
+				'started_at'      => '2026-11-02 12:00:00',
+				'completed_at'    => null,
+			)
+		);
+		$log = array();
+		$job = new class( $log ) extends BackfillJob {
+			/** @var array<int, string> */
+			private array $log;
+			/** @param array<int, string> $log */
+			public function __construct( array &$log ) {
+				$this->log = &$log;
+			}
+			public function start( bool $reset_freshness = true ): int {
+				$this->log[] = 'start';
+				return 3;
+			}
+		};
+		$endpoint = new BackfillEndpoint(
+			static fn (): BackfillJob => $job,
+			null,
+			static function ( string $job_type ) use ( &$log ): void {
+				$log[] = 'before:' . $job_type;
+			}
+		);
+
+		foreach ( array( 'orders', 'contacts' ) as $job_type ) {
+			$request = new WP_REST_Request();
+			$request->set_param( 'job_type', $job_type );
+			self::assertSame( 200, $endpoint->start( $request )->get_status() );
+		}
+
+		self::assertSame( array( 'before:orders', 'start', 'start' ), $log, 'CON-248: begun before the run starts; the contact import begins none.' );
+	}
+
+	public function test_status_of_the_orders_import_carries_the_accepted_count_and_the_history_bar(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'orders' );
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 3,
+				'status'          => 'running',
+				'processed_count' => '1800',
+				'sent_count'      => '1500',
+				'total_count'     => '4000',
+				'started_at'      => gmdate( 'Y-m-d H:i:s', time() - 60 ),
+				'completed_at'    => null,
+			)
+		);
+		$bar      = array(
+			'part'           => 'start',
+			'sent'           => 1500,
+			'expected'       => 1700,
+			'percent'        => 88,
+			'start_months'   => 18,
+			'horizon_months' => 60,
+		);
+		$rows     = array();
+		$endpoint = new BackfillEndpoint(
+			fn (): BackfillJob => $this->fake_job( 0 ),
+			null,
+			null,
+			static function ( array $row ) use ( $bar, &$rows ): array {
+				$rows[] = $row;
+				return $bar;
+			}
+		);
+
+		$data = $endpoint->status( $request )->get_data();
+
+		self::assertSame( 1500, $data['sent'], 'The rows the engine accepted (CON-248), not the queue count.' );
+		self::assertSame( $bar, $data['history'] );
+		self::assertSame( '1800', $rows[0]['processed_count'], 'The card reads the orders state row.' );
+	}
+
+	public function test_status_of_a_run_from_before_the_accepted_count_keeps_the_queue_count_and_no_bar(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'customers' );
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 2,
+				'status'          => 'completed',
+				'processed_count' => '10',
+				'sent_count'      => null,
+				'total_count'     => '10',
+				'started_at'      => '2026-10-01 12:00:00',
+				'completed_at'    => '2026-10-01 12:05:00',
+			)
+		);
+		$endpoint = new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ), null, null, static fn (): array => array( 'part' => 'start' ) );
+
+		$data = $endpoint->status( $request )->get_data();
+
+		self::assertSame( 0, $data['sent'], 'The read-time queue count (the fake has none).' );
+		self::assertNull( $data['history'], 'Only the Orders card has the history bar.' );
+	}
+
 	public function test_status_returns_idle_when_no_row_exists(): void {
 		$request = new WP_REST_Request();
 		$request->set_param( 'job_type', 'contacts' );

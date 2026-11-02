@@ -217,8 +217,80 @@ final class OrderFlusherTest extends TestCase {
 		self::assertNull( $queue->exchanges[1]['sent'], 'Nothing was POSTed → no sent payload.' );
 		self::assertStringContainsString( '"outcome":"skipped"', (string) $queue->exchanges[1]['response'] );
 	}
+	public function test_only_the_import_rows_the_engine_stored_count_on_their_run(): void {
+		// CON-248: an import's row carries its run's mark. The engine stored
+		// row 1; it rejected row 2 per item and skipped row 3 as older than
+		// the horizon; row 4 is the live sync's.
+		$mark   = '{"import":"orders","run":"2026-11-02 12:00:00"}';
+		$queue  = $this->fake_queue(
+			array(
+				$this->upsert_row( 1, 100, 'u1', 0, 5, $mark ),
+				$this->upsert_row( 2, 101, 'u2', 0, 5, $mark ),
+				$this->upsert_row( 3, 102, 'u3', 0, 5, $mark ),
+				$this->upsert_row( 4, 103, 'u4' ),
+			)
+		);
+		$client = $this->d6_client(
+			array(
+				'ok'             => true,
+				'processed'      => 2,
+				'deduplicated'   => 0,
+				'errors'         => array( array( 'index' => 1, 'field' => 'items', 'message' => 'Required' ) ),
+				'skipped'        => 1,
+				'skipped_orders' => array(
+					array( 'index' => 2, 'external_order_id' => '102', 'reason' => 'older_than_retention' ),
+				),
+			)
+		);
+		$flush  = $this->fake_flusher( $queue, $client, true, array( 100 => true, 101 => true, 102 => true, 103 => true ) );
+
+		$wpdb            = $this->recording_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		try {
+			$flush->flush();
+		} finally {
+			unset( $GLOBALS['wpdb'] );
+		}
+
+		self::assertCount( 1, $wpdb->queries, 'One counter update for the one run.' );
+		self::assertStringContainsString( 'SET sent_count = sent_count + %d', $wpdb->queries[0]['sql'] );
+		self::assertSame( array( 1, 'orders', 'rec_engine', '2026-11-02 12:00:00' ), $wpdb->queries[0]['args'] );
+	}
+
+	public function test_a_batch_without_import_rows_counts_nothing(): void {
+		$queue = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ) ) );
+		$flush = $this->fake_flusher( $queue, $this->d6_client( array( 'processed' => 1 ) ), true, array( 100 => true ) );
+
+		$wpdb            = $this->recording_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		try {
+			$flush->flush();
+		} finally {
+			unset( $GLOBALS['wpdb'] );
+		}
+
+		self::assertSame( array(), $wpdb->queries );
+	}
 
 	// --- doubles -------------------------------------------------------------
+
+	private function recording_wpdb(): object {
+		return new class() {
+			public string $prefix = 'wp_';
+			/** @var array<int, array{sql: string, args: array<int, mixed>}> */
+			public array $queries = array();
+			/**
+			 * @param mixed ...$args
+			 */
+			public function prepare( string $sql, ...$args ): string {
+				return (string) json_encode( array( 'sql' => $sql, 'args' => $args ) );
+			}
+			public function query( string $prepared ): int {
+				$this->queries[] = json_decode( $prepared, true );
+				return 1;
+			}
+		};
+	}
 
 	/**
 	 * @param array<int, array<string, mixed>> $rows
@@ -346,13 +418,13 @@ final class OrderFlusherTest extends TestCase {
 	/**
 	 * @return array<string, mixed>
 	 */
-	private function upsert_row( int $id, int $entity_id, string $uuid, int $attempts = 0, int $max = 5 ): array {
+	private function upsert_row( int $id, int $entity_id, string $uuid, int $attempts = 0, int $max = 5, string $payload = '' ): array {
 		return array(
 			'id'           => $id,
 			'event_type'   => OrderFlusher::EVENT_ORDER_UPSERT,
 			'entity_id'    => (string) $entity_id,
 			'event_uuid'   => $uuid,
-			'payload'      => '',
+			'payload'      => $payload,
 			'attempts'     => $attempts,
 			'max_attempts' => $max,
 		);

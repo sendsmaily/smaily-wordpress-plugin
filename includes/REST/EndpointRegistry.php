@@ -78,6 +78,18 @@ final class EndpointRegistry {
 				// connection started one after another (CON-247).
 				static function (): void {
 					ImportsOnConnect::forget();
+				},
+				// The Orders card's Import now sends the order history again:
+				// a new §25 history import, begun before the run starts
+				// (CON-248). Products and Customers start none.
+				static function ( string $job_type ) use ( $bootstrap ): void {
+					if ( $job_type === 'orders' ) {
+						$bootstrap->history_progress()->begin( time() );
+					}
+				},
+				// The Orders card's bar for the part being sent (CON-248).
+				static function ( array $row ) use ( $bootstrap ): ?array {
+					return $bootstrap->history_progress()->card( $row );
 				}
 			),
 			new WorkflowsEndpoint(

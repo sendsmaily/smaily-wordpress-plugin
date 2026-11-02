@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Smaily\RecEngine;
 
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportRows;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -208,6 +209,8 @@ abstract class AbstractD6Flusher {
 			++$stats['failed'];
 		}
 
+		$skipped_index = $this->skipped_indexes( $response );
+		$accepted      = array();
 		foreach ( $batch_rows as $index => $row ) {
 			if ( isset( $failed_index[ $index ] ) ) {
 				continue;
@@ -216,9 +219,36 @@ abstract class AbstractD6Flusher {
 			$this->queue->mark_sent( $id );
 			$this->queue->store_exchange( $id, $this->trim_json( $objects[ $index ] ?? null ), $this->response_json( 200, 'accepted' ) );
 			++$stats['sent'];
+
+			// An import's row the engine stored counts on its run (CON-248);
+			// an order skipped as older than the horizon was not stored.
+			$mark = ImportRows::of( $row );
+			if ( $mark !== null && ! isset( $skipped_index[ $index ] ) ) {
+				$accepted[] = $mark;
+			}
 		}
+		ImportRows::record_accepted( $accepted );
 
 		$this->assert_invariant( $response, count( $batch_rows ), count( $errors ) );
+	}
+
+	/**
+	 * The batch indexes the engine answered 200 and did not store (contract
+	 * v1.20.0 §5 `skipped_orders[]`: an order older than the history horizon).
+	 * Absent when nothing was skipped.
+	 *
+	 * @param array<string, mixed> $response
+	 * @return array<int, true>
+	 */
+	private function skipped_indexes( array $response ): array {
+		$skipped = array();
+		foreach ( (array) ( $response['skipped_orders'] ?? array() ) as $entry ) {
+			if ( is_array( $entry ) && isset( $entry['index'] ) && is_numeric( $entry['index'] ) ) {
+				$skipped[ (int) $entry['index'] ] = true;
+			}
+		}
+
+		return $skipped;
 	}
 
 	/**

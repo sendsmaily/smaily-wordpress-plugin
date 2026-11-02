@@ -48,6 +48,10 @@ use Smaily\Connect\Smaily\EventQueue;
  * "Import now" on one card starts that import only — it never starts or
  * extends a sequence.
  *
+ * A sequence that sends the orders is one §25 history import (HistoryProgress,
+ * CON-248): it begins one before its first part starts, so the engine hears
+ * `started` before the catalog arrives.
+ *
  * A store connected before this release starts the sequence once after the
  * update (start_after_update()): only when sending is allowed, never when the
  * merchant held back or cancelled the products import, and only when its
@@ -92,13 +96,18 @@ final class ImportsOnConnect {
 	/** @var callable(string): ?array<string, mixed> */
 	private $state_reader;
 
+	/** The §25 history import a sequence with an orders part begins (CON-248); null = none. */
+	private ?HistoryProgress $history;
+
 	/**
 	 * @param callable(string): ?AbstractBackfillJob     $job_factory  The import of a type.
 	 * @param (callable(string): ?array<string, mixed>)|null $state_reader A type's state row; default AbstractBackfillJob::read_state().
+	 * @param HistoryProgress|null                       $history      Begins the history import of a sequence.
 	 */
-	public function __construct( RecEngineSettings $settings, callable $job_factory, ?callable $state_reader = null ) {
+	public function __construct( RecEngineSettings $settings, callable $job_factory, ?callable $state_reader = null, ?HistoryProgress $history = null ) {
 		$this->settings     = $settings;
 		$this->job_factory  = $job_factory;
+		$this->history      = $history;
 		$this->state_reader = $state_reader ?? static function ( string $job_type ): ?array {
 			return AbstractBackfillJob::read_state( $job_type );
 		};
@@ -112,6 +121,12 @@ final class ImportsOnConnect {
 	 *              one was already running (the sequence waits for it).
 	 */
 	public function start(): bool {
+		// One history import for the whole sequence (CON-248); its first
+		// report waits for the hold-back window, like the first batch.
+		if ( $this->history !== null ) {
+			$this->history->begin( time() + CatalogImportOnConnect::DELAY_SECONDS );
+		}
+
 		$started = ( new CatalogImportOnConnect( $this->job( self::PARTS[0] ) ) )->start();
 
 		$this->save( self::PARTS );
@@ -171,6 +186,11 @@ final class ImportsOnConnect {
 			return false;
 		}
 		try {
+			// A sequence that sends the orders is a history import (CON-248),
+			// begun before any of its parts starts.
+			if ( $this->history !== null && in_array( 'orders', $parts, true ) ) {
+				$this->history->begin( time() + self::NEXT_PART_DELAY );
+			}
 			if ( ! $this->start_part( $parts[0] ) ) {
 				return false;
 			}

@@ -51,6 +51,11 @@ export function BackfillPanel({
   const wasCancelled = progress.status === 'cancelled';
   const showProgress = isRunning || isComplete || hasFailed || wasCancelled;
   const noun = label.toLowerCase();
+  // The Orders import of a history import (CON-248): one bar for the part
+  // being sent — the last start_months first, then back to horizon_months —
+  // counting the orders the engine accepted.
+  const history = isRunning ? progress.history ?? null : null;
+  const percent = history ? history.percent : progress.percent;
 
   return (
     <div className="rounded-lg border border-border-subtle p-4">
@@ -97,7 +102,7 @@ export function BackfillPanel({
       {showProgress && (
         <div className="mt-3">
           <ProgressBar
-            percent={progress.percent}
+            percent={percent}
             tone={hasFailed ? 'danger' : isComplete ? 'success' : 'brand'}
             ariaLabel={sprintf(
               /* translators: %s: domain label (e.g. Products). */
@@ -120,9 +125,9 @@ export function BackfillPanel({
               sprintf(
                 /* translators: 1: synced count, 2: lowercased domain noun, 3: percent complete. */
                 __('Synced %1$d %2$s · %3$d%% complete', 'smaily-connect'),
-                progress.sent,
+                history ? history.sent : progress.sent,
                 noun,
-                progress.percent,
+                percent,
               )}
             {isComplete &&
               sprintf(
@@ -141,6 +146,25 @@ export function BackfillPanel({
                 : __('Backfill failed.', 'smaily-connect'))}
             {wasCancelled && __('Backfill cancelled. Re-run when ready.', 'smaily-connect')}
           </p>
+          {history && (
+            <p className="mt-1 text-xs text-text-tertiary">
+              {history.part === 'start'
+                ? sprintf(
+                    /* translators: %d: number of months (the start part of the order history, e.g. 18). */
+                    __('Sending the orders of the last %d months first…', 'smaily-connect'),
+                    history.start_months,
+                  )
+                : sprintf(
+                    /* translators: 1: months of the start part (e.g. 18), 2: months of the whole history (e.g. 60). */
+                    __(
+                      'The last %1$d months are in: Campaign Intelligence can start. Older orders, back to %2$d months, follow in the background…',
+                      'smaily-connect',
+                    ),
+                    history.start_months,
+                    history.horizon_months,
+                  )}
+            </p>
+          )}
           {progress.failed > 0 && (isRunning || isComplete) && (
             <p className="mt-1 text-xs text-danger-fg">
               {sprintf(

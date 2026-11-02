@@ -1,4 +1,4 @@
-import { type BackfillRefusals } from '../state/types';
+import { type BackfillHistory, type BackfillRefusals } from '../state/types';
 import { apiRequest } from './client';
 
 export type BackfillJobType = 'contacts' | 'products' | 'customers' | 'orders';
@@ -18,7 +18,11 @@ export interface BackfillStatusResponse {
    * store the two differ by the opted-out majority. Engine jobs leave it 0.
    */
   synced: number;
-  /** Engine-confirmed rows (sent + deduplicated) for this run (3.10.0). */
+  /**
+   * Rows of this run the engine accepted (CON-248: sent_count — not rejected
+   * per item, not skipped as older than the history horizon); for a run from
+   * before that count, the queue's sent rows since the run started (3.10.0).
+   */
   sent: number;
   /** Terminal failed rows for this run — per-row detail in the Event Log. */
   failed: number;
@@ -46,6 +50,8 @@ export interface BackfillStatusResponse {
    * size (consent → opted-in count). Null = not applicable / running.
    */
   audience_estimate: number | null;
+  /** Orders job only: the history import's part being sent (CON-248); null otherwise. */
+  history?: BackfillHistory | null;
 }
 
 export interface BackfillCancelResponse {

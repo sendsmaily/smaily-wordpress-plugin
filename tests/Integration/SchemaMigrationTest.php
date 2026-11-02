@@ -94,6 +94,22 @@ final class SchemaMigrationTest extends TestCase {
 		);
 	}
 
+	public function test_backfill_job_table_has_the_nullable_sent_count_column(): void {
+		// Migration 013 (CON-248): the rows of an import the engine accepted.
+		// NULL is "never counted" (a run from before the column), so the
+		// column must not have a NOT NULL default that turns old runs into 0.
+		// The table holds no order data: the same on HPOS and legacy storage,
+		// and CI runs this on both legs.
+		global $wpdb;
+		$table = $wpdb->prefix . 'smly_plus_backfill_job';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+		$column = $wpdb->get_row( "SHOW COLUMNS FROM {$table} LIKE 'sent_count'", ARRAY_A );
+
+		self::assertIsArray( $column, 'Migration 013 did not add smly_plus_backfill_job.sent_count.' );
+		self::assertSame( 'YES', $column['Null'] );
+		self::assertNull( $column['Default'] );
+	}
+
 	public function test_event_queue_table_has_unique_event_uuid_constraint(): void {
 		// Tighter assertion: dbDelta failures sometimes succeed at the
 		// CREATE but quietly drop indexes / UNIQUE clauses. The Faas-2
