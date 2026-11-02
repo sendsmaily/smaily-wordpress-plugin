@@ -15,6 +15,7 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportPace;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
@@ -126,6 +127,64 @@ final class CustomerFlusherTest extends TestCase {
 		self::assertCount( 1, $queue->attempts, 'A 5xx below max_attempts parks the row for retry.' );
 		self::assertSame( array(), $queue->failed );
 		self::assertSame( 1, $stats['retried'] );
+	}
+
+	/**
+	 * CON-236: an import run's request waits its turn, and a 429 ends the run
+	 * with the engine's wait; the row is parked for at least that wait.
+	 */
+	public function test_an_import_request_waits_its_turn_and_a_429_ends_the_run_with_the_engines_wait(): void {
+		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1', 0, 5 ) ) );
+		$client = $this->throwing_client( new ApiException( 429, 'rate_limit_exceeded', 'slow down', array(), 120 ) );
+		$flush  = $this->fake_flusher( $queue, $client, true, array( 100 => true ) );
+		$pace   = new class() extends ImportPace {
+			public int $turns = 0;
+
+			public function await_turn(): void {
+				++$this->turns;
+			}
+		};
+		$pace->start();
+
+		$stats = $flush->flush( null, $pace );
+
+		self::assertSame( 1, $pace->turns, 'The one request waited its turn.' );
+		self::assertSame( 1, $stats['retried'], 'A 429 is not terminal: the row stays queued.' );
+		self::assertSame( 120, $queue->attempts[0]['retry'], 'Parked for the engine\'s wait, not the 60 s first back-off.' );
+		self::assertFalse( $pace->may_send(), 'The run sends nothing more.' );
+		self::assertTrue( $pace->throttled() );
+		self::assertSame( 120, $pace->next_run_in() );
+	}
+
+	public function test_a_429_with_a_shorter_wait_keeps_the_rows_back_off(): void {
+		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1', 0, 5 ) ) );
+		$client = $this->throwing_client( new ApiException( 429, 'rate_limit_exceeded', 'slow down', array(), 5 ) );
+		$flush  = $this->fake_flusher( $queue, $client, true, array( 100 => true ) );
+
+		$flush->flush();
+
+		self::assertSame( 60, $queue->attempts[0]['retry'] );
+	}
+
+	public function test_backlog_counts_the_customer_rows_waiting(): void {
+		$queue = new class( array() ) extends IngestQueue {
+			/** @var array<int, string> */
+			public array $counted = array();
+
+			/** @param array<int, array<string, mixed>> $rows */
+			public function __construct( array $rows ) {
+				unset( $rows );
+			}
+
+			public function pending_count( array $event_types ): int {
+				$this->counted = $event_types;
+				return 2001;
+			}
+		};
+		$flush = $this->fake_flusher( $queue, $this->d6_client( array() ), true );
+
+		self::assertSame( 2001, $flush->backlog() );
+		self::assertSame( array( CustomerFlusher::EVENT_CUSTOMER_UPSERT ), $queue->counted );
 	}
 
 	public function test_exhausted_retries_mark_failed(): void {

@@ -9638,6 +9638,106 @@ PRO-1893 (`sending_allowed()`), PRO-2433 (AS groups), CON-219 / CON-228
 `tests/Integration/RecEngineHistoryProgressTest.php` (the mock's §25 route)
 and `tests/Integration/SchemaMigrationTest.php`.
 
+### CON-236 — A history import run sends at five requests a second for up to 40 seconds, and stops on a 429 (2026-11-02)
+
+**Context:** a Products / Customers / Orders import sent one batch (100
+rows, 50 orders) per Action Scheduler tick, and the next tick started 30 s
+after the previous one ended: about two requests a minute. A store with
+80,000 orders waited 13+ hours for its history. Contract §25 sender rule 11
+asks for more than one order request a minute and says the engine accepts
+100 requests a second; it names no target pace below that ceiling. The
+Magento extension did the same change in CON-232 (`IngestPace`: 5 a second,
+40 s budget, 2,000-row import backlog).
+**Decision (Erkki, 2026-10-29: 5 requests a second, a 40-second budget, a
+2,000-row backlog guard, stop on 429 and honour the engine's wait):**
+- **One run per tick.** `Bootstrap::on_backfill_tick()` calls
+  `AbstractBackfillJob::process_run()` for a Campaign Intelligence import
+  (the contact import keeps its one batch a tick). A run repeats
+  `process_batch()`'s batch — read the page, queue it, drain it inline —
+  until the import ends, the budget is spent, a request fails as a whole,
+  sending is not allowed (PRO-1893), the batch read nothing, or the backlog
+  guard stops it. Each batch re-reads the job row, so a cancel, a failure or
+  Hold back stops the run at the next page (PRO-3821, PRO-3890).
+- **The pace is one setting:** `Backfill\ImportPace::REQUESTS_PER_SECOND` = 5.
+  Every import request waits its turn (`await_turn()` in
+  `AbstractD6Flusher::flush()`, only when a request is really sent), one
+  request at a time. A contract target pace changes this one number.
+- **Budget:** a request starts only while `RUN_BUDGET_SECONDS` = 40 lasts
+  (`may_send()`, checked before every drain pass); a page the budget cuts
+  short keeps its rows queued for the next run or the recurring flusher.
+- **429:** the run stops; the next tick is scheduled after the engine's wait
+  — the body's `retry_after_seconds` (contract §2: the engine sends no
+  `Retry-After` header today), else the `Retry-After` header, else 60 s (the
+  row back-off's first step), capped at 3,600 s. `Client` now reads the body
+  field first for its in-request wait and for `ApiException::retry_after()`.
+  The throttled rows are parked for at least the engine's wait. A 429 on
+  the LAST page still ends the walk (the import reads `completed`, as
+  before CON-236); its parked rows go out with the recurring flusher.
+- **Any other whole-request failure** (5xx, network, timeout, a whole-batch
+  4xx) also ends the run, with the usual 30 s gap — a failing engine gets no
+  more import requests a minute than before. Per-item D6 errors do not stop
+  a run.
+- **Time arithmetic (AC 4):** an import request is ONE attempt of at most
+  `REQUEST_TIMEOUT_SECONDS` = 10 s (`Bootstrap::import_rec_client()`; the
+  imports get their own flusher instances, the live flushers keep their
+  2-attempt, 15 s client). A request starts at the latest at 40 s and ends by
+  50 s; the build of that last batch adds a few seconds. Action Scheduler
+  sets PHP's limit to its 30 s runner limit, so the run raises it to
+  `RUN_TIME_LIMIT_SECONDS` = 90 at its start where the host allows (never
+  when it is 0, e.g. WP-CLI) — `set_time_limit()` also restarts PHP's count.
+  On Linux the limit counts CPU time only; the waits do not count.
+- **Backlog guard (AC 3):** before each page the run counts the rows of the
+  import's own event types still `pending` in the ingest queue — due now or
+  parked for a retry (`AbstractD6Flusher::backlog()`,
+  `IngestQueue::pending_count()`). At `BACKLOG_ROWS` = 2,000 or more it reads
+  no further page and ends the run (next run in 30 s). It guards two things:
+  an import never piles up rows the engine does not take (an outage, a
+  throttled engine — the rows wait for their retries instead of growing),
+  and a live row of the same kind waits behind at most 2,000 rows (20 to 40
+  requests, under 10 s at the pace). While the engine takes the rows the
+  queue holds one page, so the guard does not slow a healthy import.
+- **Live events (AC 3):** the run's drain reads the queue oldest first
+  (PRO-3897), so a live row of the import's kind — a new order during the
+  orders import — goes out in the same run, behind at most the page being
+  sent. Other kinds keep their own flush actions; nothing locks the queue,
+  and one run holds an Action Scheduler runner for at most ~50 s.
+- **Stall detection (PRO-3886) is unchanged:** `as_has_scheduled_action()`
+  counts the running tick, and every unfinished run schedules the next one.
+**Measurement (AC 5, the legacy walk of CON-245):** the orders import's page
+query on `wp_posts` (newest first by `post_date_gmt`, then id), the real SQL
+on WordPress's real `wp_posts` schema in a throwaway MariaDB 12.3 container
+(orders spread over 60 months, 5 % non-sale, plus a third as many other
+posts): **50,000 orders — 73 ms a page on average (p95 118 ms), 951 pages,
+70 s of query time; 100,000 orders — 105 ms a page (p95 216 ms, max 748 ms),
+1,901 pages, 200 s.** The plan is a range on `type_status_date` (or
+`type_status_author`) plus a filesort of every order in the window on every
+page: WordPress indexes `post_date`, not `post_date_gmt`. An index on
+`(post_type, post_date_gmt, ID)` takes a page to about 1 ms (100,000) / 4 ms
+(50,000). It is not added: a new index on a core WordPress table is a schema
+change, a one-way door for Erkki. Without it a large legacy store's orders
+import runs below the pace (each page adds its query time) — still minutes
+of run time instead of hours. `bin/measure-order-walk.php` measures the same
+on a wp-env site (seeds by SQL, sends nothing, deletes what it seeded).
+**Rationale:** Magento parity (one pace for every connector, INT-185); an
+80,000-order history takes about 1,600 order requests, which at the pace is a
+few minutes of run time instead of 13+ hours.
+**Alternatives:** keep one batch a tick and shorten the gap — rejected: AS
+ticks cost a scheduler round each and still cap the pace far below the
+engine's. A budget of 50 s — rejected: with a 10 s request it reaches 60 s.
+Retry a 429 inside the run — rejected: the engine asked to slow down; the
+next run after its wait is the honest answer.
+**Relationships:** contract §2 (Rate limiting, 429 body), §25 sender rules
+10–11; CON-232 (Magento); CON-245 (newest-first walk), CON-247 (sequence),
+CON-248 (§25 progress — unchanged, its own action), PRO-3886 (stall),
+PRO-1893 (`sending_allowed()`), PRO-3817 (Retry-After cap), F3-37 (the
+abandoned-cart backlog guard — a different guard). Pinned by
+`tests/Unit/Smaily/RecEngine/Backfill/ImportPaceTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/AbstractBackfillJobTest.php` (fake
+clock), `tests/Unit/Smaily/RecEngine/CustomerFlusherTest.php`,
+`tests/Unit/Smaily/RecEngine/ClientRetryAfterCapTest.php` and
+`tests/Integration/RecEngineImportPaceTest.php` (the mock's
+`ingest_throttle` switch).
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

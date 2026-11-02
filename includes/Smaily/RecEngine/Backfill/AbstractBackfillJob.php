@@ -34,7 +34,10 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
  * Backfill→engine path = enqueue a batch, then **flush inline before the next
  * batch** (decision 3.5 (b)): progress reflects records actually SENT (not just
  * queued), and the queue stays bounded (each batch is drained before the next
- * is enqueued) rather than ballooning to thousands of pending rows. No
+ * is enqueued) rather than ballooning to thousands of pending rows. One run
+ * (run(), CON-236) sends batch after batch at ImportPace's pace until the
+ * import ends, its budget is spent, the engine answers 429 or the backlog
+ * guard stops it; process_batch() is a single batch. No
  * freshness marker (decision 3.5 (i)) — the engine ingest is an idempotent
  * UPSERT, so re-sending a record is harmless; skipping unchanged records is a
  * future re-run optimisation, not correctness.
@@ -189,9 +192,63 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	}
 
 	/**
+	 * One batch: the next page, enqueued and sent.
+	 *
 	 * @return array{processed: int, sent: int, failed: int, remaining: int, completed: bool}
 	 */
 	public function process_batch(): array {
+		return $this->batch( null );
+	}
+
+	/**
+	 * One run of the import (CON-236): batch after batch, each request at
+	 * ImportPace::REQUESTS_PER_SECOND at most, until the import ends, the
+	 * run's budget is spent, a request fails as a whole (a 429 sets the next
+	 * run after the engine's wait), sending is not allowed, or the backlog
+	 * guard finds ImportPace::BACKLOG_ROWS of this import's kind waiting.
+	 * `next_run_in` is when the tick chain runs again, in seconds from now.
+	 *
+	 * @return array{processed: int, sent: int, failed: int, remaining: int, completed: bool, next_run_in: int}
+	 */
+	public function process_run( ?ImportPace $pace = null ): array {
+		$pace = $pace ?? new ImportPace();
+		$pace->raise_time_limit();
+		$pace->start();
+
+		$totals = array(
+			'processed' => 0,
+			'sent'      => 0,
+			'failed'    => 0,
+			'remaining' => 0,
+			'completed' => false,
+		);
+
+		do {
+			if ( $this->flusher->backlog() >= ImportPace::BACKLOG_ROWS ) {
+				// The engine is not taking this import's rows as fast as it
+				// reads them: read no further page until the queue drains.
+				$pace->stop();
+				break;
+			}
+
+			$result               = $this->batch( $pace );
+			$totals['processed'] += $result['processed'];
+			$totals['sent']      += $result['sent'];
+			$totals['failed']    += $result['failed'];
+			$totals['remaining']  = $result['remaining'];
+			$totals['completed']  = $result['completed'];
+			$read_nothing         = $result['processed'] === 0;
+		} while ( ! $totals['completed'] && ! $read_nothing && $pace->may_send() );
+
+		$totals['next_run_in'] = $pace->next_run_in();
+
+		return $totals;
+	}
+
+	/**
+	 * @return array{processed: int, sent: int, failed: int, remaining: int, completed: bool}
+	 */
+	private function batch( ?ImportPace $pace ): array {
 		global $wpdb;
 
 		$batch_size = $this->batch_size();
@@ -244,7 +301,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		}
 
 		try {
-			return $this->walk_batch( $state, (string) ( $state['cursor_value'] ?? '' ), $batch_size );
+			return $this->walk_batch( $state, (string) ( $state['cursor_value'] ?? '' ), $batch_size, $pace );
 		} catch ( \Throwable $e ) {
 			// Anything but the engine's own errors (the flusher handles those):
 			// a database error, a product that cannot be built. Left to escape,
@@ -268,7 +325,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 * @param array<string, mixed> $state The job row this batch read.
 	 * @return array{processed: int, sent: int, failed: int, remaining: int, completed: bool}
 	 */
-	private function walk_batch( array $state, string $cursor, int $batch_size ): array {
+	private function walk_batch( array $state, string $cursor, int $batch_size, ?ImportPace $pace ): array {
 		global $wpdb;
 
 		$page = $this->next_page( $cursor, $batch_size );
@@ -287,7 +344,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 
 		// Inline-flush this batch before advancing — bounds the queue + makes
 		// progress mean "sent", not "enqueued".
-		$flush = $this->drain_queue();
+		$flush = $this->drain_queue( $pace );
 
 		$processed = (int) $state['processed_count'] + count( $ids );
 		$completed = $page['completed'];
@@ -362,10 +419,13 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 * pass processes nothing (queue empty, or only retry-deferred rows remain —
 	 * pending() excludes future next_retry_at, so the loop terminates), capped
 	 * for safety. Deferred-retry rows are picked up by the recurring flusher.
+	 * In a run, each pass waits its turn, and the drain stops when the run's
+	 * budget is spent or a request failed: what it leaves goes out on the
+	 * next run, or with the recurring flusher (CON-236).
 	 *
 	 * @return array{sent: int, failed: int, skipped: int}
 	 */
-	private function drain_queue(): array {
+	private function drain_queue( ?ImportPace $pace ): array {
 		$totals = array(
 			'sent'    => 0,
 			'failed'  => 0,
@@ -373,7 +433,10 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		);
 
 		for ( $pass = 0; $pass < self::MAX_DRAIN_PASSES; $pass++ ) {
-			$stats              = $this->flusher->flush();
+			if ( $pace !== null && ! $pace->may_send() ) {
+				break;
+			}
+			$stats              = $this->flusher->flush( null, $pace );
 			$totals['sent']    += $stats['sent'];
 			$totals['failed']  += $stats['failed'];
 			$totals['skipped'] += $stats['skipped'];
