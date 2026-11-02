@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import { useReducer } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getAutomationsCatalog, getAutomationsConfig } from '../../api/automations';
+import { getAutomationsCatalog, getAutomationsConfig, type AutomationConfigServerRow } from '../../api/automations';
 import { getEmailDesigns, type EmailDesign } from '../../api/emailDesigns';
 import { listWorkflows } from '../../api/workflows';
 import { _resetUseWorkflowsCache } from '../../hooks/useWorkflows';
@@ -51,13 +51,40 @@ const CARDS: Array<[string, string]> = [
   ['Replenishment due', 'replenish_due'],
 ];
 
-function connectedState(): WizardState {
+/** Every card switched off — the stored default. */
+function offState(): WizardState {
   return {
     ...buildSettingsInitialState({ smailyConnected: true, detectedLanguages: ['en'] }),
     recEngineConnection: { kind: 'success', message: 'Test tenant' },
     transactionalConnection: { kind: 'success' },
   };
 }
+
+/** Every card switched on: "Edit design" shows only on a card that is on (CON-255). */
+function connectedState(): WizardState {
+  return {
+    ...offState(),
+    welcomeEnabled: true,
+    firstOrderEnabled: true,
+    abandonedCartEnabled: true,
+    orderConfirmationEnabled: true,
+    shippingConfirmationEnabled: true,
+    followUpEnabled: true,
+  };
+}
+
+const ENGINE_ROW_ON: AutomationConfigServerRow = {
+  trigger_key: 'replenish_due',
+  enabled: true,
+  language_mode: 'single',
+  automation_map: { id: '123' },
+  cooldown_days: 7,
+  daily_cap: null,
+  test_mode: true,
+  test_emails: ['owner@shop.example'],
+  configured_via: 'admin',
+  updated_at: '2026-10-05T08:00:00.000Z',
+};
 
 function Harness({ initial, inSettings }: { initial: WizardState; inSettings: boolean }): React.JSX.Element {
   const [state, dispatch] = useReducer(wizardReducer, initial);
@@ -91,7 +118,7 @@ describe('Step3WooCommerce — Edit design', () => {
       language_modes: ['single', 'per_language'],
       docs: 'https://intelligence.smaily.com/docs',
     });
-    vi.mocked(getAutomationsConfig).mockResolvedValue({ configs: [] });
+    vi.mocked(getAutomationsConfig).mockResolvedValue({ configs: [ENGINE_ROW_ON] });
   });
 
   for (const inSettings of [true, false]) {
@@ -114,6 +141,20 @@ describe('Step3WooCommerce — Edit design', () => {
       expect(getEmailDesigns).toHaveBeenCalledTimes(1);
     });
   }
+
+  it('shows no button on a card that is switched off (CON-255)', async () => {
+    vi.mocked(getAutomationsConfig).mockResolvedValue({ configs: [{ ...ENGINE_ROW_ON, enabled: false }] });
+    vi.mocked(getEmailDesigns).mockResolvedValue({
+      emails: CARDS.map(([, key]) => item(key, key.startsWith('transactional.') ? 'transactional' : key.startsWith('plugin.') ? 'plugin' : 'engine')),
+    });
+
+    // Only the welcome card is on: it alone carries the button.
+    render(<Harness initial={{ ...offState(), welcomeEnabled: true }} inSettings />);
+
+    await screen.findByRole('heading', { name: 'Replenishment due' });
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Edit design' })).toHaveLength(1));
+    expect(within(cardOf('Welcome email')).getByRole('button', { name: 'Edit design' })).toBeInTheDocument();
+  });
 
   it('shows no button on a card whose email the list leaves out', async () => {
     vi.mocked(getEmailDesigns).mockResolvedValue({ emails: [item('plugin.welcome', 'plugin')] });

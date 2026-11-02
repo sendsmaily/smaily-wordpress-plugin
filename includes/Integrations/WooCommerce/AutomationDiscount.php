@@ -295,7 +295,10 @@ class AutomationDiscount {
 	/**
 	 * The discount code fields for one queue row about to be posted.
 	 *
-	 * Nothing when the automation's switch is off, or when the row already
+	 * Nothing when the "Send a discount code" switch is off, when the
+	 * automation itself is switched off (CON-255 — the merchant's saved
+	 * discount setting stays while the automation is off, and makes no code
+	 * then), or when the row already
 	 * carries its code (a retry — the fields are in its payload). Otherwise
 	 * the address's unused code of this automation and template when it has
 	 * one (unused_code()), else a new code — which the caller writes into
@@ -319,7 +322,7 @@ class AutomationDiscount {
 		}
 
 		$setting = self::settings()[ $trigger ];
-		if ( ! $setting['enabled'] ) {
+		if ( ! $setting['enabled'] || ! self::automation_enabled( $trigger ) ) {
 			return $none;
 		}
 
@@ -343,6 +346,20 @@ class AutomationDiscount {
 			),
 			'note'   => '',
 		);
+	}
+
+	/**
+	 * Whether the automation a discount code belongs to is switched on —
+	 * read through the switch each automation's own sending reads: the
+	 * welcome and first-order flags through HookHandler, the abandoned-cart
+	 * status through the legacy Options accessor (F3-54 normalised).
+	 */
+	public static function automation_enabled( string $trigger ): bool {
+		if ( $trigger === 'abandoned_cart' ) {
+			return \Smaily_Connect\Includes\Options::abandoned_cart_status()['enabled'];
+		}
+
+		return HookHandler::automation_enabled( $trigger );
 	}
 
 	/**

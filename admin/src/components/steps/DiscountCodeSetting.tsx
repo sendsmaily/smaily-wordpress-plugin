@@ -22,8 +22,18 @@ export interface DiscountCodeSettingProps {
  * many days the code is valid. The coupon list holds only the coupons a
  * code can be cloned from (AutomationDiscount::templates()); a store
  * without one is told how to create one in WooCommerce.
+ *
+ * Shown only while its automation is switched on (CON-255): the card puts it
+ * last, and it renders nothing itself while the automation is off, so the
+ * switch can never be reached on an automation that sends nothing. Hiding it
+ * keeps the saved setting — the server makes no code for an automation that
+ * is off (AutomationDiscount::issue()).
  */
-export function DiscountCodeSetting({ state, dispatch, trigger }: DiscountCodeSettingProps): React.JSX.Element {
+export function DiscountCodeSetting({ state, dispatch, trigger }: DiscountCodeSettingProps): React.JSX.Element | null {
+  if (!automationEnabled(state, trigger)) {
+    return null;
+  }
+
   const setting = state.automationDiscounts[trigger];
   const templates = state.env.discountTemplates ?? [];
   const limits = state.env.discountValidDays ?? FALLBACK_DISCOUNT_VALID_DAYS;
@@ -45,7 +55,7 @@ export function DiscountCodeSetting({ state, dispatch, trigger }: DiscountCodeSe
   }
 
   return (
-    <div className="mt-4">
+    <div className="mt-5 border-t border-border-subtle pt-4">
       <Toggle
         name={`smly-discount-${trigger}-enabled`}
         checked={setting.enabled}
@@ -119,4 +129,16 @@ export function DiscountCodeSetting({ state, dispatch, trigger }: DiscountCodeSe
       ))}
     </div>
   );
+}
+
+/** Whether the automation the discount code belongs to is switched on. */
+function automationEnabled(state: WizardState, trigger: DiscountTrigger): boolean {
+  switch (trigger) {
+    case 'welcome':
+      return state.welcomeEnabled;
+    case 'first_order':
+      return state.firstOrderEnabled;
+    case 'abandoned_cart':
+      return state.abandonedCartEnabled;
+  }
 }

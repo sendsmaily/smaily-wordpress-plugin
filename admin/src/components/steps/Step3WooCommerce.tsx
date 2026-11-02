@@ -29,8 +29,9 @@ export interface Step3WooCommerceProps {
  * one place.
  *
  * The abandoned-cart section gets an extra Cutoff input (10-min minimum
- * per PLUGIN.md §5.3c). All three get the "Send a discount code" setting
- * (CON-199).
+ * per PLUGIN.md §5.3c), below its workflow. All three get the "Send a
+ * discount code" setting (CON-199) as the card's last block. A card that is
+ * switched off shows none of these (CON-255).
  */
 export function Step3WooCommerce(props: Step3WooCommerceProps): React.JSX.Element {
   // "Edit design" on every email card below (CON-173) reads the engine's
@@ -100,7 +101,7 @@ function Step3Cards({
         description={ __( 'Sent when a shopper subscribes to marketing emails in your store (the checkout box or My Account) and contact sync sends them to Smaily. Creating an account alone does not send it, nor does an opt-in added in WordPress admin or by an import. A shopper who subscribes again gets it again.', 'smaily-connect' ) }
         isEnabled={state.welcomeEnabled}
         onEnabledChange={(enabled) => dispatch({ type: 'SET_WELCOME_ENABLED', payload: enabled })}
-        extras={<DiscountCodeSetting state={state} dispatch={dispatch} trigger="welcome" />}
+        discount={<DiscountCodeSetting state={state} dispatch={dispatch} trigger="welcome" />}
       />
 
       <AutomationSection
@@ -114,7 +115,7 @@ function Step3Cards({
         onEnabledChange={(enabled) =>
           dispatch({ type: 'SET_FIRST_ORDER_ENABLED', payload: enabled })
         }
-        extras={<DiscountCodeSetting state={state} dispatch={dispatch} trigger="first_order" />}
+        discount={<DiscountCodeSetting state={state} dispatch={dispatch} trigger="first_order" />}
       />
 
       <AutomationSection
@@ -148,9 +149,9 @@ function Step3Cards({
             <p className="mt-1 text-xs text-text-tertiary">
               { __( 'Minimum 10 minutes. Abandoned carts older than the set period are checked.', 'smaily-connect' ) }
             </p>
-            <DiscountCodeSetting state={state} dispatch={dispatch} trigger="abandoned_cart" />
           </div>
         }
+        discount={<DiscountCodeSetting state={state} dispatch={dispatch} trigger="abandoned_cart" />}
       />
 
       {/* Transactional-email triggers (PRO-1504, stage 1) — the account

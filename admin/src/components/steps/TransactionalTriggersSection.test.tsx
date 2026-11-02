@@ -27,8 +27,19 @@ function baseState(): WizardState {
   };
 }
 
-function connectedState(): WizardState {
+/** Connected, with every card switched off — the stored default. */
+function connectedOffState(): WizardState {
   return { ...baseState(), transactionalConnection: { kind: 'success' } };
+}
+
+/** Connected, with all three cards switched on, so each shows its workflow and settings (CON-255). */
+function connectedState(): WizardState {
+  return {
+    ...connectedOffState(),
+    orderConfirmationEnabled: true,
+    shippingConfirmationEnabled: true,
+    followUpEnabled: true,
+  };
 }
 
 function Harness({
@@ -72,6 +83,57 @@ describe('TransactionalTriggersSection', () => {
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByRole('heading', { name: 'Order confirmation' })).not.toBeInTheDocument();
     expect(workflowsMock).not.toHaveBeenCalled();
+  });
+
+  it('shows only the title, description and switch on a card that is switched off (CON-255)', () => {
+    render(
+      <Harness
+        initial={{
+          ...connectedOffState(),
+          transactionalEmailsEnabled: true,
+          inSettings: true,
+          transactionalStatus: {
+            shipping_confirmation: { reason: 'trigger_off', workflowResolved: false, lastSentAt: '', untickedRecentStatuses: [] },
+          },
+        }}
+      />,
+    );
+
+    for (const name of ['Order confirmation', 'Shipping confirmation', 'Follow-up email']) {
+      const card = sectionOf(name);
+      expect(within(card).getByRole('switch')).not.toBeChecked();
+      expect(within(card).queryByRole('combobox')).not.toBeInTheDocument();
+      expect(within(card).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(within(card).queryByRole('spinbutton')).not.toBeInTheDocument();
+      expect(within(card).queryByText(/Not sending|the workflow shows no runs/)).not.toBeInTheDocument();
+    }
+    expect(workflowsMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps a hidden card’s workflow and statuses in the save across off and on (CON-255)', async () => {
+    let latest: WizardState = {
+      ...connectedState(),
+      automationMappings: [
+        { triggerType: 'shipping_confirmation', language: 'default', accountKey: 'transactional', workflowId: '77', isDefaultFallback: true },
+      ],
+      shippedOrderStatuses: ['shipped'],
+    };
+    render(<Harness initial={latest} onState={(s) => { latest = s; }} />);
+    await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+    const toggle = within(sectionOf('Shipping confirmation')).getByRole('switch', { name: 'Enable shipping confirmation' });
+    fireEvent.click(toggle);
+    expect(within(sectionOf('Shipping confirmation')).queryByRole('combobox')).not.toBeInTheDocument();
+    expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({
+      shippingConfirmationEnabled: false,
+      shippedOrderStatuses: ['shipped'],
+      automationMappings: [expect.objectContaining({ triggerType: 'shipping_confirmation', workflowId: '77' })],
+    });
+
+    fireEvent.click(toggle);
+    const card = sectionOf('Shipping confirmation');
+    expect(within(card).getByRole('combobox')).toHaveValue('77');
+    expect(within(card).getByRole('checkbox', { name: 'Shipped' })).toBeChecked();
   });
 
   it('renders the trigger sections once the transactional account is connected', async () => {
@@ -274,24 +336,28 @@ describe('TransactionalTriggersSection', () => {
   });
 
   describe('the follow-up email (PRO-4095)', () => {
-    it('is off by default, waits 7 days and counts the statuses the server sends', async () => {
-      render(<Harness initial={{ ...connectedState(), followUpOrderStatuses: ['completed'] }} />);
-      await screen.findAllByRole('option', { name: 'Order confirmed' });
+    it('is off by default, and switched on waits 7 days and counts the statuses the server sends', async () => {
+      render(<Harness initial={{ ...connectedOffState(), followUpOrderStatuses: ['completed'] }} />);
 
       const followUp = sectionOf('Follow-up email');
-      expect(within(followUp).getByRole('switch', { name: 'Enable follow-up email' })).not.toBeChecked();
+      const toggle = within(followUp).getByRole('switch', { name: 'Enable follow-up email' });
+      expect(toggle).not.toBeChecked();
+      expect(within(followUp).queryByRole('spinbutton', { name: 'Days to wait' })).not.toBeInTheDocument();
+
+      fireEvent.click(toggle);
+      await within(followUp).findByRole('option', { name: 'Order confirmed' });
       expect(within(followUp).getByRole('spinbutton', { name: 'Days to wait' })).toHaveValue(7);
       expect(within(followUp).getByRole('checkbox', { name: 'Completed' })).toBeChecked();
       expect(within(followUp).getByRole('checkbox', { name: 'Shipped' })).not.toBeChecked();
     });
 
     it('saves its switch, statuses and delay with the WooCommerce tab', async () => {
-      let latest = connectedState();
+      let latest = connectedOffState();
       render(<Harness initial={latest} onState={(s) => { latest = s; }} />);
-      await screen.findAllByRole('option', { name: 'Order confirmed' });
 
       const followUp = sectionOf('Follow-up email');
       fireEvent.click(within(followUp).getByRole('switch', { name: 'Enable follow-up email' }));
+      await within(followUp).findByRole('option', { name: 'Order confirmed' });
       fireEvent.click(within(followUp).getByRole('checkbox', { name: 'Shipped' }));
       fireEvent.change(within(followUp).getByRole('spinbutton', { name: 'Days to wait' }), { target: { value: '14' } });
 

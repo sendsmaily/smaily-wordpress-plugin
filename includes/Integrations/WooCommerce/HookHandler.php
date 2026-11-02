@@ -953,6 +953,25 @@ class HookHandler {
 	}
 
 	private function is_enabled( string $option_key, bool $fallback ): bool {
+		return self::option_on( $option_key, $fallback );
+	}
+
+	/**
+	 * Whether the welcome or first-order automation is switched on — the
+	 * same switch the hooks above read. AutomationDiscount::issue() reads it
+	 * too, so no discount code is made for an automation that is off
+	 * (CON-255). Any other trigger reads as off.
+	 */
+	public static function automation_enabled( string $trigger ): bool {
+		$options = array(
+			'welcome'     => self::OPTION_WELCOME_ENABLED,
+			'first_order' => self::OPTION_FIRST_ORDER_ENABLED,
+		);
+
+		return isset( $options[ $trigger ] ) && self::option_on( $options[ $trigger ], false );
+	}
+
+	private static function option_on( string $option_key, bool $fallback ): bool {
 		$value = get_option( $option_key, $fallback );
 
 		if ( is_bool( $value ) ) {

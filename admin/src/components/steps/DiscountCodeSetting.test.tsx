@@ -11,10 +11,14 @@ import { DiscountCodeSetting } from './DiscountCodeSetting';
 
 const NEW_COUPON_URL = 'https://shop.example.test/wp-admin/post-new.php?post_type=shop_coupon';
 
+/** The three automations switched on — the discount block shows only on an automation that is on (CON-255). */
 function stateWith(templates: Array<{ id: number; label: string }>): WizardState {
   const base = buildSettingsInitialState();
   return {
     ...base,
+    welcomeEnabled: true,
+    firstOrderEnabled: true,
+    abandonedCartEnabled: true,
     env: { ...base.env, discountTemplates: templates, newCouponUrl: NEW_COUPON_URL },
   };
 }
@@ -87,6 +91,26 @@ describe('DiscountCodeSetting (CON-199)', () => {
     expect(screen.getByText('Create the discount in WooCommerce first')).toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: 'Discount (WooCommerce coupon)' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Add a coupon in WooCommerce' })).toHaveAttribute('href', NEW_COUPON_URL);
+  });
+
+  it.each([
+    ['welcome', 'welcomeEnabled'],
+    ['first_order', 'firstOrderEnabled'],
+    ['abandoned_cart', 'abandonedCartEnabled'],
+  ] as const)('shows nothing while the %s automation is switched off, and keeps its saved setting (CON-255)', (trigger, flag) => {
+    const initial = { ...stateWith([{ id: 12, label: 'WELCOME15 — Percentage discount: 15' }]), [flag]: false };
+    initial.automationDiscounts = {
+      ...initial.automationDiscounts,
+      [trigger]: { enabled: true, templateId: 12, validDays: 21 },
+    };
+    let latest = initial;
+    const { container } = render(<Harness initial={initial} trigger={trigger} onState={(s) => { latest = s; }} />);
+
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole('switch', { name: 'Send a discount code' })).not.toBeInTheDocument();
+    expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({
+      automationDiscounts: { [trigger]: { enabled: true, templateId: 12, validDays: 21 } },
+    });
   });
 
   it('keeps a saved coupon that can no longer be used visible in the list', () => {
