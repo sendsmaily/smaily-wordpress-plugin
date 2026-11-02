@@ -1391,6 +1391,45 @@ import batch by batch keep calling it. Rules:
   set_ingest_throttle( $after, $wait )`) answers the §2 429 — wait in the
   body, no header, as the live engine does.
 
+### The legacy posts-table index is added in a background action, never in a migration (CON-259)
+A store connected to Campaign Intelligence on legacy order storage gets ONE
+index on `{$wpdb->posts}`:
+`smaily_connect_order_date (post_type, post_date_gmt, ID)`, owned by
+`DB\LegacyOrderDateIndex` (Erkki approved the core-table schema change,
+2026-11-02). Rules that must hold:
+- **The ALTER runs only in its Action Scheduler action**
+  (`smly_plus_order_date_index`, group `smaily-connect-order-date-index`, in
+  `Deactivation::AS_GROUPS`). `register_action_scheduler_jobs()` only calls
+  `ensure_scheduled()`. Never move it into a `migrations/` step or
+  `Activation::run()` — both run inside the upgrade request (PRO-2434).
+- **Gate: `RecEngineSettings::is_connected()` AND WooCommerce active AND
+  `! OrderBackfillJob::uses_hpos()`** (Erkki, 2026-11-02: no core-table
+  change on a store that never uses the import). `is_connected()`, not
+  `sending_allowed()` — the add sends nothing. Not connected, HPOS or no
+  WooCommerce: nothing is touched AND nothing is recorded — that is what
+  lets a later connect or HPOS → legacy switch get the index. Don't write a
+  "skipped" state there. A disconnect keeps the index.
+- **Two schedulers:** the hourly recurring-jobs check and the connect
+  callback in `EndpointRegistry` (so the index lands inside the 3-minute
+  products hold-back, before the orders import — CON-247).
+- **Bounded:** `smly_plus_order_date_index` state, 3 attempts a day apart,
+  an attempt counted before the ALTER; `lock_wait_timeout` 5 s around it
+  (the metadata-lock pile-up an unbounded wait causes on `wp_posts` takes a
+  store down). A new core-table schema step copies this shape.
+- **Uninstall drops it by name** (`uninstall.php` requires the class file
+  itself — it needs only `$wpdb`); deactivation leaves it.
+- **Testing it:** `tests/Integration/LegacyOrderDateIndexTest.php` skips per
+  leg (`uses_hpos()`): legacy asserts not-connected-gets-nothing / add-once / no-op / EXPLAIN (seeds 600
+  `shop_order` posts by SQL and deletes them by `post_name` prefix), HPOS
+  asserts `SHOW INDEX` on the posts table is unchanged. Every test
+  connects with `EnvSeed::connect()` and `drop()`s the index in setUp and
+  tearDown — the suite's DB is shared. To
+  check a query plan locally, use a throwaway `mariadb:lts` container with
+  the WP `wp_posts` schema (`docker run --rm --name … mariadb:lts`), not the
+  dev wp-env. A static schema read that a method repeats (`present_index()`)
+  needs `@phpstan-impure`, or PHPStan treats the second call as the first's
+  result.
+
 ### A test of a `DebugLog` line points `error_log` at its own file (CON-245)
 CI's wp-env writes no `wp-content/debug.log` that `DebugLogReader` can tail: a
 test that asserted a `DebugLog::write()` line through it read `''` on both CI

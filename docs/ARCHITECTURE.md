@@ -267,6 +267,13 @@ migration 0036, so this can't affect any other store).
 
 `DB\QueueJanitor` prunes `sent`/`failed` rows past retention (filterable).
 
+One change to a core table (CON-259): on a store connected to Campaign
+Intelligence with legacy order storage `DB\LegacyOrderDateIndex` adds the index `smaily_connect_order_date`
+`(post_type, post_date_gmt, ID)` to `wp_posts` for the orders import's
+newest-first page query — in a background Action Scheduler action, online DDL,
+at most three attempts. HPOS stores are not touched. Uninstall drops it;
+deactivation leaves it.
+
 ## 8. Admin app — React wizard + settings
 
 One Vite-built React 18 bundle (`admin/src/` → `dist/admin/admin.js`), mounted
