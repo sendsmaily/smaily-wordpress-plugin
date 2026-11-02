@@ -40,6 +40,7 @@ export interface ServerEnv {
   cf7Present?: boolean;
   storeTotals?: {
     customers?: number;
+    engineCustomers?: number;
     orders?: number;
     products?: number;
   };
@@ -86,6 +87,7 @@ export function buildSettingsInitialState(env: ServerEnv = {}): WizardState {
       cf7Present: env.cf7Present ?? false,
       storeTotals: {
         customers: env.storeTotals?.customers ?? 0,
+        engineCustomers: env.storeTotals?.engineCustomers ?? 0,
         orders: env.storeTotals?.orders ?? 0,
         products: env.storeTotals?.products ?? 0,
       },

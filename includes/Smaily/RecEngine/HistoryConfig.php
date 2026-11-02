@@ -83,6 +83,18 @@ class HistoryConfig {
 	}
 
 	/**
+	 * The window the setup exchange stored, else the fallback — no engine
+	 * call and no log line. For a caller that runs on a store hook or once
+	 * per import batch, where a ping would cost a request each time: the
+	 * customer scope's horizon (CON-246).
+	 *
+	 * @return array{start_months: int, horizon_months: int, order: string}
+	 */
+	public static function stored( RecEngineSettings $settings ): array {
+		return self::valid( $settings->config()['history'] ?? null ) ?? self::FALLBACK;
+	}
+
+	/**
 	 * A block whose months are whole numbers, the start part inside the
 	 * horizon; null otherwise.
 	 *

@@ -220,6 +220,15 @@ final class OrderHookHandlerTest extends TestCase {
 			}
 		};
 
-		return new OrderHookHandler( $queue, new OrderPayloadBuilder(), $settings );
+		// Guest orders: the buyer's customer row (CON-246) has its own test,
+		// OrderHookHandlerBuyerTest; here the order seams never load WC.
+		return new class( $queue, new OrderPayloadBuilder(), $settings ) extends OrderHookHandler {
+			protected function order_customer_id( int $order_id ): int {
+				return 0;
+			}
+			protected function buyer_marked( int $order_id ): bool {
+				return false;
+			}
+		};
 	}
 }

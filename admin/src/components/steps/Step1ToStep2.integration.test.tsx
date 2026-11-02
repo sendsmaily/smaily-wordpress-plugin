@@ -76,7 +76,7 @@ describe('Step 1 → Step 2 integration', () => {
       ...wizardInitialState,
       env: {
         ...wizardInitialState.env,
-        storeTotals: { customers: 1_234, orders: 0, products: 0 },
+        storeTotals: { customers: 1_234, engineCustomers: 0, orders: 0, products: 0 },
       },
     };
 

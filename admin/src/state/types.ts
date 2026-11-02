@@ -364,6 +364,8 @@ export interface WizardState {
     cf7Present: boolean;
     storeTotals: {
       customers: number;
+      /** Users the Campaign Intelligence customer import sends (§4 customer scope, CON-246). */
+      engineCustomers: number;
       orders: number;
       products: number;
     };

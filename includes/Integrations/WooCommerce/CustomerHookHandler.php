@@ -12,25 +12,29 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
+use Smaily\Connect\Smaily\RecEngine\CustomerScope;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 
 /**
  * Fans WP/WC user changes into the rec-engine ingest queue as
  * `customer.upsert` rows (PLUGIN.md §488): user registration, profile
- * update, WooCommerce customer creation, and WC account-details save. The
- * CustomerFlusher later loads each user FRESH and turns it into a
- * /api/v1/ingest/customers object — so the row carries only the user id, no
- * payload (current state is read at flush time, not capture time).
+ * update, WooCommerce customer creation, WC account-details save, and a
+ * change of the newsletter opt-in meta. The CustomerFlusher later loads each
+ * user FRESH and turns it into a /api/v1/ingest/customers object — so the row
+ * carries only the user id, no payload (current state is read at flush time,
+ * not capture time).
  *
- * Enqueues every registered user (A-filter), NOT only the `customer` role.
- * Rationale (DECISIONS, 3.3.3): both existing sync paths are broader than a
- * role filter — the legacy subscriber-sync keys on the newsletter opt-in and
- * the new email HookHandler syncs every registered user — so a `customer`-only
- * filter would be narrower than both AND would drop custom-role shoppers (VIP,
- * wholesale, member). Guest buyers (no WP user) are captured by the W5 order
- * path, not here. Admin "noise" is small and self-resolving (a user with no
- * purchase history gets no recommendations).
+ * Enqueues only a user in the engine's customer scope (contract v1.20.0 §4,
+ * CON-246 — supersedes the 3.3.3 "every registered user" A-filter): a user the
+ * plugin's own contact sync puts into Smaily, or one with a sale order inside
+ * the history horizon (CustomerScope::includes_user(), the same rule the
+ * customer import's page query applies). No role filter — a role is not part
+ * of the rule. A user who enters the scope later gets in through the event
+ * that put them there: the opt-in meta change below, or their order
+ * (OrderHookHandler queues the buyer once per order). Guest buyers (no WP
+ * user) arrive with their orders, not here.
  *
  * Gate: enqueue only while a rec-engine tenant is connected
  * (RecEngineSettings::is_connected). This is independent of the email-sync
@@ -40,6 +44,8 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
  *
  * Per-request dedupe: profile_update in particular can fire several times in
  * one request; a static $seen set collapses repeats to a single row per user.
+ * A user is marked seen only when a row is queued, so an opt-in written after
+ * `user_register` in the same request still queues them.
  *
  * One-way by construction: the flusher only advances queue rows
  * (mark_sent / mark_failed) and never writes user meta, so an ingest can't
@@ -54,10 +60,12 @@ class CustomerHookHandler {
 
 	private IngestQueue $queue;
 	private RecEngineSettings $settings;
+	private CustomerScope $scope;
 
-	public function __construct( IngestQueue $queue, RecEngineSettings $settings ) {
+	public function __construct( IngestQueue $queue, RecEngineSettings $settings, ?CustomerScope $scope = null ) {
 		$this->queue    = $queue;
 		$this->settings = $settings;
+		$this->scope    = $scope ?? new CustomerScope( $settings );
 	}
 
 	/** `user_register` — a new WP user (any role). */
@@ -84,6 +92,24 @@ class CustomerHookHandler {
 	}
 
 	/**
+	 * `added_user_meta` / `updated_user_meta` ($meta_id, $user_id, $meta_key)
+	 * — the newsletter opt-in can put a user into the contact-sync audience,
+	 * and with it into the engine's scope, without any of the hooks above
+	 * (the registration form writes it after `user_register`). Every other
+	 * meta key is ignored.
+	 *
+	 * @param int|string $meta_id  Unused.
+	 * @param int|string $user_id  The user whose meta changed.
+	 * @param string     $meta_key The meta key.
+	 */
+	public function on_user_meta_changed( $meta_id, $user_id, $meta_key = '' ): void {
+		if ( $meta_key !== ContactAudience::OPTIN_META ) {
+			return;
+		}
+		$this->enqueue_upsert( (int) $user_id );
+	}
+
+	/**
 	 * Reset the per-request dedupe set. Tests use it between cases; production
 	 * never calls it (the static is request-scoped).
 	 */
@@ -99,6 +125,9 @@ class CustomerHookHandler {
 			return;
 		}
 		if ( isset( self::$seen[ $user_id ] ) ) {
+			return;
+		}
+		if ( ! $this->scope->includes_user( $user_id ) ) {
 			return;
 		}
 		self::$seen[ $user_id ] = true;

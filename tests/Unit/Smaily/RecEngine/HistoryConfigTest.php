@@ -79,6 +79,21 @@ final class HistoryConfigTest extends TestCase {
 		self::assertSame( self::STORED_BLOCK, $config->for_new_import() );
 	}
 
+	public function test_stored_reads_the_exchange_block_without_a_ping(): void {
+		$settings = $this->createMock( RecEngineSettings::class );
+		$settings->expects( self::never() )->method( 'sending_allowed' );
+		$settings->method( 'config' )->willReturn( array( 'history' => self::STORED_BLOCK ) );
+
+		self::assertSame( self::STORED_BLOCK, HistoryConfig::stored( $settings ) );
+	}
+
+	public function test_stored_falls_back_to_the_default_without_a_valid_block(): void {
+		$settings = $this->createMock( RecEngineSettings::class );
+		$settings->method( 'config' )->willReturn( array( 'history' => array( 'start_months' => 'x' ) ) );
+
+		self::assertSame( HistoryConfig::FALLBACK, HistoryConfig::stored( $settings ) );
+	}
+
 	/**
 	 * @param array<string, mixed>|\Throwable $ping   The ping's answer, or what it throws.
 	 * @param array<string, mixed>|null       $stored The setup exchange's history block.

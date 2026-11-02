@@ -1,8 +1,8 @@
 <?php
 /**
  * Integration: CustomerBackfillJob (3.5.1) — cursor traversal of existing users
- * into the same ingest queue + CustomerFlusher the live hook uses, with the
- * A-filter (F3-20) matching CustomerHookHandler.
+ * into the same ingest queue + CustomerFlusher the live hook uses, over the
+ * §4 customer scope (CON-246) CustomerHookHandler applies too.
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -13,12 +13,17 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\ContactAudience;
+use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CustomerBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
+use Smaily\Connect\Smaily\RecEngine\CustomerScope;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Wizard\EnvDetector;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -26,10 +31,12 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
 
 /**
  * Proves the same backfill properties as catalog (resumability + bounded queue)
- * AND the A-filter consistency that matters for customers: the backfill must
- * enumerate the SAME cohort CustomerHookHandler enqueues — every registered
- * user, NO role filter — so a non-`customer` role (subscriber, editor, custom)
- * is backfilled, not silently skipped.
+ * AND the customer scope (contract v1.20.0 §4, CON-246): the page query
+ * returns the users the contact sync puts into Smaily plus the buyers with a
+ * sale order inside the horizon, on whichever order storage the leg runs
+ * (CI runs this on legacy and HPOS, PRO-3435), with no role filter. The
+ * resumability tests run in the legitimate-interest mode, where every
+ * registered user is in the contact audience.
  */
 final class RecEngineCustomerBackfillTest extends TestCase {
 
@@ -37,6 +44,9 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 
 	/** @var int[] */
 	private array $created_users = array();
+
+	/** @var int[] */
+	private array $created_orders = array();
 
 	public static function setUpBeforeClass(): void {
 		self::$engine = RecEngineMockServer::start();
@@ -56,23 +66,102 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 				'endpoints'       => array( 'ingest_customers' => $base . '/api/v1/ingest/customers' ),
 			)
 		);
+		delete_option( ContactSyncMode::OPTION_SYNC_ENABLED );
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_LEGITIMATE_INTEREST );
 	}
 
 	protected function tearDown(): void {
+		foreach ( $this->created_orders as $order_id ) {
+			$order = wc_get_order( $order_id );
+			if ( $order ) {
+				$order->delete( true ); // Not wp_delete_post: a no-op under HPOS.
+			}
+		}
+		$this->created_orders = array();
 		$this->delete_non_admin_users();
+		delete_option( ContactSyncMode::OPTION_MODE );
+		delete_option( ContactSyncMode::OPTION_SYNC_ENABLED );
 		parent::tearDown();
 	}
 
-	public function test_a_filter_enumerates_every_role_no_role_filter(): void {
+	public function test_legitimate_interest_puts_every_role_in_scope_no_role_filter(): void {
 		$subscriber = $this->make_user( 'bf-sub@example.test', 'subscriber' );
 		$customer   = $this->make_user( 'bf-cust@example.test', 'customer' );
 		$editor     = $this->make_user( 'bf-editor@example.test', 'editor' );
 
 		$ids = $this->job()->ids_after( 0, 10000 );
 
-		self::assertContains( $subscriber, $ids, 'A subscriber is backfilled — no role filter (A-filter, F3-20).' );
+		self::assertContains( $subscriber, $ids, 'A subscriber is backfilled — no role filter.' );
 		self::assertContains( $customer, $ids );
 		self::assertContains( $editor, $ids, 'A custom/editor role is backfilled too.' );
+	}
+
+	/**
+	 * CON-246 on the active order storage: in the consent mode the import
+	 * reads the opted-in users and the buyers with a sale order inside the
+	 * 60-month horizon — not an account that never bought or subscribed
+	 * (an administrator included), not a buyer whose only sale is older than
+	 * the horizon, not one whose only recent order is not a sale.
+	 */
+	public function test_consent_mode_imports_subscribers_and_recent_buyers_only(): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+
+		$subscriber   = $this->make_user( 'bf-scope-sub@example.test', 'customer' );
+		$recent_buyer = $this->make_user( 'bf-scope-buyer@example.test', 'customer' );
+		$old_buyer    = $this->make_user( 'bf-scope-old@example.test', 'customer' );
+		$pending      = $this->make_user( 'bf-scope-pending@example.test', 'customer' );
+		$custom       = $this->make_user( 'bf-scope-custom@example.test', 'customer' );
+		$plain        = $this->make_user( 'bf-scope-plain@example.test', 'customer' );
+		$admin        = $this->make_user( 'bf-scope-admin@example.test', 'administrator' );
+
+		update_user_meta( $subscriber, ContactAudience::OPTIN_META, '1' );
+		$this->make_order( $recent_buyer, 'completed', strtotime( '-2 years' ) );
+		$this->make_order( $old_buyer, 'completed', strtotime( '-7 years' ) );
+		$this->make_order( $pending, 'pending', strtotime( '-1 month' ) );
+		$this->set_stored_status( $this->make_order( $custom, 'processing', strtotime( '-3 months' ) ), 'wc-label-printed' );
+
+		$job  = $this->job();
+		$ids  = $job->ids_after( 0, 10000 );
+		$mine = array_values( array_intersect( $ids, $this->created_users ) );
+		sort( $mine );
+		$expected = array( $subscriber, $recent_buyer, $custom );
+		sort( $expected );
+
+		self::assertSame( $expected, $mine, 'Subscribers + buyers inside the horizon; a custom status counts as a sale (F3-42).' );
+		self::assertNotContains( $admin, $ids, 'An admin with no order and no subscription is never sent.' );
+		self::assertNotContains( $plain, $ids );
+		self::assertNotContains( $old_buyer, $ids, 'A sale older than the horizon does not put its buyer in scope.' );
+		self::assertNotContains( $pending, $ids, 'A pending order is not a sale.' );
+
+		$job->start();
+		self::assertSame( count( $ids ), (int) $this->read_backfill_row()['total_count'], 'The progress total counts the set the walk reads.' );
+	}
+
+	public function test_with_contact_sync_switched_off_only_buyers_are_imported(): void {
+		update_option( ContactSyncMode::OPTION_SYNC_ENABLED, '' );
+
+		$buyer = $this->make_user( 'bf-off-buyer@example.test', 'customer' );
+		$other = $this->make_user( 'bf-off-other@example.test', 'customer' );
+		$this->make_order( $buyer, 'processing', strtotime( '-1 week' ) );
+
+		$ids = $this->job()->ids_after( 0, 10000 );
+
+		self::assertContains( $buyer, $ids );
+		self::assertNotContains( $other, $ids, 'Legitimate interest with the switch off syncs no contacts — PRO-1742.' );
+	}
+
+	public function test_the_admin_panel_count_is_the_import_total(): void {
+		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
+		$this->make_user( 'bf-count-plain@example.test', 'customer' );
+		$buyer = $this->make_user( 'bf-count-buyer@example.test', 'customer' );
+		$this->make_order( $buyer, 'completed', strtotime( '-1 day' ) );
+
+		$snapshot = ( new EnvDetector() )->snapshot();
+		$job      = $this->job();
+		$job->start();
+
+		self::assertSame( (int) $this->read_backfill_row()['total_count'], $snapshot['storeTotals']['engineCustomers'] );
+		self::assertSame( count( $job->ids_after( 0, 10000 ) ), $snapshot['storeTotals']['engineCustomers'] );
 	}
 
 	public function test_resumes_from_cursor_and_does_not_restart(): void {
@@ -239,14 +328,14 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 			}
 		);
 
-		return new class( $queue, $flusher, $batch_size, $before_enqueue ) extends CustomerBackfillJob {
+		return new class( $queue, $flusher, $batch_size, $before_enqueue, new CustomerScope( $settings ) ) extends CustomerBackfillJob {
 			private int $bs;
 
 			/** @var callable|null */
 			private $before_enqueue;
 
-			public function __construct( IngestQueue $queue, CustomerFlusher $flusher, int $bs, ?callable $before_enqueue ) {
-				parent::__construct( $queue, $flusher );
+			public function __construct( IngestQueue $queue, CustomerFlusher $flusher, int $bs, ?callable $before_enqueue, CustomerScope $scope ) {
+				parent::__construct( $queue, $flusher, $scope );
 				$this->bs             = $bs;
 				$this->before_enqueue = $before_enqueue;
 			}
@@ -283,6 +372,26 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 		self::assertIsInt( $id );
 		$this->created_users[] = (int) $id;
 		return (int) $id;
+	}
+
+	/** An order of $customer_id placed at $created, without line items: the scope reads the order row only. */
+	private function make_order( int $customer_id, string $status, int $created ): int {
+		$order = wc_create_order( array( 'customer_id' => $customer_id ) );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		$order->set_billing_email( 'bf-order-' . wp_generate_uuid4() . '@example.test' );
+		$order->set_status( $status );
+		$order->set_date_created( $created );
+		$id                     = (int) $order->save();
+		$this->created_orders[] = $id;
+		return $id;
+	}
+
+	/** Write a status straight into the active order table (a custom one WooCommerce has not registered). */
+	private function set_stored_status( int $order_id, string $status ): void {
+		global $wpdb;
+		$spec = OrderBackfillJob::table_spec( OrderBackfillJob::uses_hpos(), $wpdb->prefix );
+		$wpdb->update( $spec['table'], array( $spec['status_col'] => $status ), array( $spec['id_col'] => $order_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		wp_cache_flush();
 	}
 
 	private function delete_non_admin_users(): void {
