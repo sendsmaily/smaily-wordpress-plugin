@@ -19,6 +19,7 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
+use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 
 final class ImportsOnConnectTest extends TestCase {
@@ -42,6 +43,14 @@ final class ImportsOnConnectTest extends TestCase {
 	private $check_next = false;
 
 	private bool $sending_allowed = true;
+
+	/**
+	 * HistoryProgress::begin() calls: the first check time and how many parts
+	 * had started by then (CON-248). Null = no history double.
+	 *
+	 * @var array<int, array{at: int, started: int}>|null
+	 */
+	private ?array $begun = null;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -364,16 +373,64 @@ final class ImportsOnConnectTest extends TestCase {
 		self::assertCount( 1, $this->scheduled_for( ImportsOnConnect::HOOK ), 'A reactivation re-arms the waiting sequence.' );
 	}
 
+	public function test_connecting_begins_one_history_import_before_the_catalog_starts(): void {
+		$this->begun = array();
+		$before      = time();
+
+		$this->sequence()->start();
+
+		self::assertCount( 1, $this->begun, 'One import id for the whole sequence (CON-248).' );
+		self::assertSame( 0, $this->begun[0]['started'], 'Begun before any part starts.' );
+		self::assertGreaterThanOrEqual( $before + CatalogImportOnConnect::DELAY_SECONDS, $this->begun[0]['at'], 'The first report waits for the hold-back window.' );
+	}
+
+	public function test_after_an_update_a_sequence_with_the_orders_begins_a_history_import(): void {
+		$this->begun = array();
+		$this->row( 'products', 'completed' );
+		$this->row( 'customers', 'completed' );
+
+		self::assertTrue( $this->sequence()->start_after_update() );
+
+		self::assertSame( array( 'orders' ), $this->started );
+		self::assertCount( 1, $this->begun );
+		self::assertSame( 0, $this->begun[0]['started'], 'Begun before the orders import starts.' );
+	}
+
+	public function test_after_an_update_a_sequence_without_the_orders_begins_no_history_import(): void {
+		$this->begun = array();
+		$this->row( 'orders', 'completed' );
+
+		self::assertTrue( $this->sequence()->start_after_update() );
+
+		self::assertSame( array( 'products' ), $this->started );
+		self::assertSame( array(), $this->begun, 'No order history is sent again.' );
+	}
+
 	// --- helpers -----------------------------------------------------------
 
 	private function sequence(): ImportsOnConnect {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'sending_allowed' )->willReturnCallback( fn (): bool => $this->sending_allowed );
 
+		$history = null;
+		if ( $this->begun !== null ) {
+			$history = $this->createMock( HistoryProgress::class );
+			$history->method( 'begin' )->willReturnCallback(
+				function ( int $at ): string {
+					$this->begun[] = array(
+						'at'      => $at,
+						'started' => count( $this->started ),
+					);
+					return 'woo-test';
+				}
+			);
+		}
+
 		return new ImportsOnConnect(
 			$settings,
 			fn ( string $job_type ): AbstractBackfillJob => $this->job( $job_type ),
-			fn ( string $job_type ): ?array => $this->rows[ $job_type ] ?? null
+			fn ( string $job_type ): ?array => $this->rows[ $job_type ] ?? null,
+			$history
 		);
 	}
 

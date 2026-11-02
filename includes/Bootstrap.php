@@ -53,6 +53,7 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CustomerBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\Client;
@@ -232,6 +233,9 @@ final class Bootstrap {
 		// check finds a part that stalled, and runs the one-time start after
 		// an update.
 		add_action( ImportsOnConnect::HOOK, array( $this, 'on_import_sequence_check' ) );
+		// The §25 history progress report (CON-248): its own action, so a
+		// slow or failed report never holds up an import batch.
+		add_action( HistoryProgress::HOOK, array( $this, 'on_history_progress' ) );
 
 		// Storefront browse-beacon enqueue (3.4.3). wp_enqueue_scripts is a
 		// front-end-only hook; StorefrontBeacon::enqueue() self-gates on
@@ -366,6 +370,13 @@ final class Bootstrap {
 	}
 
 	/**
+	 * AS callback for HistoryProgress::HOOK (CON-248).
+	 */
+	public function on_history_progress(): void {
+		$this->history_progress()->run();
+	}
+
+	/**
 	 * Map a job_type to its backfill implementation — the single dispatch
 	 * shared by the REST endpoint factory (EndpointRegistry) and the AS tick.
 	 * Returns null when the job_type is unknown or its connection is absent.
@@ -436,7 +447,26 @@ final class Bootstrap {
 				$job = $bootstrap->make_backfill_job( $job_type );
 
 				return $job instanceof AbstractBackfillJob ? $job : null;
-			}
+			},
+			null,
+			$this->history_progress()
+		);
+	}
+
+	/**
+	 * Where the history import stands, for the engine's §25 progress report
+	 * and the Orders card (CON-248). The report makes one bounded attempt
+	 * (Client::history_progress()); a failure is retried 5 minutes later.
+	 */
+	public function history_progress(): HistoryProgress {
+		$bootstrap = $this;
+
+		return new HistoryProgress(
+			$this->rec_engine_settings(),
+			static function () use ( $bootstrap ): RecEngineClient {
+				return $bootstrap->rec_client( 1 );
+			},
+			$this->ingest_queue()
 		);
 	}
 
@@ -845,6 +875,11 @@ final class Bootstrap {
 		// update. A single action, not a recurring one — it re-arms itself
 		// only while a sequence waits.
 		$this->imports_on_connect()->ensure_check_scheduled();
+
+		// The history progress report (CON-248): re-arm its check after a
+		// reactivation while an import is in progress. A single action that
+		// re-arms itself only while the import runs.
+		$this->history_progress()->ensure_scheduled();
 
 		update_option( self::OPTION_AS_JOBS_VERIFIED, time(), false );
 	}

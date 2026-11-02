@@ -155,6 +155,9 @@ final class EnvScrub {
 			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION,
 			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION_UPDATE_CHECKED,
 			'smly_rec_import_sequence_lock',
+			// Same class again (CON-248): the history import's progress state is
+			// autoload=false and asserted on by RecEngineHistoryProgressTest.
+			\Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress::OPTION,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

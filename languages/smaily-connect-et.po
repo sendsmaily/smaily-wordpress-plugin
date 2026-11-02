@@ -1070,6 +1070,18 @@ msgstr "Sünkroonitud %1$d %2$s · %3$d%% valmis"
 msgid "Done — %1$d %2$s synced."
 msgstr "Valmis — sünkroonitud %1$d %2$s."
 
+#. translators: %d: number of months (the start part of the order history, e.g. 18).
+#: admin/src/components/BackfillPanel.tsx
+#, js-format
+msgid "Sending the orders of the last %d months first…"
+msgstr "Saadan kõigepealt viimase %d kuu tellimused…"
+
+#. translators: 1: months of the start part (e.g. 18), 2: months of the whole history (e.g. 60).
+#: admin/src/components/BackfillPanel.tsx
+#, js-format
+msgid "The last %1$d months are in: Campaign Intelligence can start. Older orders, back to %2$d months, follow in the background…"
+msgstr "Viimase %1$d kuu tellimused on kohal: Campaign Intelligence saab alustada. Vanemad tellimused, kuni %2$d kuu tagant, järgnevad taustal…"
+
 #. translators: %s: error message.
 #. translators: %s is the error message.
 #: admin/src/components/BackfillPanel.tsx:84

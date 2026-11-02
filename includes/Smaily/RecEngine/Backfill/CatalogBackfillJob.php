@@ -125,7 +125,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 				$this->enqueue_unavailable( $unit );
 				continue;
 			}
-			$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_UPSERT, (string) $unit->get_id(), array() );
+			$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_UPSERT, (string) $unit->get_id(), $this->import_payload() );
 		}
 	}
 
@@ -264,7 +264,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 */
 	private function enqueue_unavailable( \WC_Product $unit ): void {
 		$object = $this->builder->ensure_valid_removal( $this->builder->build( $unit, '' ) );
-		$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_DELETE, (string) $unit->get_id(), array( 'object' => $object ) );
+		$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_DELETE, (string) $unit->get_id(), $this->import_payload( array( 'object' => $object ) ) );
 	}
 
 	/**
@@ -275,7 +275,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 */
 	private function enqueue_unavailable_unresolvable( int $product_id ): void {
 		$object = $this->builder->build_unresolvable( $product_id, '' );
-		$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_DELETE, (string) $product_id, array( 'object' => $object ) );
+		$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_DELETE, (string) $product_id, $this->import_payload( array( 'object' => $object ) ) );
 	}
 
 	/**

@@ -98,6 +98,66 @@ describe('BackfillPanel', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows one bar for the start part of a history import, with its months (CON-248)', async () => {
+    vi.spyOn(api, 'getBackfillStatus').mockResolvedValue({
+      ...IDLE,
+      status: 'running',
+      processed: 900,
+      sent: 850,
+      total: 4000,
+      percent: 22,
+      started_at: '2026-11-02 10:00:00',
+      history: { part: 'start', sent: 850, expected: 1700, percent: 50, start_months: 18, horizon_months: 60 },
+    });
+
+    render(<BackfillPanel jobType="orders" label="Orders" recordCount={4000} intervalMs={60_000} />);
+
+    expect(await screen.findByText('Sending the orders of the last 18 months first…')).toBeInTheDocument();
+    expect(screen.getByText(/Synced 850 orders · 50% complete/)).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50');
+  });
+
+  it('shows the background part back to the horizon once the start part is in (CON-248)', async () => {
+    vi.spyOn(api, 'getBackfillStatus').mockResolvedValue({
+      ...IDLE,
+      status: 'running',
+      processed: 2500,
+      sent: 2400,
+      total: 4000,
+      percent: 62,
+      started_at: '2026-11-02 10:00:00',
+      history: { part: 'background', sent: 2400, expected: 4000, percent: 60, start_months: 18, horizon_months: 60 },
+    });
+
+    render(<BackfillPanel jobType="orders" label="Orders" recordCount={4000} intervalMs={60_000} />);
+
+    expect(
+      await screen.findByText(
+        'The last 18 months are in: Campaign Intelligence can start. Older orders, back to 60 months, follow in the background…',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Synced 2400 orders · 60% complete/)).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '60');
+  });
+
+  it('keeps the walked share when the run is no history import', async () => {
+    vi.spyOn(api, 'getBackfillStatus').mockResolvedValue({
+      ...IDLE,
+      status: 'running',
+      processed: 30,
+      sent: 28,
+      total: 100,
+      percent: 30,
+      started_at: '2026-11-02 10:00:00',
+      history: null,
+    });
+
+    render(<BackfillPanel jobType="customers" label="Customers" recordCount={100} intervalMs={60_000} />);
+
+    expect(await screen.findByText(/Synced 28 customers · 30% complete/)).toBeInTheDocument();
+    expect(screen.queryByText(/months/)).not.toBeInTheDocument();
+  });
+
   it('starts the backfill for its own job type on click', async () => {
     const startSpy = vi
       .spyOn(api, 'startBackfill')

@@ -134,6 +134,10 @@ class Client {
 	// §24 console entry (v1.19.0, CON-228). Map key `console_entry`, which the
 	// engine returns only while console entry is switched on.
 	public const PATH_CONSOLE_ENTRY = '/api/v1/console/entry';
+	// §25 history progress (v1.20.0, CON-248). Map key
+	// `ingest_history_progress`; a connection set up before v1.20.0 has no
+	// such key, so this fallback serves it.
+	public const PATH_INGEST_HISTORY_PROGRESS = '/api/v1/ingest/history/progress';
 
 	/** Default in-request retry ceiling — generous for one-shot calls (ping, setup). */
 	public const DEFAULT_MAX_ATTEMPTS = 5;
@@ -648,6 +652,27 @@ class Client {
 		return $this->request_url( 'POST', $this->resolve_url( 'console_entry', self::PATH_CONSOLE_ENTRY ), array( 'email' => $email ), true );
 	}
 
+	/**
+	 * Report where the history import stands (§25 history progress,
+	 * CON-248): `{import_id, phase, horizon_start, entities}` — counts and
+	 * dates only, never a person's data.
+	 *
+	 * The report runs on its own Action Scheduler action and must never hold
+	 * up the import's batches queued behind it, so it is ONE attempt bounded
+	 * by BROWSE_TIMEOUT_SECONDS, no redirect, no retry and no Retry-After
+	 * wait. A failed report is tried again 5 minutes later by the caller
+	 * (HistoryProgress), with the counts of that moment.
+	 *
+	 * @param array<string, mixed> $body
+	 *
+	 * @return array<string, mixed> `{ok, stale, import_id, phase, start_part_complete_at, complete_at, history}`.
+	 *
+	 * @throws ApiException On 4xx/5xx or network failure.
+	 */
+	public function history_progress( array $body ): array {
+		return $this->request_url( 'POST', $this->resolve_url( 'ingest_history_progress', self::PATH_INGEST_HISTORY_PROGRESS ), $body, true );
+	}
+
 	// ---------------------------------------------------------------
 	// Private request engine.
 	// ---------------------------------------------------------------
@@ -717,7 +742,8 @@ class Client {
 	 * @param bool                      $single_attempt One attempt bounded by BROWSE_TIMEOUT_SECONDS,
 	 *                                                  no redirect, no retry and no Retry-After wait
 	 *                                                  (ingest_browse(), PRO-3620; store_uninstall(),
-	 *                                                  CON-219; console_entry(), CON-228).
+	 *                                                  CON-219; console_entry(), CON-228;
+	 *                                                  history_progress(), CON-248).
 	 *
 	 * @return array<string, mixed>
 	 *

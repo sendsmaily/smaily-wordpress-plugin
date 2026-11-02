@@ -84,6 +84,23 @@ export interface BackfillProgress {
   audienceEstimate: number | null;
   /** Contacts job: the customers Smaily refused for good in this run (PRO-3988). */
   refused?: BackfillRefusals | null;
+  /** Orders job: the history import's part being sent (CON-248); null otherwise. */
+  history?: BackfillHistory | null;
+}
+
+/**
+ * The Orders card's one bar while a history import runs (contract §25,
+ * CON-248): the part being sent — the orders of the last `start_months`
+ * months first, then the older ones back to `horizon_months` — and how many
+ * of its orders the engine has accepted.
+ */
+export interface BackfillHistory {
+  part: 'start' | 'background';
+  sent: number;
+  expected: number;
+  percent: number;
+  start_months: number;
+  horizon_months: number;
 }
 
 /** One customer Smaily refused in the contact import (PRO-3988). */

@@ -67,6 +67,14 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 
 	protected AbstractD6Flusher $flusher;
 
+	/**
+	 * The mark of the run whose batch is queuing rows now (ImportRows);
+	 * empty outside walk_batch().
+	 *
+	 * @var array<string, string>
+	 */
+	private array $import_mark = array();
+
 	public function __construct( IngestQueue $queue, AbstractD6Flusher $flusher ) {
 		$this->queue   = $queue;
 		$this->flusher = $flusher;
@@ -130,6 +138,20 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 */
 	abstract protected function enqueue_record( int $entity_id ): void;
 
+	/**
+	 * The payload an import row is queued with: $payload plus the running
+	 * batch's mark (ImportRows), so the flusher can count it on this run.
+	 * Every enqueue_record() puts its payload through here.
+	 *
+	 * @param array<string, mixed> $payload
+	 * @return array<string, mixed>
+	 */
+	protected function import_payload( array $payload = array() ): array {
+		return $this->import_mark === array() || $this->import_mark[ ImportRows::KEY_RUN ] === ''
+			? $payload
+			: array_merge( $payload, $this->import_mark );
+	}
+
 	// --- lifecycle ---------------------------------------------------------
 
 	public function start(): int {
@@ -142,11 +164,12 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO {$table} (job_type, target, status, total_count, processed_count, cursor_value, started_at) VALUES (%s, %s, %s, %d, %d, NULLIF( %s, '' ), %s) ON DUPLICATE KEY UPDATE status = VALUES(status), total_count = VALUES(total_count), processed_count = 0, cursor_value = VALUES(cursor_value), started_at = VALUES(started_at), completed_at = NULL, error_message = NULL",
+				"INSERT INTO {$table} (job_type, target, status, total_count, processed_count, sent_count, cursor_value, started_at) VALUES (%s, %s, %s, %d, %d, %d, NULLIF( %s, '' ), %s) ON DUPLICATE KEY UPDATE status = VALUES(status), total_count = VALUES(total_count), processed_count = 0, sent_count = 0, cursor_value = VALUES(cursor_value), started_at = VALUES(started_at), completed_at = NULL, error_message = NULL",
 				$this->job_type(),
 				self::TARGET,
 				'running',
 				$total,
+				0,
 				0,
 				$cursor ?? '',
 				current_time( 'mysql', true )
@@ -177,7 +200,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$state = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, status, cursor_value, processed_count, total_count FROM {$table} WHERE job_type = %s AND target = %s",
+				"SELECT id, status, cursor_value, processed_count, total_count, started_at FROM {$table} WHERE job_type = %s AND target = %s",
 				$this->job_type(),
 				self::TARGET
 			),
@@ -251,8 +274,15 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		$page = $this->next_page( $cursor, $batch_size );
 		$ids  = $page['ids'];
 
-		foreach ( $ids as $entity_id ) {
-			$this->enqueue_record( (int) $entity_id );
+		// Every row this batch queues carries the run's mark, so the
+		// flushers count the ones the engine accepts on this run (CON-248).
+		$this->import_mark = ImportRows::mark( $this->job_type(), (string) ( $state['started_at'] ?? '' ) );
+		try {
+			foreach ( $ids as $entity_id ) {
+				$this->enqueue_record( (int) $entity_id );
+			}
+		} finally {
+			$this->import_mark = array();
 		}
 
 		// Inline-flush this batch before advancing — bounds the queue + makes
@@ -368,7 +398,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, status, processed_count, synced_count, total_count, started_at, completed_at, error_message FROM {$table} WHERE job_type = %s AND target = %s",
+				"SELECT id, status, processed_count, synced_count, sent_count, total_count, cursor_value, started_at, completed_at, error_message FROM {$table} WHERE job_type = %s AND target = %s",
 				$job_type,
 				$target
 			),

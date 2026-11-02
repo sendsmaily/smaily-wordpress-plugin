@@ -459,6 +459,30 @@ is mounted runs the one-time after-update start — on a connected dev site whos
 customers/orders imports never completed it sends that history to the
 connected tenant (check the tenant is the sandbox, never `MiuMjau`).
 
+### An import's queue rows carry their run's mark; the flushers count the accepted ones (CON-248)
+The import's rows drain through the same queue and flushers as the live
+sync's, so the §25 report and the import cards count the rows the engine
+accepted in `smly_plus_backfill_job.sent_count` (migration 013; NULL = a run
+from before the column). Every row an import queues carries
+`{import: <job type>, run: <started_at>}` in its payload
+(`Backfill\ImportRows`); `AbstractD6Flusher` adds each accepted marked row to
+its run — not a D6 `errors[]` row, not a §5 `skipped_orders[]` index, not a
+terminal skip — whichever flush sends it. Rules: **a new import enqueue goes
+through `AbstractBackfillJob::import_payload()`** (a bare `array()` is never
+counted, and the phase then waits on nothing it can see); a new D6 outcome
+the engine does not store must stay out of the count; never key the count on
+the queue's `sent` rows. `Backfill\HistoryProgress` (option
+`smly_rec_history_import`, AS hook `smly_rec_history_progress`, group
+`smaily-rec-history-progress` in `Deactivation::AS_GROUPS`) reports §25 from a
+single self-re-arming action (60 s checks, a phase change at once, counts at
+most every 300 s, a failure retried after 300 s) and unschedules itself once
+the import ends. A connection's sequence begins ONE import id; the Orders
+card's Import now begins a new one, Products/Customers Import now none.
+**Integration-test trap:** a `do_action( HistoryProgress::HOOK )` run does not
+consume the action AS has queued — the import's first check sits at +180 s
+after a connect; `HistoryProgress::forget()` in tearDown clears it, and the
+option is in `EnvScrub`'s flush list.
+
 ### Use the IsoDate helper for datetimes — never raw format
 The engine's strict Zod `.datetime()` requires Z-suffix (`Y-m-d\TH:i:s\Z`), NOT
 `+00:00`. Raw `gmdate('c')` / `$date->format('c')` produces `+00:00` and the
@@ -1276,7 +1300,9 @@ included — WP's `timeout` is curl's total timeout), `redirection` 0, no retry,
 no Retry-After wait — whatever `$max_attempts` the client was built with. It is the only
 browse call, and `/relay` its only caller; the only other calls in that single-attempt mode
 are `Client::store_uninstall()` (§16 disconnect, CON-219) and `Client::console_entry()`
-(§24, the "Open Campaign Intelligence" button, CON-228) — the admin waits on both — and every
+(§24, the "Open Campaign Intelligence" button, CON-228) — the admin waits on both — and
+`Client::history_progress()` (§25, CON-248: its own AS action must never hold up the
+import's batches; the caller retries 5 minutes later) — and every
 other engine call keeps the retry policy
 (don't route a flusher/backfill through `ingest_browse`'s single-attempt mode, and don't
 "restore" retries on it). A failure is a 502 and a lost batch — by design. (2) The rate

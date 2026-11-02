@@ -278,6 +278,21 @@ final class RecEngineMockServer {
 		return (array) ( $this->state()['console_entry_requests'] ?? array() );
 	}
 
+	/**
+	 * Every §25 history progress call the engine received, oldest first, as
+	 * decoded (CON-248).
+	 *
+	 * @return array<int, mixed>
+	 */
+	public function history_progress_requests(): array {
+		return (array) ( $this->state()['history_progress_requests'] ?? array() );
+	}
+
+	/** Play an engine whose §25 call fails (500 db_failure); 0 answers normally again. */
+	public function set_history_progress_status( int $status ): void {
+		$this->write_state( array( 'history_progress_status' => $status ) );
+	}
+
 	public function reset_request_count(): void {
 		$this->write_state( array( 'request_count' => 0 ) );
 	}

@@ -88,6 +88,66 @@ final class AbstractBackfillJobTest extends TestCase {
 		self::assertFalse( AbstractBackfillJob::is_stalled( 'products', $this->state( 'completed', time() - DAY_IN_SECONDS ) ), 'Only a running import can stall.' );
 	}
 
+	public function test_every_row_a_batch_queues_carries_the_run_mark_and_a_live_enqueue_none(): void {
+		$GLOBALS['wpdb'] = $this->fake_wpdb( $this->state( 'running', strtotime( '2026-11-02 12:00:00 UTC' ) ) );
+		$flusher         = $this->createMock( AbstractD6Flusher::class );
+		$flusher->method( 'sending_allowed' )->willReturn( true );
+		$flusher->method( 'flush' )->willReturn(
+			array(
+				'processed' => 0,
+				'sent'      => 0,
+				'failed'    => 0,
+				'retried'   => 0,
+				'skipped'   => 0,
+			)
+		);
+		$job = new class( $this->createMock( IngestQueue::class ), $flusher ) extends AbstractBackfillJob {
+			/** @var array<int, array<string, mixed>> */
+			public array $payloads = array();
+
+			public function job_type(): string {
+				return 'orders';
+			}
+
+			protected function batch_size(): int {
+				return 2;
+			}
+
+			protected function count_total(): int {
+				return 2;
+			}
+
+			protected function fetch_ids_after( int $after_id, int $limit ): array {
+				return array( 11, 12 );
+			}
+
+			protected function enqueue_record( int $entity_id ): void {
+				$this->payloads[] = $this->import_payload( array( 'object' => array( 'sku' => 'woo-' . $entity_id ) ) );
+			}
+
+			/** @return array<string, mixed> */
+			public function outside_a_batch(): array {
+				return $this->import_payload();
+			}
+		};
+
+		$job->process_batch();
+
+		$mark = array(
+			'import' => 'orders',
+			'run'    => '2026-11-02 12:00:00',
+		);
+		self::assertSame(
+			array(
+				array_merge( array( 'object' => array( 'sku' => 'woo-11' ) ), $mark ),
+				array_merge( array( 'object' => array( 'sku' => 'woo-12' ) ), $mark ),
+			),
+			$job->payloads,
+			'CON-248: the flusher counts these on this run; the captured object is kept.'
+		);
+		self::assertSame( array(), $job->outside_a_batch(), 'Outside a batch nothing is marked.' );
+	}
+
 	/** @return array<string, mixed> */
 	private function state( string $status, ?int $started = null ): array {
 		return array(

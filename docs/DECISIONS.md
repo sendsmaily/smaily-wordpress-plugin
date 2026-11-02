@@ -9535,6 +9535,109 @@ Pinned by `AutomationSection.test.tsx`, `DiscountCodeSetting.test.tsx`,
 `tests/Unit/Integrations/WooCommerce/AutomationDiscountTest.php` and
 `tests/Integration/AutomationDiscountCodeTest.php`.
 
+### CON-248 — The plugin reports the history import's progress (§25) and counts the rows the engine accepted, in a new column (2026-11-02)
+
+**Context:** contract v1.20.0 §25 asks the connector to report `started`,
+`start_part_complete` and `complete`, with counts per entity, at each phase
+change and at most every 5 minutes in between. The plugin reported nothing,
+and the import cards counted rows walked (`processed_count`) or every `sent`
+queue row of the run's event types since it started — live sync rows and
+orders the engine skipped as older than the horizon included. The import's
+rows drain through the same queue and flushers as the live sync's, so
+neither number is "rows of this import the engine accepted".
+**Decision (product owner, 2026-10-29: store the accepted counts in a new
+column, as the Magento extension does; the migration is approved):**
+- **Schema — migration 013** (`013-add-backfill-sent-count.sql`, schema
+  version 13): `smly_plus_backfill_job.sent_count INT UNSIGNED DEFAULT NULL`.
+  `start()` sets it to 0; NULL is a run from before the column, which
+  reports `processed_count` instead (Magento parity). The contacts import
+  never writes it. dbDelta adds the column only when missing (idempotent);
+  the table holds no order data, so the step is the same on HPOS and legacy.
+- **Counting — no second column:** an import marks every row it queues in
+  the payload, `{import: <job type>, run: <started_at>}`
+  (`Backfill\ImportRows`, through `AbstractBackfillJob::import_payload()`).
+  Upsert rows are built fresh at send and never read their payload; a
+  catalog removal keeps its `object` beside the mark. `AbstractD6Flusher`
+  adds each accepted marked row to its run's `sent_count`
+  (`UPDATE … SET sent_count = sent_count + N WHERE job_type, started_at`):
+  not a D6 `errors[]` row, not a §5 `skipped_orders[]` index, not a
+  terminal skip. A row retried later counts when it goes through, whichever
+  flush sends it; a row of an earlier run matches no run. Magento tags its
+  queue rows with a `job_id` column; here the mark rides the payload so the
+  approved change stays one column.
+- **Import ids:** one history import = one `import_id`
+  (`woo-<UTC YYYYMMDDTHHMMSSZ>-<6 hex>`, no personal data). The CON-247
+  connect sequence begins ONE before its first part starts (its first report
+  waits for the hold-back window); the one-time after-update sequence begins
+  one when it includes the orders part. **Import now on the Orders card
+  begins a new one** (§25 rule 5, "send history again"); Import now on the
+  Products or Customers card does not — it sends no order history, and a
+  new id would wait at `started` for orders that never come (Magento: only
+  a new orders job begins a history import). The import's orders part is
+  the orders run that started at or after the import began; its window
+  (CON-245's cursor) is the import's window.
+- **Phases** (`Backfill\HistoryProgress`, state in option
+  `smly_rec_history_import`, autoload=false): `started` until the orders
+  part has begun and its start part is in; `start_part_complete` once no
+  order row up to the cursor's `start_part_queued_to` waits, the latest
+  catalog and customers imports are not running and none of their rows
+  queued before they ended waits (a row refused for good, or a failed
+  import, does not hold it back — CON-247); `complete` once the orders run
+  completed and none of its rows waits. Reached phases stay reached.
+- **Body:** exactly §25's fields. `catalog.expected` is null: the products
+  total counts parent products, the engine gets one row per variation, and
+  no cheap count matches (§25: omit when too expensive). `customers.expected`
+  is the in-scope total (CON-246); `orders.expected` the window's sale
+  orders; `orders.oldest_sent_at` the date of the last order read;
+  `buyers.expected` = `COUNT(DISTINCT billing email)` of the orders in the
+  window that are completed or processing (the sale orders less cancelled
+  and refunded — guests count, as in Magento); `horizon_start` the window's
+  horizon date. No `platform_oldest_available` (WooCommerce holds every
+  order).
+- **Delivery:** its own AS action `smly_rec_history_progress`, new group
+  `smaily-rec-history-progress` (in `Deactivation::AS_GROUPS`), a single
+  action that re-arms itself every 60 s while the import is in progress; a
+  phase change goes out at once, the counts at most every 300 s; a failed
+  call is logged (error code only) and tried again 300 s later.
+  `Client::history_progress()` is one attempt in the single-attempt mode
+  (3 s, no redirect, no retry, no Retry-After wait), so a report never
+  holds up the import's batches. Gated on `sending_allowed()`. The import
+  ends (no reports, no checks) once `complete` is in, when its orders run
+  was cancelled, failed or stalled, or when its orders part never began and
+  no sequence waits for it (Hold back still sends nothing). The
+  hourly-verified registration re-arms the check after a reactivation;
+  disconnect deletes the state.
+- **Orders card:** while a history import's orders run runs, the status
+  route returns `history {part, sent, expected, percent, start_months,
+  horizon_months}` and the card shows one bar for the part being sent —
+  "Sending the orders of the last 18 months first…", then "The last 18
+  months are in: … back to 60 months, follow in the background…" (Magento's
+  wording). Every Campaign Intelligence card's `sent` reads `sent_count`
+  when the run has one.
+**Rationale:** the engine's onboarding step "History imported" and its
+console read §25; counts of accepted rows keep the engine's numbers and the
+card's honest. The payload mark keeps the count exact across retries without
+widening the approved schema change.
+**Alternatives:** a `job_id` column on the queue (Magento) — not taken: a
+second schema change beyond the approved one. Count in memory per batch —
+rejected: a row deferred to a retry would never count. A report inside the
+backfill tick — rejected: a slow engine would hold the import. A new
+import id on every Import now — rejected (see above).
+**Out of scope:** import speed (CON-236).
+**Relationships:** contract v1.20.0 §5, §25; CON-245 (window, cursor,
+`start_part_queued_to`), CON-246 (customer scope), CON-247 (sequence),
+PRO-1893 (`sending_allowed()`), PRO-2433 (AS groups), CON-219 / CON-228
+(single-attempt mode). Pinned by
+`tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/AbstractBackfillJobTest.php`,
+`tests/Unit/Smaily/RecEngine/OrderFlusherTest.php`,
+`tests/Unit/Smaily/RecEngine/ClientHistoryProgressTest.php`,
+`tests/Unit/REST/BackfillEndpointTest.php`,
+`admin/src/components/BackfillPanel.test.tsx`,
+`tests/Integration/RecEngineHistoryProgressTest.php` (the mock's §25 route)
+and `tests/Integration/SchemaMigrationTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

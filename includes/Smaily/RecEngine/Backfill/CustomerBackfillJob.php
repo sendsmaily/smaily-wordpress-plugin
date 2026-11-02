@@ -89,7 +89,7 @@ class CustomerBackfillJob extends AbstractBackfillJob {
 		$this->queue->enqueue(
 			CustomerFlusher::EVENT_CUSTOMER_UPSERT,
 			(string) $entity_id,
-			array(),
+			$this->import_payload(),
 			null,
 			CustomerFlusher::FLUSH_HOOK,
 			CustomerFlusher::AS_GROUP

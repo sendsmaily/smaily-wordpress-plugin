@@ -82,14 +82,51 @@ class OrderBackfillJob extends AbstractBackfillJob {
 
 	/** The sale orders inside the window — the orders the walk reads. */
 	protected function count_total(): int {
+		$window = $this->window ?? $this->new_window();
+		return self::count_orders( $window['horizon'], $window['until'] );
+	}
+
+	/**
+	 * The sale orders placed from $from to $until (UTC) — the orders the walk
+	 * reads in that span. Also the §25 progress report's start part total
+	 * (HistoryProgress, CON-248).
+	 */
+	public static function count_orders( string $from, string $until ): int {
 		global $wpdb;
-		$window               = $this->window ?? $this->new_window();
 		$spec                 = self::table_spec( self::uses_hpos(), $wpdb->prefix );
-		list( $where, $args ) = $this->sale_orders_where( $spec, $window['horizon'], $window['until'] );
+		list( $where, $args ) = self::sale_orders_where( $spec, $from, $until );
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$spec['table']} WHERE {$where}", $args ) );
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+	}
+
+	/**
+	 * The distinct buyers with a purchase order placed from $from to $until
+	 * (UTC) — contract §25 `entities.buyers.expected`: `completed` or
+	 * `processing`, so the sale orders less the cancelled and refunded ones.
+	 * Counted by billing email, so a guest buyer counts too (the Magento
+	 * extension counts the same way). The query returns one number; no
+	 * address leaves the database.
+	 */
+	public static function count_buyers( string $from, string $until ): int {
+		global $wpdb;
+		$hpos     = self::uses_hpos();
+		$spec     = self::table_spec( $hpos, $wpdb->prefix );
+		$statuses = array_merge( self::non_sale_status_slugs(), array( 'wc-cancelled', 'wc-refunded' ) );
+		$in       = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
+		$args     = array_merge( array( 'shop_order' ), $statuses, array( $from, $until ) );
+		$where    = "o.{$spec['type_col']} = %s AND o.{$spec['status_col']} NOT IN ( {$in} ) AND o.{$spec['created_col']} >= %s AND o.{$spec['created_col']} <= %s";
+
+		if ( $hpos ) {
+			$sql = "SELECT COUNT( DISTINCT o.billing_email ) FROM {$spec['table']} o WHERE {$where} AND o.billing_email <> ''";
+		} else {
+			$sql = "SELECT COUNT( DISTINCT pm.meta_value ) FROM {$spec['table']} o INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = o.{$spec['id_col']} AND pm.meta_key = '_billing_email' WHERE {$where} AND pm.meta_value <> ''";
+		}
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 	}
 
 	/**
@@ -187,7 +224,7 @@ class OrderBackfillJob extends AbstractBackfillJob {
 		$this->queue->enqueue(
 			OrderFlusher::EVENT_ORDER_UPSERT,
 			(string) $entity_id,
-			array(),
+			$this->import_payload(),
 			null,
 			OrderFlusher::FLUSH_HOOK,
 			OrderFlusher::AS_GROUP
@@ -202,11 +239,13 @@ class OrderBackfillJob extends AbstractBackfillJob {
 	}
 
 	/**
-	 * A cursor this class wrote, or null.
+	 * A cursor this class wrote, or null. Public for the history progress
+	 * report (HistoryProgress, CON-248): the window, the position read and
+	 * where the start part ends.
 	 *
 	 * @return array{until: string, start_from: string, horizon: string, after: string, start_part_queued_to: int|null}|null
 	 */
-	private static function decode_window( string $cursor ): ?array {
+	public static function decode_window( string $cursor ): ?array {
 		$window = json_decode( $cursor, true );
 		if ( ! is_array( $window ) ) {
 			return null;
@@ -257,7 +296,7 @@ class OrderBackfillJob extends AbstractBackfillJob {
 	private function page( string $from, array $window, int $limit ): array {
 		global $wpdb;
 		$spec                 = self::table_spec( self::uses_hpos(), $wpdb->prefix );
-		list( $where, $args ) = $this->sale_orders_where( $spec, $from, $window['until'] );
+		list( $where, $args ) = self::sale_orders_where( $spec, $from, $window['until'] );
 
 		$position = explode( '|', $window['after'] );
 		if ( count( $position ) === 2 ) {
@@ -286,7 +325,7 @@ class OrderBackfillJob extends AbstractBackfillJob {
 	 * @param array{table: string, id_col: string, type_col: string, status_col: string, modified_col: string, created_col: string} $spec
 	 * @return array{0: string, 1: array<int, string|int>}
 	 */
-	private function sale_orders_where( array $spec, string $from, string $until ): array {
+	private static function sale_orders_where( array $spec, string $from, string $until ): array {
 		$statuses     = self::non_sale_status_slugs();
 		$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
 
