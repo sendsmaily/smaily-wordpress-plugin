@@ -9741,6 +9741,80 @@ clock), `tests/Unit/Smaily/RecEngine/CustomerFlusherTest.php`,
 `tests/Integration/RecEngineImportPaceTest.php` (the mock's
 `ingest_throttle` switch).
 
+### CON-251 — A consenting customer gets a store visitor token at login, and it stays after logout (2026-11-02)
+
+**Context:** the login merge (`IdentityHookHandler`, F3-27) sent a visitor
+token the browser already had, but never created one. A customer who only
+logged in — no guest order (PRO-3845), no Smaily email click — had no token,
+so after logout the Recommendations block could not ask for their
+recommendations: the browser was a stranger. Contract v1.22.0 §7 (engine
+`d5cd2a6`, INT-194) adds "Store-created token at login": the store may create
+a `vs_` token at login for a shopper with marketing consent and send it in
+the merge; the engine binds it like an order's token, and each merge that
+carries a token renews its 14 months. The merge also skipped a login on an
+anon session it had already merged, even with a token, so a token was not
+renewed at later logins.
+**Decision:** (1) At `wp_login`, when the browser has no visitor token in
+either shape, the shopper gave a marketing yes (`MarketingConsent::given()`,
+fail-closed), the request is not cron or WP-CLI, sending is allowed and the
+profiling gate passes, the handler creates a token through
+`LandingCapture::issue_visitor_token()` — the existing issuer and format
+(`vs_` + 22 `[A-Za-z0-9]`), a server `Set-Cookie` under the engine config's
+`tracking_cookie_name` and `cookie_ttl_days` — and sends it on
+`smaily_visitor_token`. `wp_login` fires before the response, so the cookie
+can be set; when the headers are already sent no token is created. A token
+the browser already has is never replaced (`vt_` or `vs_`); a cookie outside
+both shapes is replaced, as at checkout. (2) Every login that carries a
+token calls the merge, once: an anon session already merged is left out of
+the body, and a login with neither a new session nor a token makes no call.
+No merge per request. (3) Without consent nothing changes: no token is
+created and a `vs_` token is not sent (PRO-3860); a `vt_` token is sent
+ungated (F3-46). (4) Logout does not clear the cookie — nothing in the
+plugin listens on `wp_logout`.
+**Keep the token after logout (Erkki, 2026-11-02).** The point of the token
+is that the browser stays recognised after logout, so the Recommendations
+block can show the customer's recommendations to a logged-out visit (§15
+asks by the token when there is no account cookie). **Shared-browser
+trade-off, accepted:** on a shared computer the next person sees the
+previous customer's recommended products. Only product cards are shown —
+the token is opaque and the §15 answer has no name, email or other personal
+data — and §15's rule that a logged-in shopper's customer id wins over the
+token means the next person's own login shows their own recommendations. A
+second customer who logs in on that browser keeps the first customer's
+token (the contract's keep-the-cookie rule); the engine does not move a
+token bound to another customer, so that merge binds nothing by the token.
+**Alternatives:** clear the token at logout — rejected: the browser would be
+a stranger again, the problem this Story solves. Replace a token bound to
+another customer at login — not possible: the plugin cannot see the
+binding, and the contract says to keep the cookie.
+**A consenting login renews the cookie (Erkki, 2026-11-02).** When a login
+carries an existing token and `MarketingConsent::given()` (fail-closed), the
+handler writes the same cookie again through
+`LandingCapture::renew_visitor_token()`: the same value, the engine config's
+cookie name, and `cookie_ttl_days` counted from now; never in cron or
+WP-CLI, never for a contact who objected to profiling, and not when the
+headers are already sent (the merge still goes). Without it a
+returning customer's 365-day cookie expired on its first date while the
+engine kept renewing the token. **A `vt_` cookie is renewed too, but only
+with consent:** the merge renews a `vt_` token of the same customer in the
+engine as well (§7: "a token (`vs_` or `vt_`) already bound to the same
+customer is renewed"; §5 and §15 count every token's lifetime from its
+last order or merge), so the browser follows the engine for both shapes.
+Sending a `vt_` token stays consent-ungated (F3-46), but a renewal keeps
+an identifier in the browser longer than the email click did, which is a
+marketing choice — so without consent neither cookie is renewed, and the
+`vt_` token is still merged as before.
+**Not done:** the Magento extension creates no token at login yet (its
+`CustomerLogin` observer sends the cookies it finds).
+**Relationships:** F3-27 (the login merge), PRO-3845 (the checkout token,
+same issuer), PRO-3857 / PRO-3860 (a `vs_` token only with consent), F3-46
+(`vt_` ungated), PRO-3835 (the recommendations route that reads the token),
+contract §5, §7, §15. Pinned by
+`tests/Unit/Integrations/WooCommerce/IdentityHookHandlerTest.php` and
+`tests/Integration/RecEngineLoginVisitorTokenTest.php` (the mock binds a
+merged token and answers §15 by it — `visitor_token_bindings`,
+`merge_count`).
+
 ### CON-259 — A connected legacy-storage store gets one index on the posts table for the orders import, added in the background (2026-11-02)
 
 **Context:** on legacy order storage the orders import (CON-245) reads its

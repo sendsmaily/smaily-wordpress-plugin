@@ -211,6 +211,34 @@ class LandingCapture {
 	}
 
 	/**
+	 * Write the visitor token this browser already carries to the
+	 * visitor-token cookie again, with the same value and a fresh lifetime
+	 * from now (CON-251: a consenting customer's login renews it). The value
+	 * never changes; a value outside the token shape is not written.
+	 *
+	 * @return bool Whether the cookie was written ('' token, a value outside
+	 *              the token shape, or headers already sent: false).
+	 */
+	public function renew_visitor_token( string $token ): bool {
+		if ( ! AttributionShape::is_visitor_token( $token ) ) {
+			return false;
+		}
+		if ( $this->headers_already_sent() ) {
+			DebugLog::write( '[smaily-connect landing-capture] visitor token not renewed: headers already sent' );
+			return false;
+		}
+
+		$config = $this->settings->config();
+		$this->set_cookie(
+			$this->cookie_name( $config, self::SLOT_VISITOR ),
+			$token,
+			$this->cookie_ttl_days( $config, self::SLOT_VISITOR )
+		);
+
+		return true;
+	}
+
+	/**
 	 * Map a raw GET array to the attribution values worth persisting, keyed by
 	 * capture slot. Pure + side-effect-free so it can be unit-tested without
 	 * touching cookies/headers. An absent or malformed value is simply omitted

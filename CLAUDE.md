@@ -1206,6 +1206,23 @@ for `PAUSE_TTL` (2 min): every shopper's cache miss answers empty with no call;
 an answer or a 4xx never pauses. An integration test that trips it must
 `delete_transient()` it (EnvScrub does not sweep transients).
 
+**Who creates a `vs_` token — two places, one issuer (CON-251).** Only
+`LandingCapture::issue_visitor_token()` makes one (server `Set-Cookie`, the
+engine config's `tracking_cookie_name` / `cookie_ttl_days`), and only when the
+browser has no token in either shape and `MarketingConsent::given()`: a guest's
+checkout (`GuestVisitorToken`, PRO-3845) and a login (`IdentityHookHandler::
+on_login()`, contract §7 v1.22.0 — never in cron / WP-CLI, never for a contact
+who objected to profiling). An existing token is never replaced — with consent a login
+writes it again, same value, fresh lifetime (`LandingCapture::
+renew_visitor_token()`, `vt_` too; Erkki 2026-11-02) — and logout
+leaves the cookie on purpose (Erkki, 2026-11-02 — the shared-browser trade-off
+is in DECISIONS "CON-251"): nothing may clear it on `wp_logout`. Every login
+that carries a token calls the merge ONCE (each merge renews the token's 14
+months); the `_smaily_rec_merged_anon_sid` dedup only drops the already-merged
+session from the body — don't turn it back into a skip, and don't add a merge
+per request. `IdentityHookHandler` takes the `LandingCapture` as its fourth
+constructor argument, so a test passes a cookie recorder.
+
 ### An Elementor repeater row field needs an explicit `default` (PRO-3872)
 A repeater whose `fields` are raw arrays (not `Elementor\Repeater::add_control()`)
 skips the control-type default, so a new row's value is `undefined`. The editor
