@@ -1,8 +1,8 @@
 # Smaily Recommendation Engine — API Contract v1.21
 
-**Version**: 1.21.0
+**Version**: 1.22.0
 **Published**: 2026-05-19
-**Last updated**: 2026-11-02 (v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-02 (v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -97,7 +97,7 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
 - Tenant IDs: UUID v4
 - Customer IDs: UUID v4 (generated engine-side from the first customer ingest)
 - Recommendation IDs: UUID v4
-- Visitor tokens: opaque strings of up to 64 characters — store, forward and compare a token exactly as received; do not depend on its length or characters. Engine-issued (email links, `smaily_vt`): `vt_` + exactly 10 characters `[a-z0-9]`. Store-created at checkout (v1.11.0, [§5](#store-created-visitor-token)): `vs_` + exactly 22 characters `[A-Za-z0-9]`
+- Visitor tokens: opaque strings of up to 64 characters — store, forward and compare a token exactly as received; do not depend on its length or characters. Engine-issued (email links, `smaily_vt`): `vt_` + exactly 10 characters `[a-z0-9]`. Store-created at checkout (v1.11.0, [§5](#store-created-visitor-token)) or at login (v1.22.0, [§7](#store-created-token-at-login)): `vs_` + exactly 22 characters `[A-Za-z0-9]`
 - Order `external_id`: text, plugin/platform-defined
 - SKU: text, max 64 characters
 - Website code (v1.21.0): the platform's own stable website code (Magento: the website `code`, for example `base`, `lv`), a string of 1–64 characters, compared exactly as sent. The connector always names the website itself; the engine never derives one (a language can exist on several websites)
@@ -1188,7 +1188,7 @@ Matching steps (run by the cron; PRO-1524, 2026-07-23 — a former 4th-priority
 - **Consent.** Create and send a `vs_` token **only for a shopper who gave marketing consent** at checkout. Without consent, create no token and send none.
 - **Cookie.** Store the token in the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)). A cookie the **server sets** (`Set-Cookie` header) is recommended: Safari deletes cookies set by page JavaScript after 7 days. When the shopper already has a visitor-token cookie (an engine `vt_` token from an email link), keep it and send that value — do not replace it with a new token.
 - **What the engine does.** When the order is written, the engine binds the token to the order's customer (the `customer_email` customer). An unknown `vs_` token is created for that customer. A token that is already bound to the **same** customer is renewed. A token that is already bound to **another** customer does not move — the [one-customer-per-token rule](#one-customer-per-visitor-token) — and the order is still written. A customer who objected to profiling ([§10](#10-post-apiv1customeremailopt-out)) is not bound.
-- **Lifetime** (v1.14.0, PRO-4116). Every visitor token lives **14 months from its last activity**: its creation, and each order that carries it. Every later order that carries the same token renews it to 14 months from that order; a token is never shortened. An engine `vt_` token that is never carried on an order lives 14 months from issue.
+- **Lifetime** (v1.14.0, PRO-4116; v1.22.0). Every visitor token lives **14 months from its last activity**: its creation, each order that carries it, and each identity merge that carries it ([§7](#store-created-token-at-login)). Every later order or merge that carries the same token for the same customer renews it to 14 months from that order or merge; a token is never shortened. An engine `vt_` token that is never carried on an order or a merge lives 14 months from issue.
 - **An invalid value is ignored, never rejected.** A value that starts with `vs_` but does not match the format is stored on the order like any other value and creates no binding; the order is written normally and there is no `errors[]` entry.
 - **No credit by itself.** A store-created token names the shopper; it carries no recommendation, so it never makes a purchase an email or storefront credit. Purchase credit still comes from `smaily_rec_id` / `smaily_rec_ctx` and email clicks, as above.
 - **Response.** The binding is not reported in the response; the response shape does not change.
@@ -1382,7 +1382,7 @@ Anonymous visitor → known customer manual merge. The plugin calls this when a 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `anon_session_id` | UUID | NO | Plugin-side anon-session cookie (`smaily_anon_sid`) |
-| `smaily_visitor_token` | string | NO | Token from email click (`smaily_rec_uid` cookie) |
+| `smaily_visitor_token` | string | NO | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`): an engine `vt_` token from an email link, or a `vs_` token the store created at checkout ([§5](#store-created-visitor-token)) or at this login ([below](#store-created-token-at-login)). Binds the token to the merge's customer (below). |
 | `customer_email` | string | YES | Known customer identity |
 | `customer_external_id` | string | NO | Platform user_id |
 | `merge_ts` | ISO 8601 | YES | Merge timestamp |
@@ -1414,9 +1414,30 @@ At least **one** of `anon_session_id` or `smaily_visitor_token` must be present 
 }
 ```
 
+The engine matches `customer_email` without regard to letter case (v1.22.0), as the customers and orders endpoints do.
+
 **Idempotency**: same merge twice = no-op (events already bound; the second call's `browse_events_updated` reports 0).
 
-**One customer per visitor token** (v1.8.2, PRO-3649 — same rule as [§6](#one-customer-per-visitor-token)): if `smaily_visitor_token` is already bound to a different customer, the merge binds nothing by the token — no browse events move and the `visitor_tokens` row keeps its customer. The `anon_session_id` part of the same call binds as before. The response is still `200` with the same shape; the token part simply contributes `0` to `browse_events_updated` and `visitor_tokens_bound`. The same customer merging their own token, or a token that is not bound yet, behaves as before. Senders change nothing and should not retry.
+<a id="store-created-token-at-login"></a>
+**Store-created token at login** (v1.22.0, INT-194). A shopper who logs in but never buys and never clicks a Smaily email link has no visitor token, so after logout the store cannot ask for their recommendations ([§15](#15-post-apiv1recommendationscustomer)). The store may create a token at login and send it in this merge, on the existing `smaily_visitor_token` field. There is no new field.
+
+- **Format.** The same as at checkout ([§5](#store-created-visitor-token)): `vs_` followed by exactly 22 characters from `[A-Za-z0-9]`, from a cryptographically secure random source.
+- **Consent.** Create and send a `vs_` token **only for a shopper who has given marketing consent** in the store — at this login or earlier, and not withdrawn. Without consent, create no token and send none. The engine cannot see the consent; the store is responsible for it.
+- **Cookie.** Store the token in the visitor-token cookie, set by the server, as at checkout. When the shopper already has a visitor-token cookie, keep it and send that value — do not replace it with a new token.
+- **When to call.** Call the merge at each login of a shopper who has given marketing consent, with the visitor-token cookie value. Each merge renews the shopper's own token (below). At least one of `anon_session_id` and `smaily_visitor_token` is still required.
+- **What the engine does.** The engine binds the token to the merge's customer (the `customer_email` customer), with the same rules as an order ([§5](#store-created-visitor-token)):
+  - An unknown `vs_` token is created for that customer, valid for 14 months from the merge.
+  - A token (`vs_` or `vt_`) that is already bound to the **same** customer is renewed to 14 months from the merge. A token is never shortened.
+  - A token that is already bound to **another** customer does not move — the [one-customer-per-token rule](#one-customer-per-visitor-token).
+  - An unknown `vt_` token, and a value that starts with `vs_` but does not match the format, create nothing. The merge is not rejected.
+  - A customer who objected to profiling ([§10](#10-post-apiv1customeremailopt-out)) is not bound (the whole merge is a no-op for that customer, as before).
+- **The 14 months count from when the engine receives the merge**, not from `merge_ts`.
+- **No credit by itself.** A store-created token names the shopper; it carries no recommendation, so it never makes a purchase an email or storefront credit.
+- **Response.** The shape does not change. `visitor_tokens_bound` is `1` when the token is bound to the merge's customer after the call (created, renewed, or already bound), else `0`.
+
+After such a merge, a §15 request with the token answers that customer's recommendations, with the §15 rules (a holdout customer, a customer who objected to profiling and a Smaily-unsubscribed customer get the empty answer).
+
+**One customer per visitor token** (v1.8.2, PRO-3649 — same rule as [§6](#one-customer-per-visitor-token)): if `smaily_visitor_token` is already bound to a different customer, the merge binds nothing by the token — no browse events move and the `visitor_tokens` row keeps its customer. The `anon_session_id` part of the same call binds as before. The response is still `200` with the same shape; the token part simply contributes `0` to `browse_events_updated` and `visitor_tokens_bound`. The same customer merging their own token renews it, and a `vs_` token that is not bound yet is created for the merge's customer ([above](#store-created-token-at-login)). Senders change nothing and should not retry.
 
 ---
 
@@ -2253,13 +2274,13 @@ A returning guest shopper (no store customer account), named by the visitor toke
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `customer_external_id` | string | ONE OF | The **store's own customer id** of the logged-in shopper — the `external_id` the plugin sends on [`POST /api/v1/ingest/customers`](#4-post-apiv1ingestcustomers) (WooCommerce user id, Shopify customer id, Magento customer id). 1–255 characters. |
-| `smaily_visitor_token` | string | ONE OF | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)) — the `smaily_vt` value of an engine link, or the token the store created at checkout and sent on the order (v1.11.0, [§5](#store-created-visitor-token)). 1–255 characters. Send it for a shopper who has no store customer id, so a guest shopper can be shown their recommendations. |
+| `smaily_visitor_token` | string | ONE OF | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`, [cookie names](#cookie-names-plugin-side-management)) — the `smaily_vt` value of an engine link, or the token the store created at checkout and sent on the order (v1.11.0, [§5](#store-created-visitor-token)) or created at login and sent in the identity merge (v1.22.0, [§7](#store-created-token-at-login)). 1–255 characters. Send it for a shopper who has no store customer id, so a guest shopper can be shown their recommendations. |
 | `limit` | integer | NO | Default `9`, max `9`. A value above 9 is clamped, not rejected. |
 | `website` | string | NO | (v1.21.0) The code of the website the shopper is on now (the current store's website). A single-website store leaves it out. An invalid value is ignored. |
 
 **At least one of `customer_external_id` and `smaily_visitor_token` is required.** When the request carries both, **`customer_external_id` wins and the token is ignored entirely** — the engine does not fall back to the token when the customer id finds nobody, because on a shared browser the cookie can belong to a different person than the logged-in shopper.
 
-**Which customer a visitor token names** (v1.11.0; one rule since v1.13.0). The customer the token is bound to in this tenant, while the token is valid. An engine email-link token (`vt_`) is bound to the customer the engine issued it for. Every token is valid for **14 months from its last activity** (v1.14.0): its issue, or the latest order of its customer that carried it — a store-created `vs_` token or a `vt_` token; an order never shortens a token's lifetime ([§5](#store-created-visitor-token)). The cookie and the token may expire at different times. An expired token, a token of another tenant, and a value the engine does not know are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
+**Which customer a visitor token names** (v1.11.0; one rule since v1.13.0). The customer the token is bound to in this tenant, while the token is valid. An engine email-link token (`vt_`) is bound to the customer the engine issued it for. Every token is valid for **14 months from its last activity** (v1.14.0): its issue, or the latest order or identity merge of its customer that carried it (v1.22.0) — a store-created `vs_` token or a `vt_` token; an order or a merge never shortens a token's lifetime ([§5](#store-created-visitor-token), [§7](#store-created-token-at-login)). The cookie and the token may expire at different times. An expired token, a token of another tenant, and a value the engine does not know are all answered as an unknown shopper (the empty answer below). Send the token only for a shopper who has given marketing consent in the store (Erkki's decision 2026-10-06).
 
 **Several websites** (v1.21.0, INT-171).
 - **Which customer the id names.** In a Per Website store ([§1 `store_config`](#store-config)) with a request `website`, `customer_external_id` is matched against the customer id the engine holds for that website ([§4](#customer-website)). In every other case (`global` or no scope, or no `website` in the request) it is matched against the customer's `external_id`, as before. A customer id that the engine does not hold for that website is an unknown shopper (the empty answer below).
@@ -3773,6 +3794,13 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **§15 `website`** (new, optional request field): in Per Website mode the id is matched per website; slots render the website's links and language and leave out a product it does not sell; the plugin's cache key adds the website.
 - **Not in 1.21.0:** per-website price, compare price, currency, stock, `name` and `description` (the row's values apply on every website); a website on browse events (§6) and identity merge (§7) — they match the customer's own website's id, as before; a Smaily payload change.
 - **What the plugin does.** A single-website store needs nothing. A multi-website connector sends `store_config` on the setup exchange (or with the next history import's `started`), `website` on every customer and order row and on the storefront call (and in its cache key), and `websites` on every catalog row. After it starts sending: one full catalog import and a history re-send (§25, new `import_id`) of customers and orders. **A plugin that does none of this keeps working unchanged.**
+
+**v1.22.0** (2026-11-02) — **An identity merge binds a store-created token**. MINOR bump per the [Versioning](#versioning) rule (no shape change; backward-compatible). INT-194, Erkki's decisions 2026-11-02:
+- **Why.** A shopper who logs in but never buys and never clicks an email link had no visitor token, so after logout the store could not show them their recommendations (§15).
+- **What the plugin does.** At login of a shopper who has given marketing consent and has no visitor-token cookie: create a `vs_` token, set it in the visitor-token cookie (server-set), and send it in `POST /api/v1/identity/merge` on `smaily_visitor_token`. At each later login, send the cookie value in the merge. Without consent, create and send no token. **A plugin that does none of this keeps working unchanged.**
+- **What the engine does.** The same as for an order (§5): an unknown `vs_` token is created for the merge's customer, a token of the same customer is renewed to 14 months from the merge (receipt time, not `merge_ts`), a token of another customer does not move, a customer who objected to profiling is not bound. An unknown `vt_` token and an invalid `vs_` value create nothing.
+- **Also.** The merge matches `customer_email` without regard to letter case.
+- **Shapes.** Request and response unchanged. `visitor_tokens_bound` is `1` when the token is bound to the merge's customer after the call.
 
 ### Appendix F: Migration notes
 
