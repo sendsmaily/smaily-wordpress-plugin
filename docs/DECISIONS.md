@@ -9670,7 +9670,9 @@ Magento extension did the same change in CON-232 (`IngestPace`: 5 a second,
   `Retry-After` header today), else the `Retry-After` header, else 60 s (the
   row back-off's first step), capped at 3,600 s. `Client` now reads the body
   field first for its in-request wait and for `ApiException::retry_after()`.
-  The throttled rows are parked for at least the engine's wait.
+  The throttled rows are parked for at least the engine's wait. A 429 on
+  the LAST page still ends the walk (the import reads `completed`, as
+  before CON-236); its parked rows go out with the recurring flusher.
 - **Any other whole-request failure** (5xx, network, timeout, a whole-batch
   4xx) also ends the run, with the usual 30 s gap — a failing engine gets no
   more import requests a minute than before. Per-item D6 errors do not stop
