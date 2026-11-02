@@ -1442,6 +1442,37 @@ if ( $method === 'POST' && $path === '/api/v1/identity/merge' ) {
 		}
 		$state['visitor_token_emails'][ $visitor_token ] = $email;
 	}
+
+	// Contract v1.22.0 §7 "Store-created token at login" (CON-251): the token
+	// binds to the merge's customer with an order's rules — an unknown `vs_`
+	// token is created for that customer, a token of the same customer is
+	// renewed (`merges` counts the renewals), a token of another customer does
+	// not move, and a value that starts with `vs_` but is off the format
+	// creates nothing. A `vt_` token is played as one the engine issued for
+	// this customer (the mock keeps no issue register). A §15 request with a
+	// bound token answers that customer's `storefront_slots` (below).
+	$external_id = isset( $body['customer_external_id'] ) ? (string) $body['customer_external_id'] : '';
+	$bindings    = ( isset( $state['visitor_token_bindings'] ) && is_array( $state['visitor_token_bindings'] ) )
+		? $state['visitor_token_bindings']
+		: array();
+	$token_bound = 0;
+	$bindable    = 1 === preg_match( '/^vs_[A-Za-z0-9]{22}$/', $visitor_token ) || 0 === strpos( $visitor_token, 'vt_' );
+	if ( $bindable ) {
+		$existing = isset( $bindings[ $visitor_token ] ) && is_array( $bindings[ $visitor_token ] ) ? $bindings[ $visitor_token ] : null;
+		if ( null === $existing ) {
+			$bindings[ $visitor_token ] = array(
+				'customer_email'       => strtolower( $email ),
+				'customer_external_id' => $external_id,
+				'merges'               => 1,
+			);
+			$token_bound                = 1;
+		} elseif ( (string) $existing['customer_email'] === strtolower( $email ) ) {
+			$bindings[ $visitor_token ]['merges'] = (int) $existing['merges'] + 1;
+			$token_bound                          = 1;
+		}
+	}
+	$state['visitor_token_bindings'] = $bindings;
+	$state['merge_count']            = (int) ( $state['merge_count'] ?? 0 ) + 1;
 	save_state( $state_file, $state );
 
 	reply(
@@ -1451,7 +1482,7 @@ if ( $method === 'POST' && $path === '/api/v1/identity/merge' ) {
 			'customer_id' => '550e8400-' . md5( $email ),
 			'merged'      => array(
 				'browse_events_updated' => $already ? 0 : 12,
-				'visitor_tokens_bound'  => 1,
+				'visitor_tokens_bound'  => $token_bound,
 				'session_history_days'  => 22,
 			),
 		)
@@ -1876,6 +1907,11 @@ if ( $method === 'POST' && $path === '/api/v1/recommendations/customer' ) {
 	$seeded   = ( isset( $state[ $seed_key ][ $external_id ] ) && is_array( $state[ $seed_key ][ $external_id ] ) )
 		? $state[ $seed_key ][ $external_id ]
 		: array();
+	// A token a §7 merge bound to a customer names that customer (v1.22.0).
+	$bound_to = $by_visitor ? (string) ( $state['visitor_token_bindings'][ $external_id ]['customer_external_id'] ?? '' ) : '';
+	if ( array() === $seeded && '' !== $bound_to && isset( $state['storefront_slots'][ $bound_to ] ) && is_array( $state['storefront_slots'][ $bound_to ] ) ) {
+		$seeded = $state['storefront_slots'][ $bound_to ];
+	}
 
 	header( 'Cache-Control: no-store, private', true );
 	reply( 200, array( 'slots' => array_slice( array_values( $seeded ), 0, $limit ) ) );
