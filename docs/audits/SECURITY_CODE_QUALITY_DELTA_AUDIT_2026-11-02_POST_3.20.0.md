@@ -494,6 +494,10 @@ upgrade notice should say so (L4).
   fuzzy entry. The committed files were restored after the build.
 - **`npm run ci:strict` exit 0** on the PR head: PHPUnit unit **1 587 tests
   / 5 504 assertions**, vitest **483 tests in 52 files**, ESLint, tsc.
+- **Dependencies:** five open Dependabot alerts on `main` (2026-11-02), all
+  in development dependencies, none shipped in the ZIP: `undici` (high) in
+  the root lockfile, `fast-uri` (two moderate, two low) in the `blocks/`
+  lockfile. Fix them in range per DECISIONS PRO-3858 (backlog).
 - Dead code: #276 removed about 230 unreachable legacy lines; no new dead
   code found. No duplicate logic found beyond the deliberate twins
   (`ContactAudience::should_sync_user()` / `user_id_sql()`, the two cookie
