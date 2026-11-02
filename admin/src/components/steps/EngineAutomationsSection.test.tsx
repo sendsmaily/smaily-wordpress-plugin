@@ -75,6 +75,11 @@ function Harness({
   return <EngineAutomationsSection state={state} dispatch={dispatch} inSettings={inSettings} />;
 }
 
+/** Switches the catalog's trigger on once it has loaded — an off card shows only its switch (CON-255). */
+async function switchOn(name: RegExp = /enable quantum upsell/i): Promise<void> {
+  fireEvent.click(await screen.findByRole('switch', { name }));
+}
+
 describe('EngineAutomationsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -132,14 +137,105 @@ describe('EngineAutomationsSection', () => {
     // English admin locale → _en fields; recipe_et is always shown.
     expect(await screen.findByText('Quantum upsell')).toBeInTheDocument();
     expect(screen.getByText('Description in English.')).toBeInTheDocument();
+    // Fail-closed default row: off.
+    expect(screen.getByText('Off')).toBeInTheDocument();
+
+    await switchOn();
     expect(screen.getByText(/ehita smailys vastav automatsioon/i)).toBeInTheDocument();
 
     const docsLink = screen.getByRole('link', { name: /smaily templates guide/i });
     expect(docsLink).toHaveAttribute('href', CATALOG.docs);
 
-    // Fail-closed default row: off + test mode with the test-address field.
-    expect(screen.getByText('Off')).toBeInTheDocument();
+    // Test mode starts on, with the test-address field.
     expect(screen.getByText(/test mode is on/i)).toBeInTheDocument();
+  });
+
+  it('shows only the title, description and switch while the trigger is off (CON-255)', async () => {
+    render(<Harness initial={connectedState()} />);
+
+    expect(await screen.findByText('Quantum upsell')).toBeInTheDocument();
+    expect(screen.getByText('Description in English.')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /enable quantum upsell/i })).not.toBeChecked();
+
+    expect(screen.queryByText(/ehita smailys vastav automatsioon/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/cooldown/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/test mode is on/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /activate for real/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the workflow, cooldown and test mode in that order once switched on (CON-255)', async () => {
+    render(<Harness initial={connectedState()} />);
+    await switchOn();
+
+    const recipe = screen.getByText(/ehita smailys vastav automatsioon/i);
+    const workflow = await screen.findByRole('combobox');
+    const cooldown = screen.getByLabelText(/cooldown/i);
+    const testMode = screen.getByText(/test mode is on/i);
+
+    const follows = (a: Element, b: Element): boolean =>
+      (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    expect(follows(screen.getByRole('switch', { name: /enable quantum upsell/i }), recipe)).toBe(true);
+    expect(follows(recipe, workflow)).toBe(true);
+    expect(follows(workflow, cooldown)).toBe(true);
+    expect(follows(cooldown, testMode)).toBe(true);
+  });
+
+  it('keeps the hidden workflow, cooldown and test addresses in the row across off and on (CON-255)', async () => {
+    let latest: WizardState | undefined;
+    function Watching(): React.JSX.Element {
+      const [state, dispatch] = useReducer(wizardReducer, connectedState());
+      latest = state;
+      return <EngineAutomationsSection state={state} dispatch={dispatch} inSettings />;
+    }
+    render(<Watching />);
+    await switchOn();
+
+    await screen.findByRole('option', { name: 'Replenishment flow' });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '123' } });
+    const cooldown = screen.getByLabelText(/cooldown/i);
+    fireEvent.change(cooldown, { target: { value: '21' } });
+    fireEvent.blur(cooldown);
+    fireEvent.change(screen.getByLabelText(/test addresses/i), { target: { value: 'owner@shop.example' } });
+
+    fireEvent.click(screen.getByRole('switch', { name: /enable quantum upsell/i }));
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+
+    // The save PUTs the rows from state: the hidden values are all there.
+    expect(latest?.engineAutomations.rows[0]).toMatchObject({
+      enabled: false,
+      automation_map: { id: '123' },
+      cooldown_days: 21,
+      test_emails: ['owner@shop.example'],
+    });
+
+    await switchOn();
+    expect(screen.getByRole('combobox')).toHaveValue('123');
+    expect(screen.getByLabelText(/cooldown/i)).toHaveValue(21);
+    expect(screen.getByLabelText(/test addresses/i)).toHaveValue('owner@shop.example');
+  });
+
+  it('keeps an off card open while one of its fields needs fixing (CON-255)', async () => {
+    configMock.mockResolvedValue({
+      configs: [
+        {
+          trigger_key: 'quantum_upsell_2027',
+          enabled: false,
+          language_mode: 'single',
+          automation_map: {},
+          cooldown_days: 7,
+          daily_cap: null,
+          test_mode: true,
+          test_emails: ['not-an-address'],
+          configured_via: 'admin',
+          updated_at: '2026-10-05T08:00:00.000Z',
+        },
+      ],
+    });
+    render(<Harness initial={connectedState()} />);
+
+    expect(await screen.findByText('Invalid email address.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/test addresses/i)).toBeInTheDocument();
   });
 
   it('uses the _et copy when the admin locale is Estonian', async () => {
@@ -152,6 +248,7 @@ describe('EngineAutomationsSection', () => {
 
   it('filters INACTIVE workflows out of the dropdown', async () => {
     render(<Harness initial={connectedState()} />);
+    await switchOn();
 
     // The workflow list loads AFTER the combobox first renders (placeholder
     // option only) — await the ACTIVE option itself, not just the select;
@@ -167,6 +264,7 @@ describe('EngineAutomationsSection', () => {
   it('requires a confirm before requesting real sends, and offers the way back', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<Harness initial={connectedState()} />);
+    await switchOn();
 
     const activate = await screen.findByRole('button', { name: /activate for real/i });
 
@@ -189,6 +287,7 @@ describe('EngineAutomationsSection', () => {
 
   it('says next to the go-live step that Smaily switches real sends on, with a support link (PRO-3707)', async () => {
     render(<Harness initial={connectedState()} />);
+    await switchOn();
 
     await screen.findByRole('button', { name: /activate for real/i });
     expect(
@@ -236,6 +335,7 @@ describe('EngineAutomationsSection', () => {
 
   it('keeps a cleared cooldown field empty while typing and commits the new value on blur (T2.4/2)', async () => {
     render(<Harness initial={connectedState()} />);
+    await switchOn();
 
     const cooldown = (await screen.findByLabelText(/cooldown/i)) as HTMLInputElement;
     expect(cooldown.value).toBe('7');
@@ -253,6 +353,7 @@ describe('EngineAutomationsSection', () => {
 
   it('reverts an empty cooldown to the previous value on blur, never 0 (T2.4/2)', async () => {
     render(<Harness initial={connectedState()} />);
+    await switchOn();
 
     const cooldown = (await screen.findByLabelText(/cooldown/i)) as HTMLInputElement;
     fireEvent.change(cooldown, { target: { value: '' } });
@@ -263,6 +364,7 @@ describe('EngineAutomationsSection', () => {
 
   it('clamps an out-of-range cooldown to 1–365 on blur (T2.4/2)', async () => {
     render(<Harness initial={connectedState()} />);
+    await switchOn();
 
     const cooldown = (await screen.findByLabelText(/cooldown/i)) as HTMLInputElement;
     fireEvent.change(cooldown, { target: { value: '999' } });
@@ -277,12 +379,12 @@ describe('EngineAutomationsSection', () => {
   it('warns when an enabled test-mode row has no test addresses (T2.4/3)', async () => {
     render(<Harness initial={connectedState()} />);
 
-    // Off + empty list → no warning (nothing can fire anyway).
-    await screen.findByText(/test mode is on/i);
+    // Off → the card shows no test-mode block, so no warning either.
+    await screen.findByText('Quantum upsell');
     expect(screen.queryByText(/no emails will be sent to anyone/i)).not.toBeInTheDocument();
 
     // Enabled + test mode + empty list = silent nobody-gets-mail → warn.
-    fireEvent.click(screen.getByRole('switch', { name: /enable quantum upsell/i }));
+    await switchOn();
     expect(await screen.findByText(/no emails will be sent to anyone/i)).toBeInTheDocument();
 
     // Adding an address clears the warning.
@@ -299,6 +401,7 @@ describe('EngineAutomationsSection', () => {
     });
 
     render(<Harness initial={connectedState()} />);
+    await switchOn();
 
     expect(await screen.findByText('Build the matching Smaily automation.')).toBeInTheDocument();
     expect(screen.queryByText(/ehita smailys vastav automatsioon/i)).not.toBeInTheDocument();
@@ -312,6 +415,7 @@ describe('EngineAutomationsSection', () => {
     });
 
     render(<Harness initial={connectedState()} />);
+    await switchOn(/kvant-lisamüük/i);
 
     expect(await screen.findByText(/ehita smailys vastav automatsioon/i)).toBeInTheDocument();
   });

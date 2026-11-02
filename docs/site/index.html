@@ -525,8 +525,9 @@ td code{white-space:nowrap}
         <li><strong>First order</strong> — a customer's first order.</li>
         <li><strong>Abandoned cart</strong> — a cart started but not completed. You set a <strong>delay</strong> (minutes of inactivity before the cart counts as abandoned). Who gets the reminder depends on your contact sync mode — see <a href="#set-automations">Automations</a>.</li>
       </ul>
+      <p>A card shows its workflow, its settings and its discount code only while its switch is on. Switching a card off keeps what you set on it — see <a href="#set-automations">Automations</a>.</p>
       <p>Your Smaily workflows must exist in Smaily first; the plugin lists them for you to map. If none appear, none were found on your account (or Smaily couldn't be reached) — create them in Smaily, then revisit.</p>
-      <p>With Campaign Intelligence connected, each email card also shows <strong>Edit design</strong>: it opens the email's design page in a new browser tab (see <a href="#set-automations">Automations</a>). On a first run of the wizard, Campaign Intelligence is connected only in Step 4, so the button appears when you run the setup again and in Settings.</p>
+      <p>With Campaign Intelligence connected, each email card that is switched on also shows <strong>Edit design</strong>: it opens the email's design page in a new browser tab (see <a href="#set-automations">Automations</a>). On a first run of the wizard, Campaign Intelligence is connected only in Step 4, so the button appears when you run the setup again and in Settings.</p>
     </div>
     <div data-lang="et">
       <p>Seo poe sündmused oma Smaily automaatika‑töövoogudega. Lülita sisse need, mida soovid, ja vali Smaily töövoog, mida iga sündmus käivitab:</p>
@@ -535,8 +536,9 @@ td code{white-space:nowrap}
         <li><strong>First order</strong> — kliendi esimene tellimus.</li>
         <li><strong>Abandoned cart</strong> — ostukorv alustatud, aga lõpetamata. Sead <strong>viivituse</strong> (tegevusetuse minutid, enne kui korv loetakse hüljatuks). Kes meeldetuletuse saab, sõltub su kontaktide sünkroonimise režiimist — vt <a href="#set-automations">Automaatikad</a>.</li>
       </ul>
+      <p>Kaart näitab oma töövoogu, seadeid ja sooduskoodi ainult siis, kui selle lüliti on sees. Kaardi väljalülitamine jätab sellel seatu alles — vt <a href="#set-automations">Automaatikad</a>.</p>
       <p>Su Smaily töövood peavad Smailys enne olemas olema; plugin loetleb need sidumiseks. Kui ühtegi ei kuva, ei leitud su kontolt ühtegi (või Smailyni ei jõutud) — loo need Smailys ja tule tagasi.</p>
-      <p>Kui Campaign Intelligence on ühendatud, on igal e‑kirja kaardil ka nupp <strong>Edit design</strong> („Muuda kujundust“): see avab kirja kujunduse lehe uuel brauseri vahekaardil (vt <a href="#set-automations">Automaatikad</a>). Seadistuse esimesel läbimisel ühendatakse Campaign Intelligence alles 4. sammus, nii et nupp ilmub, kui käivitad seadistuse uuesti, ja seadetes.</p>
+      <p>Kui Campaign Intelligence on ühendatud, on igal sisselülitatud e‑kirja kaardil ka nupp <strong>Edit design</strong> („Muuda kujundust“): see avab kirja kujunduse lehe uuel brauseri vahekaardil (vt <a href="#set-automations">Automaatikad</a>). Seadistuse esimesel läbimisel ühendatakse Campaign Intelligence alles 4. sammus, nii et nupp ilmub, kui käivitad seadistuse uuesti, ja seadetes.</p>
     </div>
   </div>
 
@@ -712,6 +714,11 @@ td code{white-space:nowrap}
           <li>Each dropdown lists the workflows of the <strong>account its section uses</strong> — the <a href="#set-transactional">transactional‑email</a> sections list the separate transactional account's workflows, not your main account's.</li>
         </ul>
       </div>
+      <div class="note">
+        <span class="k">A card opens when you switch it on</span>
+        <p>Every automation card on this tab — the store‑run triggers, the transactional emails and each engine‑run automation — shows only its name, description and switch while it is off. Switch it on and the card shows, in this order: the Smaily workflow (one per language on a multilingual store), <strong>Edit design</strong>, the automation's own settings (such as the abandoned‑cart delay or the follow‑up email's days to wait), and last the discount code. An engine‑run automation also shows, before its workflow, what its Smaily workflow must contain.</p>
+        <p>Switching a card off keeps everything you set on it: switch it on again and its workflows, settings and discount code are back as you left them. Save to keep either change. An engine‑run automation with a setting to fix stays open while it is off, so you can see what to fix.</p>
+      </div>
       <h3>Store‑run triggers</h3>
       <p>Map a store event to a Smaily workflow: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome fires when a shopper subscribes to your marketing emails in your store (the checkout box or My Account) and your contact sync sends them to Smaily — not when an account is created, and not for an opt‑in added in WordPress admin or by an import. Subscribing again after an unsubscribe starts it again; the welcome itself never re‑subscribes someone who unsubscribed. The Smaily newsletter block and forms choose their welcome workflow in their own settings. Abandoned cart has a delay (minutes of inactivity before a cart counts as abandoned). If no workflows appear, none were found on your Smaily account (or Smaily couldn't be reached) — create them in Smaily first. The fields each email carries for your template are listed under <a href="#set-merge-tags">Merge tags</a>.</p>
       <div class="note">
@@ -746,7 +753,7 @@ td code{white-space:nowrap}
       </div>
       <div class="note">
         <span class="k">Give each shopper a single‑use discount code</span>
-        <p>Each of the three cards has a <strong>Send a discount code</strong> switch. With it on, every email of that automation carries the shopper's own discount code. The discount itself is one of your WooCommerce coupons — the plugin copies it into a new code for each shopper. Set it up like this:</p>
+        <p>Each of the three cards, while it is switched on, has a <strong>Send a discount code</strong> switch at the bottom. With it on, every email of that automation carries the shopper's own discount code. The discount itself is one of your WooCommerce coupons — the plugin copies it into a new code for each shopper. Set it up like this:</p>
         <ol>
           <li>In WooCommerce, open <span class="path">Marketing → Coupons</span> and press <strong>Add coupon</strong>. Set the discount type (<strong>Percentage discount</strong>, <strong>Fixed cart discount</strong> or <strong>Fixed product discount</strong>), the amount and any restrictions — minimum or maximum spend, products, categories, brands, sale items, free shipping — and publish it. Its own code is never sent: shoppers get copies.</li>
           <li>Reload this tab. On the automation's card, switch on <strong>Send a discount code</strong>, pick the coupon under <strong>Discount (WooCommerce coupon)</strong> and set <strong>Valid for (days)</strong> (1–365, 7 by default). The list shows your published coupons of WooCommerce's own discount types that have not expired. With none, the card says how to create one and links to WooCommerce's add‑coupon screen.</li>
@@ -754,6 +761,7 @@ td code{white-space:nowrap}
         </ol>
         <ul>
           <li>Each code copies the coupon's discount and restrictions, including the brands the coupon is limited to or excludes. It works <strong>once</strong>, only with the shopper's email address, until the end of its last valid day: that many days after the email, in your store's timezone (<span class="path">Settings → General → Timezone</span>), and never after the coupon's own expiry date. After that day, once it was used, or with another email address, WooCommerce itself refuses the code.</li>
+          <li>A code is made only while the automation itself is switched on. Switching the automation off keeps its discount code settings, and no code is made until you switch the automation on again.</li>
           <li>The code is made when the email is sent. A send that is retried gets the same code. While the code an earlier email of the same automation gave the shopper is unused and still valid, the next email of that automation carries that same code and its last day again, and no new code is made. Once the code is used or has expired, or after you pick another coupon for the automation, the next email gets a new code. A reminder that is skipped (see above), or an automation with no workflow, makes none.</li>
           <li>If the coupon can't give a code when the email goes — deleted, in the trash, expired, or of another plugin's discount type — the email goes without a code, and the row's <strong>Details</strong> in the Event Log say why. The same happens for an email address with a letter outside A–Z, such as ä or õ: WooCommerce would change the address, so the code would not work for the shopper.</li>
           <li>The codes are ordinary WooCommerce coupons with a random 10‑character code, listed under <span class="path">Marketing → Coupons</span>. Once a day the plugin deletes the codes it made that were never used, 30 days after they expired. A used code stays.</li>
@@ -762,7 +770,7 @@ td code{white-space:nowrap}
       <h3>Engine‑run recommendation automations</h3>
       <p>These are triggered by Campaign Intelligence, not by a store event — the engine enrols each contact into the Smaily workflow you pick at the moment it predicts (a replenishment running out, a customer at risk of churning). Per automation you set:</p>
       <ul>
-        <li>an <strong>Enable</strong> toggle and the Smaily <strong>workflow</strong> to use;</li>
+        <li>an <strong>Enable</strong> toggle and, once it is on, the Smaily <strong>workflow</strong> to use;</li>
         <li>a <strong>Cooldown</strong> — minimum days between two fires for the same customer (<strong>1–365</strong>);</li>
         <li><strong>Test mode</strong> — while on, emails go only to your test addresses (comma‑separated), never to customers. Use <strong>Activate for real…</strong> to ask for real sends.</li>
       </ul>
@@ -777,7 +785,7 @@ td code{white-space:nowrap}
       </div>
       <div class="note">
         <span class="k">Edit an email's design</span>
-        <p>With Campaign Intelligence connected, every email card on this tab — the store‑run triggers, the transactional emails and each engine‑run automation — shows <strong>Edit design</strong> when Campaign Intelligence offers a design for that email. It opens the email's design page in a new browser tab, where you edit the subject, sender and design and can send yourself a test email. If your browser blocks the new tab, allow pop‑ups for your WordPress admin and press the button again. When you come back to this tab, the card shows the design's state and subject.</p>
+        <p>With Campaign Intelligence connected, every email card on this tab — the store‑run triggers, the transactional emails and each engine‑run automation — shows <strong>Edit design</strong> while the card is switched on, when Campaign Intelligence offers a design for that email. It opens the email's design page in a new browser tab, where you edit the subject, sender and design and can send yourself a test email. If your browser blocks the new tab, allow pop‑ups for your WordPress admin and press the button again. When you come back to this tab, the card shows the design's state and subject.</p>
         <p>Once Campaign Intelligence has delivered a design to Smaily as a workflow, the plugin starts that email with it in place of the workflow you picked — but only when the email goes out through the Smaily account that holds the delivered workflow, and in your store's default language (or for all languages). This applies to every email: the follow‑up email and the order and shipping confirmations go out through the separate transactional Smaily account, so they take the delivered workflow only when that account holds it. In a multilingual mode, a language other than the default keeps the workflow you picked, also on that account, because a delivered design may be written in one language. An email that goes out through another account keeps the workflow you picked too. Your settings here still decide whether and when the email is sent, and an email with no workflow picked is still not sent. Delivery to Smaily is not live yet: until it is, your emails keep using the workflows you picked.</p>
       </div>
       <h3>Transactional‑email triggers</h3>
@@ -792,6 +800,11 @@ td code{white-space:nowrap}
           <li>Nimekirjas on ainult <strong>aktiivsed</strong> töövood. Kui deaktiveerid töövoo Smailys, kaob see nendest rippmenüüdest. Kui mõni päästik oli selle töövooga salvestatud, näitab selle rippmenüü hoopis <code>#&lt;id&gt; — mitteaktiivne</code> — seda e‑kirja ei saadeta enne, kui valid aktiivse töövoo ja salvestad.</li>
           <li>Iga rippmenüü näitab selle <strong>sektsiooni kasutatava konto</strong> töövoogusid — <a href="#set-transactional">tehingu‑e‑kirjade</a> jaotised näitavad eraldi tehingukonto töövoogusid, mitte su põhikonto omi.</li>
         </ul>
+      </div>
+      <div class="note">
+        <span class="k">Kaart avaneb, kui lülitad selle sisse</span>
+        <p>Iga automaatika kaart sellel vahekaardil — poe‑käivitatavad päästikud, tehingu‑e‑kirjad ja iga mootori‑käivitatav automaatika — näitab väljalülitatuna ainult oma nime, kirjeldust ja lülitit. Kui lülitad kaardi sisse, näitab see selles järjekorras: Smaily töövoogu (mitmekeelses poes üks iga keele kohta), nuppu <strong>Edit design</strong>, automaatika enda seadeid (näiteks hüljatud ostukorvi viivitust või järelkirja ooteaega päevades) ja viimasena sooduskoodi. Mootori‑käivitatav automaatika näitab enne töövoogu ka seda, mida selle Smaily töövoog peab sisaldama.</p>
+        <p>Kaardi väljalülitamine jätab kõik sellel seatu alles: lülita see uuesti sisse ja selle töövood, seaded ja sooduskood on tagasi nii, nagu need jätsid. Kummagi muudatuse jätmiseks salvesta. Mootori‑käivitatav automaatika, mille seadetes on midagi parandada, jääb ka väljalülitatuna avatuks, et näeksid, mida parandada.</p>
       </div>
       <h3>Poe‑käivitatavad</h3>
       <p>Seo poe sündmus Smaily töövooga: <strong>Welcome</strong>, <strong>First order</strong>, <strong>Abandoned cart</strong>. Welcome käivitub, kui ostleja liitub su poes turunduskirjadega (kassa märkeruuduga või „Minu konto“ all) ja su kontaktide sünkroonimine saadab ta Smailysse — mitte konto loomisel ega WordPressi haldusliideses või importimisel lisatud nõusoleku puhul. Pärast loobumist uuesti liitumine käivitab selle uuesti; tervitus ise ei telli kunagi uuesti kedagi, kes on loobunud. Smaily uudiskirja plokk ja vormid valivad oma tervituse töövoo enda seadetes. Pooleli jäänud korval on viivitus (tegevusetuse minutid, enne kui korv loetakse hüljatuks). Kui ühtegi töövoogu ei kuva, ei leitud su Smaily kontolt ühtegi (või Smailyni ei jõutud) — loo need enne Smailys. Kirjapõhjas kasutatavad väljad leiad jaotisest <a href="#set-merge-tags">Kirjapõhja märgendid</a>.</p>
@@ -827,7 +840,7 @@ td code{white-space:nowrap}
       </div>
       <div class="note">
         <span class="k">Anna igale ostlejale ühekordne sooduskood</span>
-        <p>Igal kolmel kaardil on lüliti <strong>Send a discount code</strong> („Saada sooduskood“). Kui see on sees, kannab selle automaatika iga e‑kiri ostleja enda sooduskoodi. Soodustus ise on üks su WooCommerce'i kupongidest — plugin kopeerib selle igale ostlejale uueks koodiks. Seadista see nii:</p>
+        <p>Igal kolmel kaardil on sisselülitatuna allosas lüliti <strong>Send a discount code</strong> („Saada sooduskood“). Kui see on sees, kannab selle automaatika iga e‑kiri ostleja enda sooduskoodi. Soodustus ise on üks su WooCommerce'i kupongidest — plugin kopeerib selle igale ostlejale uueks koodiks. Seadista see nii:</p>
         <ol>
           <li>Ava WooCommerce'is <span class="path">Turundus → Kupongid</span> (Marketing → Coupons) ja vajuta <strong>Lisa kupong</strong> (Add coupon). Määra allahindluse tüüp (protsentuaalne, fikseeritud summa ostukorvilt või fikseeritud summa tootelt), summa ja soovi korral piirangud — minimaalne või maksimaalne summa, tooted, kategooriad, kaubamärgid, soodushinnaga tooted, tasuta tarne — ning avalda kupong. Kupongi enda koodi ei saadeta kunagi: ostlejad saavad selle koopiad.</li>
           <li>Laadi see vahekaart uuesti. Lülita automaatika kaardil sisse <strong>Send a discount code</strong>, vali kupong väljal <strong>Discount (WooCommerce coupon)</strong> („Soodustus (WooCommerce'i kupong)“) ja määra <strong>Valid for (days)</strong> („Kehtib (päeva)“) — 1–365, vaikimisi 7. Loendis on su avaldatud ja aegumata kupongid WooCommerce'i enda allahindlustüüpidega. Kui ühtegi pole, ütleb kaart, kuidas see luua, ja viitab WooCommerce'i kupongi lisamise lehele.</li>
@@ -835,6 +848,7 @@ td code{white-space:nowrap}
         </ol>
         <ul>
           <li>Iga kood kopeerib kupongi soodustuse ja piirangud, sealhulgas kaubamärgid, millega kupong on piiratud või mille see välistab. See kehtib <strong>üks kord</strong>, ainult ostleja e‑posti aadressiga, kuni oma viimase kehtivuspäeva lõpuni: nii mitu päeva pärast e‑kirja, su poe ajavööndis (<span class="path">Seaded → Üldine → Ajavöönd</span>), ja mitte kunagi pärast kupongi enda aegumiskuupäeva. Pärast seda päeva, pärast kasutamist või teise e‑posti aadressiga keeldub koodist WooCommerce ise.</li>
+          <li>Koodi luuakse ainult siis, kui automaatika ise on sisse lülitatud. Automaatika väljalülitamine jätab selle sooduskoodi seaded alles ja koodi ei looda enne, kui lülitad automaatika uuesti sisse.</li>
           <li>Kood luuakse e‑kirja saatmisel. Uuesti proovitud saatmine saab sama koodi. Kuni sama automaatika varasema e‑kirja kood on ostlejal kasutamata ja kehtib, kannab selle automaatika järgmine e‑kiri sedasama koodi ja selle viimast päeva ning uut koodi ei looda. Kui kood on kasutatud või aegunud või kui valid automaatikale teise kupongi, saab järgmine e‑kiri uue koodi. Vahele jäetud meeldetuletus (vt eespool) või töövoota automaatika koodi ei loo.</li>
           <li>Kui kupong ei saa kirja saatmise ajal koodi anda — kustutatud, prügikastis, aegunud või mõne teise plugina allahindlustüübiga —, läheb e‑kiri ilma koodita ja sündmuste logi rea <strong>Details</strong> ütleb, miks. Sama juhtub e‑posti aadressiga, milles on täht väljastpoolt A–Z, näiteks ä või õ: WooCommerce muudaks aadressi ja kood ei töötaks ostleja jaoks.</li>
           <li>Koodid on tavalised WooCommerce'i kupongid juhusliku 10‑märgilise koodiga ja on näha jaotises <span class="path">Turundus → Kupongid</span>. Kord päevas kustutab plugin enda loodud koodid, mida pole kunagi kasutatud, 30 päeva pärast nende aegumist. Kasutatud kood jääb alles.</li>
@@ -843,7 +857,7 @@ td code{white-space:nowrap}
       <h3>Mootori‑käivitatavad soovitus‑automaatikad</h3>
       <p>Neid käivitab Campaign Intelligence, mitte poe sündmus — mootor lisab iga kontakti sinu valitud Smaily töövoogu hetkel, mil ta ennustab (varu saab otsa, klient ohus lahkuda). Automaatika kohta sead:</p>
       <ul>
-        <li><strong>Enable</strong> lüliti ja kasutatava Smaily <strong>töövoo</strong>;</li>
+        <li><strong>Enable</strong> lüliti ja, kui see on sees, kasutatava Smaily <strong>töövoo</strong>;</li>
         <li><strong>Cooldown</strong> — vähim päevade arv sama kliendi kahe käivituse vahel (<strong>1–365</strong>);</li>
         <li><strong>Test mode</strong> — sees olles lähevad e‑kirjad ainult su test‑aadressidele (komadega eraldatud), mitte kunagi klientidele. Päris saatmise taotlemiseks kasuta <strong>Activate for real…</strong>.</li>
       </ul>
@@ -858,7 +872,7 @@ td code{white-space:nowrap}
       </div>
       <div class="note">
         <span class="k">Muuda kirja kujundust</span>
-        <p>Kui Campaign Intelligence on ühendatud, on sellel vahekaardil igal e‑kirja kaardil — poe‑käivitatavad päästikud, tehingu‑e‑kirjad ja iga mootori‑käivitatav automaatika — nupp <strong>Edit design</strong> („Muuda kujundust“), kui Campaign Intelligence pakub selle kirja jaoks kujundust. Nupp avab kirja kujunduse lehe uuel brauseri vahekaardil, kus muudad teemarida, saatjat ja kujundust ning saad endale testkirja saata. Kui brauser blokeerib uue vahekaardi, luba oma WordPressi haldusliideses hüpikaknad ja vajuta nuppu uuesti. Kui tuled sellele vahekaardile tagasi, näitab kaart kujunduse olekut ja teemarida.</p>
+        <p>Kui Campaign Intelligence on ühendatud, on sellel vahekaardil igal e‑kirja kaardil — poe‑käivitatavad päästikud, tehingu‑e‑kirjad ja iga mootori‑käivitatav automaatika — sisselülitatuna nupp <strong>Edit design</strong> („Muuda kujundust“), kui Campaign Intelligence pakub selle kirja jaoks kujundust. Nupp avab kirja kujunduse lehe uuel brauseri vahekaardil, kus muudad teemarida, saatjat ja kujundust ning saad endale testkirja saata. Kui brauser blokeerib uue vahekaardi, luba oma WordPressi haldusliideses hüpikaknad ja vajuta nuppu uuesti. Kui tuled sellele vahekaardile tagasi, näitab kaart kujunduse olekut ja teemarida.</p>
         <p>Kui Campaign Intelligence on kujunduse Smailysse töövooks viinud, käivitab plugin selle kirja sellega sinu valitud töövoo asemel — kuid ainult siis, kui kiri läheb välja selle Smaily konto kaudu, kus viidud töövoog asub, ja poe vaikekeeles (või kõigi keelte jaoks). See kehtib iga kirja kohta: järelkiri ning ostu ja tarne kinnituskiri lähevad välja eraldi tehingu‑Smaily konto kaudu, nii et need kasutavad viidud töövoogu ainult siis, kui see asub selles kontos. Mitmekeelses režiimis kasutab vaikekeelest erinev keel edasi sinu valitud töövoogu ka selles kontos, sest viidud kujundus võib olla kirjutatud ühes keeles. Ka kiri, mis läheb välja mõne teise konto kaudu, kasutab edasi sinu valitud töövoogu. Siinsed seaded otsustavad endiselt, kas ja millal kiri saadetakse, ning kirja, millele pole töövoogu valitud, ei saadeta ka edaspidi. Smailysse viimine ei ole veel töös: seni kasutavad su kirjad sinu valitud töövooge.</p>
       </div>
       <h3>Tehingu‑e‑kirjade päästikud</h3>

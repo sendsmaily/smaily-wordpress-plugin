@@ -9387,6 +9387,71 @@ by `tests/Unit/Smaily/RecEngine/CustomerScopeTest.php`,
 `tests/Integration/RecEngineCustomersTest.php` and
 `tests/Integration/RecEngineOrderBuyerCustomerTest.php`.
 
+### CON-255 — An automation card that is off shows only its switch; its values are hidden, not cleared (2026-11-02)
+
+**Context:** an automation card that was switched off still showed its
+workflow table (only dimmed), "Edit design", its own settings and the
+"Send a discount code" block — and the discount block sat above the
+workflow, ungated by the automation. A merchant could switch a discount on
+for an automation that sends nothing, and the server made a code whenever
+the discount's own switch was on (`AutomationDiscount::issue()` read no
+automation flag). The Shopify app and the Magento extension already hide an
+off card's controls and put the discount block last.
+**Decision (product owner, 2026-11-02: turning an automation off KEEPS its
+workflows and discount setting; on again brings them back):**
+- **Every automation card** — welcome, first order, abandoned cart, the
+  three transactional cards and each Campaign Intelligence engine card —
+  shows only its title, description, status pill and switch while it is
+  off. Nothing below the switch is rendered.
+- **On, in this order:** the workflow (per-language table or one menu),
+  "Edit design", the automation's own settings (abandoned-cart cutoff,
+  transactional status line, statuses and delay; engine cooldown and test
+  mode), and the discount code block last (store-run cards only).
+  `AutomationSection` takes the settings as `extras` and the discount as
+  `discount`. An engine card shows its recipe (what the Smaily workflow
+  must contain) first, right before its workflow.
+- **Hide, not clear.** The inputs unmount; the values live in the reducer
+  state (`automationMappings`, `automationDiscounts`, the cutoff, the
+  transactional statuses and delay, `engineAutomations.rows`), and both
+  saves build their payload from that state — the WooCommerce tab POST and
+  the engine PUT of every row — never from the DOM. No reducer action runs
+  on a switch-off. So nothing hidden is lost, and on again shows it as it
+  was.
+- **The discount switch is reachable only on an automation that is on:**
+  `DiscountCodeSetting` also renders nothing itself while its automation is
+  off, wherever it is placed.
+- **Server gate:** `AutomationDiscount::issue()` makes no code (and stores
+  no note) while the automation is off, read through the switch the
+  automation's own sending reads — `HookHandler::automation_enabled()`
+  (`smly_plus_welcome_enabled` / `smly_plus_first_order_enabled`) and
+  `Options::abandoned_cart_status()['enabled']`. A row queued before the
+  switch-off still goes, without a code; the saved discount setting stays.
+- **One exception:** an engine card with a field to fix (a local or engine
+  validation issue) stays open while off, because the save then says "Fix
+  the highlighted fields" and the field must be visible.
+**Why it differs from Shopify:** Shopify keeps an engine card's controls
+mounted under `display:none`, because its save reads the full row from the
+form. Here the engine slice in the reducer holds the full row and the PUT is
+built from it, so unmounting loses nothing and a plain conditional render
+is enough; the store-run and transactional cards save from state too.
+**Alternatives:** clear the workflow and discount on switch-off — rejected
+by the product owner (a merchant pausing an automation must not lose its
+setup). Keep the dimmed table — rejected: it reads as configured and the
+discount block stayed reachable. Gate only in the UI — rejected: a stored
+`enabled` discount on an off automation must still make no code.
+**Accepted limit:** a hidden discount day count or follow-up delay out of
+range still refuses the WooCommerce tab save with its existing message
+(PRO-4095 pattern) while its automation is off; the merchant switches the
+automation on to see and fix it.
+**Relationships:** CON-199 (the discount code), CON-173 ("Edit design"),
+PRO-4095 (follow-up settings), T2.2 / F3-51 / F3-52 (engine slice and save).
+Pinned by `AutomationSection.test.tsx`, `DiscountCodeSetting.test.tsx`,
+`EngineAutomationsSection.test.tsx`, `TransactionalTriggersSection.test.tsx`,
+`Step3WooCommerce.cardDisclosure.test.tsx`,
+`Step3WooCommerce.emailDesigns.test.tsx`,
+`tests/Unit/Integrations/WooCommerce/AutomationDiscountTest.php` and
+`tests/Integration/AutomationDiscountCodeTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

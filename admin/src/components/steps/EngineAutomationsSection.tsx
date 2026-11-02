@@ -394,58 +394,66 @@ function TriggerCard({
     live: <Pill tone="success">{ __( 'Live — real sends on', 'smaily-connect' ) }</Pill>,
   }[status];
 
+  // CON-255: an off card is its title, description and switch only. The
+  // row stays whole in the reducer slice, and the save PUTs every row from
+  // there, so nothing hidden is lost. A card with a field to fix stays open
+  // even while off — "Fix the highlighted fields" must point at something
+  // the merchant can see.
+  const open = row.enabled || issues.length > 0;
+
   return (
     <Card title={name} description={description} headerAccessory={statusPill}>
-      {/* Recipe — what the Smaily-side automation must contain. Locale pick
-          matches name/description: non-et locales read recipe_en when the
-          engine provides it (forward-compatible, T2.4/5), else recipe_et. */}
-      <div className="rounded border border-border-subtle bg-surface-soft px-3 py-2 text-sm text-text-secondary">
-        {pickRecipe(trigger, et)}
-        {isHttpUrl(docsUrl) && (
-          <>
-            {' '}
-            <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="underline">
-              { __( 'Smaily templates guide', 'smaily-connect' ) }
-            </a>
-          </>
+      <Toggle
+        name={`smly-engine-automation-${trigger.key}-enabled`}
+        checked={row.enabled}
+        onChange={(e) => patch({ enabled: e.target.checked })}
+        label={sprintf(
+          // translators: %s is the automation name, e.g. "Replenishment due".
+          __( 'Enable %s', 'smaily-connect' ),
+          name,
         )}
-      </div>
+      />
 
-      <EditDesign emailKey={trigger.key} />
+      {open && (
+        <div className="mt-5 space-y-5">
+          {/* Recipe — what the Smaily-side automation must contain. Locale
+              pick matches name/description: non-et locales read recipe_en
+              when the engine provides it (forward-compatible, T2.4/5), else
+              recipe_et. */}
+          <div className="rounded border border-border-subtle bg-surface-soft px-3 py-2 text-sm text-text-secondary">
+            {pickRecipe(trigger, et)}
+            {isHttpUrl(docsUrl) && (
+              <>
+                {' '}
+                <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                  { __( 'Smaily templates guide', 'smaily-connect' ) }
+                </a>
+              </>
+            )}
+          </div>
 
-      <div className="mt-4">
-        <Toggle
-          name={`smly-engine-automation-${trigger.key}-enabled`}
-          checked={row.enabled}
-          onChange={(e) => patch({ enabled: e.target.checked })}
-          label={sprintf(
-            // translators: %s is the automation name, e.g. "Replenishment due".
-            __( 'Enable %s', 'smaily-connect' ),
-            name,
-          )}
-        />
-      </div>
+          <WorkflowMapping
+            trigger={trigger}
+            row={row}
+            state={state}
+            onMapChange={(map) => patch({ automation_map: map })}
+            issues={issues}
+          />
 
-      <div className={row.enabled ? 'mt-5 space-y-5' : 'mt-5 space-y-5 opacity-50'}>
-        <WorkflowMapping
-          trigger={trigger}
-          row={row}
-          state={state}
-          onMapChange={(map) => patch({ automation_map: map })}
-          issues={issues}
-        />
+          <EditDesign emailKey={trigger.key} />
 
-        <CooldownField trigger={trigger} row={row} patch={patch} issues={issues} />
+          <CooldownField trigger={trigger} row={row} patch={patch} issues={issues} />
 
-        <TestModeBlock
-          trigger={trigger}
-          row={row}
-          name={name}
-          status={status}
-          patch={patch}
-          issues={issues}
-        />
-      </div>
+          <TestModeBlock
+            trigger={trigger}
+            row={row}
+            name={name}
+            status={status}
+            patch={patch}
+            issues={issues}
+          />
+        </div>
+      )}
     </Card>
   );
 }
