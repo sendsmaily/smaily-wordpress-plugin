@@ -234,6 +234,12 @@ its current speed. Accepted as documented in DECISIONS CON-267.
 3. Backlog: I2 (cap the retry wait), I3 (docblock), I4 (log status and code
    only in `engine_opt_out()`).
 
+## Disposition (2026-11-03)
+
+| # | Disposition |
+|---|---|
+| L1 (Low) | **Fixed in #303 (CON-275):** the eraser cancels every waiting `smly_rec_login_merge` action of the user (any token, any run number) before the §9 delete, beside the PRO-3906 queue drop; a job for a deleted user still sends nothing. |
+
 ## Conclusion
 
 The two PRs fix the 2026-11-02 M1 and L1 without widening access: the login
