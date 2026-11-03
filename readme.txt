@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.20.0
+Stable tag: 3.21.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -54,7 +54,7 @@ You can also use the product RSS feed to bring WooCommerce products directly int
 
 Connect WooCommerce to Smaily Campaign Intelligence to add shopper-specific product recommendations and purchase-based automations to your email marketing.
 
-Once connected, products, customers and orders synchronize automatically. You can also import existing data so Campaign Intelligence has the history it needs to begin producing relevant recommendations. Optional browse tracking can add consent-based browsing signals.
+Once connected, products, customers and orders synchronize automatically. Connecting also imports your existing products, customers and orders in the background, one after another, so Campaign Intelligence has the history it needs to begin producing relevant recommendations. Optional browse tracking can add consent-based browsing signals.
 
 Campaign Intelligence is an optional paid Smaily add-on. It is not enabled by default and is billed separately by Smaily.
 
@@ -104,8 +104,11 @@ If the site administrator connects Campaign Intelligence using a one-time setup 
 
 * product catalog data, including titles, prices, categories, stock status and product URLs;
 * once a night, the store's complete list of product identifiers and the stock status of each, so Campaign Intelligence can remove products the store no longer offers;
-* customer records, including email address, name and registration date;
+* customer records, including email address, name and registration date, only for the customers Campaign Intelligence can use: the customers your contact sync sends to Smaily, the registered customers with an order inside the engine's history window (60 months by default), and a customer who logs in after giving marketing consent;
 * order data, including order status, totals and purchased items;
+* when a customer logs in with the store's visitor cookie or a browsing session ID in the browser, from a background job after the login: the customer's email address and store user ID with those values, so Campaign Intelligence can link the customer's earlier visits. A customer who opted out of recommendation profiling is left out. For a customer who has given marketing consent and has no visitor cookie yet, the store sets one at login with a random value (365 days by default). The cookie stays after logout, and each login with marketing consent renews its lifetime;
+* while a history import runs, its progress: the phase, dates and the number of records sent, with no customer details;
+* when the site administrator presses "Open Campaign Intelligence" in Settings, the signed-in administrator's email address, to get a one-time sign-in link to the store's Campaign Intelligence console;
 * browsing events, including product views, searches, cart events and checkout events, only when browse tracking is enabled and the shopper has given the required consent;
 * requests for a shopper's product recommendations, when a page with the Smaily Recommendations block or shortcode loads and the shopper has given marketing consent. The shopper's browser asks your store, and your store asks Campaign Intelligence, sending the logged-in customer's store user ID or the store's visitor cookie value;
 * when the site administrator uses Edit design, requests for the list of email designs and for a one-time link to a design page, with the address of the admin page to return to;
@@ -184,6 +187,23 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.21.0 =
+* New: connecting Campaign Intelligence imports your products, then customers, then orders, each when the one before has finished. Hold back or Cancel stops the sequence.
+* New: a connected store that never finished its customers or orders import starts it once after this update, without a click. An import you held back or cancelled stays stopped.
+* New: "Open Campaign Intelligence" in Settings opens your store's console with a one-time sign-in link.
+* Improved: imports send faster, at a steady pace. The Orders import sends the last 18 months first, then older orders back to 60 months; older orders are not sent.
+* Improved: the import cards count the records Campaign Intelligence accepted, and the import reports its progress to it.
+* Improved: on legacy order storage, a database index added in the background speeds up the Orders import, only where the server can build it without blocking writes.
+* Changed: Campaign Intelligence gets only the customers it can use: those your contact sync sends to Smaily, those with an order in the history window, and a customer who logs in with marketing consent.
+* New: a customer who logs in with marketing consent gets the store's visitor cookie, so the Recommendations block knows them after logout. A login no longer waits for Campaign Intelligence.
+* Improved: your store's server sets the email-click cookies, so Safari keeps them for their full lifetime.
+* Changed: an automation card shows its workflow and settings only while it is on, and an automation that is off makes no discount code.
+* Changed: a design Campaign Intelligence delivers to Smaily as a workflow is used for emails on the Smaily account it names, transactional emails included, in your store's default language. This replaces the 3.19.0 "main Smaily account" rule.
+* Privacy: erasing a customer's personal data also cancels their waiting background login sync, so it cannot send the erased customer to Campaign Intelligence again.
+* Fixed: an update from 1.x or 2.0.0 removes the old abandoned-cart table only after every unsent cart is copied.
+* Fixed: the Edit design "Back to your store" link is set only for your store's own admin address.
+* Updated to the Smaily Campaign Intelligence API contract v1.24.0.
+
 = 3.20.0 =
 * New: the welcome, first-order and abandoned-cart emails can each carry a single-use discount code. Pick a WooCommerce coupon and the number of days a code stays valid. Each code copies the coupon's discount and restrictions, brands included, works once and only for the shopper's email address, and reaches Smaily with its last valid day.
 * New: a shopper who still has an unused, valid code from the same automation gets that code again, not a new one. No code is made for an address that WooCommerce cannot restrict a coupon to exactly; the email goes without it.
@@ -202,30 +222,16 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Improved: the "Last sent" line on the transactional email cards reads less data.
 * Fixed: clearing the workflow of a Campaign Intelligence automation saves again.
 
-= 3.18.0 =
-* New: a follow-up email through your Smaily Transactional account, sent a set number of days (1–90) after an order reaches a status you choose. It has no WooCommerce fallback; a failed send can be retried in the Event Log.
-* Changed: the Welcome automation starts when a shopper subscribes to your marketing emails at checkout, on the registration form or in My Account, and only for contacts that contact sync sends to Smaily. Creating an account no longer starts it.
-* Improved: each confirmation card in Settings says why the email does not send, or when Smaily last accepted one. A confirmation that cannot go out leaves a skipped row in the Event Log.
-* Improved: every Event Log row that sent nothing reads skipped, with its reason, and the Sent filter leaves it out.
-* Improved: the Estonian translation of the admin screens is complete.
-* Fixed: an automation saved with a Smaily workflow that is no longer active shows that workflow as inactive instead of another one.
-* Fixed: the block checkout no longer shows the newsletter box to a logged-in customer who already subscribed.
-* Fixed: saving Campaign Intelligence automations in the plugin sends only what you changed, so it no longer overwrites settings made on Smaily's setup page.
-* Fixed: a recommendation link's campaign context is stored only together with its recommendation, and a visitor ID longer than 64 characters is refused.
-* Privacy: uninstalling or disconnecting never asks Campaign Intelligence to delete your store's data. The documentation's privacy policy template lists how long Campaign Intelligence keeps each kind of data.
-* Developers: the `smaily_connect_welcome_eligible` filter now receives the opt-in's source (`checkout`, `block_checkout`, `registration` or `my_account`) instead of the account hook, and a guest's user ID is 0.
-* Updated to the Smaily Campaign Intelligence API contract v1.17.0.
-
 == Upgrade Notice ==
+
+= 3.21.0 =
+A store connected to Campaign Intelligence starts the imports it never finished (products, customers, orders) once after this update, unless you held them back. On legacy order storage it adds one posts-table index in the background, only where it builds online.
 
 = 3.20.0 =
 Adds single-use discount codes to the welcome, first-order and abandoned-cart emails. Disconnect and deleting the plugin now tell Campaign Intelligence that the connection ends; it pauses a store with no other connection and keeps its data. Safe update.
 
 = 3.19.0 =
 Abandoned-cart reminders now follow your contact-sync mode's consent rule and skip shoppers who unsubscribed in Smaily. Adds Edit design. Removes the 1.x/2.0.0 abandoned-cart table after copying its unsent carts; this cannot be undone.
-
-= 3.18.0 =
-Adds a follow-up email after an order status, starts the Welcome on the shopper's own opt-in instead of account creation, shows why a confirmation does not send, and keeps plugin saves from overwriting Campaign Intelligence's setup page. Safe update.
 
 == Screenshots ==
 
