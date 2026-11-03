@@ -19,15 +19,17 @@ use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\REST\RecommendationsEndpoint;
 use Smaily\Connect\REST\RequestThrottle;
 use Smaily\Connect\Settings\RecEngineSettings;
-use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
+use Smaily\Connect\Tests\Integration\Support\LoginMergeQueue;
 
 /**
  * What this catches that the unit test can't: the real handler reads the
- * engine config's cookie name and lifetime, the real Client posts the §7 body,
- * the mock binds the new token to the customer, and the real recommendations
+ * engine config's cookie name and lifetime, the login's background action
+ * (CON-268, run through Action Scheduler) posts the §7 body with the real
+ * Client, the mock binds the new token to the customer, and the real recommendations
  * route — with no account cookie, as after logout — asks the engine by that
  * token and renders the customer's cards. Only the consent answer is a seam
  * (the test site has no WP Consent API), and the cookie write is recorded
@@ -60,6 +62,7 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 		}
 		EnvScrub::reset();
 		RecEngineMockServer::reset();
+		LoginMergeQueue::forget();
 		$this->forget_browser();
 		delete_transient( 'smly_recs_rl_ip_' . md5( RequestThrottle::client_ip() ) );
 		delete_transient( StorefrontRecommendations::PAUSE_KEY );
@@ -100,6 +103,7 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		LoginMergeQueue::forget();
 		delete_transient( StorefrontRecommendations::PAUSE_KEY );
 		wp_set_current_user( 0 );
 		$this->forget_browser();
@@ -123,6 +127,7 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 
 		// Login: no visitor-token cookie yet, marketing consent given.
 		$this->handler( $cookies, true )->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		$token = $cookies->written[ self::VISITOR_COOKIE ] ?? '';
 		self::assertMatchesRegularExpression( '/^vs_[A-Za-z0-9]{22}$/', $token, 'A store token in the contract format, under the engine-config cookie name.' );
@@ -157,8 +162,10 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 		$_COOKIE[ self::SESSION_COOKIE ] = 'anon-repeat';
 
 		$this->handler( $cookies, true )->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 		$token = $cookies->written[ self::VISITOR_COOKIE ] ?? '';
 		$this->handler( $cookies, true )->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		// Erkki, 2026-11-02: the second login writes the same cookie again,
 		// same value, with a fresh engine-config lifetime from now.
@@ -182,6 +189,7 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 		self::assertInstanceOf( \WP_User::class, $user );
 
 		$this->handler( $cookies, null )->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		self::assertSame( array(), $cookies->written, 'No cookie is written.' );
 		self::assertNull( self::$engine->state()['last_merge_received'] ?? null, 'Nothing is merged.' );
@@ -201,6 +209,7 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 		self::assertInstanceOf( \WP_User::class, $user );
 
 		$this->handler( $cookies, null )->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		self::assertSame( array(), $cookies->writes, 'No renewal without consent.' );
 		$received = self::$engine->state()['last_merge_received'] ?? null;
@@ -216,18 +225,16 @@ final class RecEngineLoginVisitorTokenTest extends TestCase {
 	 */
 	private function handler( LandingCapture $cookies, ?bool $consent ): IdentityHookHandler {
 		$settings = new RecEngineSettings();
-		$client   = static function () use ( $settings ): Client {
-			return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
-		};
+		$merge    = Bootstrap::instance()->login_merge();
 		if ( null === $consent ) {
-			return new IdentityHookHandler( $settings, $client, null, $cookies );
+			return new IdentityHookHandler( $settings, $merge, null, $cookies );
 		}
 
-		return new class( $settings, $client, $cookies, $consent ) extends IdentityHookHandler {
+		return new class( $settings, $merge, $cookies, $consent ) extends IdentityHookHandler {
 			private bool $test_consent;
 
-			public function __construct( RecEngineSettings $settings, callable $client, LandingCapture $cookies, bool $consent ) {
-				parent::__construct( $settings, $client, null, $cookies );
+			public function __construct( RecEngineSettings $settings, LoginMerge $merge, LandingCapture $cookies, bool $consent ) {
+				parent::__construct( $settings, $merge, null, $cookies );
 				$this->test_consent = $consent;
 			}
 

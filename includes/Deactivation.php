@@ -18,6 +18,7 @@ use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
 use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 
 /**
@@ -58,6 +59,7 @@ final class Deactivation {
 		CatalogManifest::AS_GROUP,
 		HistoryProgress::AS_GROUP,
 		LegacyOrderDateIndex::AS_GROUP,
+		LoginMerge::AS_GROUP,
 	);
 
 	public static function run(): void {

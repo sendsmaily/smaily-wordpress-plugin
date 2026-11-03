@@ -311,7 +311,35 @@ final class RecEngineMockServer {
 	}
 
 	public function reset_request_count(): void {
-		$this->write_state( array( 'request_count' => 0 ) );
+		$this->write_state(
+			array(
+				'request_count' => 0,
+				'request_paths' => array(),
+			)
+		);
+	}
+
+	/**
+	 * The requests that reached the engine, in order, as `METHOD /path` —
+	 * no bodies (CON-268: §4 before §7).
+	 *
+	 * @return array<int, string>
+	 */
+	public function request_paths(): array {
+		return array_values( array_map( 'strval', (array) ( $this->state()['request_paths'] ?? array() ) ) );
+	}
+
+	/**
+	 * Play the live §7 rule (v1.23.0): a merge finds only a customer that §4
+	 * has sent; any other email answers `404 customer_not_found`.
+	 */
+	public function set_merge_requires_customer( bool $requires ): void {
+		$this->write_state( array( 'merge_requires_customer' => $requires ) );
+	}
+
+	/** How many `404 customer_not_found` merges an email got. */
+	public function merge_404_count( string $email ): int {
+		return (int) ( $this->state()['merge_404_count'][ $email ] ?? 0 );
 	}
 
 	/**

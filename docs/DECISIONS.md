@@ -9813,7 +9813,9 @@ contract §5, §7, §15. Pinned by
 `tests/Unit/Integrations/WooCommerce/IdentityHookHandlerTest.php` and
 `tests/Integration/RecEngineLoginVisitorTokenTest.php` (the mock binds a
 merged token and answers §15 by it — `visitor_token_bindings`,
-`merge_count`).
+`merge_count`). **Superseded in part by CON-268:** the merge described here
+is no longer sent in the login request; the login sets the cookie and queues
+a background action that sends it.
 
 ### CON-259 — A connected legacy-storage store gets one index on the posts table for the orders import, added in the background (2026-11-02)
 
@@ -9927,6 +9929,75 @@ per admin request), PRO-2437 (the hourly recurring-jobs check), PRO-3435
 (both order storages in CI). Pinned by
 `tests/Unit/DB/LegacyOrderDateIndexTest.php` and
 `tests/Integration/LegacyOrderDateIndexTest.php`.
+
+### CON-268 — A login sends nothing to Campaign Intelligence; a background action sends the customer, then the merge (2026-11-03)
+
+**Context:** `IdentityHookHandler::on_login()` sent the §7 merge inside the
+login request through the retrying client (2 × 15 s, plus a Retry-After wait of
+up to 60 s). Since CON-251 every login with marketing consent calls it, so a
+slow engine could hold a customer's login for over a minute (2026-11-02 audit,
+finding M1). Contract v1.23.0 (INT-195) also adds §4 group (c) — a customer
+who logs in with marketing consent is sent with §4 at that login, before the
+merge — and lets a merge that answers `404 customer_not_found` be retried once
+after §4 answered 200.
+**Decision (Erkki):** (1) The login request makes no engine call. It reads the
+cookies and `MarketingConsent::given()`, creates or renews the visitor-token
+cookie as before (CON-251), and queues ONE Action Scheduler action,
+`RecEngine\LoginMerge` (hook `smly_rec_login_merge`, group
+`smaily-rec-login-merge`, in `Deactivation::AS_GROUPS`). Its args are the user
+id, the token, the anon session id, the consent and the run number — no email;
+the action reads the email from the user id. A second login with the same
+values while one waits (any run) queues nothing. (2) The action, while
+`sending_allowed()`: checks the user, the token's shape (a `vs_` token only
+with the login's consent) and the full profiling gate (`may_profile()`); with
+consent, sends the customer through the customer import's payload builder;
+then sends the merge. A `404 customer_not_found` is retried once, at once,
+only when §4 answered 200 for the customer in that run (§7 "Retry after 404").
+No answer, a 429 or a 5xx queues the action again after 60 s, then 300 s (a
+429 waits at least its `retry_after_seconds`), three runs in all; any other
+4xx ends it. A §4 failure that may pass later queues the action again before
+any merge; a §4 4xx or a per-item error is logged and the merge still goes
+(its 404 is then not retried). The client makes one attempt of at most 10 s
+per request (`rec_client( 1, LoginMerge::TIMEOUT_SECONDS )`), so a run never
+sleeps. (3) A `vt_` token login moves into the same action and keeps its rules
+(sent without consent, F3-46).
+**Consent and scope.** The §4 send uses the consent that decided the `vs_`
+token: the WP Consent API answer read in the login request. The action cannot
+ask the browser, so the login passes it on as a flag; the action re-checks
+what the server can check (the token shape and the profiling opt-out).
+`CustomerScope` (groups a and b, CON-246) is not asked for this send: §4
+v1.23.0 names group (c) as its own group, "also when the shopper never
+bought". No contradiction with CustomerScope, which still decides the import
+and the live hooks.
+**The login's profiling gate reads only stored state** —
+`ProfilingConsent::known_opt_out()`: the daily cache, the durable opt-out, the
+last fetched state. `may_profile()` can read Smaily and, on an opt-out, call
+the engine's §10, which a login must not. Trade-off: a contact who opted out
+only in Smaily, with nothing cached in the store, gets a cookie at login; the
+action's `may_profile()` then sends nothing, so the engine never binds that
+token.
+**What the action rows keep:** the token and the user id sit in Action
+Scheduler's table until the daily janitor prunes finished `smly_rec_%` rows
+after 7 days (PRO-2438); an action whose user was erased in the meantime finds
+no user and sends nothing.
+**Alternatives:** keep the merge in the login with a short single-attempt
+client — rejected: still an engine call in the login, and §4 + a 404 retry
+would add more. Queue the customer through the ingest queue — rejected: the
+merge must follow a §4 200, which the queue's later flush cannot promise.
+**Not covered:** the customer import cannot list group (c) — the store keeps
+no record of a consenting login — and the live customer hooks still apply
+`CustomerScope`, so a later profile change of a group-(c)-only customer is not
+sent until their next consenting login.
+**Relationships:** CON-251 (the login token, now sent from here), F3-27 (the
+login merge), PRO-3860 (a `vs_` token only with consent), PRO-3620 (an
+engine call never holds a shopper's request), CON-246 (`CustomerScope`),
+contract §4, §7 v1.23.0. Pinned by
+`tests/Unit/Smaily/RecEngine/LoginMergeTest.php`,
+`tests/Unit/Integrations/WooCommerce/IdentityHookHandlerTest.php` and
+`tests/Integration/RecEngineLoginMergeActionTest.php` (the mock counts every
+request and records their order — `request_paths()`;
+`set_merge_requires_customer()` plays the live 404 rule; a `notfound-once@`
+email answers 404 to its first merge).
 
 ## How to keep this document going
 

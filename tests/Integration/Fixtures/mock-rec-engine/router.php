@@ -57,6 +57,10 @@ function save_state( string $path, array $state ): void {
 // sending, and "zero further requests" is only provable from the receiving
 // end (PRO-1893).
 $state['request_count'] = ( isset( $state['request_count'] ) ? (int) $state['request_count'] : 0 ) + 1;
+// The order of the requests (method + path, no body), so a test can prove one
+// call came before another — e.g. §4 before §7 at a login (CON-268).
+$state['request_paths']   = isset( $state['request_paths'] ) && is_array( $state['request_paths'] ) ? $state['request_paths'] : array();
+$state['request_paths'][] = $method . ' ' . $path;
 save_state( $state_file, $state );
 
 // Deactivated-tenant switch (contract §2). A test flips `tenant_inactive` in
@@ -867,9 +871,10 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/customers' ) {
 	$seen         = ( isset( $state['customer_event_ids'] ) && is_array( $state['customer_event_ids'] ) )
 		? $state['customer_event_ids']
 		: array();
-	$processed    = 0;
-	$deduplicated = 0;
-	$errors       = array();
+	$processed       = 0;
+	$deduplicated    = 0;
+	$errors          = array();
+	$known_customers = ( isset( $state['known_customers'] ) && is_array( $state['known_customers'] ) ) ? $state['known_customers'] : array();
 	foreach ( $customers as $index => $customer ) {
 		$email    = isset( $customer['email'] ) ? (string) $customer['email'] : '';
 		$event_id = isset( $customer['event_id'] ) ? (string) $customer['event_id'] : '';
@@ -884,6 +889,10 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/customers' ) {
 			continue;
 		}
 
+		// The customers the engine has (by email, lowercased), so the §7 merge
+		// can answer 404 for one it does not (CON-268, `merge_requires_customer`).
+		$known_customers[ strtolower( $email ) ] = true;
+
 		if ( $event_id !== '' && in_array( $event_id, $seen, true ) ) {
 			++$deduplicated;
 			continue;
@@ -893,6 +902,7 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/customers' ) {
 		}
 		++$processed;
 	}
+	$state['known_customers']       = $known_customers;
 	$state['customer_event_ids']    = $seen;
 	$state['last_customers_received'] = array_map(
 		static function ( $customer ) {
@@ -1411,8 +1421,17 @@ if ( $method === 'POST' && $path === '/api/v1/identity/merge' ) {
 		);
 	}
 
-	// Customer not yet ingested → 404 (the caller logs + skips).
-	if ( strpos( $email, 'notfound@' ) === 0 ) {
+	// The live engine finds only a customer it already has (§7 "Send the
+	// customer first", v1.23.0). Off by default — older tests merge customers
+	// they never sent; `set_merge_requires_customer( true )` plays the live
+	// rule against the emails §4 took. A `notfound-once@` email answers 404 to
+	// its FIRST merge only, the race §7's single retry covers (a merge that
+	// arrives before the customer row). Each 404 is counted per email.
+	$merge_404 = static function () use ( &$state, $state_file, $email ): void {
+		$counts           = ( isset( $state['merge_404_count'] ) && is_array( $state['merge_404_count'] ) ) ? $state['merge_404_count'] : array();
+		$counts[ $email ] = (int) ( $counts[ $email ] ?? 0 ) + 1;
+		$state['merge_404_count'] = $counts;
+		save_state( $state_file, $state );
 		reply(
 			404,
 			array(
@@ -1420,6 +1439,17 @@ if ( $method === 'POST' && $path === '/api/v1/identity/merge' ) {
 				'message' => 'No customer found with email ' . $email . '. Send via POST /api/v1/ingest/customers first.',
 			)
 		);
+	};
+	if ( ! empty( $state['merge_requires_customer'] ) && empty( $state['known_customers'][ strtolower( $email ) ] ) ) {
+		$merge_404();
+	}
+	if ( strpos( $email, 'notfound-once@' ) === 0 && empty( $state['merge_404_count'][ $email ] ) ) {
+		$merge_404();
+	}
+
+	// Customer not yet ingested → 404 (the caller logs + skips).
+	if ( strpos( $email, 'notfound@' ) === 0 ) {
+		$merge_404();
 	}
 
 	$merge_key   = 'merge_' . md5( $anon . '|' . $email );

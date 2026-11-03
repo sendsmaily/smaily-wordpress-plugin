@@ -1223,6 +1223,24 @@ session from the body — don't turn it back into a skip, and don't add a merge
 per request. `IdentityHookHandler` takes the `LandingCapture` as its fourth
 constructor argument, so a test passes a cookie recorder.
 
+**The login request never calls Campaign Intelligence (CON-268).** `on_login()`
+sets or renews the cookie and queues ONE Action Scheduler action
+(`RecEngine\LoginMerge`, hook `smly_rec_login_merge`, group
+`smaily-rec-login-merge` in `Deactivation::AS_GROUPS`; args user id + token +
+anon session + consent + attempt — never the email). The action sends §4 (the
+customer, only with the login's marketing consent — contract v1.23.0 §4 group
+(c), so `CustomerScope` is not asked) and then §7; a `404 customer_not_found`
+after a §4 200 is retried once, at once; no answer / 429 / 5xx queues the action
+again (60 s, then 300 s, three runs in all); any other 4xx ends it. Its client is
+`rec_client( 1, LoginMerge::TIMEOUT_SECONDS )`. The login's profiling gate is
+`ProfilingConsent::known_opt_out()` (stored state only — `may_profile()` can call
+Smaily and §10); the action runs `may_profile()`. Don't move an engine call back
+into `on_login()`. **Integration-test trap:** a test that logs in must run the
+queued action before it asserts on the mock (`Support\LoginMergeQueue::run_due()`,
+which goes through AS's own runner) and clear the group in tearDown
+(`LoginMergeQueue::forget()`); the mock's `request_paths()` shows the order and
+`set_merge_requires_customer( true )` plays the live 404 rule.
+
 ### An Elementor repeater row field needs an explicit `default` (PRO-3872)
 A repeater whose `fields` are raw arrays (not `Elementor\Repeater::add_control()`)
 skips the control-type default, so a new row's value is `undefined`. The editor
@@ -1310,8 +1328,9 @@ consent.** `smaily_visitor_token` left `EVENT_FIELDS` (a body value is stripped,
 `customer_email`); `BeaconEndpoint::attach_visitor_token()` reads the cookie through
 `LandingCapture::current_visitor_token()` after validation and attaches a `vt_` token
 always, a store `vs_` token only with `MarketingConsent::given()` (contract §5). The
-login merge (`IdentityHookHandler`) applies the same rule. Both have a
-`marketing_consent_given()` test seam. (DECISIONS PRO-3860.)
+login merge (`IdentityHookHandler`, sent by its `LoginMerge` action since CON-268)
+applies the same rule. Both have a `marketing_consent_given()` test seam.
+(DECISIONS PRO-3860.)
 
 **PRO-3620 addendum — the relay never holds a storefront request, and its limit is
 header-proof** (Magento's PRO-3575 hardening, mirrored). (1) `Client::ingest_browse()` is
@@ -1325,7 +1344,9 @@ are `Client::store_uninstall()` (§16 disconnect, CON-219) and `Client::console_
 import's batches; the caller retries 5 minutes later) — and every
 other engine call keeps the retry policy (a history import's sends are built
 with `max_attempts` 1 and a 10 s timeout, `Bootstrap::import_rec_client()`,
-CON-236 — the row-level retry still applies, the single-attempt mode does not)
+CON-236 — the row-level retry still applies, the single-attempt mode does not;
+a login's §4 + §7 calls likewise, `rec_client( 1, LoginMerge::TIMEOUT_SECONDS )`
+in their own AS action, which queues itself again — CON-268)
 (don't route a flusher/backfill through `ingest_browse`'s single-attempt mode, and don't
 "restore" retries on it). A failure is a 502 and a lost batch — by design. (2) The rate
 limit keys on `REMOTE_ADDR` only, never a forwarding header, and the per-IP counter ALWAYS

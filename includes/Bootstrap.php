@@ -71,6 +71,7 @@ use Smaily\Connect\Smaily\RecEngine\CustomerScope;
 use Smaily\Connect\Smaily\RecEngine\HistoryConfig;
 use Smaily\Connect\Smaily\RecEngine\IngestFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
 use Smaily\Connect\Smaily\TransactionalFlusher;
@@ -241,6 +242,8 @@ final class Bootstrap {
 		// The orders-import index on a legacy posts table (CON-259): added in
 		// this background action, never in the update or an admin request.
 		add_action( LegacyOrderDateIndex::HOOK, array( $this, 'on_order_date_index' ) );
+		// A login's §4 + §7 calls (CON-268): queued by the login, sent here.
+		add_action( LoginMerge::HOOK, array( $this, 'on_login_merge' ), 10, 5 );
 
 		// Storefront browse-beacon enqueue (3.4.3). wp_enqueue_scripts is a
 		// front-end-only hook; StorefrontBeacon::enqueue() self-gates on
@@ -395,6 +398,20 @@ final class Bootstrap {
 	 */
 	public function on_order_date_index(): void {
 		( new LegacyOrderDateIndex() )->run();
+	}
+
+	/**
+	 * AS callback for LoginMerge::HOOK (CON-268). AS passes the args as
+	 * positional values (LoginMerge::args()).
+	 *
+	 * @param mixed $user_id         The WP user id.
+	 * @param mixed $token           The visitor token ('' = none).
+	 * @param mixed $anon_session_id The anon session id ('' = none).
+	 * @param mixed $consent         1 with a marketing yes at the login.
+	 * @param mixed $attempt         The run's number, from 1.
+	 */
+	public function on_login_merge( $user_id = 0, $token = '', $anon_session_id = '', $consent = 0, $attempt = 1 ): void {
+		$this->login_merge()->run( $user_id, $token, $anon_session_id, $consent, $attempt );
 	}
 
 	/**
@@ -745,13 +762,12 @@ final class Bootstrap {
 
 		// Rec-engine identity merge (3.7). On login, explicitly bind the
 		// anon-session cookies to the now-known customer (§7) — complementary to
-		// the engine's automatic browse-event retroactive binding (§6).
-		$bootstrap = $this;
-		$identity  = new IdentityHookHandler(
+		// the engine's automatic browse-event retroactive binding (§6). The login
+		// only queues the LoginMerge action; the action sends §4 and §7
+		// (CON-268), so a slow engine never holds a login.
+		$identity = new IdentityHookHandler(
 			$this->rec_engine_settings(),
-			static function () use ( $bootstrap ): RecEngineClient {
-				return $bootstrap->rec_client();
-			},
+			$this->login_merge(),
 			// (a).1: don't retroactively bind an opted-out contact's anon browse
 			// history — respect the profiling opt-out, even backwards.
 			$this->profiling_consent()
@@ -1207,6 +1223,25 @@ final class Bootstrap {
 	 */
 	public function import_rec_client(): RecEngineClient {
 		return $this->rec_client( 1, ImportPace::REQUEST_TIMEOUT_SECONDS );
+	}
+
+	/**
+	 * The background action of a login's engine calls (CON-268): §4 with
+	 * marketing consent, then §7. Its client makes ONE attempt of at most
+	 * LoginMerge::TIMEOUT_SECONDS per request; a failure that may pass later
+	 * is queued again by the action itself, never waited out inside it.
+	 */
+	public function login_merge(): LoginMerge {
+		$bootstrap = $this;
+
+		return new LoginMerge(
+			$this->rec_engine_settings(),
+			static function () use ( $bootstrap ): RecEngineClient {
+				return $bootstrap->rec_client( 1, LoginMerge::TIMEOUT_SECONDS );
+			},
+			$this->customer_payload_builder(),
+			$this->profiling_consent()
+		);
 	}
 
 	/**

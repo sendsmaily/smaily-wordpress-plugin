@@ -29,6 +29,7 @@ use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 
 final class IdentityHookHandlerTest extends TestCase {
@@ -71,197 +72,206 @@ final class IdentityHookHandlerTest extends TestCase {
 	public function test_a_store_token_is_not_sent_without_marketing_consent(): void {
 		$_COOKIE['smaily_anon_sid'] = 'anon-1';
 		$_COOKIE['smaily_rec_uid']  = self::STORE_TOKEN;
-		$client                     = $this->recording_client();
+		$merge = $this->recording_merge();
 
-		$this->handler( $client, false )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false )->on_login( 'mari', $this->user() );
 
-		self::assertCount( 1, $client->merges, 'The anon session is still merged.' );
-		self::assertArrayNotHasKey( 'smaily_visitor_token', $client->merges[0] );
+		self::assertCount( 1, $merge->queued, 'The anon session is still merged.' );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $merge->queued[0] );
 	}
 
 	public function test_a_store_token_alone_without_consent_means_nothing_to_merge(): void {
 		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 
-		$this->handler( $client, false )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false )->on_login( 'mari', $this->user() );
 
-		self::assertSame( array(), $client->merges );
+		self::assertSame( array(), $merge->queued );
 	}
 
 	public function test_a_store_token_is_sent_with_marketing_consent(): void {
 		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 
-		$this->handler( $client, true )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true )->on_login( 'mari', $this->user() );
 
-		self::assertSame( self::STORE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( self::STORE_TOKEN, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_an_engine_token_is_sent_without_marketing_consent(): void {
 		$_COOKIE['smaily_rec_uid'] = self::ENGINE_TOKEN;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 
-		$this->handler( $client, false )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false )->on_login( 'mari', $this->user() );
 
-		self::assertSame( self::ENGINE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( self::ENGINE_TOKEN, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_a_cookie_value_in_neither_token_format_is_not_sent_without_consent(): void {
 		$_COOKIE['smaily_anon_sid'] = 'anon-1';
 		$_COOKIE['smaily_rec_uid']  = 'vs_short';
-		$client                     = $this->recording_client();
+		$merge = $this->recording_merge();
 
-		$this->handler( $client, false )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false )->on_login( 'mari', $this->user() );
 
-		self::assertArrayNotHasKey( 'smaily_visitor_token', $client->merges[0] ?? array() );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $merge->queued[0] ?? array() );
 	}
 
 	// --- CON-251: a store token at login ------------------------------------
 
 	public function test_a_consenting_shopper_without_a_token_gets_a_store_token_sent_in_the_merge(): void {
-		$client  = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
 		$token = $cookies->written['smaily_rec_uid'] ?? '';
 		self::assertMatchesRegularExpression( self::STORE_TOKEN_PATTERN, $token, 'The token has the contract format.' );
 		self::assertEqualsWithDelta( time() + 365 * 86400, $cookies->expires['smaily_rec_uid'] ?? 0, 5, 'The engine config lifetime (default 365 days).' );
-		self::assertCount( 1, $client->merges );
-		self::assertSame( $token, $client->merges[0]['smaily_visitor_token'] ?? null );
-		self::assertArrayNotHasKey( 'anon_session_id', $client->merges[0] );
+		self::assertCount( 1, $merge->queued );
+		self::assertSame( $token, $merge->queued[0]['smaily_visitor_token'] ?? null );
+		self::assertArrayNotHasKey( 'anon_session_id', $merge->queued[0] );
 	}
 
 	public function test_a_new_store_token_goes_with_the_anon_session_in_one_merge(): void {
 		$_COOKIE['smaily_anon_sid'] = 'anon-1';
-		$client                     = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                    = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
-		self::assertCount( 1, $client->merges );
-		self::assertSame( 'anon-1', $client->merges[0]['anon_session_id'] ?? null );
-		self::assertSame( $cookies->written['smaily_rec_uid'] ?? null, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertCount( 1, $merge->queued );
+		self::assertSame( 'anon-1', $merge->queued[0]['anon_session_id'] ?? null );
+		self::assertSame( $cookies->written['smaily_rec_uid'] ?? null, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_no_token_is_created_without_marketing_consent(): void {
-		$client  = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies = $this->recording_cookies();
 
-		$this->handler( $client, false, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->written, 'No cookie is written.' );
-		self::assertSame( array(), $client->merges, 'Nothing to merge.' );
+		self::assertSame( array(), $merge->queued, 'Nothing to merge.' );
 	}
 
 	public function test_without_consent_the_anon_session_is_merged_with_no_token(): void {
 		$_COOKIE['smaily_anon_sid'] = 'anon-1';
-		$client                     = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                    = $this->recording_cookies();
 
-		$this->handler( $client, false, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->written );
-		self::assertCount( 1, $client->merges );
-		self::assertArrayNotHasKey( 'smaily_visitor_token', $client->merges[0] );
+		self::assertCount( 1, $merge->queued );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $merge->queued[0] );
 	}
 
 	public function test_an_existing_store_token_is_kept_and_sent(): void {
 		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                   = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array( 'smaily_rec_uid' => self::STORE_TOKEN ), $cookies->written, 'An existing token is never replaced, only renewed.' );
-		self::assertSame( self::STORE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( self::STORE_TOKEN, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_an_existing_engine_token_is_kept_and_sent_with_consent(): void {
 		$_COOKIE['smaily_rec_uid'] = self::ENGINE_TOKEN;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                   = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array( 'smaily_rec_uid' => self::ENGINE_TOKEN ), $cookies->written, 'The `vt_` cookie is renewed too, with consent.' );
-		self::assertSame( self::ENGINE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( self::ENGINE_TOKEN, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_an_existing_engine_token_without_consent_is_sent_and_no_store_token_is_created(): void {
 		$_COOKIE['smaily_rec_uid'] = self::ENGINE_TOKEN;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                   = $this->recording_cookies();
 
-		$this->handler( $client, false, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->written );
-		self::assertSame( self::ENGINE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( self::ENGINE_TOKEN, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_a_store_token_without_consent_is_not_replaced_by_a_new_one(): void {
 		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                   = $this->recording_cookies();
 
-		$this->handler( $client, false, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->written );
-		self::assertSame( array(), $client->merges );
+		self::assertSame( array(), $merge->queued );
 	}
 
 	public function test_a_cookie_outside_the_token_shape_is_replaced_by_a_store_token_with_consent(): void {
 		$_COOKIE['smaily_rec_uid'] = 'vs_short';
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                   = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertMatchesRegularExpression( self::STORE_TOKEN_PATTERN, $cookies->written['smaily_rec_uid'] ?? '' );
-		self::assertSame( $cookies->written['smaily_rec_uid'] ?? null, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( $cookies->written['smaily_rec_uid'] ?? null, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_no_token_when_the_headers_are_already_sent(): void {
-		$client  = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies = $this->recording_cookies( true );
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->written );
-		self::assertSame( array(), $client->merges, 'No cookie, so no token to send.' );
+		self::assertSame(
+			array(
+				array(
+					'user_id' => 7,
+					'consent' => true,
+				),
+			),
+			$merge->queued,
+			'No cookie, so no token to send; the consenting customer is still sent (§4 group c).'
+		);
 	}
 
 	public function test_no_token_in_cron(): void {
 		Functions\when( 'wp_doing_cron' )->justReturn( true );
-		$client  = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->written );
-		self::assertSame( array(), $client->merges );
+		self::assertArrayNotHasKey( 'smaily_visitor_token', $merge->queued[0] ?? array(), 'No token is created in cron.' );
 	}
 
 	public function test_no_token_for_a_shopper_who_objected_to_profiling(): void {
 		$profiling = $this->createMock( ProfilingConsent::class );
-		$profiling->method( 'may_profile' )->willReturn( false );
-		$client  = $this->recording_client();
+		$profiling->method( 'known_opt_out' )->willReturn( true );
+		$merge = $this->recording_merge();
 		$cookies = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies, $profiling )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies, $profiling )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->written );
-		self::assertSame( array(), $client->merges );
+		self::assertSame( array(), $merge->queued );
 	}
 
 	public function test_no_token_while_sending_is_not_allowed(): void {
-		$client  = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies, null, new FakeRecEngineSettings( true, true ) )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies, null, new FakeRecEngineSettings( true, true ) )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->written );
-		self::assertSame( array(), $client->merges );
+		self::assertSame( array(), $merge->queued );
 	}
 
 	// --- CON-251: one merge per login with a token --------------------------
@@ -269,42 +279,43 @@ final class IdentityHookHandlerTest extends TestCase {
 	public function test_every_login_with_a_token_calls_the_merge_once(): void {
 		$_COOKIE['smaily_anon_sid'] = 'anon-1';
 		$_COOKIE['smaily_rec_uid']  = self::STORE_TOKEN;
-		$client                     = $this->recording_client();
-		$handler                    = $this->handler( $client, true );
+		$merge = $this->recording_merge();
+		$handler                    = $this->handler( $merge, true );
 
 		$handler->on_login( 'mari', $this->user() );
+		$this->merged_meta[7] = 'anon-1'; // The first login's action ran.
 		$handler->on_login( 'mari', $this->user() );
 		$handler->on_login( 'mari', $this->user() );
 
-		self::assertCount( 3, $client->merges, 'Each login renews the token in the engine (§7).' );
-		self::assertSame( 'anon-1', $client->merges[0]['anon_session_id'] ?? null );
-		self::assertArrayNotHasKey( 'anon_session_id', $client->merges[1], 'The session already merged is left out.' );
-		self::assertSame( self::STORE_TOKEN, $client->merges[1]['smaily_visitor_token'] ?? null );
-		self::assertSame( self::STORE_TOKEN, $client->merges[2]['smaily_visitor_token'] ?? null );
+		self::assertCount( 3, $merge->queued, 'Each login renews the token in the engine (§7).' );
+		self::assertSame( 'anon-1', $merge->queued[0]['anon_session_id'] ?? null );
+		self::assertArrayNotHasKey( 'anon_session_id', $merge->queued[1], 'The session already merged is left out.' );
+		self::assertSame( self::STORE_TOKEN, $merge->queued[1]['smaily_visitor_token'] ?? null );
+		self::assertSame( self::STORE_TOKEN, $merge->queued[2]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_the_token_created_at_the_first_login_is_sent_at_the_next(): void {
-		$client  = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies = $this->recording_cookies();
-		$handler = $this->handler( $client, true, $cookies );
+		$handler = $this->handler( $merge, true, $cookies );
 
 		$handler->on_login( 'mari', $this->user() );
 		$handler->on_login( 'mari', $this->user() );
 
 		self::assertCount( 2, $cookies->writes, 'Created at the first login, renewed at the second.' );
 		self::assertSame( $cookies->writes[0][1], $cookies->writes[1][1], 'One token for the browser.' );
-		self::assertCount( 2, $client->merges );
-		self::assertSame( $client->merges[0]['smaily_visitor_token'] ?? null, $client->merges[1]['smaily_visitor_token'] ?? 'missing' );
+		self::assertCount( 2, $merge->queued );
+		self::assertSame( $merge->queued[0]['smaily_visitor_token'] ?? null, $merge->queued[1]['smaily_visitor_token'] ?? 'missing' );
 	}
 
 	public function test_a_login_on_a_merged_session_without_a_token_makes_no_call(): void {
 		$_COOKIE['smaily_anon_sid'] = 'anon-1';
 		$this->merged_meta[7]       = 'anon-1';
-		$client                     = $this->recording_client();
+		$merge = $this->recording_merge();
 
-		$this->handler( $client, false )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false )->on_login( 'mari', $this->user() );
 
-		self::assertSame( array(), $client->merges );
+		self::assertSame( array(), $merge->queued );
 	}
 
 	// --- Erkki 2026-11-02: a consenting login renews the cookie ------------
@@ -314,15 +325,15 @@ final class IdentityHookHandlerTest extends TestCase {
 	 */
 	public function test_a_consenting_login_renews_the_cookie_with_the_same_value_and_a_fresh_lifetime( string $token ): void {
 		$_COOKIE['smaily_rec_uid'] = $token;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                   = $this->recording_cookies();
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertCount( 1, $cookies->writes );
 		self::assertSame( array( 'smaily_rec_uid', $token ), array_slice( $cookies->writes[0], 0, 2 ), 'Same cookie, same value.' );
 		self::assertEqualsWithDelta( time() + 365 * 86400, $cookies->writes[0][2], 5, 'A fresh lifetime from now.' );
-		self::assertSame( $token, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( $token, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	/**
@@ -331,13 +342,13 @@ final class IdentityHookHandlerTest extends TestCase {
 	public function test_without_consent_the_cookie_is_not_renewed( string $token ): void {
 		$_COOKIE['smaily_anon_sid'] = 'anon-1';
 		$_COOKIE['smaily_rec_uid']  = $token;
-		$client                     = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                    = $this->recording_cookies();
 
-		$this->handler( $client, false, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, false, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->writes );
-		self::assertCount( 1, $client->merges, 'The merge itself keeps today\'s rules.' );
+		self::assertCount( 1, $merge->queued, 'The merge itself keeps today\'s rules.' );
 	}
 
 	/**
@@ -352,22 +363,22 @@ final class IdentityHookHandlerTest extends TestCase {
 
 	public function test_no_renewal_when_the_headers_are_already_sent_and_the_merge_still_goes(): void {
 		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
-		$client                    = $this->recording_client();
+		$merge = $this->recording_merge();
 		$cookies                   = $this->recording_cookies( true );
 
-		$this->handler( $client, true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $merge, true, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->writes );
-		self::assertSame( self::STORE_TOKEN, $client->merges[0]['smaily_visitor_token'] ?? null );
+		self::assertSame( self::STORE_TOKEN, $merge->queued[0]['smaily_visitor_token'] ?? null );
 	}
 
 	public function test_no_renewal_for_a_shopper_who_objected_to_profiling(): void {
 		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
 		$profiling                 = $this->createMock( ProfilingConsent::class );
-		$profiling->method( 'may_profile' )->willReturn( false );
+		$profiling->method( 'known_opt_out' )->willReturn( true );
 		$cookies = $this->recording_cookies();
 
-		$this->handler( $this->recording_client(), true, $cookies, $profiling )->on_login( 'mari', $this->user() );
+		$this->handler( $this->recording_merge(), true, $cookies, $profiling )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->writes );
 	}
@@ -377,7 +388,7 @@ final class IdentityHookHandlerTest extends TestCase {
 		$_COOKIE['smaily_rec_uid'] = self::STORE_TOKEN;
 		$cookies                   = $this->recording_cookies();
 
-		$this->handler( $this->recording_client(), true, $cookies )->on_login( 'mari', $this->user() );
+		$this->handler( $this->recording_merge(), true, $cookies )->on_login( 'mari', $this->user() );
 
 		self::assertSame( array(), $cookies->writes );
 	}
@@ -385,24 +396,17 @@ final class IdentityHookHandlerTest extends TestCase {
 	// --- doubles ----------------------------------------------------------
 
 	private function handler(
-		Client $client,
+		LoginMerge $merge,
 		bool $consent,
 		?LandingCapture $cookies = null,
 		?ProfilingConsent $profiling = null,
 		?RecEngineSettings $settings = null
 	): IdentityHookHandler {
-		return new class( $settings ?? new FakeRecEngineSettings(), $client, $consent, $cookies ?? $this->recording_cookies(), $profiling ) extends IdentityHookHandler {
+		return new class( $settings ?? new FakeRecEngineSettings(), $merge, $consent, $cookies ?? $this->recording_cookies(), $profiling ) extends IdentityHookHandler {
 			private bool $test_consent;
 
-			public function __construct( RecEngineSettings $settings, Client $client, bool $consent, LandingCapture $cookies, ?ProfilingConsent $profiling ) {
-				parent::__construct(
-					$settings,
-					static function () use ( $client ): Client {
-						return $client;
-					},
-					$profiling,
-					$cookies
-				);
+			public function __construct( RecEngineSettings $settings, LoginMerge $merge, bool $consent, LandingCapture $cookies, ?ProfilingConsent $profiling ) {
+				parent::__construct( $settings, $merge, $profiling, $cookies );
 				$this->test_consent = $consent;
 			}
 
@@ -454,16 +458,37 @@ final class IdentityHookHandlerTest extends TestCase {
 	}
 
 	/**
-	 * A Client double that records every §7 merge body it was asked to send.
+	 * A LoginMerge double that records what each login queued, shaped like
+	 * the §7 body the action sends: `anon_session_id` and
+	 * `smaily_visitor_token` only when set, plus the user id and the consent.
 	 */
-	private function recording_client(): Client {
-		return new class( 'sk_unit', 'https://engine.unit' ) extends Client {
+	private function recording_merge(): LoginMerge {
+		return new class( new FakeRecEngineSettings() ) extends LoginMerge {
 			/** @var array<int, array<string, mixed>> */
-			public array $merges = array();
+			public array $queued = array();
 
-			public function merge_identity( array $merge ): array {
-				$this->merges[] = $merge;
-				return array( 'ok' => true );
+			public function __construct( RecEngineSettings $settings ) {
+				parent::__construct(
+					$settings,
+					static function (): Client {
+						throw new \LogicException( 'The login sends nothing to the engine (CON-268).' );
+					}
+				);
+			}
+
+			public function enqueue( int $user_id, string $token, string $anon_session_id, bool $consent ): bool {
+				$entry = array(
+					'user_id' => $user_id,
+					'consent' => $consent,
+				);
+				if ( $anon_session_id !== '' ) {
+					$entry['anon_session_id'] = $anon_session_id;
+				}
+				if ( $token !== '' ) {
+					$entry['smaily_visitor_token'] = $token;
+				}
+				$this->queued[] = $entry;
+				return true;
 			}
 		};
 	}
