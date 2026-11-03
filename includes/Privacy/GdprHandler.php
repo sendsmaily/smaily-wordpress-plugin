@@ -23,6 +23,7 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 
 /**
@@ -237,8 +238,9 @@ class GdprHandler {
 	 * the next ORDERS_PER_PAGE orders. Page 1 also does, once, everything
 	 * that is not about one order: it drops the waiting updates of the WP
 	 * user and of EVERY order billed to the address (ids only, nothing
-	 * loaded) before the engine call, so no order on a later page sends the
-	 * customer to the engine again after it (PRO-3906); then the engine
+	 * loaded), and the user's waiting login jobs, before the engine call, so
+	 * nothing sends the customer to the engine again after it (PRO-3906,
+	 * CON-275); then the engine
 	 * call, the identity marker, the cart sessions, both queues, the refused
 	 * list, the discount codes and the messages.
 	 *
@@ -513,7 +515,10 @@ class GdprHandler {
 	 * Delete the customer's customer and order updates that are still waiting
 	 * in the Campaign Intelligence queue (PRO-3906): the WP user with this
 	 * address, and the orders billed to it. A row not yet attempted holds no
-	 * copy, so IngestQueue::delete_for_privacy_request() cannot see it.
+	 * copy, so IngestQueue::delete_for_privacy_request() cannot see it. The
+	 * user's waiting login jobs go too (CON-275): a run would send the
+	 * customer (§4) and bind the visitor token (§7). A new Action Scheduler
+	 * job that carries a user must be cancelled here as well.
 	 *
 	 * @param int[] $order_ids The ids of every order billed to the address.
 	 */
@@ -523,6 +528,8 @@ class GdprHandler {
 		$user_id = $this->user_id_for( $email );
 		if ( $user_id > 0 ) {
 			$deleted += $this->ingest_queue->delete_unsent( CustomerFlusher::EVENT_CUSTOMER_UPSERT, array( $user_id ) );
+			// A waiting login job would send the customer and bind the token (CON-275).
+			$deleted += LoginMerge::forget_user( $user_id );
 		}
 
 		if ( $order_ids !== array() ) {

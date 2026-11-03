@@ -9996,8 +9996,10 @@ action's `may_profile()` then sends nothing, so the engine never binds that
 token.
 **What the action rows keep:** the token and the user id sit in Action
 Scheduler's table until the daily janitor prunes finished `smly_rec_%` rows
-after 7 days (PRO-2438); an action whose user was erased in the meantime finds
-no user and sends nothing.
+after 7 days (PRO-2438); an action whose user was deleted in the meantime finds
+no user and sends nothing. **Corrected by CON-275:** a personal-data erasure
+does not delete the WP user, so the erasure itself cancels the user's waiting
+runs.
 **Alternatives:** keep the merge in the login with a short single-attempt
 client — rejected: still an engine call in the login, and §4 + a 404 retry
 would add more. Queue the customer through the ingest queue — rejected: the
@@ -10016,6 +10018,41 @@ contract §4, §7 v1.23.0. Pinned by
 request and records their order — `request_paths()`;
 `set_merge_requires_customer()` plays the live 404 rule; a `notfound-once@`
 email answers 404 to its first merge).
+
+### CON-275 — An erasure cancels the customer's waiting login jobs (2026-11-03)
+
+**Context:** CON-268 moved the login's engine calls into the
+`smly_rec_login_merge` Action Scheduler action, which can wait as a due run or
+as a back-off run (60 s, then 300 s). The personal-data eraser never touched
+Action Scheduler, and an erasure keeps the WP user, so a run after the eraser's
+§9 DELETE read the user's address again, sent the customer (§4) and bound the
+token to them (§7) — the erased customer was back in the engine (pre-3.21.0
+audit, finding L1).
+**Decision:** the eraser cancels every waiting run of the WP user with the
+address — any token, session, consent or run number — through
+`LoginMerge::forget_user()`, in `GdprHandler::drop_waiting_updates()`, so on
+page 1 before the engine call, beside the PRO-3906 queue drop. Action
+Scheduler cancels by exact args only, so the method reads the hook's pending
+actions in its group (all pages) and cancels each of this user with its own
+stored args (`as_unschedule_all_actions( HOOK, args, AS_GROUP )`). A
+cancelled job counts as removed in the eraser's answer. Defence in depth stays:
+a run for a user who no longer exists finds no user and sends nothing.
+**Rationale:** a waiting job is a resend of the erased person, like a waiting
+queue row (PRO-3906), and it holds the token. Reading the args is the only way
+to find every run: the token, the session and the run number are not known to
+the eraser.
+**Alternatives:** check at run time whether the user was erased — rejected,
+the store keeps no lasting record of an erasure (PRO-3906, Erkki); one
+`as_unschedule_all_actions()` by group — rejected, it would cancel every other
+customer's login job too.
+**Not covered:** a run that has already started when the eraser runs cannot be
+cancelled. A login after the erasure is a new action and queues a new job, as a
+later order does (PRO-3906).
+**Relationships:** CON-268 (the login job, corrected above), PRO-3906 (the
+waiting queue rows, the same place and order), PRO-2438 (finished rows pruned
+after 7 days). Pinned by `tests/Unit/Smaily/RecEngine/LoginMergeTest.php`,
+`tests/Unit/Privacy/GdprHandlerTest.php` and
+`tests/Integration/RecEngineLoginMergeActionTest.php`.
 
 ## How to keep this document going
 

@@ -190,15 +190,16 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 = 3.21.0 =
 * New: connecting Campaign Intelligence imports your products, then customers, then orders, each when the one before has finished. Hold back or Cancel stops the sequence.
 * New: a connected store that never finished its customers or orders import starts it once after this update, without a click. An import you held back or cancelled stays stopped.
-* New: the "Open Campaign Intelligence" button in Settings opens your store's console with a one-time sign-in link.
+* New: "Open Campaign Intelligence" in Settings opens your store's console with a one-time sign-in link.
 * Improved: imports send faster, at a steady pace. The Orders import sends the last 18 months first, then older orders back to 60 months; older orders are not sent.
-* Improved: the import cards count the records Campaign Intelligence accepted, and the plugin reports the import's progress to Campaign Intelligence.
+* Improved: the import cards count the records Campaign Intelligence accepted, and the import reports its progress to it.
 * Improved: on legacy order storage, a database index added in the background speeds up the Orders import, only where the server can build it without blocking writes.
 * Changed: Campaign Intelligence gets only the customers it can use: those your contact sync sends to Smaily, those with an order in the history window, and a customer who logs in with marketing consent.
 * New: a customer who logs in with marketing consent gets the store's visitor cookie, so the Recommendations block knows them after logout. A login no longer waits for Campaign Intelligence.
 * Improved: your store's server sets the email-click cookies, so Safari keeps them for their full lifetime.
 * Changed: an automation card shows its workflow and settings only while it is on, and an automation that is off makes no discount code.
 * Changed: a design Campaign Intelligence delivers to Smaily as a workflow is used for emails on the Smaily account it names, transactional emails included, in your store's default language. This replaces the 3.19.0 "main Smaily account" rule.
+* Privacy: erasing a customer's personal data also cancels their waiting background login sync, so it cannot send the erased customer to Campaign Intelligence again.
 * Fixed: an update from 1.x or 2.0.0 removes the old abandoned-cart table only after every unsent cart is copied.
 * Fixed: the Edit design "Back to your store" link is set only for your store's own admin address.
 * Updated to the Smaily Campaign Intelligence API contract v1.24.0.
