@@ -63,6 +63,7 @@ Art 21 (profiling objection).
 | _smaily_rec_ctx | order-meta | Rec context at attribution | Yes — rec-specific | Removed |
 | _smaily_anon_session_id | order-meta | Anon session linked to the order | Yes — rec-specific | Removed |
 | _smaily_rec_merged_anon_sid | user-meta | Last anon-session merged into this user (3.7 dedup marker) | Yes — rec-specific | Removed |
+| `smly_rec_login_merge` action | Action Scheduler's actions table (group `smaily-rec-login-merge`) | One waiting login job (CON-268): args are the WP user id, the visitor token, the anon session id, the consent flag and the run number — no email | No | **Cancelled** — every waiting run of the WP user with the address (any token, any run number), on page 1 before the engine call (CON-275). A run would send the customer (§4) and bind the token (§7) after the §9 DELETE. A finished row stays until the janitor prunes it after 7 days (PRO-2438) |
 
 **Important boundary.** `_smaily_rec_id` and friends sit *on* a WooCommerce order
 object, but they are rec-specific meta the plugin added. The plugin's exporter

@@ -24,6 +24,7 @@ use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 
 final class GdprHandlerTest extends TestCase {
 
@@ -238,6 +239,50 @@ final class GdprHandlerTest extends TestCase {
 			),
 			$ingest->unsent_calls
 		);
+	}
+
+	public function test_erase_cancels_the_users_waiting_login_jobs(): void {
+		// CON-275: a waiting login job would send the customer and bind the token.
+		Functions\when( 'get_user_by' )->alias(
+			static fn ( string $field, $value ) => $field === 'email' && $value === 'erase-me@example.test'
+				? new class() extends \WP_User {
+					public function __construct() {
+						$this->ID         = 7;
+						$this->user_email = 'erase-me@example.test';
+					}
+				}
+				: false
+		);
+		$job = LoginMerge::args( 7, 'vs_0123456789ABCDEFabcdef', '', true, 2 );
+		Functions\when( 'as_get_scheduled_actions' )->alias(
+			static fn (): array => array(
+				new class( $job ) {
+					/** @var array<string, mixed> */
+					private array $args;
+
+					/** @param array<string, mixed> $args */
+					public function __construct( array $args ) {
+						$this->args = $args;
+					}
+
+					/** @return array<string, mixed> */
+					public function get_args(): array {
+						return $this->args;
+					}
+				},
+			)
+		);
+		$unscheduled = array();
+		Functions\when( 'as_unschedule_all_actions' )->alias(
+			function ( string $hook, array $args, string $group ) use ( &$unscheduled ): void {
+				$unscheduled[] = array( $hook, $args, $group );
+			}
+		);
+
+		$result = $this->handler( $this->fake_store( array() ), null, array(), $this->fake_ingest_queue( 0 ) )->erase( 'erase-me@example.test' );
+
+		self::assertTrue( $result['items_removed'], 'A cancelled login job counts as removed.' );
+		self::assertSame( array( array( LoginMerge::HOOK, $job, LoginMerge::AS_GROUP ) ), $unscheduled );
 	}
 
 	public function test_a_wp_user_whose_address_differs_by_an_accent_is_not_the_requester(): void {
