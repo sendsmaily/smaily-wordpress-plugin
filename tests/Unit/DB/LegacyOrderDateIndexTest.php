@@ -1,8 +1,8 @@
 <?php
 /**
  * LegacyOrderDateIndex (CON-259) — when the orders-import index is due, which
- * storage gets it, the online-DDL statement and its fallback, and the bounded
- * failure state, with a recording $wpdb.
+ * storage gets it, the online-DDL statement (no plain fallback, CON-267), and
+ * the bounded failure state, with a recording $wpdb.
  *
  * @package Smaily\Connect\Tests
  */
@@ -155,6 +155,11 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		self::assertNull( LegacyOrderDateIndex::due_at( $failed, 6000 ), 'No retry forever.' );
 	}
 
+	public function test_a_permanent_failure_is_never_due_again(): void {
+		$failed = array( 'status' => LegacyOrderDateIndex::STATUS_FAILED, 'attempts' => 1, 'at' => 5000, 'permanent' => true );
+		self::assertNull( LegacyOrderDateIndex::due_at( $failed, 5000 + 10 * LegacyOrderDateIndex::RETRY_AFTER_SECONDS ) );
+	}
+
 	public function test_a_running_attempt_waits_and_one_the_host_killed_counts_as_failed(): void {
 		$now     = 100000;
 		$running = array( 'status' => LegacyOrderDateIndex::STATUS_RUNNING, 'attempts' => 1, 'at' => $now - 60 );
@@ -176,7 +181,7 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		self::assertFalse( LegacyOrderDateIndex::covers( array( 'post_date_gmt' ) ) );
 	}
 
-	public function test_only_a_refused_online_ddl_clause_falls_back_to_a_plain_add(): void {
+	public function test_only_a_refused_online_ddl_clause_is_a_permanent_failure(): void {
 		self::assertTrue( LegacyOrderDateIndex::is_clause_refused( 'ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY' ) );
 		self::assertTrue( LegacyOrderDateIndex::is_clause_refused( 'LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED' ) );
 		self::assertTrue( LegacyOrderDateIndex::is_clause_refused( "You have an error in your SQL syntax; check the manual near 'ALGORITHM=INPLACE, LOCK=NONE' at line 1" ) );
@@ -281,26 +286,50 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		self::assertSame( 1, $this->state()['attempts'] );
 	}
 
-	public function test_a_server_that_refuses_the_online_clause_gets_a_plain_add(): void {
-		$this->wpdb->fail = array( 'ALGORITHM=INPLACE' => 'ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY' );
-
-		self::assertSame( LegacyOrderDateIndex::STATUS_ADDED, self::on( LegacyOrderDateIndex::STORAGE_LEGACY )->run() );
-		self::assertSame(
-			array(
-				'ALTER TABLE wp_posts ADD INDEX smaily_connect_order_date (post_type, post_date_gmt, ID), ALGORITHM=INPLACE, LOCK=NONE',
-				'ALTER TABLE wp_posts ADD INDEX smaily_connect_order_date (post_type, post_date_gmt, ID)',
-			),
-			$this->wpdb->alters()
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function refusals(): array {
+		return array(
+			'1845 algorithm' => array( 'ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY' ),
+			'1846 lock'      => array( 'LOCK=NONE is not supported. Reason: COPY algorithm requires a lock. Try LOCK=SHARED' ),
+			'syntax'         => array( "You have an error in your SQL syntax; check the manual near 'ALGORITHM=INPLACE, LOCK=NONE' at line 1" ),
 		);
 	}
 
-	public function test_a_denied_alter_is_recorded_without_a_plain_retry_and_tried_again_later(): void {
+	/**
+	 * @dataProvider refusals
+	 */
+	public function test_a_server_that_refuses_the_online_clause_gets_no_index_and_no_retry( string $refusal ): void {
+		$this->wpdb->fail = array( 'ADD INDEX' => $refusal );
+		$index            = self::on( LegacyOrderDateIndex::STORAGE_LEGACY );
+
+		self::assertSame( LegacyOrderDateIndex::STATUS_FAILED, $index->run() );
+
+		self::assertSame(
+			array( 'ALTER TABLE wp_posts ADD INDEX smaily_connect_order_date (post_type, post_date_gmt, ID), ALGORITHM=INPLACE, LOCK=NONE' ),
+			$this->wpdb->alters(),
+			'No plain ADD INDEX: it could block writes to the posts table.'
+		);
+		$state = $this->state();
+		self::assertSame( LegacyOrderDateIndex::STATUS_FAILED, $state['status'] );
+		self::assertSame( 1, $state['attempts'] );
+		self::assertTrue( $state['permanent'] );
+		self::assertNull( LegacyOrderDateIndex::due_at( $state, (int) $state['at'] + 10 * LegacyOrderDateIndex::RETRY_AFTER_SECONDS ) );
+
+		$this->wpdb->queries = array();
+		self::assertSame( 'not_due', $index->run() );
+		self::assertSame( array(), $this->wpdb->queries );
+	}
+
+	public function test_a_denied_alter_is_recorded_and_tried_again_later(): void {
 		$this->wpdb->fail = array( 'ADD INDEX' => "ALTER command denied to user 'shop'@'localhost' for table 'wp_posts'" );
 
 		self::assertSame( LegacyOrderDateIndex::STATUS_FAILED, self::on( LegacyOrderDateIndex::STORAGE_LEGACY )->run() );
 
-		self::assertCount( 1, $this->wpdb->alters(), 'Only a refused clause falls back to a plain ADD INDEX.' );
+		self::assertCount( 1, $this->wpdb->alters() );
 		$state = $this->state();
+		self::assertArrayNotHasKey( 'permanent', $state, 'A denied ALTER is tried again.' );
 		self::assertSame( LegacyOrderDateIndex::STATUS_FAILED, $state['status'] );
 		self::assertSame( 1, $state['attempts'] );
 		self::assertSame( "ALTER command denied to user '?'@'?' for table '?'", $state['error'] );
