@@ -1,8 +1,8 @@
 # Smaily Recommendation Engine — API Contract v1.21
 
-**Version**: 1.22.0
+**Version**: 1.23.0
 **Published**: 2026-05-19
-**Last updated**: 2026-11-02 (v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-02 (v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -966,7 +966,7 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 
 **Rate limit**: 100 req/sec, **1..100 customers per request**. The `customers` wrapper must be an array of 1–100 items — a non-array (or empty / >100) `customers` is a `400 validation_failed` (the wrapper is all-or-nothing). Per-**item** validation failures do not fail the batch; they are reported per item in `errors[]` (see the response below).
 
-**Which customers to send** (v1.20.0, data minimisation). Send (a) every customer the connector's own contact sync puts into Smaily, by the sync mode the store chose (for example newsletter subscribers in a consent mode, every registered customer in a legitimate-interest mode), and (b) every customer with an order inside `now − config.history.horizon_months` (60 months). Leave out every other customer — for example, in a consent mode, a customer account that never bought and never subscribed. The rule is what the connector itself syncs, never "is a contact in the Smaily account", which a connector cannot know (Erkki 2026-10-28). In a history import, send every customer in scope **in the start part**, before the background part ([§25](#25-post-apiv1ingesthistoryprogress)): the engine's measurement group is drawn from the customers that exist when the store owner switches it on, and a customer that arrives later is not measured. Guest buyers arrive with their orders, as before.
+**Which customers to send** (v1.20.0, data minimisation). Send (a) every customer the connector's own contact sync puts into Smaily, by the sync mode the store chose (for example newsletter subscribers in a consent mode, every registered customer in a legitimate-interest mode), (b) every customer with an order inside `now − config.history.horizon_months` (60 months), and (c) (v1.23.0) every customer who logs in and has given marketing consent in the store — at that login or earlier, and not withdrawn. Send a group (c) customer at that login, before the identity merge ([§7](#store-created-token-at-login)). Leave out every other customer — for example, in a consent mode, a customer account that never bought, never subscribed and never logged in with marketing consent. The rule is what the connector itself syncs, never "is a contact in the Smaily account", which a connector cannot know (Erkki 2026-10-28). In a history import, send every customer in scope **in the start part**, before the background part ([§25](#25-post-apiv1ingesthistoryprogress)): the engine's measurement group is drawn from the customers that exist when the store owner switches it on, and a customer that arrives later is not measured. Guest buyers arrive with their orders, as before.
 
 **Request body**:
 ```json
@@ -1416,6 +1416,8 @@ At least **one** of `anon_session_id` or `smaily_visitor_token` must be present 
 
 The engine matches `customer_email` without regard to letter case (v1.22.0), as the customers and orders endpoints do.
 
+**Retry after 404** (v1.23.0, INT-195). A merge that answers `404 customer_not_found` may be retried **once**, after the connector has sent the customer with [§4](#4-post-apiv1ingestcustomers) and §4 has answered `200` for that customer. This covers a merge of a just-registered customer that arrives before the customer row. Do not retry a `404` more than once, and do not retry it before the customer is sent.
+
 **Idempotency**: same merge twice = no-op (events already bound; the second call's `browse_events_updated` reports 0).
 
 <a id="store-created-token-at-login"></a>
@@ -1425,6 +1427,7 @@ The engine matches `customer_email` without regard to letter case (v1.22.0), as 
 - **Consent.** Create and send a `vs_` token **only for a shopper who has given marketing consent** in the store — at this login or earlier, and not withdrawn. Without consent, create no token and send none. The engine cannot see the consent; the store is responsible for it.
 - **Cookie.** Store the token in the visitor-token cookie, set by the server, as at checkout. When the shopper already has a visitor-token cookie, keep it and send that value — do not replace it with a new token.
 - **When to call.** Call the merge at each login of a shopper who has given marketing consent, with the visitor-token cookie value. Each merge renews the shopper's own token (below). At least one of `anon_session_id` and `smaily_visitor_token` is still required.
+- **Send the customer first** (v1.23.0, INT-195). At that login, send the shopper with [§4](#4-post-apiv1ingestcustomers) before the merge, also when the shopper never bought: a shopper who logs in with marketing consent is in the §4 scope (group c). The merge finds only a customer the engine already has.
 - **What the engine does.** The engine binds the token to the merge's customer (the `customer_email` customer), with the same rules as an order ([§5](#store-created-visitor-token)):
   - An unknown `vs_` token is created for that customer, valid for 14 months from the merge.
   - A token (`vs_` or `vt_`) that is already bound to the **same** customer is renewed to 14 months from the merge. A token is never shortened.
@@ -3366,7 +3369,7 @@ No date may be more than one day ahead of the engine's clock. Counts and dates o
 1. Read `config.history` from the setup exchange or, before each import, from the ping (fallback when absent: 18 / 60 / `newest_first`).
 2. Call progress with `started`.
 3. Send the whole catalogue (§3).
-4. Send every customer in scope (§4): the customers the connector's contact sync puts into Smaily, plus every customer with an order on or after `horizon_start`. Leave out every other customer.
+4. Send every customer in scope (§4): the customers the connector's contact sync puts into Smaily, plus every customer with an order on or after `horizon_start`. Leave out every other customer. A customer who logs in with marketing consent (§4 group c, v1.23.0) is sent at that login, not in the import.
 5. Send orders **newest first**, from now back to `now − start_months`.
 6. Call progress with `start_part_complete`, the counts and `oldest_sent_at`.
 7. Continue orders newest first down to `horizon_start`, or the platform's limit. Call progress at most every 5 minutes.
@@ -3801,6 +3804,14 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **What the engine does.** The same as for an order (§5): an unknown `vs_` token is created for the merge's customer, a token of the same customer is renewed to 14 months from the merge (receipt time, not `merge_ts`), a token of another customer does not move, a customer who objected to profiling is not bound. An unknown `vt_` token and an invalid `vs_` value create nothing.
 - **Also.** The merge matches `customer_email` without regard to letter case.
 - **Shapes.** Request and response unchanged. `visitor_tokens_bound` is `1` when the token is bound to the merge's customer after the call.
+
+**v1.23.0** (2026-11-02) — **A consenting login is in the customer scope**. MINOR bump per the [Versioning](#versioning) rule (no shape change; backward-compatible). INT-195, Erkki's decisions 2026-11-02:
+- **Why.** A customer who logs in with marketing consent, is not in the connector's contact sync and has never bought was outside the §4 scope. The connector never sent that customer, the §7 merge answered `404 customer_not_found`, and the store's `vs_` token (v1.22.0) never bound.
+- **§4: a third group.** Every customer who logs in and has given marketing consent in the store. The connector sends that customer at the login, before the merge. Groups (a) and (b) do not change.
+- **§7: one retry.** A merge that answers `404 customer_not_found` may be retried once, after the connector has sent the customer with §4. This covers a just-registered customer whose merge arrives before the customer row.
+- **§25.** Sender rule 4 names the third group: it is sent at the login, not in the history import.
+- **What the plugin does.** At the login of a shopper who has given marketing consent: send the customer (§4), then call the merge (§7). On `404 customer_not_found`, send the customer and retry the merge once. **A plugin that does none of this keeps working unchanged.**
+- **Shapes.** Request and response unchanged.
 
 ### Appendix F: Migration notes
 

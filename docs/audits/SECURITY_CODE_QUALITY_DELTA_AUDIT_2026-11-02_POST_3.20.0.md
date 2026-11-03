@@ -550,6 +550,18 @@ upgrade notice should say so (L4).
 
 Backlog: L2, L3.
 
+## Disposition (Erkki, 2026-11-03)
+
+| # | Disposition |
+|---|---|
+| M1 (Medium) | **Being fixed in CON-268:** the login merge moves to a background job, so the login no longer waits on the engine. In progress, not merged. |
+| L1 (Low) | **CON-267** (PR #298, not merged): the index is added only by an online build (`ALGORITHM=INPLACE, LOCK=NONE`); a refusal is recorded and never retried with a plain `ADD INDEX`. |
+| L2, L3 (Low) | Backlog, as recommended. |
+| L4 (Low) | At the bump, as recommended. |
+| L5, L6, L7 (Low) | Fixed in this PR (#296). |
+| I10 (Info, the contract-sync blocker) | **Resolved by #297:** the contract copy is synced byte for byte to v1.23.0 (engine `a35a94d`); no wire-shape change, so no code or mock change. |
+| Other Info | Accepted as recorded above. |
+
 ## Conclusion
 
 The delta adds two REST routes, two schema steps, an index on a core
