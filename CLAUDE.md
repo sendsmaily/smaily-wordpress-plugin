@@ -1454,6 +1454,12 @@ index on `{$wpdb->posts}`:
   an attempt counted before the ALTER; `lock_wait_timeout` 5 s around it
   (the metadata-lock pile-up an unbounded wait causes on `wp_posts` takes a
   store down). A new core-table schema step copies this shape.
+- **Online DDL or nothing (CON-267, audit L1):** the only statement is
+  `ADD INDEX …, ALGORITHM=INPLACE, LOCK=NONE`. Never add back a plain
+  `ADD INDEX` for a server that refuses the clause — that build can block
+  writes to `wp_posts`, where legacy storage writes orders. A refused clause
+  (`is_clause_refused()`) is a permanent failure: state `permanent: true`,
+  never tried again; other failures keep the day-later retry.
 - **Uninstall drops it by name** (`uninstall.php` requires the class file
   itself — it needs only `$wpdb`); deactivation leaves it.
 - **Testing it:** `tests/Integration/LegacyOrderDateIndexTest.php` skips per

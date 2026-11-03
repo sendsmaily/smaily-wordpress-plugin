@@ -40,14 +40,18 @@ use Smaily\Connect\Support\DebugLog;
  *     ALTER.
  *   - Idempotent: SHOW INDEX first. This index, or any index whose first two
  *     columns are (post_type, post_date_gmt), counts as present.
- *   - Online DDL: `ALGORITHM=INPLACE, LOCK=NONE` (reads and writes go on
- *     while it builds); a server that refuses the clause gets a plain ADD
- *     INDEX. The metadata-lock wait is capped at LOCK_WAIT_SECONDS, so an
- *     open long transaction makes the attempt fail instead of queueing every
- *     query on the table behind it.
+ *   - Online DDL only: `ALGORITHM=INPLACE, LOCK=NONE` (reads and writes go
+ *     on while it builds). There is no plain ADD INDEX: a server that refuses
+ *     the clause could build it with a lock that blocks writes to the posts
+ *     table, where a legacy-storage store writes its orders (CON-267, audit
+ *     L1). Such a refusal is a permanent failure: the index is not added and
+ *     never tried again. The metadata-lock wait is capped at
+ *     LOCK_WAIT_SECONDS, so an open long transaction makes the attempt fail
+ *     instead of queueing every query on the table behind it.
  *   - Bounded failure: a failed attempt is a debug-log line and a stored
  *     state (OPTION). It is tried again after RETRY_AFTER_SECONDS, at most
- *     MAX_ATTEMPTS times in all; then never again. An attempt is counted
+ *     MAX_ATTEMPTS times in all; then never again. A refused online clause
+ *     is never tried again (`permanent` in the state). An attempt is counted
  *     before the ALTER, so a run the host kills counts too. The import works
  *     the same without the index, only slower.
  *   - Uninstall drops it (drop(), from uninstall.php); deactivation leaves
@@ -106,7 +110,7 @@ class LegacyOrderDateIndex {
 		$this->connected = $connected ?? static function (): bool {
 			return ( new RecEngineSettings() )->is_connected();
 		};
-		$this->storage = $storage ?? static function (): string {
+		$this->storage   = $storage ?? static function (): string {
 			if ( ! class_exists( 'WooCommerce' ) ) {
 				return self::STORAGE_NONE;
 			}
@@ -166,14 +170,22 @@ class LegacyOrderDateIndex {
 			return self::STATUS_ADDED;
 		}
 
-		self::write_state( self::STATUS_FAILED, $attempts, time(), $error );
+		// A server that cannot build the index online today cannot tomorrow.
+		$permanent = self::is_clause_refused( $error );
+		$error     = self::redact( $error );
+		self::write_state( self::STATUS_FAILED, $attempts, time(), $error, $permanent );
+		if ( $permanent ) {
+			$next = ', not tried again: the server cannot add it without blocking writes';
+		} else {
+			$next = $attempts < self::MAX_ATTEMPTS ? ', tried again in a day' : ', not tried again';
+		}
 		DebugLog::write(
 			sprintf(
 				'[smaily-connect] Could not add the orders-import index %s to the posts table (attempt %d of %d%s): %s',
 				self::INDEX,
 				$attempts,
 				self::MAX_ATTEMPTS,
-				$attempts < self::MAX_ATTEMPTS ? ', tried again in a day' : ', not tried again',
+				$next,
 				$error
 			)
 		);
@@ -196,7 +208,8 @@ class LegacyOrderDateIndex {
 
 	/**
 	 * When the next attempt is due, or null when none ever is (added,
-	 * present, or MAX_ATTEMPTS used). An empty state is due at once.
+	 * present, a permanent failure, or MAX_ATTEMPTS used). An empty state is
+	 * due at once.
 	 *
 	 * @param array<string, mixed> $state
 	 */
@@ -218,7 +231,10 @@ class LegacyOrderDateIndex {
 				// The attempt never finished: it counts as a failed one.
 				return $attempts >= self::MAX_ATTEMPTS ? null : $now;
 			default:
-				return $attempts >= self::MAX_ATTEMPTS ? null : $at + self::RETRY_AFTER_SECONDS;
+				if ( ! empty( $state['permanent'] ) || $attempts >= self::MAX_ATTEMPTS ) {
+					return null;
+				}
+				return $at + self::RETRY_AFTER_SECONDS;
 		}
 	}
 
@@ -235,10 +251,11 @@ class LegacyOrderDateIndex {
 	}
 
 	/**
-	 * Whether a failed ALTER failed on the online-DDL clause only (MySQL /
-	 * MariaDB error 1845 / 1846, or a syntax error from a server that does
-	 * not know the clause), so a plain ADD INDEX may still work. A lock wait
-	 * timeout, a denied ALTER or any other error is not.
+	 * Whether a failed ALTER failed on the online-DDL clause (MySQL / MariaDB
+	 * error 1845 / 1846, or a syntax error from a server that does not know
+	 * the clause): the server cannot build the index without blocking writes,
+	 * so the failure is permanent. A lock wait timeout, a denied ALTER or any
+	 * other error is not — it is tried again a day later.
 	 */
 	public static function is_clause_refused( string $error ): bool {
 		return (bool) preg_match( '/\b(ALGORITHM|LOCK)\s*=|SQL syntax/i', $error );
@@ -311,26 +328,18 @@ class LegacyOrderDateIndex {
 	}
 
 	/**
-	 * Add the index: online first, plain when the server refuses the clause.
+	 * Add the index online. There is no plain ADD INDEX when the server
+	 * refuses the clause (CON-267): it could block writes to the posts table.
 	 *
-	 * @return string '' on success, else the redacted database error.
+	 * @return string '' on success, else the database error (not yet redacted).
 	 */
 	private static function add(): string {
 		global $wpdb;
 		$error = '';
 		$added = self::with_lock_wait(
 			static function () use ( $wpdb, &$error ): bool {
-				$add = "ALTER TABLE {$wpdb->posts} ADD INDEX " . self::INDEX . ' (post_type, post_date_gmt, ID)';
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- the approved index on the core posts table (CON-259); no input in the statement.
-				if ( $wpdb->query( $add . ', ALGORITHM=INPLACE, LOCK=NONE' ) !== false ) {
-					return true;
-				}
-				$error = (string) $wpdb->last_error;
-				if ( ! self::is_clause_refused( $error ) ) {
-					return false;
-				}
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- the same index without the online-DDL clause the server refused.
-				if ( $wpdb->query( $add ) !== false ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- the approved index on the core posts table (CON-259); no input in the statement.
+				if ( $wpdb->query( "ALTER TABLE {$wpdb->posts} ADD INDEX " . self::INDEX . ' (post_type, post_date_gmt, ID), ALGORITHM=INPLACE, LOCK=NONE' ) !== false ) {
 					return true;
 				}
 				$error = (string) $wpdb->last_error;
@@ -338,7 +347,7 @@ class LegacyOrderDateIndex {
 			}
 		);
 
-		return $added ? '' : self::redact( $error !== '' ? $error : 'unknown database error' );
+		return $added ? '' : ( $error !== '' ? $error : 'unknown database error' );
 	}
 
 	/**
@@ -351,7 +360,7 @@ class LegacyOrderDateIndex {
 	private static function with_lock_wait( callable $change ): bool {
 		global $wpdb;
 		$suppressed = $wpdb->suppress_errors( true );
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- session variables only; integer values.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- session variables only; integer values.
 		$previous = $wpdb->get_var( 'SELECT @@SESSION.lock_wait_timeout' );
 		$wpdb->query( 'SET SESSION lock_wait_timeout = ' . (int) self::LOCK_WAIT_SECONDS );
 		try {
@@ -362,20 +371,23 @@ class LegacyOrderDateIndex {
 			}
 			$wpdb->suppress_errors( $suppressed );
 		}
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
 
-	private static function write_state( string $status, int $attempts, int $at, string $error ): void {
-		update_option(
-			self::OPTION,
-			array(
-				'status'   => $status,
-				'attempts' => $attempts,
-				'at'       => $at,
-				'error'    => $error,
-			),
-			false
+	/**
+	 * @param bool $permanent A failure that is never tried again (the server refused online DDL).
+	 */
+	private static function write_state( string $status, int $attempts, int $at, string $error, bool $permanent = false ): void {
+		$state = array(
+			'status'   => $status,
+			'attempts' => $attempts,
+			'at'       => $at,
+			'error'    => $error,
 		);
+		if ( $permanent ) {
+			$state['permanent'] = true;
+		}
+		update_option( self::OPTION, $state, false );
 	}
 
 	/**

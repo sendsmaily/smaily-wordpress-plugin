@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.21
+# Smaily Recommendation Engine — API Contract v1.24
 
-**Version**: 1.23.0
+**Version**: 1.24.0
 **Published**: 2026-05-19
-**Last updated**: 2026-11-02 (v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-03 (v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -91,7 +91,7 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
 
 **Character encoding**: all request and response strings are UTF-8. JSON keys use lowercase + underscore (`first_name`, not `firstName`).
 
-**Timezone**: all timestamp fields use ISO 8601 in UTC (`2026-05-19T10:15:23Z`). The engine converts internally to the tenant's timezone when needed.
+**Timezone**: all timestamp fields use ISO 8601 with a zone. Send UTC with `Z` (`2026-05-19T10:15:23Z`) — the recommended form. Since v1.24.0 the request timestamps of §3 (`on_sale_until`), §4 (`first_seen_at`), §5 (`ordered_at`, `items[].returned_at`), §6 (`event_ts`), §7 (`merge_ts`) and §14 (`occurred_at`) also accept a UTC offset (`2026-05-19T12:15:23+02:00`, `+0200`); the engine normalises the value to UTC before it stores or compares it. A timestamp without a zone (`2026-05-19T10:15:23`) or a date only is rejected. The engine returns UTC and converts internally to the tenant's timezone when needed.
 
 **ID formats**:
 - Tenant IDs: UUID v4
@@ -121,16 +121,16 @@ The API key is tenant-scoped, obtained via `POST /api/setup/exchange`. **The API
 The setup endpoint (`POST /api/setup/exchange`) and, since v1.16.0, the onboarding start (`POST /api/v1/onboarding/start`, [§21](#21-post-apiv1onboardingstart)) are the **only** unauthenticated endpoints. The setup endpoint accepts a setup token instead of an API key; the onboarding start accepts the store's Smaily API login.
 
 **Auth failure responses**:
-- `401 Unauthorized` if the `Authorization` header is missing or the API key is invalid
-- `401 Unauthorized` with `error: "api_key_revoked"` and a `regenerate_url` if the API key has been revoked in the admin UI
+- `401 Unauthorized` with `error: "unauthorised"` for every bad key: the `Authorization` header is missing, the key is unknown, or the key was revoked (by the operator, or by [§16](#16-post-apiv1storeuninstall)). The engine does not say whether a key once existed (v1.24.0). The only exception is §16 itself: a repeat with the key that §16 revoked answers the store's current state.
 
 ```json
 {
-  "error": "api_key_revoked",
-  "regenerate_url": "https://intelligence.smaily.com/setup/regenerate/{tenant_id}",
-  "message": "Your API key was revoked. Use the regenerate URL to obtain a new one."
+  "error": "unauthorised",
+  "message": "Valid API key required (Authorization: Bearer <api_key>)"
 }
 ```
+
+The plugin shows the store an admin notice and a way to reconnect (a new setup link from the Smaily operator or the console). There is no regenerate URL in the response.
 
 ---
 
@@ -216,7 +216,7 @@ The plugin manages four cookies. Names come from the **engine setup-response con
 | 201 | Created (resource created) | — |
 | 204 | No Content (success, no body) | — |
 | 400 | Bad Request — invalid request body | NO |
-| 401 | Unauthorized — API key invalid or revoked | NO (display admin notice) |
+| 401 | Unauthorized — API key missing, unknown or revoked (one `unauthorised` answer) | NO (display admin notice) |
 | 403 | Forbidden — tenant deactivated or access denied | NO |
 | 404 | Not Found — resource does not exist | NO |
 | 409 | Conflict — idempotency conflict (rare) | NO |
@@ -529,12 +529,14 @@ An unknown value is stored as absent (`global`), never a `400`: a failed setup e
 
 > **History import** (v1.20.0): `config.history` says how much order history to send and in which order — `start_months` 18 (the start part), `horizon_months` 60 (the oldest order to send, the same for every sector pack), `order` `newest_first` ([§25](#25-post-apiv1ingesthistoryprogress)); `ingest_history_progress` is the progress call. A connection set up before v1.20.0 has neither: it reads `config.history` from the ping ([§2](#2-get-apiv1ingestping)) and uses the fallback path constant `/api/v1/ingest/history/progress`. When neither the exchange nor the ping has the block, use 18 / 60 / `newest_first`.
 
+> **Batch size** (v1.24.0): `config.batch_size_max` is the recommended number of items per request, **100** (the exchange answered 1000 before v1.24.0). It is not the route maximum: catalog ([§3](#3-post-apiv1ingestcatalog)) and browse ([§6](#6-post-apiv1ingestbrowse)) accept 1–1000 items, customers ([§4](#4-post-apiv1ingestcustomers)) 1–100 and orders ([§5](#5-post-apiv1ingestorders)) 1–50.
+
 **Response 410 Gone** (token expired or used):
 ```json
 {
   "error": "setup_token_expired_or_used",
   "message": "This setup token has expired or has already been used. Ask the engine administrator to generate a new one.",
-  "regenerate_url": "https://intelligence.smaily.com/admin/tenants/{tenant_id}/regenerate-setup-token",
+  "regenerate_url": "https://intelligence.smaily.com/admin/tenants/{tenant_id}#setup",
   "request_id": "req_..."
 }
 ```
@@ -614,14 +616,14 @@ Batch upload of the product catalog. The engine UPSERTs each product (same `sku`
 
 **Auth**: `Authorization: Bearer sk_...`
 
-**Rate limit**: 100 req/sec, up to 100 products per request
+**Rate limit**: 100 req/sec. A request carries 1–1000 products; send 100 per request (recommended, `config.batch_size_max`)
 
 **Request body**:
 ```json
 {
   "products": [
     {
-      "event_id": "evt_b3f1a2c4-...",
+      "event_id": "b3f1a2c4-6d1e-4f7a-9b2c-3e5d7f9a1b2c",
       "sku": "ACA-DOG-3KG",
       "name": "Acana Adult Dog 3kg",
       "category_path": "food/dry",
@@ -694,7 +696,7 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 | `category_path` | string | YES | Hierarchical category (`food/dry`, `accessories/leashes`) |
 | `price` | number | YES | Customer's current selling price (NOT regular_price) |
 | `compare_price` | number | NO | Pre-sale ("was") price. A sale exists **iff `compare_price > price`** (Shopify convention). Null / equal to / less than `price` → no sale. See [Sale semantics](#sale-semantics) below. |
-| `on_sale_until` | ISO 8601 string | NO | Informational only — stored but does **not** gate sale display (a sale is driven by `compare_price > price` alone). |
+| `on_sale_until` | ISO 8601 string | NO | Informational only — stored but does **not** gate sale display (a sale is driven by `compare_price > price` alone). A UTC offset is accepted and normalised to UTC (v1.24.0). |
 | `currency` | string (ISO 4217) | NO | Default `EUR`. Stored **as sent** — not strictly ISO-validated (loose format check: 3 uppercase letters). One currency per tenant remains the assumed model — mirrors `orders.currency` ([§5](#5-post-apiv1ingestorders)). |
 | `in_stock` | boolean | YES | Whether the product is available |
 | `description` | string \| `{lang: string}` | NO | Short description (max 500 characters) |
@@ -703,7 +705,7 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 | `websites` | object \| `null` | NO | (v1.21.0) The websites that sell the product, with its link on each. See [Several websites](#catalog-websites). Absent or `null` = sold on every website with the row's values. |
 | `external_id` | string | NO | Plugin/platform internal ID (for debugging/traceability). |
 | `tags` | object | NO | Best-effort mapping (engine uses immediately). Includes the optional `category_defaulted` marker — see [below](#category-defaulted). |
-| `raw_attributes` | object | NO | Raw platform data. **Currently stored verbatim and not processed** — the AI mapping wizard / `unmapped_attributes` flow is planned, not yet implemented. |
+| `raw_attributes` | object | NO | Raw platform data. Stored verbatim, and the engine maps the keys it knows into `tags` on every upsert (v1.24.0 states this; see [Raw attributes](#raw-attributes)). Keys it does not map are reported in `unmapped_attributes`. |
 | `product_type` | string | NO | Platform product type — WC `simple`/`variable`/`grouped`/`external` **plus gift-card plugins' custom types** (`pw-gift-card`, `gift-card`, `gift_card`, `wc_gc`, …). The **robust non-product signal**: the engine derives `recommendable` from this (gift-card types → excluded). Send it; do not hard-filter on it yourself. |
 | `is_virtual` | boolean | NO | WC virtual flag. **Stored as signal, not auto-excluding** — a legitimate digital/virtual-goods store sells these. Lets the engine distinguish a digital store from a config artifact. |
 | `is_downloadable` | boolean | NO | WC downloadable flag. Same semantics as `is_virtual` — stored, not auto-excluding. |
@@ -791,7 +793,8 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
   "ok": true,
   "processed": 47,
   "deduplicated": 0,
-  "errors": []
+  "errors": [],
+  "unmapped_attributes": ["pa_color"]
 }
 ```
 
@@ -805,13 +808,23 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
   "deduplicated": 0,
   "errors": [
     {"index": 1, "sku": "ACA-BAD", "field": "product_url", "message": "Invalid input"}
-  ]
+  ],
+  "unmapped_attributes": []
 }
 ```
 
 Each product is validated **independently**: a product that fails validation goes to `errors[]` as `{index, sku?, field, message}` (`index` is its position in `products[]`; `sku` is included when present) and is **not** written; valid products in the same batch are still processed. A rejected product's `event_id` is **not** registered, so a corrected retry of that product still processes.
 
-> **Not yet implemented:** the `unmapped_attributes` response array and the AI mapping wizard are planned but not built. `raw_attributes` is currently stored verbatim and not processed, so no `unmapped_attributes` is emitted.
+<a name="raw-attributes"></a>
+**Raw attributes** (stated in v1.24.0; the engine has done this since 2026-06-08). On every upsert the engine reads `raw_attributes` with a deterministic mapper (`lib/ingest/attribute-mapping.ts`, no AI call). It strips a platform prefix (`pa_`, `meta_`, `attribute_`, `wpcf-`, `_`) from each key, lower-cases it and maps the keys it knows into `tags`:
+- `species` / `pet` / `animal` → `tags.species` (`cat`, `dog`); `life_stage` / `lifestage` / `age` → `tags.life_stage` (`kitten`, `puppy`, `adult`, `senior`); `litter_type` → `tags.litter_type`;
+- `brand` / `manufacturer` / `kaubamargid` / `kaubamark` → `tags.brand` (casing kept; a bare number, such as a term id, or the shop's own name or domain is not a brand);
+- `protein` / `flavour` / `flavor` → `tags.protein`; `sensitivity_flags` / `sensitivity` / `diet` → `tags.sensitivity_flags`;
+- `typical_pack_size` / `pack_size` / `weight` / `size` → `tags.pack_size_kg` (when the value is in kg, or the pack's lexicon reads bare numbers as kg) and the `typical_pack_size` column when the product does not send one.
+
+The vocabulary is per sector pack (the tenant's industry lexicon): a key that belongs to another sector's vocabulary is not mapped for this store. The lexicon also derives tags from `category_path` and `name` (for example `tags.category_canonical`, `tags.species`, `replenishable`). Every value the request sends explicitly wins: a key in `tags` overrides the mapped and derived value, and `replenishable` / `typical_pack_size` fall back to the derived value only when the product does not send one. `_wc_categories`, `category_path` and `categories` are recognised and not mapped.
+
+**`unmapped_attributes`** — every catalog `200` response carries it: an array of the `raw_attributes` keys, as sent, that the engine did not map in this request (an unknown key, a known key with a value the engine does not recognise, or another sector's key), each key once. An empty array means every key was mapped. It is informational: the product is still written. Use it to find a sender-side mapping problem (for example brand term ids instead of labels).
 
 **Response 200 OK (deduplicated retry, all items)**:
 ```json
@@ -820,6 +833,7 @@ Each product is validated **independently**: a product that fails validation goe
   "processed": 0,
   "deduplicated": 5,
   "errors": [],
+  "unmapped_attributes": [],
   "deduplicated_all": true
 }
 ```
@@ -973,7 +987,7 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 {
   "customers": [
     {
-      "event_id": "evt_a1b2c3d4-...",
+      "event_id": "a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
       "email": "mari@example.com",
       "first_name": "Mari",
       "last_name": "Tamm",
@@ -998,7 +1012,7 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 | `country` | string (ISO 3166-1 alpha-2) | NO | E.g. "EE", "FI", "US". Stored **as sent** — not strictly ISO-validated (N-8). |
 | `language` | string (ISO 639-1) | NO | E.g. "et", "en", "ru". Drives **per-customer localization** of the recommendation fields pushed to Smaily — `rec_N_name` / `rec_N_description` / `rec_N_link_url` are resolved from the catalog `*_i18n` columns in this language (fallback: `tenant_settings.default_language` → `en` → `default` → first). Also pushed to the Smaily contact's native `language` field for segmentation — only when sent. When absent, localization and copy use the tenant default, and the Smaily `language` field is left as it is (never overwritten with the default). Stored **as sent** — not strictly ISO-validated (N-8). See `MULTILINGUAL_DESIGN.md`. |
 | `phone` | string | NO | |
-| `first_seen_at` | ISO 8601 | NO | Registration timestamp (if different from row creation). Not overwritten on update (earliest wins). |
+| `first_seen_at` | ISO 8601 | NO | Registration timestamp (if different from row creation). Not overwritten on update (earliest wins). A UTC offset is accepted and normalised to UTC (v1.24.0). |
 | `external_id` | string | NO | Platform-internal user_id |
 | `website` | string | NO | (v1.21.0) The code of the website this customer account belongs to (Magento: the website of `customer.website_id`). The row's `external_id` and `language` belong to this website. An invalid value is ignored, never rejected. See [Several websites](#customer-website). |
 
@@ -1060,7 +1074,7 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 {
   "orders": [
     {
-      "event_id": "evt_c1d2e3f4-...",
+      "event_id": "c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5",
       "external_order_id": "WC-12345",
       "customer_email": "mari@example.com",
       "ordered_at": "2026-05-15T14:30:00Z",
@@ -1100,7 +1114,7 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 | `event_id` | UUID v4 string | NO | Per-order transport-level dedup key. See [Idempotency](#idempotency). |
 | `external_order_id` | string | YES | Plugin/platform order ID (UNIQUE per tenant — natural key) |
 | `customer_email` | string | YES | Customer reference is by email (not external_id). Engine lowercases on ingest. |
-| `ordered_at` | ISO 8601 | YES | Order placement timestamp |
+| `ordered_at` | ISO 8601 | YES | Order placement timestamp. A UTC offset is accepted and normalised to UTC (v1.24.0). |
 | `total_amount` | number | YES | Grand total charged — **gross/tax-inclusive**, incl. shipping, after discounts (see Amount semantics) |
 | `discount_amount` | number | NO | Total discount (default 0) |
 | `currency` | string (ISO 4217) | NO | Default `EUR`. Stored **as sent** — not strictly ISO-validated. |
@@ -1116,7 +1130,7 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 | `items[].unit_price` | number | YES | Per-unit price, **gross** (see Amount semantics) |
 | `items[].line_total` | number | YES | Line total, **gross**, after line discounts (see Amount semantics) |
 | `items[].discount_amount` | number | NO | Line-specific discount |
-| `items[].returned_at` | ISO 8601 | NO | When this line came back. See [Return signals](#return-signals). |
+| `items[].returned_at` | ISO 8601 | NO | When this line came back. See [Return signals](#return-signals). A UTC offset is accepted and normalised to UTC (v1.24.0). |
 | `items[].return_reason_standardised` | enum | NO | Why it came back, from the engine's 7-value vocabulary. **An unrecognised value is never rejected** — see [Return signals](#return-signals). |
 | `items[].return_reason_raw` | string | NO | The platform's verbatim reason string (Shopify `returnReasonNote` or reason-definition handle, Woo's free-text refund reason). Truncated to 500 chars, never rejected. Diagnostic only. |
 
@@ -1210,7 +1224,7 @@ Browse events batch. The highest-volume endpoint.
 
 **Auth**: `Authorization: Bearer sk_...`
 
-**Rate limit**: 500 req/sec (higher than other endpoints), up to 100 events per request
+**Rate limit**: 500 req/sec (higher than other endpoints). A request carries 1–1000 events; send 100 per request (recommended, `config.batch_size_max`)
 
 **Event types** (the full `event_type` enum — exactly these 9; any other value → a per-item `errors[{field: event_type}]`):
 - `product_view` — customer opened a product page
@@ -1230,7 +1244,7 @@ Browse events batch. The highest-volume endpoint.
 {
   "events": [
     {
-      "event_id": "evt_7d8f3a2b-4e1c-...",
+      "event_id": "7d8f3a2b-4e1c-4d8a-9b2f-7e3d1a6c8b9e",
       "session_id": "wp_sess_abc123",
       "event_type": "product_view",
       "sku": "ACA-DOG-3KG",
@@ -1256,11 +1270,11 @@ Browse events batch. The highest-volume endpoint.
 | `event_id` | UUID v4 string | YES | Plugin-generated, transport-level dedup key. Required for browse (no natural key). |
 | `session_id` | string | YES | Plugin manages the session cookie (`smaily_anon_sid`) |
 | `event_type` | enum | YES | See event types list |
-| `sku` | string | NO | Required for `product_view`, `cart_add`, `cart_remove` |
-| `category_path` | string | NO | Required for `category_view` |
-| `search_query` | string | NO | Required for `search` |
+| `sku` | string | NO | SHOULD: send it for `product_view`, `cart_add`, `cart_remove`. An event without it is stored, not rejected (v1.24.0). |
+| `category_path` | string | NO | SHOULD: send it for `category_view`. An event without it is stored, not rejected (v1.24.0). |
+| `search_query` | string | NO | SHOULD: send it for `search`. An event without it is stored, not rejected (v1.24.0). |
 | `dwell_seconds` | integer | NO | Time on page (for `product_view`) |
-| `event_ts` | ISO 8601 | YES | Event occurrence timestamp |
+| `event_ts` | ISO 8601 | YES | Event occurrence timestamp. A UTC offset is accepted and normalised to UTC (v1.24.0). |
 | `source` | string | NO | Defaults to `web` if omitted. Constant: `web`, `plugin_woo`, `plugin_shopify`, `plugin_magento`, `make`, `custom`. The engine stores `source` as an opaque label (not enum-validated); senders must use their listed constant so per-source analytics stay clean. |
 | `customer_email` | string | NO | Identity hint (if user is logged in). **Deprecated for client-originated senders — see below.** |
 | `smaily_visitor_token` | string | NO | Identity hint (from cookie) |
@@ -1385,7 +1399,7 @@ Anonymous visitor → known customer manual merge. The plugin calls this when a 
 | `smaily_visitor_token` | string | NO | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`): an engine `vt_` token from an email link, or a `vs_` token the store created at checkout ([§5](#store-created-visitor-token)) or at this login ([below](#store-created-token-at-login)). Binds the token to the merge's customer (below). |
 | `customer_email` | string | YES | Known customer identity |
 | `customer_external_id` | string | NO | Platform user_id |
-| `merge_ts` | ISO 8601 | YES | Merge timestamp |
+| `merge_ts` | ISO 8601 | NO | The time of the login or checkout in the store (v1.24.0: optional, as the engine already treats it). When sent, it must be a valid ISO 8601 timestamp (a UTC offset is accepted), else the merge answers `400 validation_failed`. The engine does not use the value: token lifetimes count from when the engine receives the merge ([below](#store-created-token-at-login)). |
 | `merge_reason` | enum | NO | `user_logged_in`, `email_provided_at_checkout`, `manual_admin` |
 
 At least **one** of `anon_session_id` or `smaily_visitor_token` must be present (otherwise there's nothing to merge).
@@ -2150,7 +2164,7 @@ below).
 | `title` | string | YES | Shown in the drawer card |
 | `body` | string | YES | Shown in the drawer card |
 | `payload` | object | NO | Free-form (counts, job stats, an action spec). Defaults to `{}` |
-| `occurred_at` | ISO 8601 | YES | When the producer says this happened |
+| `occurred_at` | ISO 8601 | YES | When the producer says this happened. A UTC offset is accepted and normalised to UTC (v1.24.0). |
 
 Wrapper is **all-or-nothing**: `events` must be an array of 1..50 items — a
 non-array / empty / >50 request → `400 validation_failed`. Individual events
@@ -2468,7 +2482,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/store/uninstall \
 
 | Status | `error` | Meaning |
 | --- | --- | --- |
-| 401 | `unauthorised` / `api_key_revoked` | As in [Authentication](#authentication). |
+| 401 | `unauthorised` | Missing, unknown or revoked key, as in [Authentication](#authentication). |
 | 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
 | 404 | `unknown_automation` | `{key}` is not in this store's catalogue (another sector, or unknown). |
 | 422 | `validation_failed` | `return_url` or `language` is invalid. Body: `{"error":"validation_failed","errors":[{"field":"return_url","message":"…"}]}` (the §13 shape, without `index`). |
@@ -2660,7 +2674,7 @@ The response does not repeat the recipient address.
 | Status | `error` | Meaning |
 | --- | --- | --- |
 | 400 | `invalid_json` | The body is not valid JSON. |
-| 401 | `unauthorised` / `api_key_revoked` | As in [Authentication](#authentication). |
+| 401 | `unauthorised` | Missing, unknown or revoked key, as in [Authentication](#authentication). |
 | 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
 | 404 | `unknown_automation` | `{key}` is not in this store's catalogue. |
 | 409 | `not_ready` | The email cannot be sent yet. `details.reasons` lists one or more of: `no_workflow`, `workflow_not_active` (new in v1.18.0: the email's Smaily workflow exists and is not active — for example, its sender domain is not verified yet), `no_design`, `design_check_failed` (the design check failed — a required field, slot guard, unsubscribe link or `smaily_rec` parameter is missing), `missing_subject`, `no_sender` (no from-address), `no_products` (no customer of the store has recommendations for this email yet). Unknown values: show "Setup is not complete". |
@@ -2761,7 +2775,7 @@ A lower `daily_cap` wins at every step. The days count from the **first real sen
 | Status | `error` | Meaning |
 | --- | --- | --- |
 | 400 | `invalid_json` | The body is not valid JSON. |
-| 401 | `unauthorised` / `api_key_revoked` | As in [Authentication](#authentication). |
+| 401 | `unauthorised` | Missing, unknown or revoked key, as in [Authentication](#authentication). |
 | 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
 | 404 | `unknown_automation` | `{key}` is not in this store's catalogue. |
 | 409 | `go_live_blocked` | Real sends cannot be switched on now. `details.blockers` has the §12 `go_live_blockers` values, for example `{"error":"go_live_blocked","message":"…","details":{"blockers":["stopped_needs_review"]}}`. Show the reasons. For `stopped_needs_review`, say that a Smaily operator reviews the stop first. |
@@ -3021,7 +3035,7 @@ Engine emails keep the v1.15.0 design check: locked recommendation blocks, the u
 
 | Status | `error` | Meaning |
 | --- | --- | --- |
-| 401 | `unauthorised` / `api_key_revoked` | As in [Authentication](#authentication). |
+| 401 | `unauthorised` | Missing, unknown or revoked key, as in [Authentication](#authentication). |
 | 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
 | 404 | `unknown_email` | `{email_key}` is not a catalogue key of this store and has no starter. |
 | 422 | `validation_failed` | `return_url` or `language` is invalid (the §17 shape). |
@@ -3229,7 +3243,7 @@ The response is the same for a console user and for anyone else. The plugin need
 | Status | `error` | Meaning | What the plugin shows |
 | --- | --- | --- | --- |
 | 400 | `validation_failed` | `email` is missing or not an email (`errors[]` names the field `email`). | Its own error; a plugin bug. |
-| 401 | `unauthorised` / `api_key_revoked` | See [Authentication](#authentication). | The reconnect path. |
+| 401 | `unauthorised` | Missing, unknown or revoked key, see [Authentication](#authentication). | The reconnect path. |
 | 403 | `tenant_inactive` | The store is suspended, or its deletion was requested. | "This store is no longer active in Campaign Intelligence." |
 | 404 | `not_found` | Console entry is switched off, or the connection uses the store's legacy key. | Hide the button, or show the console address. |
 | 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). | Try again in a minute. |
@@ -3357,7 +3371,7 @@ No date may be more than one day ahead of the engine's clock. Counts and dates o
 | --- | --- | --- |
 | 400 | `invalid_json` | The body is not JSON. |
 | 400 | `validation_failed` | A field is missing or out of range (`details` names it). Fix the call; do not retry it unchanged. |
-| 401 | `unauthorised` / `api_key_revoked` | See [Authentication](#authentication). |
+| 401 | `unauthorised` | Missing, unknown or revoked key, see [Authentication](#authentication). |
 | 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
 | 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). |
 | 500 | `db_failure` | The engine did not store the call. Retry with backoff; the call is idempotent. |
@@ -3446,7 +3460,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/catalog \
   -d '{
     "products": [
       {
-        "event_id": "evt_b3f1a2c4-4e1c-4d8a-9b2f-7e3d1a6c8b9e",
+        "event_id": "b3f1a2c4-4e1c-4d8a-9b2f-7e3d1a6c8b9e",
         "sku": "TEST-001",
         "name": "Test Product",
         "category_path": "test",
@@ -3466,7 +3480,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
   -d '{
     "events": [
       {
-        "event_id": "evt_7d8f3a2b-4e1c-4d8a-9b2f-7e3d1a6c8b9e",
+        "event_id": "7d8f3a2b-4e1c-4d8a-9b2f-7e3d1a6c8b9e",
         "session_id": "test_session_001",
         "event_type": "product_view",
         "sku": "TEST-001",
@@ -3811,6 +3825,18 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **§7: one retry.** A merge that answers `404 customer_not_found` may be retried once, after the connector has sent the customer with §4. This covers a just-registered customer whose merge arrives before the customer row.
 - **§25.** Sender rule 4 names the third group: it is sent at the login, not in the history import.
 - **What the plugin does.** At the login of a shopper who has given marketing consent: send the customer (§4), then call the merge (§7). On `404 customer_not_found`, send the customer and retry the merge once. **A plugin that does none of this keeps working unchanged.**
+- **Shapes.** Request and response unchanged.
+
+**v1.24.0** (2026-11-03) — **The contract states what the engine does; batch size 100; timestamps with a UTC offset**. MINOR bump per the [Versioning](#versioning) rule (no shape change; backward-compatible). INT-193, Erkki's decisions 2026-11-03. Eight places where the contract and the engine disagreed:
+- **Batch size (§3, §6).** Catalog and browse accept 1–1000 items per request (the contract said up to 100 in one place and 1000 in another). 100 per request is recommended.
+- **`config.batch_size_max` (§1) — engine change.** The setup exchange now answers `100`, the recommended batch, as the contract example always showed (it answered `1000`). Customers accept at most 100 and orders at most 50 per request, unchanged.
+- **Revoked key (Authentication, §§17, 19, 20, 22, 24, 25).** Every missing, unknown or revoked key answers one `401 unauthorised`; the engine does not say whether a key once existed. The `api_key_revoked` error and its `regenerate_url` were never sent and are removed. (The setup exchange's `410` `regenerate_url` is a different field and stays; its example now shows the real operator page.)
+- **`event_id` examples (§3–§6, Appendix).** Every example is a plain UUID v4; the `evt_` prefix in the old examples was never valid (`event_id` must be a UUID).
+- **Browse `sku`, `category_path`, `search_query` (§6).** SHOULD, not required: send them for the event types they describe; an event without them is stored, not rejected.
+- **Timestamps with a UTC offset — engine change.** `on_sale_until` (§3), `first_seen_at` (§4), `ordered_at` and `items[].returned_at` (§5), `event_ts` (§6), `merge_ts` (§7) and `occurred_at` (§14) accept an offset (`+02:00`, `+0200`) and are normalised to UTC before the engine stores or compares them. `Z` stays the recommended form. A timestamp without a zone is still rejected.
+- **`raw_attributes` (§3).** The engine maps the keys it knows into `tags` (per the store's sector lexicon; sent `tags` win), and every catalog `200` carries `unmapped_attributes` (the keys it did not map). The v1.0.0 W2 notes that called both "not implemented" are superseded.
+- **`merge_ts` (§7).** Optional, as the engine already treats it. Validated when sent, not used: token lifetimes count from receipt.
+- **What the plugin does.** Nothing is required. A plugin that reads `config.batch_size_max` sends batches of 100 after its next setup exchange; one that sends `evt_`-prefixed `event_id`s gets them rejected per item, as before — send a UUID. A plugin that handles `api_key_revoked` can drop that branch: the `unauthorised` branch covers it.
 - **Shapes.** Request and response unchanged.
 
 ### Appendix F: Migration notes

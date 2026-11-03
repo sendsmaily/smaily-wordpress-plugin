@@ -9865,8 +9865,9 @@ on 2026-11-02.**
 - **Online DDL:** `ALTER TABLE … ADD INDEX …, ALGORITHM=INPLACE, LOCK=NONE`
   (reads and writes go on during the build). Only when the server refuses
   that clause (error 1845/1846, or a syntax error from a server that does not
-  know it — `is_clause_refused()`) does it try a plain `ADD INDEX`. The
-  session's `lock_wait_timeout` is set to 5 s for the statement and restored
+  know it — `is_clause_refused()`) does it try a plain `ADD INDEX`
+  (**superseded 2026-11-02 by CON-267, see the update below — there is no
+  plain fallback any more**). The session's `lock_wait_timeout` is set to 5 s for the statement and restored
   after: an online ALTER still needs a brief exclusive metadata lock, and with
   the server default (a day in MariaDB, a year in MySQL) one open long
   transaction would make every later query on the posts table queue behind
@@ -9929,6 +9930,23 @@ per admin request), PRO-2437 (the hourly recurring-jobs check), PRO-3435
 (both order storages in CI). Pinned by
 `tests/Unit/DB/LegacyOrderDateIndexTest.php` and
 `tests/Integration/LegacyOrderDateIndexTest.php`.
+**Update 2026-11-02 (CON-267, audit L1):** the plain `ADD INDEX` fallback is
+gone (Erkki, 2026-11-02). The 2026-11-02 pre-release audit (L1) found that
+the cases which reached it are the ones where the server cannot build the
+index without blocking writes — a server that refuses `LOCK=NONE` for the
+table (a MyISAM posts table, for example) or one too old to know the clause
+(it copies the table) — and on legacy storage `wp_posts` is where orders are
+written; `lock_wait_timeout` bounds the wait for the lock, not the build.
+Now the only statement is the online one. **A refused clause is a permanent
+failure:** `run()` records `{status: failed, attempts, at, error, permanent:
+true}` and `due_at()` returns null, so it is never tried again — the refusal
+comes from the server's version or the table's engine, so a server that
+refuses today refuses tomorrow, and two more attempts would only repeat the
+same refusal. Every other failure (a lock-wait timeout, a denied ALTER) keeps
+the day-later retry, at most 3 attempts. The import works without the index
+at today's speed. Alternative rejected: keep the fallback and document that
+it may block writes (the audit's other option) — a blocked order write costs
+more than a slower import page.
 
 ### CON-268 — A login sends nothing to Campaign Intelligence; a background action sends the customer, then the merge (2026-11-03)
 
