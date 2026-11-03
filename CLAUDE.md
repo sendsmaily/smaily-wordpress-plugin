@@ -1240,6 +1240,10 @@ queued action before it asserts on the mock (`Support\LoginMergeQueue::run_due()
 which goes through AS's own runner) and clear the group in tearDown
 (`LoginMergeQueue::forget()`); the mock's `request_paths()` shows the order and
 `set_merge_requires_customer( true )` plays the live 404 rule.
+**The personal-data eraser cancels the user's waiting login jobs (CON-275)** —
+`LoginMerge::forget_user()`, called beside the PRO-3906 queue drop before the
+§9 delete (an erasure keeps the WP user, so the job would send the customer
+again). A new AS job that carries a user must be cancelled by the eraser too.
 
 ### An Elementor repeater row field needs an explicit `default` (PRO-3872)
 A repeater whose `fields` are raw arrays (not `Elementor\Repeater::add_control()`)

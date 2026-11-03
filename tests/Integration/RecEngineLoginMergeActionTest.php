@@ -62,6 +62,7 @@ final class RecEngineLoginMergeActionTest extends TestCase {
 				'endpoints'       => array(
 					'identity_merge'   => $base . '/api/v1/identity/merge',
 					'ingest_customers' => $base . '/api/v1/ingest/customers',
+					'customer_delete'  => $base . '/api/v1/customer/{email}',
 				),
 			)
 		);
@@ -214,6 +215,44 @@ final class RecEngineLoginMergeActionTest extends TestCase {
 		self::assertEqualsWithDelta( time() + LoginMerge::BACKOFF_SECONDS[0], $next, 10 );
 	}
 
+	public function test_erasing_the_customer_cancels_every_waiting_login_job_before_the_engine_delete(): void {
+		// CON-275: a run after the §9 delete sent the erased customer again
+		// (§4) and bound the token to them (§7).
+		$_COOKIE[ self::VISITOR_COOKIE ] = self::STORE_TOKEN;
+		$user                            = $this->make_user( 'lm-erased@example.test' );
+		$other                           = $this->make_user( 'lm-kept@example.test' );
+		$this->login( $user, $this->recording_cookies(), true ); // Run 1, due now.
+		$back_off = LoginMerge::args( (int) $user->ID, 'vt_fromemaillink123', '', false, 3 ); // Another token, waiting out a back-off.
+		as_schedule_single_action( time() + 300, LoginMerge::HOOK, $back_off, LoginMerge::AS_GROUP );
+		$kept = LoginMerge::args( (int) $other->ID, self::STORE_TOKEN, '', true, 2 );
+		as_schedule_single_action( time() + 300, LoginMerge::HOOK, $kept, LoginMerge::AS_GROUP );
+		self::assertCount( 3, LoginMergeQueue::pending_args() );
+
+		$erasers = apply_filters( 'wp_privacy_personal_data_erasers', array() );
+		self::assertArrayHasKey( 'smaily-connect-rec-engine', $erasers );
+		$result = call_user_func( $erasers['smaily-connect-rec-engine']['callback'], 'lm-erased@example.test', 1 );
+
+		self::assertTrue( $result['items_removed'] );
+		self::assertSame( array( $kept ), LoginMergeQueue::pending_args(), 'Every job of the erased customer is gone; the other customer\'s stays.' );
+		self::assertSame( 0, LoginMergeQueue::run_due(), 'Nothing of the erased customer is left to run.' );
+		$paths = self::$engine->request_paths();
+		self::assertCount( 1, $paths, 'Only the engine delete reached the engine.' );
+		self::assertStringStartsWith( 'DELETE /api/v1/customer/', $paths[0] );
+	}
+
+	public function test_a_login_job_of_a_user_deleted_before_it_runs_sends_nothing(): void {
+		// CON-275, defence in depth: the job reads the email from the user id.
+		$user = $this->make_user( 'lm-deleted@example.test' );
+		$this->login( $user, $this->recording_cookies(), true );
+		self::assertCount( 1, LoginMergeQueue::pending_args() );
+
+		$this->delete_user( (int) $user->ID );
+		self::$engine->reset_request_count();
+
+		self::assertSame( 1, LoginMergeQueue::run_due(), 'The job ran.' );
+		self::assertSame( 0, self::$engine->request_count(), 'No §4 or §7 for a user who no longer exists.' );
+	}
+
 	// ---- Helpers ---------------------------------------------------------
 
 	/**
@@ -295,6 +334,14 @@ final class RecEngineLoginMergeActionTest extends TestCase {
 		$user                  = get_userdata( (int) $id );
 		self::assertInstanceOf( \WP_User::class, $user );
 		return $user;
+	}
+
+	private function delete_user( int $id ): void {
+		if ( ! function_exists( 'wp_delete_user' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+		}
+		wp_delete_user( $id );
+		$this->created_users = array_values( array_diff( $this->created_users, array( $id ) ) );
 	}
 
 	private function forget_browser(): void {

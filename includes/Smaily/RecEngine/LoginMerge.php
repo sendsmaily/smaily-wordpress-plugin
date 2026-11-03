@@ -117,6 +117,47 @@ class LoginMerge {
 	}
 
 	/**
+	 * Cancel every waiting run of the user's login action, whatever its
+	 * token, session, consent or run number (CON-275). The personal-data
+	 * eraser calls it before the engine's §9 delete, so no later run sends
+	 * the erased customer (§4) or binds a token to them (§7).
+	 *
+	 * Action Scheduler cancels by exact args only, so the waiting actions of
+	 * the hook are read and each one of this user is cancelled with its own
+	 * stored args. A run that has already started cannot be cancelled.
+	 * Returns how many were cancelled.
+	 */
+	public static function forget_user( int $user_id ): int {
+		if ( $user_id <= 0 || ! function_exists( 'as_get_scheduled_actions' ) || ! function_exists( 'as_unschedule_all_actions' ) ) {
+			return 0;
+		}
+
+		$actions = as_get_scheduled_actions(
+			array(
+				'hook'     => self::HOOK,
+				'group'    => self::AS_GROUP,
+				'status'   => 'pending', // ActionScheduler_Store::STATUS_PENDING.
+				'per_page' => -1,
+			)
+		);
+
+		$cancelled = 0;
+		foreach ( (array) $actions as $action ) {
+			if ( ! is_object( $action ) || ! method_exists( $action, 'get_args' ) ) {
+				continue;
+			}
+			$args = $action->get_args();
+			if ( ! is_array( $args ) || (int) ( $args['user_id'] ?? 0 ) !== $user_id ) {
+				continue;
+			}
+			as_unschedule_all_actions( self::HOOK, $args, self::AS_GROUP );
+			++$cancelled;
+		}
+
+		return $cancelled;
+	}
+
+	/**
 	 * The action's args, in the order run() takes them. One function builds
 	 * them, so the queued and the looked-up args are the same JSON.
 	 *

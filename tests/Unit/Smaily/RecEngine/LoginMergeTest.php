@@ -350,6 +350,82 @@ final class LoginMergeTest extends TestCase {
 		self::assertSame( array(), $this->scheduled );
 	}
 
+	// --- CON-275: the eraser cancels the user's waiting runs ---------------
+
+	public function test_forget_user_cancels_every_waiting_run_of_the_user_and_no_other(): void {
+		$waiting = array(
+			LoginMerge::args( self::USER_ID, self::STORE_TOKEN, 'anon-1', true, 1 ),
+			LoginMerge::args( self::USER_ID, self::ENGINE_TOKEN, '', false, 3 ), // A back-off run, another token.
+			LoginMerge::args( 70, self::STORE_TOKEN, '', true, 1 ), // Another user, whose id starts with the same digit.
+		);
+		$query       = array();
+		$unscheduled = array();
+		Functions\when( 'as_get_scheduled_actions' )->alias(
+			function ( array $args ) use ( $waiting, &$query ): array {
+				$query = $args;
+				return array_map(
+					static function ( array $action_args ) {
+						return new class( $action_args ) {
+							/** @var array<string, mixed> */
+							private array $args;
+
+							/** @param array<string, mixed> $args */
+							public function __construct( array $args ) {
+								$this->args = $args;
+							}
+
+							/** @return array<string, mixed> */
+							public function get_args(): array {
+								return $this->args;
+							}
+						};
+					},
+					$waiting
+				);
+			}
+		);
+		Functions\when( 'as_unschedule_all_actions' )->alias(
+			function ( string $hook, array $args, string $group ) use ( &$unscheduled ): void {
+				$unscheduled[] = array( $hook, $args, $group );
+			}
+		);
+
+		self::assertSame( 2, LoginMerge::forget_user( self::USER_ID ) );
+
+		self::assertSame(
+			array(
+				'hook'     => LoginMerge::HOOK,
+				'group'    => LoginMerge::AS_GROUP,
+				'status'   => 'pending',
+				'per_page' => -1,
+			),
+			$query,
+			'Every waiting action of the hook, not the first page.'
+		);
+		self::assertSame(
+			array(
+				array( LoginMerge::HOOK, $waiting[0], LoginMerge::AS_GROUP ),
+				array( LoginMerge::HOOK, $waiting[1], LoginMerge::AS_GROUP ),
+			),
+			$unscheduled,
+			'Each of the user\'s runs is cancelled by its own exact args.'
+		);
+	}
+
+	public function test_forget_user_does_nothing_without_a_user(): void {
+		$read = false;
+		Functions\when( 'as_get_scheduled_actions' )->alias(
+			function () use ( &$read ): array {
+				$read = true;
+				return array();
+			}
+		);
+		Functions\when( 'as_unschedule_all_actions' )->justReturn( null );
+
+		self::assertSame( 0, LoginMerge::forget_user( 0 ) );
+		self::assertFalse( $read, 'User id 0 would match a malformed action\'s args.' );
+	}
+
 	// --- doubles ----------------------------------------------------------
 
 	private static function not_found(): ApiException {
