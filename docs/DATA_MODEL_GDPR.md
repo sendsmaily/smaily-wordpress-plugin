@@ -687,7 +687,9 @@ final matrix. The analysis above the recommendation is left as-written
   (≤ 24 h), which then also fires the engine opt-out.
 - Enforcement consumers: the `BeaconEndpoint` second gate (drops browse events
   whose `customer_email` resolves to opted-out, pre-forward),
-  `IdentityHookHandler` (skips `identity.merge` for opted-out), and — since
+  `IdentityHookHandler` + its `LoginMerge` action (skip `identity.merge` and
+  the login's §4 send for opted-out — the login on what the store already
+  knows, the action on a fresh read, CON-268), and — since
   2026-07-03 — **engine-side server enforcement** on the visitor-token path
   (F3-49 pt 3: an opted-out contact's browse event is never bound to a
   customer, engine-side, regardless of what the plugin forwards).

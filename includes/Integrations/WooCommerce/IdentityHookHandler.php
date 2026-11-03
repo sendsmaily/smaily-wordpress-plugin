@@ -13,10 +13,8 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
-use Smaily\Connect\Smaily\RecEngine\ApiException;
-use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\Support\AttributionShape;
-use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
 use Smaily\Connect\Support\MarketingConsent;
 
 /**
@@ -24,9 +22,10 @@ use Smaily\Connect\Support\MarketingConsent;
  * AUTOMATICALLY when a browse event carries the customer's email/visitor-token
  * (§6 retroactive binding). That covers "the visitor browses after being
  * identified". It does NOT cover "the visitor logs in but generates no
- * email-carrying browse event after" — so on `wp_login` this handler EXPLICITLY
- * calls /identity/merge (§7) to bind the anon-session cookies to the now-known
- * customer. Complementary to retroactive binding, not a duplicate.
+ * email-carrying browse event after" — so on `wp_login` this handler has the
+ * plugin EXPLICITLY call /identity/merge (§7) to bind the anon-session cookies
+ * to the now-known customer. Complementary to retroactive binding, not a
+ * duplicate.
  *
  * Server-side (wp_login) rather than the client-side JS mergeIdentity: login is
  * a reliable server signal, the api_key stays server-side (no new public proxy
@@ -34,11 +33,13 @@ use Smaily\Connect\Support\MarketingConsent;
  * HttpOnly, so $_COOKIE has them on the login request. (The JS mergeIdentity
  * stub is reserved for the Milestone-2 platform-agnostic client — Shopify.)
  *
- * Checkout (`email_provided_at_checkout`) is intentionally NOT a trigger here:
- * a guest's customer record is auto-created by the ASYNC order ingest, so it
- * isn't in the engine yet at checkout time — a merge then would 404. A
- * registered user logging in already exists (ingested at registration /
- * backfill via the A-filter), so login timing is sound.
+ * The login request never calls Campaign Intelligence (CON-268). It reads the
+ * cookies and the consent, sets or renews the visitor-token cookie, and queues
+ * one background action (LoginMerge) that sends the customer (§4, with
+ * marketing consent) and then the merge (§7). A slow engine therefore never
+ * holds a login. The profiling gate here reads only what the store already
+ * knows (`ProfilingConsent::known_opt_out()`): a fresh read can call Smaily
+ * and the engine, so the full gate runs in the action.
  *
  * Store-created token at login (CON-251, contract v1.22.0 §7): a shopper who
  * logs in with marketing consent and has no visitor-token cookie gets a new
@@ -52,23 +53,26 @@ use Smaily\Connect\Support\MarketingConsent;
  * is never replaced; with consent, a login writes its cookie again with the
  * same value and a fresh lifetime (Erkki, 2026-11-02).
  *
- * Gate: only while a rec-engine tenant is connected. One merge per login:
- * every login that carries a visitor token calls the merge, because each merge
- * renews the token's 14 months in the engine (§7 "call the merge at each
- * login"). The anon-session id last merged for a user is stored in user meta;
- * a login on an already merged session without a token makes no call, and a
- * login with a token leaves the merged session out of the body.
+ * Gate: only while sending to the engine is allowed. One action per login:
+ * every login that carries a visitor token queues the merge, because each
+ * merge renews the token's 14 months in the engine (§7 "call the merge at each
+ * login"), and every login with marketing consent queues the §4 send (§4
+ * group c). The anon-session id last merged for a user is stored in user
+ * meta; a login on an already merged session with neither a token nor
+ * consent queues nothing, and a login with a token leaves the merged session
+ * out.
  *
- * Not final: tests subclass to inject a Client double + control $_COOKIE.
+ * Not final: tests subclass to answer the consent + control $_COOKIE.
  */
 class IdentityHookHandler {
 
-	public const MERGED_META_KEY = '_smaily_rec_merged_anon_sid';
+	/** The anon session last merged for a user — one spelling, LoginMerge's. */
+	public const MERGED_META_KEY = LoginMerge::MERGED_META_KEY;
 
 	private RecEngineSettings $settings;
 
-	/** @var callable(): Client */
-	private $client_factory;
+	/** Queues the background action with the login's engine calls (CON-268). */
+	private LoginMerge $merge;
 
 	private ?ProfilingConsent $profiling;
 
@@ -76,18 +80,19 @@ class IdentityHookHandler {
 	private LandingCapture $cookies;
 
 	/**
-	 * @param callable(): Client $client_factory
-	 * @param ?ProfilingConsent  $profiling Profiling-consent gate ((a).1) — when the
-	 *        contact has opted out, skip the merge so their anon browse history is
-	 *        NOT retroactively bound to their profile. Null = no gate (pre-(a) builds).
-	 * @param ?LandingCapture    $cookies The visitor-token cookie reader and writer;
+	 * @param LoginMerge        $merge     The background action the login queues.
+	 * @param ?ProfilingConsent $profiling Profiling-consent gate ((a).1) — when the
+	 *        store knows the contact has opted out, queue nothing and create no
+	 *        token, so their anon browse history is NOT retroactively bound to
+	 *        their profile. The action checks it again. Null = no gate.
+	 * @param ?LandingCapture   $cookies   The visitor-token cookie reader and writer;
 	 *        null = a LandingCapture on the same settings. Tests pass a recorder.
 	 */
-	public function __construct( RecEngineSettings $settings, callable $client_factory, ?ProfilingConsent $profiling = null, ?LandingCapture $cookies = null ) {
-		$this->settings       = $settings;
-		$this->client_factory = $client_factory;
-		$this->profiling      = $profiling;
-		$this->cookies        = $cookies ?? new LandingCapture( $settings );
+	public function __construct( RecEngineSettings $settings, LoginMerge $merge, ?ProfilingConsent $profiling = null, ?LandingCapture $cookies = null ) {
+		$this->settings  = $settings;
+		$this->merge     = $merge;
+		$this->profiling = $profiling;
+		$this->cookies   = $cookies ?? new LandingCapture( $settings );
 	}
 
 	public function register(): void {
@@ -105,17 +110,18 @@ class IdentityHookHandler {
 		$anon_sid     = $this->cookie( $this->session_cookie_name() );
 		$cookie_token = $this->cookies->current_visitor_token();
 		$token        = $cookie_token;
+		$consent      = $this->marketing_consent_given();
 		// A store-created `vs_` token is consent-based (contract §5, §7: without
 		// marketing consent, send none); the engine's `vt_` token from an email
 		// link is attribution and stays ungated (F3-46). PRO-3860.
-		if ( AttributionShape::is_store_visitor_token( $token ) && ! $this->marketing_consent_given() ) {
+		if ( AttributionShape::is_store_visitor_token( $token ) && ! $consent ) {
 			$token = '';
 		}
 		// No token in this browser: a shopper with marketing consent gets a new
 		// store token at this login (CON-251, §7). Never in cron or WP-CLI.
-		$create = '' === $cookie_token && $this->may_create_token() && $this->marketing_consent_given();
-		if ( $anon_sid === '' && $token === '' && ! $create ) {
-			return; // Nothing to merge — no anon session, no token, none to create.
+		$create = '' === $cookie_token && $this->may_create_token() && $consent;
+		if ( $anon_sid === '' && $token === '' && ! $consent ) {
+			return; // Nothing to send — no anon session, no token, no consent.
 		}
 
 		$email = strtolower( trim( (string) $user->user_email ) );
@@ -123,19 +129,19 @@ class IdentityHookHandler {
 			return;
 		}
 
-		// (a).1 profiling gate — if the contact has opted out of profiling, do NOT
-		// bind their anon browse history to their identity (respect the opt-out
-		// retroactively). The anon events stay unattributed rather than building a
-		// profile the shopper declined. No token is created for them either: the
-		// engine would not bind it (§7).
-		if ( $this->profiling !== null && ! $this->profiling->may_profile( $email ) ) {
+		// (a).1 profiling gate — if the store knows the contact opted out of
+		// profiling, do NOT bind their anon browse history to their identity
+		// (respect the opt-out retroactively). No token is created for them
+		// either: the engine would not bind it (§7). Only what the store already
+		// knows: a fresh read can call the engine, which a login never does.
+		if ( $this->profiling !== null && $this->profiling->known_opt_out( $email ) ) {
 			return;
 		}
 
 		if ( $create ) {
 			// '' when the response headers are already sent (no cookie, no token).
 			$token = $this->cookies->issue_visitor_token();
-		} elseif ( $token !== '' && $this->may_create_token() && $this->marketing_consent_given() ) {
+		} elseif ( $token !== '' && $this->may_create_token() && $consent ) {
 			// The browser keeps its token: a consenting login renews the cookie's
 			// lifetime from now, same value (Erkki, 2026-11-02). A `vt_` cookie too —
 			// the merge renews a `vt_` token of the same customer in the engine as
@@ -145,39 +151,17 @@ class IdentityHookHandler {
 		}
 
 		// This anon session was already bound to this user: leave it out. A token
-		// still goes, because each merge renews it (§7); without one, no call.
+		// still goes, because each merge renews it (§7).
 		if ( $anon_sid !== '' && (string) get_user_meta( (int) $user->ID, self::MERGED_META_KEY, true ) === $anon_sid ) {
 			$anon_sid = '';
 		}
-		if ( $anon_sid === '' && $token === '' ) {
+		if ( $anon_sid === '' && $token === '' && ! $consent ) {
 			return;
 		}
 
-		$body = array(
-			'customer_email'       => $email,
-			'customer_external_id' => (string) $user->ID,
-			'merge_ts'             => IsoDate::to_z( time() ),
-			'merge_reason'         => 'user_logged_in',
-		);
-		if ( $anon_sid !== '' ) {
-			$body['anon_session_id'] = $anon_sid;
-		}
-		if ( $token !== '' ) {
-			$body['smaily_visitor_token'] = $token;
-		}
-
-		try {
-			( $this->client_factory )()->merge_identity( $body );
-			if ( $anon_sid !== '' ) {
-				update_user_meta( (int) $user->ID, self::MERGED_META_KEY, $anon_sid );
-			}
-		} catch ( ApiException $e ) {
-			// 404 customer_not_found (a user outside the engine's customer scope,
-			// CON-246) and transient failures both log + skip: the next
-			// email-carrying browse event binds the session retroactively (§6), and
-			// the next login sends the token again.
-			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect identity.merge] ' . $e->getMessage() );
-		}
+		// The engine calls run in the background (CON-268): §4 with consent,
+		// then §7. The args carry no email — the action reads it from the id.
+		$this->merge->enqueue( (int) $user->ID, $token, $anon_sid, $consent );
 	}
 
 	/**

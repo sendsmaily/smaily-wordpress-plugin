@@ -554,7 +554,7 @@ Backlog: L2, L3.
 
 | # | Disposition |
 |---|---|
-| M1 (Medium) | **Being fixed in CON-268:** the login merge moves to a background job, so the login no longer waits on the engine. In progress, not merged. |
+| M1 (Medium) | **Fixed in #299 (CON-268):** the login merge moves to a background job, so the login no longer waits on the engine. |
 | L1 (Low) | **Fixed in #298 (CON-267):** the index is added only by an online build (`ALGORITHM=INPLACE, LOCK=NONE`); a refusal is recorded and never retried with a plain `ADD INDEX`. |
 | L2, L3 (Low) | Backlog, as recommended. |
 | L4 (Low) | At the bump, as recommended. |

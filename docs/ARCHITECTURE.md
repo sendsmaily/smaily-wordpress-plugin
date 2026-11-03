@@ -158,8 +158,11 @@ Four separate mechanisms — do not conflate them (F3-46/F3-49):
    a valid `smaily_ctx` clears `smaily_rec_ctx` (PRO-3788).
 3. **Identity merge** — two mechanisms bind a browse identity to a known
    customer: `Integrations\WooCommerce\IdentityHookHandler` on `wp_login`
-   calls the engine's `/identity/merge` (§7) to bind an anonymous browse
-   session at login time (F3-27); and, since PRO-1389,
+   has the engine's `/identity/merge` (§7) bind an anonymous browse
+   session at login time (F3-27) — since CON-268 the login only queues the
+   `RecEngine\LoginMerge` Action Scheduler action, which sends the customer
+   (§4, with marketing consent) and then the merge, so a slow engine never
+   holds a login; and, since PRO-1389,
    `REST\BeaconEndpoint::attach_logged_in_identity()` validates the real WP
    `logged_in` auth cookie directly (not a REST nonce — the beacon sends
    none, and a page-embedded nonce would be stale under full-page caching)

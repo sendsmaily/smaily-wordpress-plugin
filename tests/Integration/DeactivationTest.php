@@ -16,6 +16,7 @@ use Smaily\Connect\Deactivation;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 
@@ -49,6 +50,9 @@ final class DeactivationTest extends TestCase {
 		Bootstrap::instance()->register_action_scheduler_jobs();
 		// A one-off in the same group, the shape an enqueue leaves behind.
 		as_enqueue_async_action( CartFlusher::FLUSH_HOOK, array(), CartFlusher::AS_GROUP );
+		// A login's queued engine calls (CON-268).
+		$login = LoginMerge::args( 1, '', 'anon-deactivation', false, 1 );
+		as_enqueue_async_action( LoginMerge::HOOK, $login, LoginMerge::AS_GROUP );
 
 		self::assertTrue( as_has_scheduled_action( EventQueue::FLUSH_HOOK, array(), EventQueue::AS_GROUP ) );
 		self::assertTrue( as_has_scheduled_action( 'smly_plus_abandoned_cart', array(), EventQueue::AS_GROUP ) );
@@ -70,6 +74,7 @@ final class DeactivationTest extends TestCase {
 			);
 		}
 		self::assertFalse( as_has_scheduled_action( CartFlusher::FLUSH_HOOK, array(), CartFlusher::AS_GROUP ), 'One-off async kicks are cancelled too.' );
+		self::assertFalse( as_has_scheduled_action( LoginMerge::HOOK, $login, LoginMerge::AS_GROUP ), 'A login\'s queued engine calls are cancelled too.' );
 
 		// Re-activation: the init registration recreates the recurring set.
 		Activation::run();

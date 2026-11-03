@@ -118,6 +118,23 @@ class ProfilingConsent {
 	}
 
 	/**
+	 * Does the store already know this contact objected to profiling? Reads
+	 * only what is stored here — the daily cache, the durable opt-out, the
+	 * last fetched state — and never Smaily or the engine, so a shopper's
+	 * request can ask it (the login, CON-268). False when nothing is known:
+	 * the full gate (`may_profile()`) then decides where a remote read is
+	 * allowed.
+	 */
+	public function known_opt_out( string $email ): bool {
+		$cached = get_transient( self::cache_key( $email ) );
+		if ( $cached !== false ) {
+			return $cached !== '1';
+		}
+
+		return $this->stored_preference( $email ) === false;
+	}
+
+	/**
 	 * Read the consent back from Smaily, remember the decision, and — if it
 	 * resolves to "do not profile" — fire the engine opt-out. On a read error
 	 * (or no Smaily client configured), falls through to `fallback_on_error()`

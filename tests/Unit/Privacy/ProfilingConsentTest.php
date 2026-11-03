@@ -81,6 +81,44 @@ final class ProfilingConsentTest extends TestCase {
 		self::assertFalse( $this->resolver( $smaily )->may_profile( 'a@example.com' ) );
 	}
 
+	// --- CON-268: what the store already knows, for the login ---------------
+
+	/**
+	 * @dataProvider known_opt_out_cases
+	 *
+	 * @param string|false         $fresh   The daily cache.
+	 * @param string|false         $stale   The last fetched state.
+	 * @param array<string, mixed> $optouts The durable opt-out registry.
+	 */
+	public function test_known_opt_out_reads_only_the_store( $fresh, $stale, array $optouts, bool $expected ): void {
+		Functions\when( 'get_transient' )->alias(
+			static function ( string $key ) use ( $fresh, $stale ) {
+				return 0 === strpos( $key, 'smly_profiling_stale_' ) ? $stale : $fresh;
+			}
+		);
+		Functions\when( 'get_option' )->justReturn( $optouts );
+		$smaily = $this->createMock( SmailyClient::class );
+		$smaily->expects( self::never() )->method( 'get_contact_consent' );
+		$rec = $this->createMock( RecEngineClient::class );
+		$rec->expects( self::never() )->method( 'customer_opt_out' );
+
+		self::assertSame( $expected, $this->resolver( $smaily, $rec )->known_opt_out( 'a@example.com' ) );
+	}
+
+	/**
+	 * @return array<string, array{0: string|false, 1: string|false, 2: array<string, mixed>, 3: bool}>
+	 */
+	public static function known_opt_out_cases(): array {
+		return array(
+			'cached opt-out'           => array( '0', false, array(), true ),
+			'cached yes'               => array( '1', false, array(), false ),
+			'nothing known'            => array( false, false, array(), false ),
+			'durable opt-out'          => array( false, false, array( md5( 'a@example.com' ) => 0 ), true ),
+			'last fetched was opt-out' => array( false, '0', array(), true ),
+			'last fetched was yes'     => array( false, '1', array(), false ),
+		);
+	}
+
 	public function test_cache_miss_reads_back_and_caches_the_decision(): void {
 		Functions\when( 'get_transient' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( array() );

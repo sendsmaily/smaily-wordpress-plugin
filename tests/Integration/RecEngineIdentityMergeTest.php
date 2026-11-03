@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -19,6 +20,7 @@ use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
+use Smaily\Connect\Tests\Integration\Support\LoginMergeQueue;
 
 /**
  * What this catches that a unit test can't: the full chain reads the real
@@ -26,6 +28,10 @@ use Smaily\Connect\Tests\Integration\Support\EnvSeed;
  * the real Client posts it to the engine. It also pins the dedup (a repeat
  * login on the same session does NOT re-hit the engine) and the 404 handling
  * (customer not yet ingested → log + skip, never throws).
+ *
+ * Since CON-268 the login only queues the LoginMerge action; each test runs
+ * that action through Action Scheduler (LoginMergeQueue::run_due()) — the
+ * plugin's registered callback, its real client — before asserting.
  */
 final class RecEngineIdentityMergeTest extends TestCase {
 
@@ -48,6 +54,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		parent::setUp();
 		EnvScrub::reset();
 		RecEngineMockServer::reset();
+		LoginMergeQueue::forget();
 		unset( $_COOKIE[ self::SESSION_COOKIE ], $_COOKIE[ self::VISITOR_COOKIE ] );
 
 		$base = (string) self::$engine->base_url();
@@ -60,6 +67,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		LoginMergeQueue::forget();
 		unset( $_COOKIE[ self::SESSION_COOKIE ], $_COOKIE[ self::VISITOR_COOKIE ] );
 		if ( ! function_exists( 'wp_delete_user' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
@@ -77,6 +85,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		$user = $this->make_user( 'merge-mari@example.test' );
 
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		$received = self::$engine->state()['last_merge_received'] ?? null;
 		self::assertIsArray( $received );
@@ -99,6 +108,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		$user                            = $this->make_user( 'merge-vs-noconsent@example.test' );
 
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		$received = self::$engine->state()['last_merge_received'] ?? null;
 		self::assertIsArray( $received );
@@ -112,9 +122,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		$settings                        = new RecEngineSettings();
 		$handler                         = new class(
 			$settings,
-			static function () use ( $settings ): Client {
-				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
-			}
+			Bootstrap::instance()->login_merge()
 		) extends IdentityHookHandler {
 			protected function marketing_consent_given(): bool {
 				return true;
@@ -122,6 +130,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		};
 
 		$handler->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		$received = self::$engine->state()['last_merge_received'] ?? null;
 		self::assertIsArray( $received );
@@ -133,11 +142,13 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		$user = $this->make_user( 'merge-dedupe@example.test' );
 
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 		self::assertIsArray( self::$engine->state()['last_merge_received'] ?? null );
 
 		// Forget what the engine saw; a deduped second login must NOT call it.
 		RecEngineMockServer::reset();
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 		self::assertNull( self::$engine->state()['last_merge_received'] ?? null, 'Same session ⇒ no second merge call.' );
 	}
 
@@ -146,10 +157,12 @@ final class RecEngineIdentityMergeTest extends TestCase {
 
 		$_COOKIE[ self::SESSION_COOKIE ] = 'anon-first';
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		RecEngineMockServer::reset();
 		$_COOKIE[ self::SESSION_COOKIE ] = 'anon-second'; // cookies cleared → new session
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		$received = self::$engine->state()['last_merge_received'] ?? null;
 		self::assertIsArray( $received );
@@ -161,6 +174,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		$user = $this->make_user( 'notfound@example.test' ); // mock 404 trigger
 
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		// No throw; the dedup marker is NOT set (merge didn't succeed).
 		self::assertSame( '', (string) get_user_meta( (int) $user->ID, IdentityHookHandler::MERGED_META_KEY, true ) );
@@ -170,6 +184,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		$user = $this->make_user( 'merge-nocookie@example.test' );
 
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		self::assertNull( self::$engine->state()['last_merge_received'] ?? null );
 	}
@@ -180,6 +195,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		$user = $this->make_user( 'merge-disco@example.test' );
 
 		$this->handler()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		self::assertNull( self::$engine->state()['last_merge_received'] ?? null );
 	}
@@ -187,13 +203,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 	// --- helpers --------------------------------------------------------
 
 	private function handler(): IdentityHookHandler {
-		$settings = new RecEngineSettings();
-		return new IdentityHookHandler(
-			$settings,
-			static function () use ( $settings ): Client {
-				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
-			}
-		);
+		return new IdentityHookHandler( new RecEngineSettings(), Bootstrap::instance()->login_merge() );
 	}
 
 	/** Same handler, but with the (a).1 profiling gate wired in. */
@@ -208,7 +218,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 			$client
 		);
 
-		return new IdentityHookHandler( $settings, $client, $profiling );
+		return new IdentityHookHandler( $settings, Bootstrap::instance()->login_merge(), $profiling );
 	}
 
 	public function test_opted_out_contact_is_not_retroactively_bound(): void {
@@ -222,6 +232,7 @@ final class RecEngineIdentityMergeTest extends TestCase {
 		set_transient( $key, '0', DAY_IN_SECONDS );
 
 		$this->handler_with_profiling()->on_login( $user->user_login, $user );
+		LoginMergeQueue::run_due();
 
 		self::assertNull(
 			self::$engine->state()['last_merge_received'] ?? null,
