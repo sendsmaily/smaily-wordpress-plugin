@@ -110,7 +110,7 @@ class LegacyOrderDateIndex {
 		$this->connected = $connected ?? static function (): bool {
 			return ( new RecEngineSettings() )->is_connected();
 		};
-		$this->storage = $storage ?? static function (): string {
+		$this->storage   = $storage ?? static function (): string {
 			if ( ! class_exists( 'WooCommerce' ) ) {
 				return self::STORAGE_NONE;
 			}
@@ -338,7 +338,7 @@ class LegacyOrderDateIndex {
 		$error = '';
 		$added = self::with_lock_wait(
 			static function () use ( $wpdb, &$error ): bool {
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- the approved index on the core posts table (CON-259); no input in the statement.
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- the approved index on the core posts table (CON-259); no input in the statement.
 				if ( $wpdb->query( "ALTER TABLE {$wpdb->posts} ADD INDEX " . self::INDEX . ' (post_type, post_date_gmt, ID), ALGORITHM=INPLACE, LOCK=NONE' ) !== false ) {
 					return true;
 				}
@@ -360,7 +360,7 @@ class LegacyOrderDateIndex {
 	private static function with_lock_wait( callable $change ): bool {
 		global $wpdb;
 		$suppressed = $wpdb->suppress_errors( true );
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared -- session variables only; integer values.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- session variables only; integer values.
 		$previous = $wpdb->get_var( 'SELECT @@SESSION.lock_wait_timeout' );
 		$wpdb->query( 'SET SESSION lock_wait_timeout = ' . (int) self::LOCK_WAIT_SECONDS );
 		try {
@@ -371,7 +371,7 @@ class LegacyOrderDateIndex {
 			}
 			$wpdb->suppress_errors( $suppressed );
 		}
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 	}
 
 	/**
