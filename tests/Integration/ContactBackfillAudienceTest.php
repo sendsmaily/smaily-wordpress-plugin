@@ -468,7 +468,7 @@ final class ContactBackfillAudienceTest extends TestCase {
 
 		$row = $this->contact_job_row();
 		self::assertSame( BackfillJobInterface::STATUS_FAILED, $row['status'], 'A refusing body code must not let the import finish.' );
-		self::assertStringContainsString( 'code 225: Refused by the test', (string) $row['error_message'], 'The import keeps Smaily\'s answer.' );
+		self::assertSame( 'Smaily API returned code 225', (string) $row['error_message'], 'The import keeps Smaily\'s code, never its message (CON-301).' );
 		self::assertSame( 0, (int) $row['synced_count'], 'The refused contact is not counted as synced.' );
 		self::assertSame( '', get_user_meta( $refused, BackfillJob::META_KEY, true ), 'The refused contact is not marked synced, so the next run sends it again.' );
 		self::assertNotSame( '', get_user_meta( $first, BackfillJob::META_KEY, true ), 'The contact Smaily accepted is marked synced.' );
@@ -536,7 +536,7 @@ final class ContactBackfillAudienceTest extends TestCase {
 		self::assertSame( $refused, $listed['user_id'] ?? null, 'The refused customer is named by user id.' );
 		self::assertSame( substr( $email, 0, 1 ) . '***' . substr( $email, (int) strrpos( $email, '@' ) ), $listed['email'] ?? null, 'The address is masked.' );
 		self::assertStringContainsString( 'user_id=' . $refused, (string) ( $listed['edit_url'] ?? '' ), 'The screen links to the customer.' );
-		self::assertSame( 'Smaily API returned code 204: Refused by the test', $listed['reason'] ?? null, 'The screen shows Smaily\'s reason.' );
+		self::assertSame( 'Smaily API returned code 204', $listed['reason'] ?? null, 'The screen shows Smaily\'s code, never its message (CON-301).' );
 		self::assertStringNotContainsString( $email, (string) wp_json_encode( $status ), 'The full address never reaches the screen.' );
 		self::assertStringNotContainsString( $email, (string) wp_json_encode( get_option( BackfillJob::OPTION_REFUSED ) ), 'The stored list holds no address.' );
 
@@ -573,11 +573,11 @@ final class ContactBackfillAudienceTest extends TestCase {
 
 		$row = $this->contact_job_row();
 		self::assertSame( BackfillJobInterface::STATUS_FAILED, $row['status'], 'A refusal of the whole request stops the import.' );
-		self::assertStringContainsString( 'code 203: Refused by the test', (string) $row['error_message'] );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203', (string) $row['error_message'] );
 		self::assertSame( 0, (int) $row['synced_count'] );
 		self::assertSame( array(), $this->pending_ticks(), 'A failed import schedules no further batch.' );
 		self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'] );
-		self::assertSame( 'Smaily API returned code 203: Refused by the test', $status['error'] );
+		self::assertSame( 'Smaily API returned code 203', $status['error'] );
 		self::assertNull( $status['refused'], 'A request-level refusal names no customer.' );
 	}
 

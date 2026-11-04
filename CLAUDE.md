@@ -1522,14 +1522,33 @@ there: a unit test of a line defines it in its own process
 shared process, where it would stay on for every later test
 (`ProfilingConsentTest`, CON-277).
 
-### Never log an engine's message text — log the status and code (CON-277)
-A `DebugLog` line about a failed engine call carries `http=<status>
-error=<code>` (`ApiException::getCode()` / `error_code()`), never
-`$e->getMessage()`: the engine's message can name the customer (a customer 404
-echoes the address), and debug logs are shared with support. Any other failed
-call logs the error type and `file:line`. The Event Log's stored engine
-message (F3-44) is a separate, open design question — don't change it on the
-side.
+### Never log, store or show a remote message text — the code and where it failed (CON-277, CON-301)
+An error the plugin logs, stores or shows carries the error CODE and WHERE it
+failed, never the engine's or Smaily's message text: the remote message can
+name the customer (a customer 404 echoes the address), and it lands in the
+database, the admin and debug logs shared with support (Erkki, 2026-11-04 —
+the same rule as Magento CON-233 / CON-215). Concretely:
+- **A failed engine call**: `http=<status> error=<code>`
+  (`ApiException::getCode()` / `error_code()`) in a log line;
+  `IngestQueue::http_error_message()` / `http_error_response()` for a queue
+  row (`{http, outcome, error_code}` — no `message`); a D6 per-item refusal
+  stores `d6_item_error field=<field>` and `{http, outcome, error: {field}}`.
+- **The Smaily `ApiException` message is built by the plugin only** — HTTP
+  status, method, endpoint, Smaily's numeric code, a transport error's
+  WP_Error CODE (`Smaily\Client::request()`, `RetryPolicy`). That invariant
+  is what makes the Smaily queues', the contact import's and the Elementor
+  form's stored `getMessage()` safe; never put a remote text into it. The
+  recorded Smaily reply (`last_exchange()`, the Event Log Details) drops the
+  body's `message`.
+- **Any other Throwable**: its type and `file:line` (plus its code where a
+  log line already has one) — never `getMessage()`.
+- **A REST answer** — the public `/relay` and the admin proxies — carries the
+  engine's `error` code; where the admin shows a sentence, the plugin words it
+  (`RecEngineEndpoint::ping()`), and `/relay`'s per-event refusals are
+  `{index, field}`.
+Rows stored before CON-301 keep their old text until the janitor prunes them.
+Pinned per store by a test that puts an address in the remote message and
+asserts it is absent (DECISIONS "CON-301").
 
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with

@@ -322,7 +322,7 @@ final class BackfillJobTest extends TestCase {
 					'contacts' => array(
 						array(
 							'user_id' => 2,
-							'reason'  => 'permanent_envelope_204: Smaily API returned code 204: Invalid email [email]',
+							'reason'  => 'permanent_envelope_204: Smaily API returned code 204',
 						),
 					),
 				),
@@ -403,7 +403,7 @@ final class BackfillJobTest extends TestCase {
 
 		self::assertCount( 1, $wpdb->updates, 'Only the error is written — the cursor stays before the page.' );
 		self::assertSame( 'failed', $wpdb->updates[0]['data']['status'] );
-		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204: Invalid email b@example.com', $wpdb->updates[0]['data']['error_message'] );
+		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204', $wpdb->updates[0]['data']['error_message'], 'Smaily\'s message, which names the contact, is not stored (CON-301).' );
 		self::assertSame( 'running', $wpdb->updates[0]['where']['status'] );
 		self::assertTrue( $result['completed'], 'A failed import schedules no further tick.' );
 	}

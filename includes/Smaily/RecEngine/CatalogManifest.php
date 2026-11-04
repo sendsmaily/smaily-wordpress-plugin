@@ -251,7 +251,7 @@ class CatalogManifest {
 		try {
 			$products = $this->catalog->manifest_items( $limit );
 		} catch ( \Throwable $e ) {
-			$this->log_skip( 'building the product list failed: ' . $e->getMessage() );
+			$this->log_skip( 'building the product list failed: ' . self::where( $e ) );
 			$this->queue->mark_failed(
 				$id,
 				sprintf(
@@ -308,7 +308,7 @@ class CatalogManifest {
 			$this->queue->store_exchange( $id, $sent, IngestQueue::http_error_response( $e ) );
 			return;
 		} catch ( \Throwable $e ) {
-			$this->log_skip( 'the send failed: ' . $e->getMessage() );
+			$this->log_skip( 'the send failed: ' . self::where( $e ) );
 			$this->queue->mark_failed(
 				$id,
 				sprintf(

@@ -97,16 +97,48 @@ final class ClientTest extends TestCase {
 		Functions\when( 'wp_remote_get' )->justReturn( $err );
 		Functions\when( 'is_wp_error' )->justReturn( true );
 
-		$wp_error = $this->getMockBuilder( \stdClass::class )
-			->addMethods( array( 'get_error_message' ) )
-			->getMock();
-		$wp_error->method( 'get_error_message' )->willReturn( 'cURL exploded' );
-
-		Functions\when( 'wp_remote_get' )->justReturn( $wp_error );
+		Functions\when( 'wp_remote_get' )->justReturn( new \WP_Error( 'http_request_failed', 'cURL exploded' ) );
 
 		$client = new Client( 'demo', 'user', 'pass' );
 
 		self::assertSame( RefusalReason::UNREACHABLE, $client->check_connection() );
+	}
+
+	/**
+	 * CON-301: a transport failure keeps the WP_Error's code only — its text
+	 * stays out of the exception and the Event Log's recorded exchange.
+	 */
+	public function test_a_transport_error_keeps_its_code_and_drops_its_text(): void {
+		Functions\when( 'is_wp_error' )->justReturn( true );
+		Functions\when( 'wp_remote_post' )->justReturn( new \WP_Error( 'http_request_failed', 'Failed for jane.doe@example.com' ) );
+
+		$client = new Client( 'demo', 'user', 'pass' );
+
+		try {
+			$client->trigger_automation( 42, array( array( 'email' => 'jane.doe@example.com' ) ) );
+			self::fail( 'A transport error throws.' );
+		} catch ( ApiException $e ) {
+			self::assertSame( 'Smaily HTTP transport error: http_request_failed', $e->getMessage() );
+		}
+
+		self::assertSame( array( 'error' => 'http_request_failed' ), $client->last_exchange()['response'] );
+	}
+
+	/**
+	 * CON-301: the recorded reply keeps Smaily's code, never its message,
+	 * which can name the contact.
+	 */
+	public function test_last_exchange_drops_smailys_message(): void {
+		$body = '{"code":204,"message":"Invalid email jane.doe@example.com"}';
+		Functions\when( 'wp_remote_post' )->justReturn( $this->successful_response( $body ) );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+
+		$client = new Client( 'demo', 'user', 'pass' );
+		$client->trigger_automation( 42, array( array( 'email' => 'jane.doe@example.com' ) ) );
+
+		self::assertSame( array( 'code' => 204 ), $client->last_exchange()['response']['body'] );
 	}
 
 	public function test_trigger_automation_throws_api_exception_on_5xx(): void {

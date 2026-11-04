@@ -10290,9 +10290,63 @@ Magento extension set the same rule (Magento CON-233 / CON-215).
 D6 `errors[].message` in a row's `last_error`) — the merchant reads it in
 the Event Log, so dropping it is a design question, listed on CON-277. The
 same holds for the Smaily queue's stored errors and the admin REST answers.
+**Update 2026-11-04:** decided — CON-301 below extends the rule to every
+stored or shown error, so "Not covered" no longer holds.
 **Relationships:** CON-268 (the login job that now reaches the opt-out),
 CON-245 (testing a `DebugLog` line). Pinned by
 `tests/Unit/Privacy/ProfilingConsentTest.php`.
+
+### CON-301 — A stored or shown error keeps the code and where it failed, never the remote message (2026-11-04)
+
+**Context:** CON-277 took the remote message out of the debug log, and left
+every other place that keeps it open: the Event Log row (F3-44
+`last_response.message`, the D6 `errors[].message` in `last_error` and in
+`last_response`), the Smaily queues' and the contact import's stored reason
+(Smaily's `{code, message}` reply and a transport error's text were part of
+the exception message), the recorded Smaily reply in the Event Log Details,
+the admin proxies' answers (`ping`, automations, email designs), the public
+`/relay` answer (CON-300: a refused batch carried the engine's message to the
+browser) and three debug-log lines (contact reconcile, the nightly manifest,
+a Throwable on a cart or transactional send). The remote message can carry a
+customer's email address, and these places keep it in the database and show
+it in the admin.
+**Decision (Erkki, 2026-11-04):** a stored or shown error keeps only the
+error CODE and WHERE it failed — HTTP status, the engine's error code,
+Smaily's numeric code, the D6 field, a WP_Error's code, or a Throwable's type
+and `file:line` — never the engine's or Smaily's message text. The same rule
+as the Magento extension (Magento CON-233 / CON-215).
+- The Smaily `ApiException` message is built by the plugin only (status,
+  method, endpoint, Smaily code, transport code): `Smaily\Client::request()`
+  and `RetryPolicy` fix it where it enters, so the Smaily `Flusher`,
+  `CartFlusher`, `TransactionalFlusher`, `RetryPolicy::apply()`, the contact
+  `BackfillJob` and the Elementor form keep storing `getMessage()` safely.
+  The recorded Smaily reply drops the body's `message`.
+- The engine side: `IngestQueue::http_error_response()` drops `message`; a
+  D6 refusal stores `d6_item_error field=<field>` and `error: {field}`;
+  `RecEngine\Client` keeps a transport failure's WP_Error code only.
+- `/relay` answers `{ok: false, error: <code>}` with 502 and per-event
+  refusals as `{index, field}`. The admin automations and email-design proxies
+  answer the code; the automations card shows it as its detail line. The
+  connection check answers a plugin sentence with the code ("The connection
+  check failed (error code: %s).").
+- Nothing changes in what is sent to the engine or to Smaily.
+**Rationale:** the code says what went wrong and where; the message is text
+the remote controls. The merchant loses Smaily's English sentence for a
+refusal code — the docs site maps the codes that matter (203, 221, 227) — and
+`d6_item_error` keeps the field to fix.
+**Existing rows:** a row stored before this change keeps its old text until
+the janitor prunes it (sent rows after 30 days, failed after 90 —
+`QueueJanitor`); an import's stored reason and its refused-contact list keep
+theirs until the next run replaces them, and the import card masks addresses
+in them (PRO-3881). Accepted — no migration rewrites them.
+**Relationships:** CON-277 (the log), CON-300 (the relay), F3-44 (the Event
+Log exchange), PRO-3862 / PRO-3904 (the Smaily body codes). Pinned per store
+by a test with an address in the remote message: `BeaconEndpointIdentityTest`,
+`CustomerFlusherTest`, `ClientTest` (Smaily), `RetryPolicyTest`,
+`FlusherTest`, `CartFlusherTest`, `TransactionalFlusherTest`,
+`BackfillJobTest`, `ClientBrowseRelayTest`, `CatalogManifestTest`,
+`AutomationsEndpointTest`, `EmailDesignsEndpointTest`,
+`RecEngineEndpointPingTest`, `automations.test.ts`.
 
 ## How to keep this document going
 
