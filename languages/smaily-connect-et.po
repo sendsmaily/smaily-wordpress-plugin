@@ -1316,7 +1316,7 @@ msgstr "Sulge üksikasjad"
 #: admin/src/components/settings/EventLog.tsx:366
 #: admin/src/components/steps/EmailDesigns.tsx:387
 msgid "Close"
-msgstr "Sule"
+msgstr "Sulge"
 
 #: admin/src/components/settings/EventLog.tsx:389
 msgid "Created (UTC)"
