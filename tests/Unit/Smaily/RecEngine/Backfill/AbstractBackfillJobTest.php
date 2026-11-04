@@ -254,6 +254,58 @@ final class AbstractBackfillJobTest extends TestCase {
 	}
 
 	/**
+	 * CON-282: a stray tick on a completed import — the row a start() that
+	 * could not write left behind — walked it, the cursor write matched no
+	 * running row, and the same page went out again for the whole run.
+	 */
+	public function test_a_tick_on_a_completed_import_sends_nothing_and_ends(): void {
+		$wpdb            = $this->fake_wpdb( array_merge( $this->walk_state( 20 ), array( 'status' => BackfillJobInterface::STATUS_COMPLETED ) ) );
+		$GLOBALS['wpdb'] = $wpdb;
+		$engine          = $this->engine();
+		$job             = $this->paged_job( range( 1, 20 ), 2, $engine );
+		$pace            = new FakeClockImportPace();
+
+		$result = $job->process_run( $pace );
+
+		self::assertTrue( $result['completed'], 'The tick chain ends.' );
+		self::assertSame( 0, $result['processed'] );
+		self::assertSame( array(), $job->enqueued, 'Nothing is queued.' );
+		self::assertSame( 0, $engine->requests, 'Nothing is sent.' );
+		self::assertSame( array(), $wpdb->updates, 'The completed row is left as it is.' );
+	}
+
+	public function test_a_cursor_write_that_matches_no_running_row_ends_the_run(): void {
+		$wpdb            = $this->fake_wpdb( $this->walk_state( 20 ) );
+		$wpdb->refuse    = true;
+		$GLOBALS['wpdb'] = $wpdb;
+		$engine          = $this->engine();
+		$job             = $this->paged_job( range( 1, 20 ), 2, $engine );
+
+		$result = $job->process_run( new FakeClockImportPace() );
+
+		self::assertSame( array( 1, 2 ), $job->enqueued, 'CON-282: the page is never read again.' );
+		self::assertSame( 1, $engine->requests );
+		self::assertTrue( $result['completed'], 'No further tick.' );
+	}
+
+	public function test_start_reports_0_when_the_row_cannot_be_written(): void {
+		$GLOBALS['wpdb'] = $this->failing_wpdb();
+		$job             = $this->paged_job( range( 1, 5 ), 2, $this->engine() );
+
+		self::assertSame( 0, $job->start(), 'CON-282: e.g. a column the update has not added yet.' );
+	}
+
+	public function test_read_state_tells_a_database_error_from_never_ran(): void {
+		$wpdb            = $this->failing_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+
+		self::assertFalse( AbstractBackfillJob::read_state( 'orders' ), 'CON-282: unreadable is not "never ran".' );
+
+		$wpdb->fail = false;
+		self::assertNull( AbstractBackfillJob::read_state( 'orders' ) );
+	}
+
+	/**
 	 * A running import at its start, $total records to walk.
 	 *
 	 * @return array<string, mixed>
@@ -456,6 +508,8 @@ final class AbstractBackfillJobTest extends TestCase {
 			public array $updates = array();
 			/** @var array<string, mixed> */
 			public array $state;
+			/** True: no update matches a row. */
+			public bool $refuse = false;
 
 			/** @param array<string, mixed> $row */
 			public function __construct( array $row ) {
@@ -477,11 +531,42 @@ final class AbstractBackfillJobTest extends TestCase {
 			 */
 			public function update( string $table, array $data, array $where, $format = null, $where_format = null ): int {
 				$this->updates[] = compact( 'table', 'data', 'where' );
-				if ( isset( $where['status'] ) && $where['status'] !== $this->state['status'] ) {
+				if ( $this->refuse || ( isset( $where['status'] ) && $where['status'] !== $this->state['status'] ) ) {
 					return 0;
 				}
 				$this->state = array_merge( $this->state, $data );
 				return 1;
+			}
+		};
+	}
+
+	/**
+	 * A $wpdb on which every query fails as on a missing column.
+	 */
+	private function failing_wpdb(): object {
+		return new class() {
+			public string $prefix     = 'wp_';
+			public string $last_error = '';
+			public bool $fail         = true;
+
+			public function prepare( string $sql, ...$args ): string {
+				return $sql;
+			}
+
+			/** @return false */
+			public function query( string $sql ) {
+				$this->last_error = $this->fail ? "Unknown column 'sent_count' in 'field list'" : '';
+				return false;
+			}
+
+			/** @return null */
+			public function get_row( string $sql, string $output = ARRAY_A ) {
+				$this->query( $sql );
+				return null;
+			}
+
+			public function get_var( string $sql ): string {
+				return '5';
 			}
 		};
 	}
