@@ -519,9 +519,10 @@ the queue's `sent` rows. `Backfill\HistoryProgress` (option
 single self-re-arming action (60 s checks, a phase change at once, counts at
 most every 300 s, a failed report or a check that throws retried after 300 s —
 CON-284) and unschedules itself once the import ends. An orders import that
-ends cancelled, failed or stalled ends it WITHOUT a final report: §25 has no
-phase that says so (`complete` claims every order is in) — don't send one
-until the contract has a state for it. A connection's sequence begins ONE import id; the Orders
+ends cancelled, failed or stalled gets ONE final report with the phase it
+reached (`started` or `start_part_complete`, never `complete` — §25 has no
+"stopped" phase yet, INT-225) and its final counts, then the import ends
+(CON-284). A connection's sequence begins ONE import id; the Orders
 card's Import now begins a new one, Products/Customers Import now none.
 **Integration-test trap:** a `do_action( HistoryProgress::HOOK )` run does not
 consume the action AS has queued — the import's first check sits at +180 s
