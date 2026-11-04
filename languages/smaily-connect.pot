@@ -259,6 +259,10 @@ msgstr ""
 msgid "The import stopped running in the background."
 msgstr ""
 
+#: includes/REST/BackfillEndpoint.php:212
+msgid "The import could not be started. Try again in a few minutes."
+msgstr ""
+
 #: includes/REST/BackfillEndpoint.php:516
 msgid "Unsupported job_type."
 msgstr ""
