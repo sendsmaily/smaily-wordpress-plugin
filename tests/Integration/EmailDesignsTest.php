@@ -349,6 +349,10 @@ final class EmailDesignsTest extends TestCase {
 		self::assertStringContainsString( '/design/email/dl_', $response->get_data()['url'] );
 		self::assertNotSame( '', (string) $response->get_data()['expires_at'] );
 		self::assertSame( 'no-store', $response->get_headers()['Cache-Control'] ?? '' );
+		// The admin opens the link and takes the design page's messages only
+		// on the engine's origin (CON-288); the link is on it.
+		self::assertNotSame( '', $response->get_data()['engine_origin'] );
+		self::assertStringStartsWith( $response->get_data()['engine_origin'] . '/', $response->get_data()['url'] );
 
 		$sent = self::$engine->last_design_link_request();
 		self::assertSame( 'plugin.abandoned_cart', $sent['email_key'] );
