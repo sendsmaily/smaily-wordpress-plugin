@@ -334,6 +334,69 @@ final class BackfillJobTest extends TestCase {
 	}
 
 	/**
+	 * CON-302: a contact whose payload cannot be built (its stored data
+	 * throws) is skipped and listed like a refused contact, with the error
+	 * type and where it was thrown — never its text — and the rest of the
+	 * page is sent; the import goes on.
+	 */
+	public function test_process_batch_skips_a_contact_whose_payload_cannot_be_built(): void {
+		$wpdb            = $this->fake_wpdb_for_process_batch(
+			array(
+				'id'              => 77,
+				'status'          => 'running',
+				'cursor_value'    => '0',
+				'processed_count' => '0',
+				'synced_count'    => '0',
+				'total_count'     => '3',
+			),
+			array( 1, 2, 3 )
+		);
+		$GLOBALS['wpdb'] = $wpdb;
+
+		Functions\when( 'get_users' )->justReturn(
+			array(
+				$this->fake_user( 1, 'a@example.com' ),
+				$this->fake_user( 2, 'unreadable@example.com' ),
+				$this->fake_user( 3, 'c@example.com' ),
+			)
+		);
+		Functions\when( 'get_user_meta' )->alias(
+			static function ( int $user_id, string $key, bool $single = false ) {
+				if ( $user_id === 2 && $key !== 'user_newsletter' && $key !== BackfillJob::META_KEY ) {
+					throw new \RuntimeException( 'cannot read the data of unreadable@example.com' );
+				}
+				return $key === 'user_newsletter' ? '1' : '';
+			}
+		);
+		$marked = array();
+		Functions\when( 'update_user_meta' )->alias(
+			static function ( int $user_id ) use ( &$marked ): bool {
+				$marked[] = $user_id;
+				return true;
+			}
+		);
+		$stored = array();
+		Functions\when( 'update_option' )->alias(
+			static function ( string $key, $value ) use ( &$stored ): bool {
+				$stored[ $key ] = $value;
+				return true;
+			}
+		);
+
+		$result = ( new BackfillJob( $this->client_refusing( array() ) ) )->process_batch( 10 );
+
+		self::assertSame( array( 1, 3 ), $marked, 'The contacts on either side are sent.' );
+		self::assertCount( 1, $wpdb->updates );
+		self::assertSame( 'completed', $wpdb->updates[0]['data']['status'], 'One unreadable contact does not stop the import.' );
+		self::assertSame( '3', $wpdb->updates[0]['data']['cursor_value'] );
+		self::assertSame( 2, $result['processed'] );
+		$listed = $stored[ BackfillJob::OPTION_REFUSED ] ?? array();
+		self::assertSame( 1, $listed['count'] ?? null );
+		self::assertSame( 2, $listed['contacts'][0]['user_id'] ?? null );
+		self::assertMatchesRegularExpression( '/^RuntimeException at BackfillJobTest\.php:\d+$/', (string) ( $listed['contacts'][0]['reason'] ?? '' ), 'The error type and where — never its text (CON-301).' );
+	}
+
+	/**
 	 * PRO-3988: on the daily refresh a page often sends just one contact. A
 	 * refusal of that single contact is still that contact's, not the
 	 * request's — the import goes on.

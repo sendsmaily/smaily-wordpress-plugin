@@ -108,7 +108,7 @@ jobs:
           test "$size" -lt 256000 || (echo "Bundle exceeded 250KB gzipped budget" && exit 1)
 
   integration:
-    name: Integration suite (wp-env, ${{ matrix.order-storage }} order storage)
+    name: Integration suite (wp-env, ${{ matrix.order-storage }} order storage${{ matrix.stack == 'oldest' && ', oldest WordPress + WooCommerce' || '' }})
     runs-on: ubuntu-26.04
     # PRO-3435: the order backfill and the personal-data exporter/eraser read
     # orders straight from the active WooCommerce order table, and a fresh
@@ -116,10 +116,21 @@ jobs:
     # storage explicitly and the suite bootstrap refuses to run on any other
     # (SMAILY_CONNECT_TEST_ORDER_STORAGE). Pilot stores run legacy, newer
     # stores HPOS, so both legs must pass.
+    # CON-302: a third leg runs the suite on the oldest stack the plugin
+    # header supports — WordPress 6.6 ("Requires at least"), WooCommerce 6.9
+    # ("WC requires at least"), PHP 8.0 ("Requires PHP") — through a
+    # .wp-env.override.json written by the job. The newest two legs keep their
+    # check names. The patch level is the last one of each minor release.
     strategy:
       fail-fast: false
       matrix:
-        order-storage: ['legacy', 'hpos']
+        include:
+          - order-storage: legacy
+            stack: newest
+          - order-storage: hpos
+            stack: newest
+          - order-storage: legacy
+            stack: oldest
     # Sub-PR 3.0: real-WP integration tests catch route-404, dbDelta,
     # save/read key-mismatch, and other piiri-region bugs that mock
     # unit tests cannot. Job is must-pass for the plugin-side
@@ -164,6 +175,23 @@ jobs:
           composer run install-block-modules
           composer run build
 
+      # WooCommerce 6.9 stores orders in the posts table only (HPOS was a
+      # feature flag then), and Polylang 3.9 needs WordPress 6.8, so the
+      # oldest leg takes the last Polylang that supports 6.6.
+      - name: Pin the oldest supported WordPress, WooCommerce and PHP
+        if: matrix.stack == 'oldest'
+        run: |
+          cat > .wp-env.override.json <<'JSON'
+          {
+            "core": "https://wordpress.org/wordpress-6.6.11.zip",
+            "phpVersion": "8.0",
+            "plugins": [
+              "https://downloads.wordpress.org/plugin/woocommerce.6.9.4.zip",
+              "https://downloads.wordpress.org/plugin/polylang.3.8.11.zip"
+            ]
+          }
+          JSON
+
       - name: Start wp-env
         run: npx @wordpress/env start
 
@@ -182,6 +210,8 @@ jobs:
       # yet, so the switch needs no migration. --ignore-plugin-compatibility:
       # that check is about third-party plugins, not about this suite.
       - name: Switch WooCommerce order storage to ${{ matrix.order-storage }}
+        # WooCommerce 6.9 has no `wp wc hpos` command and only legacy storage.
+        if: matrix.stack == 'newest'
         run: |
           echo "Order storage of the fresh wp-env:"
           npx @wordpress/env run cli wp wc hpos status || true

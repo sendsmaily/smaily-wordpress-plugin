@@ -11,6 +11,7 @@ import { useSaveSettings } from '../../hooks/useSaveSettings';
 import { actionToTab } from '../../state/action-to-tab';
 import { buildTabPayload } from '../../state/buildTabPayload';
 import { saveEngineAutomations } from '../../state/engine-automations';
+import { readBoot } from '../../state/hydrate';
 import {
   buildSettingsInitialState,
   type ServerEnv,
@@ -207,6 +208,7 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
   const engineDirty = activeTab === 'woocommerce' && rawState.engineAutomations.dirty;
   const enginePending = rawState.engineAutomations.saveStatus === 'pending';
   const canSaveOrDiscard = tabIsDirty || engineDirty;
+  const version = readBoot()?.version ?? '';
 
   return (
     <div className="min-h-screen bg-page-bg font-sans text-text-primary">
@@ -308,6 +310,17 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
               {__('Save changes', 'smaily-connect')}
             </Button>
           </footer>
+        )}
+
+        {/* CON-302: the installed version, so support can ask which release a store runs. */}
+        {version !== '' && (
+          <p className="text-center text-xs text-text-secondary">
+            {sprintf(
+              // translators: %s is the installed plugin version, e.g. 3.21.1.
+              __('Smaily Connect %s', 'smaily-connect'),
+              version,
+            )}
+          </p>
         )}
       </div>
     </div>

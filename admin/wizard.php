@@ -270,6 +270,8 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 
 	$boot = array(
 		'buildHash'       => $build_hash,
+		// The installed version, shown at the bottom of Settings (CON-302).
+		'version'         => SMAILY_CONNECT_VERSION,
 		'nonce'           => wp_create_nonce( 'wp_rest' ),
 		// Trailing slash matters — configureApiClient strips it,
 		// but the rest_url() helper returns it without one on some

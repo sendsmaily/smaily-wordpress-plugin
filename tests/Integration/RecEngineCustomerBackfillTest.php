@@ -229,6 +229,59 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 	}
 
 	/**
+	 * CON-302: a customer whose payload cannot be built (its stored data
+	 * throws) fails alone. The import sends everyone else and completes, the
+	 * failed row says where it failed but not what the error said, and the
+	 * live flush of customer updates is not held up by it afterwards.
+	 */
+	public function test_a_customer_that_cannot_be_built_fails_alone_and_nothing_waits_on_it(): void {
+		$this->make_user( 'bf-ok1@example.test', 'customer' );
+		$bad = $this->make_user( 'bf-bad@example.test', 'customer' );
+		$this->make_user( 'bf-ok2@example.test', 'customer' );
+		$builder = new class( 'bf-bad@example.test' ) extends CustomerPayloadBuilder {
+			private string $bad;
+
+			public function __construct( string $bad ) {
+				$this->bad = $bad;
+			}
+
+			public function build( \WP_User $user, string $event_uuid ): array {
+				if ( $user->user_email === $this->bad ) {
+					throw new \RuntimeException( 'cannot read the data of ' . $this->bad );
+				}
+				return parent::build( $user, $event_uuid );
+			}
+		};
+
+		$job = $this->job( 2, null, null, $builder );
+		$job->start();
+		$guard = 0;
+		do {
+			$result = $job->process_batch();
+		} while ( empty( $result['completed'] ) && ++$guard < 20 );
+
+		self::assertSame( 'completed', $this->read_backfill_row()['status'], 'The import goes on past the customer.' );
+		$known = (array) ( self::$engine->state()['known_customers'] ?? array() );
+		self::assertArrayHasKey( 'bf-ok1@example.test', $known );
+		self::assertArrayHasKey( 'bf-ok2@example.test', $known, 'The customer after it is sent too.' );
+		self::assertArrayNotHasKey( 'bf-bad@example.test', $known );
+
+		$row = $this->queue_row_for( $bad );
+		self::assertSame( IngestQueue::STATUS_FAILED, $row['status'] );
+		self::assertMatchesRegularExpression( '/^RuntimeException at RecEngineCustomerBackfillTest\.php:\d+$/', (string) $row['last_error'] );
+		self::assertStringNotContainsString( 'bf-bad', (string) $row['last_error'] . (string) $row['last_response'], 'Never the error text (CON-301).' );
+
+		// A live customer update queued afterwards is sent at once.
+		$third = $this->make_user( 'bf-ok3@example.test', 'customer' );
+		$queue = new IngestQueue();
+		$queue->enqueue( CustomerFlusher::EVENT_CUSTOMER_UPSERT, (string) $third, array() );
+		$stats = $this->flusher( $queue, $builder )->flush();
+		self::assertGreaterThanOrEqual( 1, $stats['sent'] );
+		self::assertSame( 0, $stats['failed'], 'The failed row is not read again.' );
+		self::assertSame( IngestQueue::STATUS_SENT, $this->queue_row_for( $third )['status'] );
+	}
+
+	/**
 	 * The engine answers a logged-in shopper's storefront recommendations by
 	 * the store's own customer id (contract §15 `customer_external_id`), which
 	 * it only knows from the `external_id` sent here — so a re-import must
@@ -316,17 +369,10 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 	 * enumerator so the A-filter (no role filter) is assertable. No declared
 	 * return type so the anonymous subclass's `ids_after` stays visible.
 	 */
-	private function job( int $batch_size = 100, ?IngestQueue $queue = null, ?callable $before_enqueue = null ) {
+	private function job( int $batch_size = 100, ?IngestQueue $queue = null, ?callable $before_enqueue = null, ?CustomerPayloadBuilder $builder = null ) {
 		$settings = new RecEngineSettings();
 		$queue    = $queue ?? new IngestQueue();
-		$flusher  = new CustomerFlusher(
-			$queue,
-			new CustomerPayloadBuilder(),
-			$settings,
-			static function () use ( $settings ): Client {
-				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
-			}
-		);
+		$flusher  = $this->flusher( $queue, $builder ?? new CustomerPayloadBuilder() );
 
 		return new class( $queue, $flusher, $batch_size, $before_enqueue, new CustomerScope( $settings ) ) extends CustomerBackfillJob {
 			private int $bs;
@@ -358,6 +404,31 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 				return $this->fetch_ids_after( $after_id, $limit );
 			}
 		};
+	}
+
+	private function flusher( IngestQueue $queue, CustomerPayloadBuilder $builder ): CustomerFlusher {
+		$settings = new RecEngineSettings();
+		return new CustomerFlusher(
+			$queue,
+			$builder,
+			$settings,
+			static function () use ( $settings ): Client {
+				return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
+			}
+		);
+	}
+
+	/**
+	 * The newest customer.upsert queue row of one user.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function queue_row_for( int $user_id ): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}smly_rec_event_queue WHERE event_type = %s AND entity_id = %s ORDER BY id DESC LIMIT 1", CustomerFlusher::EVENT_CUSTOMER_UPSERT, (string) $user_id ), ARRAY_A );
+		self::assertIsArray( $row );
+		return $row;
 	}
 
 	private function make_user( string $email, string $role ): int {

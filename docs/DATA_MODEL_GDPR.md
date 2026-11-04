@@ -89,7 +89,11 @@ call WordPress makes, and answer `done` on the last page (PRO-3997). The work
 that is not about one order — the engine call, the identity marker, the cart
 sessions, both queues, the refused list, the messages — runs once, on page 1;
 the eraser also drops the waiting `order.upsert` rows of every order there,
-from the ids alone, before the engine call. A guest
+from the ids alone, before the engine call. The orders of the WP user with the
+requested address count too, whatever address they were billed to — an order
+keeps the address it was placed with — found by the user id
+(`wc_orders.customer_id` under HPOS, the `_customer_user` post meta under legacy
+storage; CON-302, as WooCommerce's own order exporter and eraser). A guest
 order billed to a different address is not the requester's order. The WP user
 is the requester's only when its `user_email` is the requested address in any
 letter case: `get_user_by( 'email' )` matches accent-blind too, so

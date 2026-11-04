@@ -10404,6 +10404,67 @@ re-run), pre-3.21.1 audit I4 / I5. Pinned by
 `tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php`,
 `tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php` and
 `tests/Integration/RecEngineImportsOnConnectTest.php`.
+### CON-302 — The personal-data eraser also clears the account's orders (2026-11-04)
+
+**Context:** the exporter and eraser found the requester's orders by billing
+address only. An order keeps the address it was placed with, so an order of the
+customer's account placed under an older address kept its visitor token and
+session id after an erasure — identifiers that tie the order to the person's
+browser. The Magento extension closed the same gap (Magento CON-212).
+**Decision:** `GdprHandler::order_ids_for()` also takes the orders of the WP
+user with the address, by user id (`wc_orders.customer_id` under HPOS, the
+`_customer_user` post meta under legacy). The exporter, the eraser's meta
+removal and the waiting-update drop use the same list.
+**Rationale:** WooCommerce's own order exporter and eraser take the account's
+orders the same way, so the plugin's part of a request covers the same orders.
+**Relationships:** PRO-3908 (the status-blind lookup), PRO-3986 (`user_for()`
+checks the address). Pinned by `GdprHandlerTest` (both SQL shapes) and
+`RecEngineGdprTest` (CI's legacy and HPOS legs).
+
+### CON-302 — CI runs the integration suite on the oldest supported stack too (2026-11-04)
+
+**Context:** the plugin header promises WordPress 6.6, WooCommerce 6.9 and
+PHP 8.0, but CI ran the integration suite only on WordPress 7.1, WooCommerce
+10.7 and PHP 8.3. A call that exists only in a newer release passed every
+check and failed on a store at the floor. The Magento extension added the
+same check (Magento CON-210).
+**Decision:** one more integration leg, legacy order storage only, on
+WordPress 6.6.11, WooCommerce 6.9.4 and PHP 8.0, through a
+`.wp-env.override.json` the job writes. Each pin is the last patch release
+of the minor the header names. Polylang is pinned to 3.8.11, the last
+release that supports WordPress 6.6.
+**Rationale:** the last patch carries the security fixes a store at that
+minor runs; WooCommerce 6.9.4 is also the pilot's version. One leg, not a
+grid: the two newest legs already cover both order storages.
+**Alternatives:** the `.0` releases (a store has no reason to stay on them);
+a full oldest × storage grid (WooCommerce 6.9 has no usable HPOS).
+**Relationships:** PRO-3435 (the two storage legs), the pilot-stack override
+in CLAUDE.md. A raised floor moves these pins in the same commit.
+
+### CON-302 — A record that cannot be built fails alone; the import goes on (2026-11-04)
+
+**Context:** the Campaign Intelligence flushers build each queue row's payload
+at send time, and nothing caught an error there. One record whose stored data
+threw stopped the batch; the import that drained it was marked failed
+(PRO-3890) at the same place on every run, and the row stayed pending, so
+every later flush of its event type, the live sync included, threw on it
+first. The contact import failed the same way on one contact (PRO-3902). The
+Magento extension made its imports go on past such a record (Magento CON-227).
+**Decision:** `AbstractD6Flusher::flush()` catches a Throwable per row around
+`row_to_object()`: the row is marked failed with `<Class> at file:line` and
+`last_response {outcome: "not_built"}`, counts as failed, and the rest of the
+batch is sent. `Smaily\BackfillJob::walk_batch()` catches it per contact
+around `build_subscriber_payload()` and lists the contact in
+`OPTION_REFUSED` with the same reason; it never counts toward the
+"Smaily refused the whole page" rule (PRO-3988).
+**Rationale:** the same data throws again, so a retry loop gains nothing; one
+failed row in the Event Log (Retry there runs it again) costs less than a
+stopped import and a blocked live queue. Never the error's text (CON-301).
+**Not covered:** an error in an import's own enqueue step — the catalog import
+loads each product there — still fails the import (PRO-3890): at that point a
+broken record cannot be told from a database error.
+**Relationships:** PRO-3890, PRO-3902, PRO-3988, CON-301. Pinned by
+`CustomerFlusherTest`, `BackfillJobTest` and `RecEngineCustomerBackfillTest`.
 
 ### CON-284 — A stopped orders import ends with one final §25 report (2026-11-04)
 

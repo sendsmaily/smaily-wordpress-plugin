@@ -300,6 +300,38 @@ final class RecEngineGdprTest extends TestCase {
 		}
 	}
 
+	public function test_erasure_clears_the_tokens_from_the_accounts_orders_billed_to_another_address(): void {
+		// CON-302: an order keeps the address it was placed with, so an order
+		// of the account billed to an older address is found by the user id.
+		$email    = 'erase-account@example.com';
+		$user     = $this->make_user( $email );
+		$account  = $this->make_order_with_rec_meta( 'old-address@example.com' );
+		$guest    = $this->make_order_with_rec_meta( 'old-address@example.com' );
+		$stranger = $this->make_order_with_rec_meta( 'someone-else@example.com' );
+		$other    = $this->make_user( 'someone-else@example.com' );
+		foreach ( array( $account => $user->ID, $stranger => $other->ID ) as $order_id => $customer_id ) {
+			$order = wc_get_order( $order_id );
+			self::assertInstanceOf( \WC_Order::class, $order );
+			$order->set_customer_id( (int) $customer_id );
+			$order->update_meta_data( '_smaily_anon_session_id', 'sid-123' );
+			$order->save();
+		}
+
+		$result = $this->handler()->erase( $email );
+
+		self::assertTrue( $result['items_removed'] );
+		$order = wc_get_order( $account );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		self::assertSame( '', (string) $order->get_meta( '_smaily_visitor_token' ), 'The account\'s order lost its visitor token.' );
+		self::assertSame( '', (string) $order->get_meta( '_smaily_anon_session_id' ), 'The account\'s order lost its session id.' );
+		self::assertSame( '', (string) $order->get_meta( '_smaily_rec_id' ) );
+		foreach ( array( $guest, $stranger ) as $id ) {
+			$order = wc_get_order( $id );
+			self::assertInstanceOf( \WC_Order::class, $order );
+			self::assertSame( 'vt_xyz', (string) $order->get_meta( '_smaily_visitor_token' ), "Order {$id} of no account or another account is untouched." );
+		}
+	}
+
 	public function test_no_customer_update_is_left_waiting_after_wordpress_runs_every_eraser(): void {
 		// PRO-3986: our eraser runs before WooCommerce's. WooCommerce's
 		// customer eraser then blanks the profile and saves it; the save fires

@@ -484,10 +484,16 @@ final class AutomationDiscountCodeTest extends TestCase {
 		$own_order = wc_get_order( $this->store->make_order( $shopper ) );
 		self::assertTrue( $this->is_valid( $code, $own_order ), 'The shopper can use the code.' );
 
-		$someone_else = wc_get_order( $this->store->make_order( $this->store->make_user( 'discount-other' ) ) );
-		self::assertInstanceOf( \WP_Error::class, $this->is_valid( $code, $someone_else ), 'Only the shopper\'s email may use it.' );
+		// Only the shopper's email may use it — asked through WooCommerce's
+		// checkout check, which every supported release has: WC_Discounts
+		// checks the email only from a newer release than 6.9 (CON-302).
+		$coupon       = new \WC_Coupon( $code );
+		$restrictions = $coupon->get_email_restrictions();
+		$cart         = new \WC_Cart();
+		self::assertTrue( $cart->is_coupon_emails_allowed( array( strtolower( PipelineFixture::email_of( $shopper ) ) ), $restrictions ), 'The shopper\'s email may use it.' );
+		$other = $this->store->make_user( 'discount-other' );
+		self::assertFalse( $cart->is_coupon_emails_allowed( array( strtolower( PipelineFixture::email_of( $other ) ) ), $restrictions ), 'Only the shopper\'s email may use it.' );
 
-		$coupon = new \WC_Coupon( $code );
 		$coupon->set_date_expires( time() - 60 );
 		$coupon->save();
 		self::assertInstanceOf( \WP_Error::class, $this->is_valid( $code, $own_order ), 'WooCommerce itself refuses it after its last day.' );
@@ -567,9 +573,18 @@ final class AutomationDiscountCodeTest extends TestCase {
 				array_diff_key( $overrides, array( 'status' => true ) )
 			)
 		);
-		$coupon->set_status( (string) ( $overrides['status'] ?? 'publish' ) );
 		$id = (int) $coupon->save();
 		self::assertGreaterThan( 0, $id );
+		// Through the post: WooCommerce 6.9 creates every coupon published
+		// and ignores the status set on the object (CON-302).
+		if ( isset( $overrides['status'] ) ) {
+			wp_update_post(
+				array(
+					'ID'          => $id,
+					'post_status' => (string) $overrides['status'],
+				)
+			);
+		}
 		$this->coupons[] = $id;
 		return $id;
 	}
