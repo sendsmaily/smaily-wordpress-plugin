@@ -189,7 +189,7 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 
 = 3.21.1 =
 * Fixed: a history import could repeat itself or stop right after it started when the plugin updated in the background. The update now also completes in the background, without a visit to wp-admin.
-* Fixed: a connected store that ran 3.21.0 and whose history import never finished starts the whole sequence (products, customers, orders) once more by itself. It waits while another import runs; an import you held back or cancelled stays stopped.
+* Fixed: a connected store that ran 3.21.0 and whose order history has not been sent in full with 3.21 starts the whole sequence (products, customers, orders) once more by itself. It waits while another import runs; an import you held back or cancelled stays stopped.
 * Improved: Import now says so when an import could not be started.
 
 = 3.21.0 =
