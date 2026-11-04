@@ -995,7 +995,12 @@ workflow, not a signal about those releases).
   skips the storage switch (WC 6.9 has no `wp wc hpos` command and only
   legacy storage). **Raising a floor in the plugin header or `readme.txt`
   means moving this leg's pins in the same commit.** The two newest legs
-  keep their check names.
+  keep their check names. A test written against the newest WooCommerce can
+  fail there on an API that came later — two found on the first run: WC 6.9
+  creates every coupon `publish` whatever `WC_Coupon::set_status()` says (set
+  the status with `wp_update_post()` after the save), and its `WC_Discounts`
+  does not check a coupon's allowed emails (the checkout does, through
+  `WC_Cart::is_coupon_emails_allowed()`, which every supported release has).
 - **Gutenberg blocks**: lint + test.
 
 All four jobs (every matrix leg) are expected GREEN. A red job now means something broke — read
