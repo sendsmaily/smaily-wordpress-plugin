@@ -99,6 +99,36 @@ class Credentials {
 		return $this->decrypt_password( (string) $row['password'] ) === '';
 	}
 
+	/**
+	 * The subdomain of every Smaily account the store holds: the default
+	 * account, each Mode A language account and the transactional account
+	 * — trimmed, lower case, without duplicates or empty values. Reads only
+	 * the subdomain, never the password (CON-289: which accounts may a
+	 * Campaign Intelligence setup link name).
+	 *
+	 * @return array<int, string>
+	 */
+	public function subdomains(): array {
+		global $wpdb;
+
+		$like = $wpdb->esc_like( self::PHASE2_OPTION_PREFIX ) . '%';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- option_name scan on a setup-link connect only; the values are read through get_option().
+		$per_account = $wpdb->get_col(
+			$wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $like )
+		);
+
+		$subdomains = array();
+		foreach ( array_merge( array( self::LEGACY_OPTION_KEY ), is_array( $per_account ) ? $per_account : array() ) as $option_key ) {
+			$row       = get_option( (string) $option_key, array() );
+			$subdomain = is_array( $row ) && isset( $row['subdomain'] ) ? strtolower( trim( (string) $row['subdomain'] ) ) : '';
+			if ( $subdomain !== '' ) {
+				$subdomains[] = $subdomain;
+			}
+		}
+
+		return array_values( array_unique( $subdomains ) );
+	}
+
 	private function resolve_option_key( string $account_key ): string {
 		if ( $account_key === self::DEFAULT_ACCOUNT_KEY || $account_key === '' ) {
 			return self::LEGACY_OPTION_KEY;

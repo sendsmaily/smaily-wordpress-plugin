@@ -10,7 +10,9 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -203,6 +205,56 @@ final class RecEngineSetupExchangeTest extends TestCase {
 		self::assertTrue( $settings->is_connected() );
 		self::assertSame( EnvSeed::FIXTURE_BASE_URL, $settings->base_url() );
 		self::assertSame( EnvSeed::FIXTURE_API_KEY, $settings->api_key() );
+	}
+
+	/**
+	 * Contract v1.25.0 §1 `smaily_subdomain` (CON-289): a link to the engine
+	 * store of another Smaily account is refused, and nothing is stored —
+	 * no key, no connection, no import sequence.
+	 */
+	public function test_a_setup_link_for_another_smaily_account_is_refused_and_nothing_is_stored(): void {
+		$this->seed_store_account( 'mystore' );
+		self::$engine->set_setup_smaily_subdomain( 'otherstore' );
+
+		$response = RestRequestHelper::post(
+			'/rec-engine/setup-exchange',
+			array( 'setup_url' => self::$engine->setup_url( 'tok_other_account' ) )
+		);
+
+		self::assertSame( 400, $response->get_status() );
+		$body = $response->get_data();
+		self::assertFalse( $body['connected'] );
+		self::assertSame( 'smaily_account_mismatch', $body['error'] );
+		self::assertStringContainsString( 'otherstore', $body['message'] );
+
+		self::assertFalse( ( new RecEngineSettings() )->is_connected() );
+		self::assertFalse( get_option( RecEngineSettings::OPTION_API_KEY, false ) );
+		self::assertFalse( get_option( ImportsOnConnect::OPTION, false ), 'A refused link must not start the imports.' );
+	}
+
+	public function test_a_setup_link_for_the_stores_own_smaily_account_connects(): void {
+		$this->seed_store_account( 'MyStore' );
+		self::$engine->set_setup_smaily_subdomain( 'mystore' );
+
+		$response = RestRequestHelper::post(
+			'/rec-engine/setup-exchange',
+			array( 'setup_url' => self::$engine->setup_url( 'tok_own_account' ) )
+		);
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertTrue( $response->get_data()['connected'] );
+		self::assertTrue( ( new RecEngineSettings() )->is_connected() );
+	}
+
+	private function seed_store_account( string $subdomain ): void {
+		update_option(
+			Credentials::LEGACY_OPTION_KEY,
+			array(
+				'subdomain' => $subdomain,
+				'username'  => 'tester',
+				'password'  => \Smaily_Connect\Includes\Cypher::encrypt( 'test-password' ),
+			)
+		);
 	}
 
 	public function test_setup_token_does_not_persist_in_wp_options_after_exchange(): void {

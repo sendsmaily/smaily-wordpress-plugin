@@ -16,6 +16,7 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Smaily\RecEngine\ExchangeResult;
 use Smaily\Connect\Smaily\RecEngine\SetupExchange;
 
@@ -196,10 +197,94 @@ final class SetupExchangeTest extends TestCase {
 	}
 
 	/**
+	 * Contract v1.25.0 §1 `smaily_subdomain` (CON-289): a link to the engine
+	 * store of a Smaily account the store does not hold is refused before
+	 * the caller stores anything, and the refusal carries no API key.
+	 */
+	public function test_a_reply_for_another_smaily_account_is_refused(): void {
+		$this->engine_replies( $this->reply( 'otherstore' ) );
+
+		$result = ( new SetupExchange( $this->store_accounts( array( 'mystore' ) ) ) )->exchange( 'tok_abc', self::BASE );
+
+		self::assertSame( ExchangeResult::KIND_ACCOUNT_MISMATCH, $result->kind );
+		self::assertSame( 'otherstore', $result->smaily_subdomain );
+		self::assertSame( '', $result->api_key, 'A refused reply must not carry the API key to the caller.' );
+	}
+
+	public function test_a_reply_for_the_stores_own_account_connects_whatever_its_case(): void {
+		$this->engine_replies( $this->reply( ' MyStore ' ) );
+
+		$result = ( new SetupExchange( $this->store_accounts( array( 'mystore' ) ) ) )->exchange( 'tok_abc', self::BASE );
+
+		self::assertSame( ExchangeResult::KIND_SUCCESS, $result->kind );
+		self::assertSame( 'mystore', $result->smaily_subdomain );
+		self::assertSame( 'sk_test_1', $result->api_key );
+	}
+
+	public function test_a_reply_for_a_mode_a_language_account_of_the_store_connects(): void {
+		$this->engine_replies( $this->reply( 'mystore-en' ) );
+
+		$result = ( new SetupExchange( $this->store_accounts( array( 'mystore', 'mystore-en' ) ) ) )->exchange( 'tok_abc', self::BASE );
+
+		self::assertSame( ExchangeResult::KIND_SUCCESS, $result->kind );
+	}
+
+	/**
+	 * An engine before v1.25.0 sends no field, and an engine store without a
+	 * Smaily account sends null: there is nothing to compare, so the link
+	 * connects as it did before, and the store's accounts are not read.
+	 *
+	 * @dataProvider replies_that_name_no_account
+	 */
+	public function test_a_reply_that_names_no_account_connects( ?string $smaily_subdomain, bool $field_present ): void {
+		$reply = $this->reply();
+		if ( $field_present ) {
+			$reply['smaily_subdomain'] = $smaily_subdomain;
+		}
+		$this->engine_replies( $reply );
+
+		$credentials = $this->createMock( Credentials::class );
+		$credentials->expects( self::never() )->method( 'subdomains' );
+
+		$result = ( new SetupExchange( $credentials ) )->exchange( 'tok_abc', self::BASE );
+
+		self::assertSame( ExchangeResult::KIND_SUCCESS, $result->kind );
+		self::assertSame( '', $result->smaily_subdomain );
+	}
+
+	/**
+	 * @return array<string, array{?string, bool}>
+	 */
+	public static function replies_that_name_no_account(): array {
+		return array(
+			'no field (engine before v1.25.0)' => array( null, false ),
+			'null (no Smaily account yet)'     => array( null, true ),
+			'an empty string'                  => array( '', true ),
+		);
+	}
+
+	public function test_a_store_without_a_smaily_account_connects_to_any_account(): void {
+		$this->engine_replies( $this->reply( 'otherstore' ) );
+
+		$result = ( new SetupExchange( $this->store_accounts( array() ) ) )->exchange( 'tok_abc', self::BASE );
+
+		self::assertSame( ExchangeResult::KIND_SUCCESS, $result->kind );
+	}
+
+	/**
+	 * @param array<int, string> $subdomains
+	 */
+	private function store_accounts( array $subdomains ): Credentials {
+		$credentials = $this->createMock( Credentials::class );
+		$credentials->method( 'subdomains' )->willReturn( $subdomains );
+		return $credentials;
+	}
+
+	/**
 	 * @return array<string, mixed>
 	 */
-	private function reply(): array {
-		return array(
+	private function reply( ?string $smaily_subdomain = null ): array {
+		$reply = array(
 			'tenant_id'       => 'ten_1',
 			'tenant_name'     => 'Test tenant',
 			'api_key'         => 'sk_test_1',
@@ -211,6 +296,10 @@ final class SetupExchangeTest extends TestCase {
 				'customer_export' => self::BASE . '/api/v1/customer/{email}/export',
 			),
 		);
+		if ( $smaily_subdomain !== null ) {
+			$reply['smaily_subdomain'] = $smaily_subdomain;
+		}
+		return $reply;
 	}
 
 	/**

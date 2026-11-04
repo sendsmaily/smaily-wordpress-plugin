@@ -10171,6 +10171,62 @@ and it is the rule that skipped these stores).
 Pinned by `tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php` and
 `tests/Integration/RecEngineSchemaGateTest.php`.
 
+### CON-289 — A setup link to another Smaily account's engine store is refused (2026-11-04)
+
+**Context:** contract v1.25.0 §1 (engine `fe1728a`, INT-209) adds
+`smaily_subdomain` to the setup-exchange answer: the Smaily account of the
+engine store the link joined, trimmed and lower case, `null` when that store
+has none. The contract asks a connector of several websites to refuse a
+mismatching link and lets a one-website connector ignore the field. A
+WordPress site is one website, but a pasted link of another business's engine
+store would send this store's customers and orders into that store, so CON-289
+asks for the check here too. The Magento extension decided the rule on
+2026-11-03 (INT-208: the engine store follows the store; a setup link whose
+`smaily_subdomain` is not the website's account is refused) and has not built
+it yet (its CON-237 step 5).
+**Decision:** `SetupExchange::exchange()` refuses a 200 answer whose
+`smaily_subdomain` is none of the store's own Smaily accounts with the new
+kind `account_mismatch`, after the PRO-3623 host check and before the caller
+stores anything — so the REST route and `bin/exchange-setup-token.php` both
+store nothing and start no import. The route answers `400
+smaily_account_mismatch` with a message that names the link's account and says
+the link is used up. The rule (`SetupExchange::is_store_account()`):
+- both sides are compared trimmed and lower case;
+- the store's accounts are every Smaily account it holds credentials for
+  (`Credentials::subdomains()`): the default account, each Mode A language
+  account and the transactional account;
+- the link connects as before when the answer names no account (`null`, an
+  empty string, or no field from an engine before v1.25.0) or when the store
+  holds no Smaily account yet — there is nothing to compare.
+**Difference from Magento, and why:** Magento compares with the one account of
+the website being connected. WooCommerce has Mode A (F2-6): with WPML,
+Polylang or TranslatePress a store may send each language through its own
+Smaily account, and the store is still one engine store (INT-208: one store is
+one engine store, also with per-language accounts). Until INT-208 names the
+account a link joined per language, the engine store of such a store has one
+of those accounts, and it need not be the default one; comparing with the
+default account alone would refuse the store's own link. Each of these
+accounts is one the merchant entered, so accepting any of them still refuses
+another business's store. The transactional account is included for the same
+reason.
+**The engine key of a refused link is not revoked:** the engine issued a key
+for a connection to the other account's store; sending §16 with it could pause
+that store when it has no other connection. The key is never stored here, and
+the token is used up.
+**Mock:** the mock's setup exchange answers `smaily_subdomain: null` unless a
+test sets an account (`RecEngineMockServer::set_setup_smaily_subdomain()`), so
+a test that seeds Smaily credentials and connects is never refused by chance.
+**Not followed (no plugin change needed):** v1.25.0's §18 brand-kit fields
+(`accent_colour`, `button_radius`, `heading_font_family`) and the PUT
+response's `designs_updated` — the plugin does not call §18; and the §23
+`version` that a brand-kit change raises — nothing in the plugin acts on
+`version`.
+**Relationships:** PRO-3623 (the host check this follows), F2-6 (Mode A),
+CON-218 (§23 `smaily_subdomain`, compared the same way). Pinned by
+`tests/Unit/Smaily/RecEngine/SetupExchangeTest.php`,
+`tests/Unit/Settings/CredentialsTest.php` and
+`tests/Integration/RecEngineSetupExchangeTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

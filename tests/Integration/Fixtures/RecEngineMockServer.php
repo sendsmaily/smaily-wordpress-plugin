@@ -167,6 +167,14 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * The Smaily account the setup exchange names (contract v1.25.0 §1
+	 * `smaily_subdomain`); null answers null, an engine store without one.
+	 */
+	public function set_setup_smaily_subdomain( ?string $subdomain ): void {
+		$this->write_state( array( 'setup_smaily_subdomain' => $subdomain ) );
+	}
+
+	/**
 	 * Flip the mock into (or out of) the contract §2 deactivated-tenant state:
 	 * every API-key-authenticated route then answers `403 tenant_inactive`.
 	 * The setup-exchange route stays open — that is how a merchant connects a
