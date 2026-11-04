@@ -157,6 +157,8 @@ final class EnvScrub {
 			// CON-282: the one-time re-run marker, asserted on by
 			// RecEngineSchemaGateTest.
 			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION_RERUN_CHECKED,
+			// CON-292: the catalog import a connect could not start.
+			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION_START_DUE,
 			// CON-282: the deferred migrations, asserted on by
 			// RetiredTablesMigrationTest.
 			\Smaily\Connect\DB\Migrator::OPTION_DEFERRED,

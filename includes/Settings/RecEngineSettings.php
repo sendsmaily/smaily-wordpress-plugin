@@ -275,6 +275,7 @@ class RecEngineSettings {
 			// The imports this connection started one after another stop
 			// starting (CON-247); a new connection starts its own.
 			ImportsOnConnect::OPTION,
+			ImportsOnConnect::OPTION_START_DUE,
 			// Nothing more is reported for the history import this
 			// connection began (CON-248).
 			HistoryProgress::OPTION,

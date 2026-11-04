@@ -529,6 +529,31 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		return ! as_has_scheduled_action( BackfillJobInterface::TICK_HOOK, array( 'job_type' => $job_type ) );
 	}
 
+	/**
+	 * Whether an action of $hook waits in Action Scheduler — pending, not
+	 * the one that runs now (CON-285). A check that re-arms itself asks
+	 * this: as_next_scheduled_action() answers `true` both for a running
+	 * action and for a pending async one, so it cannot tell "only I run"
+	 * from "another copy waits", and a second copy was queued.
+	 */
+	public static function action_pending( string $hook, string $group ): bool {
+		if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
+			return false;
+		}
+
+		$ids = as_get_scheduled_actions(
+			array(
+				'hook'     => $hook,
+				'group'    => $group,
+				'status'   => 'pending', // ActionScheduler_Store::STATUS_PENDING.
+				'per_page' => 1,
+			),
+			'ids'
+		);
+
+		return is_array( $ids ) && $ids !== array();
+	}
+
 	protected function table_name(): string {
 		global $wpdb;
 		return $wpdb->prefix . self::TABLE_SUFFIX;
