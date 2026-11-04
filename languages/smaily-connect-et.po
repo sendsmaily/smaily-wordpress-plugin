@@ -1314,6 +1314,7 @@ msgid "Close details"
 msgstr "Sulge üksikasjad"
 
 #: admin/src/components/settings/EventLog.tsx:366
+#: admin/src/components/steps/EmailDesigns.tsx:387
 msgid "Close"
 msgstr "Sule"
 
@@ -3157,6 +3158,18 @@ msgstr "Kujundust on muudetud"
 #: admin/src/components/steps/EmailDesigns.tsx:156
 msgid "Design check failed — open the design to fix it"
 msgstr "Kujunduse kontroll ebaõnnestus — ava kujundus, et see parandada"
+
+#: admin/src/components/steps/EmailDesigns.tsx:384
+msgid "Open in a new tab"
+msgstr "Ava uuel vahekaardil"
+
+#: admin/src/components/steps/EmailDesigns.tsx:393
+msgid "Is the design page not showing? Your browser may not allow it inside the WordPress admin. Press Open in a new tab."
+msgstr "Kas kujunduse lehte ei kuvata? Sinu brauser ei pruugi lubada seda WordPressi haldusliideses näidata. Vajuta „Ava uuel vahekaardil“."
+
+#: admin/src/components/steps/EmailDesigns.tsx:403
+msgid "Opening the design page…"
+msgstr "Kujunduse lehe avamine…"
 
 #. translators: 1: the shortest validity in days, 2: the longest.
 #: includes/REST/SettingsEndpoint.php:374
