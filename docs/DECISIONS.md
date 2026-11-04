@@ -8639,6 +8639,8 @@ editor and starts the email with the pushed workflow.
   click opens a blank tab at once (pop-up blockers allow a tab only from the
   click), sets its `opener` to null and sends it to the link when it arrives;
   on a failure it closes the tab. One attempt, no Retry-After wait.
+  (Since CON-288 this tab is the fallback: where the engine lets the admin
+  frame the page, the click opens a window over the admin instead.)
 - **Id override:** every §23 read stores the `smaily_workflow_id` of the six
   plugin emails (`smly_rec_email_workflows`, autoload=false; only kinds
   `plugin`/`transactional`, only `sent_through: "workflow"` — 3.19.0 audit
@@ -10170,6 +10172,45 @@ and it is the rule that skipped these stores).
 **Relationships:** CON-247 (the after-update start), CON-248 (§25, `sent_count`).
 Pinned by `tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php` and
 `tests/Integration/RecEngineSchemaGateTest.php`.
+
+### CON-288 — "Edit design" opens the design page in a window over the admin (2026-11-04)
+
+**Context:** contract v1.18.0 §22 Embedding lets the engine's design page
+show in a frame inside the store's admin, but only for the https origin of
+the connection's `plugin_info.site_url` (rule 1). The Magento extension
+shipped this on 2026-11-02 (CON-257, PR #236); the WooCommerce plugin still
+opened a new tab (CON-173). This is a port of CON-257 under CON-231 rule 1.
+**Decision:**
+- **Frame or tab, decided on the server:** the admin boot blob carries
+  `designFrameable` = `EmailDesignsEndpoint::frameable( get_site_url(),
+  admin_url() )` — true only when the site URL is https and has the admin's
+  origin (scheme, host, port; the scheme's own port left out). Otherwise the
+  CON-173 new tab, with its open-blank-in-the-click pattern, stays.
+- **The window:** opens at once with a loading state; the server mints the
+  link and the frame gets it. Esc, the Close button and a click on the
+  darkened page close it and read §23 again; keyboard focus stays inside it
+  and returns to the button. The header always offers "Open in a new tab"
+  (a fresh link — the frame's is used up); a hint points at it when the frame
+  has not loaded after 8 seconds (a refused frame cannot be told apart from a
+  slow one).
+- **Engine origin only:** the design-link answer adds `engine_origin`, the
+  origin of the stored engine base URL — never the key or the base URL's
+  path. The admin opens a link (frame or tab) only when it starts with
+  `engine_origin + '/'`, and acts on a `message` event only when
+  `event.origin === engine_origin` and `data.type ===
+  'smaily_intelligence_design'`: `saved` reads §23 again, `closed` closes the
+  window (which reads §23 again). Nothing is taken from the message itself.
+**Rationale:** the engine decides frame-ancestors from `plugin_info.site_url`,
+so a frame anywhere else is refused by the browser; deciding on the server
+keeps the tab fallback popup-blocker-safe (the click must already know).
+**Alternatives:** always frame and fall back on a load error — rejected: a
+refused frame fires no error the parent can read; take the origin from the
+link URL — rejected: the origin check would then check the link against
+itself.
+**Relationships:** CON-173 (the button, §22–§23 proxy; its new tab is now
+the fallback), CON-257 (Magento, the reference). Pinned by
+`admin/src/components/steps/EmailDesigns.test.tsx` and
+`tests/Unit/REST/EmailDesignsEndpointTest.php`.
 
 ## How to keep this document going
 
