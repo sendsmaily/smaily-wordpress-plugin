@@ -468,7 +468,16 @@ wp-env:** the first check after this code is mounted can send the full history
 to the connected tenant — check it is the sandbox, never `MiuMjau`.
 A state row that does not read (`read_state()` === false) or a `start()` that
 returns 0 is never "ended": nothing moves or is forgotten, the next check tries
-again.
+again — a connect whose catalog start returned 0 sets
+`smly_rec_import_sequence_start_due`, and `advance()` starts that part instead
+of moving on (CON-292). **One chain, one pending check (CON-285):** "Import
+now" replaces the import's pending tick and adds none while one of its ticks
+runs; a check that re-arms itself asks `AbstractBackfillJob::action_pending()`
+(pending only) — never `is_int( as_next_scheduled_action() )`, which answers
+`true` for the running copy and hid a pending one. A one-time marker decided
+under the lock is read again inside it past the request's option cache
+(`wp_cache_delete()` of the key and of `notoptions`) — the earlier read is
+stale when another process wrote it meanwhile.
 
 ### Background jobs run the new code BEFORE the upgrade — gate on the schema (CON-282)
 The upgrade (`Bootstrap::maybe_run_upgrade` → `Activation::run()`) ran only on
@@ -508,8 +517,11 @@ the queue's `sent` rows. `Backfill\HistoryProgress` (option
 `smly_rec_history_import`, AS hook `smly_rec_history_progress`, group
 `smaily-rec-history-progress` in `Deactivation::AS_GROUPS`) reports §25 from a
 single self-re-arming action (60 s checks, a phase change at once, counts at
-most every 300 s, a failure retried after 300 s) and unschedules itself once
-the import ends. A connection's sequence begins ONE import id; the Orders
+most every 300 s, a failed report or a check that throws retried after 300 s —
+CON-284) and unschedules itself once the import ends. An orders import that
+ends cancelled, failed or stalled ends it WITHOUT a final report: §25 has no
+phase that says so (`complete` claims every order is in) — don't send one
+until the contract has a state for it. A connection's sequence begins ONE import id; the Orders
 card's Import now begins a new one, Products/Customers Import now none.
 **Integration-test trap:** a `do_action( HistoryProgress::HOOK )` run does not
 consume the action AS has queued — the import's first check sits at +180 s

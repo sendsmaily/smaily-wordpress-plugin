@@ -223,12 +223,16 @@ class BackfillEndpoint {
 		// reaches its terminal state. A job start() already finished has
 		// nothing to tick for (PRO-1715: an empty contact audience) — and a
 		// tick would flip its row back to 'running'.
-		if ( $status === BackfillJobInterface::STATUS_RUNNING && function_exists( 'as_enqueue_async_action' ) ) {
-			as_enqueue_async_action(
-				BackfillJobInterface::TICK_HOOK,
-				array( 'job_type' => $job_type ),
-				EventQueue::AS_GROUP
-			);
+		// One tick chain per import (CON-285): a batch that waits is replaced
+		// by one that runs now; a batch that runs now reads the restarted row
+		// on its next batch and schedules the next tick itself, so none is
+		// added beside it — two chains would send the same rows twice.
+		if ( $status === BackfillJobInterface::STATUS_RUNNING && function_exists( 'as_enqueue_async_action' ) && function_exists( 'as_has_scheduled_action' ) && function_exists( 'as_unschedule_all_actions' ) ) {
+			$args = array( 'job_type' => $job_type );
+			as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK, $args, EventQueue::AS_GROUP );
+			if ( ! as_has_scheduled_action( BackfillJobInterface::TICK_HOOK, $args, EventQueue::AS_GROUP ) ) {
+				as_enqueue_async_action( BackfillJobInterface::TICK_HOOK, $args, EventQueue::AS_GROUP );
+			}
 		}
 
 		return new WP_REST_Response(

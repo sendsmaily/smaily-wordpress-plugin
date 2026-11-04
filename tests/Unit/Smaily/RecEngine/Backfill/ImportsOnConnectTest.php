@@ -60,6 +60,9 @@ final class ImportsOnConnectTest extends TestCase {
 	 */
 	private ?array $begun = null;
 
+	/** @var (callable(): void)|null runs when a check takes the lock: what an overlapping check did meanwhile */
+	private $on_lock = null;
+
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
@@ -79,8 +82,12 @@ final class ImportsOnConnectTest extends TestCase {
 				return true;
 			}
 		);
+		$on_lock = &$this->on_lock;
 		Functions\when( 'add_option' )->alias(
-			static function ( string $key, $value ) use ( &$options ): bool {
+			static function ( string $key, $value ) use ( &$options, &$on_lock ): bool {
+				if ( $key === 'smly_rec_import_sequence_lock' && $on_lock !== null ) {
+					( $on_lock )();
+				}
 				if ( array_key_exists( $key, $options ) ) {
 					return false;
 				}
@@ -94,6 +101,8 @@ final class ImportsOnConnectTest extends TestCase {
 				return true;
 			}
 		);
+
+		Functions\when( 'wp_cache_delete' )->justReturn( true );
 
 		$scheduled = &$this->scheduled;
 		$pending   = &$this->tick_pending;
@@ -113,6 +122,17 @@ final class ImportsOnConnectTest extends TestCase {
 		Functions\when( 'as_has_scheduled_action' )->alias(
 			static function ( string $hook, ?array $args = null ) use ( &$pending ): bool {
 				return $hook === BackfillJobInterface::TICK_HOOK && ! empty( $pending[ (string) ( $args['job_type'] ?? '' ) ] );
+			}
+		);
+		// The pending actions (CON-285): the check that runs now is not among them.
+		Functions\when( 'as_get_scheduled_actions' )->alias(
+			static function ( array $query ) use ( &$scheduled ): array {
+				return array_keys(
+					array_filter(
+						$scheduled,
+						static fn ( array $action ): bool => $action['hook'] === $query['hook']
+					)
+				);
 			}
 		);
 		$check_next = &$this->check_next;
@@ -150,6 +170,7 @@ final class ImportsOnConnectTest extends TestCase {
 
 		self::assertSame( array(), $this->started, 'The running import is not restarted.' );
 		self::assertSame( array( 'products', 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ] );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_START_DUE, $this->options, 'It runs: nothing to start later.' );
 	}
 
 	public function test_each_part_starts_when_the_one_before_it_has_finished(): void {
@@ -259,6 +280,25 @@ final class ImportsOnConnectTest extends TestCase {
 		$check = $this->scheduled_for( ImportsOnConnect::HOOK );
 		self::assertCount( 1, $check );
 		self::assertGreaterThanOrEqual( time() + ImportsOnConnect::CHECK_INTERVAL - 1, $check[0]['at'] );
+	}
+
+	public function test_a_check_pending_beside_the_running_one_is_not_doubled(): void {
+		$this->options[ ImportsOnConnect::OPTION_UPDATE_CHECKED ] = '1';
+		$this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ]  = '1';
+		$this->options[ ImportsOnConnect::OPTION ]                = array( 'products', 'customers', 'orders' );
+		$this->row( 'products', 'running' );
+		$this->tick_pending['products'] = true;
+		$this->check_next               = true; // The check that runs now is in progress.
+		// A copy already pending beside it.
+		$this->scheduled[] = array(
+			'at'   => time() + 60,
+			'hook' => ImportsOnConnect::HOOK,
+			'args' => array(),
+		);
+
+		$this->sequence()->run_check();
+
+		self::assertCount( 1, $this->scheduled_for( ImportsOnConnect::HOOK ), 'CON-285: one pending check.' );
 	}
 
 	public function test_after_an_update_the_sequence_starts_from_the_first_part_that_never_completed(): void {
@@ -459,6 +499,37 @@ final class ImportsOnConnectTest extends TestCase {
 		self::assertSame( array(), $this->scheduled_for( BackfillJobInterface::TICK_HOOK ) );
 	}
 
+	public function test_a_catalog_import_that_cannot_start_on_connect_is_started_by_a_later_check(): void {
+		// An earlier run's row: not this sequence's catalog import.
+		$this->row( 'products', 'completed', time() - DAY_IN_SECONDS );
+		$this->start_fails = true;
+
+		self::assertFalse( $this->sequence()->start() );
+		self::assertSame( '1', $this->options[ ImportsOnConnect::OPTION_START_DUE ] );
+		self::assertCount( 1, $this->scheduled_for( ImportsOnConnect::HOOK ), 'A later check comes.' );
+
+		$this->sequence()->advance();
+		self::assertSame( array(), $this->started, 'Still failing: it waits, the customers import does not start.' );
+		self::assertSame( array( 'products', 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ] );
+
+		$this->start_fails = false;
+		$before            = time();
+		$this->sequence()->advance();
+
+		self::assertSame( array( 'products' ), $this->started, 'CON-292: the catalog import is started, not skipped.' );
+		self::assertSame( array( 'products', 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ] );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_START_DUE, $this->options );
+		$tick = $this->scheduled_for( BackfillJobInterface::TICK_HOOK );
+		self::assertCount( 1, $tick );
+		self::assertGreaterThanOrEqual( $before + CatalogImportOnConnect::DELAY_SECONDS, $tick[0]['at'], 'The catalog keeps its hold-back window.' );
+
+		// Once it has ended, the sequence moves on as before.
+		$this->row( 'products', 'completed' );
+		$this->tick_pending['products'] = false;
+		$this->sequence()->advance();
+		self::assertSame( array( 'products', 'customers' ), $this->started );
+	}
+
 	public function test_after_an_update_an_unreadable_part_decides_nothing_yet(): void {
 		$this->unreadable = array( 'orders' );
 
@@ -564,6 +635,28 @@ final class ImportsOnConnectTest extends TestCase {
 		self::assertFalse( $this->sequence()->rerun_once( true ) );
 		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_RERUN_CHECKED, $this->options );
 		self::assertSame( array(), $this->started );
+	}
+
+	public function test_two_overlapping_checks_begin_one_history_import(): void {
+		$this->begun = array();
+		// The other check started the re-run while this one waited for the lock.
+		$this->on_lock = function (): void {
+			$this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] = '1';
+		};
+
+		self::assertFalse( $this->sequence()->rerun_once( true ) );
+
+		self::assertSame( array(), $this->begun, 'CON-292: no second import id.' );
+		self::assertSame( array(), $this->started );
+	}
+
+	public function test_a_re_run_that_cannot_start_is_decided_again(): void {
+		$this->start_fails = true;
+
+		self::assertFalse( $this->sequence()->rerun_once( true ) );
+
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_RERUN_CHECKED, $this->options, 'The next check decides.' );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION, $this->options );
 	}
 
 	private function sequence(): ImportsOnConnect {

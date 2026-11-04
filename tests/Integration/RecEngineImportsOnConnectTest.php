@@ -15,6 +15,7 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
@@ -31,7 +32,9 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *   - a store connected before this release starts the sequence once after
  *     the update, from the first part that never completed — never after a
  *     held-back catalog import, and skipping a cancelled part;
- *   - a refused account moves nothing.
+ *   - a refused account moves nothing;
+ *   - Import now and the two checks leave one pending copy each, also
+ *     while a copy runs (CON-285).
  */
 final class RecEngineImportsOnConnectTest extends TestCase {
 
@@ -58,10 +61,18 @@ final class RecEngineImportsOnConnectTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		foreach ( $this->running as $action_id ) {
+			\ActionScheduler::store()->mark_complete( $action_id );
+		}
+		$this->running = array();
 		$this->unschedule_all();
 		ImportsOnConnect::forget();
+		HistoryProgress::forget();
 		parent::tearDown();
 	}
+
+	/** @var int[] actions a test marked as running; completed in tearDown */
+	private array $running = array();
 
 	public function test_connecting_runs_the_catalog_then_the_customers_then_the_orders_import(): void {
 		$this->connect( 'tok_sequence_order' );
@@ -195,7 +206,66 @@ final class RecEngineImportsOnConnectTest extends TestCase {
 		self::assertSame( self::TYPES, $this->stored_sequence(), 'The sequence waits.' );
 	}
 
+	public function test_import_now_and_the_checks_leave_one_pending_copy_each(): void {
+		$this->connect( 'tok_sequence_one_copy' );
+		$products = array( 'job_type' => 'products' );
+		self::assertSame( 1, $this->pending( BackfillJobInterface::TICK_HOOK, EventQueue::AS_GROUP, $products ), 'The held-back first batch.' );
+
+		// Import now, pressed twice: the waiting batch is replaced, not doubled.
+		RestRequestHelper::post( '/backfill/start', $products );
+		RestRequestHelper::post( '/backfill/start', $products );
+		self::assertSame( 1, $this->pending( BackfillJobInterface::TICK_HOOK, EventQueue::AS_GROUP, $products ) );
+
+		// Import now while a batch runs: that batch walks the restarted
+		// import and re-arms itself, so none is added beside it.
+		as_unschedule_all_actions( BackfillJobInterface::TICK_HOOK, $products, EventQueue::AS_GROUP );
+		$this->mark_running( BackfillJobInterface::TICK_HOOK, EventQueue::AS_GROUP, $products );
+		RestRequestHelper::post( '/backfill/start', $products );
+		self::assertSame( 0, $this->pending( BackfillJobInterface::TICK_HOOK, EventQueue::AS_GROUP, $products ), 'One chain: the running batch.' );
+
+		// Each check runs while its next copy already waits.
+		$this->mark_running( ImportsOnConnect::HOOK, EventQueue::AS_GROUP );
+		$this->mark_running( HistoryProgress::HOOK, HistoryProgress::AS_GROUP );
+		self::assertSame( 1, $this->pending( ImportsOnConnect::HOOK, EventQueue::AS_GROUP ) );
+		self::assertSame( 1, $this->pending( HistoryProgress::HOOK, HistoryProgress::AS_GROUP ) );
+
+		do_action( ImportsOnConnect::HOOK );
+		do_action( HistoryProgress::HOOK );
+
+		self::assertSame( 1, $this->pending( ImportsOnConnect::HOOK, EventQueue::AS_GROUP ), 'One pending sequence check.' );
+		self::assertSame( 1, $this->pending( HistoryProgress::HOOK, HistoryProgress::AS_GROUP ), 'One pending progress check.' );
+	}
+
 	// --- helpers -----------------------------------------------------------
+
+	/**
+	 * Queue an action of $hook and mark it as running, as Action Scheduler
+	 * does when it starts it.
+	 *
+	 * @param array<string, mixed> $args
+	 */
+	private function mark_running( string $hook, string $group, array $args = array() ): void {
+		$action_id = as_schedule_single_action( time(), $hook, $args, $group );
+		\ActionScheduler::store()->log_execution( $action_id );
+		$this->running[] = $action_id;
+	}
+
+	/**
+	 * @param array<string, mixed>|null $args
+	 */
+	private function pending( string $hook, string $group, ?array $args = null ): int {
+		$query = array(
+			'hook'     => $hook,
+			'group'    => $group,
+			'status'   => \ActionScheduler_Store::STATUS_PENDING,
+			'per_page' => -1,
+		);
+		if ( $args !== null ) {
+			$query['args'] = $args;
+		}
+
+		return count( as_get_scheduled_actions( $query, 'ids' ) );
+	}
 
 	private function connect( string $token ): void {
 		$response = RestRequestHelper::post(
