@@ -438,6 +438,22 @@ final class GdprHandlerTest extends TestCase {
 		);
 	}
 
+	public function test_hpos_order_lookup_also_reads_the_customer_accounts_orders(): void {
+		// CON-302: an order keeps the address it was placed with, so the
+		// account's orders are found by its user id as well.
+		self::assertSame(
+			'SELECT id FROM wp_wc_orders WHERE ( CAST( LOWER( billing_email ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) OR customer_id = %d ) ORDER BY id ASC',
+			GdprHandler::order_ids_sql( true, 'wp_', true )
+		);
+	}
+
+	public function test_legacy_order_lookup_also_reads_the_customer_accounts_orders(): void {
+		self::assertSame(
+			"SELECT DISTINCT p.ID FROM wp_posts p INNER JOIN wp_postmeta m ON m.post_id = p.ID WHERE ( m.meta_key = '_billing_email' AND CAST( LOWER( m.meta_value ) AS BINARY ) = CAST( LOWER( %s ) AS BINARY ) ) OR ( m.meta_key = '_customer_user' AND m.meta_value = %s ) ORDER BY p.ID ASC",
+			GdprHandler::order_ids_sql( false, 'wp_', true )
+		);
+	}
+
 	// --- helpers -------------------------------------------------------
 
 	/**

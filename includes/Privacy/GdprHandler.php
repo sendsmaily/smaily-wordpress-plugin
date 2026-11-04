@@ -237,7 +237,7 @@ class GdprHandler {
 	 * until it answers `done` (PRO-3997). Every page removes the markers of
 	 * the next ORDERS_PER_PAGE orders. Page 1 also does, once, everything
 	 * that is not about one order: it drops the waiting updates of the WP
-	 * user and of EVERY order billed to the address (ids only, nothing
+	 * user and of EVERY order of the customer (order_ids_for(); ids only, nothing
 	 * loaded), and the user's waiting login jobs, before the engine call, so
 	 * nothing sends the customer to the engine again after it (PRO-3906,
 	 * CON-275); then the engine
@@ -514,13 +514,13 @@ class GdprHandler {
 	/**
 	 * Delete the customer's customer and order updates that are still waiting
 	 * in the Campaign Intelligence queue (PRO-3906): the WP user with this
-	 * address, and the orders billed to it. A row not yet attempted holds no
+	 * address, and the customer's orders. A row not yet attempted holds no
 	 * copy, so IngestQueue::delete_for_privacy_request() cannot see it. The
 	 * user's waiting login jobs go too (CON-275): a run would send the
 	 * customer (§4) and bind the visitor token (§7). A new Action Scheduler
 	 * job that carries a user must be cancelled here as well.
 	 *
-	 * @param int[] $order_ids The ids of every order billed to the address.
+	 * @param int[] $order_ids The ids of every order of the customer (order_ids_for()).
 	 */
 	private function drop_waiting_updates( string $email, array $order_ids ): bool {
 		$deleted = 0;
@@ -687,6 +687,9 @@ class GdprHandler {
 	 * (registered or not) or in the trash is found too, and the address
 	 * matches in any letter case (PRO-3908) but not across accents
 	 * (PRO-3986) — `wc_get_orders()` sees only the registered statuses.
+	 * The orders of the WP user with the address count too, found by the
+	 * user id, because an order keeps the billing address it was placed
+	 * with (CON-302) — WooCommerce's own order eraser does the same.
 	 * Only the ids: the orders are loaded a page at a time (PRO-3997).
 	 * Protected as a unit-test seam, like load_order().
 	 *
@@ -697,10 +700,12 @@ class GdprHandler {
 		if ( ! function_exists( 'wc_get_order' ) ) {
 			return array();
 		}
-		$hpos = OrderBackfillJob::uses_hpos();
+		$hpos    = OrderBackfillJob::uses_hpos();
+		$user_id = $this->user_id_for( $email );
+		$args    = $user_id > 0 ? array( $email, $user_id ) : array( $email );
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The SQL holds table names only; the address is prepare()d.
-		$ids = $wpdb->get_col( $wpdb->prepare( self::order_ids_sql( $hpos, $wpdb->prefix ), $email ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- The SQL holds table names only; the address and the user id are prepare()d.
+		$ids = $wpdb->get_col( $wpdb->prepare( self::order_ids_sql( $hpos, $wpdb->prefix, $user_id > 0 ), ...$args ) );
 
 		return array_map( 'intval', $ids );
 	}
@@ -755,15 +760,27 @@ class GdprHandler {
 	 * case, but bytes after lowering: `LOWER( col ) = LOWER( %s )` alone
 	 * still compares under the column's collation, which on the usual
 	 * databases ignores accents, so jane@… would find jäne@…'s orders
-	 * (PRO-3986, PRO-3909). PURE (no DB) so both storage paths are
-	 * unit-testable.
+	 * (PRO-3986, PRO-3909). With $with_account the orders of one customer
+	 * account count too, through a second placeholder: `wc_orders.customer_id
+	 * = %d` under HPOS, the `_customer_user` post meta `= %s` under legacy
+	 * storage, where the meta row holds the id as a string (CON-302). PURE
+	 * (no DB) so both storage paths are unit-testable.
 	 */
-	public static function order_ids_sql( bool $hpos, string $prefix ): string {
+	public static function order_ids_sql( bool $hpos, string $prefix, bool $with_account = false ): string {
 		$spec = OrderBackfillJob::table_spec( $hpos, $prefix );
 		if ( $hpos ) {
-			return "SELECT {$spec['id_col']} FROM {$spec['table']} WHERE " . AddressMatch::column_equals( 'billing_email' ) . " ORDER BY {$spec['id_col']} ASC";
+			$where = AddressMatch::column_equals( 'billing_email' );
+			if ( $with_account ) {
+				$where = "( {$where} OR customer_id = %d )";
+			}
+			return "SELECT {$spec['id_col']} FROM {$spec['table']} WHERE {$where} ORDER BY {$spec['id_col']} ASC";
 		}
-		return "SELECT p.{$spec['id_col']} FROM {$spec['table']} p INNER JOIN {$prefix}postmeta m ON m.post_id = p.{$spec['id_col']} WHERE m.meta_key = '_billing_email' AND " . AddressMatch::column_equals( 'm.meta_value' ) . " ORDER BY p.{$spec['id_col']} ASC";
+		$where = "m.meta_key = '_billing_email' AND " . AddressMatch::column_equals( 'm.meta_value' );
+		if ( ! $with_account ) {
+			return "SELECT p.{$spec['id_col']} FROM {$spec['table']} p INNER JOIN {$prefix}postmeta m ON m.post_id = p.{$spec['id_col']} WHERE {$where} ORDER BY p.{$spec['id_col']} ASC";
+		}
+		// An order can match on both of its meta rows, hence DISTINCT.
+		return "SELECT DISTINCT p.{$spec['id_col']} FROM {$spec['table']} p INNER JOIN {$prefix}postmeta m ON m.post_id = p.{$spec['id_col']} WHERE ( {$where} ) OR ( m.meta_key = '_customer_user' AND m.meta_value = %s ) ORDER BY p.{$spec['id_col']} ASC";
 	}
 
 	/**

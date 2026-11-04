@@ -10294,6 +10294,23 @@ same holds for the Smaily queue's stored errors and the admin REST answers.
 CON-245 (testing a `DebugLog` line). Pinned by
 `tests/Unit/Privacy/ProfilingConsentTest.php`.
 
+### CON-302 — The personal-data eraser also clears the account's orders (2026-11-04)
+
+**Context:** the exporter and eraser found the requester's orders by billing
+address only. An order keeps the address it was placed with, so an order of the
+customer's account placed under an older address kept its visitor token and
+session id after an erasure — identifiers that tie the order to the person's
+browser. The Magento extension closed the same gap (Magento CON-212).
+**Decision:** `GdprHandler::order_ids_for()` also takes the orders of the WP
+user with the address, by user id (`wc_orders.customer_id` under HPOS, the
+`_customer_user` post meta under legacy). The exporter, the eraser's meta
+removal and the waiting-update drop use the same list.
+**Rationale:** WooCommerce's own order exporter and eraser take the account's
+orders the same way, so the plugin's part of a request covers the same orders.
+**Relationships:** PRO-3908 (the status-blind lookup), PRO-3986 (`user_for()`
+checks the address). Pinned by `GdprHandlerTest` (both SQL shapes) and
+`RecEngineGdprTest` (CI's legacy and HPOS legs).
+
 ### CON-302 — CI runs the integration suite on the oldest supported stack too (2026-11-04)
 
 **Context:** the plugin header promises WordPress 6.6, WooCommerce 6.9 and
