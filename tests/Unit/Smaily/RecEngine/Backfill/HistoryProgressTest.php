@@ -49,6 +49,9 @@ final class HistoryProgressTest extends TestCase {
 
 	private int $now = self::NOW;
 
+	/** Whether the orders import counts as stalled (PRO-3886). */
+	private bool $stalled = false;
+
 	/** Thrown by every state-row read: a check that fails (CON-284). */
 	private ?\Throwable $reader_error = null;
 
@@ -370,18 +373,109 @@ final class HistoryProgressTest extends TestCase {
 		self::assertSame( array(), $this->scheduled );
 	}
 
-	public function test_a_cancelled_or_failed_orders_import_ends_the_import(): void {
-		foreach ( array( 'cancelled', 'failed' ) as $status ) {
+	public function test_an_orders_import_stopped_inside_the_start_part_sends_one_final_started_report(): void {
+		foreach ( array( 'cancelled', 'failed', 'stalled' ) as $end ) {
 			$this->sent = array();
+			$this->rows = array();
 			$this->begin_with_sequence();
-			$this->orders_running( 410, 25 );
-			$this->rows['orders']['status'] = $status;
+			$this->progress()->run();
+			// The walk had not queued the whole start part when it stopped.
+			$this->orders_running( null, 25 );
+			$this->stop_orders( $end );
+			$this->now = self::NOW + 60;
 
 			$this->progress()->run();
 
-			self::assertSame( array(), $this->sent, $status );
-			self::assertTrue( $this->options[ HistoryProgress::OPTION ]['ended'], $status );
+			self::assertCount( 2, $this->sent, 'One final report at once, inside the five minutes — ' . $end );
+			self::assertSame( 'started', $this->sent[1]['phase'], 'CON-284: the phase it reached — ' . $end );
+			self::assertSame(
+				array(
+					'expected'       => 4000,
+					'sent'           => 1500,
+					'oldest_sent_at' => '2025-05-01',
+				),
+				$this->sent[1]['entities']['orders'],
+				'Its final counts — ' . $end
+			);
+			$this->assert_ended_without_more_reports( 2, $end );
+			$this->now     = self::NOW;
+			$this->stalled = false;
 		}
+	}
+
+	public function test_an_orders_import_stopped_after_the_start_part_reports_that_phase_never_complete(): void {
+		foreach ( array( 'cancelled', 'failed', 'stalled' ) as $end ) {
+			$this->sent = array();
+			$this->rows = array();
+			$this->begin_with_sequence();
+			$this->orders_running( 410, 25 );
+			$this->progress()->run();
+			self::assertSame( 'start_part_complete', $this->sent[0]['phase'], $end );
+
+			$this->stop_orders( $end );
+			$this->rows['orders']['sent_count'] = '2600';
+			$this->now                          = self::NOW + 60;
+			$this->progress()->run();
+
+			self::assertCount( 2, $this->sent, $end );
+			self::assertSame( 'start_part_complete', $this->sent[1]['phase'], 'Not complete: orders since horizon_start are missing — ' . $end );
+			self::assertSame( 2600, $this->sent[1]['entities']['orders']['sent'], $end );
+			$this->assert_ended_without_more_reports( 2, $end );
+			$this->now     = self::NOW;
+			$this->stalled = false;
+		}
+	}
+
+	public function test_the_final_report_waits_for_the_order_rows_queued_before_the_stop(): void {
+		$this->begin_with_sequence();
+		$this->orders_running( 410, 25 );
+		$this->stop_orders( 'cancelled' );
+		$this->waiting[] = array(
+			'types'      => array( 'order.upsert' ),
+			'created_by' => '2026-11-02 12:30:00',
+			'max_id'     => null,
+		);
+
+		$this->progress()->run();
+
+		self::assertSame( array(), $this->sent, 'Its counts are not final while a row of the run waits.' );
+		self::assertFalse( $this->options[ HistoryProgress::OPTION ]['ended'] );
+		self::assertCount( 1, $this->scheduled, 'The next check comes.' );
+
+		// A live row queued after the cancel does not hold it back.
+		$this->waiting[0]['created_by']     = '2026-11-02 12:31:00';
+		$this->rows['orders']['sent_count'] = '1501';
+		$this->scheduled                    = array();
+		$this->progress()->run();
+
+		self::assertCount( 1, $this->sent );
+		self::assertSame( 1501, $this->sent[0]['entities']['orders']['sent'] );
+		$this->assert_ended_without_more_reports( 1, 'cancelled' );
+	}
+
+	public function test_a_failed_final_report_is_tried_again_after_five_minutes(): void {
+		$this->begin_with_sequence();
+		$this->orders_running( 410, 25 );
+		$this->stop_orders( 'failed' );
+		$this->engine_error = new ApiException( 500, 'db_failure', 'The engine did not store the call.' );
+
+		$this->progress()->run();
+
+		self::assertCount( 1, $this->sent );
+		self::assertFalse( $this->options[ HistoryProgress::OPTION ]['ended'], 'Not ended on a report the engine did not store.' );
+		self::assertCount( 1, $this->scheduled );
+
+		$this->engine_error = null;
+		$this->now          = self::NOW + HistoryProgress::REPORT_EVERY_SECONDS - 1;
+		$this->progress()->run();
+		self::assertCount( 1, $this->sent, 'Not before five minutes.' );
+
+		$this->now       = self::NOW + HistoryProgress::REPORT_EVERY_SECONDS;
+		$this->scheduled = array();
+		$this->progress()->run();
+		self::assertCount( 2, $this->sent );
+		self::assertSame( 'start_part_complete', $this->sent[1]['phase'] );
+		$this->assert_ended_without_more_reports( 2, 'failed' );
 	}
 
 	public function test_an_orders_run_from_before_the_import_began_is_not_its_orders_part(): void {
@@ -451,6 +545,30 @@ final class HistoryProgressTest extends TestCase {
 
 	// --- helpers -----------------------------------------------------------
 
+	/** The orders import ends as $end: cancelled, failed or stalled. */
+	private function stop_orders( string $end ): void {
+		if ( $end === 'stalled' ) {
+			$this->stalled = true;
+			return;
+		}
+		$this->rows['orders']['status'] = $end;
+		if ( $end === 'cancelled' ) {
+			$this->rows['orders']['completed_at'] = '2026-11-02 12:30:00';
+		}
+	}
+
+	/** The import ended: no check left, and nothing more is reported. */
+	private function assert_ended_without_more_reports( int $reports, string $end ): void {
+		self::assertTrue( $this->options[ HistoryProgress::OPTION ]['ended'], $end );
+		self::assertSame( array(), $this->scheduled, 'The check unschedules itself — ' . $end );
+
+		$this->now += HistoryProgress::REPORT_EVERY_SECONDS;
+		$this->progress()->run();
+		$this->progress()->ensure_scheduled();
+		self::assertCount( $reports, $this->sent, 'No second final report — ' . $end );
+		self::assertSame( array(), $this->scheduled, $end );
+	}
+
 	private function begin_with_sequence(): void {
 		$this->options[ ImportsOnConnect::OPTION ] = array( 'products', 'customers', 'orders' );
 		$this->progress()->begin( self::NOW );
@@ -461,7 +579,7 @@ final class HistoryProgressTest extends TestCase {
 	 * The orders import of this history import, running, its start part
 	 * read up to queue row $queued_to.
 	 */
-	private function orders_running( int $queued_to, int $last_id, string $started = '2026-11-02 12:00:00' ): void {
+	private function orders_running( ?int $queued_to, int $last_id, string $started = '2026-11-02 12:00:00' ): void {
 		$this->rows['orders'] = array(
 			'id'              => '3',
 			'status'          => 'running',
@@ -573,18 +691,23 @@ final class HistoryProgressTest extends TestCase {
 			}
 		);
 
-		$now = &$this->now;
-		return new class( $settings, static fn (): Client => $client, $queue, fn ( string $type ): array|false|null => $this->read_row( $type ), $now ) extends HistoryProgress {
+		$now     = &$this->now;
+		$stalled = &$this->stalled;
+		return new class( $settings, static fn (): Client => $client, $queue, fn ( string $type ): array|false|null => $this->read_row( $type ), $now, $stalled ) extends HistoryProgress {
 			/** @var int */
 			private $clock;
+
+			/** @var bool */
+			private $orders_stalled;
 
 			/**
 			 * @param callable(): Client                     $client_factory
 			 * @param callable(string): (array<string, mixed>|false|null) $state_reader
 			 */
-			public function __construct( RecEngineSettings $settings, callable $client_factory, IngestQueue $queue, callable $state_reader, int &$clock ) {
+			public function __construct( RecEngineSettings $settings, callable $client_factory, IngestQueue $queue, callable $state_reader, int &$clock, bool &$stalled ) {
 				parent::__construct( $settings, $client_factory, $queue, $state_reader );
-				$this->clock = &$clock;
+				$this->clock          = &$clock;
+				$this->orders_stalled = &$stalled;
 			}
 
 			protected function now(): int {
@@ -600,7 +723,7 @@ final class HistoryProgressTest extends TestCase {
 			}
 
 			protected function is_stalled( string $job_type, array $row ): bool {
-				return false;
+				return $job_type === 'orders' && $this->orders_stalled;
 			}
 		};
 	}

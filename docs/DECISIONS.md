@@ -10394,7 +10394,7 @@ cancelled, failed or stalled. Contract §25 `phase` allows only `started`,
 `horizon_start` is sent — there is no state that says the import stopped. The
 check still ends the import without a report; that waits for a decision
 (a new §25 state from the engine team, or a rule to report the reached phase
-with the last counts). Two races stay: an Import now while a tick's batch is
+with the last counts) — decided since, see "CON-284" below. Two races stay: an Import now while a tick's batch is
 in flight lets that batch write its old cursor onto the restarted row, and a
 `HistoryProgress::begin()` while a check runs can be overwritten by that
 check's state write.
@@ -10404,6 +10404,41 @@ re-run), pre-3.21.1 audit I4 / I5. Pinned by
 `tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php`,
 `tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php` and
 `tests/Integration/RecEngineImportsOnConnectTest.php`.
+
+### CON-284 — A stopped orders import ends with one final §25 report (2026-11-04)
+
+**Context:** When the orders part of a history import was cancelled, failed
+or stalled, `HistoryProgress` ended the import without a report, so the
+engine kept the last phase and counts it had heard — up to 5 minutes old,
+or only `started` with zero orders. Contract §25 (v1.25.0) allows only
+`started`, `start_part_complete` and `complete`, and `complete` says every
+order since `horizon_start` is sent (or every order the platform holds).
+There is no phase that says the import stopped; the engine team is asked to
+add one (INT-225).
+**Decision (Erkki, 2026-11-04):** until §25 has such a state, a stopped
+orders part gets ONE final §25 report with the phase it actually reached
+and its final counts, and the import then ends (no more reports, the check
+unschedules itself).
+- The phase is the one the check computes for that moment: `started` when
+  the start part is not in (a store that stopped inside it), else
+  `start_part_complete`. Never `complete`: it is reached only by a
+  completed orders run whose rows are all sent, and a stopped run is not
+  completed. No new phase or field is sent.
+- The report goes at once, not after the 5-minute throttle, but it waits
+  while an order row queued before the stop still waits (the cancel's
+  `completed_at`, else the time the check first saw the stop,
+  `stopped_at` in the state), so the counts are final.
+- A final report that fails is tried again 300 s later, like any failed
+  report; the import ends only once the engine has it.
+- Unchanged: an import whose orders part never began (Hold back, a cancel
+  of the catalog or customers import) still ends without a report.
+**Rationale:** the engine and the store's console then show where the import
+really stopped, without a claim §25 does not allow. When INT-225 adds a
+"stopped" state, the final report sends it instead.
+**Relationships:** CON-248 (§25), CON-285 (the re-arm half of CON-284),
+INT-225 (the engine's "stopped" state). Pinned by
+`tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php` and
+`tests/Integration/RecEngineHistoryProgressTest.php`.
 
 ## How to keep this document going
 

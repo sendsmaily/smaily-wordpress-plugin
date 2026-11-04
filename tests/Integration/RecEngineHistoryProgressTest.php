@@ -2,7 +2,8 @@
 /**
  * Integration: the §25 history progress report (CON-248) — the phases reach
  * the engine in order with the counts of rows it accepted, a failed report is
- * tried again, and the import finishes whatever the report does.
+ * tried again, the import finishes whatever the report does, and a cancelled
+ * orders import ends with one final report (CON-284).
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -163,6 +164,35 @@ final class RecEngineHistoryProgressTest extends TestCase {
 		self::assertCount( 2, $reports );
 		self::assertSame( 'complete', $reports[1]['phase'], 'The retry carries the phase of its moment.' );
 		self::assertSame( 1, $reports[1]['entities']['orders']['sent'] );
+	}
+
+	public function test_a_cancelled_orders_import_sends_one_final_report_with_the_phase_it_reached(): void {
+		$now = time();
+		$this->make_order( 'completed', $now - self::DAY );
+		$this->make_order( 'completed', $now - 900 * self::DAY );
+		$this->connect( 'tok_progress_cancel' );
+		do_action( HistoryProgress::HOOK );
+
+		foreach ( array( 'products', 'customers' ) as $job_type ) {
+			$this->run_to_end( $job_type );
+		}
+		self::assertSame( BackfillJobInterface::STATUS_RUNNING, $this->status( 'orders' ), 'The sequence started the orders import.' );
+
+		$response = RestRequestHelper::post( '/backfill/cancel', array( 'job_type' => 'orders' ) );
+		self::assertSame( 200, $response->get_status() );
+		do_action( HistoryProgress::HOOK );
+
+		$reports = self::$engine->history_progress_requests();
+		self::assertCount( 2, $reports, 'One final report after the cancel.' );
+		self::assertSame( $reports[0]['import_id'], $reports[1]['import_id'] );
+		self::assertSame( 'started', $reports[1]['phase'], 'CON-284: stopped inside the start part — never complete.' );
+		self::assertSame( 0, $reports[1]['entities']['orders']['sent'], 'Its final count: no order was sent.' );
+		self::assertSame( 2, $reports[1]['entities']['orders']['expected'] );
+		self::assertTrue( $this->state()['ended'] );
+		self::assertFalse( $this->check_queued(), 'The check unschedules itself.' );
+
+		do_action( HistoryProgress::HOOK );
+		self::assertCount( 2, self::$engine->history_progress_requests(), 'No second final report.' );
 	}
 
 	public function test_import_now_on_the_orders_card_starts_a_new_history_import(): void {
