@@ -39,6 +39,7 @@ export interface SetupExchangeFailure {
     | 'invalid_setup_url'
     | 'token_expired_or_used'
     | 'token_not_found'
+    | 'smaily_account_mismatch'
     | 'engine_unreachable';
   message: string;
   /** Populated on token_expired_or_used. */

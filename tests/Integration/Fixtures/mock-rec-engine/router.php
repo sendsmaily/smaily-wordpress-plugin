@@ -245,6 +245,10 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 			'api_key'         => $state['api_key'],
 			'engine_base_url' => $engine_base,
 			'engine_version'  => '1.0.0',
+			// v1.25.0 §1: the engine store's Smaily account, or null when it
+			// has none — null unless a test sets one, so a store's own
+			// credentials never refuse a test's link by accident (CON-289).
+			'smaily_subdomain' => isset( $state['setup_smaily_subdomain'] ) ? (string) $state['setup_smaily_subdomain'] : null,
 			'endpoints'       => array(
 				'ingest_ping'             => $engine_base . '/api/v1/ingest/ping',
 				'ingest_catalog'          => $engine_base . '/api/v1/ingest/catalog',

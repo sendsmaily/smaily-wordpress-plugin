@@ -264,6 +264,12 @@ msgstr "See seadistuslink on juba kasutatud. Palu mootori administraatoril gener
 msgid "Setup token not recognised. Verify the URL is correct."
 msgstr "Seadistustokenit ei tuntud ära. Kontrolli, et URL on õige."
 
+#. translators: %s: the Smaily account (subdomain) of the Campaign Intelligence store the setup link is for.
+#: includes/REST/RecEngineEndpoint.php:239
+#, php-format
+msgid "This setup link is for the Campaign Intelligence store of another Smaily account (%s), so the connection was not saved. The link is now used up: ask Smaily for a new setup link for this store's Smaily account."
+msgstr "See seadistuslink on mõeldud teise Smaily konto (%s) Campaign Intelligence'i poele, seega ühendust ei salvestatud. Link on nüüd ära kasutatud: küsi Smailylt selle poe Smaily konto jaoks uus seadistuslink."
+
 #: includes/REST/RecEngineEndpoint.php:249
 msgid "Smaily Campaign Intelligence did not respond. Try again in a few minutes."
 msgstr "Smaily Campaign Intelligence ei vastanud. Proovi mõne minuti pärast uuesti."
@@ -1871,6 +1877,10 @@ msgstr "Seadistuslink on juba kasutatud"
 #: admin/src/components/steps/Step4Recommendations.tsx:447
 msgid "Setup link not found"
 msgstr "Seadistuslinki ei leitud"
+
+#: admin/src/components/steps/Step4Recommendations.tsx:588
+msgid "Setup link for another Smaily account"
+msgstr "Seadistuslink teise Smaily konto jaoks"
 
 #: admin/src/components/steps/Step4Recommendations.tsx:450
 msgid "Engine unreachable"

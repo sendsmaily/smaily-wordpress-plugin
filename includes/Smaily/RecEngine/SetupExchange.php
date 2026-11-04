@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Smaily\RecEngine;
 
+use Smaily\Connect\Settings\Credentials;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -51,6 +53,12 @@ class SetupExchange {
 	 * only open it by editing PHP code on purpose.
 	 */
 	public const TEST_ENGINE_HOST_CONSTANT = 'SMAILY_CONNECT_TEST_ENGINE_HOST';
+
+	private Credentials $credentials;
+
+	public function __construct( ?Credentials $credentials = null ) {
+		$this->credentials = $credentials ?? new Credentials();
+	}
 
 	/**
 	 * Is this an engine URL a new connection may use? https on
@@ -96,6 +104,24 @@ class SetupExchange {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * May a link to an engine store of this Smaily account connect this
+	 * store? (§1 `smaily_subdomain`, CON-289.) Yes when the engine names no
+	 * account ('' — an engine store without one, or an engine before
+	 * v1.25.0), when the store holds no Smaily account yet, or when the
+	 * account is one of the store's own: the default, a Mode A language or
+	 * the transactional account. Both sides are trimmed and lower case.
+	 */
+	public function is_store_account( string $smaily_subdomain ): bool {
+		if ( $smaily_subdomain === '' ) {
+			return true;
+		}
+
+		$own = $this->credentials->subdomains();
+
+		return $own === array() || in_array( $smaily_subdomain, $own, true );
 	}
 
 	/**
@@ -238,6 +264,11 @@ class SetupExchange {
 				$result = ExchangeResult::success( $json );
 				if ( ! self::is_allowed_reply( $result ) ) {
 					return ExchangeResult::host_not_allowed( 'Engine reply points outside https://' . self::ENGINE_HOST . '.' );
+				}
+				// A link to another Smaily account's engine store is refused
+				// before the caller stores the key or starts an import (§1).
+				if ( ! $this->is_store_account( $result->smaily_subdomain ) ) {
+					return ExchangeResult::account_mismatch( $result->smaily_subdomain );
 				}
 				return $result;
 

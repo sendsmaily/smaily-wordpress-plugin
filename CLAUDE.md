@@ -1661,6 +1661,13 @@ stores the `https://re-fixture.test` fixture through it. The integration mock
 `tests/Integration/bootstrap.php` defines `SMAILY_CONNECT_TEST_ENGINE_HOST`;
 never define it in a wp-config, and don't turn it into a filter. Moving the
 engine to a new host is now a plugin release (`SetupExchange::ENGINE_HOST`).
+**The same exchange refuses a link to another Smaily account's engine store
+(CON-289, contract v1.25.0 §1 `smaily_subdomain`)** — kind `account_mismatch`,
+checked inside `exchange()` after the host check, against every Smaily account
+the store holds (`Credentials::subdomains()`, Mode A languages and the
+transactional account included). The mock answers `smaily_subdomain: null`
+unless a test calls `RecEngineMockServer::set_setup_smaily_subdomain()`, so a
+test that seeds Smaily credentials and connects is never refused by chance.
 
 ### Merging `upstream/main` (sendsmaily) — MERGE, ours wins, and audit the CLEAN hunks
 **HISTORY once PR #135 has landed** (PRO-2281): after the merge there is ONE

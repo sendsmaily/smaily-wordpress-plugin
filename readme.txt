@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.21.0
+Stable tag: 3.21.1
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -187,6 +187,11 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.21.1 =
+* Fixed: a history import could repeat itself or stop right after it started when the plugin updated in the background. The update now also completes in the background, without a visit to wp-admin.
+* Fixed: a connected store that ran 3.21.0 and whose order history has not been sent in full with 3.21 starts the whole sequence (products, customers, orders) once more by itself. It waits while another import runs; an import you held back or cancelled stays stopped.
+* Improved: Import now says so when an import could not be started.
+
 = 3.21.0 =
 * New: connecting Campaign Intelligence imports your products, then customers, then orders, each when the one before has finished. Hold back or Cancel stops the sequence.
 * New: a connected store that never finished its customers or orders import starts it once after this update, without a click. An import you held back or cancelled stays stopped.
@@ -212,26 +217,16 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Changed: Disconnect and deleting the plugin now tell Campaign Intelligence that the connection ends. Campaign Intelligence revokes the plugin's key and, if your store has no other connection, pauses the store and keeps its data: no recommendations and none of its automated emails until you connect again with a new setup link.
 * Updated to the Smaily Campaign Intelligence API contract v1.18.0.
 
-= 3.19.0 =
-* Changed: an abandoned-cart reminder follows your contact-sync mode. In "Subscribers only (consent)" and "Checkout opt-in only" it goes only to a shopper who subscribed in your store, ticked the newsletter box in the classic checkout, or is subscribed in Smaily. A shopper who unsubscribed in Smaily gets no reminder in any mode. A stopped reminder shows as skipped in the Event Log, with the reason.
-* Improved: a tick in the classic checkout's newsletter box counts at once, also when the shopper leaves right after it.
-* New: with Campaign Intelligence connected, every email card has an "Edit design" button that opens the email's design page.
-* Changed: a design Campaign Intelligence delivers to Smaily as a workflow is used only for emails mapped on your main Smaily account and in your store's default language. Other emails keep the workflow you picked.
-* Changed: the update copies the unsent carts from the abandoned-cart table of versions 1.x and 2.0.0, then removes that table and an unused one. This cannot be undone.
-* Improved: the Event Log's Sent filter leaves out a reminder withdrawn because the shopper bought, and Details shows the row's status.
-* Improved: the "Last sent" line on the transactional email cards reads less data.
-* Fixed: clearing the workflow of a Campaign Intelligence automation saves again.
-
 == Upgrade Notice ==
+
+= 3.21.1 =
+Fixes a history import that could repeat itself or stop after it started when the plugin updated in the background. A connected store whose order history has not been sent in full with 3.21 starts the imports once more by itself, unless you held back or cancelled an import.
 
 = 3.21.0 =
 A store connected to Campaign Intelligence starts the imports it never finished (products, customers, orders) once after this update, unless you held them back. On legacy order storage it adds one posts-table index in the background, only where it builds online.
 
 = 3.20.0 =
 Adds single-use discount codes to the welcome, first-order and abandoned-cart emails. Disconnect and deleting the plugin now tell Campaign Intelligence that the connection ends; it pauses a store with no other connection and keeps its data. Safe update.
-
-= 3.19.0 =
-Abandoned-cart reminders now follow your contact-sync mode's consent rule and skip shoppers who unsubscribed in Smaily. Adds Edit design. Removes the 1.x/2.0.0 abandoned-cart table after copying its unsent carts; this cannot be undone.
 
 == Screenshots ==
 

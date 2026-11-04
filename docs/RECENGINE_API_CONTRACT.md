@@ -1,8 +1,8 @@
 # Smaily Recommendation Engine — API Contract v1.24
 
-**Version**: 1.24.0
+**Version**: 1.25.0
 **Published**: 2026-05-19
-**Last updated**: 2026-11-03 (v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -458,6 +458,7 @@ An unknown value is stored as absent (`global`), never a `400`: a failed setup e
 {
   "tenant_id": "550e8400-e29b-41d4-a716-446655440000",
   "tenant_name": "Erkki Pood",
+  "smaily_subdomain": "erkkipood",
   "api_key": "sk_8f3k2a4e1c4d8a9b2f7e3d1a6c8b9e0f",
   "engine_base_url": "https://intelligence.smaily.com",
   "engine_version": "1.0.0",
@@ -514,6 +515,8 @@ An unknown value is stored as absent (`global`), never a `400`: a failed setup e
   "issued_at": "2026-05-19T10:15:23Z"
 }
 ```
+
+**`smaily_subdomain`** (v1.25.0, INT-209): the Smaily account of the engine store the link joined — the store's Smaily subdomain, trimmed and lower case; `null` when the store has none yet. A connector that connects several websites to separate engine stores compares it, case-insensitively, with the website's own Smaily account and refuses a mismatching link **before it stores the API key or starts an import** (the token is then used up: ask for a new setup link for the right store). A connector with one website may ignore it. A later version (INT-208, several Smaily accounts per store) will also name the account the link joined.
 
 **Endpoint map convention**: keys use `ingest_*`, `identity_*`, `customer_*`, `recommendations_*`, `automations_*`, `store_*`, `emails_*`, `console_*` prefixes for the categories. Plugin code should read endpoint URLs from this map (`endpoints[ingest_catalog]`) rather than concatenating base URL + hardcoded paths. This way, future path migrations on the engine side don't require plugin updates — only the setup-response map changes.
 
@@ -2545,7 +2548,10 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/se
 | `postal_address` | text, 1–300 characters, line breaks allowed (the legal footer address) |
 | `logo_url` | `https` URL, max 2048, path ending `.png`, `.jpg`, `.jpeg`, `.gif` or `.svg`, or a URL that answers with one of those image types. The engine does not copy the file in v1.15.0; it must stay reachable. |
 | `primary_colour`, `background_colour`, `text_colour` | `#RRGGBB` (6 hex digits, case-insensitive; stored upper case) |
+| `accent_colour` | **New in v1.25.0.** `#RRGGBB`, as the other colours (stored upper case). The colour of light panels and highlights. Absent: the starter uses a light tint of `primary_colour`. |
+| `button_radius` | **New in v1.25.0.** Integer, 0–24: the corner radius of buttons in CSS pixels (`0` square, `4` rounded, `24` pill on a starter button). The only §18 value that is a JSON number; a string → 422. Absent: `4`. |
 | `font_family` | text, 1–100 characters, a font family name without CSS (letters, digits, spaces, `-`). The starter design adds a safe fallback stack. |
+| `heading_font_family` | **New in v1.25.0.** As `font_family`: text, 1–100 characters, letters, digits, spaces and `-`. The font of headings. Absent: `font_family`. |
 | `footer_text` | plain text, 0–1000 characters, line breaks allowed; HTML tags are rejected |
 | `sender_name` | text, 1–100 characters |
 | `sender_address` | email address, max 254 |
@@ -2563,6 +2569,8 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/se
 - **A store's own edit wins.** A field that the store edited on the setup page (stored source `setup_page`) is **not** replaced by a PUT with `source: "platform"`. It is replaced by a PUT with `source: "merchant"`, or by a later setup-page edit. The response lists such fields in `kept`.
 - **Website fallback.** For a field the plugin does not send, the engine may fill a value from the store's website (stored source `website`). A sent field always replaces a `website` value.
 - **Validation is all-or-nothing**, as in §13: any invalid field → 422 and nothing is written.
+- **Saved designs follow the kit** (v1.25.0). When a stored field changes a value that the starters use (any field except `language`), the engine updates every saved design of the store (§23) in the same way: each place in the design that holds the old brand value gets the new value. A value that the store set by hand in a design — a value that is not the old brand value — stays. A design's sender (§23 `sender`) follows `sender_name` and `sender_address` the same way. Each updated design gets `version` + 1 and a new `updated_at`; its `design_state` does not change; once the Smaily push is live, it is pushed as a save is (§22 rule 2, §23 `smaily_state`). A design that nothing changes keeps its `version`. The plugin observes the change only through §23; there is no callback and no message.
+- **The website fallback fills `logo_url`, `primary_colour` and `font_family`** from the store's homepage (`store_url`), once, for a field that has no stored value. It never replaces a `platform`, `merchant` or `setup_page` value. The GET shows such a field with `source: "website"`.
 - **No shopper data.** The brand kit holds store data only. Do not send customer names, addresses or emails.
 
 **Response 200 OK** (PUT):
@@ -2571,9 +2579,12 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/se
 {
   "ok": true,
   "stored": ["store_name", "logo_url", "primary_colour"],
-  "kept": [{ "field": "footer_text", "reason": "edited_on_setup_page" }]
+  "kept": [{ "field": "footer_text", "reason": "edited_on_setup_page" }],
+  "designs_updated": 3
 }
 ```
+
+`designs_updated` (v1.25.0): the number of saved designs the change updated (see *Saved designs follow the kit*). Informational; `0` when no design changed. A plugin built for an earlier version ignores it.
 
 **Response 200 OK** (GET):
 
@@ -2581,7 +2592,8 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/se
 {
   "fields": {
     "store_name": { "value": "Shop Example", "source": "platform", "source_setting": "blogname", "updated_at": "2026-10-20T08:00:00.000Z" },
-    "footer_text": { "value": "…", "source": "setup_page", "updated_at": "2026-10-20T08:10:00.000Z" }
+    "footer_text": { "value": "…", "source": "setup_page", "updated_at": "2026-10-20T08:10:00.000Z" },
+    "button_radius": { "value": 8, "source": "setup_page", "updated_at": "2026-11-10T09:00:00.000Z" }
   }
 }
 ```
@@ -2603,6 +2615,9 @@ The GET `source` may also be `setup_page` or `website`. A field with no stored v
 | logo | email header image | `brand` logo (Admin API) | email logo, else header logo |
 | colours | email base / background / text colour | `brand` colours (fields unverified) | none in core — `merchant` or omit |
 | font | none in core — `merchant` or omit | none — `merchant` or omit | none in core — `merchant` or omit |
+| accent colour | none in core — `merchant` or omit | `brand` secondary colour (fields unverified) | none in core — `merchant` or omit |
+| button radius | none — `merchant` or omit | none — `merchant` or omit | none — `merchant` or omit |
+| heading font | none — `merchant` or omit | none — `merchant` or omit | none — `merchant` or omit |
 | footer | email footer text | none — `merchant` or omit | none in core — `merchant` or omit |
 | sender name, address | email "From" name and address | sender email, shop name | store email identity (general contact) |
 | language | site language | shop primary locale | store locale |
@@ -3838,6 +3853,13 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **`merge_ts` (§7).** Optional, as the engine already treats it. Validated when sent, not used: token lifetimes count from receipt.
 - **What the plugin does.** Nothing is required. A plugin that reads `config.batch_size_max` sends batches of 100 after its next setup exchange; one that sends `evt_`-prefixed `event_id`s gets them rejected per item, as before — send a UUID. A plugin that handles `api_key_revoked` can drop that branch: the `unauthorised` branch covers it.
 - **Shapes.** Request and response unchanged.
+
+**v1.25.0** (2026-11-03) — **One brand for every email; the setup exchange names the Smaily account**. MINOR bump per the [Versioning](#versioning) rule (new optional fields and new response fields; backward-compatible). INT-207, INT-209, Erkki's decisions 2026-11-03:
+- **§18 brand kit.** Three optional fields: `accent_colour`, `button_radius` (a JSON number, 0–24), `heading_font_family`. A change of the kit updates the store's saved designs: a place that holds the old brand value gets the new one, a value set by hand stays; each updated design gets a new §23 `version`. The PUT response gains `designs_updated`.
+- **§18 website fallback.** Fills `logo_url`, `primary_colour` and `font_family` from the store's homepage once, for a field with no stored value; never replaces a plugin or store value.
+- **§1 `smaily_subdomain`** (INT-209). The setup-exchange answer names the engine store's Smaily account (trimmed, lower case; `null` when the store has none). A connector that connects several websites to separate engine stores compares it case-insensitively with the website's own Smaily account and refuses a mismatching link before storing anything or starting an import. A later version (INT-208, several Smaily accounts per store) will also name the account the link joined.
+- **What the plugin does.** Nothing is required. A plugin that sends none of the three fields sees no change in what it sends or reads, except `designs_updated` in the PUT response and new §23 `version` values after a brand change. A connector of several websites should check `smaily_subdomain` before storing a new connection.
+- **Shapes.** Request: three optional §18 fields. Response: `designs_updated` (§18) and `smaily_subdomain` (§1).
 
 ### Appendix F: Migration notes
 

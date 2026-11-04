@@ -584,6 +584,8 @@ function errorTitle(failure: SetupExchangeFailure): string {
       return __('Setup link already used', 'smaily-connect');
     case 'token_not_found':
       return __('Setup link not found', 'smaily-connect');
+    case 'smaily_account_mismatch':
+      return __('Setup link for another Smaily account', 'smaily-connect');
     case 'engine_unreachable':
     default:
       return __('Engine unreachable', 'smaily-connect');

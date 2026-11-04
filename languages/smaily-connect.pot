@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smaily Connect 3.21.0\n"
+"Project-Id-Version: Smaily Connect 3.21.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-connect\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -293,6 +293,12 @@ msgstr ""
 
 #: includes/REST/RecEngineEndpoint.php:236
 msgid "Smaily Campaign Intelligence replied with an address outside https://intelligence.smaily.com, so the connection was not saved. Contact Smaily support."
+msgstr ""
+
+#. translators: %s: the Smaily account (subdomain) of the Campaign Intelligence store the setup link is for.
+#: includes/REST/RecEngineEndpoint.php:239
+#, php-format
+msgid "This setup link is for the Campaign Intelligence store of another Smaily account (%s), so the connection was not saved. The link is now used up: ask Smaily for a new setup link for this store's Smaily account."
 msgstr ""
 
 #: includes/REST/RecEngineEndpoint.php:249
@@ -2481,6 +2487,10 @@ msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:447
 msgid "Setup link not found"
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx:588
+msgid "Setup link for another Smaily account"
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:450
