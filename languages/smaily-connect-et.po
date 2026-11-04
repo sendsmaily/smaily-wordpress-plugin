@@ -3286,3 +3286,9 @@ msgstr "Sinu WordPressi kasutajal ei ole kehtivat e-posti aadressi. Lisa see oma
 #: admin/src/components/steps/OpenConsoleButton.tsx:102
 msgid "Campaign Intelligence could not be opened. Try again in a minute."
 msgstr "Campaign Intelligence'i ei õnnestunud avada. Proovi minuti pärast uuesti."
+
+#. translators: %s: the error code Smaily Campaign Intelligence answered with, e.g. "network_error".
+#: includes/REST/RecEngineEndpoint.php:308
+#, php-format
+msgid "The connection check failed (error code: %s)."
+msgstr "Ühenduse kontroll ebaõnnestus (veakood: %s)."

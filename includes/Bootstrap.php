@@ -604,8 +604,10 @@ final class Bootstrap {
 				);
 			}
 		} catch ( \Throwable $e ) {
+			// The error type, its code and where it was thrown — never its text,
+			// which can carry a contact's data (CON-301).
 			\Smaily\Connect\Support\DebugLog::write(
-				sprintf( '[smaily-connect contact.reconcile] skipped: %s', $e->getMessage() )
+				sprintf( '[smaily-connect contact.reconcile] skipped: %s code=%d at %s:%d', get_class( $e ), (int) $e->getCode(), basename( $e->getFile() ), $e->getLine() )
 			);
 		}
 	}

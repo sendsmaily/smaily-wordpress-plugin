@@ -468,7 +468,16 @@ wp-env:** the first check after this code is mounted can send the full history
 to the connected tenant — check it is the sandbox, never `MiuMjau`.
 A state row that does not read (`read_state()` === false) or a `start()` that
 returns 0 is never "ended": nothing moves or is forgotten, the next check tries
-again.
+again — a connect whose catalog start returned 0 sets
+`smly_rec_import_sequence_start_due`, and `advance()` starts that part instead
+of moving on (CON-292). **One chain, one pending check (CON-285):** "Import
+now" replaces the import's pending tick and adds none while one of its ticks
+runs; a check that re-arms itself asks `AbstractBackfillJob::action_pending()`
+(pending only) — never `is_int( as_next_scheduled_action() )`, which answers
+`true` for the running copy and hid a pending one. A one-time marker decided
+under the lock is read again inside it past the request's option cache
+(`wp_cache_delete()` of the key and of `notoptions`) — the earlier read is
+stale when another process wrote it meanwhile.
 
 ### Background jobs run the new code BEFORE the upgrade — gate on the schema (CON-282)
 The upgrade (`Bootstrap::maybe_run_upgrade` → `Activation::run()`) ran only on
@@ -508,8 +517,11 @@ the queue's `sent` rows. `Backfill\HistoryProgress` (option
 `smly_rec_history_import`, AS hook `smly_rec_history_progress`, group
 `smaily-rec-history-progress` in `Deactivation::AS_GROUPS`) reports §25 from a
 single self-re-arming action (60 s checks, a phase change at once, counts at
-most every 300 s, a failure retried after 300 s) and unschedules itself once
-the import ends. A connection's sequence begins ONE import id; the Orders
+most every 300 s, a failed report or a check that throws retried after 300 s —
+CON-284) and unschedules itself once the import ends. An orders import that
+ends cancelled, failed or stalled ends it WITHOUT a final report: §25 has no
+phase that says so (`complete` claims every order is in) — don't send one
+until the contract has a state for it. A connection's sequence begins ONE import id; the Orders
 card's Import now begins a new one, Products/Customers Import now none.
 **Integration-test trap:** a `do_action( HistoryProgress::HOOK )` run does not
 consume the action AS has queued — the import's first check sits at +180 s
@@ -1538,14 +1550,33 @@ there: a unit test of a line defines it in its own process
 shared process, where it would stay on for every later test
 (`ProfilingConsentTest`, CON-277).
 
-### Never log an engine's message text — log the status and code (CON-277)
-A `DebugLog` line about a failed engine call carries `http=<status>
-error=<code>` (`ApiException::getCode()` / `error_code()`), never
-`$e->getMessage()`: the engine's message can name the customer (a customer 404
-echoes the address), and debug logs are shared with support. Any other failed
-call logs the error type and `file:line`. The Event Log's stored engine
-message (F3-44) is a separate, open design question — don't change it on the
-side.
+### Never log, store or show a remote message text — the code and where it failed (CON-277, CON-301)
+An error the plugin logs, stores or shows carries the error CODE and WHERE it
+failed, never the engine's or Smaily's message text: the remote message can
+name the customer (a customer 404 echoes the address), and it lands in the
+database, the admin and debug logs shared with support (Erkki, 2026-11-04 —
+the same rule as Magento CON-233 / CON-215). Concretely:
+- **A failed engine call**: `http=<status> error=<code>`
+  (`ApiException::getCode()` / `error_code()`) in a log line;
+  `IngestQueue::http_error_message()` / `http_error_response()` for a queue
+  row (`{http, outcome, error_code}` — no `message`); a D6 per-item refusal
+  stores `d6_item_error field=<field>` and `{http, outcome, error: {field}}`.
+- **The Smaily `ApiException` message is built by the plugin only** — HTTP
+  status, method, endpoint, Smaily's numeric code, a transport error's
+  WP_Error CODE (`Smaily\Client::request()`, `RetryPolicy`). That invariant
+  is what makes the Smaily queues', the contact import's and the Elementor
+  form's stored `getMessage()` safe; never put a remote text into it. The
+  recorded Smaily reply (`last_exchange()`, the Event Log Details) drops the
+  body's `message`.
+- **Any other Throwable**: its type and `file:line` (plus its code where a
+  log line already has one) — never `getMessage()`.
+- **A REST answer** — the public `/relay` and the admin proxies — carries the
+  engine's `error` code; where the admin shows a sentence, the plugin words it
+  (`RecEngineEndpoint::ping()`), and `/relay`'s per-event refusals are
+  `{index, field}`.
+Rows stored before CON-301 keep their old text until the janitor prunes them.
+Pinned per store by a test that puts an address in the remote message and
+asserts it is absent (DECISIONS "CON-301").
 
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with

@@ -129,6 +129,69 @@ final class BeaconEndpointIdentityTest extends TestCase {
 		self::assertSame( array( 'ok', 'processed', 'deduplicated', 'errors' ), array_keys( $response->get_data() ) );
 	}
 
+	/**
+	 * CON-300: a batch the engine refuses comes back to the public browser
+	 * as a status and the engine's error code — never the engine's message,
+	 * which can name the customer.
+	 */
+	public function test_a_refused_batch_answers_the_code_and_never_the_engine_message(): void {
+		$client = new class( 'sk_unit', 'https://engine.unit' ) extends Client {
+			public function ingest_browse( array $events ): array {
+				throw new \Smaily\Connect\Smaily\RecEngine\ApiException( 422, 'validation_failed', 'Bad event for mari@example.com' );
+			}
+		};
+		$endpoint = $this->endpoint( 'mari@example.com', $client, null );
+
+		$response = $endpoint->handle( $this->request( $this->one_event() ) );
+
+		self::assertSame( 502, $response->get_status() );
+		self::assertSame(
+			array(
+				'ok'    => false,
+				'error' => 'validation_failed',
+			),
+			$response->get_data()
+		);
+	}
+
+	/**
+	 * CON-300: an event the engine refuses comes back as its index and field
+	 * only — never the engine's message.
+	 */
+	public function test_a_refused_event_answers_its_index_and_field_only(): void {
+		$client = new class( 'sk_unit', 'https://engine.unit' ) extends Client {
+			public function ingest_browse( array $events ): array {
+				return array(
+					'ok'           => true,
+					'processed'    => 0,
+					'deduplicated' => 0,
+					'errors'       => array(
+						array(
+							'index'   => 0,
+							'field'   => 'customer_email',
+							'message' => 'Invalid email mari@example.com',
+						),
+					),
+				);
+			}
+		};
+		$endpoint = $this->endpoint( 'mari@example.com', $client, null );
+
+		$response = $endpoint->handle( $this->request( $this->one_event() ) );
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame(
+			array(
+				array(
+					'index' => 0,
+					'field' => 'customer_email',
+				),
+			),
+			$response->get_data()['errors']
+		);
+		self::assertStringNotContainsString( 'mari@example.com', (string) wp_json_encode( $response->get_data() ) );
+	}
+
 	public function test_a_batch_of_multiple_events_all_get_the_same_email(): void {
 		$client   = $this->recording_client();
 		$endpoint = $this->endpoint( 'mari@example.com', $client, null );

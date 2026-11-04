@@ -10290,10 +10290,120 @@ Magento extension set the same rule (Magento CON-233 / CON-215).
 D6 `errors[].message` in a row's `last_error`) — the merchant reads it in
 the Event Log, so dropping it is a design question, listed on CON-277. The
 same holds for the Smaily queue's stored errors and the admin REST answers.
+**Update 2026-11-04:** decided — CON-301 below extends the rule to every
+stored or shown error, so "Not covered" no longer holds.
 **Relationships:** CON-268 (the login job that now reaches the opt-out),
 CON-245 (testing a `DebugLog` line). Pinned by
 `tests/Unit/Privacy/ProfilingConsentTest.php`.
 
+### CON-301 — A stored or shown error keeps the code and where it failed, never the remote message (2026-11-04)
+
+**Context:** CON-277 took the remote message out of the debug log, and left
+every other place that keeps it open: the Event Log row (F3-44
+`last_response.message`, the D6 `errors[].message` in `last_error` and in
+`last_response`), the Smaily queues' and the contact import's stored reason
+(Smaily's `{code, message}` reply and a transport error's text were part of
+the exception message), the recorded Smaily reply in the Event Log Details,
+the admin proxies' answers (`ping`, automations, email designs), the public
+`/relay` answer (CON-300: a refused batch carried the engine's message to the
+browser) and three debug-log lines (contact reconcile, the nightly manifest,
+a Throwable on a cart or transactional send). The remote message can carry a
+customer's email address, and these places keep it in the database and show
+it in the admin.
+**Decision (Erkki, 2026-11-04):** a stored or shown error keeps only the
+error CODE and WHERE it failed — HTTP status, the engine's error code,
+Smaily's numeric code, the D6 field, a WP_Error's code, or a Throwable's type
+and `file:line` — never the engine's or Smaily's message text. The same rule
+as the Magento extension (Magento CON-233 / CON-215).
+- The Smaily `ApiException` message is built by the plugin only (status,
+  method, endpoint, Smaily code, transport code): `Smaily\Client::request()`
+  and `RetryPolicy` fix it where it enters, so the Smaily `Flusher`,
+  `CartFlusher`, `TransactionalFlusher`, `RetryPolicy::apply()`, the contact
+  `BackfillJob` and the Elementor form keep storing `getMessage()` safely.
+  The recorded Smaily reply drops the body's `message`.
+- The engine side: `IngestQueue::http_error_response()` drops `message`; a
+  D6 refusal stores `d6_item_error field=<field>` and `error: {field}`;
+  `RecEngine\Client` keeps a transport failure's WP_Error code only.
+- `/relay` answers `{ok: false, error: <code>}` with 502 and per-event
+  refusals as `{index, field}`. The admin automations and email-design proxies
+  answer the code; the automations card shows it as its detail line. The
+  connection check answers a plugin sentence with the code ("The connection
+  check failed (error code: %s).").
+- Nothing changes in what is sent to the engine or to Smaily.
+**Rationale:** the code says what went wrong and where; the message is text
+the remote controls. The merchant loses Smaily's English sentence for a
+refusal code — the docs site maps the codes that matter (203, 221, 227) — and
+`d6_item_error` keeps the field to fix.
+**Existing rows:** a row stored before this change keeps its old text until
+the janitor prunes it (sent rows after 30 days, failed after 90 —
+`QueueJanitor`); an import's stored reason and its refused-contact list keep
+theirs until the next run replaces them, and the import card masks addresses
+in them (PRO-3881). Accepted — no migration rewrites them.
+**Relationships:** CON-277 (the log), CON-300 (the relay), F3-44 (the Event
+Log exchange), PRO-3862 / PRO-3904 (the Smaily body codes). Pinned per store
+by a test with an address in the remote message: `BeaconEndpointIdentityTest`,
+`CustomerFlusherTest`, `ClientTest` (Smaily), `RetryPolicyTest`,
+`FlusherTest`, `CartFlusherTest`, `TransactionalFlusherTest`,
+`BackfillJobTest`, `ClientBrowseRelayTest`, `CatalogManifestTest`,
+`AutomationsEndpointTest`, `EmailDesignsEndpointTest`,
+`RecEngineEndpointPingTest`, `automations.test.ts`.
+
+### CON-285 — One background chain per import, one pending copy per check (2026-11-04)
+
+**Context:** "Import now" queued a new tick for its import whatever was
+already queued, so a waiting tick (the chain's next batch, or the catalog's
+hold-back batch) and the new one became two chains on one import, and the
+rows were sent twice. The sequence check (`ImportsOnConnect`) and the §25
+progress check (`HistoryProgress`) re-arm themselves "unless one is queued",
+and asked `as_next_scheduled_action()`: Action Scheduler answers `true` for a
+RUNNING action before it looks at pending ones, so a check that ran while a
+copy already waited queued a second copy. The pre-3.21.1 audit (I4, I5;
+CON-292) found two more ways to start twice or not at all.
+**Decision:**
+- Import now (`BackfillEndpoint::start()`) cancels the import's pending ticks
+  and queues one that runs now — unless a tick of that import runs at this
+  moment (`as_has_scheduled_action()`, pending or running): that batch reads
+  the restarted row on its next batch and queues the next tick itself.
+- A self-re-arming check asks `AbstractBackfillJob::action_pending()`
+  (`as_get_scheduled_actions()` with `status` pending) — the running copy is
+  not counted, a pending one is. `ImportsOnConnect::ensure_check_scheduled()`
+  keeps its `!== false` test (it skips while one runs, which is correct for a
+  caller that is not the check itself).
+- CON-284 (part): a `HistoryProgress` check that throws is logged and comes
+  back `REPORT_EVERY_SECONDS` (300 s) later, like a failed report, instead of
+  waiting for the hourly re-registration.
+- CON-292 / I4: inside the lock, `rerun_once()` reads its marker again past
+  the request's option cache (`wp_cache_delete()` of the key and of
+  `notoptions`), so two overlapping checks begin one history import. The
+  marker is still written only after the products import started — claiming
+  it first would lose the one-time re-run to a fatal between claim and start,
+  a worse outcome than I4's (a spare import id, nothing sent twice).
+- CON-292 / I5: when the connect could not start the catalog import (its
+  state row was not written), `ImportsOnConnect::start()` still stores the
+  sequence and sets `smly_rec_import_sequence_start_due`; `advance()` then
+  starts the sequence's first part (with the catalog's 180 s hold-back)
+  instead of reading an earlier run's row as ended and moving on. `forget()`
+  and disconnect delete it.
+**Rationale:** Action Scheduler cannot cancel a running action, so "one chain"
+means: never add a tick beside a running one, and replace a waiting one so
+Import now still starts at once. A check is its own running copy; only a
+pending copy says "the next one is already there".
+**Not covered:** CON-284's final §25 report for an orders import that ends
+cancelled, failed or stalled. Contract §25 `phase` allows only `started`,
+`start_part_complete` and `complete`, and `complete` says every order since
+`horizon_start` is sent — there is no state that says the import stopped. The
+check still ends the import without a report; that waits for a decision
+(a new §25 state from the engine team, or a rule to report the reached phase
+with the last counts). Two races stay: an Import now while a tick's batch is
+in flight lets that batch write its old cursor onto the restarted row, and a
+`HistoryProgress::begin()` while a check runs can be overwritten by that
+check's state write.
+**Relationships:** CON-247 (the sequence), CON-248 (§25), CON-282 (the
+re-run), pre-3.21.1 audit I4 / I5. Pinned by
+`tests/Unit/REST/BackfillEndpointTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php` and
+`tests/Integration/RecEngineImportsOnConnectTest.php`.
 ### CON-302 — The personal-data eraser also clears the account's orders (2026-11-04)
 
 **Context:** the exporter and eraser found the requester's orders by billing

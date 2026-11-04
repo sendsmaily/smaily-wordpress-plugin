@@ -49,8 +49,9 @@ final class SmailyInvalidDataAnswerTest extends TestCase {
 
 		self::assertSame( EventQueue::STATUS_FAILED, $row['status'] );
 		self::assertSame( 0, (int) $row['attempts'], 'No retry attempt is spent on data Smaily rejects again.' );
-		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $row['last_error'] );
-		self::assertStringContainsString( '"code":203', (string) $row['last_response'], 'Smaily\'s answer stays readable in the Event Log.' );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203', $row['last_error'] );
+		self::assertStringContainsString( '"code":203', (string) $row['last_response'], 'Smaily\'s code stays readable in the Event Log.' );
+		self::assertStringNotContainsString( 'Invalid data', (string) $row['last_response'], 'Smaily\'s message is not kept (CON-301).' );
 	}
 
 	public function test_another_refusing_code_fails_the_row_instead_of_marking_it_sent(): void {
@@ -59,17 +60,17 @@ final class SmailyInvalidDataAnswerTest extends TestCase {
 
 		self::assertSame( EventQueue::STATUS_FAILED, $row['status'] );
 		self::assertSame( 0, (int) $row['attempts'] );
-		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204: Invalid email address provided', $row['last_error'] );
+		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204', $row['last_error'] );
 	}
 
 	public function test_a_smaily_database_error_is_retried_instead_of_marked_sent(): void {
 		// PRO-3862: 225 is Smaily's own database error — the row stays pending
-		// for a spaced retry, with Smaily's answer as the last error.
+		// for a spaced retry, with Smaily's code as the last error.
 		$row = $this->sync_one_contact_answered_with( 225, 'Database insert failed' );
 
 		self::assertSame( EventQueue::STATUS_PENDING, $row['status'] );
 		self::assertSame( 1, (int) $row['attempts'] );
-		self::assertSame( 'Smaily API returned code 225: Database insert failed', $row['last_error'] );
+		self::assertSame( 'Smaily API returned code 225', $row['last_error'] );
 	}
 
 	/**

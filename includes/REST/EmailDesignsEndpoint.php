@@ -268,11 +268,10 @@ class EmailDesignsEndpoint {
 			return new WP_REST_Response( array( 'error' => 'api_key_rejected' ), 502 );
 		}
 
+		// The engine's code, never its message, which can name a customer
+		// (CON-301).
 		return new WP_REST_Response(
-			array(
-				'error'   => $e->error_code(),
-				'message' => $e->getMessage(),
-			),
+			array( 'error' => $e->error_code() ),
 			502
 		);
 	}

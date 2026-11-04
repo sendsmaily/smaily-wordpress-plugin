@@ -422,7 +422,11 @@ class IngestQueue {
 		return sprintf( 'http_%d %s', $e->getCode(), $e->error_code() );
 	}
 
-	/** The row's capped `last_response` for an engine call that threw. */
+	/**
+	 * The row's capped `last_response` for an engine call that threw: the
+	 * status and the engine's error code, never its message, which can name
+	 * the customer (CON-301).
+	 */
 	public static function http_error_response( ApiException $e ): string {
 		return self::cap_exchange(
 			(string) wp_json_encode(
@@ -430,7 +434,6 @@ class IngestQueue {
 					'http'       => $e->getCode(),
 					'outcome'    => 'http_error',
 					'error_code' => $e->error_code(),
-					'message'    => $e->getMessage(),
 				)
 			)
 		);

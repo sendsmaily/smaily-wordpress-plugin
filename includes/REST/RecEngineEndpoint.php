@@ -297,11 +297,17 @@ class RecEngineEndpoint {
 		try {
 			$result = $client->ping();
 		} catch ( ApiException $e ) {
+			// The engine's code, never its message, which can name a
+			// customer (CON-301).
 			return new WP_REST_Response(
 				array(
 					'ok'        => false,
 					'error'     => $e->error_code(),
-					'message'   => $e->getMessage(),
+					'message'   => sprintf(
+						/* translators: %s: the error code Smaily Campaign Intelligence answered with, e.g. "network_error". */
+						__( 'The connection check failed (error code: %s).', 'smaily-connect' ),
+						$e->error_code()
+					),
 					'requestId' => $e->request_id(),
 				),
 				502

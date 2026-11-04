@@ -31,6 +31,7 @@ final class BackfillEndpointTest extends TestCase {
 		Functions\when( 'current_user_can' )->justReturn( true );
 		Functions\when( 'as_enqueue_async_action' )->justReturn( 1 );
 		Functions\when( 'as_unschedule_all_actions' )->justReturn( null );
+		Functions\when( 'as_has_scheduled_action' )->justReturn( false );
 		// F3-55: a non-running contacts status computes the audience estimate
 		// (ContactAudience → ContactSyncMode → get_option). checkout_optin
 		// short-circuits to 0 before any $wpdb read, keeping the fake wpdb
@@ -92,6 +93,80 @@ final class BackfillEndpointTest extends TestCase {
 		self::assertCount( 1, $enqueued );
 		self::assertSame( BackfillJobInterface::TICK_HOOK, $enqueued[0]['hook'] );
 		self::assertSame( 'contacts', $enqueued[0]['args']['job_type'] );
+	}
+
+	/**
+	 * CON-285: Import now leaves one tick chain per import — a waiting batch
+	 * is replaced by one that runs now, and none is added beside a batch
+	 * that runs now (it walks the restarted row and re-arms itself).
+	 */
+	public function test_import_now_leaves_one_tick_chain(): void {
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 9,
+				'status'          => BackfillJobInterface::STATUS_RUNNING,
+				'processed_count' => '0',
+				'total_count'     => '40',
+				'started_at'      => '2026-11-02 12:00:00',
+				'completed_at'    => null,
+			)
+		);
+		$queued = array();
+		Functions\when( 'as_unschedule_all_actions' )->alias(
+			static function ( string $hook, array $args ) use ( &$queued ): void {
+				$queued = array_values(
+					array_filter(
+						$queued,
+						static fn ( array $tick ): bool => $tick['status'] !== 'pending' || $tick['hook'] !== $hook || $tick['args'] !== $args
+					)
+				);
+			}
+		);
+		Functions\when( 'as_has_scheduled_action' )->alias(
+			static function ( string $hook, array $args ) use ( &$queued ): bool {
+				foreach ( $queued as $tick ) {
+					if ( $tick['hook'] === $hook && $tick['args'] === $args ) {
+						return true;
+					}
+				}
+				return false;
+			}
+		);
+		Functions\when( 'as_enqueue_async_action' )->alias(
+			static function ( string $hook, array $args ) use ( &$queued ): int {
+				$queued[] = array(
+					'hook'   => $hook,
+					'args'   => $args,
+					'status' => 'pending',
+				);
+				return count( $queued );
+			}
+		);
+		$endpoint = new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 9 ) );
+		$request  = new WP_REST_Request();
+		$request->set_param( 'job_type', 'products' );
+		$args = array( 'job_type' => 'products' );
+
+		// A batch waits (the chain's next tick, or the hold-back's first).
+		$queued[] = array(
+			'hook'   => BackfillJobInterface::TICK_HOOK,
+			'args'   => $args,
+			'status' => 'pending',
+		);
+		$endpoint->start( $request );
+		$endpoint->start( $request );
+		self::assertCount( 1, $queued, 'Pressed twice: still one waiting batch.' );
+
+		// A batch runs now.
+		$queued = array(
+			array(
+				'hook'   => BackfillJobInterface::TICK_HOOK,
+				'args'   => $args,
+				'status' => 'in-progress',
+			),
+		);
+		$endpoint->start( $request );
+		self::assertCount( 1, $queued, 'None is added beside the running batch.' );
 	}
 
 	/**
@@ -339,7 +414,7 @@ final class BackfillEndpointTest extends TestCase {
 				),
 			)
 		);
-		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data submitted for jane.doe@example.com', $stored );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203', $stored, 'Smaily\'s message is not stored (CON-301).' );
 
 		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
 			array(
@@ -356,7 +431,7 @@ final class BackfillEndpointTest extends TestCase {
 		$endpoint = new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) );
 		$data     = $endpoint->status( $request )->get_data();
 
-		self::assertSame( 'Smaily API returned code 203: Invalid data submitted for [email]', $data['error'] );
+		self::assertSame( 'Smaily API returned code 203', $data['error'] );
 	}
 
 	/**

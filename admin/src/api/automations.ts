@@ -72,9 +72,10 @@ export interface AutomationsFailure {
   /** Human-readable summary — safe to show as THE banner text. */
   message: string;
   /**
-   * The raw technical error (proxy body message or `ApiError.message`,
-   * e.g. "GET /… → 502") for the generic `error` kind — rendered as a
-   * smaller detail line, never as the headline (T2.4/4).
+   * The raw technical error (proxy body message, else the engine's error
+   * code the proxy answers with — never the engine's message, CON-301 —
+   * else `ApiError.message`, e.g. "GET /… → 502") for the generic `error`
+   * kind — rendered as a smaller detail line, never as the headline (T2.4/4).
    */
   detail?: string;
 }
@@ -164,7 +165,7 @@ export function classifyAutomationsFailure(err: unknown): AutomationsFailure {
         ),
         err.status,
       ),
-      detail: body?.message ?? err.message,
+      detail: body?.message ?? body?.error ?? err.message,
     };
   }
   return {

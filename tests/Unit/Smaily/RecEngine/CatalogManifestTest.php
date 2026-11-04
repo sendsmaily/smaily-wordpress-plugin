@@ -177,6 +177,35 @@ final class CatalogManifestTest extends TestCase {
 	}
 
 	/**
+	 * CON-301: the debug log names the error type and where it was thrown,
+	 * never the error's text. Its own process: DebugLog writes only under
+	 * WP_DEBUG, a constant that would stay on for the rest of the suite.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_an_unexpected_error_logs_where_it_happened_and_never_its_text(): void {
+		define( 'WP_DEBUG', true );
+		$client = $this->client( array(), new \TypeError( 'secret@example.com' ) );
+
+		$log      = (string) tempnam( sys_get_temp_dir(), 'smly-log' );
+		$previous = (string) ini_set( 'error_log', $log );
+		try {
+			$this->manifest( $this->fake_queue(), $client )->run();
+			$this->manifest( $this->fake_queue(), $this->client(), null, array( 'throw' => true ) )->run();
+			$written = (string) file_get_contents( $log );
+		} finally {
+			ini_set( 'error_log', $previous );
+			unlink( $log );
+		}
+
+		self::assertStringContainsString( 'not sent tonight: the send failed: TypeError at CatalogManifestTest.php:', $written );
+		self::assertStringContainsString( 'not sent tonight: building the product list failed: RuntimeException at CatalogManifestTest.php:', $written );
+		self::assertStringNotContainsString( 'secret@example.com', $written );
+		self::assertStringNotContainsString( 'out of memory', $written );
+	}
+
+	/**
 	 * PHP stopping a run mid-walk (PRO-3989): the shutdown hook marks the open
 	 * row failed with how and where, never the message.
 	 */

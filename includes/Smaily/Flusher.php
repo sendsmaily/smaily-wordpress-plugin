@@ -56,7 +56,7 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  *   - mark_failed on TerminalDispatchException (unknown event_type,
  *     payload decode failure, an HTTP 200 reply whose Smaily body code
  *     refuses the request for good, as `permanent_envelope_<code>` with
- *     Smaily's message — RetryPolicy::throw_if_refused_envelope(),
+ *     Smaily's code (CON-301) — RetryPolicy::throw_if_refused_envelope(),
  *     PRO-3750 / PRO-3862; no refused request is marked sent)
  *   - RetryPolicy::apply() on ApiException: a permanent refusal (4xx bar
  *     429) fails the row at once, anything else (incl. a transient Smaily
