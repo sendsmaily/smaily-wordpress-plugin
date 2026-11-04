@@ -269,16 +269,19 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 	$view = isset( $_GET['page'] ) && $_GET['page'] === 'smaily-connect-settings' ? 'settings' : 'wizard'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 	$boot = array(
-		'buildHash'     => $build_hash,
-		'nonce'         => wp_create_nonce( 'wp_rest' ),
+		'buildHash'       => $build_hash,
+		'nonce'           => wp_create_nonce( 'wp_rest' ),
 		// Trailing slash matters — configureApiClient strips it,
 		// but the rest_url() helper returns it without one on some
 		// permalink configurations. Always emit canonical form.
-		'restUrl'       => esc_url_raw( rest_url( 'smaily-connect/v1/' ) ),
-		'view'          => $view,
-		'envSnapshot'   => $detector->snapshot(),
+		'restUrl'         => esc_url_raw( rest_url( 'smaily-connect/v1/' ) ),
+		'view'            => $view,
+		'envSnapshot'     => $detector->snapshot(),
 		// The confirmation cards' status line is shown in Settings only.
-		'savedSettings' => $detector->saved_settings( $view === 'settings' ),
+		'savedSettings'   => $detector->saved_settings( $view === 'settings' ),
+		// "Edit design" opens the engine's design page in a frame over the
+		// admin only where the engine allows it (CON-288), else in a new tab.
+		'designFrameable' => \Smaily\Connect\REST\EmailDesignsEndpoint::frameable( (string) get_site_url(), (string) admin_url() ),
 	);
 
 	wp_add_inline_script(

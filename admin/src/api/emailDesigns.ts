@@ -32,6 +32,11 @@ export interface DesignLinkResponse {
   /** One-time link, valid 5 minutes — open it at once, never keep it. */
   url: string;
   expires_at: string;
+  /**
+   * The engine's origin (`https://host`): the admin opens only a link on it
+   * and takes the design page's messages only from it (CON-288).
+   */
+  engine_origin: string;
 }
 
 /** GET the store's email designs. Throws ApiError when the engine cannot answer. */

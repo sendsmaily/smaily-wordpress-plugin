@@ -27,8 +27,11 @@ use WP_REST_Response;
  *     send paths (EmailDesignWorkflows). The admin reads it when the email
  *     settings open and when the store returns from the design page.
  *   POST /rec-engine/emails/design-link  body: { email_key, return_url? }
- *     → engine §22 { url, expires_at } — a one-time link the admin opens at
- *     once in a new tab. Never stored or logged here.
+ *     → engine §22 { url, expires_at } plus `engine_origin` — a one-time
+ *     link the admin opens at once, in a frame over the admin or in a new
+ *     tab (CON-288). Never stored or logged here. `engine_origin` is the
+ *     origin of the engine base URL: the admin opens only a link on it and
+ *     takes the design page's messages only from it (§22 Embedding).
  *
  * Errors: 503 { error: 'not_available' } before any engine call unless the
  * engine may be called (`sending_allowed()`); a 404 from the engine is
@@ -139,8 +142,9 @@ class EmailDesignsEndpoint {
 
 		$response = new WP_REST_Response(
 			array(
-				'url'        => $url,
-				'expires_at' => isset( $link['expires_at'] ) ? (string) $link['expires_at'] : '',
+				'url'           => $url,
+				'expires_at'    => isset( $link['expires_at'] ) ? (string) $link['expires_at'] : '',
+				'engine_origin' => self::origin( $this->settings->base_url() ),
 			),
 			200
 		);
@@ -179,6 +183,38 @@ class EmailDesignsEndpoint {
 			&& ! isset( $parts['port'] )
 			&& is_string( $site_host )
 			&& strtolower( $parts['host'] ) === strtolower( $site_host );
+	}
+
+	/**
+	 * Whether the engine lets this admin show its design page in a frame
+	 * (CON-288, §22 Embedding rule 1): the engine allows only the origin of
+	 * the site URL the plugin gave it (`plugin_info.site_url`, `get_site_url()`),
+	 * and only on https. An admin on another origin opens the page in a new
+	 * tab instead.
+	 */
+	public static function frameable( string $site_url, string $admin_url ): bool {
+		$site_origin = self::origin( $site_url );
+
+		return strpos( $site_origin, 'https://' ) === 0 && $site_origin === self::origin( $admin_url );
+	}
+
+	/**
+	 * The origin of `$url` as a browser writes it (`scheme://host[:port]`,
+	 * lower case, the scheme's own port left out), or '' when it has none.
+	 */
+	public static function origin( string $url ): string {
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) || ! isset( $parts['scheme'], $parts['host'] ) ) {
+			return '';
+		}
+		$scheme = strtolower( $parts['scheme'] );
+		$origin = $scheme . '://' . strtolower( $parts['host'] );
+		$port   = $parts['port'] ?? null;
+		if ( $port === null || ( $scheme === 'https' && $port === 443 ) || ( $scheme === 'http' && $port === 80 ) ) {
+			return $origin;
+		}
+
+		return $origin . ':' . $port;
 	}
 
 	private function available(): bool {

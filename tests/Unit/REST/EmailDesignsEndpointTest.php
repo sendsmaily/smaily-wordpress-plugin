@@ -79,6 +79,9 @@ final class EmailDesignsEndpointTest extends TestCase {
 		self::assertSame( 200, $response->get_status() );
 		self::assertSame( 'https://engine.unit/design/email/dl_1', $response->get_data()['url'] );
 		self::assertSame( 'no-store', $response->get_headers()['Cache-Control'] );
+		self::assertSame( 'https://engine.unit', $response->get_data()['engine_origin'] );
+		self::assertSame( array( 'url', 'expires_at', 'engine_origin' ), array_keys( $response->get_data() ) );
+		self::assertStringNotContainsString( 'sk_unit', (string) wp_json_encode( $response->get_data() ) );
 		self::assertSame( 'plugin.abandoned_cart', $client->received['email_key'] );
 		self::assertSame(
 			array(
@@ -133,6 +136,54 @@ final class EmailDesignsEndpointTest extends TestCase {
 			'https://shop.example/wp-admin/admin.php?page=smaily-connect-settings&return=https%3A%2F%2Fshop.example%2F',
 		) as $return_url ) {
 			self::assertTrue( EmailDesignsEndpoint::allowed_return_url( $return_url, 'https://shop.example' ), $return_url );
+		}
+	}
+
+	/**
+	 * The admin's browser gets only the engine's origin for its origin
+	 * checks (CON-288) — never the base URL's path or the API key.
+	 */
+	public function test_the_engine_origin_is_the_base_url_origin_only(): void {
+		$cases = array(
+			'https://intelligence.smaily.com'          => 'https://intelligence.smaily.com',
+			'https://Intelligence.Smaily.com/api/'     => 'https://intelligence.smaily.com',
+			'https://intelligence.smaily.com:443/'     => 'https://intelligence.smaily.com',
+			'http://127.0.0.1:9876'                    => 'http://127.0.0.1:9876',
+			'http://127.0.0.1:80/x'                    => 'http://127.0.0.1',
+			'not a url'                                => '',
+		);
+		foreach ( $cases as $base_url => $origin ) {
+			$client   = $this->stub_client( array( 'url' => 'https://intelligence.smaily.com/design/email/dl_1', 'expires_at' => 'x' ) );
+			$response = $this->endpoint( new FakeRecEngineSettings( true, false, 'sk_unit', $base_url ), $client )
+				->design_link( $this->link_request( 'plugin.welcome' ) );
+
+			self::assertSame( $origin, $response->get_data()['engine_origin'], $base_url );
+		}
+	}
+
+	/**
+	 * The engine lets only the https origin of the site URL frame its design
+	 * page (§22 Embedding rule 1); every other admin opens a new tab.
+	 */
+	public function test_the_design_page_is_framed_only_on_the_https_site_origin(): void {
+		$framed = array(
+			array( 'https://shop.example', 'https://shop.example/wp-admin/' ),
+			array( 'https://Shop.example/store', 'https://shop.example:443/store/wp-admin/' ),
+		);
+		foreach ( $framed as list( $site_url, $admin_url ) ) {
+			self::assertTrue( EmailDesignsEndpoint::frameable( $site_url, $admin_url ), $admin_url );
+		}
+
+		$tab = array(
+			array( 'http://shop.example', 'http://shop.example/wp-admin/' ),
+			array( 'https://shop.example', 'http://shop.example/wp-admin/' ),
+			array( 'https://shop.example', 'https://admin.shop.example/wp-admin/' ),
+			array( 'https://shop.example', 'https://shop.example:8443/wp-admin/' ),
+			array( 'https://www.shop.example', 'https://shop.example/wp-admin/' ),
+			array( '', 'https://shop.example/wp-admin/' ),
+		);
+		foreach ( $tab as list( $site_url, $admin_url ) ) {
+			self::assertFalse( EmailDesignsEndpoint::frameable( $site_url, $admin_url ), $site_url . ' / ' . $admin_url );
 		}
 	}
 

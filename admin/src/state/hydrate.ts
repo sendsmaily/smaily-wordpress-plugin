@@ -80,6 +80,12 @@ export interface BootPayload {
     /** WooCommerce's add-coupon screen (CON-199). */
     newCouponUrl?: string;
   };
+  /**
+   * Whether "Edit design" opens the engine's design page in a frame over
+   * the admin (CON-288): decided on the server, true only when the site URL
+   * is https and on the admin's origin. Absent or false: a new tab.
+   */
+  designFrameable?: boolean;
   savedSettings: {
     smailyCredentials: { subdomain: string; username: string; password: string };
     /**
