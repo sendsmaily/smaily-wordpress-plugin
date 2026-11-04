@@ -17,6 +17,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
+use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
 use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
 
@@ -286,7 +287,7 @@ class ProfilingConsent {
 			// A failed read or write is non-fatal here; the cache still
 			// reflects the WP intent, and the next read-back reconciles
 			// against Smaily.
-			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] write failed: ' . $e->getMessage() );
+			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] write failed: ' . self::describe( $e ) );
 		}
 		return $now;
 	}
@@ -305,7 +306,7 @@ class ProfilingConsent {
 				)
 			);
 		} catch ( \Throwable $e ) {
-			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] engine opt-out failed: ' . $e->getMessage() );
+			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] engine opt-out failed: ' . self::describe( $e ) );
 		}
 	}
 
@@ -322,7 +323,7 @@ class ProfilingConsent {
 				)
 			);
 		} catch ( \Throwable $e ) {
-			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] engine opt-in failed: ' . $e->getMessage() );
+			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] engine opt-in failed: ' . self::describe( $e ) );
 		}
 	}
 
@@ -391,6 +392,18 @@ class ProfilingConsent {
 	private function optout_entry( string $email ) {
 		$optouts = (array) get_option( self::OPTION_OPTOUTS, array() );
 		return $optouts[ self::email_hash( $email ) ] ?? null;
+	}
+
+	/**
+	 * A failed call for the debug log, without the remote message, which can
+	 * name the contact (CON-277): the engine's HTTP status and error code,
+	 * else the error type, its code and where it was thrown.
+	 */
+	private static function describe( \Throwable $e ): string {
+		if ( $e instanceof ApiException ) {
+			return sprintf( 'http=%d error=%s', (int) $e->getCode(), $e->error_code() );
+		}
+		return sprintf( '%s code=%d at %s:%d', get_class( $e ), (int) $e->getCode(), basename( $e->getFile() ), $e->getLine() );
 	}
 
 	private static function email_hash( string $email ): string {

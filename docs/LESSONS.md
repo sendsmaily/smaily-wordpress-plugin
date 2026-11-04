@@ -1087,6 +1087,19 @@ the current schema. Rules:
 4. **Every terminal state stops a claimed tick** (LESSONS 2.28): walk only
    `running`, not "anything but cancelled or failed".
 
+### 2.32 A remote error message is the remote's text, not ours (CON-277, debug log, 2026-11-04)
+
+`. $e->getMessage()` on a debug-log line reads like a diagnostic, but for a
+failed engine call the message is whatever the engine wrote — and a customer
+404 echoes the address it was asked about. The profiling opt-out and the
+personal-data export / erase logged it; the login job (CON-268) then reached
+the opt-out in the background, and debug logs travel to support. The audit
+found it, not a test: no test turned `WP_DEBUG` on. Rules:
+1. **Log where a remote call failed, not what the remote said** — HTTP
+   status and error code, or the error type and `file:line`.
+2. **A test of a privacy rule on a log line reads the line** — with an
+   address in the remote message, it asserts the address is not there.
+
 ---
 
 ## 4. Concrete checklist for the start of a new project

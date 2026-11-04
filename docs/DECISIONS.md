@@ -10268,6 +10268,32 @@ the fallback), CON-257 (Magento, the reference). Pinned by
 `admin/src/components/steps/EmailDesigns.test.tsx` and
 `tests/Unit/REST/EmailDesignsEndpointTest.php`.
 
+### CON-277 — A debug-log line says where a remote call failed, never what the remote said (2026-11-04)
+
+**Context:** `ProfilingConsent::engine_opt_out()` wrote the engine's error
+message to the debug log, and the engine's message can name the customer (a
+customer 404 echoes the address it was asked about). Since CON-268 the login
+job reaches that code in the background, and debug logs are often shared with
+support (pre-3.21.0 audit, finding I4). `GdprHandler`'s export and erase
+lines did the same with the §8 / §9 answers.
+**Decision:** a debug-log line about a failed engine call carries the HTTP
+status and the engine's error code (`http=%d error=%s`), never
+`getMessage()`; any other failed call carries the error type, its code and
+`file:line`. Applied to `ProfilingConsent` (engine opt-out, opt-in and the
+Smaily write, through `describe()`) and to `GdprHandler`'s two lines.
+`LoginMerge::describe()` and `HistoryProgress` already did this.
+**Rationale:** the status and code say what went wrong and where; the
+message is text the remote controls, and it can carry personal data. The
+Magento extension set the same rule (Magento CON-233 / CON-215).
+**Not covered:** the Event Log's stored engine message (F3-44
+`last_response.message` from `IngestQueue::http_error_response()`, and the
+D6 `errors[].message` in a row's `last_error`) — the merchant reads it in
+the Event Log, so dropping it is a design question, listed on CON-277. The
+same holds for the Smaily queue's stored errors and the admin REST answers.
+**Relationships:** CON-268 (the login job that now reaches the opt-out),
+CON-245 (testing a `DebugLog` line). Pinned by
+`tests/Unit/Privacy/ProfilingConsentTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
