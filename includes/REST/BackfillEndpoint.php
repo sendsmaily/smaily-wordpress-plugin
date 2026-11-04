@@ -203,6 +203,18 @@ class BackfillEndpoint {
 		$job_id = $job->start();
 		\Smaily\Connect\Support\DebugLog::write( sprintf( '[smaily-connect backfill.endpoint.start] start() returned row_id=%d', $job_id ) );
 
+		// The state row could not be written (CON-282): nothing started, so
+		// no batch is scheduled — a tick would walk the row as it was.
+		if ( $job_id === 0 ) {
+			return new WP_REST_Response(
+				array(
+					'error'   => 'start_failed',
+					'message' => __( 'The import could not be started. Try again in a few minutes.', 'smaily-connect' ),
+				),
+				500
+			);
+		}
+
 		$row    = AbstractBackfillJob::read_state( $job_type, $this->target_for( $job_type ) );
 		$status = is_array( $row ) ? (string) $row['status'] : BackfillJobInterface::STATUS_RUNNING;
 

@@ -32,8 +32,9 @@ use Smaily\Connect\Support\DebugLog;
  * its in-flight carts. The drain is a no-op on a store that already ran it
  * (its option stamp). When the drain cannot read the table or the cart
  * tracker does not store a cart, nothing is dropped and run() returns false:
- * the Migrator then leaves the schema version where it is and the step is
- * retried on the next upgrade. The same holds, before the drain starts, when
+ * migration 012 then answers Migrator::DEFERRED, so the step is retried on
+ * the next upgrade while the later migrations still run (CON-282). The same
+ * holds, before the drain starts, when
  * the cart tracker table (`smly_plus_cart_session`) is not there to take the
  * carts (CON-207).
  */

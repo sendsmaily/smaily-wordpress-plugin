@@ -15,6 +15,8 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine\Backfill;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Constants;
+use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
@@ -55,6 +57,9 @@ final class ImportsOnConnectTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
+
+		// The update has reached the schema this code needs (CON-282).
+		$this->options[ Constants::OPTION_SCHEMA_VERSION ] = Migrator::REQUIRED_VERSION;
 
 		$options = &$this->options;
 		Functions\when( 'get_option' )->alias(
@@ -360,6 +365,11 @@ final class ImportsOnConnectTest extends TestCase {
 
 		$this->scheduled = array();
 		$this->options[ ImportsOnConnect::OPTION_UPDATE_CHECKED ] = '1';
+		$this->sequence()->ensure_check_scheduled();
+		self::assertCount( 1, $this->scheduled_for( ImportsOnConnect::HOOK ), 'CON-282: the one-time re-run is still to decide.' );
+
+		$this->scheduled = array();
+		$this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] = '1';
 		$this->sequence()->ensure_check_scheduled();
 		self::assertSame( array(), $this->scheduled, 'Nothing to decide and no sequence.' );
 

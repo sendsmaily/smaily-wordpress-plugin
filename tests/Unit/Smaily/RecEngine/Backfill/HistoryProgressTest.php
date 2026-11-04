@@ -15,6 +15,8 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine\Backfill;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Constants;
+use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
@@ -50,6 +52,9 @@ final class HistoryProgressTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
+
+		// The update has reached the schema this code needs (CON-282).
+		$this->options[ Constants::OPTION_SCHEMA_VERSION ] = Migrator::REQUIRED_VERSION;
 
 		$options = &$this->options;
 		Functions\when( 'get_option' )->alias(
