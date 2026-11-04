@@ -211,7 +211,7 @@ final class EmailDesignsEndpointTest extends TestCase {
 			array( new ApiException( 404, 'not_found', 'No route' ), 404, 'not_available' ),
 			array( new ApiException( 401, 'unauthorised', 'Bad key' ), 502, 'api_key_rejected' ),
 			array( new ApiException( 422, 'validation_failed', 'Invalid', array( 'errors' => array( array( 'field' => 'return_url' ) ) ) ), 422, 'validation_failed' ),
-			array( new ApiException( 429, 'rate_limit_exceeded', 'Slow down' ), 502, 'rate_limit_exceeded' ),
+			array( new ApiException( 429, 'rate_limit_exceeded', 'Slow down, jane.doe@example.com' ), 502, 'rate_limit_exceeded' ),
 		);
 		foreach ( $cases as list( $exception, $status, $error ) ) {
 			$response = $this->endpoint( new FakeRecEngineSettings(), $this->stub_client( null, $exception ) )
@@ -220,6 +220,8 @@ final class EmailDesignsEndpointTest extends TestCase {
 			self::assertSame( $status, $response->get_status(), $error );
 			self::assertSame( $error, $response->get_data()['error'] );
 			self::assertStringNotContainsString( 'sk_unit', (string) wp_json_encode( $response->get_data() ) );
+			// The engine's code, never its message, which can name a customer (CON-301).
+			self::assertStringNotContainsString( 'jane.doe', (string) wp_json_encode( $response->get_data() ) );
 		}
 	}
 

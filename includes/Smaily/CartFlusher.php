@@ -50,7 +50,7 @@ use Smaily\Connect\Support\DebugLog;
  *     (PRO-1685, PRO-3862);
  *   - mark_failed on TerminalDispatchException (payload decode failure, and
  *     any other non-101 Smaily body code on either path, as
- *     `permanent_envelope_<code>` with Smaily's message —
+ *     `permanent_envelope_<code>` with Smaily's code (CON-301) —
  *     RetryPolicy::throw_if_refused_envelope(), PRO-3750 / PRO-3862) and
  *     on any other Throwable (F3-53: a deterministic throw must never become
  *     an eternal retry loop; failed rows stay observable + manually
@@ -169,8 +169,9 @@ class CartFlusher {
 			} catch ( \Throwable $e ) {
 				// Anything else thrown by a cart dispatch is deterministic
 				// data/config — terminal, never an eternal 60s retry loop
-				// (F3-53). Observable + manually retryable in the Event Log.
-				$this->queue->mark_failed( $id, get_class( $e ) . ': ' . $e->getMessage() );
+				// (F3-53). Observable + manually retryable in the Event Log. The
+				// error type and where it was thrown, never its text (CON-301).
+				$this->queue->mark_failed( $id, sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ) );
 				++$stats['failed'];
 			}
 

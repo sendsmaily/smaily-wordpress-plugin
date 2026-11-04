@@ -32,7 +32,7 @@ defined( 'ABSPATH' ) || exit;
  *   - mark_sent + order-meta 'sent' on success (Smaily {code:101}).
  *   - mark_failed + fail-open (design point 7) on TerminalDispatchException
  *     (a refusing Smaily body code, as `permanent_envelope_<code>` with
- *     Smaily's message, e.g. 203 validation / 221 invalid autoresponder —
+ *     Smaily's code (CON-301), e.g. 203 validation / 221 invalid autoresponder —
  *     RetryPolicy, PRO-3862) and on any other Throwable (F3-53 class:
  *     a deterministic failure must never become an eternal retry loop).
  *   - record_attempt on ApiException (network error / 5xx / 429 / Smaily
@@ -468,8 +468,9 @@ class TransactionalFlusher {
 		} catch ( \Throwable $e ) {
 			// Anything else (e.g. the client factory throwing because
 			// credentials were removed) is deterministic — terminal, never
-			// an eternal retry loop (F3-53).
-			$this->queue->mark_failed( $id, get_class( $e ) . ': ' . $e->getMessage() );
+			// an eternal retry loop (F3-53). The error type and where it was
+			// thrown, never its text (CON-301).
+			$this->queue->mark_failed( $id, sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ) );
 			$this->fail_open( $order_id_str, $event_type, $payload, $order );
 		}
 
@@ -619,7 +620,7 @@ class TransactionalFlusher {
 
 		// Success = HTTP 200 (Client::send_message() throws ApiException
 		// otherwise) with body {code:101}. A refusing body code fails the row
-		// with Smaily's message, or is retried when a retry can pass (225) —
+		// with Smaily's code, or is retried when a retry can pass (225) —
 		// the same classification as the other Smaily flushers (PRO-3862).
 		// A reply with no body code at all stays terminal (design point 3).
 		RetryPolicy::throw_if_refused_envelope( $this->current_exchange );

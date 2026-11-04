@@ -306,12 +306,14 @@ abstract class AbstractD6Flusher {
 	}
 
 	/**
+	 * The row's last_error for an item the engine refused: the field it named,
+	 * never its message, which can name the customer (CON-301).
+	 *
 	 * @param array<string, mixed> $error A single errors[] entry.
 	 */
 	private function item_error_message( array $error ): string {
-		$field   = isset( $error['field'] ) ? (string) $error['field'] : '';
-		$message = isset( $error['message'] ) ? (string) $error['message'] : '';
-		return sprintf( 'd6_item_error field=%s: %s', $field, $message );
+		$field = isset( $error['field'] ) ? (string) $error['field'] : '';
+		return sprintf( 'd6_item_error field=%s', $field );
 	}
 
 	/**
@@ -394,9 +396,9 @@ abstract class AbstractD6Flusher {
 			'outcome' => $outcome,
 		);
 		if ( $error !== null ) {
+			// The field only, never the engine's message (CON-301).
 			$payload['error'] = array(
-				'field'   => isset( $error['field'] ) ? (string) $error['field'] : '',
-				'message' => isset( $error['message'] ) ? (string) $error['message'] : '',
+				'field' => isset( $error['field'] ) ? (string) $error['field'] : '',
 			);
 		}
 		return $this->trim_text( (string) wp_json_encode( $payload ) );

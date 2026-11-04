@@ -62,7 +62,7 @@ final class CustomerFlusherTest extends TestCase {
 				'processed'    => 2,
 				'deduplicated' => 0,
 				'errors'       => array(
-					array( 'index' => 1, 'email' => 'bad', 'field' => 'email', 'message' => 'Invalid email' ),
+					array( 'index' => 1, 'email' => 'bad', 'field' => 'email', 'message' => 'Invalid email jane.doe@example' ),
 				),
 			)
 		);
@@ -73,7 +73,10 @@ final class CustomerFlusherTest extends TestCase {
 		self::assertSame( array( 1, 3 ), $queue->sent, 'Rows 0 and 2 (ids 1,3) succeeded → sent.' );
 		self::assertCount( 1, $queue->failed );
 		self::assertSame( 2, $queue->failed[0]['id'], 'errors[].index 1 → batch_rows[1] (id 2) → failed.' );
-		self::assertStringContainsString( 'Invalid email', $queue->failed[0]['error'] );
+		// The field the engine named, never its message, which can name the
+		// customer (CON-301) — in the row's error and in its Event Log reply.
+		self::assertSame( 'd6_item_error field=email', $queue->failed[0]['error'] );
+		self::assertSame( '{"http":200,"outcome":"rejected","error":{"field":"email"}}', $queue->exchanges[2]['response'] );
 		self::assertSame( 2, $stats['sent'] );
 		self::assertSame( 1, $stats['failed'] );
 	}
@@ -107,12 +110,15 @@ final class CustomerFlusherTest extends TestCase {
 
 	public function test_terminal_4xx_marks_whole_batch_failed(): void {
 		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ), $this->upsert_row( 2, 101, 'u2' ) ) );
-		$client = $this->throwing_client( new ApiException( 400, 'validation_failed', 'bad batch' ) );
+		$client = $this->throwing_client( new ApiException( 400, 'validation_failed', 'bad batch for jane.doe@example.com' ) );
 		$flush  = $this->fake_flusher( $queue, $client, true, array( 100 => true, 101 => true ) );
 
 		$stats = $flush->flush();
 
 		self::assertCount( 2, $queue->failed, 'A wrapper-level 400 fails the whole batch — no per-item split.' );
+		// The status and the engine's code, never its message (CON-301).
+		self::assertSame( 'http_400 validation_failed', $queue->failed[0]['error'] );
+		self::assertSame( '{"http":400,"outcome":"http_error","error_code":"validation_failed"}', $queue->exchanges[1]['response'] );
 		self::assertSame( array(), $queue->attempts );
 		self::assertSame( 2, $stats['failed'] );
 	}

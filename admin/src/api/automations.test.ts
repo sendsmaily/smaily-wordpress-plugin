@@ -47,6 +47,15 @@ describe('classifyAutomationsFailure', () => {
     expect(failure.detail).toBe('engine timed out');
   });
 
+  it('shows the engine error code as the detail when the proxy sends no message (CON-301)', () => {
+    const failure = classifyAutomationsFailure(
+      new ApiError('GET /rec-engine/automations/config → 502', 502, { error: 'network_error', requestId: null }),
+    );
+    expect(failure.kind).toBe('error');
+    expect(failure.message).toContain('HTTP 502');
+    expect(failure.detail).toBe('network_error');
+  });
+
   it('maps a non-ApiError to a human network message with the Error text as detail', () => {
     const failure = classifyAutomationsFailure(new Error('fetch failed'));
     expect(failure.kind).toBe('error');

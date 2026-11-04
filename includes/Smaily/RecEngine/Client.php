@@ -784,10 +784,11 @@ class Client {
 			$response = wp_remote_request( $url, $args );
 			if ( is_wp_error( $response ) ) {
 				if ( $attempts >= $max_attempts ) {
+					// The WP_Error's code, never its text (CON-301).
 					throw new ApiException(
 						0,
 						'network_error',
-						sprintf( 'Engine unreachable after %d attempts: %s', $attempts, $response->get_error_message() )
+						sprintf( 'Engine unreachable after %d attempts: %s', $attempts, $response->get_error_code() )
 					);
 				}
 				$this->sleep_with_backoff( $backoff );

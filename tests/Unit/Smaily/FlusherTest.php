@@ -341,7 +341,7 @@ final class FlusherTest extends TestCase {
 		self::assertSame( 0, $stats['retried'] );
 		self::assertSame( array(), $queue->marked_sent );
 		self::assertSame( array(), $queue->attempts );
-		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $queue->marked_failed[0]['error'] );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203', $queue->marked_failed[0]['error'] );
 		self::assertStringContainsString( '"code":203', (string) $queue->exchanges[21]['response'], 'Smaily\'s reply is kept for the Event Log.' );
 	}
 
@@ -387,17 +387,18 @@ final class FlusherTest extends TestCase {
 	public function test_another_refusing_smaily_code_fails_the_row_instead_of_marking_it_sent(): void {
 		// PRO-3862: an HTTP 200 reply with any other refusing Smaily code
 		// used to leave the row "sent". It now fails at once with Smaily's
-		// answer (the per-code table is pinned in RetryPolicyTest).
+		// answer (the per-code table is pinned in RetryPolicyTest). Smaily's message,
+		// which can name the contact, stays out of the reason (CON-301).
 		$queue = $this->fake_queue( array( $this->contact_sync_event( 23 ) ) );
 
-		$client = $this->client_answering( 204, 'Invalid email address provided' );
+		$client = $this->client_answering( 204, 'Invalid email address jane.doe@example.com' );
 
 		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->marked_sent );
 		self::assertSame( array(), $queue->attempts );
-		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204: Invalid email address provided', $queue->marked_failed[0]['error'] );
+		self::assertSame( 'permanent_envelope_204: Smaily API returned code 204', $queue->marked_failed[0]['error'] );
 	}
 
 	public function test_a_smaily_database_insert_failure_is_retried_instead_of_marked_sent(): void {
@@ -412,7 +413,7 @@ final class FlusherTest extends TestCase {
 		self::assertSame( 1, $stats['retried'] );
 		self::assertSame( array(), $queue->marked_sent );
 		self::assertSame( array(), $queue->marked_failed );
-		self::assertSame( 'Smaily API returned code 225: Database insert failed', $queue->attempts[0]['error'] );
+		self::assertSame( 'Smaily API returned code 225', $queue->attempts[0]['error'] );
 		self::assertSame( 60, $queue->attempts[0]['retry_in_seconds'] );
 	}
 

@@ -357,10 +357,12 @@ class Client {
 			$response     = wp_remote_post( $url, $args );
 		}
 
+		// The Event Log and the row's error keep codes only, never a message
+		// text: the transport's or Smaily's can name the contact (CON-301).
 		if ( is_wp_error( $response ) ) {
-			$this->last_exchange['response'] = array( 'error' => $response->get_error_message() );
+			$this->last_exchange['response'] = array( 'error' => $response->get_error_code() );
 			throw new ApiException(
-				'Smaily HTTP transport error: ' . $response->get_error_message(),
+				'Smaily HTTP transport error: ' . $response->get_error_code(),
 				0
 			);
 		}
@@ -370,7 +372,7 @@ class Client {
 
 		$this->last_exchange['response'] = array(
 			'http' => $code,
-			'body' => $body,
+			'body' => is_array( $body ) ? array_diff_key( $body, array( 'message' => true ) ) : $body,
 		);
 
 		if ( $code < 200 || $code >= 300 ) {
