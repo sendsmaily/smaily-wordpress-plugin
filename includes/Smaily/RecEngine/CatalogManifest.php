@@ -251,13 +251,13 @@ class CatalogManifest {
 		try {
 			$products = $this->catalog->manifest_items( $limit );
 		} catch ( \Throwable $e ) {
-			$this->log_skip( 'building the product list failed: ' . self::where( $e ) );
+			$this->log_skip( 'building the product list failed: ' . DebugLog::where( $e ) );
 			$this->queue->mark_failed(
 				$id,
 				sprintf(
 					/* translators: %s: the error type and where it happened, e.g. "RuntimeException at CatalogBackfillJob.php:144". */
 					__( 'Not sent: building the product list stopped on an unexpected error (%s).', 'smaily-connect' ),
-					self::where( $e )
+					DebugLog::where( $e )
 				)
 			);
 			$this->queue->store_exchange(
@@ -308,13 +308,13 @@ class CatalogManifest {
 			$this->queue->store_exchange( $id, $sent, IngestQueue::http_error_response( $e ) );
 			return;
 		} catch ( \Throwable $e ) {
-			$this->log_skip( 'the send failed: ' . self::where( $e ) );
+			$this->log_skip( 'the send failed: ' . DebugLog::where( $e ) );
 			$this->queue->mark_failed(
 				$id,
 				sprintf(
 					/* translators: %s: the error type and where it happened, e.g. "TypeError at Client.php:210". */
 					__( 'The send stopped on an unexpected error (%s).', 'smaily-connect' ),
-					self::where( $e )
+					DebugLog::where( $e )
 				)
 			);
 			$this->queue->store_exchange( $id, $sent, (string) wp_json_encode( array( 'outcome' => 'error' ) ) );
@@ -352,14 +352,6 @@ class CatalogManifest {
 			// phpcs:ignore Squiz.PHP.DiscouragedFunctions.Discouraged -- A whole-catalog walk in a background run; Bootstrap's upgrade does the same.
 			set_time_limit( self::TIME_LIMIT_SECONDS );
 		}
-	}
-
-	/**
-	 * The error type and where it was thrown, never the message (PRO-3890):
-	 * a message can carry store data.
-	 */
-	private static function where( \Throwable $e ): string {
-		return sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() );
 	}
 
 	/** Why tonight's manifest must not be sent, or '' when it may. */

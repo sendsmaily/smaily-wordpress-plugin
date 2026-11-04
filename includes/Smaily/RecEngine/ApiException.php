@@ -79,6 +79,15 @@ final class ApiException extends Exception {
 		return $this->error_code;
 	}
 
+	/**
+	 * The failure for a log line or a stored reason: the HTTP status and the
+	 * engine's error code, never the engine's message, which can name a
+	 * contact (CON-277).
+	 */
+	public function summary(): string {
+		return sprintf( 'http=%d error=%s', (int) $this->getCode(), $this->error_code );
+	}
+
 	public function request_id(): ?string {
 		return $this->request_id;
 	}

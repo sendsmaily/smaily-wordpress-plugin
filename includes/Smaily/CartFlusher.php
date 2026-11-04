@@ -171,7 +171,7 @@ class CartFlusher {
 				// data/config — terminal, never an eternal 60s retry loop
 				// (F3-53). Observable + manually retryable in the Event Log. The
 				// error type and where it was thrown, never its text (CON-301).
-				$this->queue->mark_failed( $id, sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ) );
+				$this->queue->mark_failed( $id, DebugLog::where( $e ) );
 				++$stats['failed'];
 			}
 

@@ -155,7 +155,7 @@ abstract class AbstractD6Flusher {
 				// event type and stop each one. Terminal — the same data throws
 				// again; Retry in the Event Log runs it again. The error type
 				// and where it was thrown, never its text (CON-301).
-				$this->queue->mark_failed( $id, sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ) );
+				$this->queue->mark_failed( $id, \Smaily\Connect\Support\DebugLog::where( $e ) );
 				$this->queue->store_exchange( $id, null, (string) wp_json_encode( array( 'outcome' => 'not_built' ) ) );
 				++$stats['failed'];
 				continue;

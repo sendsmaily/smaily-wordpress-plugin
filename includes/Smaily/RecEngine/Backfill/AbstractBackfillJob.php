@@ -408,7 +408,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 			$this->table_name(),
 			array(
 				'status'        => BackfillJobInterface::STATUS_FAILED,
-				'error_message' => sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ),
+				'error_message' => \Smaily\Connect\Support\DebugLog::where( $e ),
 			),
 			array(
 				'id'     => $job_id,
@@ -500,8 +500,19 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 
 	/** Whether this import's state row is `running` — queued or mid-walk — and not stalled. */
 	public function is_running(): bool {
-		$row = self::read_state( $this->job_type() );
-		return is_array( $row ) && $row['status'] === BackfillJobInterface::STATUS_RUNNING && ! self::is_stalled( $this->job_type(), $row );
+		return self::is_live( $this->job_type(), self::read_state( $this->job_type() ) );
+	}
+
+	/**
+	 * Whether a state row is an import that runs now (queued or mid-walk) and
+	 * has not stalled.
+	 *
+	 * @param array<string, mixed>|false|null $row A state row from read_state().
+	 */
+	public static function is_live( string $job_type, array|false|null $row ): bool {
+		return is_array( $row )
+			&& ( $row['status'] ?? '' ) === BackfillJobInterface::STATUS_RUNNING
+			&& ! self::is_stalled( $job_type, $row );
 	}
 
 	/**

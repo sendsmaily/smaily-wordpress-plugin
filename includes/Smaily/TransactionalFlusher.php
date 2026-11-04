@@ -470,7 +470,7 @@ class TransactionalFlusher {
 			// credentials were removed) is deterministic — terminal, never
 			// an eternal retry loop (F3-53). The error type and where it was
 			// thrown, never its text (CON-301).
-			$this->queue->mark_failed( $id, sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ) );
+			$this->queue->mark_failed( $id, \Smaily\Connect\Support\DebugLog::where( $e ) );
 			$this->fail_open( $order_id_str, $event_type, $payload, $order );
 		}
 

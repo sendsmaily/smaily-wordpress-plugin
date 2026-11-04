@@ -81,16 +81,8 @@ final class Activation {
 			require_once SMAILY_CONNECT_PLUGIN_PATH . 'includes/smaily-cypher.class.php';
 		}
 
-		global $wpdb;
-
 		// Array-shaped credential options: the legacy default + per-account.
-		$option_keys = array( Settings\Credentials::LEGACY_OPTION_KEY );
-		$like        = $wpdb->esc_like( Settings\Credentials::PHASE2_OPTION_PREFIX ) . '%';
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-time option_name scan on (de)activation; nothing to cache.
-		$per_account = $wpdb->get_col(
-			$wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $like )
-		);
-		foreach ( array_merge( $option_keys, is_array( $per_account ) ? $per_account : array() ) as $key ) {
+		foreach ( Settings\Credentials::option_keys() as $key ) {
 			$value = get_option( $key );
 			if ( ! is_array( $value ) || ! isset( $value['password'] ) ) {
 				continue;

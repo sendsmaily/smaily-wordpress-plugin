@@ -379,7 +379,7 @@ class BackfillJob implements BackfillJobInterface {
 			// runs it again.
 			$this->record_error(
 				(int) $state['id'],
-				sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ),
+				\Smaily\Connect\Support\DebugLog::where( $e ),
 				self::STATUS_RUNNING
 			);
 			return array(
@@ -445,7 +445,7 @@ class BackfillJob implements BackfillJobInterface {
 				// cannot stop the import at the same place in every run
 				// (CON-302). The error type and where it was thrown, never
 				// its text (CON-301).
-				$reason = sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() );
+				$reason = \Smaily\Connect\Support\DebugLog::where( $e );
 				\Smaily\Connect\Support\DebugLog::write( sprintf( '[smaily-connect backfill.batch] user_id=%d not_built: %s', (int) $user->ID, $reason ) );
 				$not_built[] = array(
 					'user_id' => (int) $user->ID,

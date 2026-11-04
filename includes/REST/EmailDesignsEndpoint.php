@@ -16,6 +16,7 @@ use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Support\Url;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -144,7 +145,7 @@ class EmailDesignsEndpoint {
 			array(
 				'url'           => $url,
 				'expires_at'    => isset( $link['expires_at'] ) ? (string) $link['expires_at'] : '',
-				'engine_origin' => self::origin( $this->settings->base_url() ),
+				'engine_origin' => $this->settings->engine_origin(),
 			),
 			200
 		);
@@ -193,28 +194,9 @@ class EmailDesignsEndpoint {
 	 * tab instead.
 	 */
 	public static function frameable( string $site_url, string $admin_url ): bool {
-		$site_origin = self::origin( $site_url );
+		$site_origin = Url::origin( $site_url );
 
-		return strpos( $site_origin, 'https://' ) === 0 && $site_origin === self::origin( $admin_url );
-	}
-
-	/**
-	 * The origin of `$url` as a browser writes it (`scheme://host[:port]`,
-	 * lower case, the scheme's own port left out), or '' when it has none.
-	 */
-	public static function origin( string $url ): string {
-		$parts = wp_parse_url( $url );
-		if ( ! is_array( $parts ) || ! isset( $parts['scheme'], $parts['host'] ) ) {
-			return '';
-		}
-		$scheme = strtolower( $parts['scheme'] );
-		$origin = $scheme . '://' . strtolower( $parts['host'] );
-		$port   = $parts['port'] ?? null;
-		if ( $port === null || ( $scheme === 'https' && $port === 443 ) || ( $scheme === 'http' && $port === 80 ) ) {
-			return $origin;
-		}
-
-		return $origin . ':' . $port;
+		return strpos( $site_origin, 'https://' ) === 0 && $site_origin === Url::origin( $admin_url );
 	}
 
 	private function available(): bool {

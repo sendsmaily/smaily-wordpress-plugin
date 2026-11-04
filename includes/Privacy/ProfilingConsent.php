@@ -400,10 +400,7 @@ class ProfilingConsent {
 	 * else the error type, its code and where it was thrown.
 	 */
 	private static function describe( \Throwable $e ): string {
-		if ( $e instanceof ApiException ) {
-			return sprintf( 'http=%d error=%s', (int) $e->getCode(), $e->error_code() );
-		}
-		return sprintf( '%s code=%d at %s:%d', get_class( $e ), (int) $e->getCode(), basename( $e->getFile() ), $e->getLine() );
+		return $e instanceof ApiException ? $e->summary() : \Smaily\Connect\Support\DebugLog::where_with_code( $e );
 	}
 
 	private static function email_hash( string $email ): string {
