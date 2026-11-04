@@ -13,8 +13,8 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Discriminated union of the shapes the setup-exchange can produce —
- * the first four per RECENGINE_API_CONTRACT.md §7.1, the last one the
- * plugin's own host check:
+ * the first four per RECENGINE_API_CONTRACT.md §7.1, the last two the
+ * plugin's own checks:
  *
  *   - success           HTTP 200 — tenant config + api_key
  *   - token_expired     HTTP 410 — already used or expired
@@ -23,6 +23,9 @@ defined( 'ABSPATH' ) || exit;
  *   - host_not_allowed   the setup URL or the engine's reply points
  *                        outside https://intelligence.smaily.com
  *                        (PRO-3623) — never stored
+ *   - account_mismatch   the engine store's Smaily account (§1
+ *                        `smaily_subdomain`) is none of this store's
+ *                        Smaily accounts (CON-289) — never stored
  *
  * The class is intentionally a plain final value-object rather than
  * a hierarchy of subclasses — match-by-`kind` reads more linearly in
@@ -41,6 +44,7 @@ final class ExchangeResult {
 	public const KIND_TOKEN_NOT_FOUND    = 'token_not_found';
 	public const KIND_ENGINE_UNREACHABLE = 'engine_unreachable';
 	public const KIND_HOST_NOT_ALLOWED   = 'host_not_allowed';
+	public const KIND_ACCOUNT_MISMATCH   = 'account_mismatch';
 
 	public string $kind;
 
@@ -55,6 +59,13 @@ final class ExchangeResult {
 	public array $endpoints = array();
 	/** @var array<string, mixed> */
 	public array $config = array();
+
+	/**
+	 * §1 `smaily_subdomain` (v1.25.0): the engine store's Smaily account,
+	 * trimmed and lower case; '' when the engine sends null or no field.
+	 * Populated on success and account_mismatch.
+	 */
+	public string $smaily_subdomain = '';
 
 	/** Populated on token_expired only. */
 	public string $regenerate_url = '';
@@ -87,6 +98,9 @@ final class ExchangeResult {
 		if ( isset( $body['config'] ) && is_array( $body['config'] ) ) {
 			$r->config = $body['config'];
 		}
+		if ( isset( $body['smaily_subdomain'] ) && is_string( $body['smaily_subdomain'] ) ) {
+			$r->smaily_subdomain = strtolower( trim( $body['smaily_subdomain'] ) );
+		}
 
 		return $r;
 	}
@@ -110,6 +124,12 @@ final class ExchangeResult {
 	public static function host_not_allowed( string $reason ): self {
 		$r         = new self( self::KIND_HOST_NOT_ALLOWED );
 		$r->reason = $reason;
+		return $r;
+	}
+
+	public static function account_mismatch( string $smaily_subdomain ): self {
+		$r                   = new self( self::KIND_ACCOUNT_MISMATCH );
+		$r->smaily_subdomain = $smaily_subdomain;
 		return $r;
 	}
 }

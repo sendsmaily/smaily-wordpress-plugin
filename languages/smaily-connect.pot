@@ -295,6 +295,12 @@ msgstr ""
 msgid "Smaily Campaign Intelligence replied with an address outside https://intelligence.smaily.com, so the connection was not saved. Contact Smaily support."
 msgstr ""
 
+#. translators: %s: the Smaily account (subdomain) of the Campaign Intelligence store the setup link is for.
+#: includes/REST/RecEngineEndpoint.php:239
+#, php-format
+msgid "This setup link is for the Campaign Intelligence store of another Smaily account (%s), so the connection was not saved. The link is now used up: ask Smaily for a new setup link for this store's Smaily account."
+msgstr ""
+
 #: includes/REST/RecEngineEndpoint.php:249
 msgid "Smaily Campaign Intelligence did not respond. Try again in a few minutes."
 msgstr ""
@@ -2480,6 +2486,10 @@ msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:447
 msgid "Setup link not found"
+msgstr ""
+
+#: admin/src/components/steps/Step4Recommendations.tsx:588
+msgid "Setup link for another Smaily account"
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:450

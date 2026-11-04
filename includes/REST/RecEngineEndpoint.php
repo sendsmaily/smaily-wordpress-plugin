@@ -229,6 +229,20 @@ class RecEngineEndpoint {
 					400
 				);
 
+			case ExchangeResult::KIND_ACCOUNT_MISMATCH:
+				return new WP_REST_Response(
+					array(
+						'connected' => false,
+						'error'     => 'smaily_account_mismatch',
+						'message'   => sprintf(
+							/* translators: %s: the Smaily account (subdomain) of the Campaign Intelligence store the setup link is for. */
+							__( 'This setup link is for the Campaign Intelligence store of another Smaily account (%s), so the connection was not saved. The link is now used up: ask Smaily for a new setup link for this store\'s Smaily account.', 'smaily-connect' ),
+							$result->smaily_subdomain
+						),
+					),
+					400
+				);
+
 			case ExchangeResult::KIND_HOST_NOT_ALLOWED:
 				return new WP_REST_Response(
 					array(
