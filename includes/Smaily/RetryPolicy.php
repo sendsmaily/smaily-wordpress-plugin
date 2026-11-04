@@ -34,8 +34,8 @@ defined( 'ABSPATH' ) || exit;
  *     (PRO-3750 for 203, PRO-3862 for the rest). A code a retry with the
  *     same data can pass (TRANSIENT_ENVELOPE_CODES) takes the TEMPORARY path
  *     below; every other code, listed by Smaily or not, fails the row at
- *     once with a `permanent_envelope_<code>` reason that keeps Smaily's
- *     message. Never "sent".
+ *     once with a `permanent_envelope_<code>` reason that names the code,
+ *     never Smaily's message (CON-301). Never "sent".
  *   - TEMPORARY (5xx, 429, transport error / code 0, a transient envelope
  *     code): retry, spaced by
  *     BACKOFF (1m, 5m, 15m, 1h, 6h) — or by Smaily's own Retry-After when it
@@ -101,19 +101,20 @@ final class RetryPolicy {
 	 * The failure reason when a Smaily reply that arrived as HTTP 2xx refuses
 	 * the request for good in its `{code, message}` body, else null — null
 	 * also for success (101), a reply with no body code, and a code a retry
-	 * can pass (TRANSIENT_ENVELOPE_CODES). The reason keeps Smaily's answer
+	 * can pass (TRANSIENT_ENVELOPE_CODES). The reason carries Smaily's code
 	 * behind a `permanent_envelope_<code>:` class, the same shape
-	 * `permanent_http_<code>:` has.
+	 * `permanent_http_<code>:` has — never Smaily's message, which can name
+	 * the contact (CON-301).
 	 *
 	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
 	 */
 	public static function permanent_envelope( ?array $exchange ): ?string {
-		$refusal = self::envelope_refusal( $exchange );
-		if ( $refusal === null || in_array( $refusal['code'], self::TRANSIENT_ENVELOPE_CODES, true ) ) {
+		$code = self::envelope_refusal( $exchange );
+		if ( $code === null || in_array( $code, self::TRANSIENT_ENVELOPE_CODES, true ) ) {
 			return null;
 		}
 
-		return sprintf( 'permanent_envelope_%1$d: Smaily API returned code %1$d: %2$s', $refusal['code'], $refusal['message'] );
+		return sprintf( 'permanent_envelope_%1$d: Smaily API returned code %1$d', $code );
 	}
 
 	/**
@@ -133,42 +134,34 @@ final class RetryPolicy {
 			throw new TerminalDispatchException( $permanent ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message goes to the Event Log / debug log, never echoed to a browser.
 		}
 
-		$refusal = self::envelope_refusal( $exchange );
-		if ( $refusal !== null ) {
+		$code = self::envelope_refusal( $exchange );
+		if ( $code !== null ) {
 			// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- the message is never rendered as HTML (the Event Log and the admin show it as plain text); escaping it would double-encode it.
 			throw new ApiException(
-				sprintf( 'Smaily API returned code %d: %s', $refusal['code'], $refusal['message'] ),
+				sprintf( 'Smaily API returned code %d', $code ),
 				(int) ( $exchange['response']['http'] ?? 200 ),
 				null,
-				$refusal['code']
+				$code
 			);
 			// phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 		}
 	}
 
 	/**
-	 * The refusing `{code, message}` of a reply, or null when the reply is a
-	 * success (101), carries no numeric body code, or nothing was sent.
+	 * The refusing body code of a reply, or null when the reply is a success
+	 * (101), carries no numeric body code, or nothing was sent.
 	 *
 	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
-	 *
-	 * @return array{code: int, message: string}|null
 	 */
-	private static function envelope_refusal( ?array $exchange ): ?array {
+	private static function envelope_refusal( ?array $exchange ): ?int {
 		$body = $exchange['response']['body'] ?? null;
 		if ( ! is_array( $body ) || ! isset( $body['code'] ) || ! is_numeric( $body['code'] ) ) {
 			return null;
 		}
 
 		$code = (int) $body['code'];
-		if ( $code === Client::CODE_OK ) {
-			return null;
-		}
 
-		return array(
-			'code'    => $code,
-			'message' => isset( $body['message'] ) && is_scalar( $body['message'] ) ? (string) $body['message'] : '',
-		);
+		return $code === Client::CODE_OK ? null : $code;
 	}
 
 	/**

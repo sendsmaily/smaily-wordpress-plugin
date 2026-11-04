@@ -158,7 +158,7 @@ final class CartFlusherTest extends TestCase {
 		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client, $this->no_discounts() ) )->flush();
 
 		self::assertSame( 1, $stats['failed'] );
-		self::assertSame( 'permanent_envelope_221: Smaily API returned code 221: no such autoresponder', $queue->marked_failed[0]['error'] );
+		self::assertSame( 'permanent_envelope_221: Smaily API returned code 221', $queue->marked_failed[0]['error'] );
 	}
 
 	public function test_a_refusing_code_on_the_routed_path_is_never_marked_sent(): void {
@@ -202,9 +202,9 @@ final class CartFlusherTest extends TestCase {
 
 		self::assertSame( 0, $stats['sent'] );
 		self::assertSame( array(), $queue->marked_sent );
-		self::assertSame( 'permanent_envelope_207: Smaily API returned code 207: Following fields are required', $queue->marked_failed[0]['error'] );
+		self::assertSame( 'permanent_envelope_207: Smaily API returned code 207', $queue->marked_failed[0]['error'] );
 		self::assertSame( 9, $queue->attempts[0]['id'] );
-		self::assertSame( 'Smaily API returned code 225: Database insert failed', $queue->attempts[0]['error'] );
+		self::assertSame( 'Smaily API returned code 225', $queue->attempts[0]['error'] );
 	}
 
 	public function test_an_invalid_data_answer_on_the_fallback_names_its_class_and_smailys_answer(): void {
@@ -234,7 +234,7 @@ final class CartFlusherTest extends TestCase {
 
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->attempts );
-		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $queue->marked_failed[0]['error'] );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203', $queue->marked_failed[0]['error'] );
 	}
 
 	public function test_an_invalid_data_answer_on_the_routed_path_fails_on_the_first_attempt(): void {
@@ -268,7 +268,7 @@ final class CartFlusherTest extends TestCase {
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( array(), $queue->marked_sent );
 		self::assertSame( array(), $queue->attempts );
-		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $queue->marked_failed[0]['error'] );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203', $queue->marked_failed[0]['error'] );
 	}
 
 	public function test_api_exception_records_attempt_for_retry(): void {
@@ -353,6 +353,8 @@ final class CartFlusherTest extends TestCase {
 		self::assertSame( 1, $stats['failed'] );
 		self::assertSame( 0, $stats['retried'] );
 		self::assertStringContainsString( 'RuntimeException', $queue->marked_failed[0]['error'] );
+		self::assertStringContainsString( 'CartFlusherTest.php:', $queue->marked_failed[0]['error'], 'Where it was thrown (CON-301).' );
+		self::assertStringNotContainsString( 'credentials', $queue->marked_failed[0]['error'], 'Never the error\'s text (CON-301).' );
 	}
 
 	public function test_missing_email_is_a_terminal_skip(): void {

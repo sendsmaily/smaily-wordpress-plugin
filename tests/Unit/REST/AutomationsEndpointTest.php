@@ -246,7 +246,7 @@ final class AutomationsEndpointTest extends TestCase {
 			$this->settings( true ),
 			$this->stub_client(
 				null,
-				new ApiException( 0, 'network_error', 'Engine unreachable after 5 attempts: timeout' )
+				new ApiException( 0, 'network_error', 'Engine unreachable for jane.doe@example.com' )
 			)
 		);
 
@@ -254,6 +254,9 @@ final class AutomationsEndpointTest extends TestCase {
 
 		self::assertSame( 502, $response->get_status() );
 		self::assertSame( 'network_error', $response->get_data()['error'] );
+		// The engine's code, never its message, which can name a customer (CON-301).
+		self::assertArrayNotHasKey( 'message', $response->get_data() );
+		self::assertStringNotContainsString( 'jane.doe', (string) wp_json_encode( $response->get_data() ) );
 	}
 
 	// ---------------------------------------------------------------

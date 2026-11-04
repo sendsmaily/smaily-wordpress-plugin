@@ -300,8 +300,8 @@ final class TransactionalFlusherTest extends TestCase {
 	 */
 	public static function refusing_answers(): array {
 		return array(
-			'221 workflow unusable'    => array( 221, 'permanent_envelope_221: Smaily API returned code 221: Smaily said no', '' ),
-			'225 Smaily database error' => array( 225, '', 'Smaily API returned code 225: Smaily said no' ),
+			'221 workflow unusable'    => array( 221, 'permanent_envelope_221: Smaily API returned code 221', '' ),
+			'225 Smaily database error' => array( 225, '', 'Smaily API returned code 225' ),
 		);
 	}
 
@@ -325,6 +325,7 @@ final class TransactionalFlusherTest extends TestCase {
 		);
 
 		self::assertStringContainsString( 'RuntimeException', $queue->marked_failed[0]['error'] );
+		self::assertStringNotContainsString( 'credentials', $queue->marked_failed[0]['error'], 'Never the error\'s text (CON-301).' );
 		self::assertSame( TransactionalFlusher::META_STATUS_FAILED_OPEN, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ) ) );
 	}
 

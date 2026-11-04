@@ -122,9 +122,10 @@ final class RetryPolicyTest extends TestCase {
 		self::assertStringContainsString( 'HTTP 503', $queue->marked_failed[0]['error'] );
 	}
 
-	public function test_an_invalid_data_envelope_is_permanent_with_smailys_answer(): void {
+	public function test_an_invalid_data_envelope_is_permanent_with_smailys_code_only(): void {
 		// PRO-3750: HTTP 200 with Smaily code 203 — the same data is rejected
-		// again, so the reason names the class and keeps Smaily's answer.
+		// again, so the reason names the class and Smaily's code; never
+		// Smaily's message, which can name the contact (CON-301).
 		$reason = RetryPolicy::permanent_envelope(
 			array(
 				'request'  => array(),
@@ -132,27 +133,27 @@ final class RetryPolicyTest extends TestCase {
 					'http' => 200,
 					'body' => array(
 						'code'    => 203,
-						'message' => 'Invalid data',
+						'message' => 'Invalid data for jane.doe@example.com',
 					),
 				),
 			)
 		);
 
-		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data', $reason );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203', $reason );
 	}
 
 	/**
 	 * PRO-3862: every Smaily body code other than 101 fails the row at once
-	 * with Smaily's message — each code of the response-code table
+	 * with Smaily's code (never its message, CON-301) — each code of the response-code table
 	 * (https://smaily.com/help/api/general/response-codes/) except 225, and a
 	 * code the table does not list.
 	 *
 	 * @dataProvider permanent_envelope_codes
 	 */
-	public function test_a_refusing_body_code_fails_the_row_with_smailys_message( int $code ): void {
+	public function test_a_refusing_body_code_fails_the_row_with_smailys_code( int $code ): void {
 		$exchange = $this->exchange_answering( $code, 'Smaily said no' );
 
-		$expected = sprintf( 'permanent_envelope_%1$d: Smaily API returned code %1$d: Smaily said no', $code );
+		$expected = sprintf( 'permanent_envelope_%1$d: Smaily API returned code %1$d', $code );
 		self::assertSame( $expected, RetryPolicy::permanent_envelope( $exchange ) );
 
 		$this->expectException( TerminalDispatchException::class );
@@ -186,7 +187,7 @@ final class RetryPolicyTest extends TestCase {
 			RetryPolicy::throw_if_refused_envelope( $exchange );
 			self::fail( 'A refusing body code must never pass as sent.' );
 		} catch ( ApiException $e ) {
-			self::assertSame( 'Smaily API returned code 225: Database insert failed', $e->getMessage() );
+			self::assertSame( 'Smaily API returned code 225', $e->getMessage() );
 			self::assertSame( 225, $e->smaily_code() );
 			self::assertFalse( RetryPolicy::is_permanent( $e ) );
 

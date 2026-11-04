@@ -324,27 +324,51 @@ class BeaconEndpoint {
 		try {
 			$result = $client->ingest_browse( $events );
 		} catch ( ApiException $e ) {
+			// The engine's code only, never its message: the message can name
+			// the customer, and this answer goes to a public browser (CON-300).
 			return new WP_REST_Response(
 				array(
-					'ok'      => false,
-					'error'   => $e->error_code(),
-					'message' => $e->getMessage(),
+					'ok'    => false,
+					'error' => $e->error_code(),
 				),
 				502
 			);
 		}
 
-		// Pass the engine's D6 body straight back (it never contains the
-		// api_key); the client logs counts and otherwise fires-and-forgets.
+		// Pass the engine's D6 counts back (never the api_key); the client logs
+		// counts and otherwise fires-and-forgets. A refused event comes back as
+		// its index and field only, without the engine's message (CON-300).
 		return new WP_REST_Response(
 			array(
 				'ok'           => isset( $result['ok'] ) ? (bool) $result['ok'] : true,
 				'processed'    => isset( $result['processed'] ) ? (int) $result['processed'] : 0,
 				'deduplicated' => isset( $result['deduplicated'] ) ? (int) $result['deduplicated'] : 0,
-				'errors'       => isset( $result['errors'] ) && is_array( $result['errors'] ) ? $result['errors'] : array(),
+				'errors'       => isset( $result['errors'] ) && is_array( $result['errors'] ) ? self::refusals( $result['errors'] ) : array(),
 			),
 			200
 		);
+	}
+
+	/**
+	 * The engine's per-event refusals as the browser gets them: the event's
+	 * index and the field the engine named, never the engine's message.
+	 *
+	 * @param array<mixed> $errors The D6 `errors[]`.
+	 *
+	 * @return array<int, array{index: int, field: string}>
+	 */
+	private static function refusals( array $errors ): array {
+		$out = array();
+		foreach ( $errors as $error ) {
+			if ( ! is_array( $error ) ) {
+				continue;
+			}
+			$out[] = array(
+				'index' => isset( $error['index'] ) ? (int) $error['index'] : -1,
+				'field' => isset( $error['field'] ) && is_scalar( $error['field'] ) ? (string) $error['field'] : '',
+			);
+		}
+		return $out;
 	}
 
 	/**

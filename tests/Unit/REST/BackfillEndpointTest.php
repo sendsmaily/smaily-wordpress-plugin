@@ -414,7 +414,7 @@ final class BackfillEndpointTest extends TestCase {
 				),
 			)
 		);
-		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203: Invalid data submitted for jane.doe@example.com', $stored );
+		self::assertSame( 'permanent_envelope_203: Smaily API returned code 203', $stored, 'Smaily\'s message is not stored (CON-301).' );
 
 		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
 			array(
@@ -431,7 +431,7 @@ final class BackfillEndpointTest extends TestCase {
 		$endpoint = new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) );
 		$data     = $endpoint->status( $request )->get_data();
 
-		self::assertSame( 'Smaily API returned code 203: Invalid data submitted for [email]', $data['error'] );
+		self::assertSame( 'Smaily API returned code 203', $data['error'] );
 	}
 
 	/**

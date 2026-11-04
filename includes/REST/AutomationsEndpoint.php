@@ -272,10 +272,11 @@ class AutomationsEndpoint {
 			);
 		}
 
+		// The engine's code, never its message, which can name a customer
+		// (CON-301); the admin shows the code under its own sentence.
 		return new WP_REST_Response(
 			array(
 				'error'     => $e->error_code(),
-				'message'   => $e->getMessage(),
 				'requestId' => $e->request_id(),
 			),
 			502

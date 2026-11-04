@@ -90,6 +90,8 @@ final class ClientBrowseRelayTest extends TestCase {
 			self::fail( 'A transport failure must throw.' );
 		} catch ( ApiException $e ) {
 			self::assertSame( 'network_error', $e->error_code() );
+			// The WP_Error's code, never its text (CON-301).
+			self::assertSame( 'Engine unreachable after 1 attempts: http_request_failed', $e->getMessage() );
 		}
 
 		self::assertCount( 1, $this->requests );

@@ -1099,6 +1099,11 @@ found it, not a test: no test turned `WP_DEBUG` on. Rules:
    status and error code, or the error type and `file:line`.
 2. **A test of a privacy rule on a log line reads the line** — with an
    address in the remote message, it asserts the address is not there.
+3. **The same holds for every store, not only the log** (CON-301): the
+   Event Log row, an import's stored reason and an admin or public REST
+   answer kept the remote message after CON-277 fixed the log. Fix the
+   message where it enters (the Smaily `ApiException`, the queue helpers),
+   so the call sites that store it inherit the rule.
 
 ### 2.33 "Is one queued?" must not count the copy that runs now (CON-285, import checks, 2026-11-04)
 
