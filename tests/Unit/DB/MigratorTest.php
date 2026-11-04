@@ -311,6 +311,70 @@ final class MigratorTest extends TestCase {
 	}
 
 	/**
+	 * CON-282: migration 012 failing held back 013, and the 3.21.0 code ran
+	 * on a table without the column it writes.
+	 */
+	public function test_a_deferred_php_migration_lets_the_later_ones_run_and_is_retried_first(): void {
+		$GLOBALS['smly_migrator_test_calls'] = array();
+		$GLOBALS['smly_migrator_test_done']  = false;
+		$this->seed_file(
+			'001-retry-later.php',
+			'<?php return static function () { $GLOBALS["smly_migrator_test_calls"][] = 1; return $GLOBALS["smly_migrator_test_done"] ? true : \\Smaily\\Connect\\DB\\Migrator::DEFERRED; };'
+		);
+		$this->seed_php_step( '002-after.php', 2, true );
+
+		$options = array();
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = false ) use ( &$options ) {
+				return $options[ $key ] ?? $default;
+			}
+		);
+		Functions\when( 'update_option' )->alias(
+			static function ( string $key, $value ) use ( &$options ): bool {
+				$options[ $key ] = $value;
+				return true;
+			}
+		);
+		Functions\when( 'delete_option' )->alias(
+			static function ( string $key ) use ( &$options ): bool {
+				unset( $options[ $key ] );
+				return true;
+			}
+		);
+
+		self::assertSame( array( 2 ), ( new Migrator( $this->tmp_dir ) )->migrate(), 'Version 2 runs although 1 is not done.' );
+		self::assertSame( 2, $options[ Constants::OPTION_SCHEMA_VERSION ] );
+		self::assertSame( array( 1 ), $options[ Migrator::OPTION_DEFERRED ] );
+
+		self::assertSame( array(), ( new Migrator( $this->tmp_dir ) )->migrate(), 'Still not done: still deferred.' );
+		self::assertSame( array( 1 ), $options[ Migrator::OPTION_DEFERRED ] );
+
+		$GLOBALS['smly_migrator_test_done'] = true;
+		self::assertSame( array( 1 ), ( new Migrator( $this->tmp_dir ) )->migrate(), 'The next update retries it first.' );
+		self::assertArrayNotHasKey( Migrator::OPTION_DEFERRED, $options );
+		self::assertSame( array( 1, 2, 1, 1 ), $GLOBALS['smly_migrator_test_calls'], 'Version 2 ran once; 1 on every call until done.' );
+	}
+
+	public function test_the_required_schema_version_is_the_highest_migration(): void {
+		$found = ( new Migrator() )->discover();
+
+		self::assertSame( max( array_keys( $found ) ), Migrator::REQUIRED_VERSION, 'CON-282: the background imports wait for the schema this code writes.' );
+	}
+
+	public function test_the_schema_is_ready_once_the_required_version_is_stored(): void {
+		$stored = Migrator::REQUIRED_VERSION - 1;
+		Functions\when( 'get_option' )->alias(
+			static function () use ( &$stored ) {
+				return $stored;
+			}
+		);
+
+		self::assertFalse( Migrator::schema_ready() );
+		$stored = Migrator::REQUIRED_VERSION;
+		self::assertTrue( Migrator::schema_ready() );
+	}
+
+	/**
 	 * A `.php` migration that records its call and answers $result.
 	 */
 	private function seed_php_step( string $name, int $id, bool $result ): void {

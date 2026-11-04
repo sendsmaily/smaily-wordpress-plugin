@@ -211,6 +211,10 @@ msgstr "See ühendus on veel seadistamata. Lõpeta kõigepealt seadistamine."
 msgid "The import stopped running in the background."
 msgstr "Import lakkas taustal töötamast."
 
+#: includes/REST/BackfillEndpoint.php:212
+msgid "The import could not be started. Try again in a few minutes."
+msgstr "Importi ei õnnestunud käivitada. Proovi mõne minuti pärast uuesti."
+
 #: includes/REST/BackfillEndpoint.php:516
 msgid "Unsupported job_type."
 msgstr "Toetamata töötüüp (job_type)."

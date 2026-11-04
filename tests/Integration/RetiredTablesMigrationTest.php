@@ -126,7 +126,7 @@ final class RetiredTablesMigrationTest extends TestCase {
 		self::assertSame( $this->highest_migration(), (int) get_option( Constants::OPTION_SCHEMA_VERSION ), 'Migration 012 and every later one ran.' );
 	}
 
-	public function test_without_the_cart_tracker_nothing_is_dropped_and_the_next_update_retries(): void {
+	public function test_without_the_cart_tracker_nothing_is_dropped_the_later_migrations_run_and_the_next_update_retries(): void {
 		global $wpdb;
 		$this->arrange_store_before_migration_012();
 		$user = $this->make_user( 'no-tracker' );
@@ -143,7 +143,8 @@ final class RetiredTablesMigrationTest extends TestCase {
 
 		self::assertTrue( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ), 'The legacy carts had nowhere to go: the table stays.' );
 		self::assertTrue( RetiredTableFixtures::exists( RetiredTableFixtures::VISITOR_TABLE ) );
-		self::assertSame( 11, (int) get_option( Constants::OPTION_SCHEMA_VERSION ), 'Migration 012 is not recorded, so the next update runs it again.' );
+		self::assertSame( $this->highest_migration(), (int) get_option( Constants::OPTION_SCHEMA_VERSION ), 'CON-282: the later migrations ran.' );
+		self::assertSame( array( 12 ), get_option( Migrator::OPTION_DEFERRED ), 'Migration 012 is deferred, so the next update runs it again.' );
 		self::assertFalse( get_option( self::DRAINED_OPTION ), 'Nothing was drained, so nothing is stamped.' );
 		self::assertNull( $this->tracker_row( (string) $user ) );
 
@@ -153,6 +154,7 @@ final class RetiredTablesMigrationTest extends TestCase {
 
 		self::assertFalse( RetiredTableFixtures::exists( RetiredTableFixtures::LEGACY_CART_TABLE ) );
 		self::assertSame( $this->highest_migration(), (int) get_option( Constants::OPTION_SCHEMA_VERSION ), 'Migration 012 and every later one ran.' );
+		self::assertFalse( get_option( Migrator::OPTION_DEFERRED ), 'Nothing is deferred any more.' );
 		self::assertNotNull( $this->tracker_row( (string) $user ), 'The retry copied the cart before the drop.' );
 	}
 

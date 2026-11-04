@@ -131,6 +131,25 @@ final class BackfillEndpointTest extends TestCase {
 		self::assertSame( array(), $enqueued );
 	}
 
+	public function test_a_start_that_could_not_write_its_row_schedules_no_tick(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'products' );
+
+		$enqueued = array();
+		Functions\when( 'as_enqueue_async_action' )->alias(
+			static function ( string $hook ) use ( &$enqueued ): int {
+				$enqueued[] = $hook;
+				return 1;
+			}
+		);
+
+		$response = ( new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) ) )->start( $request );
+
+		self::assertSame( 500, $response->get_status() );
+		self::assertSame( 'start_failed', $response->get_data()['error'] );
+		self::assertSame( array(), $enqueued, 'CON-282: a tick would walk the row as it was.' );
+	}
+
 	public function test_import_now_on_the_orders_card_begins_a_history_import_before_the_run_starts(): void {
 		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
 			array(

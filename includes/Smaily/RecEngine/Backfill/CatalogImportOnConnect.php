@@ -41,14 +41,18 @@ final class CatalogImportOnConnect {
 
 	/**
 	 * @return bool True when a new import was started, false when one was
-	 *              already running (or there is no products job to start).
+	 *              already running, there is no products job to start, or
+	 *              its state row could not be written (CON-282: no batch is
+	 *              scheduled for an import that did not start).
 	 */
 	public function start(): bool {
 		if ( $this->job === null || ! function_exists( 'as_schedule_single_action' ) || $this->job->is_running() ) {
 			return false;
 		}
 
-		$this->job->start();
+		if ( $this->job->start() === 0 ) {
+			return false;
+		}
 
 		as_schedule_single_action(
 			time() + self::DELAY_SECONDS,

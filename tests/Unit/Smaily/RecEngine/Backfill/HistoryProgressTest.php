@@ -15,6 +15,8 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine\Backfill;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Constants;
+use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
@@ -42,6 +44,9 @@ final class HistoryProgressTest extends TestCase {
 
 	private bool $sending_allowed = true;
 
+	/** @var string[] job types whose state row the database cannot read (CON-282) */
+	private array $unreadable = array();
+
 	private int $now = self::NOW;
 
 	/** @var array<int, array{types: string[], created_by: ?string, max_id: ?int}> queue rows that still wait */
@@ -50,6 +55,9 @@ final class HistoryProgressTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
+
+		// The update has reached the schema this code needs (CON-282).
+		$this->options[ Constants::OPTION_SCHEMA_VERSION ] = Migrator::REQUIRED_VERSION;
 
 		$options = &$this->options;
 		Functions\when( 'get_option' )->alias(
@@ -443,6 +451,37 @@ final class HistoryProgressTest extends TestCase {
 		);
 	}
 
+	public function test_an_unreadable_import_ends_nothing_and_reports_nothing(): void {
+		$this->begin_with_sequence();
+		$this->orders_running( 410, 25 );
+		$this->rows['orders']['status'] = 'failed';
+		$this->scheduled                = array();
+
+		foreach ( array( 'orders', 'customers' ) as $type ) {
+			$this->unreadable = array( $type );
+			$this->progress()->run();
+
+			self::assertSame( array(), $this->sent, $type );
+			self::assertFalse( $this->options[ HistoryProgress::OPTION ]['ended'], 'CON-282: not ended on what could not be read — ' . $type );
+			self::assertCount( 1, $this->scheduled, 'The next check comes — ' . $type );
+			$this->scheduled = array();
+		}
+	}
+
+	public function test_before_the_schema_is_ready_the_check_waits(): void {
+		$this->begin_with_sequence();
+		$this->orders_running( 410, 25 );
+		$this->rows['orders']['status']                    = 'failed';
+		$this->options[ Constants::OPTION_SCHEMA_VERSION ] = Migrator::REQUIRED_VERSION - 1;
+		$this->scheduled                                   = array();
+
+		$this->progress()->run();
+
+		self::assertSame( array(), $this->sent );
+		self::assertFalse( $this->options[ HistoryProgress::OPTION ]['ended'] );
+		self::assertCount( 1, $this->scheduled );
+	}
+
 	private function progress(): HistoryProgress {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'sending_allowed' )->willReturnCallback( fn (): bool => $this->sending_allowed );
@@ -475,13 +514,13 @@ final class HistoryProgressTest extends TestCase {
 		);
 
 		$now = &$this->now;
-		return new class( $settings, static fn (): Client => $client, $queue, fn ( string $type ): ?array => $this->rows[ $type ] ?? null, $now ) extends HistoryProgress {
+		return new class( $settings, static fn (): Client => $client, $queue, fn ( string $type ): array|false|null => in_array( $type, $this->unreadable, true ) ? false : ( $this->rows[ $type ] ?? null ), $now ) extends HistoryProgress {
 			/** @var int */
 			private $clock;
 
 			/**
 			 * @param callable(): Client                     $client_factory
-			 * @param callable(string): ?array<string, mixed> $state_reader
+			 * @param callable(string): (array<string, mixed>|false|null) $state_reader
 			 */
 			public function __construct( RecEngineSettings $settings, callable $client_factory, IngestQueue $queue, callable $state_reader, int &$clock ) {
 				parent::__construct( $settings, $client_factory, $queue, $state_reader );

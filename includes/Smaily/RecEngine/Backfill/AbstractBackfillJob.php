@@ -157,6 +157,14 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 
 	// --- lifecycle ---------------------------------------------------------
 
+	/**
+	 * Reset the state row to a new `running` run.
+	 *
+	 * @return int The row id, or 0 when the row could not be written (a
+	 *             database error, e.g. a schema the update has not reached
+	 *             yet — CON-282): nothing was started, so the caller
+	 *             schedules no batch.
+	 */
 	public function start(): int {
 		global $wpdb;
 
@@ -165,7 +173,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		$table  = $this->table_name();
 
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
-		$wpdb->query(
+		$written = $wpdb->query(
 			$wpdb->prepare(
 				"INSERT INTO {$table} (job_type, target, status, total_count, processed_count, sent_count, cursor_value, started_at) VALUES (%s, %s, %s, %d, %d, %d, NULLIF( %s, '' ), %s) ON DUPLICATE KEY UPDATE status = VALUES(status), total_count = VALUES(total_count), processed_count = 0, sent_count = 0, cursor_value = VALUES(cursor_value), started_at = VALUES(started_at), completed_at = NULL, error_message = NULL",
 				$this->job_type(),
@@ -178,6 +186,9 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 				current_time( 'mysql', true )
 			)
 		);
+		if ( $written === false ) {
+			return 0;
+		}
 
 		$id = (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -269,12 +280,14 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 			return $this->batch_result( 0, 0, 0, 0, true );
 		}
 
-		// The merchant cancelled the import (Cancel / Hold back) after Action
-		// Scheduler had already claimed this tick (PRO-3821), or an earlier
-		// batch failed (PRO-3890): send nothing, leave the row as it is, and
-		// stop the tick chain. Only a new start() takes it out of either state.
-		$status = (string) ( $state['status'] ?? '' );
-		if ( $status === BackfillJobInterface::STATUS_CANCELLED || $status === BackfillJobInterface::STATUS_FAILED ) {
+		// Only a running import is walked. The merchant cancelled it (Cancel /
+		// Hold back) after Action Scheduler had already claimed this tick
+		// (PRO-3821), an earlier batch failed (PRO-3890), or it completed and
+		// a stray tick came anyway — a start() that could not reset the row
+		// leaves one (CON-282: walking a completed row re-sent the same page
+		// for the whole run, run after run). Send nothing, leave the row as it
+		// is, and stop the tick chain. Only a new start() makes it run again.
+		if ( (string) ( $state['status'] ?? '' ) !== BackfillJobInterface::STATUS_RUNNING ) {
 			return $this->batch_result(
 				0,
 				0,
@@ -351,7 +364,7 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 
 		// Written only while the row is still running: a cancel that lands
 		// while this batch sends stays a cancel (PRO-3821).
-		$wpdb->update(
+		$saved = $wpdb->update(
 			$this->table_name(),
 			array(
 				'processed_count' => $processed,
@@ -366,6 +379,13 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 			array( '%d', '%s', '%s', '%s' ),
 			array( '%d', '%s' )
 		);
+
+		// No running row took the cursor (the import was stopped meanwhile, or
+		// the write failed): the next batch would read this same page again
+		// (CON-282). End the run and the tick chain here.
+		if ( ! $saved ) {
+			$completed = true;
+		}
 
 		return $this->batch_result(
 			count( $ids ),
@@ -450,11 +470,13 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 
 	/**
 	 * The state row of one backfill — any job type, the legacy contacts one
-	 * (target `smaily`) included — or null before it was ever started.
+	 * (target `smaily`) included — null before it was ever started, or false
+	 * when the database could not read it (CON-282: a query error is not
+	 * "never ran").
 	 *
-	 * @return array<string, mixed>|null
+	 * @return array<string, mixed>|false|null
 	 */
-	public static function read_state( string $job_type, string $target = self::TARGET ): ?array {
+	public static function read_state( string $job_type, string $target = self::TARGET ): array|false|null {
 		global $wpdb;
 		$table = $wpdb->prefix . self::TABLE_SUFFIX;
 
@@ -469,7 +491,11 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 		);
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
 
-		return is_array( $row ) ? $row : null;
+		if ( is_array( $row ) ) {
+			return $row;
+		}
+
+		return (string) ( $wpdb->last_error ?? '' ) !== '' ? false : null;
 	}
 
 	/** Whether this import's state row is `running` — queued or mid-walk — and not stalled. */

@@ -12,6 +12,7 @@ namespace Smaily\Connect\Smaily\RecEngine\Backfill;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
@@ -63,6 +64,11 @@ use Smaily\Connect\Support\DebugLog;
  * Hold back keeps its promise: the first report of a connection waits for
  * the hold-back window, and a held-back import ends without one.
  *
+ * CON-282: before the update reaches the schema (Migrator::schema_ready()),
+ * or while an import's state row cannot be read, the check decides and
+ * reports nothing — it never ends the import on what it could not read; it
+ * comes back at the next check.
+ *
  * Not final: tests subclass to stub the order counts and the stall check.
  */
 class HistoryProgress {
@@ -98,18 +104,18 @@ class HistoryProgress {
 
 	private IngestQueue $queue;
 
-	/** @var callable(string): ?array<string, mixed> */
+	/** @var callable(string): (array<string, mixed>|false|null) */
 	private $state_reader;
 
 	/**
 	 * @param callable(): Client                              $client_factory The engine client the report goes through.
-	 * @param (callable(string): ?array<string, mixed>)|null $state_reader   An import's state row; default AbstractBackfillJob::read_state().
+	 * @param (callable(string): (array<string, mixed>|false|null))|null $state_reader An import's state row (false: unreadable); default AbstractBackfillJob::read_state().
 	 */
 	public function __construct( RecEngineSettings $settings, callable $client_factory, IngestQueue $queue, ?callable $state_reader = null ) {
 		$this->settings       = $settings;
 		$this->client_factory = $client_factory;
 		$this->queue          = $queue;
-		$this->state_reader   = $state_reader ?? static function ( string $job_type ): ?array {
+		$this->state_reader   = $state_reader ?? static function ( string $job_type ): array|false|null {
 			return AbstractBackfillJob::read_state( $job_type );
 		};
 	}
@@ -293,6 +299,16 @@ class HistoryProgress {
 		$state = $this->state();
 		if ( $state === null || $state['ended'] || $state['reported_phase'] === self::PHASE_COMPLETE || ! $this->settings->sending_allowed() ) {
 			return false;
+		}
+
+		// Not readable yet (CON-282): wait for the next check.
+		if ( ! Migrator::schema_ready() ) {
+			return true;
+		}
+		foreach ( array( 'orders', 'products', 'customers' ) as $job_type ) {
+			if ( ( $this->state_reader )( $job_type ) === false ) {
+				return true;
+			}
 		}
 
 		$orders = ( $this->state_reader )( 'orders' );

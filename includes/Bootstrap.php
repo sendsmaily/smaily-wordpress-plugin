@@ -27,6 +27,7 @@ use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Integrations\WooCommerce\TransactionalEmailHookHandler;
 use Smaily\Connect\DB\LegacyOrderDateIndex;
+use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Notifications\NotificationManager;
 use Smaily\Connect\Privacy\GdprHandler;
@@ -188,6 +189,11 @@ final class Bootstrap {
 		// the stored version trails the code — the upgrade-detect the
 		// activation hook can't provide.
 		add_action( 'admin_init', array( $this, 'maybe_run_upgrade' ) );
+		// CON-282: a background auto-update reaches no admin_init until
+		// someone opens wp-admin, while Action Scheduler already runs the new
+		// code. Every queue run upgrades first (WP-Cron, the async runner,
+		// WP-CLI) — a background request, never a shopper's page.
+		add_action( 'action_scheduler_before_process_queue', array( $this, 'maybe_run_upgrade' ) );
 
 		add_action( 'before_woocommerce_init', array( $this, 'declare_woocommerce_compatibility' ) );
 		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
@@ -352,7 +358,12 @@ final class Bootstrap {
 			return;
 		}
 
-		if ( $job instanceof AbstractBackfillJob ) {
+		if ( $job instanceof AbstractBackfillJob && ! Migrator::schema_ready() ) {
+			// The update has not reached the schema this import writes
+			// (CON-282): send nothing and wait — the chain is kept, not ended.
+			$result   = array( 'completed' => false );
+			$next_run = ImportPace::NEXT_RUN_SECONDS;
+		} elseif ( $job instanceof AbstractBackfillJob ) {
 			$result   = $job->process_run();
 			$next_run = $result['next_run_in'];
 		} else {

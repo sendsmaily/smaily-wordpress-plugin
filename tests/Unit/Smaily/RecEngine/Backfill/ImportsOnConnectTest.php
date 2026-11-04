@@ -15,6 +15,8 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine\Backfill;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Constants;
+use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
@@ -44,6 +46,12 @@ final class ImportsOnConnectTest extends TestCase {
 
 	private bool $sending_allowed = true;
 
+	/** @var string[] job types whose state row the database cannot read (CON-282) */
+	private array $unreadable = array();
+
+	/** True: every start() fails to write its row (CON-282). */
+	private bool $start_fails = false;
+
 	/**
 	 * HistoryProgress::begin() calls: the first check time and how many parts
 	 * had started by then (CON-248). Null = no history double.
@@ -55,6 +63,9 @@ final class ImportsOnConnectTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
+
+		// The update has reached the schema this code needs (CON-282).
+		$this->options[ Constants::OPTION_SCHEMA_VERSION ] = Migrator::REQUIRED_VERSION;
 
 		$options = &$this->options;
 		Functions\when( 'get_option' )->alias(
@@ -361,6 +372,11 @@ final class ImportsOnConnectTest extends TestCase {
 		$this->scheduled = array();
 		$this->options[ ImportsOnConnect::OPTION_UPDATE_CHECKED ] = '1';
 		$this->sequence()->ensure_check_scheduled();
+		self::assertCount( 1, $this->scheduled_for( ImportsOnConnect::HOOK ), 'CON-282: the one-time re-run is still to decide.' );
+
+		$this->scheduled = array();
+		$this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] = '1';
+		$this->sequence()->ensure_check_scheduled();
 		self::assertSame( array(), $this->scheduled, 'Nothing to decide and no sequence.' );
 
 		$this->options[ ImportsOnConnect::OPTION ] = array( 'orders' );
@@ -408,6 +424,148 @@ final class ImportsOnConnectTest extends TestCase {
 
 	// --- helpers -----------------------------------------------------------
 
+	// --- CON-282 ---------------------------------------------------------------
+
+	public function test_an_unreadable_part_is_not_taken_as_ended(): void {
+		$this->options[ ImportsOnConnect::OPTION ] = array( 'products', 'customers', 'orders' );
+		$this->unreadable                          = array( 'products' );
+
+		$this->sequence()->advance();
+
+		self::assertSame( array(), $this->started );
+		self::assertSame( array( 'products', 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ], 'Nothing moves, nothing is forgotten.' );
+	}
+
+	public function test_a_part_that_cannot_start_keeps_the_sequence_and_schedules_no_batch(): void {
+		$this->options[ ImportsOnConnect::OPTION ] = array( 'products', 'customers', 'orders' );
+		$this->row( 'products', 'completed' );
+		$this->start_fails = true;
+
+		$this->sequence()->advance();
+
+		self::assertSame( array( 'products', 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ], 'The next check tries again.' );
+		self::assertSame( array(), $this->scheduled_for( BackfillJobInterface::TICK_HOOK ) );
+
+		$this->start_fails = false;
+		$this->sequence()->advance();
+		self::assertSame( array( 'customers' ), $this->started );
+	}
+
+	public function test_a_catalog_import_that_cannot_start_schedules_no_batch(): void {
+		$this->start_fails = true;
+
+		self::assertFalse( $this->sequence()->start() );
+
+		self::assertSame( array(), $this->scheduled_for( BackfillJobInterface::TICK_HOOK ) );
+	}
+
+	public function test_after_an_update_an_unreadable_part_decides_nothing_yet(): void {
+		$this->unreadable = array( 'orders' );
+
+		self::assertFalse( $this->sequence()->start_after_update() );
+
+		self::assertSame( array(), $this->started );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_UPDATE_CHECKED, $this->options, 'The next check decides.' );
+	}
+
+	public function test_after_an_update_a_part_that_cannot_start_is_decided_again(): void {
+		$this->start_fails = true;
+
+		self::assertFalse( $this->sequence()->start_after_update() );
+
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_UPDATE_CHECKED, $this->options );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION, $this->options );
+		self::assertSame( array(), $this->scheduled_for( BackfillJobInterface::TICK_HOOK ) );
+	}
+
+	public function test_before_the_schema_is_ready_the_check_decides_and_moves_nothing(): void {
+		$this->options[ Constants::OPTION_SCHEMA_VERSION ] = Migrator::REQUIRED_VERSION - 1;
+		$this->options[ ImportsOnConnect::OPTION ]         = array( 'customers', 'orders' );
+		$this->row( 'customers', 'completed' );
+
+		$this->sequence()->run_check();
+
+		self::assertSame( array(), $this->started );
+		self::assertSame( array( 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ], 'Not forgotten.' );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_UPDATE_CHECKED, $this->options, 'The after-update start is not spent.' );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_RERUN_CHECKED, $this->options );
+		self::assertCount( 1, $this->scheduled_for( ImportsOnConnect::HOOK ), 'The check comes back.' );
+	}
+
+	public function test_a_store_3_21_0_left_without_a_finished_history_import_gets_the_sequence_once_more(): void {
+		$this->options[ ImportsOnConnect::OPTION_UPDATE_CHECKED ] = '1';
+		// The pet store: 3.20 runs, completed before the sent_count column.
+		$this->row( 'products', 'completed' );
+		$this->row( 'customers', 'completed' );
+		$this->row( 'orders', 'completed' );
+		$this->begun = array();
+
+		$this->sequence()->run_check();
+
+		self::assertSame( array( 'products' ), $this->started );
+		self::assertSame( array( 'products', 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ] );
+		self::assertCount( 1, $this->begun, 'One history import for the re-run.' );
+		self::assertSame( '1', $this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] );
+
+		// The sequence runs to its end; later checks start nothing again.
+		unset( $this->options[ ImportsOnConnect::OPTION ] );
+		$this->row( 'products', 'completed' );
+		$this->sequence()->run_check();
+		self::assertSame( array( 'products' ), $this->started, 'Once only.' );
+	}
+
+	public function test_a_store_whose_history_import_completed_is_not_re_run(): void {
+		$this->options[ ImportsOnConnect::OPTION_UPDATE_CHECKED ] = '1';
+		$this->row( 'products', 'completed' );
+		$this->row( 'customers', 'completed' );
+		$this->row( 'orders', 'completed' );
+		$this->rows['orders']['sent_count'] = '120';
+
+		self::assertFalse( $this->sequence()->rerun_once( true ) );
+
+		self::assertSame( array(), $this->started );
+		self::assertSame( '1', $this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] );
+	}
+
+	public function test_the_re_run_is_only_for_a_store_3_21_0_ran_on_that_can_send(): void {
+		self::assertFalse( $this->sequence()->rerun_once( false ), 'The after-update start of this release decides.' );
+		self::assertSame( '1', $this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] );
+
+		unset( $this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] );
+		$this->sending_allowed = false;
+		self::assertFalse( $this->sequence()->rerun_once( true ), 'Not connected, or refused.' );
+		self::assertSame( '1', $this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] );
+		self::assertSame( array(), $this->started );
+	}
+
+	public function test_the_re_run_respects_a_cancelled_part(): void {
+		$this->row( 'products', 'cancelled' );
+
+		self::assertFalse( $this->sequence()->rerun_once( true ) );
+
+		self::assertSame( array(), $this->started );
+		self::assertSame( '1', $this->options[ ImportsOnConnect::OPTION_RERUN_CHECKED ] );
+	}
+
+	public function test_the_re_run_waits_while_an_import_runs_or_a_sequence_waits(): void {
+		$this->row( 'orders', 'running' );
+		$this->tick_pending['orders'] = true;
+
+		self::assertFalse( $this->sequence()->rerun_once( true ), 'A merchant\'s Import now: no second chain beside it.' );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_RERUN_CHECKED, $this->options, 'Decided once it has ended.' );
+
+		$this->row( 'orders', 'failed' );
+		$this->options[ ImportsOnConnect::OPTION ] = array( 'orders' );
+		self::assertFalse( $this->sequence()->rerun_once( true ) );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_RERUN_CHECKED, $this->options );
+
+		unset( $this->options[ ImportsOnConnect::OPTION ] );
+		$this->unreadable = array( 'customers' );
+		self::assertFalse( $this->sequence()->rerun_once( true ) );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_RERUN_CHECKED, $this->options );
+		self::assertSame( array(), $this->started );
+	}
+
 	private function sequence(): ImportsOnConnect {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'sending_allowed' )->willReturnCallback( fn (): bool => $this->sending_allowed );
@@ -429,7 +587,7 @@ final class ImportsOnConnectTest extends TestCase {
 		return new ImportsOnConnect(
 			$settings,
 			fn ( string $job_type ): AbstractBackfillJob => $this->job( $job_type ),
-			fn ( string $job_type ): ?array => $this->rows[ $job_type ] ?? null,
+			fn ( string $job_type ): array|false|null => in_array( $job_type, $this->unreadable, true ) ? false : ( $this->rows[ $job_type ] ?? null ),
 			$history
 		);
 	}
@@ -442,6 +600,9 @@ final class ImportsOnConnectTest extends TestCase {
 		);
 		$job->method( 'start' )->willReturnCallback(
 			function () use ( $job_type ): int {
+				if ( $this->start_fails ) {
+					return 0;
+				}
 				$this->started[] = $job_type;
 				$this->row( $job_type, 'running' );
 				return 1;

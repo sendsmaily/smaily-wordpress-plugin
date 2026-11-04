@@ -23,7 +23,10 @@ use Smaily\Connect\Constants;
  * (dbDelta silently ignores DROP TABLE — CON-182). The callable returns
  * false when the step could not finish: the runner then stops WITHOUT
  * recording that version, so the step is retried on the next upgrade and no
- * later migration runs ahead of it. The numeric prefix is the
+ * later migration runs ahead of it. A step no later migration depends on
+ * may answer DEFERRED instead (CON-282): the runner records it in
+ * OPTION_DEFERRED, goes on with the later migrations, and runs it again
+ * first on every later call until it answers true. The numeric prefix is the
  * schema version applied; files are sorted by integer (so 010 sorts
  * after 009, not lexicographically). The runner persists the highest
  * applied version in the Constants::OPTION_SCHEMA_VERSION option and
@@ -51,6 +54,19 @@ use Smaily\Connect\Constants;
  */
 final class Migrator {
 
+	/**
+	 * The schema version this code reads and writes (CON-282). Background
+	 * import work waits until it is applied (schema_ready()). Keep it at the
+	 * highest migration file — MigratorTest pins that.
+	 */
+	public const REQUIRED_VERSION = 13;
+
+	/** What a `.php` migration answers when it is not done but must not hold back the later ones. */
+	public const DEFERRED = 'deferred';
+
+	/** The versions of deferred `.php` migrations, retried first on every later call. */
+	public const OPTION_DEFERRED = 'smly_plus_schema_deferred';
+
 	private string $migrations_dir;
 
 	public function __construct( ?string $migrations_dir = null ) {
@@ -63,22 +79,76 @@ final class Migrator {
 	 * @return int[] List of versions that were applied during this call.
 	 */
 	public function migrate(): array {
-		$current = (int) get_option( Constants::OPTION_SCHEMA_VERSION, 0 );
-		$applied = array();
+		$current  = (int) get_option( Constants::OPTION_SCHEMA_VERSION, 0 );
+		$applied  = array();
+		$found    = $this->discover();
+		$deferred = $this->deferred();
 
-		foreach ( $this->discover() as $version => $file ) {
+		// A deferred step runs again first; it leaves the list when it is done.
+		$still = array();
+		foreach ( $deferred as $version ) {
+			if ( ! isset( $found[ $version ] ) ) {
+				continue;
+			}
+			if ( $this->apply( $found[ $version ] ) === true ) {
+				$applied[] = $version;
+			} else {
+				$still[] = $version;
+			}
+		}
+		if ( $still !== $deferred ) {
+			$this->save_deferred( $still );
+		}
+
+		foreach ( $found as $version => $file ) {
 			if ( $version <= $current ) {
 				continue;
 			}
 
-			if ( ! $this->apply( $file ) ) {
+			$result = $this->apply( $file );
+			if ( $result === false ) {
 				break;
 			}
+			if ( $result === self::DEFERRED ) {
+				$still[] = $version;
+				$this->save_deferred( $still );
+			} else {
+				$applied[] = $version;
+			}
 			update_option( Constants::OPTION_SCHEMA_VERSION, $version, false );
-			$applied[] = $version;
 		}
 
 		return $applied;
+	}
+
+	/**
+	 * Whether the stored schema has reached REQUIRED_VERSION — what the
+	 * background import work checks before it touches the backfill table
+	 * (CON-282). After a background auto-update the new code runs before
+	 * any upgrade did; until this is true it waits.
+	 */
+	public static function schema_ready(): bool {
+		return (int) get_option( Constants::OPTION_SCHEMA_VERSION, 0 ) >= self::REQUIRED_VERSION;
+	}
+
+	/**
+	 * @return int[]
+	 */
+	private function deferred(): array {
+		$value = get_option( self::OPTION_DEFERRED, array() );
+
+		return is_array( $value ) ? array_values( array_map( 'intval', $value ) ) : array();
+	}
+
+	/**
+	 * @param int[] $versions
+	 */
+	private function save_deferred( array $versions ): void {
+		if ( $versions === array() ) {
+			delete_option( self::OPTION_DEFERRED );
+			return;
+		}
+		update_option( self::OPTION_DEFERRED, array_values( $versions ), false );
 	}
 
 	/**
@@ -125,16 +195,22 @@ final class Migrator {
 	 * Run a single migration file: a `.php` one by calling the callable it
 	 * returns, a `.sql` one through dbDelta().
 	 *
-	 * @return bool False only when a `.php` migration reports it could not
-	 *              finish — the caller then stops without recording it.
+	 * @return bool|string False when a `.php` migration reports it could not
+	 *                     finish — the caller then stops without recording
+	 *                     it; DEFERRED when it is not done but later ones may
+	 *                     run; true when it is done.
 	 */
-	private function apply( string $file ): bool {
+	private function apply( string $file ): bool|string {
 		if ( substr( $file, -4 ) === '.php' ) {
 			// `require`, not `require_once`: the file only returns a closure,
 			// and a second run in the same process (tests) needs it again.
 			$migration = require $file;
+			if ( ! is_callable( $migration ) ) {
+				return true;
+			}
+			$result = $migration();
 
-			return ! is_callable( $migration ) || $migration() !== false;
+			return $result === false || $result === self::DEFERRED ? $result : true;
 		}
 
 		global $wpdb;

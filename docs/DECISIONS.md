@@ -10054,6 +10054,123 @@ after 7 days). Pinned by `tests/Unit/Smaily/RecEngine/LoginMergeTest.php`,
 `tests/Unit/Privacy/GdprHandlerTest.php` and
 `tests/Integration/RecEngineLoginMergeActionTest.php`.
 
+### CON-282 — The history imports wait for the schema they write; the upgrade also runs from Action Scheduler; migration 012 defers (2026-11-04)
+
+**Context:** 3.21.0 needs migration 013 (`sent_count` on
+`smly_plus_backfill_job`, CON-248), but its code ran on stores without it, in
+two ways: (a) the upgrade ran only on `admin_init`, so after a background
+auto-update Action Scheduler ran the new code until someone opened wp-admin —
+and the CON-247 after-update start fires within the hour; (b) migration 012
+answered false (CON-182/CON-207: the legacy carts could not be moved), and the
+Migrator stops at a false step, so 013 never ran. Every query naming the
+column then failed silently: `start()` left the row as it was, `read_state()`
+returned null ("never ran"), and the sequence was forgotten. A stray tick
+walked a `completed` row whose cursor write (`WHERE status = 'running'`)
+matched nothing, so the same page went to the engine again for the whole 40 s
+run, every 30 s, forever (a live pet store). On an orders row of 3.20 (a
+bare-id cursor) every batch also built a new window and pinged the engine.
+**Decision:**
+- **Loop breaker:** a batch walks only a `running` row; any other status sends
+  nothing and ends the tick chain (was: only `cancelled`/`failed`). A batch
+  whose cursor write matches no row ends the run and the chain — the same page
+  is never read twice.
+- **Checked start and read:** `AbstractBackfillJob::start()` returns 0 when its
+  INSERT fails; `ImportsOnConnect`, `CatalogImportOnConnect` and the
+  `/backfill/start` route (500 `start_failed`) then schedule no tick.
+  `read_state()` returns false on a database error, null only when the row
+  does not exist. `ImportsOnConnect` (advance, start, the after-update start)
+  and `HistoryProgress` take false as "cannot tell yet": nothing moves, is
+  forgotten or ends, and the next check tries again. A failed start in
+  `advance()` keeps the sequence; in the after-update start it un-spends the
+  one-time marker.
+- **Schema gate:** `Migrator::REQUIRED_VERSION` (13, pinned to the highest
+  migration file by `MigratorTest`) and `Migrator::schema_ready()`. Until it
+  is true the import tick reschedules itself without sending, the sequence
+  check and the history-progress check only come back later, and the
+  after-update start is not decided.
+- **Upgrade outside wp-admin:** `Bootstrap::maybe_run_upgrade` also runs on
+  `action_scheduler_before_process_queue` — every Action Scheduler queue run
+  (WP-Cron, the async runner, WP-CLI), before any action of that run.
+  Unchanged: `UpgradeLock`, the version stamp last (PRO-2434). A store that
+  runs WP-Cron inside visitor requests (`ALTERNATE_WP_CRON`) runs it there —
+  that is the store's choice of where background work runs.
+- **Migration 012 defers instead of blocking:** a `.php` migration may answer
+  `Migrator::DEFERRED`: the Migrator records its version, lists it in
+  `smly_plus_schema_deferred` (autoload=false), runs the later migrations, and
+  runs it again first on every later `migrate()` (= every update) until it
+  answers true. Migration 012 answers DEFERRED when `RetiredTables::run()` is
+  not done. A false answer still stops the run, as before.
+**Rationale:** the loop needed two independent faults (a row the start could
+not reset, a tick that walks it); each fix alone ends it. The gate covers what
+the loop breaker does not: an old-schema store must not decide its one-time
+start or forget its sequence on reads that cannot succeed. Action Scheduler's
+queue run is the one background context every store has (it drives the
+plugin's 60 s flushes), so the upgrade lands minutes after an auto-update,
+before any import action of that run, and never in a shopper's page request.
+Migration 012 only drops two retired tables after moving the legacy carts;
+nothing later reads either table or needs them gone, so it is the one step
+that can safely let later ones pass. Its retry stays "on the next update", as
+CON-182 promised.
+**Alternatives:** run the upgrade on `init` in any request (rejected: a
+shopper's page would pay for the DDL); make 012 answer true and give up its
+retry (rejected: the legacy cart table holds customer data with no retention
+period — CON-182); let every failing `.php` step defer (rejected: a later
+migration may depend on an earlier one; the deferral is opt-in per step);
+leave the Migrator as is and rely on the gate (rejected: a store whose legacy
+carts cannot move would wait for the column forever).
+**Out of scope:** the follow-ups listed on CON-282 (the duplicate tick on
+Import now, the status route showing a read error as idle, HistoryProgress
+swallowing errors, the missing final report on a failed import, the double
+check scheduling).
+**Relationships:** CON-247, CON-248, CON-182 / CON-207 (migration 012),
+PRO-2434 (upgrade lock), PRO-3821 / PRO-3890 (stop states). Pinned by
+`tests/Unit/Smaily/RecEngine/Backfill/AbstractBackfillJobTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php`,
+`tests/Unit/DB/MigratorTest.php`, `tests/Unit/REST/BackfillEndpointTest.php`,
+`tests/Integration/RecEngineSchemaGateTest.php` and
+`tests/Integration/RetiredTablesMigrationTest.php`.
+
+### CON-282 — one-time re-run in 3.21.1 (2026-11-04)
+
+**Context:** on the stores CON-282 hit, 3.21.0 spent the one-time after-update
+start (CON-247) and forgot the sequence on reads that failed, so their §25
+history import never ran. A store whose imports completed under 3.20 is also
+skipped by the after-update rule ("only imports that never completed").
+**Decision (product owner Erkki, approved 2026-11-04):** the sequence check
+runs `ImportsOnConnect::rerun_once()` once per store, after the after-update
+start and only past the schema gate. It starts the whole sequence (products →
+customers → orders, with a new history import) when all of these hold:
+- the after-update start was already spent when the check began — the store
+  ran 3.21.0's code. A store that updates from 3.20 straight to 3.21.1 is
+  decided by the after-update start of this release instead;
+- `sending_allowed()` — never for a store that is not connected or is refused;
+- no sequence is stored and no import runs (`running` and not stalled) —
+  never a second chain beside a merchant's Import now or a connection's
+  sequence;
+- every state row reads; no part's last run is `cancelled` (Hold back and
+  Cancel are kept, as in CON-247);
+- the history import never reached its end: there is no `completed` orders run
+  with a `sent_count` — only 3.21.0's schema writes that column, so a 3.20 run
+  (NULL) or none counts as not finished, and a 3.21.0 run that completed does
+  not re-send.
+While a sequence waits, an import runs or a row does not read, nothing is
+decided; the check comes back. Otherwise `smly_rec_import_sequence_rerun_checked`
+(autoload=false) is written and it never runs again.
+**Rationale:** this is the durable state that survives the old-schema failure:
+the `sent_count` column exists only from 013 on, and a completed orders run
+with it is exactly a history import that reached its end. It also re-sends to
+a store whose 3.20 imports completed and whose 3.21.0 after-update start chose
+to skip them; that store never sent a §25 history import either, so it gets
+one now.
+**Alternatives:** read §25 `complete` from `smly_rec_history_import` (rejected
+as the only test: on the affected stores the option may be missing or stale);
+re-run only failed parts (rejected: the after-update rule already does that,
+and it is the rule that skipped these stores).
+**Relationships:** CON-247 (the after-update start), CON-248 (§25, `sent_count`).
+Pinned by `tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php` and
+`tests/Integration/RecEngineSchemaGateTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

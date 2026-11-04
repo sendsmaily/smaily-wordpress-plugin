@@ -154,6 +154,12 @@ final class EnvScrub {
 			// sequence would also let one test's ticks start another's imports.
 			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION,
 			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION_UPDATE_CHECKED,
+			// CON-282: the one-time re-run marker, asserted on by
+			// RecEngineSchemaGateTest.
+			\Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect::OPTION_RERUN_CHECKED,
+			// CON-282: the deferred migrations, asserted on by
+			// RetiredTablesMigrationTest.
+			\Smaily\Connect\DB\Migrator::OPTION_DEFERRED,
 			'smly_rec_import_sequence_lock',
 			// Same class again (CON-248): the history import's progress state is
 			// autoload=false and asserted on by RecEngineHistoryProgressTest.
