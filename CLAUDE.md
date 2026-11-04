@@ -757,6 +757,10 @@ the command line — and deleted right after the upload:
 ```
 curl --ssl-reqd -k --disable-epsv -K <cfg> -T docs/site/index.html ftp://smaily.com/index.html
 ```
+`~/smaily_ftp_woo` has no trailing newline, so a `read`-based config builder
+under `set -e` must tolerate `read` returning non-zero on the last line
+(`IFS= read -r P || true`) — else the script exits silently before the upload
+(seen 2026-11-04).
 Verify the publish: the md5 of the live page
 (`curl -s https://smaily.com/connect-woo/ | md5`) must equal the md5 of
 `docs/site/index.html` on `main` (`git show origin/main:docs/site/index.html | md5`).
