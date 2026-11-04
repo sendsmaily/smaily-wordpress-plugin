@@ -290,7 +290,7 @@ final class ImportsOnConnect {
 		$rows = array();
 		foreach ( self::PARTS as $part ) {
 			$row = ( $this->state_reader )( $part );
-			if ( $row === false || $this->live( $part, $row ) ) {
+			if ( $row === false || AbstractBackfillJob::is_live( $part, $row ) ) {
 				return false;
 			}
 			$rows[ $part ] = $row;
@@ -370,7 +370,7 @@ final class ImportsOnConnect {
 
 			$row = ( $this->state_reader )( $current );
 			// Unreadable (CON-282) or still running: nothing has ended yet.
-			if ( $row === false || $this->live( $current, $row ) ) {
+			if ( $row === false || AbstractBackfillJob::is_live( $current, $row ) ) {
 				return;
 			}
 
@@ -458,7 +458,7 @@ final class ImportsOnConnect {
 		if ( $row === false ) {
 			return null;
 		}
-		if ( $this->live( $job_type, $row ) ) {
+		if ( AbstractBackfillJob::is_live( $job_type, $row ) ) {
 			return true;
 		}
 
@@ -502,18 +502,6 @@ final class ImportsOnConnect {
 		}
 
 		as_schedule_single_action( time() + self::CHECK_INTERVAL, self::HOOK, array(), EventQueue::AS_GROUP );
-	}
-
-	/**
-	 * Whether a state row is an import that runs now (queued or mid-walk) and
-	 * has not stalled.
-	 *
-	 * @param array<string, mixed>|false|null $row
-	 */
-	private function live( string $job_type, array|false|null $row ): bool {
-		return is_array( $row )
-			&& ( $row['status'] ?? '' ) === BackfillJobInterface::STATUS_RUNNING
-			&& ! AbstractBackfillJob::is_stalled( $job_type, $row );
 	}
 
 	/**

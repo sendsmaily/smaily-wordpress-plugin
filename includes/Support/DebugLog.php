@@ -35,4 +35,19 @@ final class DebugLog {
 			error_log( $message );
 		}
 	}
+
+	/**
+	 * Where a local error happened, without its message (which can carry
+	 * personal data): `<Class> at <file>:<line>`.
+	 */
+	public static function where( \Throwable $e ): string {
+		return sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() );
+	}
+
+	/**
+	 * The same as where(), with the error's code: `<Class> code=<n> at <file>:<line>`.
+	 */
+	public static function where_with_code( \Throwable $e ): string {
+		return sprintf( '%s code=%d at %s:%d', get_class( $e ), (int) $e->getCode(), basename( $e->getFile() ), $e->getLine() );
+	}
 }

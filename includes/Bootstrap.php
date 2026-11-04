@@ -358,14 +358,16 @@ final class Bootstrap {
 			return;
 		}
 
-		if ( $job instanceof AbstractBackfillJob && ! Migrator::schema_ready() ) {
-			// The update has not reached the schema this import writes
-			// (CON-282): send nothing and wait — the chain is kept, not ended.
-			$result   = array( 'completed' => false );
-			$next_run = ImportPace::NEXT_RUN_SECONDS;
-		} elseif ( $job instanceof AbstractBackfillJob ) {
-			$result   = $job->process_run();
-			$next_run = $result['next_run_in'];
+		if ( $job instanceof AbstractBackfillJob ) {
+			if ( Migrator::schema_ready() ) {
+				$result   = $job->process_run();
+				$next_run = $result['next_run_in'];
+			} else {
+				// The update has not reached the schema this import writes
+				// (CON-282): send nothing and wait — the chain is kept, not ended.
+				$result   = array( 'completed' => false );
+				$next_run = ImportPace::NEXT_RUN_SECONDS;
+			}
 		} else {
 			$result   = $job->process_batch();
 			$next_run = ImportPace::NEXT_RUN_SECONDS;
@@ -607,7 +609,7 @@ final class Bootstrap {
 			// The error type, its code and where it was thrown — never its text,
 			// which can carry a contact's data (CON-301).
 			\Smaily\Connect\Support\DebugLog::write(
-				sprintf( '[smaily-connect contact.reconcile] skipped: %s code=%d at %s:%d', get_class( $e ), (int) $e->getCode(), basename( $e->getFile() ), $e->getLine() )
+				'[smaily-connect contact.reconcile] skipped: ' . \Smaily\Connect\Support\DebugLog::where_with_code( $e )
 			);
 		}
 	}

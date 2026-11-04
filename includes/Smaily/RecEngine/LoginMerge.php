@@ -233,7 +233,7 @@ class LoginMerge {
 					$this->again( $e, $user_id, $token, $anon_session_id, $consent, $attempt );
 					return;
 				}
-				DebugLog::write( '[smaily-connect login-merge] customer not sent: ' . self::describe( $e ) );
+				DebugLog::write( '[smaily-connect login-merge] customer not sent: ' . $e->summary() );
 			}
 		}
 
@@ -273,7 +273,7 @@ class LoginMerge {
 			// scope, CON-246, or a failed §4 send): the next email-carrying
 			// browse event binds the session retroactively (§6), and the next
 			// login sends the token again.
-			DebugLog::write( '[smaily-connect login-merge] merge not sent: ' . self::describe( $e ) );
+			DebugLog::write( '[smaily-connect login-merge] merge not sent: ' . $e->summary() );
 			return;
 		}
 
@@ -304,7 +304,7 @@ class LoginMerge {
 	 */
 	private function again( ApiException $e, int $user_id, string $token, string $anon_session_id, bool $consent, int $attempt ): void {
 		if ( $attempt >= self::MAX_ATTEMPTS || ! function_exists( 'as_schedule_single_action' ) ) {
-			DebugLog::write( sprintf( '[smaily-connect login-merge] gave up after %d runs: %s', $attempt, self::describe( $e ) ) );
+			DebugLog::write( sprintf( '[smaily-connect login-merge] gave up after %d runs: %s', $attempt, $e->summary() ) );
 			return;
 		}
 
@@ -322,10 +322,5 @@ class LoginMerge {
 
 	private static function is_customer_not_found( ApiException $e ): bool {
 		return (int) $e->getCode() === 404 && $e->error_code() === self::CUSTOMER_NOT_FOUND;
-	}
-
-	/** The failure without the engine's message, which can name the customer. */
-	private static function describe( ApiException $e ): string {
-		return sprintf( 'http=%d error=%s', (int) $e->getCode(), $e->error_code() );
 	}
 }

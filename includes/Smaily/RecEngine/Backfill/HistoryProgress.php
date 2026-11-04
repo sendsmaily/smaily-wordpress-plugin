@@ -184,7 +184,7 @@ class HistoryProgress {
 				as_unschedule_all_actions( self::HOOK, array(), self::AS_GROUP );
 			}
 		} catch ( \Throwable $e ) {
-			DebugLog::write( sprintf( '[smaily-connect history.progress] check failed: %s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ) );
+			DebugLog::write( '[smaily-connect history.progress] check failed: ' . DebugLog::where( $e ) );
 			// One failed check does not stop the reports until the hourly
 			// registration (CON-284): the next comes like a failed report's,
 			// REPORT_EVERY_SECONDS later. A check of an ended import then
@@ -326,13 +326,16 @@ class HistoryProgress {
 		if ( ! Migrator::schema_ready() ) {
 			return true;
 		}
-		foreach ( array( 'orders', 'products', 'customers' ) as $job_type ) {
-			if ( ( $this->state_reader )( $job_type ) === false ) {
+		// Each part's state row, read once for this check.
+		$rows = array();
+		foreach ( ImportsOnConnect::PARTS as $job_type ) {
+			$rows[ $job_type ] = ( $this->state_reader )( $job_type );
+			if ( $rows[ $job_type ] === false ) {
 				return true;
 			}
 		}
 
-		$orders  = ( $this->state_reader )( 'orders' );
+		$orders  = $rows['orders'];
 		$stopped = false;
 		if ( $this->is_ours( $state, $orders ) && is_array( $orders ) ) {
 			$status  = (string) ( $orders['status'] ?? '' );
@@ -365,7 +368,7 @@ class HistoryProgress {
 			$state['buyers_horizon']  = $state['horizon'];
 		}
 
-		$phase = $this->phase( $state, $orders );
+		$phase = $this->phase( $state, $orders, $rows );
 		if ( $phase !== self::PHASE_STARTED ) {
 			$state['start_part_done'] = true;
 		}
@@ -375,7 +378,7 @@ class HistoryProgress {
 			&& ( $stopped || $phase !== $state['reported_phase'] || $now - (int) $state['reported_at'] >= self::REPORT_EVERY_SECONDS );
 		if ( $due ) {
 			try {
-				( $this->client_factory )()->history_progress( $this->body( $state, $orders, $phase ) );
+				( $this->client_factory )()->history_progress( $this->body( $state, $orders, $phase, $rows ) );
 				$state['reported_phase'] = $phase;
 				$state['reported_at']    = $now;
 				$state['failed_at']      = 0;
@@ -388,7 +391,7 @@ class HistoryProgress {
 						'[smaily-connect history.progress] report failed import=%s phase=%s: %s',
 						(string) $state['import_id'],
 						$phase,
-						$e instanceof \Smaily\Connect\Smaily\RecEngine\ApiException ? sprintf( 'http=%d error=%s', $e->getCode(), $e->error_code() ) : get_class( $e )
+						$e instanceof \Smaily\Connect\Smaily\RecEngine\ApiException ? $e->summary() : get_class( $e )
 					)
 				);
 			}
@@ -449,10 +452,11 @@ class HistoryProgress {
 	/**
 	 * The phase the import has reached (see the class docblock).
 	 *
-	 * @param array<string, mixed>      $state
-	 * @param array<string, mixed>|null $orders The orders part's state row, null before it began.
+	 * @param array<string, mixed>                                $state
+	 * @param array<string, mixed>|null                          $orders The orders part's state row, null before it began.
+	 * @param array<string, array<string, mixed>|false|null>|null $rows   Each part's state row, as the check read them; null reads them here.
 	 */
-	private function phase( array $state, ?array $orders ): string {
+	private function phase( array $state, ?array $orders, ?array $rows = null ): string {
 		if ( $orders === null ) {
 			return self::PHASE_STARTED;
 		}
@@ -474,7 +478,7 @@ class HistoryProgress {
 		}
 
 		foreach ( self::BEFORE_ORDERS as $job_type => $event_types ) {
-			$row = ( $this->state_reader )( $job_type );
+			$row = $rows !== null ? $rows[ $job_type ] : ( $this->state_reader )( $job_type );
 			if ( ! is_array( $row ) ) {
 				continue;
 			}
@@ -492,11 +496,12 @@ class HistoryProgress {
 	/**
 	 * The §25 request: counts and dates only, never a person's data.
 	 *
-	 * @param array<string, mixed>      $state
-	 * @param array<string, mixed>|null $orders
+	 * @param array<string, mixed>                           $state
+	 * @param array<string, mixed>|null                     $orders
+	 * @param array<string, array<string, mixed>|false|null> $rows Each part's state row, as the check read them.
 	 * @return array<string, mixed>
 	 */
-	private function body( array $state, ?array $orders, string $phase ): array {
+	private function body( array $state, ?array $orders, string $phase, array $rows ): array {
 		$orders_entity = array(
 			'expected'       => null,
 			'sent'           => 0,
@@ -523,11 +528,11 @@ class HistoryProgress {
 				// expensive).
 				'catalog'   => array(
 					'expected' => null,
-					'sent'     => $this->sent( 'products' ),
+					'sent'     => self::sent( $rows['products'] ),
 				),
 				'customers' => array(
-					'expected' => $this->expected( 'customers' ),
-					'sent'     => $this->sent( 'customers' ),
+					'expected' => self::expected( $rows['customers'] ),
+					'sent'     => self::sent( $rows['customers'] ),
 				),
 				'orders'    => $orders_entity,
 				'buyers'    => array( 'expected' => $state['buyers_expected'] === null ? null : (int) $state['buyers_expected'] ),
@@ -535,9 +540,12 @@ class HistoryProgress {
 		);
 	}
 
-	/** The latest run's accepted rows; a run from before they were counted reports the rows it read. */
-	private function sent( string $job_type ): int {
-		$row = ( $this->state_reader )( $job_type );
+	/**
+	 * The latest run's accepted rows; a run from before they were counted reports the rows it read.
+	 *
+	 * @param array<string, mixed>|false|null $row The import's state row.
+	 */
+	private static function sent( $row ): int {
 		if ( ! is_array( $row ) ) {
 			return 0;
 		}
@@ -545,9 +553,10 @@ class HistoryProgress {
 		return isset( $row['sent_count'] ) ? (int) $row['sent_count'] : (int) ( $row['processed_count'] ?? 0 );
 	}
 
-	private function expected( string $job_type ): ?int {
-		$row = ( $this->state_reader )( $job_type );
-
+	/**
+	 * @param array<string, mixed>|false|null $row The import's state row.
+	 */
+	private static function expected( $row ): ?int {
 		return is_array( $row ) && isset( $row['total_count'] ) ? (int) $row['total_count'] : null;
 	}
 

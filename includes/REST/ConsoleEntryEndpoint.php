@@ -15,6 +15,7 @@ use Smaily\Connect\Constants;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Support\Url;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -139,12 +140,11 @@ class ConsoleEntryEndpoint {
 	 * connection so a test engine is not sent to production.
 	 */
 	public static function console_url( string $base_url ): string {
-		$parts = wp_parse_url( $base_url );
-		if ( ! is_array( $parts ) || ! isset( $parts['host'] ) || ! in_array( $parts['scheme'] ?? '', array( 'https', 'http' ), true ) ) {
+		$origin = Url::origin( $base_url );
+		if ( strpos( $origin, 'https://' ) !== 0 && strpos( $origin, 'http://' ) !== 0 ) {
 			return '';
 		}
-		$port = isset( $parts['port'] ) ? ':' . (int) $parts['port'] : '';
-		return $parts['scheme'] . '://' . $parts['host'] . $port . '/login';
+		return $origin . '/login';
 	}
 
 	/** The signed-in admin's own email — never a customer's — or ''. */
