@@ -254,7 +254,16 @@ Custom tables (created/evolved by `DB\Migrator`, plain SQL files in
 Schema migration 012 (CON-182) drops two retired tables: the legacy 1.x / 2.0.0
 `wp_smaily_connect_abandoned_carts` (after draining its unsent carts into
 `wp_smly_plus_cart_session`) and `wp_smly_rec_visitor` (never written —
-identity merge is engine-side, §4.3). A fresh install creates neither.
+identity merge is engine-side, §4.3). A fresh install creates neither. When
+it cannot finish it answers `Migrator::DEFERRED`: the later migrations run and
+012 is retried first on every later update (CON-282).
+
+The upgrade (`Bootstrap::maybe_run_upgrade`, behind `Support\UpgradeLock`)
+runs on `admin_init` and at the start of every Action Scheduler queue run
+(`action_scheduler_before_process_queue`), so a background auto-update is
+applied without a wp-admin visit. The background imports wait until
+`Migrator::schema_ready()` (the stored schema has reached
+`Migrator::REQUIRED_VERSION`) — CON-282.
 
 Options: `smly_plus_*` (wizard/settings/credentials — the Smaily API password
 is encrypted via the legacy `Smaily_Connect\Includes\Cypher`, deliberately not

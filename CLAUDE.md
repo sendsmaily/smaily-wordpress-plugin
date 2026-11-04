@@ -458,6 +458,39 @@ test — scrub with `EnvScrub::reset()` (the options are in its flush list) or
 is mounted runs the one-time after-update start — on a connected dev site whose
 customers/orders imports never completed it sends that history to the
 connected tenant (check the tenant is the sandbox, never `MiuMjau`).
+**The one-time re-run (CON-282, Erkki 2026-11-04):** the same check then runs
+`ImportsOnConnect::rerun_once()` — on a store 3.21.0 ran on (after-update start
+already spent), connected and allowed to send, with no sequence stored, nothing
+running and no part cancelled, and no `completed` orders run with a
+`sent_count`, it starts the whole sequence once more (marker
+`smly_rec_import_sequence_rerun_checked`, in EnvScrub's flush list). **Dev
+wp-env:** the first check after this code is mounted can send the full history
+to the connected tenant — check it is the sandbox, never `MiuMjau`.
+A state row that does not read (`read_state()` === false) or a `start()` that
+returns 0 is never "ended": nothing moves or is forgotten, the next check tries
+again.
+
+### Background jobs run the new code BEFORE the upgrade — gate on the schema (CON-282)
+The upgrade (`Bootstrap::maybe_run_upgrade` → `Activation::run()`) ran only on
+`admin_init`. After a background auto-update, Action Scheduler runs the NEW
+code until someone opens wp-admin — 3.21.0's history import named a column
+migration 013 had not added yet, every `$wpdb` call failed silently, and a
+stray tick re-sent one page to the engine every 30 s. Now:
+- `maybe_run_upgrade` also runs on `action_scheduler_before_process_queue`
+  (every AS queue run: WP-Cron, the async runner, WP-CLI) — still behind
+  `UpgradeLock`, version stamp last (PRO-2434). Never move it onto a
+  shopper's page request.
+- **A background job whose queries name a table or column a migration adds
+  must check `Migrator::schema_ready()` first and WAIT (reschedule) while it is
+  false — never end, forget or decide a one-time step.** The import tick, the
+  sequence check (incl. both one-time starts) and the history-progress check
+  do. `Migrator::REQUIRED_VERSION` is pinned to the highest migration file
+  (`MigratorTest`) — a new migration bumps it in the same commit.
+- A `.php` migration no later one depends on answers `Migrator::DEFERRED` when
+  not done (migration 012): later migrations still run, it is retried first on
+  every later update (`smly_plus_schema_deferred`). `false` still stops the run.
+- An import batch walks only a `running` row, and ends the run when its
+  cursor write matches no row (LESSONS 2.31).
 
 ### An import's queue rows carry their run's mark; the flushers count the accepted ones (CON-248)
 The import's rows drain through the same queue and flushers as the live

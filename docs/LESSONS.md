@@ -1065,6 +1065,28 @@ Rules:
    `created_at` by the delay as well as making it due), or the bug the
    delay creates cannot show.
 
+### 2.31 New code runs on the old schema — and a `$wpdb` failure looks like "no row" (CON-282, history import loop, 2026-11-04)
+
+3.21.0 added a column (migration 013) and code that names it. The upgrade ran
+only on `admin_init`, so after a background auto-update Action Scheduler ran
+the new code on the old table until someone opened wp-admin; on other stores
+an earlier migration answered "retry later" and held 013 back for good. Every
+query naming the column failed — and `$wpdb` failures are silent: `query()`
+returns false, `get_row()` returns null. The code read null as "never ran",
+spent a one-time start, forgot a sequence, and a stray tick re-sent one page
+to the engine every 30 s for days. No test saw it: the suite always runs on
+the current schema. Rules:
+1. **A background job that touches a column or table a migration adds waits
+   for that schema** (`Migrator::schema_ready()`) — it reschedules, it does
+   not end.
+2. **Check the `$wpdb` result where it decides something.** A write that
+   returns false is a failure to report, not a success; a read that returns
+   null with `last_error` set is "cannot tell", never "nothing there".
+3. **A compare-and-set write that matches no row means the state moved —
+   stop**, do not go on as if it was written (the same page was read again).
+4. **Every terminal state stops a claimed tick** (LESSONS 2.28): walk only
+   `running`, not "anything but cancelled or failed".
+
 ---
 
 ## 4. Concrete checklist for the start of a new project
