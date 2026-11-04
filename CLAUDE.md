@@ -1984,6 +1984,13 @@ listed in `skipped_orders[]`, not stored by the engine and marked sent here (con
 v1.20.0 §5, CON-228). The flusher maps `errors[].index ->
 batch_rows[index]` (index-aligned parallel arrays), marks errored rows failed,
 the rest sent. CustomerFlusher is the reference implementation.
+A row whose `row_to_object()` throws (its stored data cannot be built) is
+marked failed ALONE — reason `<Class> at file:line`, `last_response`
+`{outcome: "not_built"}` — and the rest of the batch is sent (CON-302).
+Left pending it would come first in every later flush of its event type and
+stop each one, live sync included. An import's own enqueue step (the
+catalog import loads each product there) is not covered: an error there
+still fails the import (PRO-3890).
 
 
 ## Linear discipline (Smaily process bridge)

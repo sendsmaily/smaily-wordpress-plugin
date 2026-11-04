@@ -144,8 +144,22 @@ abstract class AbstractD6Flusher {
 		$batch_rows = array();
 		foreach ( $rows as $row ) {
 			++$stats['processed'];
-			$id     = (int) ( $row['id'] ?? 0 );
-			$object = $this->row_to_object( $row );
+			$id = (int) ( $row['id'] ?? 0 );
+			try {
+				$object = $this->row_to_object( $row );
+			} catch ( \Throwable $e ) {
+				// A record whose payload cannot be built (its stored data
+				// throws) fails alone: the rest of the batch is sent, and an
+				// import or a live flush that meets it goes on (CON-302). Left
+				// pending, it would come first in every later flush of its
+				// event type and stop each one. Terminal — the same data throws
+				// again; Retry in the Event Log runs it again. The error type
+				// and where it was thrown, never its text (CON-301).
+				$this->queue->mark_failed( $id, sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ) );
+				$this->queue->store_exchange( $id, null, (string) wp_json_encode( array( 'outcome' => 'not_built' ) ) );
+				++$stats['failed'];
+				continue;
+			}
 
 			if ( $object === null ) {
 				// Terminal skip — mark sent so the row leaves the queue. Record

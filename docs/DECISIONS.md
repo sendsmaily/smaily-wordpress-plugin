@@ -10441,6 +10441,31 @@ a full oldest × storage grid (WooCommerce 6.9 has no usable HPOS).
 **Relationships:** PRO-3435 (the two storage legs), the pilot-stack override
 in CLAUDE.md. A raised floor moves these pins in the same commit.
 
+### CON-302 — A record that cannot be built fails alone; the import goes on (2026-11-04)
+
+**Context:** the Campaign Intelligence flushers build each queue row's payload
+at send time, and nothing caught an error there. One record whose stored data
+threw stopped the batch; the import that drained it was marked failed
+(PRO-3890) at the same place on every run, and the row stayed pending, so
+every later flush of its event type, the live sync included, threw on it
+first. The contact import failed the same way on one contact (PRO-3902). The
+Magento extension made its imports go on past such a record (Magento CON-227).
+**Decision:** `AbstractD6Flusher::flush()` catches a Throwable per row around
+`row_to_object()`: the row is marked failed with `<Class> at file:line` and
+`last_response {outcome: "not_built"}`, counts as failed, and the rest of the
+batch is sent. `Smaily\BackfillJob::walk_batch()` catches it per contact
+around `build_subscriber_payload()` and lists the contact in
+`OPTION_REFUSED` with the same reason; it never counts toward the
+"Smaily refused the whole page" rule (PRO-3988).
+**Rationale:** the same data throws again, so a retry loop gains nothing; one
+failed row in the Event Log (Retry there runs it again) costs less than a
+stopped import and a blocked live queue. Never the error's text (CON-301).
+**Not covered:** an error in an import's own enqueue step — the catalog import
+loads each product there — still fails the import (PRO-3890): at that point a
+broken record cannot be told from a database error.
+**Relationships:** PRO-3890, PRO-3902, PRO-3988, CON-301. Pinned by
+`CustomerFlusherTest`, `BackfillJobTest` and `RecEngineCustomerBackfillTest`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

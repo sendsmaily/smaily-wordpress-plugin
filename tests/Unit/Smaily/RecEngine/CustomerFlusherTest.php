@@ -81,6 +81,33 @@ final class CustomerFlusherTest extends TestCase {
 		self::assertSame( 1, $stats['failed'] );
 	}
 
+	public function test_a_row_whose_payload_throws_fails_alone_and_the_rest_are_sent(): void {
+		// CON-302: one record whose data throws while it is built must not
+		// stop the batch (nor the import or the live flush that drains it).
+		$queue  = $this->fake_queue(
+			array(
+				$this->upsert_row( 1, 100, 'u1' ),
+				$this->upsert_row( 2, 101, 'boom' ),
+				$this->upsert_row( 3, 102, 'u3' ),
+			)
+		);
+		$client = $this->d6_client( array( 'ok' => true, 'processed' => 2, 'deduplicated' => 0, 'errors' => array() ) );
+		$flush  = $this->fake_flusher( $queue, $client, true, array( 100 => true, 101 => true, 102 => true ) );
+
+		$stats = $flush->flush();
+
+		self::assertSame( array( 1, 3 ), $queue->sent );
+		self::assertCount( 2, $client->sent_customers, 'The other two are sent in the same request.' );
+		self::assertCount( 1, $queue->failed );
+		self::assertSame( 2, $queue->failed[0]['id'] );
+		// The error type and where it was thrown, never its text (CON-301).
+		self::assertMatchesRegularExpression( '/^RuntimeException at CustomerFlusherTest\.php:\d+$/', $queue->failed[0]['error'] );
+		self::assertSame( '{"outcome":"not_built"}', $queue->exchanges[2]['response'] );
+		self::assertNull( $queue->exchanges[2]['sent'] );
+		self::assertSame( 2, $stats['sent'] );
+		self::assertSame( 1, $stats['failed'] );
+	}
+
 	public function test_all_valid_rows_marked_sent(): void {
 		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ), $this->upsert_row( 2, 101, 'u2' ) ) );
 		$client = $this->d6_client( array( 'ok' => true, 'processed' => 2, 'deduplicated' => 0, 'errors' => array() ) );
@@ -319,6 +346,9 @@ final class CustomerFlusherTest extends TestCase {
 
 		$builder = new class() extends CustomerPayloadBuilder {
 			public function build( \WP_User $user, string $event_uuid ): array {
+				if ( $event_uuid === 'boom' ) {
+					throw new \RuntimeException( 'cannot read the data of jane.doe@example.com' );
+				}
 				return array( 'email' => 'stub@example.test', 'event_id' => $event_uuid );
 			}
 		};

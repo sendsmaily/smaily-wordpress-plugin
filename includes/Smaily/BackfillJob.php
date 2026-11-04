@@ -47,6 +47,10 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *      names the refused contact. A page where Smaily refuses every contact
  *      it sends, two or more, is about the request, and stops the import as
  *      in 3.
+ *   5. A contact whose payload cannot be built (it throws) is skipped and
+ *      listed in OPTION_REFUSED the same way, with the error class and line
+ *      as its reason, and the walk goes on (CON-302). It never counts as a
+ *      Smaily refusal in 4.
  *
  * The Smaily API call itself is delegated to a Client instance supplied
  * via constructor injection so tests don't need wp_remote_post mocks.
@@ -68,7 +72,8 @@ class BackfillJob implements BackfillJobInterface {
 	public const META_KEY     = '_smaily_synced_at';
 
 	/**
-	 * The contacts Smaily refused for good in the current run (PRO-3988):
+	 * The contacts Smaily refused for good in the current run (PRO-3988),
+	 * and those whose payload could not be built (CON-302):
 	 * `{count: int, contacts: list<{user_id: int, reason: string}>}`, the list
 	 * capped at MAX_LISTED_REFUSALS. Cleared by start(). Autoload off; the
 	 * reason never holds an email address.
@@ -416,6 +421,7 @@ class BackfillJob implements BackfillJobInterface {
 		$fresh_skips    = 0;
 		$audience_skips = 0;
 		$refused        = array();
+		$not_built      = array();
 		$last_refusal   = '';
 		foreach ( $users as $user ) {
 			// F3-48: only sync the mode's audience (consent → opted-in only;
@@ -431,7 +437,22 @@ class BackfillJob implements BackfillJobInterface {
 				continue;
 			}
 
-			$payload = $this->build_subscriber_payload( $user );
+			try {
+				$payload = $this->build_subscriber_payload( $user );
+			} catch ( \Throwable $e ) {
+				// A contact whose payload cannot be built (its stored data
+				// throws) is skipped and listed like a refused contact, so it
+				// cannot stop the import at the same place in every run
+				// (CON-302). The error type and where it was thrown, never
+				// its text (CON-301).
+				$reason = sprintf( '%s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() );
+				\Smaily\Connect\Support\DebugLog::write( sprintf( '[smaily-connect backfill.batch] user_id=%d not_built: %s', (int) $user->ID, $reason ) );
+				$not_built[] = array(
+					'user_id' => (int) $user->ID,
+					'reason'  => $reason,
+				);
+				continue;
+			}
 			try {
 				$this->client->upsert_subscribers( array( $payload ) );
 				// An HTTP 200 can still carry a refusal in Smaily's body code:
@@ -494,7 +515,9 @@ class BackfillJob implements BackfillJobInterface {
 				'completed' => true,
 			);
 		}
-		$this->record_refusals( $refused );
+		// A contact that was not built is not Smaily's refusal, so it never
+		// counts toward the request-wide refusal above.
+		$this->record_refusals( array_merge( $refused, $not_built ) );
 
 		\Smaily\Connect\Support\DebugLog::write(
 			sprintf(
