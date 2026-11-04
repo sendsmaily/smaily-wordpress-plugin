@@ -220,7 +220,7 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 == Upgrade Notice ==
 
 = 3.21.1 =
-Fixes a history import that could repeat itself or stop after it started when the plugin updated in the background. A connected store whose history import never finished starts it once more by itself, unless you held back or cancelled an import.
+Fixes a history import that could repeat itself or stop after it started when the plugin updated in the background. A connected store whose order history has not been sent in full with 3.21 starts the imports once more by itself, unless you held back or cancelled an import.
 
 = 3.21.0 =
 A store connected to Campaign Intelligence starts the imports it never finished (products, customers, orders) once after this update, unless you held them back. On legacy order storage it adds one posts-table index in the background, only where it builds online.
