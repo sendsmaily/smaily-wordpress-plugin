@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
+use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
 use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
 
@@ -443,6 +444,43 @@ final class ProfilingConsentTest extends TestCase {
 		$store = array();
 		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
 		self::assertFalse( $resolver->known_preference( 'a@example.com' ) );
+	}
+
+	/**
+	 * CON-277: a debug log is often shared with support, and the remote
+	 * message can name the customer — the lines carry the engine's HTTP
+	 * status and error code, or the error type and where it was thrown,
+	 * never the message. Its own process: DebugLog writes only under
+	 * WP_DEBUG, a constant that would stay on for the rest of the suite.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_a_failed_opt_out_logs_where_it_failed_but_never_the_remote_message(): void {
+		define( 'WP_DEBUG', true );
+		$this->options();
+		$this->transients();
+
+		$smaily = $this->createMock( SmailyClient::class );
+		$smaily->method( 'has_contact' )->willThrowException( new \RuntimeException( 'No contact a@example.com' ) );
+		$rec = $this->createMock( RecEngineClient::class );
+		$rec->method( 'customer_opt_out' )->willThrowException(
+			new ApiException( 422, 'validation_failed', 'Customer a@example.com could not be opted out' )
+		);
+
+		$log      = (string) tempnam( sys_get_temp_dir(), 'smly-log' );
+		$previous = (string) ini_set( 'error_log', $log );
+		try {
+			$this->resolver( $smaily, $rec )->opt_out( 'a@example.com' );
+			$written = (string) file_get_contents( $log );
+		} finally {
+			ini_set( 'error_log', $previous );
+			unlink( $log );
+		}
+
+		self::assertStringContainsString( '[smaily-connect profiling-consent] write failed: RuntimeException code=0 at ', $written );
+		self::assertStringContainsString( '[smaily-connect profiling-consent] engine opt-out failed: http=422 error=validation_failed', $written );
+		self::assertStringNotContainsString( 'a@example.com', $written );
 	}
 
 	// --- a durable opt-out holds until an explicit opt-in (PRO-3191) -------

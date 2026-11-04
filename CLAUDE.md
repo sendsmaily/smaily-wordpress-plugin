@@ -1516,7 +1516,20 @@ CI's wp-env writes no `wp-content/debug.log` that `DebugLogReader` can tail: a
 test that asserted a `DebugLog::write()` line through it read `''` on both CI
 legs. Set `ini_set( 'error_log', <tempnam file> )` around the call, restore it
 in `finally`, and read that file (`RecEngineOrderBackfillTest`'s default-window
-test).
+test). The unit suite does not define `WP_DEBUG`, so `DebugLog` writes nothing
+there: a unit test of a line defines it in its own process
+(`@runInSeparateProcess` + `@preserveGlobalState disabled`) — never in the
+shared process, where it would stay on for every later test
+(`ProfilingConsentTest`, CON-277).
+
+### Never log an engine's message text — log the status and code (CON-277)
+A `DebugLog` line about a failed engine call carries `http=<status>
+error=<code>` (`ApiException::getCode()` / `error_code()`), never
+`$e->getMessage()`: the engine's message can name the customer (a customer 404
+echoes the address), and debug logs are shared with support. Any other failed
+call logs the error type and `file:line`. The Event Log's stored engine
+message (F3-44) is a separate, open design question — don't change it on the
+side.
 
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with
