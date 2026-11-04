@@ -60,11 +60,19 @@ use Smaily\Connect\Support\DebugLog;
  * (CON-284). At most one check is pending (CON-285).
  *
  * The import ends — no more reports, no more checks — once `complete` is
- * in, when its orders import was cancelled, failed or stalled, or when its
+ * in, once the final report of a stopped orders part is in, or when its
  * orders part never started and no sequence waits to start it (Hold back,
  * a cancel). Nothing is sent while sending is not allowed (PRO-1893), and
  * Hold back keeps its promise: the first report of a connection waits for
  * the hold-back window, and a held-back import ends without one.
+ *
+ * CON-284: an orders part that was cancelled, failed or stalled gets ONE
+ * final report, at once, with the phase it reached (`started` or
+ * `start_part_complete` — never `complete`, which says every order since
+ * `horizon_start` is in) and its final counts. §25 has no phase that says
+ * the import stopped (asked of the engine: INT-225). The report waits while
+ * an order row queued before the stop still waits, so the counts are final;
+ * a failed one is tried again like any other.
  *
  * CON-282: before the update reaches the schema (Migrator::schema_ready()),
  * or while an import's state row cannot be read, the check decides and
@@ -153,6 +161,7 @@ class HistoryProgress {
 				'reported_phase'  => '',
 				'reported_at'     => 0,
 				'failed_at'       => 0,
+				'stopped_at'      => '',
 				'ended'           => false,
 			),
 			false
@@ -263,6 +272,7 @@ class HistoryProgress {
 				'reported_phase'  => '',
 				'reported_at'     => 0,
 				'failed_at'       => 0,
+				'stopped_at'      => '',
 				'ended'           => false,
 			),
 			$state
@@ -322,20 +332,31 @@ class HistoryProgress {
 			}
 		}
 
-		$orders = ( $this->state_reader )( 'orders' );
+		$orders  = ( $this->state_reader )( 'orders' );
+		$stopped = false;
 		if ( $this->is_ours( $state, $orders ) && is_array( $orders ) ) {
-			$status = (string) ( $orders['status'] ?? '' );
-			if ( $status === BackfillJobInterface::STATUS_CANCELLED || $status === BackfillJobInterface::STATUS_FAILED || $this->is_stalled( 'orders', $orders ) ) {
-				$this->end( $state );
-				return false;
-			}
-			$state = $this->with_orders_window( $state, $orders );
+			$status  = (string) ( $orders['status'] ?? '' );
+			$stopped = $status === BackfillJobInterface::STATUS_CANCELLED || $status === BackfillJobInterface::STATUS_FAILED || $this->is_stalled( 'orders', $orders );
+			$state   = $this->with_orders_window( $state, $orders );
 		} else {
 			$orders = null;
 			if ( ! $this->sequence_waits_for_orders() ) {
 				// Held back or cancelled before its orders part began.
 				$this->end( $state );
 				return false;
+			}
+		}
+
+		if ( $stopped && is_array( $orders ) ) {
+			// The final report (CON-284) waits for the order rows queued
+			// before the stop: until they are sent, the counts are not final.
+			if ( $state['stopped_at'] === '' ) {
+				$state['stopped_at'] = gmdate( 'Y-m-d H:i:s', $this->now() );
+			}
+			$completed = (string) ( $orders['completed_at'] ?? '' );
+			if ( $this->queue->has_pending_before( array( OrderFlusher::EVENT_ORDER_UPSERT ), $completed !== '' ? $completed : (string) $state['stopped_at'] ) ) {
+				update_option( self::OPTION, $state, false );
+				return true;
 			}
 		}
 
@@ -351,13 +372,15 @@ class HistoryProgress {
 
 		$now = $this->now();
 		$due = $now - (int) $state['failed_at'] >= self::REPORT_EVERY_SECONDS
-			&& ( $phase !== $state['reported_phase'] || $now - (int) $state['reported_at'] >= self::REPORT_EVERY_SECONDS );
+			&& ( $stopped || $phase !== $state['reported_phase'] || $now - (int) $state['reported_at'] >= self::REPORT_EVERY_SECONDS );
 		if ( $due ) {
 			try {
 				( $this->client_factory )()->history_progress( $this->body( $state, $orders, $phase ) );
 				$state['reported_phase'] = $phase;
 				$state['reported_at']    = $now;
 				$state['failed_at']      = 0;
+				// The stopped orders part's final report is in: the import ends.
+				$state['ended'] = $stopped;
 			} catch ( \Throwable $e ) {
 				$state['failed_at'] = $now;
 				DebugLog::write(
@@ -373,7 +396,7 @@ class HistoryProgress {
 
 		update_option( self::OPTION, $state, false );
 
-		return $state['reported_phase'] !== self::PHASE_COMPLETE;
+		return ! $state['ended'] && $state['reported_phase'] !== self::PHASE_COMPLETE;
 	}
 
 	/**
