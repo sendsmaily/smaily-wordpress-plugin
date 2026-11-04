@@ -374,6 +374,7 @@ td code{white-space:nowrap}
         <li>A <strong>WooCommerce store</strong> on WordPress, served over <strong>HTTPS</strong> (the Smaily and recommendation APIs are HTTPS‑only).</li>
         <li>A <strong>Smaily account with API access</strong>. You create API users in Smaily under <span class="path">Settings → API</span> — you'll need the <strong>subdomain</strong>, <strong>API username</strong> and <strong>API password</strong>.</li>
         <li><em>(Optional)</em> A <strong>Campaign Intelligence setup link</strong> — a one‑time link of the form <code>https://intelligence.smaily.com/setup/…</code>, provided by Smaily if you use the recommendation add‑on.</li>
+        <li><em>(With Campaign Intelligence)</em> <strong>Three store addresses your firewall lets through.</strong> The shopper's browser calls three public addresses on your store's own domain: <code>POST /wp-json/smaily-connect/v1/land</code> (an email‑link click, so that your store sets the click cookies), <code>POST /wp-json/smaily-connect/v1/relay</code> (browse tracking) and <code>GET /wp-json/smaily-connect/v1/recommendations</code> (the Recommendations block). A security plugin, a firewall or a CDN rule that blocks public requests to <code>/wp-json/</code> must let these three through. They need no login and carry no name or email address. When they are blocked, browse events are lost, the Recommendations block shows nothing, and the browser sets the click cookies instead (Safari keeps those for 7 days at most).</li>
       </ul>
       <div class="tw">
         <table>
@@ -394,6 +395,7 @@ td code{white-space:nowrap}
         <li><strong>WooCommerce'i poodi</strong> WordPressil, <strong>HTTPS</strong> kaudu (Smaily ja soovitus‑API‑d on ainult HTTPS).</li>
         <li><strong>Smaily kontot API‑ligipääsuga</strong>. API‑kasutajad luuakse Smailys jaotises <span class="path">Settings → API</span> — vaja läheb <strong>alamdomeeni</strong>, <strong>API kasutajanime</strong> ja <strong>API parooli</strong>.</li>
         <li><em>(Valikuline)</em> <strong>Campaign Intelligence seadistuslinki</strong> — ühekordset linki kujul <code>https://intelligence.smaily.com/setup/…</code>, mille Smaily annab, kui kasutad soovitus‑lisa.</li>
+        <li><em>(Campaign Intelligence'iga)</em> <strong>Kolme poe aadressi, mida sinu tulemüür läbi laseb.</strong> Ostja brauser pöördub sinu poe enda domeenil kolme avaliku aadressi poole: <code>POST /wp-json/smaily-connect/v1/land</code> (e‑kirja lingi klikk, et sinu pood seaks kliki küpsised), <code>POST /wp-json/smaily-connect/v1/relay</code> (sirvimise jälgimine) ja <code>GET /wp-json/smaily-connect/v1/recommendations</code> (soovituste plokk). Turvaplugin, tulemüür või CDN‑i reegel, mis blokeerib avalikud päringud aadressile <code>/wp-json/</code>, peab need kolm läbi laskma. Need ei vaja sisselogimist ega sisalda nime ega e‑posti aadressi. Kui need on blokeeritud, lähevad sirvimissündmused kaduma, soovituste plokk ei näita midagi ja kliki küpsised seab hoopis brauser (Safari hoiab neid kõige rohkem 7 päeva).</li>
       </ul>
       <div class="tw">
         <table>
