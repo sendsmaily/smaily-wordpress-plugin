@@ -10294,6 +10294,26 @@ same holds for the Smaily queue's stored errors and the admin REST answers.
 CON-245 (testing a `DebugLog` line). Pinned by
 `tests/Unit/Privacy/ProfilingConsentTest.php`.
 
+### CON-302 — CI runs the integration suite on the oldest supported stack too (2026-11-04)
+
+**Context:** the plugin header promises WordPress 6.6, WooCommerce 6.9 and
+PHP 8.0, but CI ran the integration suite only on WordPress 7.1, WooCommerce
+10.7 and PHP 8.3. A call that exists only in a newer release passed every
+check and failed on a store at the floor. The Magento extension added the
+same check (Magento CON-210).
+**Decision:** one more integration leg, legacy order storage only, on
+WordPress 6.6.11, WooCommerce 6.9.4 and PHP 8.0, through a
+`.wp-env.override.json` the job writes. Each pin is the last patch release
+of the minor the header names. Polylang is pinned to 3.8.11, the last
+release that supports WordPress 6.6.
+**Rationale:** the last patch carries the security fixes a store at that
+minor runs; WooCommerce 6.9.4 is also the pilot's version. One leg, not a
+grid: the two newest legs already cover both order storages.
+**Alternatives:** the `.0` releases (a store has no reason to stay on them);
+a full oldest × storage grid (WooCommerce 6.9 has no usable HPOS).
+**Relationships:** PRO-3435 (the two storage legs), the pilot-stack override
+in CLAUDE.md. A raised floor moves these pins in the same commit.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

@@ -986,6 +986,16 @@ workflow, not a signal about those releases).
   suite (313 tests on 2026-09-29; 408 on each leg on 2026-10-08) — which
   refuses to run on the wrong storage (see "Order
   storage: CI runs the integration suite on BOTH legacy and HPOS").
+  **A third leg since CON-302, "Integration suite (wp-env, legacy order
+  storage, oldest WordPress + WooCommerce)"**, runs the same suite on the
+  oldest stack the plugin header supports: WordPress 6.6.11, WooCommerce
+  6.9.4, PHP 8.0 (the last patch of "Requires at least" 6.6 / "WC requires
+  at least" 6.9, and "Requires PHP"), plus Polylang 3.8.11 (3.9 needs WP
+  6.8). The job writes a `.wp-env.override.json` before `wp-env start` and
+  skips the storage switch (WC 6.9 has no `wp wc hpos` command and only
+  legacy storage). **Raising a floor in the plugin header or `readme.txt`
+  means moving this leg's pins in the same commit.** The two newest legs
+  keep their check names.
 - **Gutenberg blocks**: lint + test.
 
 All four jobs (every matrix leg) are expected GREEN. A red job now means something broke — read
@@ -1437,9 +1447,10 @@ PRO-3435 covered LEGACY only). So:
   didn't print.
 - `OrderBackfillJobTest::table_spec` still pins both table mappings in the unit
   suite.
-The legacy CI leg runs on WC 10.7 legacy storage, not the pilot's WC 6.9.4 —
-a pilot-only bug still needs the pilot-stack override (see "Integration
-baseline is WP 7.1" below).
+The newest legacy CI leg runs on WC 10.7 legacy storage; since CON-302 the
+oldest-stack leg runs the pilot's WC 6.9.4 on WordPress 6.6.11 and PHP 8.0
+(see the CI section). A bug that needs the pilot's own WordPress still needs
+the pilot-stack override (see "Integration baseline is WP 7.1" below).
 
 ### A history import tick is one paced run — test it on a fake clock (CON-236)
 `Bootstrap::on_backfill_tick()` gives a Products/Customers/Orders import one
