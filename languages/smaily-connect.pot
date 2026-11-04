@@ -1649,6 +1649,12 @@ msgstr ""
 msgid "Save changes"
 msgstr ""
 
+#. translators: %s is the installed plugin version, e.g. 3.21.1.
+#: admin/src/components/settings/Settings.tsx:320
+#, js-format
+msgid "Smaily Connect %s"
+msgstr ""
+
 #: admin/src/components/steps/AutomationSection.tsx:26
 msgid "Active"
 msgstr ""

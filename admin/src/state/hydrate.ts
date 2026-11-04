@@ -39,6 +39,11 @@ export interface BootPayload {
    * can confirm "this WP is running THIS commit" without rebuilding.
    */
   buildHash: string;
+  /**
+   * The installed plugin version (`SMAILY_CONNECT_VERSION`), shown at the
+   * bottom of Settings (CON-302). Absent from a boot blob written before it.
+   */
+  version?: string;
   nonce: string;
   /** Base URL for the REST namespace — passed to configureApiClient. */
   restUrl: string;
