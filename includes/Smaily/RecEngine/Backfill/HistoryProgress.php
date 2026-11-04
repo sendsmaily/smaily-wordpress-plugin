@@ -55,7 +55,9 @@ use Smaily\Connect\Support\DebugLog;
  * counts at most every REPORT_EVERY_SECONDS within a phase. A report that
  * fails is logged and tried again REPORT_EVERY_SECONDS later; it never
  * stops or slows the import — it runs on its own action, one engine
- * attempt bounded by a short timeout (Client::history_progress()).
+ * attempt bounded by a short timeout (Client::history_progress()). A check
+ * that throws is logged and comes back REPORT_EVERY_SECONDS later too
+ * (CON-284). At most one check is pending (CON-285).
  *
  * The import ends — no more reports, no more checks — once `complete` is
  * in, when its orders import was cancelled, failed or stalled, or when its
@@ -174,6 +176,15 @@ class HistoryProgress {
 			}
 		} catch ( \Throwable $e ) {
 			DebugLog::write( sprintf( '[smaily-connect history.progress] check failed: %s at %s:%d', get_class( $e ), basename( $e->getFile() ), $e->getLine() ) );
+			// One failed check does not stop the reports until the hourly
+			// registration (CON-284): the next comes like a failed report's,
+			// REPORT_EVERY_SECONDS later. A check of an ended import then
+			// unschedules itself.
+			try {
+				$this->schedule( $this->now() + self::REPORT_EVERY_SECONDS );
+			} catch ( \Throwable $e ) {
+				DebugLog::write( sprintf( '[smaily-connect history.progress] next check not armed: %s', get_class( $e ) ) );
+			}
 		}
 	}
 
@@ -545,17 +556,18 @@ class HistoryProgress {
 
 	/**
 	 * Arm the check at $at — replacing a queued one when $replace, else only
-	 * when none is queued. The check that runs now is in progress, not
-	 * queued, so it re-arms itself.
+	 * when none is pending. The check that runs now is in progress, not
+	 * pending, so it re-arms itself; a copy pending beside it is seen, so
+	 * two never wait (CON-285).
 	 */
 	private function schedule( int $at, bool $replace = false ): void {
-		if ( ! function_exists( 'as_schedule_single_action' ) || ! function_exists( 'as_next_scheduled_action' ) || ! function_exists( 'as_unschedule_all_actions' ) ) {
+		if ( ! function_exists( 'as_schedule_single_action' ) || ! function_exists( 'as_unschedule_all_actions' ) ) {
 			return;
 		}
 
 		if ( $replace ) {
 			as_unschedule_all_actions( self::HOOK, array(), self::AS_GROUP );
-		} elseif ( is_int( as_next_scheduled_action( self::HOOK, array(), self::AS_GROUP ) ) ) {
+		} elseif ( AbstractBackfillJob::action_pending( self::HOOK, self::AS_GROUP ) ) {
 			return;
 		}
 

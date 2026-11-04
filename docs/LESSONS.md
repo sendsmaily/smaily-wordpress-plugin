@@ -1100,6 +1100,22 @@ found it, not a test: no test turned `WP_DEBUG` on. Rules:
 2. **A test of a privacy rule on a log line reads the line** — with an
    address in the remote message, it asserts the address is not there.
 
+### 2.33 "Is one queued?" must not count the copy that runs now (CON-285, import checks, 2026-11-04)
+
+The sequence and progress checks re-armed "unless one is queued" with
+`is_int( as_next_scheduled_action() )`. Action Scheduler answers `true` — not
+a timestamp — when a copy RUNS, before it looks at pending ones, so a check
+that ran while a copy already waited queued a second one; "Import now" did not
+ask at all and started a second tick chain on the same import. The unit fakes
+returned one fixed value for "next scheduled", so no test had a running and a
+pending copy at once. Rules:
+1. **A self-re-arming action asks for PENDING copies only**
+   (`AbstractBackfillJob::action_pending()`); a caller that is not the action
+   itself asks "pending or running" (`as_has_scheduled_action()`).
+2. **A test of "no duplicate" puts a running copy and a pending copy side by
+   side** — with real Action Scheduler, `ActionScheduler::store()->
+   log_execution( $id )` marks one running.
+
 ---
 
 ## 4. Concrete checklist for the start of a new project

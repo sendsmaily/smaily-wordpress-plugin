@@ -10294,6 +10294,63 @@ same holds for the Smaily queue's stored errors and the admin REST answers.
 CON-245 (testing a `DebugLog` line). Pinned by
 `tests/Unit/Privacy/ProfilingConsentTest.php`.
 
+### CON-285 — One background chain per import, one pending copy per check (2026-11-04)
+
+**Context:** "Import now" queued a new tick for its import whatever was
+already queued, so a waiting tick (the chain's next batch, or the catalog's
+hold-back batch) and the new one became two chains on one import, and the
+rows were sent twice. The sequence check (`ImportsOnConnect`) and the §25
+progress check (`HistoryProgress`) re-arm themselves "unless one is queued",
+and asked `as_next_scheduled_action()`: Action Scheduler answers `true` for a
+RUNNING action before it looks at pending ones, so a check that ran while a
+copy already waited queued a second copy. The pre-3.21.1 audit (I4, I5;
+CON-292) found two more ways to start twice or not at all.
+**Decision:**
+- Import now (`BackfillEndpoint::start()`) cancels the import's pending ticks
+  and queues one that runs now — unless a tick of that import runs at this
+  moment (`as_has_scheduled_action()`, pending or running): that batch reads
+  the restarted row on its next batch and queues the next tick itself.
+- A self-re-arming check asks `AbstractBackfillJob::action_pending()`
+  (`as_get_scheduled_actions()` with `status` pending) — the running copy is
+  not counted, a pending one is. `ImportsOnConnect::ensure_check_scheduled()`
+  keeps its `!== false` test (it skips while one runs, which is correct for a
+  caller that is not the check itself).
+- CON-284 (part): a `HistoryProgress` check that throws is logged and comes
+  back `REPORT_EVERY_SECONDS` (300 s) later, like a failed report, instead of
+  waiting for the hourly re-registration.
+- CON-292 / I4: inside the lock, `rerun_once()` reads its marker again past
+  the request's option cache (`wp_cache_delete()` of the key and of
+  `notoptions`), so two overlapping checks begin one history import. The
+  marker is still written only after the products import started — claiming
+  it first would lose the one-time re-run to a fatal between claim and start,
+  a worse outcome than I4's (a spare import id, nothing sent twice).
+- CON-292 / I5: when the connect could not start the catalog import (its
+  state row was not written), `ImportsOnConnect::start()` still stores the
+  sequence and sets `smly_rec_import_sequence_start_due`; `advance()` then
+  starts the sequence's first part (with the catalog's 180 s hold-back)
+  instead of reading an earlier run's row as ended and moving on. `forget()`
+  and disconnect delete it.
+**Rationale:** Action Scheduler cannot cancel a running action, so "one chain"
+means: never add a tick beside a running one, and replace a waiting one so
+Import now still starts at once. A check is its own running copy; only a
+pending copy says "the next one is already there".
+**Not covered:** CON-284's final §25 report for an orders import that ends
+cancelled, failed or stalled. Contract §25 `phase` allows only `started`,
+`start_part_complete` and `complete`, and `complete` says every order since
+`horizon_start` is sent — there is no state that says the import stopped. The
+check still ends the import without a report; that waits for a decision
+(a new §25 state from the engine team, or a rule to report the reached phase
+with the last counts). Two races stay: an Import now while a tick's batch is
+in flight lets that batch write its old cursor onto the restarted row, and a
+`HistoryProgress::begin()` while a check runs can be overwritten by that
+check's state write.
+**Relationships:** CON-247 (the sequence), CON-248 (§25), CON-282 (the
+re-run), pre-3.21.1 audit I4 / I5. Pinned by
+`tests/Unit/REST/BackfillEndpointTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php` and
+`tests/Integration/RecEngineImportsOnConnectTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

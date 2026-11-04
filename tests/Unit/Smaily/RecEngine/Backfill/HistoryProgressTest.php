@@ -49,6 +49,9 @@ final class HistoryProgressTest extends TestCase {
 
 	private int $now = self::NOW;
 
+	/** Thrown by every state-row read: a check that fails (CON-284). */
+	private ?\Throwable $reader_error = null;
+
 	/** @var array<int, array{types: string[], created_by: ?string, max_id: ?int}> queue rows that still wait */
 	private array $waiting = array();
 
@@ -93,7 +96,17 @@ final class HistoryProgressTest extends TestCase {
 				$scheduled = array();
 			}
 		);
-		Functions\when( 'as_next_scheduled_action' )->justReturn( true ); // The check that runs now is in progress.
+		// The pending checks (CON-285): the one that runs now is not among them.
+		Functions\when( 'as_get_scheduled_actions' )->alias(
+			static function ( array $query ) use ( &$scheduled ): array {
+				return array_keys(
+					array_filter(
+						$scheduled,
+						static fn ( array $action ): bool => $action['hook'] === $query['hook']
+					)
+				);
+			}
+		);
 	}
 
 	protected function tearDown(): void {
@@ -308,6 +321,42 @@ final class HistoryProgressTest extends TestCase {
 		self::assertSame( 0, $this->options[ HistoryProgress::OPTION ]['failed_at'] );
 	}
 
+	public function test_a_check_that_throws_comes_back_after_five_minutes(): void {
+		$this->begin_with_sequence();
+		$this->reader_error = new \RuntimeException( 'database gone away' );
+
+		$this->progress()->run();
+
+		self::assertSame( array(), $this->sent );
+		self::assertSame(
+			array(
+				array(
+					'at'   => self::NOW + HistoryProgress::REPORT_EVERY_SECONDS,
+					'hook' => HistoryProgress::HOOK,
+				),
+			),
+			$this->scheduled,
+			'CON-284: the checks go on, like a failed report\'s.'
+		);
+
+		$this->reader_error = null;
+		$this->scheduled    = array();
+		$this->now          = self::NOW + HistoryProgress::REPORT_EVERY_SECONDS;
+		$this->progress()->run();
+		self::assertSame( 'started', $this->sent[0]['phase'], 'The next check reports.' );
+	}
+
+	public function test_a_check_pending_beside_the_running_one_is_not_doubled(): void {
+		$this->begin_with_sequence();
+
+		// The hourly registration arms a check while one runs.
+		$this->progress()->ensure_scheduled();
+		$this->progress()->run();
+		$this->progress()->ensure_scheduled();
+
+		self::assertCount( 1, $this->scheduled, 'CON-285: one pending check.' );
+	}
+
 	public function test_a_held_back_import_ends_without_a_report(): void {
 		$this->progress()->begin( self::NOW );
 		$this->scheduled = array();
@@ -482,6 +531,17 @@ final class HistoryProgressTest extends TestCase {
 		self::assertCount( 1, $this->scheduled );
 	}
 
+	/**
+	 * @return array<string, mixed>|false|null
+	 */
+	private function read_row( string $type ): array|false|null {
+		if ( $this->reader_error !== null ) {
+			throw $this->reader_error;
+		}
+
+		return in_array( $type, $this->unreadable, true ) ? false : ( $this->rows[ $type ] ?? null );
+	}
+
 	private function progress(): HistoryProgress {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'sending_allowed' )->willReturnCallback( fn (): bool => $this->sending_allowed );
@@ -514,7 +574,7 @@ final class HistoryProgressTest extends TestCase {
 		);
 
 		$now = &$this->now;
-		return new class( $settings, static fn (): Client => $client, $queue, fn ( string $type ): array|false|null => in_array( $type, $this->unreadable, true ) ? false : ( $this->rows[ $type ] ?? null ), $now ) extends HistoryProgress {
+		return new class( $settings, static fn (): Client => $client, $queue, fn ( string $type ): array|false|null => $this->read_row( $type ), $now ) extends HistoryProgress {
 			/** @var int */
 			private $clock;
 

@@ -71,6 +71,12 @@ use Smaily\Connect\Smaily\EventQueue;
  *     forgotten, the next check tries again;
  *   - rerun_once(): a store 3.21.0 ran on whose history import never reached
  *     its end gets the whole sequence once more (Erkki, 2026-11-04).
+ *
+ * CON-292: a catalog import the connect could not start is started by the
+ * next check (OPTION_START_DUE), and the re-run's marker is read again
+ * inside the lock, so two overlapping checks begin one history import. CON-285: at
+ * most one check is pending — the running check does not hide a pending copy
+ * (AbstractBackfillJob::action_pending()).
  */
 final class ImportsOnConnect {
 
@@ -85,6 +91,9 @@ final class ImportsOnConnect {
 
 	/** Set once the CON-282 re-run was decided (one-shot). */
 	public const OPTION_RERUN_CHECKED = 'smly_rec_import_sequence_rerun_checked';
+
+	/** Set while the stored sequence's first part could not start on connect (CON-292). */
+	public const OPTION_START_DUE = 'smly_rec_import_sequence_start_due';
 
 	/** The check action (Action Scheduler, group EventQueue::AS_GROUP). */
 	public const HOOK = 'smly_rec_import_sequence_check';
@@ -142,9 +151,18 @@ final class ImportsOnConnect {
 			$this->history->begin( time() + CatalogImportOnConnect::DELAY_SECONDS );
 		}
 
-		$started = ( new CatalogImportOnConnect( $this->job( self::PARTS[0] ) ) )->start();
+		$catalog = $this->job( self::PARTS[0] );
+		$started = ( new CatalogImportOnConnect( $catalog ) )->start();
 
 		$this->save( self::PARTS );
+		// Neither started nor running: its state row could not be written
+		// (CON-292). The next check starts it — never reads an earlier run's
+		// row as this sequence's catalog import and moves on without it.
+		if ( ! $started && $catalog !== null && ! $catalog->is_running() ) {
+			update_option( self::OPTION_START_DUE, '1', false );
+		} else {
+			delete_option( self::OPTION_START_DUE );
+		}
 		$this->schedule_check();
 
 		return $started;
@@ -287,6 +305,12 @@ final class ImportsOnConnect {
 			return false;
 		}
 		try {
+			// A check that overlapped this one may have started the re-run
+			// while this one waited for the lock (CON-292): then no second
+			// history import begins.
+			if ( self::rerun_decided_meanwhile() ) {
+				return false;
+			}
 			if ( $this->history !== null ) {
 				$this->history->begin( time() + self::NEXT_PART_DELAY );
 			}
@@ -303,6 +327,19 @@ final class ImportsOnConnect {
 	}
 
 	/**
+	 * The re-run's marker read again, past this request's option cache,
+	 * which still holds the read made before the lock was taken.
+	 *
+	 * @phpstan-impure
+	 */
+	private static function rerun_decided_meanwhile(): bool {
+		wp_cache_delete( self::OPTION_RERUN_CHECKED, 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+
+		return (string) get_option( self::OPTION_RERUN_CHECKED, '' ) !== '';
+	}
+
+	/**
 	 * Move the sequence on when its running part has ended.
 	 */
 	public function advance(): void {
@@ -314,6 +351,20 @@ final class ImportsOnConnect {
 			$parts   = $this->stored();
 			$current = $parts[0] ?? '';
 			if ( $current === '' ) {
+				return;
+			}
+
+			// The part could not start on connect (CON-292): start it now,
+			// with the catalog's hold-back window, instead of moving on.
+			if ( (string) get_option( self::OPTION_START_DUE, '' ) !== '' ) {
+				$started = $this->start_part( $current, CatalogImportOnConnect::DELAY_SECONDS );
+				if ( $started === null ) {
+					return;
+				}
+				delete_option( self::OPTION_START_DUE );
+				if ( ! $started ) {
+					self::forget();
+				}
 				return;
 			}
 
@@ -372,6 +423,7 @@ final class ImportsOnConnect {
 	 */
 	public static function forget(): void {
 		delete_option( self::OPTION );
+		delete_option( self::OPTION_START_DUE );
 	}
 
 	/**
@@ -396,7 +448,7 @@ final class ImportsOnConnect {
 	 *                   written (CON-282) — no batch is scheduled, and the
 	 *                   caller waits for the next check.
 	 */
-	private function start_part( string $job_type ): ?bool {
+	private function start_part( string $job_type, int $delay = self::NEXT_PART_DELAY ): ?bool {
 		$job = $this->job( $job_type );
 		if ( $job === null || ! function_exists( 'as_schedule_single_action' ) || ! function_exists( 'as_has_scheduled_action' ) ) {
 			return false;
@@ -416,7 +468,7 @@ final class ImportsOnConnect {
 
 		$args = array( 'job_type' => $job_type );
 		if ( ! as_has_scheduled_action( BackfillJobInterface::TICK_HOOK, $args, EventQueue::AS_GROUP ) ) {
-			as_schedule_single_action( time() + self::NEXT_PART_DELAY, BackfillJobInterface::TICK_HOOK, $args, EventQueue::AS_GROUP );
+			as_schedule_single_action( time() + $delay, BackfillJobInterface::TICK_HOOK, $args, EventQueue::AS_GROUP );
 		}
 
 		return true;
@@ -440,11 +492,12 @@ final class ImportsOnConnect {
 	 * The next check, CHECK_INTERVAL out, unless one is already pending.
 	 */
 	private function schedule_next_check(): void {
-		if ( ! function_exists( 'as_schedule_single_action' ) || ! function_exists( 'as_next_scheduled_action' ) ) {
+		if ( ! function_exists( 'as_schedule_single_action' ) ) {
 			return;
 		}
 
-		if ( is_int( as_next_scheduled_action( self::HOOK, array(), EventQueue::AS_GROUP ) ) ) {
+		// A copy pending beside the check that runs now counts (CON-285).
+		if ( AbstractBackfillJob::action_pending( self::HOOK, EventQueue::AS_GROUP ) ) {
 			return;
 		}
 
