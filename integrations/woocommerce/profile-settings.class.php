@@ -431,7 +431,14 @@ class Profile_Settings {
 	}
 
 	/**
-	 * Get fields to be added to WooCommerce account and checkout forms.
+	 * Get fields to be added to the WordPress user profile and the WooCommerce
+	 * account, registration and checkout forms.
+	 *
+	 * Phone, Gender and Birthday are shown on the wp-admin user profile only,
+	 * when the merchant syncs them; the plugin adds nothing to a storefront
+	 * form but the newsletter box (PRO-4252). A developer brings one back on a
+	 * storefront form by setting its `hide_in_checkout` / `hide_in_account` /
+	 * `hide_in_registration` to false through `smaily_connect_account_fields`.
 	 *
 	 * Notice! The fields are not added during the constructor as the
 	 * translations are not available at that point.
@@ -450,10 +457,10 @@ class Profile_Settings {
 						1 => __( 'Male', 'smaily-connect' ),
 						2 => __( 'Female', 'smaily-connect' ),
 					),
-					'hide_in_account'      => false,
+					'hide_in_account'      => true,
 					'hide_in_admin'        => false,
-					'hide_in_checkout'     => false,
-					'hide_in_registration' => false,
+					'hide_in_checkout'     => true,
+					'hide_in_registration' => true,
 				),
 				'user_phone'      => array(
 					'type'                 => 'tel',
@@ -461,10 +468,10 @@ class Profile_Settings {
 					'placeholder'          => __( 'Enter phone number', 'smaily-connect' ),
 					'required'             => false,
 					'class'                => array( 'regular-text' ),
-					'hide_in_account'      => false,
+					'hide_in_account'      => true,
 					'hide_in_admin'        => false,
 					'hide_in_checkout'     => true,
-					'hide_in_registration' => false,
+					'hide_in_registration' => true,
 				),
 				'user_dob'        => array(
 					'type'                 => 'date',
@@ -472,10 +479,10 @@ class Profile_Settings {
 					'placeholder'          => __( 'Enter birthday', 'smaily-connect' ),
 					'required'             => false,
 					'class'                => array( 'regular-text' ),
-					'hide_in_account'      => false,
+					'hide_in_account'      => true,
 					'hide_in_admin'        => false,
-					'hide_in_checkout'     => false,
-					'hide_in_registration' => false,
+					'hide_in_checkout'     => true,
+					'hide_in_registration' => true,
 				),
 				'user_newsletter' => array(
 					'type'                 => 'checkbox',

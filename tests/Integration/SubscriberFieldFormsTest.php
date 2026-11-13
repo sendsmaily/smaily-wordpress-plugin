@@ -19,6 +19,11 @@
  * These cases drive the real render/opt-in paths on a real WooCommerce install
  * with only the Smaily transport faked, against BOTH stored shapes.
  *
+ * Since PRO-4252 the selection decides the inputs on the WordPress user
+ * profile only: the checkout, the My Account registration form and the
+ * account details form get the newsletter box and nothing else, unless a
+ * developer brings a field back through `smaily_connect_account_fields`.
+ *
  * @package Smaily\Connect\Tests\Integration
  */
 
@@ -96,15 +101,120 @@ final class SubscriberFieldFormsTest extends TestCase {
 		self::assertStringContainsString( 'name="user_gender"', $profile );
 		self::assertStringContainsString( 'name="user_dob"', $profile, 'The form field is `user_dob`; the contact field is `birthday`.' );
 
-		$account = $this->render_hook( 'woocommerce_edit_account_form' );
-		self::assertStringContainsString( 'name="user_phone"', $account );
-		self::assertStringContainsString( 'name="user_gender"', $account );
-		self::assertStringContainsString( 'name="user_dob"', $account );
+		// PRO-4252: the selection adds nothing to a storefront form.
+		$this->assert_no_profile_inputs( $this->render_hook( 'woocommerce_edit_account_form' ), 'Account details form.' );
+		self::assertSame( array(), $this->checkout_fields()['billing'], 'The classic checkout billing section.' );
+	}
 
-		$billing = $this->checkout_fields()['billing'];
-		self::assertArrayHasKey( 'user_gender', $billing );
-		self::assertArrayHasKey( 'user_dob', $billing );
-		self::assertArrayNotHasKey( 'user_phone', $billing, 'Phone is hidden at checkout by design — WooCommerce collects its own billing phone.' );
+	/**
+	 * PRO-4252: the only field the plugin adds to a storefront form is the
+	 * newsletter box — whatever the contact sync's field selection holds.
+	 */
+	public function test_the_field_selection_adds_nothing_to_a_storefront_form(): void {
+		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+		// After the save: the subscribers tab writes this switch too.
+		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
+
+		// A guest: a subscribed customer is not offered the box again.
+		wp_set_current_user( 0 );
+		$checkout = $this->checkout_fields();
+		RestRequestHelper::login_as_admin();
+		self::assertSame( array(), $checkout['billing'] );
+		self::assertSame( array( 'user_newsletter' ), array_keys( $checkout['order'] ), 'The newsletter box is the one field added.' );
+		self::assertSame( array(), $checkout['shipping'] );
+		self::assertSame( array(), $checkout['account'] );
+
+		$account = $this->render_hook( 'woocommerce_edit_account_form' );
+		$this->assert_no_profile_inputs( $account, 'Account details form.' );
+		self::assertStringContainsString( 'name="user_newsletter"', $account );
+
+		wp_set_current_user( 0 );
+		$registration = $this->render_hook( 'woocommerce_register_form' );
+		$this->assert_no_profile_inputs( $registration, 'Registration form.' );
+		self::assertStringContainsString( 'name="user_newsletter"', $registration );
+	}
+
+	public function test_with_the_newsletter_box_off_the_checkout_gets_nothing(): void {
+		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, false );
+
+		self::assertSame( $this->empty_checkout(), $this->checkout_fields() );
+	}
+
+	public function test_an_account_details_save_keeps_the_stored_gender_and_birthday(): void {
+		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+		$user_id = $this->make_customer(
+			array(
+				'user_gender' => '2',
+				'user_dob'    => '1985-03-28',
+				'user_phone'  => '+372 5555 1234',
+			)
+		);
+
+		$this->save_account_details( $user_id, array( 'user_newsletter' => '1' ) );
+
+		self::assertSame( '2', get_user_meta( $user_id, 'user_gender', true ), 'A field the form did not show is never written over.' );
+		self::assertSame( '1985-03-28', get_user_meta( $user_id, 'user_dob', true ) );
+		self::assertSame( '+372 5555 1234', get_user_meta( $user_id, 'user_phone', true ) );
+
+		// The kept value still syncs where the merchant selected it.
+		$posted = $this->registered_checkout_optin( $user_id );
+		self::assertSame( '1985-03-28', $posted['birthday'] );
+		self::assertSame( '+372 5555 1234', $posted['user_phone'] );
+		self::assertSame( 'Female', $posted['user_gender'] );
+	}
+
+	/**
+	 * The developer path back (PRO-4252): `smaily_connect_account_fields`
+	 * clears a field's hide_in_* flags, and the field is printed on every
+	 * storefront form again and saved from the account details form.
+	 */
+	public function test_the_field_filter_brings_the_inputs_back_and_they_save(): void {
+		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+		// After the save: the subscribers tab writes this switch too.
+		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
+
+		$show = static function ( array $fields ): array {
+			foreach ( array( 'user_gender', 'user_phone', 'user_dob' ) as $key ) {
+				if ( isset( $fields[ $key ] ) ) {
+					$fields[ $key ]['hide_in_checkout']     = false;
+					$fields[ $key ]['hide_in_account']      = false;
+					$fields[ $key ]['hide_in_registration'] = false;
+				}
+			}
+			return $fields;
+		};
+		add_filter( 'smaily_connect_account_fields', $show );
+
+		try {
+			$billing = $this->checkout_fields()['billing'];
+			self::assertSame( array( 'user_gender', 'user_phone', 'user_dob' ), array_keys( $billing ) );
+
+			$account = $this->render_hook( 'woocommerce_edit_account_form' );
+			self::assertStringContainsString( 'name="user_gender"', $account );
+			self::assertStringContainsString( 'name="user_phone"', $account );
+			self::assertStringContainsString( 'name="user_dob"', $account );
+
+			$user_id = $this->make_customer( array() );
+			$this->save_account_details(
+				$user_id,
+				array(
+					'user_gender' => '1',
+					'user_phone'  => '+372 5555 9876',
+					'user_dob'    => '1990-01-02',
+				)
+			);
+			self::assertSame( '1', get_user_meta( $user_id, 'user_gender', true ) );
+			self::assertSame( '+372 5555 9876', get_user_meta( $user_id, 'user_phone', true ) );
+			self::assertSame( '1990-01-02', get_user_meta( $user_id, 'user_dob', true ) );
+
+			wp_set_current_user( 0 );
+			$registration = $this->render_hook( 'woocommerce_register_form' );
+			self::assertStringContainsString( 'name="user_gender"', $registration );
+			self::assertStringContainsString( 'name="user_dob"', $registration );
+		} finally {
+			remove_filter( 'smaily_connect_account_fields', $show );
+		}
 	}
 
 	public function test_a_field_the_merchant_left_unticked_is_not_asked_for(): void {
@@ -131,9 +241,7 @@ final class SubscriberFieldFormsTest extends TestCase {
 		self::assertStringContainsString( 'name="user_gender"', $profile );
 		self::assertStringNotContainsString( 'name="user_dob"', $profile, 'A box the merchant left unticked stays unticked.' );
 
-		$billing = $this->checkout_fields()['billing'];
-		self::assertArrayHasKey( 'user_gender', $billing );
-		self::assertArrayNotHasKey( 'user_dob', $billing );
+		self::assertSame( array(), $this->checkout_fields()['billing'], 'PRO-4252: no field selection adds to the checkout.' );
 	}
 
 	public function test_a_guest_checkout_optin_sends_the_wizard_selection(): void {
@@ -268,17 +376,53 @@ final class SubscriberFieldFormsTest extends TestCase {
 		$settings->register_hooks();
 
 		try {
-			return (array) apply_filters(
-				'woocommerce_checkout_fields',
-				array(
-					'billing'  => array(),
-					'shipping' => array(),
-					'account'  => array(),
-					'order'    => array(),
-				)
-			);
+			return (array) apply_filters( 'woocommerce_checkout_fields', $this->empty_checkout() );
 		} finally {
 			$this->forget_hooks( $settings );
+		}
+	}
+
+	/**
+	 * @return array<string, array<string, mixed>>
+	 */
+	private function empty_checkout(): array {
+		return array(
+			'billing'  => array(),
+			'shipping' => array(),
+			'account'  => array(),
+			'order'    => array(),
+		);
+	}
+
+	/**
+	 * Neither Phone, Gender nor Birthday is printed (PRO-4252).
+	 */
+	private function assert_no_profile_inputs( string $html, string $form ): void {
+		self::assertStringNotContainsString( 'name="user_phone"', $html, $form );
+		self::assertStringNotContainsString( 'name="user_gender"', $html, $form );
+		self::assertStringNotContainsString( 'name="user_dob"', $html, $form );
+	}
+
+	/**
+	 * The shopper saves My Account → Account details, as
+	 * WC_Form_Handler::save_account_details() fires it.
+	 *
+	 * @param array<string, string> $posted
+	 */
+	private function save_account_details( int $user_id, array $posted ): void {
+		$settings = new Profile_Settings();
+		$settings->register_hooks();
+		wp_set_current_user( $user_id );
+		$_REQUEST = array( 'save-account-details-nonce' => wp_create_nonce( 'save_account_details' ) );
+		$_POST    = array( 'action' => 'save_account_details' ) + $posted;
+
+		try {
+			do_action( 'woocommerce_save_account_details', $user_id );
+		} finally {
+			$_REQUEST = array();
+			$_POST    = array();
+			$this->forget_hooks( $settings );
+			RestRequestHelper::login_as_admin();
 		}
 	}
 
