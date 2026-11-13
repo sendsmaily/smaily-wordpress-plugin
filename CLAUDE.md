@@ -633,7 +633,15 @@ code; normalised to the short form (`en_US`→`en`). The scar it routes around
 (Prike, F3-47): the legacy cron's `Helper::get_current_language_code()` falls
 back to `get_locale()` in cron = the WP **site** locale (`en`), which on an
 `et`-content store with an `en` WP locale clobbered ~1000 contacts to `en`
-daily. **Two rules:** (1) a NEW datetime-style sin — never reintroduce a raw
+daily. **Abandoned-cart reminders have one more source, FIRST (PRO-4253):**
+the storefront language the cart recorded — `CartHookHandler::on_cart_updated()`
+reads the multilingual plugin's current language through the detector on the
+shopper's own request (nothing on the site-locale fallback or TranslatePress)
+and stores it in `cart_content` (`CartSessionStore::encode_content()`, beside
+the CON-196 tick); `CartPayloadBuilder` passes it to `for_user()` /
+`for_guest()`, where it is normalised, clamped and filtered like any other
+source. The resolver itself still reads nothing from the request — the
+language reaches it as data. **Two rules:** (1) a NEW datetime-style sin — never reintroduce a raw
 `get_user_locale()`/`get_locale()` language source on the contact path; route it
 through the resolver. (2) **Omit `language` when the resolver returns `''`** —
 Smaily treats absent as "leave existing intact", empty as "wipe"; the
@@ -1966,8 +1974,9 @@ repo: a red staleness run is the signal to sync.
   flushes the cart queue must answer that GET — in the default consent mode a
   reminder to an unknown address is skipped. Pass
   `PipelineFixture::subscribed_contact_read()` to `PipelineFixture::flush()`.
-  The classic checkout's newsletter tick lives in the tracker's `cart_content`
-  (`CartSessionStore::encode_content()`/`decode_content()` — read it only
+  The classic checkout's newsletter tick — and the storefront language
+  (PRO-4253) — live in the tracker's `cart_content`
+  (`CartSessionStore::encode_content()`/`decode_content()` — read them only
   through those).
 
 ---
