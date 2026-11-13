@@ -130,6 +130,23 @@ final class RecEngineGdprTest extends TestCase {
 		self::assertNotContains( 'inferred_species', $names );
 	}
 
+	public function test_export_includes_the_outcome_events_a_booking_system_sent(): void {
+		$export = $this->handler()->export( 'gdpr-outcomes@example.test' );
+
+		$bookings = array_values(
+			array_filter(
+				$export['data'],
+				static fn ( array $item ): bool => $item['group_label'] === 'Bookings and visits (Campaign Intelligence)'
+			)
+		);
+
+		// Contract v1.32.0 §8: one item per outcome_events row, all its fields.
+		self::assertCount( 1, $bookings );
+		$pairs = array_column( $bookings[0]['data'], 'value', 'name' );
+		self::assertSame( 'booked', $pairs['type'] ?? null );
+		self::assertSame( '2026-11-20T14:00:00Z', $pairs['scheduled_for'] ?? null );
+	}
+
 	public function test_export_404_still_returns_plugin_meta(): void {
 		$email = 'notfound-gdpr@example.test'; // mock §8 → 404
 		$this->make_order_with_rec_meta( $email );

@@ -1563,6 +1563,17 @@ if ( $method === 'GET' && preg_match( '#^/api/v1/customer/([^/]+)/export$#', $pa
 			'recommendations' => array( array( 'rec_id' => 'r-1', 'sku' => 'ACA-2' ) ),
 			'visitor_tokens'  => array( array( 'token' => 'vt_abc' ) ),
 			'email_events'    => array(),
+			// Contract v1.32.0 §8: bookings a booking system sent (§6b).
+			'outcome_events'  => array(
+				array(
+					'event_id'      => '0f5e2a8c-3b1d-4c7e-9a2f-6d8b1e4c5a70',
+					'type'          => 'booked',
+					'subject_id'    => 'bk-1',
+					'scheduled_for' => '2026-11-20T14:00:00Z',
+					'occurred_at'   => '2026-11-13T09:12:00Z',
+					'source'        => 'booking',
+				),
+			),
 			'orders'          => array( array( 'external_order_id' => 'WC-1', 'total_amount' => '67.50' ) ), // Woo — plugin must NOT export
 			'order_items'     => array( array( 'sku' => 'ACA-1', 'line_total' => '67.50' ) ),                // Woo
 		)
@@ -1591,7 +1602,7 @@ if ( $method === 'DELETE' && preg_match( '#^/api/v1/customer/([^/]+)$#', $path, 
 			'ok'              => true,
 			'deleted'         => true,
 			'customer_email'  => $email,
-			'records_removed' => array( 'customer' => 1, 'browse_events' => 2, 'rec_attribution' => 3, 'visitor_tokens' => 1 ),
+			'records_removed' => array( 'customer' => 1, 'browse_events' => 2, 'outcome_events' => 1, 'rec_attribution' => 3, 'visitor_tokens' => 1 ),
 			'audit_log_id'    => 'audit_' . bin2hex( random_bytes( 4 ) ),
 			'deleted_at'      => gmdate( 'c' ),
 		)
