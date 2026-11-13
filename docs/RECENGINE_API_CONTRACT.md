@@ -1,8 +1,8 @@
 # Smaily Recommendation Engine — API Contract v1.24
 
-**Version**: 1.29.0
+**Version**: 1.31.0
 **Published**: 2026-05-19
-**Last updated**: 2026-11-12 (v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step are specified and the engine side is in progress, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-13 (v1.31.0 — the design page in a modal: a design link minted with `display: "frame"` keeps its session in the page, not in a cookie, so the page works in a frame inside the store admin in every browser; the plugin may name the origin of its admin page (`frame_origin`); the page tells its parent when it is ready and when it has unsaved changes (§22). Drafted as v1.26.0; that number was never published. MINOR bump: additive only — INT-14. Previous: 2026-11-13, v1.30.0 — an order can say where it was made: optional `channel`, `online` or `in_store`; a store's second order system (for example its tills) sends its orders into the same engine store with its own API key, by the sender rules of §5 "A second order source". An in-store order is credited by the same rules as any order, and the store's console shows the credited part made in the store. MINOR bump: one new optional field. Previous: 2026-11-12, v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step are specified and the engine side is in progress, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -1128,6 +1128,7 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 | `smaily_visitor_token` | string | NO | Visitor token from the visitor-token cookie: an engine-issued `vt_` token, or a token the store created at checkout (`vs_`, v1.11.0 — [below](#store-created-visitor-token)). Stored; attribution is async. Also binds the token to the order's customer (below). |
 | `smaily_rec_ctx` | string | NO | Attribution: context (from the `smaily_rec_ctx` cookie). Never decides *which* recommendation matches. Since v1.9.0 it decides the **channel**: `storefront` with a cookie match = a storefront credit (§15). Forward it on every order that carries `smaily_rec_id`. |
 | `website` | string | NO | (v1.21.0) The code of the website the order was placed on (Magento: the website of `order.store_id`). An invalid value is ignored, never rejected; no order is rejected for a missing or unknown website. A later sync of the same order replaces the stored value, as the other order columns (the attribution-field exception does not apply). Sets the customer's website ([§4](#customer-website)). |
+| `channel` | enum | NO | (v1.30.0) Where the order was made: `online` or `in_store`. **Missing = `online`**: a plugin that does not send the field needs no change. Any other value (also `null` or `""`) fails per-order validation: the order lands in `errors[]` with `field: "channel"` and is not written. A later sync of the same order replaces the stored value, as the other order columns (the attribution-field exception does not apply): a sync without the field stores `online`. See [Order channel](#order-channel). |
 | `session_id` | string | NO | Accept-and-ignore (PRO-1544): stored on the order, but no longer read by the attribution matcher — the browse-event/`session_id` matching step it used to feed was removed in PRO-1524. Kept accepting it so senders don't need a plugin update. |
 | `items[]` | array | YES | Order line items |
 | `items[].sku` | string | YES | |
@@ -1211,6 +1212,28 @@ Matching steps (run by the cron; PRO-1524, 2026-07-23 — a former 4th-priority
 - **An invalid value is ignored, never rejected.** A value that starts with `vs_` but does not match the format is stored on the order like any other value and creates no binding; the order is written normally and there is no `errors[]` entry.
 - **No credit by itself.** A store-created token names the shopper; it carries no recommendation, so it never makes a purchase an email or storefront credit. Purchase credit still comes from `smaily_rec_id` / `smaily_rec_ctx` and email clicks, as above.
 - **Response.** The binding is not reported in the response; the response shape does not change.
+
+<a id="order-channel"></a>
+**Order channel** (v1.30.0). `channel: "in_store"` marks an order the customer made in the store's shop, not on its website.
+
+- **Credit.** An in-store order is credited by the same rules as any order ([Attribution is asynchronous](#5-post-apiv1ingestorders)): a recommendation the customer clicked in an email in the match window (default 30 days) before the order. A shop has no cookie, so an in-store order is normally credited through the customer's email click, or it is a `control_purchase`.
+- **What the store sees.** The store's console counts an in-store order in the same credited purchases as any order, in one of its three channels, and shows the part made in the store as one line, "of which in store". It is never a fourth channel.
+- **Measurement.** The holdout comparison counts every order of the store, in-store orders too, as before.
+- **Nothing else reads it.** Recommendations, triggers, return signals and the order counters treat an in-store order like any order.
+
+<a id="second-order-source"></a>
+**A second order source** (v1.30.0). A store may send orders from a second system (for example its tills) into the **same** engine store, next to its plugin. The second system:
+
+1. **Uses its own API key**, which a Smaily operator creates for the store. It does not run the setup exchange ([§1](#1-post-apisetupexchange)). Its key is a connection of the store like any other: while it is active, the store is not paused when the plugin disconnects ([§16](#16-post-apiv1storeuninstall)).
+2. **Prefixes its order ids** (`external_order_id`), for example `POS-1234`, so that no id equals an id of the plugin's orders. The order's natural key is `(store, external_order_id)`: an equal id replaces the other system's order.
+3. **Sends only orders with a customer email** (`customer_email` is required). An order without an email cannot be sent.
+4. **Uses the store's canonical SKUs**: the `sku` values the plugin sends in its catalog ([§3](#3-post-apiv1ingestcatalog)) — the platform's canonical id (for example `woo-<id>`), never the merchant's own SKU field. The engine knows a product only from the catalog; a line with a SKU that is not in it names no product the engine can recommend, and a store with a SKU-identity policy rejects an order whose SKU lacks the store's prefix.
+5. **Sends `channel: "in_store"` on every order**, also on every later sync of the same order. A sync without it stores `online`.
+6. **Sends no catalog, no catalog list and no history progress**: no call to §3, §3b, §3c or [§25](#25-post-apiv1ingesthistoryprogress). The plugin owns the catalog and the history import.
+7. **Sends customer rows only with fields it owns** ([§4](#4-post-apiv1ingestcustomers)). A sent value replaces the stored one; an omitted field keeps it. Do not send `external_id` or `website`: they are the website's customer id and website, which the store's pages use ([§15](#15-post-apiv1recommendationscustomer)). A customer row is optional — an order creates its customer from `customer_email`.
+8. **Sends no attribution fields** (`smaily_rec_id`, `smaily_visitor_token`, `smaily_rec_ctx`, `session_id`): a shop has no cookie.
+
+All other §5 rules apply unchanged: 1–50 orders per request, the history horizon, `event_id`, full replacement of the lines.
 
 <a id="rec-id-uuid-validation"></a>
 **`smaily_rec_id` is UUID-validated, and a bad value costs the order — not just the field.** The value is a `recommendations.rec_id`, so the route types it as a UUID (`z.string().uuid()`). A present-but-malformed value (a truncated cookie, a `rec_abc123`-style placeholder, an empty string) fails per-order validation: that order lands in `errors[]` with `field: "smaily_rec_id"` and is **not written** — the order's revenue is lost to the engine, not merely its attribution. This is the standard per-order rejection path described above: the rest of the batch still processes, the rejected order's `event_id` is not registered, and a corrected retry writes it normally. **Sender rule**: omit the field entirely when there is no cookie or the cookie value is not a well-formed UUID. Omitted is always safe — the order then attributes through the visitor-token or email-click mechanism, or as `control_purchase`. Do not send `""` or `null` ([attribution fields on a later sync](#attribution-fields-on-resync)).
@@ -2472,7 +2495,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/store/uninstall \
 
 | Field | Notes |
 | --- | --- |
-| `url` | Opaque one-time URL. Open it at once in a **new browser tab** (top-level navigation). A setup link is never framed: the engine refuses to show it in a frame. A design link (§22) may be framed under [§22 Embedding](#embedding). Do not store, log or send it anywhere else. |
+| `url` | Opaque one-time URL. Open it at once in a **new browser tab** (top-level navigation). A setup link is never framed: the engine refuses to show it in a frame. A design link (§22) may be framed under [§22 Embedding](#embedding); mint it with `display: "frame"` for a modal. Do not store, log or send it anywhere else. |
 | `expires_at` | Issue time + **5 minutes**. |
 
 **Rules**:
@@ -3128,19 +3151,22 @@ Engine emails keep the v1.15.0 design check: locked recommendation blocks, the u
 
 **Rate limit**: 10 requests per 60 seconds per store.
 
-**Request body** (all fields optional; `{}` is valid) — the same fields and rules as §17:
+**Request body** (all fields optional; `{}` is valid) — the fields and rules of §17, and two fields for a frame:
 
 ```json
 {
-  "return_url": "https://shop.example/wp-admin/admin.php?page=smaily-connect&tab=emails",
-  "language": "et"
+  "language": "et",
+  "display": "frame",
+  "frame_origin": "https://admin.shop.example"
 }
 ```
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `return_url` | string (URL), max 2048 | As in §17. |
+| `return_url` | string (URL), max 2048 | As in §17. A page in a frame shows "Close" and does not use it. |
 | `language` | ISO 639-1 | Language of the design page and of the starter copy. When absent or not supported, the store's default language. |
+| `display` | `"tab"` \| `"frame"` | **New in v1.31.0.** How the plugin opens the link. `"tab"` (default): a new browser tab, as in §17. `"frame"`: an iframe in a modal in the store admin, under [Embedding](#embedding). Any other value → 422. |
+| `frame_origin` | string, max 2048 | **New in v1.31.0.** The origin (scheme, host, optional port; no path) of the store-admin page that holds the frame, when it is not one of the origins of [Embedding](#embedding) rule 1 (a)–(c). Allowed only with `display: "frame"`. Accepted under rule 1 (d); otherwise → 422 with `field: "frame_origin"` and the reason. |
 
 **Response 200 OK** — as in §17:
 
@@ -3164,10 +3190,14 @@ Engine emails keep the v1.15.0 design check: locked recommendation blocks, the u
 
 **(v1.18.0, INT-147)** The page that a design link opens — the design page, or the setup page for an engine email key — may be shown in a frame (`<iframe>`) inside the store's admin. A new tab (§17) stays allowed.
 
-1. **Who may frame it.** The same origins that §21 `opener_origin` accepts (Erkki 2026-10-23), for the connection whose API key minted the link: (a) the origin of the connection's `plugin_info.site_url` (§1); (b) `https://admin.shopify.com`; (c) the app hosts the engine lists — the same list as for `opener_origin` (ask Smaily to add a Shopify app host, or a Magento admin that runs on its own host). The engine serves the page with `Content-Security-Policy: frame-ancestors <those origins>`, for example `frame-ancestors https://shop.example https://admin.shopify.com`. Scheme, host and port must match exactly; subdomains do not match. Browsers check every ancestor frame, so every page between the top window and the design page must be on one of those origins: an embedded Shopify app (`admin.shopify.com`, then the app host, then the design page) can frame it once its app host is listed. An origin under (a) that is not `https` is not accepted.
-2. **Session in a frame.** The page keeps its §17 session in a cookie that the browser may treat as a third-party cookie in a frame. When the browser refuses it, the page shows "Your browser does not allow this page inside your store — open it in a new tab" and nothing else. The plugin keeps an "Open in a new tab" choice next to the frame: it mints a new link and opens it top-level, as in §17.
+1. **Who may frame it.** The same origins that §21 `opener_origin` accepts (Erkki 2026-10-23), for the connection whose API key minted the link: (a) the origin of the connection's `plugin_info.site_url` (§1); (b) `https://admin.shopify.com`; (c) the app hosts the engine lists — the same list as for `opener_origin` (ask Smaily to add a Shopify app host). The engine serves the page with `Content-Security-Policy: frame-ancestors <those origins>`, for example `frame-ancestors https://shop.example https://admin.shopify.com`. Scheme, host and port must match exactly; subdomains do not match. Browsers check every ancestor frame, so every page between the top window and the design page must be on one of those origins: an embedded Shopify app (`admin.shopify.com`, then the app host, then the design page) can frame it once its app host is listed. An origin under (a) that is not `https` is not accepted. (d) **New in v1.31.0**: the `frame_origin` of the request ([request body](#22-post-apiv1emailsemail_keydesign-link)), when it is `https` and its host is in the same registrable domain as the host of `plugin_info.site_url` — for example `https://admin.shop.example` for the site `https://www.shop.example`. The registrable domain follows the Public Suffix List (`shop.example.co.uk` is one registrable domain; `example.co.uk` and `other.co.uk` are two). A Magento admin on an unrelated domain still needs (c). The engine stores `frame_origin` with the link only; it does not change the connection. The origins of (a)–(d) are the targets of the messages of rule 4.
+2. **Session in a frame.**
+   - **`display: "frame"` (v1.31.0).** The page keeps its session **in the page, not in a cookie**, so the browser's third-party cookie rules do not apply. The session follows the §17 rules (one store, no person, 60 minutes after the last action). Every action on the page keeps it: a save, a brand-kit change, a test send, the real-sends switch, a retry of the editor and the editor's own token requests. It ends when the frame is removed or reloaded: a reload of the frame shows "This link has expired — open the setup again from your store". The plugin therefore **mints a new link every time it opens the modal**, and never reuses or reloads the `url`.
+   - **No `display`, or `display: "tab"`.** As in v1.18.0: the session is a cookie. When the page runs in a frame and the browser refuses the cookie, the page shows "Your browser does not allow this page inside your store — open it in a new tab" and nothing else, and posts no `ready` (rule 4).
+   - **Both.** The plugin keeps an "Open in a new tab" choice next to the frame: it mints a new link with `display: "tab"` (or none) and opens it top-level, as in §17.
+   - A `display: "frame"` link opened in a top-level tab also works. The page then shows "Back to your store" when `return_url` was sent, posts no message, and its session also ends on a reload.
 3. **Close.** In a frame, the page shows a "Close" button in place of "Back to your store".
-4. **Message to the parent.** When the store saves the design, and when it presses "Close", the page posts one message to its parent window:
+4. **Messages to the parent.** In a frame, the page posts a message to its parent window when it is ready, when its unsaved state changes, when the store saves the design and when the store presses "Close". This holds for every design link in a frame, with or without `display` (v1.31.0):
 
    ```js
    window.parent.postMessage(
@@ -3179,9 +3209,23 @@ Engine emails keep the v1.15.0 design check: locked recommendation blocks, the u
    | Field | Type | Notes |
    | --- | --- | --- |
    | `type` | `"smaily_intelligence_design"` | Fixed. |
-   | `event` | `"saved"` \| `"closed"` | `saved`: a save stored a new `version` (it may still fail the design check or wait for its push — read §23). `closed`: the store pressed "Close". Unknown value: ignore the message. |
-   | `email_key` | string | The email key of the link (§22). After the store switches to another email on the page, the key of that email. |
-   | `version` | integer | `saved` only: the stored design version (§23 `version`). Absent for `closed`. |
+   | `event` | `"ready"` \| `"changes"` \| `"saved"` \| `"closed"` | `ready` (v1.31.0): the page has its session and shows the email; the editor may still be loading. `changes` (v1.31.0): the store's unsaved state changed; see `unsaved`. `saved`: a save stored a new `version` (it may still fail the design check or wait for its push — read §23). `closed`: the store pressed "Close" (after the page's own "Leave without saving?" question, when it asked one). Unknown value: ignore the message. |
+   | `email_key` | string | The email key of the link (§22). |
+   | `unsaved` | boolean | `changes` only (v1.31.0): `true` when the page holds changes that are not saved (in the editor or in the email's details), `false` after a save. Absent for the other events. |
+   | `version` | integer | `saved` only: the stored design version (§23 `version`). Absent for the other events. |
+
+   Example of the new events:
+
+   ```js
+   { type: 'smaily_intelligence_design', event: 'ready', email_key: 'plugin.abandoned_cart' }
+   { type: 'smaily_intelligence_design', event: 'changes', email_key: 'plugin.abandoned_cart', unsaved: true }
+   ```
+
+   **When the page posts each event:**
+
+   - `ready`: once each time the page loads with a session. With `display: "frame"` the page loads once per opening. Without `display`, a save, a brand-kit change and a retry load the page again, so the plugin can get `ready` more than once; a second `ready` changes nothing. A page without a session (an expired link, a refused cookie) posts no `ready`.
+   - `changes`: when `unsaved` changes from `false` to `true`, and from `true` to `false`. The page posts no `changes` for each keystroke. Until the first `changes`, `unsaved` is `false`.
+   - `saved`: after each stored save. `closed`: when the store presses "Close".
 
    The target origin follows rule 1 — never `*`: the page posts the message once with each origin of rule 1 as the target, and the browser delivers it only where the target matches the parent's origin. The message carries no session token, no link, no name and no email address. A page in a top-level tab posts no message.
 5. **What the plugin does with the message**:
@@ -3197,6 +3241,32 @@ Engine emails keep the v1.15.0 design check: locked recommendation blocks, the u
 
    The message is a hint, not a callback: the plugin reads §23 for the state and never takes a design state or a Smaily id from the message.
 
+   **v1.31.0 events in the plugin:**
+
+   - Show a loading state until `ready`. When no `ready` arrives within 20 seconds of setting the frame's `src`, show "The design page did not open — Open in a new tab" (a new link, `display: "tab"`). Do not use the iframe's `load` event for this: it fires also for an expired link and for the page that says the browser refused the cookie.
+   - After `ready`, the page itself shows the editor's loading state, the editor's 15-second "did not open" message and its Retry button. The plugin shows nothing more for the editor.
+   - Keep the last `unsaved` value. When the shop admin closes the modal with the plugin's own control (a close button, a click outside the modal, Escape) while `unsaved` is `true`, ask "Close without saving?" first.
+   - After `saved` and after `closed`, read §23 again, as before.
+
+   The page sends no `height`: the modal has a fixed size (rule 6). The page accepts no message from the parent.
+6. **The modal** (v1.31.0).
+   - **Size.** The design page contains a visual editor. Show the frame in a modal that covers the store admin's window with a small margin, at least **1024 × 640 CSS pixels**. When the frame is smaller, the page shows "Make the window larger, or open the design in a new tab" above the editor; the store can still use the page.
+   - **Iframe attributes.**
+
+     ```html
+     <iframe src="<url from the response>"
+             title="Email design"
+             allow="clipboard-read; clipboard-write; fullscreen"
+             referrerpolicy="no-referrer"
+             style="width:100%;height:100%;border:0"></iframe>
+     ```
+
+     `allow` passes the clipboard and full screen on to the editor; a browser ignores a value it does not know. `referrerpolicy="no-referrer"` keeps the admin page's address (for example a Magento admin URL with its secret key) out of the engine's request. Do not set `sandbox`. If the platform requires it, allow at least `allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads`; without `allow-same-origin` the page and the editor cannot run, and without `allow-modals` the page cannot ask "Leave without saving?".
+   - **One modal, one link.** Mint the link with `display: "frame"` when the shop admin presses "Edit design", and set it as the frame's `src` at once (the link expires after 5 minutes, §17 rule 1). On close, remove the frame. On the next "Edit design", mint a new link.
+   - **Timing.** Start the 20-second wait for `ready` (rule 4) when the frame's `src` is set.
+   - **Shopify.** In an embedded app, open the frame from the app's own page in a large modal. Every page on the chain from the top window to the design page (`admin.shopify.com`, the app host, the design page) must be an origin of rule 1, so the app host must be on the engine's list (rule 1 (c)).
+   - **Do not** read the frame's content, inject script into it, or pass the link anywhere else (§17: "Do not store, log or send it anywhere else").
+
 **Not in v1.18.0**: creating a Smaily automation from the plugin (it waits on Smaily's automations API).
 
 
@@ -3207,7 +3277,7 @@ Engine emails keep the v1.15.0 design check: locked recommendation blocks, the u
 | 401 | `unauthorised` | Missing, unknown or revoked key, as in [Authentication](#authentication). |
 | 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
 | 404 | `unknown_email` | `{email_key}` is not a catalogue key of this store and has no starter. |
-| 422 | `validation_failed` | `return_url` or `language` is invalid (the §17 shape). |
+| 422 | `validation_failed` | `return_url`, `language`, `display` or `frame_origin` is invalid (the §17 shape). |
 | 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). |
 
 **Idempotency**: none needed. Each call mints a new link.
@@ -4060,6 +4130,19 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **§24.** Console entry goes on together with the engine release of the frame mode; it is still off.
 - **What the plugin does.** Build the button, the modal host, the message listener and the automatic import, and **keep the new-window flow and the paste-link field as the fallback**: an engine without the frame mode ignores the new fields and sends no `display`. **A plugin built for v1.16.0–v1.28.0 keeps working unchanged.**
 - **Shapes.** Request: optional `display`, `frame_origin`, `admin_email`, `language` (§21). Response: optional `display` (§21). Error: `frame_origin_not_allowed` (§21). Window message: `smaily_intelligence_onboarding` (§21).
+
+**v1.30.0** (2026-11-13) — **Where an order was made**. MINOR bump per the [Versioning](#versioning) rule (one new optional field; backward-compatible). Erkki's decision 2026-11-13.
+- **§5 `channel`** (new, optional): `online` or `in_store`; missing = `online`; another value rejects the order and names `channel`; replaced on a later sync like the other order columns.
+- **Credit and console.** An in-store order is credited by the same rules as any order; the console shows the credited part made in the store as "of which in store". The holdout comparison counts every order, as before.
+- **A second order source** (§5): its own API key, prefixed order ids, only orders with a customer email, the store's canonical SKUs, `channel: "in_store"` on every sync, no catalog, catalog list or history progress, customer rows only with fields it owns, no attribution fields.
+- **What the plugin does.** Nothing. **A plugin that never sends `channel` keeps working unchanged.**
+
+**v1.31.0** (2026-11-13) — **The design page in a modal**. MINOR bump per the [Versioning](#versioning) rule (new optional fields and new message events; backward-compatible). INT-14, Erkki's decisions 2026-11-04; published after the cross-site frame test in Safari passed (Erkki, 2026-11-13). Drafted as v1.26.0 and published as v1.31.0: v1.26.0 was never published, and the numbers 1.27–1.30 were taken meanwhile.
+- **§22 `display`.** A design link minted with `display: "frame"` keeps its session in the page, not in a cookie: the page and its editor work in a frame inside the store admin in every browser, also where third-party cookies are blocked. A reload of the frame ends the session; the plugin mints a new link for every opening. Without `display`, a link behaves as in v1.18.0.
+- **§22 `frame_origin`.** The plugin may name the origin of its admin page; the engine accepts an `https` origin in the same registrable domain as `plugin_info.site_url` (a Magento admin on its own subdomain). An unrelated domain still needs the engine's list.
+- **§22 messages.** New events `ready` and `changes` (`unsaved`), posted in every frame, also for a link without `display`; `saved` and `closed` unchanged. The `email_key` row no longer mentions a switch to another email (the page has none).
+- **§22 *Embedding* rule 6.** Modal size (at least 1024 × 640), iframe attributes, one link per opening, 20 seconds for `ready`.
+- **What the plugin does.** Nothing is required. **A plugin built for v1.18.0 or later keeps working unchanged**: without `display`, a link behaves as before (cookie session, in a tab or in a frame), and the plugin ignores the new `ready` and `changes` events as rule 4 asks. To show the page in a modal in every browser, mint with `display: "frame"` and follow rules 4–6.
 
 ### Appendix F: Migration notes
 
