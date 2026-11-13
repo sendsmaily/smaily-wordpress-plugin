@@ -2077,9 +2077,15 @@ A row whose `row_to_object()` throws (its stored data cannot be built) is
 marked failed ALONE — reason `<Class> at file:line`, `last_response`
 `{outcome: "not_built"}` — and the rest of the batch is sent (CON-302).
 Left pending it would come first in every later flush of its event type and
-stop each one, live sync included. An import's own enqueue step (the
-catalog import loads each product there) is not covered: an error there
-still fails the import (PRO-3890).
+stop each one, live sync included. The catalog import loads each product
+earlier, while it queues them: a product that throws there gets the same
+failed `not_built` row at once (its parent id, `catalog.delete` if trashed,
+else `catalog.upsert`, no object) and the import goes on (CON-304,
+`CatalogBackfillJob::enqueue_record()`). A throw after a failed query
+(`$wpdb->last_error` set) is a database error and still fails the import
+(PRO-3890) — `$wpdb` itself never throws, so test that path with a filter
+that runs a bad query before it throws (`RecEngineImportStopTest`). The
+queue writes stay outside that catch.
 
 
 ## Linear discipline (Smaily process bridge)

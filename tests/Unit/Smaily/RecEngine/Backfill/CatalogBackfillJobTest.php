@@ -34,6 +34,7 @@ final class CatalogBackfillJobTest extends TestCase {
 	protected function tearDown(): void {
 		Monkey\tearDown();
 		parent::tearDown();
+		unset( $GLOBALS['wpdb'] );
 	}
 
 	public function test_published_product_enqueues_upsert(): void {
@@ -121,6 +122,61 @@ final class CatalogBackfillJobTest extends TestCase {
 		$job->run( 100 );
 
 		self::assertSame( array(), $queue->enqueued );
+	}
+
+	public function test_a_product_that_throws_while_it_loads_fails_alone_and_the_next_one_is_queued(): void {
+		// CON-304: a product the import cannot load is queued already failed —
+		// the error type and where it was thrown, never its text — and the
+		// import goes on to the next product.
+		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+		$queue = $this->fake_queue();
+		$good  = $this->fake_product( 101, 'SKU-GOOD' );
+		$job   = $this->job( $queue, array( 100 => new \RuntimeException( 'cannot read jane@example.com' ), 101 => $good ), array( $good ) );
+
+		$job->run( 100 );
+		$job->run( 101 );
+
+		self::assertCount( 2, $queue->enqueued );
+		self::assertSame( CatalogHookHandler::EVENT_CATALOG_UPSERT, $queue->enqueued[0]['type'] );
+		self::assertSame( '100', $queue->enqueued[0]['entity_id'] );
+		self::assertSame( array(), $queue->enqueued[0]['payload'] );
+		self::assertCount( 1, $queue->failed, 'Only the broken product fails.' );
+		self::assertSame( 1, $queue->failed[0]['id'] );
+		self::assertMatchesRegularExpression( '/^RuntimeException at CatalogBackfillJobTest\.php:\d+$/', $queue->failed[0]['error'] );
+		self::assertSame( array( 1 => array( null, '{"outcome":"not_built"}' ) ), $queue->exchanges, 'Nothing was sent; the Event Log shows it was not built.' );
+		self::assertSame( CatalogHookHandler::EVENT_CATALOG_UPSERT, $queue->enqueued[1]['type'] );
+		self::assertSame( '101', $queue->enqueued[1]['entity_id'], 'The next product is queued as usual.' );
+	}
+
+	public function test_a_trashed_product_that_throws_while_it_loads_fails_as_a_removal(): void {
+		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+		$queue = $this->fake_queue();
+		$job   = $this->job( $queue, array( 100 => new \TypeError( 'bad' ) ), array(), array( 'status' => array( 100 => 'trash' ) ) );
+
+		$job->run( 100 );
+
+		self::assertCount( 1, $queue->enqueued );
+		self::assertSame( CatalogHookHandler::EVENT_CATALOG_DELETE, $queue->enqueued[0]['type'] );
+		self::assertSame( array(), $queue->enqueued[0]['payload'], 'No captured object: a Retry builds the tombstone from the id (PRO-1506).' );
+		self::assertMatchesRegularExpression( '/^TypeError at CatalogBackfillJobTest\.php:\d+$/', $queue->failed[0]['error'] );
+	}
+
+	public function test_an_error_after_a_failed_database_query_is_thrown_on(): void {
+		// PRO-3890 kept: the same error after a failed query is a database
+		// error, not a broken product, so it stops the import.
+		$GLOBALS['wpdb'] = (object) array( 'last_error' => "Table 'wp_postmeta' doesn't exist" );
+		$queue           = $this->fake_queue();
+		$job             = $this->job( $queue, array( 100 => new \RuntimeException( 'Invalid product.' ) ), array() );
+
+		try {
+			$job->run( 100 );
+			self::fail( 'A database error must stop the import.' );
+		} catch ( \RuntimeException $e ) {
+			self::assertSame( 'Invalid product.', $e->getMessage() );
+		}
+
+		self::assertSame( array(), $queue->enqueued, 'Nothing is queued for it.' );
+		self::assertSame( array(), $queue->failed );
 	}
 
 	public function test_translation_of_published_canonical_is_collapsed_away(): void {
@@ -250,6 +306,23 @@ final class CatalogBackfillJobTest extends TestCase {
 				);
 				return count( $this->enqueued );
 			}
+
+			/** @var array<int, array{id:int, error:string}> */
+			public array $failed = array();
+
+			/** @var array<int, array{0:string|null, 1:string|null}> */
+			public array $exchanges = array();
+
+			public function mark_failed( int $id, string $error ): void {
+				$this->failed[] = array(
+					'id'    => $id,
+					'error' => $error,
+				);
+			}
+
+			public function store_exchange( int $id, ?string $sent_payload, ?string $last_response ): void {
+				$this->exchanges[ $id ] = array( $sent_payload, $last_response );
+			}
 		};
 	}
 
@@ -320,7 +393,7 @@ final class CatalogBackfillJobTest extends TestCase {
 	}
 
 	/**
-	 * @param array<int, \WC_Product>                        $products_by_id get_product() lookup.
+	 * @param array<int, \WC_Product|\Throwable>             $products_by_id get_product() lookup; a Throwable is thrown.
 	 * @param array<int, \WC_Product>                        $expand_units   builder->expand() result.
 	 * @param array{canonical?: array<int,int>, status?: array<int,string>, enumerated?: array<int,int>, ids?: array<int,int>, batch_size?: int, log?: \ArrayObject<int,string>} $opts
 	 */
@@ -338,7 +411,7 @@ final class CatalogBackfillJobTest extends TestCase {
 		$flusher = $this->createMock( IngestFlusher::class );
 
 		return new class( $queue, $flusher, $builder, $detector, $products_by_id, $status_map, $enumerated, $opts ) extends CatalogBackfillJob {
-			/** @var array<int, \WC_Product> */
+			/** @var array<int, \WC_Product|\Throwable> */
 			private array $products_by_id;
 			/** @var array<int, string> */
 			private array $status_map;
@@ -351,7 +424,7 @@ final class CatalogBackfillJobTest extends TestCase {
 			private \ArrayObject $log;
 
 			/**
-			 * @param array<int, \WC_Product> $products_by_id
+			 * @param array<int, \WC_Product|\Throwable> $products_by_id
 			 * @param array<int, string>      $status_map
 			 * @param array<int, int>         $enumerated
 			 * @param array{ids?: array<int,int>, batch_size?: int, log?: \ArrayObject<int,string>} $opts
@@ -381,7 +454,11 @@ final class CatalogBackfillJobTest extends TestCase {
 			}
 
 			protected function get_product( int $product_id ): ?\WC_Product {
-				return $this->products_by_id[ $product_id ] ?? null;
+				$product = $this->products_by_id[ $product_id ] ?? null;
+				if ( $product instanceof \Throwable ) {
+					throw $product;
+				}
+				return $product;
 			}
 
 			protected function post_status( int $post_id ): string {
