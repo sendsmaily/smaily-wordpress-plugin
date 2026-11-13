@@ -47,14 +47,25 @@ final class TranslatePressAdapter implements DetectorInterface {
 		return is_array( $languages ) ? array_values( array_map( 'strval', $languages ) ) : array();
 	}
 
+	/**
+	 * The language of the storefront the visitor is on (CON-203):
+	 * TranslatePress's global `$TRP_LANGUAGE`, which it sets early on every
+	 * request but cron (`plugins_loaded`) from the request URL's language
+	 * slug — the default language when the URL has none — and which its own
+	 * `locale` filter returns on the front end. Before TranslatePress has
+	 * set it (cron, a request it skipped), the store's default language.
+	 */
 	public function get_current_language(): string {
-		$settings = get_option( 'trp_settings', array() );
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase -- TranslatePress's own global.
+		global $TRP_LANGUAGE;
 
-		if ( is_array( $settings ) && isset( $settings['default-language'] ) ) {
-			return (string) $settings['default-language'];
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase -- TranslatePress's own global.
+		if ( is_string( $TRP_LANGUAGE ) && trim( $TRP_LANGUAGE ) !== '' ) {
+			// phpcs:ignore WordPress.NamingConventions.ValidVariableName.VariableNotSnakeCase -- TranslatePress's own global.
+			return trim( $TRP_LANGUAGE );
 		}
 
-		return function_exists( 'get_locale' ) ? (string) get_locale() : '';
+		return $this->get_default_language();
 	}
 
 	public function get_translated_post_id( int $post_id, string $language ): ?int {

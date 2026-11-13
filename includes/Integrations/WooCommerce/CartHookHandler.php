@@ -14,7 +14,6 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Multilingual\SiteLocaleAdapter;
-use Smaily\Connect\Multilingual\TranslatePressAdapter;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\CartSessionStore;
 
@@ -303,12 +302,12 @@ class CartHookHandler {
 	 *
 	 * '' (record nothing) when no multilingual plugin can tell: on a
 	 * single-language store the "current language" is the site locale, which
-	 * is never a contact language source (F3-47), and the TranslatePress
-	 * adapter reports the store's default language, not the shopper's.
+	 * is never a contact language source (F3-47). TranslatePress reports the
+	 * shopper's storefront language like WPML and Polylang (CON-203).
 	 */
 	private function storefront_language(): string {
 		$detector = $this->detector ?? DetectorFactory::create();
-		if ( $detector instanceof SiteLocaleAdapter || $detector instanceof TranslatePressAdapter ) {
+		if ( $detector instanceof SiteLocaleAdapter ) {
 			return '';
 		}
 

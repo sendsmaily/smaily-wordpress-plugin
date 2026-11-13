@@ -284,11 +284,37 @@ final class CartHookHandlerTest extends TestCase {
 		self::assertSame( '', $this->store->upserts[0]['language'] );
 	}
 
-	public function test_no_language_is_recorded_on_translatepress(): void {
-		// Its adapter reports the store default, not the shopper's language.
-		$this->handler( 'tok', $this->cart( array( array( 'product_id' => 5, 'quantity' => 1 ) ) ), new TranslatePressAdapter() )->on_cart_updated();
+	/**
+	 * CON-203: on TranslatePress the cart records the storefront the shopper
+	 * is on — TranslatePress's `$TRP_LANGUAGE` — not the store default.
+	 */
+	public function test_a_translatepress_cart_records_the_shoppers_storefront_language(): void {
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $fallback = false ) {
+				if ( $key === 'smly_plus_setup_completed' ) {
+					return true;
+				}
+				if ( $key === \Smaily_Connect\Includes\Options::ABANDONED_CART_STATUS_OPTION ) {
+					return array(
+						'enabled'          => true,
+						'autoresponder_id' => 0,
+					);
+				}
+				if ( $key === 'trp_settings' ) {
+					return array( 'default-language' => 'et' );
+				}
+				return $fallback;
+			}
+		);
+		$GLOBALS['TRP_LANGUAGE'] = 'en_GB';
 
-		self::assertSame( '', $this->store->upserts[0]['language'] );
+		try {
+			$this->handler( 'tok', $this->cart( array( array( 'product_id' => 5, 'quantity' => 1 ) ) ), new TranslatePressAdapter() )->on_cart_updated();
+		} finally {
+			unset( $GLOBALS['TRP_LANGUAGE'] );
+		}
+
+		self::assertSame( 'en_GB', $this->store->upserts[0]['language'] );
 	}
 
 	// --- helpers -------------------------------------------------------------
