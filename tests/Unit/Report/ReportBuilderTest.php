@@ -95,7 +95,7 @@ final class ReportBuilderTest extends TestCase {
 		self::assertSame(
 			array(
 				'product'          => 'connect_woocommerce',
-				'product_version'  => '3.21.1',
+				'product_version'  => '3.22.0',
 				'platforms'        => array(
 					array(
 						'name'    => 'wordpress',
