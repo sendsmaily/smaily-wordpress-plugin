@@ -22,6 +22,7 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
+use Smaily\Connect\Support\UpgradeLock;
 
 // phpcs:disable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- test fixtures on the plugin's own table.
 
@@ -34,7 +35,11 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *   - a completed orders run with a 3.20 bare-id cursor gets a stray tick:
  *     nothing reaches the engine;
  *   - a store 3.21.0 left without a finished history import gets the
- *     sequence once more; one whose history import completed does not.
+ *     sequence once more; one whose history import completed does not;
+ *   - an upgrade that throws on a queue run does not end the run: another
+ *     plugin's action in it still runs (CON-291);
+ *   - a schema version recorded without its column starts no import, the
+ *     background checks stop coming back, and the card says why (CON-291).
  */
 final class RecEngineSchemaGateTest extends TestCase {
 
@@ -172,6 +177,77 @@ final class RecEngineSchemaGateTest extends TestCase {
 		self::assertSame( array(), $this->stored_sequence() );
 		self::assertFalse( $this->tick_queued( 'products' ) );
 		self::assertSame( '1', get_option( ImportsOnConnect::OPTION_RERUN_CHECKED ), 'Decided once.' );
+	}
+
+	public function test_an_upgrade_error_on_a_queue_run_leaves_the_rest_of_the_run_running(): void {
+		$hook  = 'smaily_test_other_plugin_action';
+		$group = 'smaily-test-other-plugin';
+		$ran   = 0;
+		$other = static function () use ( &$ran ): void {
+			++$ran;
+		};
+		$fail  = static function (): void {
+			throw new \RuntimeException( 'The upgrade failed.' );
+		};
+		$one   = static fn (): int => 1;
+		$stop  = static fn (): bool => true;
+		add_action( $hook, $other );
+		// The Migrator reads this option first thing in its run.
+		add_filter( 'pre_option_' . Migrator::OPTION_DEFERRED, $fail );
+		// Only the one action this test queues: the first claimed, one batch.
+		add_filter( 'action_scheduler_queue_runner_batch_size', $one );
+		add_filter( 'action_scheduler_maximum_execution_time_likely_to_be_exceeded', $stop );
+		update_option( Activation::OPTION_PLUGIN_VERSION, '0.0.0-pre' );
+		as_schedule_single_action( time() - YEAR_IN_SECONDS, $hook, array(), $group, false, 0 );
+
+		try {
+			\ActionScheduler_QueueRunner::instance()->run( 'Smaily Connect integration test' );
+			wp_cache_delete( Activation::OPTION_PLUGIN_VERSION, 'options' );
+			$stamp = get_option( Activation::OPTION_PLUGIN_VERSION );
+			wp_cache_delete( UpgradeLock::OPTION, 'options' );
+			$lock = get_option( UpgradeLock::OPTION, '' );
+		} finally {
+			remove_action( $hook, $other );
+			remove_filter( 'pre_option_' . Migrator::OPTION_DEFERRED, $fail );
+			remove_filter( 'action_scheduler_queue_runner_batch_size', $one );
+			remove_filter( 'action_scheduler_maximum_execution_time_likely_to_be_exceeded', $stop );
+			as_unschedule_all_actions( '', array(), $group );
+			update_option( Activation::OPTION_PLUGIN_VERSION, SMAILY_CONNECT_VERSION );
+		}
+
+		self::assertSame( 1, $ran, "Another plugin's action in the same run still ran." );
+		self::assertSame( '0.0.0-pre', $stamp, 'The version is not stamped: the next run tries again.' );
+		self::assertSame( '', $lock, 'The upgrade lock is released.' );
+	}
+
+	public function test_a_recorded_schema_without_its_column_starts_no_import_and_says_why(): void {
+		$this->make_product();
+		$this->connect( 'tok_schema_failed' );
+		// The update recorded schema 13, but the database refused the column.
+		$this->drop_sent_count();
+		Migrator::forget_schema_check();
+		self::assertSame( Migrator::REQUIRED_VERSION, (int) get_option( Constants::OPTION_SCHEMA_VERSION ) );
+		self::$engine->reset_request_count();
+
+		$this->unschedule_all();
+		do_action( ImportsOnConnect::HOOK );
+		do_action( BackfillJobInterface::TICK_HOOK, 'products' );
+		do_action( HistoryProgress::HOOK );
+
+		self::assertSame( array(), self::$engine->request_paths(), 'Nothing reaches the engine.' );
+		self::assertFalse( $this->tick_queued( 'products' ), 'The tick chain ends.' );
+		self::assertFalse( as_has_scheduled_action( ImportsOnConnect::HOOK, array(), EventQueue::AS_GROUP ), 'The sequence check does not come back.' );
+		self::assertFalse( as_has_scheduled_action( HistoryProgress::HOOK, array(), HistoryProgress::AS_GROUP ), 'The progress check does not come back.' );
+		self::assertSame( self::TYPES, $this->stored_sequence(), 'The sequence is kept for when the column is there.' );
+
+		$start = RestRequestHelper::post( '/backfill/start', array( 'job_type' => 'orders' ) );
+		self::assertSame( 500, $start->get_status() );
+		self::assertSame( 'schema_incomplete', $start->get_data()['error'] );
+		self::assertFalse( $this->tick_queued( 'orders' ), 'Import now starts nothing.' );
+
+		$status = RestRequestHelper::get( '/backfill/status', array( 'job_type' => 'orders' ) )->get_data();
+		self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'] );
+		self::assertSame( 'This import cannot run: the plugin did not finish its database update. Contact Smaily support.', $status['error'] );
 	}
 
 	// --- helpers -----------------------------------------------------------

@@ -67,6 +67,14 @@ final class Migrator {
 	/** The versions of deferred `.php` migrations, retried first on every later call. */
 	public const OPTION_DEFERRED = 'smly_plus_schema_deferred';
 
+	/** The table and column REQUIRED_VERSION adds (migration 013) — what schema_ready() checks (CON-291). */
+	private const REQUIRED_TABLE = 'smly_plus_backfill_job';
+
+	private const REQUIRED_COLUMN = 'sent_count';
+
+	/** Whether REQUIRED_COLUMN exists, read once a request; null = not read yet. */
+	private static ?bool $column_present = null;
+
 	private string $migrations_dir;
 
 	public function __construct( ?string $migrations_dir = null ) {
@@ -118,17 +126,65 @@ final class Migrator {
 			update_option( Constants::OPTION_SCHEMA_VERSION, $version, false );
 		}
 
+		// A step of this call may have added the column.
+		self::forget_schema_check();
+
 		return $applied;
 	}
 
 	/**
-	 * Whether the stored schema has reached REQUIRED_VERSION — what the
-	 * background import work checks before it touches the backfill table
-	 * (CON-282). After a background auto-update the new code runs before
-	 * any upgrade did; until this is true it waits.
+	 * Whether the stored schema has reached REQUIRED_VERSION and the column
+	 * it adds exists — what the background import work checks before it
+	 * touches the backfill table (CON-282). After a background auto-update
+	 * the new code runs before any upgrade did; until this is true it waits.
+	 * The version alone is not enough (CON-291): dbDelta() reports nothing,
+	 * so a `.sql` step the database refused is recorded as applied.
 	 */
 	public static function schema_ready(): bool {
+		return self::version_reached() && self::column_present() === true;
+	}
+
+	/**
+	 * Whether the update recorded REQUIRED_VERSION but the column is not
+	 * there (CON-291): no later upgrade adds it, so the imports cannot start
+	 * and their background checks stop waiting for it. False while the
+	 * column cannot be read (a database error decides nothing).
+	 */
+	public static function schema_failed(): bool {
+		return self::version_reached() && self::column_present() === false;
+	}
+
+	/**
+	 * Read the column again on the next check — after a migration run, and
+	 * in tests that change the table.
+	 */
+	public static function forget_schema_check(): void {
+		self::$column_present = null;
+	}
+
+	private static function version_reached(): bool {
 		return (int) get_option( Constants::OPTION_SCHEMA_VERSION, 0 ) >= self::REQUIRED_VERSION;
+	}
+
+	/**
+	 * Whether REQUIRED_COLUMN exists, read once a request; null when the
+	 * database could not answer (not remembered — the next call asks again).
+	 */
+	private static function column_present(): ?bool {
+		if ( self::$column_present !== null ) {
+			return self::$column_present;
+		}
+
+		global $wpdb;
+		$table = $wpdb->prefix . self::REQUIRED_TABLE;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- the plugin's own table; remembered for the request above.
+		$found = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", self::REQUIRED_COLUMN ) );
+		if ( $found === null && (string) ( $wpdb->last_error ?? '' ) !== '' ) {
+			return null;
+		}
+		self::$column_present = $found !== null;
+
+		return self::$column_present;
 	}
 
 	/**

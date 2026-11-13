@@ -23,6 +23,7 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Tests\Unit\Support\SchemaColumnWpdb;
 
 final class HistoryProgressTest extends TestCase {
 
@@ -62,8 +63,11 @@ final class HistoryProgressTest extends TestCase {
 		parent::setUp();
 		Monkey\setUp();
 
-		// The update has reached the schema this code needs (CON-282).
+		// The update has reached the schema this code needs (CON-282), its
+		// column included (CON-291).
 		$this->options[ Constants::OPTION_SCHEMA_VERSION ] = Migrator::REQUIRED_VERSION;
+		$GLOBALS['wpdb'] = new SchemaColumnWpdb( true );
+		Migrator::forget_schema_check();
 
 		$options = &$this->options;
 		Functions\when( 'get_option' )->alias(
@@ -113,6 +117,8 @@ final class HistoryProgressTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		Migrator::forget_schema_check();
+		unset( $GLOBALS['wpdb'] );
 		Monkey\tearDown();
 		parent::tearDown();
 	}
@@ -725,6 +731,26 @@ final class HistoryProgressTest extends TestCase {
 		self::assertSame( array(), $this->sent );
 		self::assertFalse( $this->options[ HistoryProgress::OPTION ]['ended'] );
 		self::assertCount( 1, $this->scheduled );
+	}
+
+	/**
+	 * CON-291: the update recorded the schema without its column, which no
+	 * later check adds. The check reports nothing, ends nothing and does not
+	 * come back; the hourly registration does not arm it either.
+	 */
+	public function test_without_the_column_the_check_stops_coming_back(): void {
+		$this->begin_with_sequence();
+		$this->orders_running( 410, 25 );
+		$GLOBALS['wpdb'] = new SchemaColumnWpdb( false );
+		Migrator::forget_schema_check();
+		$this->scheduled = array();
+
+		$this->progress()->run();
+		$this->progress()->ensure_scheduled();
+
+		self::assertSame( array(), $this->sent );
+		self::assertFalse( $this->options[ HistoryProgress::OPTION ]['ended'], 'Not ended: it goes on once the column is there.' );
+		self::assertSame( array(), $this->scheduled, 'No check is armed.' );
 	}
 
 	/**

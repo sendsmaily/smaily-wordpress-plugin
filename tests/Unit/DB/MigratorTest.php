@@ -17,6 +17,7 @@ use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Constants;
 use Smaily\Connect\DB\Migrator;
+use Smaily\Connect\Tests\Unit\Support\SchemaColumnWpdb;
 
 final class MigratorTest extends TestCase {
 
@@ -31,6 +32,7 @@ final class MigratorTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		Migrator::forget_schema_check();
 		$this->remove_dir( $this->tmp_dir );
 		Monkey\tearDown();
 		parent::tearDown();
@@ -362,7 +364,8 @@ final class MigratorTest extends TestCase {
 	}
 
 	public function test_the_schema_is_ready_once_the_required_version_is_stored(): void {
-		$stored = Migrator::REQUIRED_VERSION - 1;
+		$GLOBALS['wpdb'] = new SchemaColumnWpdb( true );
+		$stored          = Migrator::REQUIRED_VERSION - 1;
 		Functions\when( 'get_option' )->alias(
 			static function () use ( &$stored ) {
 				return $stored;
@@ -370,8 +373,53 @@ final class MigratorTest extends TestCase {
 		);
 
 		self::assertFalse( Migrator::schema_ready() );
+		self::assertFalse( Migrator::schema_failed(), 'Before the update the imports wait.' );
+		self::assertSame( 0, $GLOBALS['wpdb']->reads, 'The column is not read before the version is there.' );
 		$stored = Migrator::REQUIRED_VERSION;
 		self::assertTrue( Migrator::schema_ready() );
+		self::assertFalse( Migrator::schema_failed() );
+	}
+
+	/**
+	 * CON-291: dbDelta() reports nothing, so a refused ALTER is recorded as
+	 * applied. The version is there, the column is not: not ready, failed.
+	 */
+	public function test_a_recorded_version_without_its_column_is_failed_not_ready(): void {
+		$GLOBALS['wpdb'] = new SchemaColumnWpdb( false );
+		Functions\when( 'get_option' )->justReturn( Migrator::REQUIRED_VERSION );
+
+		self::assertFalse( Migrator::schema_ready() );
+		self::assertTrue( Migrator::schema_failed() );
+		self::assertSame( "SHOW COLUMNS FROM wp_smly_plus_backfill_job LIKE 'sent_count'", $GLOBALS['wpdb']->last_sql );
+	}
+
+	public function test_a_column_read_error_is_neither_ready_nor_failed_and_is_asked_again(): void {
+		$wpdb            = new SchemaColumnWpdb( null );
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Migrator::REQUIRED_VERSION );
+
+		self::assertFalse( Migrator::schema_ready() );
+		self::assertFalse( Migrator::schema_failed(), 'A database error decides nothing.' );
+
+		$wpdb->present = true;
+		self::assertTrue( Migrator::schema_ready(), 'An error is not remembered.' );
+	}
+
+	public function test_the_column_is_read_once_a_request_until_a_migration_run(): void {
+		$wpdb            = new SchemaColumnWpdb( false );
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Migrator::REQUIRED_VERSION );
+
+		self::assertTrue( Migrator::schema_failed() );
+		$wpdb->present = true;
+		self::assertFalse( Migrator::schema_ready(), 'Remembered for the request.' );
+		self::assertTrue( Migrator::schema_failed() );
+		self::assertSame( 1, $wpdb->reads, 'One read for every check of the request.' );
+
+		( new Migrator( $this->tmp_dir ) )->migrate();
+
+		self::assertTrue( Migrator::schema_ready(), 'A migration run reads the column again.' );
+		self::assertSame( 2, $wpdb->reads );
 	}
 
 	/**
