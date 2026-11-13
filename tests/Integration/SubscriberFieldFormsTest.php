@@ -114,7 +114,10 @@ final class SubscriberFieldFormsTest extends TestCase {
 		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
 		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
 
+		// A guest: a subscribed customer is not offered the box again.
+		wp_set_current_user( 0 );
 		$checkout = $this->checkout_fields();
+		RestRequestHelper::login_as_admin();
 		self::assertSame( array(), $checkout['billing'] );
 		self::assertSame( array( 'user_newsletter' ), array_keys( $checkout['order'] ), 'The newsletter box is the one field added.' );
 		self::assertSame( array(), $checkout['shipping'] );
