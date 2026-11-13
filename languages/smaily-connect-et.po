@@ -2852,6 +2852,12 @@ msgstr "Saada uuesti"
 msgid "Not sent: the store has more than %s products, the most the nightly product list can hold."
 msgstr "Saatmata: poes on üle %s toote — see on suurim arv, mida öine tooteloend mahutab."
 
+#. translators: 1: products that could not be loaded, 2: products in the list, 3: the most that may fail to load, in percent, e.g. "20".
+#: includes/Smaily/RecEngine/CatalogManifest.php:330
+#, php-format
+msgid "Not sent: %1$s of %2$s products could not be loaded, more than %3$s%%. The list would have marked them all out of stock."
+msgstr "Saatmata: %2$s tootest %1$s ei õnnestunud laadida — üle %3$s%%. Loend oleks märkinud need kõik laost otsas olevaks."
+
 #. translators: %s: the error type and where it happened, e.g. "RuntimeException at CatalogBackfillJob.php:144".
 #: includes/Smaily/RecEngine/CatalogManifest.php:259
 #, php-format

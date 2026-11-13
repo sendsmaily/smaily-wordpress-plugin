@@ -422,7 +422,23 @@ retries included). Past those, the night's ONE `catalog.manifest` row is
 written BEFORE the walk (PRO-3987 — a run the host kills mid-walk leaves it
 `pending`, and the next night reuses it) and the run raises its PHP time
 limit to `TIME_LIMIT_SECONDS` (only when the current limit is lower and not
-0). Over 50,000 items, a Throwable while building, or a non-API Throwable
+0). **A product that cannot be loaded is never left out (CON-312):** one
+that throws while it is loaded or listed, a published one that loads as
+nothing (the CC.4 gap) and a variation that loads as nothing are listed
+`in_stock=false` from their database ids (`SkuResolver::resolve_id()`; a
+variable product — its `product_type` term — as its publish/private
+`product_variation` children, the one extra read), with a debug line naming
+the id + error class + file:line; the rest is sent — unless more than
+`CatalogManifest::MAX_UNLOADABLE_PERCENT` (20, the engine's own §3c guard
+figure) of the products the list covers could not be loaded: products are
+parent posts (a collapsed translation not counted, a variation that loads as
+nothing not counted as one), not skus, counted by `manifest_items()`'s
+`$counts`; over it the row is FAILED (`too_many_unloadable` + the counts)
+and nothing is sent. Left out, the engine
+would tombstone it (`recommendable=false` comes back only with a §3 upsert).
+A throw while `$wpdb->last_error` is set (CON-304's rule), a failed read in
+that fallback, or a throwing multilingual detector still fails the night.
+Over 50,000 items, any other Throwable while building, or a non-API Throwable
 while sending: that row is marked FAILED with a plain reason (error class +
 file:line, never the message). PHP stopping the run (time/memory limit,
 another fatal, exit) is caught by a `shutdown` hook that exists only while

@@ -96,19 +96,26 @@ class CatalogPayloadBuilder {
 	 *         SKU-less units synthetically via SkuResolver (F3-36).
 	 */
 	public function expand( \WC_Product $product ): array {
+		return array_values( array_filter( $this->expand_by_id( $product ) ) );
+	}
+
+	/**
+	 * expand() keyed by unit id, with a variation WooCommerce cannot load
+	 * kept as null instead of left out — the nightly manifest lists it out
+	 * of stock rather than leave it out (CON-312).
+	 *
+	 * @return array<int, \WC_Product|null>
+	 */
+	public function expand_by_id( \WC_Product $product ): array {
 		if ( $product->is_type( 'variable' ) ) {
 			$units = array();
 			foreach ( $product->get_children() as $variation_id ) {
-				$variation = $this->get_product( (int) $variation_id );
-				if ( $variation === null ) {
-					continue;
-				}
-				$units[] = $variation;
+				$units[ (int) $variation_id ] = $this->get_product( (int) $variation_id );
 			}
 			return $units;
 		}
 
-		return array( $product );
+		return array( (int) $product->get_id() => $product );
 	}
 
 	/**
@@ -194,8 +201,10 @@ class CatalogPayloadBuilder {
 	}
 
 	/**
-	 * The manifest item for a trashed product WooCommerce cannot load — the
-	 * `sku` build_unresolvable() sends for it, out of stock.
+	 * The manifest item for a product or variation WooCommerce cannot load —
+	 * the `sku` build_unresolvable() sends for it, out of stock. A trashed
+	 * product (PRO-3859), or a published one listed from its database ids
+	 * (CON-312).
 	 *
 	 * @return array{sku: string, in_stock: bool}
 	 */

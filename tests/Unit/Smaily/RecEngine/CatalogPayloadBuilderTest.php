@@ -414,6 +414,26 @@ final class CatalogPayloadBuilderTest extends TestCase {
 		self::assertSame( 'V-3', $units[2]->get_sku() );
 	}
 
+	public function test_expand_by_id_keeps_a_variation_that_does_not_load_as_null(): void {
+		// CON-312: the manifest lists such a variation out of stock; expand()
+		// still leaves it out for the import and the live sync.
+		$v1 = $this->fake_product( array( 'id' => 101, 'sku' => 'V-1' ) );
+		Functions\when( 'wc_get_product' )->alias(
+			static fn ( int $id ) => 101 === $id ? $v1 : false
+		);
+		$parent  = $this->fake_product( array( 'sku' => 'PARENT', 'type' => 'variable', 'children' => array( 101, 102 ) ) );
+		$builder = new CatalogPayloadBuilder();
+
+		self::assertSame(
+			array(
+				101 => $v1,
+				102 => null,
+			),
+			$builder->expand_by_id( $parent )
+		);
+		self::assertSame( array( $v1 ), $builder->expand( $parent ) );
+	}
+
 	public function test_tags_carry_product_id_brand_and_category_path(): void {
 		Functions\when( 'get_the_terms' )->justReturn( array( (object) array( 'term_id' => 5, 'slug' => 'toys' ) ) );
 

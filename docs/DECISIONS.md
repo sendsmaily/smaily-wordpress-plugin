@@ -10934,6 +10934,79 @@ next run's `start()` clears it.
 `admin/src/components/steps/Step2Subscribers.backfillCopy.test.tsx` and
 `tests/Integration/RecEngineGdprTest.php`.
 
+### CON-312 — The nightly product list lists a product it cannot load as out of stock (2026-11-13)
+
+**Context:** the §3c manifest (PRO-3859) must name every product the store
+has; the engine tombstones each sku missing from it (`in_stock=false`,
+`recommendable=false`), and a later manifest corrects only `in_stock` —
+`recommendable` is recomputed only on a §3 upsert. §3c forbids a partial list
+and has no keep flag. One product that threw while it was loaded failed the
+whole night (nothing sent, on every night). A published product that
+`wc_get_product()` returned as nothing (the CC.4 gap) and a variation that
+loaded as nothing in `expand()` were silently left out, so the engine
+tombstoned them every night.
+**Decision (Erkki, 2026-11-13, option a):** such a product is listed from
+its database ids alone, `in_stock=false`, and the rest of the list is sent.
+`CatalogBackfillJob::post_manifest_items()` catches a Throwable per
+enumerated parent post; the fallback (`not_loaded_items()`) lists, through
+`CatalogPayloadBuilder::manifest_item_unresolvable()` (=
+`SkuResolver::resolve_id()`, which needs only the id and the detector), the
+post's published and private `product_variation` children when its
+`product_type` term is `variable` (what `expand()` would list), else the
+post itself. A variation that loads as nothing is listed the same way under
+its own id (`CatalogPayloadBuilder::expand_by_id()` keeps it as null;
+`expand()` still leaves it out for the import and the live sync). A debug
+line names the id with the error class and file:line, never the message
+(CON-301). The night the product loads again, the list carries its real
+stock. Still a failed night (nothing sent, the PRO-3987 row failed): a
+Throwable while `$wpdb->last_error` is set (CON-304's rule), a failed read in
+the fallback, and a multilingual detector that throws — without it the
+canonical sku cannot be worked out.
+**Guard (Erkki, 2026-11-13):** when more than 20% of the products the list
+covers went through that fallback, the night's list is not sent: the
+`catalog.manifest` row is marked failed with the counts in plain words, its
+stored answer is `{outcome: "skipped", reason: "too_many_unloadable",
+unloadable, products, limit_percent}`, and a debug line gives the counts. At
+or below 20% the list is sent. One constant,
+`CatalogManifest::MAX_UNLOADABLE_PERCENT` = 20 — the same figure as the
+engine's own §3c truncation guard, which removes nothing when a list would
+remove more than 20% of the live catalog. Products are counted, not skus:
+enumerated parent posts, a translation collapsed into its canonical not
+counted again; a product counts as unloadable when it went through the
+fallback (it threw, or a published one loaded as nothing). A variation that
+loads as nothing does not make its product unloadable, and a trashed
+product that loads as nothing (the PRO-1498 path) is not counted as one.
+**Rationale:** `in_stock=false` keeps the row and its `recommendable`; a
+tombstone would need a §3 upsert to undo. `in_stock=false` and not the
+`_stock_status` meta: the product's state is unknown, and out of stock is
+the side that cannot recommend a product a shopper cannot buy. One
+enumeration stays (PRO-3859): the fallback runs only for a post the import's
+own walk enumerated, and the collapse check runs first, outside the
+fallback, so a translation never overrides its canonical's item. The guard:
+a few broken products are product faults, but so many failures point at a
+fault in the store (a broken plugin or filter) that would otherwise send a
+large part of the catalog out of stock — the same reasoning as the engine's
+own truncation guard, so the same figure. The variation-children
+read (and the `product_type` term read) is the only extra read: the walk
+enumerates parent posts, and a variable product's variations exist only as
+its children, so without it a broken variable product's variations would be
+left out — and tombstoned.
+**Limits:** the import is unchanged — a published product that loads as
+nothing is still not sent (CC.4), one that throws fails alone (CON-304). A
+variable product with one variation that throws (rather than loading as
+nothing) is listed whole from the database, all its variations out of
+stock. A fault that breaks 20% of the products or fewer still sends them
+out of stock for the night.
+**Alternatives:** (b) fail the night as before (rejected: one product stops
+the list every night); (c) read `_stock_status` for the fallback (rejected:
+the product's state is unknown); leaving the product out (rejected: the
+engine tombstones it).
+**Relationships:** closes the CC.4 gap for the manifest (F3-38); PRO-3859,
+PRO-3987, CON-304, CON-301, PRO-1498 (`resolve_id()` tombstone). Pinned by
+`tests/Unit/Smaily/RecEngine/Backfill/CatalogBackfillJobTest.php`,
+`tests/Unit/Smaily/RecEngine/CatalogPayloadBuilderTest.php` and
+`tests/Integration/RecEngineCatalogManifestTest.php`.
+
 ### CON-311 — The design window mints a frame link each time and waits for the page's `ready` (2026-11-13)
 
 **Context:** since CON-288 "Edit design" shows the engine's §22 design page in

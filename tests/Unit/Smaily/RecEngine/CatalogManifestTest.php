@@ -398,6 +398,65 @@ final class CatalogManifestTest extends TestCase {
 		self::assertStringContainsString( '"reason":"too_many_products"', (string) $queue->exchanges[1]['response'] );
 	}
 
+	/**
+	 * CON-312: the products listed out of stock because they could not be
+	 * loaded may be at most 20% of the products the list covers.
+	 */
+	public function test_at_most_twenty_percent_unloadable_products_still_send(): void {
+		$queue  = $this->fake_queue();
+		$client = $this->client();
+
+		$this->manifest( $queue, $client, null, array( 'items' => self::items( 10 ), 'unloadable' => 2 ) )->run();
+
+		self::assertCount( 10, $client->sent[0] ?? array(), 'Exactly 20% still sends.' );
+		self::assertSame( array(), $queue->failed );
+	}
+
+	public function test_over_twenty_percent_unloadable_products_send_nothing_and_say_why(): void {
+		$queue  = $this->fake_queue();
+		$client = $this->client();
+
+		$this->manifest( $queue, $client, null, array( 'items' => self::items( 9 ), 'unloadable' => 2 ) )->run();
+
+		self::assertSame( array(), $client->sent, 'Just over 20% (2 of 9) sends nothing.' );
+		self::assertSame( 'Not sent: 2 of 9 products could not be loaded, more than 20%. The list would have marked them all out of stock.', $queue->failed[0]['error'] );
+		self::assertNull( $queue->exchanges[1]['sent'] );
+		self::assertSame(
+			array(
+				'outcome'       => 'skipped',
+				'reason'        => 'too_many_unloadable',
+				'unloadable'    => 2,
+				'products'      => 9,
+				'limit_percent' => 20,
+			),
+			json_decode( (string) $queue->exchanges[1]['response'], true )
+		);
+	}
+
+	public function test_a_store_where_no_product_loads_sends_nothing(): void {
+		$queue  = $this->fake_queue();
+		$client = $this->client();
+
+		$this->manifest( $queue, $client, null, array( 'items' => self::items( 3 ), 'unloadable' => 3 ) )->run();
+
+		self::assertSame( array(), $client->sent );
+		self::assertStringContainsString( '"reason":"too_many_unloadable"', (string) $queue->exchanges[1]['response'] );
+	}
+
+	/**
+	 * @return array<int, array{sku: string, in_stock: bool}>
+	 */
+	private static function items( int $n ): array {
+		$items = array();
+		for ( $i = 1; $i <= $n; $i++ ) {
+			$items[] = array(
+				'sku'      => 'woo-' . $i,
+				'in_stock' => true,
+			);
+		}
+		return $items;
+	}
+
 	public function test_an_engine_rejection_fails_the_row_with_the_answer(): void {
 		$queue  = $this->fake_queue();
 		$client = $this->client( array(), new ApiException( 400, 'validation_failed', 'bad item' ) );
@@ -476,11 +535,12 @@ final class CatalogManifestTest extends TestCase {
 	// --- doubles -------------------------------------------------------------
 
 	/**
-	 * @param array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} $opts
+	 * @param array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null, unloadable?: int} $opts
 	 */
 	private function manifest( IngestQueue $queue, Client $client, ?RecEngineSettings $settings = null, array $opts = array() ): CatalogManifest {
-		$catalog = new class( ! empty( $opts['throw'] ), $opts['items'] ?? null, $opts['on_walk'] ?? null ) extends CatalogBackfillJob {
+		$catalog = new class( ! empty( $opts['throw'] ), $opts['items'] ?? null, $opts['on_walk'] ?? null, $opts['unloadable'] ?? 0 ) extends CatalogBackfillJob {
 			private bool $throw;
+			private int $unloadable;
 			/** @var array<int, array{sku: string, in_stock: bool}>|null */
 			private ?array $items;
 			/** @var (callable(): void)|null */
@@ -490,29 +550,36 @@ final class CatalogManifestTest extends TestCase {
 			 * @param array<int, array{sku: string, in_stock: bool}>|null $items
 			 * @param (callable(): void)|null                            $on_walk
 			 */
-			public function __construct( bool $throw, ?array $items, ?callable $on_walk ) {
-				$this->throw   = $throw;
-				$this->items   = $items;
-				$this->on_walk = $on_walk;
+			public function __construct( bool $throw, ?array $items, ?callable $on_walk, int $unloadable ) {
+				$this->throw      = $throw;
+				$this->items      = $items;
+				$this->on_walk    = $on_walk;
+				$this->unloadable = $unloadable;
 			}
 
-			public function manifest_items( int $limit ): array {
+			/** One product per item; the first $unloadable of them could not be loaded. */
+			public function manifest_items( int $limit, ?array &$counts = null ): array {
 				if ( $this->on_walk !== null ) {
 					( $this->on_walk )();
 				}
 				if ( $this->throw ) {
 					throw new \RuntimeException( 'out of memory' );
 				}
-				return array_slice( $this->items ?? CatalogManifestTest::ITEMS, 0, $limit + 1 );
+				$items  = array_slice( $this->items ?? CatalogManifestTest::ITEMS, 0, $limit + 1 );
+				$counts = array(
+					'products'   => count( $items ),
+					'unloadable' => $this->unloadable,
+				);
+				return $items;
 			}
 		};
 
 		return new class( $queue, $settings ?? new FakeRecEngineSettings(), static fn (): Client => $client, $catalog, $opts ) extends CatalogManifest {
-			/** @var array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} */
+			/** @var array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null, unloadable?: int} */
 			private array $opts;
 
 			/**
-			 * @param array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} $opts
+			 * @param array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null, unloadable?: int} $opts
 			 */
 			public function __construct( IngestQueue $queue, RecEngineSettings $settings, callable $client_factory, CatalogBackfillJob $catalog, array $opts ) {
 				parent::__construct( $queue, $settings, $client_factory, $catalog );
