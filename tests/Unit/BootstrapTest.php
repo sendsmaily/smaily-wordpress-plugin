@@ -36,6 +36,49 @@ final class BootstrapTest extends TestCase {
 		parent::tearDown();
 	}
 
+	/**
+	 * CON-291: an upgrade error on an Action Scheduler queue run is logged
+	 * with its class and line — never its text — and stays here, so the run
+	 * goes on with every plugin's actions. The version is not stamped, so
+	 * the next run tries again. On admin_init it still surfaces.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_a_background_upgrade_error_is_logged_and_not_thrown_into_the_queue_run(): void {
+		define( 'WP_DEBUG', true );
+		Functions\when( 'get_option' )->justReturn( '0.0.1' );
+		Functions\when( 'add_option' )->alias(
+			static function (): bool {
+				throw new \RuntimeException( 'secret@example.com' );
+			}
+		);
+		$stamped = false;
+		Functions\when( 'update_option' )->alias(
+			static function () use ( &$stamped ): bool {
+				$stamped = true;
+				return true;
+			}
+		);
+
+		$log      = (string) tempnam( sys_get_temp_dir(), 'smly-log' );
+		$previous = (string) ini_set( 'error_log', $log );
+		try {
+			Bootstrap::instance()->maybe_run_upgrade_in_background();
+			$written = (string) file_get_contents( $log );
+		} finally {
+			ini_set( 'error_log', $previous );
+			unlink( $log );
+		}
+
+		self::assertStringContainsString( '[smaily-connect upgrade] background upgrade failed: RuntimeException at BootstrapTest.php:', $written );
+		self::assertStringNotContainsString( 'secret@example.com', $written );
+		self::assertFalse( $stamped, 'The version is not stamped.' );
+
+		$this->expectException( \RuntimeException::class );
+		Bootstrap::instance()->maybe_run_upgrade();
+	}
+
 	public function test_event_queue_getter_returns_a_singleton_per_request(): void {
 		$bs = Bootstrap::instance();
 

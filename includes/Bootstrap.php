@@ -197,7 +197,7 @@ final class Bootstrap {
 		// someone opens wp-admin, while Action Scheduler already runs the new
 		// code. Every queue run upgrades first (WP-Cron, the async runner,
 		// WP-CLI) — a background request, never a shopper's page.
-		add_action( 'action_scheduler_before_process_queue', array( $this, 'maybe_run_upgrade' ) );
+		add_action( 'action_scheduler_before_process_queue', array( $this, 'maybe_run_upgrade_in_background' ) );
 
 		add_action( 'before_woocommerce_init', array( $this, 'declare_woocommerce_compatibility' ) );
 		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
@@ -372,6 +372,12 @@ final class Bootstrap {
 			if ( Migrator::schema_ready() ) {
 				$result   = $job->process_run();
 				$next_run = $result['next_run_in'];
+			} elseif ( Migrator::schema_failed() ) {
+				// The update recorded the schema but the column is not there
+				// (CON-291): no later upgrade adds it, so the chain ends here.
+				// The import card shows why.
+				\Smaily\Connect\Support\DebugLog::write( sprintf( '[smaily-connect backfill.tick] job_type=%s ends: the backfill table lacks the column the import writes', $job_type ) );
+				return;
 			} else {
 				// The update has not reached the schema this import writes
 				// (CON-282): send nothing and wait — the chain is kept, not ended.
@@ -853,6 +859,22 @@ final class Bootstrap {
 			Activation::run();
 		} finally {
 			$lock->release();
+		}
+	}
+
+	/**
+	 * The upgrade-detect on an Action Scheduler queue run (CON-282). An
+	 * error is logged and kept here (CON-291): thrown, it would end the
+	 * whole queue run — every plugin's actions — on every run until the
+	 * upgrade succeeds. The lock is released and the version is not stamped,
+	 * so the next queue run or admin request tries again. On admin_init the
+	 * error still surfaces, where the site owner sees it.
+	 */
+	public function maybe_run_upgrade_in_background(): void {
+		try {
+			$this->maybe_run_upgrade();
+		} catch ( \Throwable $e ) {
+			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect upgrade] background upgrade failed: ' . \Smaily\Connect\Support\DebugLog::where( $e ) );
 		}
 	}
 
