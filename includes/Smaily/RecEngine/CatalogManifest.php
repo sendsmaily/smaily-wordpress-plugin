@@ -12,6 +12,7 @@ namespace Smaily\Connect\Smaily\RecEngine;
 
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogBackfillJob;
 use Smaily\Connect\Support\DebugLog;
 
@@ -33,8 +34,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * A partial or premature list would tombstone real products, so the night is
  * skipped — nothing sent — when the engine refuses the store (PRO-1893), the
- * products import runs or waits to start, or catalog changes still wait in
- * the queue. Those skips write no row and go to the debug log only.
+ * products import runs or waits to start or its state cannot be read
+ * (CON-286), or catalog changes still wait in the queue. Those skips write no row and go to the debug log only.
  *
  * Each night that gets past the skips is ONE `catalog.manifest` Event Log
  * row, written BEFORE the walk (PRO-3987): a run the host kills mid-walk
@@ -359,7 +360,11 @@ class CatalogManifest {
 		if ( ! $this->settings->sending_allowed() ) {
 			return 'the engine connection is missing or refuses this store';
 		}
-		if ( $this->import_active() ) {
+		$import_active = $this->import_active();
+		if ( $import_active === null ) {
+			return 'the products import state cannot be read';
+		}
+		if ( $import_active ) {
 			return 'the products import is running or waiting to start';
 		}
 		if ( $this->catalog_changes_waiting() ) {
@@ -385,9 +390,16 @@ class CatalogManifest {
 		return $this->queue->enqueue( self::EVENT_TYPE, '', array() );
 	}
 
-	/** The products import's state row is `running` from start() — queued or mid-walk. */
-	protected function import_active(): bool {
-		return $this->catalog->is_running();
+	/**
+	 * Whether the products import runs — its state row is `running` from
+	 * start(), queued or mid-walk, and not stalled — or null when the row
+	 * cannot be read (CON-286): that is no "not running", so the night is
+	 * skipped.
+	 */
+	protected function import_active(): ?bool {
+		$state = AbstractBackfillJob::read_state( $this->catalog->job_type() );
+
+		return $state === false ? null : AbstractBackfillJob::is_live( $this->catalog->job_type(), $state );
 	}
 
 	protected function catalog_changes_waiting(): bool {

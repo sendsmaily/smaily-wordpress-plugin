@@ -656,7 +656,11 @@ final class Bootstrap {
 			return;
 		}
 
-		$job->start( false );
+		// The state row could not be written (CON-286): nothing started, so
+		// no batch — the next daily tick tries again.
+		if ( $job->start( false ) === 0 ) {
+			return;
+		}
 
 		// PRO-1715: an empty audience means start() already recorded the run as
 		// finished — a tick would only walk the user table to reach the same

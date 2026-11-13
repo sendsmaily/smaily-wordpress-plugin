@@ -3,7 +3,13 @@ import { useEffect, type Dispatch } from 'react';
 import { formatUtc } from '@admin/lib/format-utc';
 import { __, _n, sprintf } from '@admin/lib/i18n';
 import { useBackfillProgress } from '../../hooks/useBackfillProgress';
-import { DEFAULT_SYNC_FIELDS, type ContactSyncMode, type WizardAction, type WizardState } from '../../state/types';
+import {
+  DEFAULT_SYNC_FIELDS,
+  type BackfillRefusals,
+  type ContactSyncMode,
+  type WizardAction,
+  type WizardState,
+} from '../../state/types';
 import { cn } from '../../utils/cn';
 import { Banner, Button, Card, Checkbox, ProgressBar, Radio, Toggle } from '../primitives';
 
@@ -287,45 +293,37 @@ export function Step2Subscribers({
             {/* PRO-3988: the customers Smaily refused for good were skipped;
                 name them so the merchant can fix them and import again. */}
             {progress.refused && progress.refused.count > 0 && (
-              <div className="mt-2 text-xs text-text-secondary">
-                <p>
-                  {sprintf(
-                    // translators: %d is the number of customers Smaily refused.
-                    _n(
-                      'Smaily refused %d customer, so it was not imported. Fix it and run the import again:',
-                      'Smaily refused %d customers, so they were not imported. Fix them and run the import again:',
-                      progress.refused.count,
-                      'smaily-connect',
-                    ),
+              <SkippedCustomers
+                list={progress.refused}
+                heading={sprintf(
+                  // translators: %d is the number of customers Smaily refused.
+                  _n(
+                    'Smaily refused %d customer, so it was not imported. Fix it and run the import again:',
+                    'Smaily refused %d customers, so they were not imported. Fix them and run the import again:',
                     progress.refused.count,
-                  )}
-                </p>
-                <ul className="mt-1 list-disc pl-5">
-                  {progress.refused.contacts.map((contact) => {
-                    const label = sprintf(
-                      // translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is Smaily's reason.
-                      __( 'User %1$d (%2$s): %3$s', 'smaily-connect' ),
-                      contact.user_id,
-                      contact.email ?? '–',
-                      contact.reason,
-                    );
-                    return (
-                      <li key={contact.user_id}>
-                        {contact.edit_url ? <a href={contact.edit_url}>{label}</a> : label}
-                      </li>
-                    );
-                  })}
-                </ul>
-                {progress.refused.count > progress.refused.contacts.length && (
-                  <p className="mt-1">
-                    {sprintf(
-                      // translators: %d is the number of refused customers not listed.
-                      __( '…and %d more.', 'smaily-connect' ),
-                      progress.refused.count - progress.refused.contacts.length,
-                    )}
-                  </p>
+                    'smaily-connect',
+                  ),
+                  progress.refused.count,
                 )}
-              </div>
+              />
+            )}
+            {/* CON-305: the customers the plugin could not read were skipped
+                too (CON-302) — Smaily never saw them, so they are counted
+                apart from the refused ones. */}
+            {progress.unreadable && progress.unreadable.count > 0 && (
+              <SkippedCustomers
+                list={progress.unreadable}
+                heading={sprintf(
+                  // translators: %d is the number of customers the plugin could not read.
+                  _n(
+                    '%d customer could not be read from your store, so it was not imported:',
+                    '%d customers could not be read from your store, so they were not imported:',
+                    progress.unreadable.count,
+                    'smaily-connect',
+                  ),
+                  progress.unreadable.count,
+                )}
+              />
             )}
             {(isComplete || wasCancelled || hasFailed) && progress.completedAt && (
               <p className="mt-1 text-xs text-text-tertiary">
@@ -355,6 +353,44 @@ export function Step2Subscribers({
           )}</p>
         )}
       </Card>
+    </div>
+  );
+}
+
+/**
+ * One list of customers the contact import skipped — the ones Smaily refused
+ * (PRO-3988) or the ones the plugin could not read (CON-305): the heading,
+ * up to 20 of them with a link to each profile, and how many more there are.
+ */
+function SkippedCustomers({ list, heading }: { list: BackfillRefusals; heading: string }): React.JSX.Element {
+  return (
+    <div className="mt-2 text-xs text-text-secondary">
+      <p>{heading}</p>
+      <ul className="mt-1 list-disc pl-5">
+        {list.contacts.map((contact) => {
+          const label = sprintf(
+            // translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is the reason.
+            __( 'User %1$d (%2$s): %3$s', 'smaily-connect' ),
+            contact.user_id,
+            contact.email ?? '–',
+            contact.reason,
+          );
+          return (
+            <li key={contact.user_id}>
+              {contact.edit_url ? <a href={contact.edit_url}>{label}</a> : label}
+            </li>
+          );
+        })}
+      </ul>
+      {list.count > list.contacts.length && (
+        <p className="mt-1">
+          {sprintf(
+            // translators: %d is the number of skipped customers not listed.
+            __( '…and %d more.', 'smaily-connect' ),
+            list.count - list.contacts.length,
+          )}
+        </p>
+      )}
     </div>
   );
 }

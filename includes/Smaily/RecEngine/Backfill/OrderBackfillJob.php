@@ -47,7 +47,8 @@ use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
  *      `start_from`, then the background part down to `horizon`; no older
  *      order is read. The window and the `date|id` position of the last order
  *      read are the job's cursor (JSON in `cursor_value`), so a resume goes on
- *      at the next order. When the start part is read, `start_part_queued_to`
+ *      at the next order; a cursor that is not a window fails the run
+ *      (CON-286). When the start part is read, `start_part_queued_to`
  *      keeps the newest order.upsert queue row id, for the history progress
  *      report.
  */
@@ -131,14 +132,24 @@ class OrderBackfillJob extends AbstractBackfillJob {
 	}
 
 	/**
-	 * The start part first, then the background part, newest first. A cursor
-	 * of an earlier version (a bare order id) gets a window now and starts
-	 * from the newest order again; the engine updates an order it already has.
+	 * The start part first, then the background part, newest first.
+	 *
+	 * The window is asked from the engine once, by start() (CON-286). A
+	 * cursor that does not read as a window — a bare order id of a 3.20 run,
+	 * or anything else — fails the run instead of building a new window:
+	 * that asked the engine for its history settings again on every batch
+	 * whose cursor was not saved, and its window would not match the run's
+	 * total or its §25 report. The run is marked failed (the error type and
+	 * line); Import now starts it again with a new window.
 	 *
 	 * @return array{ids: int[], cursor: string, completed: bool}
+	 * @throws \UnexpectedValueException When the cursor is not a window.
 	 */
 	protected function next_page( string $cursor, int $limit ): array {
-		$window = self::decode_window( $cursor ) ?? $this->new_window();
+		$window = self::decode_window( $cursor );
+		if ( $window === null ) {
+			throw new \UnexpectedValueException( 'The orders import cursor is not a window.' );
+		}
 
 		if ( $window['start_part_queued_to'] === null ) {
 			$rows = $this->page( $window['start_from'], $window, $limit );

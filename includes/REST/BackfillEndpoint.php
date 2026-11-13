@@ -35,10 +35,15 @@ use WP_REST_Response;
  *                               "percent": int, "eta_seconds": int|null,
  *                               "error": string|null,
  *                               "refused": {count, contacts}|null,
+ *                               "unreadable": {count, contacts}|null,
  *                               "history": {part, sent, expected, percent,
  *                                           start_months, horizon_months}|null}
- *                            (`history`: orders only — the §25 history
- *                            import's part being sent, CON-248)
+ *                            (`refused` / `unreadable`: contacts only — the
+ *                            contacts Smaily refused and those the plugin
+ *                            could not read, CON-305; `history`: orders only —
+ *                            the §25 history import's part being sent,
+ *                            CON-248; a state row the database cannot read
+ *                            answers `failed` with a reason, CON-286)
  *
  *   POST   /backfill/cancel  body: {"job_type": "contacts"}
  *                            → {"cancelled": bool}
@@ -276,6 +281,7 @@ class BackfillEndpoint {
 					'eta_seconds'       => null,
 					'error'             => self::schema_incomplete_message(),
 					'refused'           => null,
+					'unreadable'        => null,
 					'started_at'        => null,
 					'completed_at'      => null,
 					'audience_estimate' => null,
@@ -286,6 +292,30 @@ class BackfillEndpoint {
 		}
 
 		$row = AbstractBackfillJob::read_state( $job_type, $this->target_for( $job_type ) );
+
+		// The database could not read the state row (CON-282 tells this from
+		// "never ran"): the card shows an error, never "idle" (CON-286).
+		if ( $row === false ) {
+			return new WP_REST_Response(
+				array(
+					'status'            => BackfillJobInterface::STATUS_FAILED,
+					'processed'         => 0,
+					'synced'            => 0,
+					'total'             => 0,
+					'percent'           => 0,
+					'eta_seconds'       => null,
+					'error'             => __( 'The import status could not be read from the database. Try again in a few minutes.', 'smaily-connect' ),
+					'refused'           => null,
+					'unreadable'        => null,
+					'started_at'        => null,
+					'completed_at'      => null,
+					'audience_estimate' => null,
+					'history'           => null,
+				),
+				200
+			);
+		}
+
 		if ( $row === null ) {
 			return new WP_REST_Response(
 				array(
@@ -297,6 +327,7 @@ class BackfillEndpoint {
 					'eta_seconds'       => null,
 					'error'             => null,
 					'refused'           => null,
+					'unreadable'        => null,
 					'started_at'        => null,
 					'completed_at'      => null,
 					'audience_estimate' => $this->contact_audience_estimate( $job_type, 'idle' ),
@@ -361,7 +392,8 @@ class BackfillEndpoint {
 				'percent'           => min( 100, max( 0, $percent ) ),
 				'eta_seconds'       => $this->estimate_eta( $row, $processed, $total ),
 				'error'             => $this->failure_reason( $status, $row, $stalled ),
-				'refused'           => $job_type === BackfillJob::BACKFILL_TYPE ? $this->contact_refusals() : null,
+				'refused'           => $job_type === BackfillJob::BACKFILL_TYPE ? $this->contact_list( BackfillJob::OPTION_REFUSED ) : null,
+				'unreadable'        => $job_type === BackfillJob::BACKFILL_TYPE ? $this->contact_list( BackfillJob::OPTION_UNREADABLE ) : null,
 				'started_at'        => isset( $row['started_at'] ) ? (string) $row['started_at'] : null,
 				'completed_at'      => isset( $row['completed_at'] ) ? (string) $row['completed_at'] : null,
 				'audience_estimate' => $this->contact_audience_estimate( $job_type, $status ),
@@ -416,16 +448,19 @@ class BackfillEndpoint {
 	}
 
 	/**
-	 * The contacts Smaily refused for good in the contact import's current run
-	 * (PRO-3988), so the merchant can find and fix them: the total, and for up
-	 * to BackfillJob::MAX_LISTED_REFUSALS of them the WordPress user id, the
+	 * One of the contact import's two skip lists for its current run, so the
+	 * merchant can find and fix the contacts: BackfillJob::OPTION_REFUSED (the
+	 * contacts Smaily refused for good, PRO-3988) or
+	 * BackfillJob::OPTION_UNREADABLE (the contacts the plugin could not read,
+	 * CON-302 / CON-305). The total, and for up to
+	 * BackfillJob::MAX_LISTED_REFUSALS of them the WordPress user id, the
 	 * address with only its first character before the `@` shown, a link to
-	 * the user's profile, and Smaily's reason. Null when none was refused.
+	 * the user's profile, and the reason. Null when the list is empty.
 	 *
 	 * @return array{count: int, contacts: array<int, array{user_id: int, email: string|null, edit_url: string|null, reason: string}>}|null
 	 */
-	private function contact_refusals(): ?array {
-		$stored = get_option( BackfillJob::OPTION_REFUSED );
+	private function contact_list( string $option ): ?array {
+		$stored = get_option( $option );
 		if ( ! is_array( $stored ) || (int) ( $stored['count'] ?? 0 ) <= 0 ) {
 			return null;
 		}

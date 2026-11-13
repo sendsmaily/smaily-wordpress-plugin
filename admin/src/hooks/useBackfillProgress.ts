@@ -113,6 +113,7 @@ export function useBackfillProgress(options: UseBackfillProgressOptions = {}): U
           completedAt: response.completed_at,
           audienceEstimate: response.audience_estimate,
           refused: response.refused ?? null,
+          unreadable: response.unreadable ?? null,
           history: response.history ?? null,
         });
       } catch {
@@ -146,6 +147,7 @@ export function useBackfillProgress(options: UseBackfillProgressOptions = {}): U
         completedAt: response.completed_at,
         audienceEstimate: response.audience_estimate,
         refused: response.refused ?? null,
+        unreadable: response.unreadable ?? null,
         history: response.history ?? null,
       });
       setPollError(null);

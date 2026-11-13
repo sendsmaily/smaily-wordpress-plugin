@@ -94,6 +94,21 @@ final class BackfillJobTest extends TestCase {
 	}
 
 	/**
+	 * CON-286: a state row the INSERT could not write starts nothing — 0, so
+	 * the REST route answers start_failed and the daily refresh schedules no
+	 * batch.
+	 */
+	public function test_start_reports_0_when_the_row_cannot_be_written(): void {
+		$wpdb            = $this->fake_wpdb_for_start( 77, 1, false );
+		$GLOBALS['wpdb'] = $wpdb;
+
+		Functions\when( 'count_users' )->justReturn( array( 'total_users' => 5000 ) );
+
+		self::assertSame( 0, ( new BackfillJob( $this->createMock( Client::class ) ) )->start() );
+		self::assertSame( array(), $wpdb->updates );
+	}
+
+	/**
 	 * PRO-1715: on a store where nobody is in the sync audience the walk cannot
 	 * produce a contact, so start() closes the run itself instead of leaving a
 	 * 'running' row whose only exit is an Action Scheduler tick — the merchant
@@ -335,9 +350,9 @@ final class BackfillJobTest extends TestCase {
 
 	/**
 	 * CON-302: a contact whose payload cannot be built (its stored data
-	 * throws) is skipped and listed like a refused contact, with the error
-	 * type and where it was thrown — never its text — and the rest of the
-	 * page is sent; the import goes on.
+	 * throws) is skipped and listed with the error type and where it was
+	 * thrown — never its text — and the rest of the page is sent; the import
+	 * goes on. CON-305: it is listed apart from the contacts Smaily refused.
 	 */
 	public function test_process_batch_skips_a_contact_whose_payload_cannot_be_built(): void {
 		$wpdb            = $this->fake_wpdb_for_process_batch(
@@ -390,7 +405,8 @@ final class BackfillJobTest extends TestCase {
 		self::assertSame( 'completed', $wpdb->updates[0]['data']['status'], 'One unreadable contact does not stop the import.' );
 		self::assertSame( '3', $wpdb->updates[0]['data']['cursor_value'] );
 		self::assertSame( 2, $result['processed'] );
-		$listed = $stored[ BackfillJob::OPTION_REFUSED ] ?? array();
+		self::assertArrayNotHasKey( BackfillJob::OPTION_REFUSED, $stored, 'CON-305: Smaily never saw it, so it is not counted as refused.' );
+		$listed = $stored[ BackfillJob::OPTION_UNREADABLE ] ?? array();
 		self::assertSame( 1, $listed['count'] ?? null );
 		self::assertSame( 2, $listed['contacts'][0]['user_id'] ?? null );
 		self::assertMatchesRegularExpression( '/^RuntimeException at BackfillJobTest\.php:\d+$/', (string) ( $listed['contacts'][0]['reason'] ?? '' ), 'The error type and where — never its text (CON-301).' );
@@ -727,8 +743,8 @@ final class BackfillJobTest extends TestCase {
 	 * @param int $audience Rows ContactAudience::count_audience() finds — the
 	 *                      COUNT() query start() runs before seeding the row.
 	 */
-	private function fake_wpdb_for_start( int $stamped_id, int $audience = 1 ): object {
-		return new class( $stamped_id, $audience ) {
+	private function fake_wpdb_for_start( int $stamped_id, int $audience = 1, bool $writes = true ): object {
+		return new class( $stamped_id, $audience, $writes ) {
 			public string $prefix   = 'wp_';
 			public string $usermeta = 'wp_usermeta';
 			public array $prepare_calls = array();
@@ -736,10 +752,12 @@ final class BackfillJobTest extends TestCase {
 			public array $updates       = array();
 			private int $stamp;
 			private int $audience;
+			private bool $writes;
 
-			public function __construct( int $id, int $audience ) {
+			public function __construct( int $id, int $audience, bool $writes ) {
 				$this->stamp    = $id;
 				$this->audience = $audience;
+				$this->writes   = $writes;
 			}
 
 			public function prepare( string $sql, ...$args ): string {
@@ -747,9 +765,10 @@ final class BackfillJobTest extends TestCase {
 				return $sql;
 			}
 
-			public function query( string $sql ): int {
+			/** @return int|false */
+			public function query( string $sql ) {
 				$this->queries[] = $sql;
-				return 1;
+				return $this->writes || strpos( $sql, 'INSERT INTO' ) === false ? 1 : false;
 			}
 
 			public function get_var( string $sql ) {

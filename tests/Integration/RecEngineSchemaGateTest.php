@@ -39,7 +39,9 @@ use Smaily\Connect\Support\UpgradeLock;
  *   - an upgrade that throws on a queue run does not end the run: another
  *     plugin's action in it still runs (CON-291);
  *   - a schema version recorded without its column starts no import, the
- *     background checks stop coming back, and the card says why (CON-291).
+ *     background checks stop coming back, and the card says why (CON-291);
+ *   - a state row the database cannot read is an error on every card, the
+ *     Contacts card included — never "idle", never a 500 (CON-286).
  */
 final class RecEngineSchemaGateTest extends TestCase {
 
@@ -248,6 +250,37 @@ final class RecEngineSchemaGateTest extends TestCase {
 		$status = RestRequestHelper::get( '/backfill/status', array( 'job_type' => 'orders' ) )->get_data();
 		self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'] );
 		self::assertSame( 'This import cannot run: the plugin did not finish its database update. Contact Smaily support.', $status['error'] );
+	}
+
+	public function test_a_state_row_the_database_cannot_read_is_an_error_on_every_card(): void {
+		$this->connect( 'tok_schema_unreadable' );
+		$this->unschedule_all();
+		ImportsOnConnect::forget();
+		HistoryProgress::forget();
+		// Every card's state read names `sent_count`, so without the column
+		// no state row reads (read_state() answers false).
+		$this->drop_sent_count();
+		$read_error = 'The import status could not be read from the database. Try again in a few minutes.';
+
+		// On the old schema (the update has not run) and with the version
+		// recorded without the column (the Contacts card, which CON-291's
+		// own reason leaves out).
+		$cases = array(
+			'old schema'                => array( Migrator::REQUIRED_VERSION - 1, array( 'contacts', 'products', 'customers', 'orders' ) ),
+			'recorded without a column' => array( Migrator::REQUIRED_VERSION, array( 'contacts' ) ),
+		);
+		foreach ( $cases as $label => list( $version, $types ) ) {
+			update_option( Constants::OPTION_SCHEMA_VERSION, $version, false );
+			Migrator::forget_schema_check();
+			foreach ( $types as $job_type ) {
+				$response = RestRequestHelper::get( '/backfill/status', array( 'job_type' => $job_type ) );
+				$data     = $response->get_data();
+
+				self::assertSame( 200, $response->get_status(), "{$label}, {$job_type}: no 500." );
+				self::assertSame( BackfillJobInterface::STATUS_FAILED, $data['status'], "{$label}, {$job_type}: never idle." );
+				self::assertSame( $read_error, $data['error'], "{$label}, {$job_type}" );
+			}
+		}
 	}
 
 	// --- helpers -----------------------------------------------------------

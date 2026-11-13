@@ -278,8 +278,10 @@ class GdprHandler {
 		if ( $this->ingest_queue->delete_for_privacy_request( $email ) > 0 ) {
 			$removed = true;
 		}
-		if ( $this->erase_refused_contact( $email ) ) {
-			$removed = true;
+		foreach ( array( BackfillJob::OPTION_REFUSED, BackfillJob::OPTION_UNREADABLE ) as $list ) {
+			if ( $this->erase_skipped_contact( $list, $email ) ) {
+				$removed = true;
+			}
 		}
 		$codes = AutomationDiscount::erase_for_address( $email );
 		if ( $codes['deleted'] + $codes['anonymised'] > 0 ) {
@@ -578,12 +580,13 @@ class GdprHandler {
 	}
 
 	/**
-	 * Remove the WP user with the address from the contact import's list of
-	 * contacts Smaily refused (PRO-3988), lowering its total by as many.
+	 * Remove the WP user with the address from one of the contact import's
+	 * skip lists — the contacts Smaily refused (PRO-3988) or those the plugin
+	 * could not read (CON-305) — lowering its total by as many.
 	 */
-	private function erase_refused_contact( string $email ): bool {
+	private function erase_skipped_contact( string $option, string $email ): bool {
 		$user_id = $this->user_id_for( $email );
-		$stored  = $user_id > 0 ? get_option( BackfillJob::OPTION_REFUSED ) : false;
+		$stored  = $user_id > 0 ? get_option( $option ) : false;
 		if ( ! is_array( $stored ) || ! is_array( $stored['contacts'] ?? null ) ) {
 			return false;
 		}
@@ -600,7 +603,7 @@ class GdprHandler {
 		}
 
 		update_option(
-			BackfillJob::OPTION_REFUSED,
+			$option,
 			array(
 				'count'    => max( 0, (int) ( $stored['count'] ?? 0 ) - $dropped ),
 				'contacts' => $kept,

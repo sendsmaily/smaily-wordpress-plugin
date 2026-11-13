@@ -462,6 +462,36 @@ final class RecEngineGdprTest extends TestCase {
 		);
 	}
 
+	public function test_the_erasure_removes_the_customer_from_the_contact_imports_unreadable_list(): void {
+		// CON-305: the contacts the import could not read are a list of their own.
+		$email = 'erase-unreadable@example.com';
+		$user  = $this->make_user( $email );
+		update_option(
+			BackfillJob::OPTION_UNREADABLE,
+			array(
+				'count'    => 2,
+				'contacts' => array(
+					array(
+						'user_id' => $user->ID,
+						'reason'  => 'TypeError at SubscriberPayloadBuilder.php:88',
+					),
+				),
+			),
+			false
+		);
+
+		$result = $this->handler()->erase( $email );
+
+		self::assertTrue( $result['items_removed'] );
+		self::assertSame(
+			array(
+				'count'    => 1,
+				'contacts' => array(),
+			),
+			get_option( BackfillJob::OPTION_UNREADABLE )
+		);
+	}
+
 	public function test_an_address_that_differs_only_by_an_accent_belongs_to_someone_else(): void {
 		// PRO-3986: the database compares addresses accent-blind, so a lookup
 		// for jane@ also found jäne@'s orders and WP user. WordPress and
