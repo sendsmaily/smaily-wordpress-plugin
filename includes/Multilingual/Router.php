@@ -18,6 +18,7 @@ use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\WorkflowMatch;
 use Smaily\Connect\Smaily\WorkflowResolverInterface;
+use Smaily\Connect\Support\ContactLanguageResolver;
 
 /**
  * Looks up Smaily workflow_id + account_key for a given (trigger, language)
@@ -233,7 +234,59 @@ final class Router implements WorkflowResolverInterface {
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
-		return $this->row_to_match( $row );
+		$match = $this->row_to_match( $row );
+		if ( $match !== null || $language === self::LANGUAGE_DEFAULT ) {
+			return $match;
+		}
+
+		return $this->find_same_language_mapping( $trigger_type, $language );
+	}
+
+	/**
+	 * A row stored under another form of the same language (CON-203). The
+	 * mapping keeps each language in the form the multilingual plugin lists
+	 * it (TranslatePress: `en_GB`), while the send paths look up the short
+	 * code ContactLanguageResolver returns (`en`). Both sides are compared
+	 * through ContactLanguageResolver::normalize(), so rows saved before
+	 * this keep working with no migration. Asked only when no row has the
+	 * looked-up code as it is, so a store whose plugin lists short codes
+	 * (WPML, Polylang) finds its row by the same query as before. Two rows
+	 * of one language (`en_GB`, `en_US`): the first saved wins.
+	 */
+	private function find_same_language_mapping( string $trigger_type, string $language ): ?WorkflowMatch {
+		global $wpdb;
+
+		$wanted = ContactLanguageResolver::normalize( $language );
+		$table  = $wpdb->prefix . self::TABLE_SUFFIX;
+
+		// See find_mapping() — table-name interpolation rationale.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT workflow_id, account_key, language FROM {$table} WHERE trigger_type = %s ORDER BY id",
+				$trigger_type
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			if ( ! is_array( $row ) || ! isset( $row['language'] ) ) {
+				continue;
+			}
+			$stored = (string) $row['language'];
+			if ( $stored === self::LANGUAGE_DEFAULT || ContactLanguageResolver::normalize( $stored ) !== $wanted ) {
+				continue;
+			}
+			$match = $this->row_to_match( $row );
+			if ( $match !== null ) {
+				return $match;
+			}
+		}
+
+		return null;
 	}
 
 	private function find_fallback_mapping( string $trigger_type ): ?WorkflowMatch {

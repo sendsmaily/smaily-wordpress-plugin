@@ -2844,7 +2844,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/go
 > **Status (v1.29.0, 2026-11-12).** This section has two parts with different states. Each v1.29.0 item below carries its state.
 >
 > - **Built; switched off in production until the terms text is published** (v1.16.0 flow): start → start link → the start window in a **new window** → store creation → setup token by window message or pasted link. Also built: **every active sector can be picked**, and a store that picks a sector in which no store is live yet gets a check by the Smaily team that holds only switching recommendations on (INT-248). The engine answers `404 not_found` on this endpoint, and the start window answers `404`, until the terms of service and the data processing agreement are published. A connector must treat `404` as "not available yet", show no button and keep the operator path (contact Smaily).
-> - **Specified in v1.29.0; engine side in progress** — connectors can build against this text: the frame mode (`display`, `frame_origin`, the framed `start_url`, the `ready` / `created` / `closed` messages), `admin_email`, `language`, the welcome step with the plugin connection and the history import's progress, and "Open console" in a new tab. Until the engine has these, it ignores the four new request fields and sends no `display` in the response, so the start link opens in a new window as in v1.16.0. **A connector must keep the new-window flow and the paste-link field as its fallback** ([The modal](#the-modal-frame-mode)). The engine announces when the frame mode is on.
+> - **Specified in v1.29.0; built, and switched off in production with the rest of this section** — connectors can build against this text: the frame mode (`display`, `frame_origin`, the framed `start_url`, the `ready` / `created` / `closed` messages), `admin_email`, `language`, the welcome step with the plugin connection and the history import's progress, and "Open console" in a new tab. An engine without these ignores the four new request fields and sends no `display` in the response, so the start link opens in a new window as in v1.16.0. **A connector must keep the new-window flow and the paste-link field as its fallback** ([The modal](#the-modal-frame-mode)). The engine announces when the frame mode is on.
 >
 > This endpoint has no setup-exchange endpoint map key: the plugin calls it before it has a connection, so it uses its path constant.
 
@@ -2883,10 +2883,10 @@ The example shows every field. A call sends `opener_origin` (new window) or `fra
 | `smaily_username` | string, 1–255 | Smaily API username. |
 | `smaily_password` | string, 1–255 | Smaily API password. |
 | `opener_origin` | string, optional, max 2048 | The origin of the plugin's window that opens `start_url` (scheme and host, optional port, no path), for example `https://admin.shopify.com`. The start window sends the setup token to this origin only. Omitted: the origin of `shop_url`. Accepted values: the origin of `shop_url`, `https://admin.shopify.com`, and the app hosts the engine lists (ask Smaily to add a Shopify app host). Any other value: `400 opener_origin_not_allowed`. Not used in frame mode. |
-| `display` | `"window"` \| `"frame"`, optional | (v1.29.0; specified, engine side in progress) How the plugin opens `start_url`. `"window"` (default): a new window, as in v1.16.0. `"frame"`: an iframe in a modal in the store admin ([The modal](#the-modal-frame-mode)). Any other value: `400 validation_failed`. |
-| `frame_origin` | string, optional, max 2048 | (v1.29.0; specified, engine side in progress) The origin (scheme, host, optional port; no path) of the store-admin page that holds the frame. Allowed only with `display: "frame"`. Omitted: the origin of `shop_url`. Accepted: an `https` origin that is the origin of `shop_url`, or is in the same registrable domain as the host of `shop_url` (Public Suffix List; `https://admin.shop.example` for `https://www.shop.example`), or an origin the engine lists (a Shopify app host; ask Smaily). No API key is needed for this (Erkki 2026-11-12). Any other value: `400 frame_origin_not_allowed`, and `message` says why. In frame mode the window posts its messages to this origin. |
-| `admin_email` | string (email), optional, max 254 | (v1.29.0; specified, engine side in progress) The email of the shop admin who pressed the button. The window pre-fills the console email with it; the shop admin can change it. Not a customer's email. **Shopify**: send it only when Shopify marks the staff email as verified. A malformed value is ignored, never a `400`. |
-| `language` | ISO 639-1, optional | (v1.29.0; specified, engine side in progress) The language of the window: `et` or `en`. Absent or not supported: the browser's language, as today. |
+| `display` | `"window"` \| `"frame"`, optional | (v1.29.0; built) How the plugin opens `start_url`. `"window"` (default): a new window, as in v1.16.0. `"frame"`: an iframe in a modal in the store admin ([The modal](#the-modal-frame-mode)). Any other value: `400 validation_failed`. |
+| `frame_origin` | string, optional, max 2048 | (v1.29.0; built) The origin (scheme, host, optional port; no path) of the store-admin page that holds the frame. Allowed only with `display: "frame"`. Omitted: the origin of `shop_url`. Accepted: an `https` origin that is the origin of `shop_url`, or is in the same registrable domain as the host of `shop_url` (Public Suffix List; `https://admin.shop.example` for `https://www.shop.example`), or an origin the engine lists (a Shopify app host; ask Smaily). No API key is needed for this (Erkki 2026-11-12). Any other value: `400 frame_origin_not_allowed`, and `message` says why. In frame mode the window posts its messages to this origin. |
+| `admin_email` | string (email), optional, max 254 | (v1.29.0; built) The email of the shop admin who pressed the button. The window pre-fills the console email with it; the shop admin can change it. Not a customer's email. **Shopify**: send it only when Shopify marks the staff email as verified. A malformed value is ignored, never a `400`. |
+| `language` | ISO 639-1, optional | (v1.29.0; built) The language of the window: `et` or `en`. Absent or not supported: the browser's language, as today. |
 
 **Response 200 OK** — the account has no store yet:
 
@@ -2901,7 +2901,7 @@ The example shows every field. A call sends `opener_origin` (new window) or `fra
 | --- | --- |
 | `start_url` | Opaque one-time URL. Open it at once with `window.open(start_url)` from the shop admin page (a new window or tab, top level, not an iframe). Do not store, log or send it anywhere else. The token is in the URL fragment (`#t=…`), which the browser does not send to any server. |
 | `expires_at` | Issue time + **5 minutes**. |
-| `display` | (v1.29.0; specified, engine side in progress) `"frame"` when `start_url` may be set as the `src` of an iframe on `frame_origin`; the response then looks like `{"start_url": "https://intelligence.smaily.com/onboarding/start/f/AQx…#t=AQ3f…", "expires_at": "…", "display": "frame"}`. Absent or `"window"`: open `start_url` in a new window. An engine without the frame mode sends no `display`, so a plugin that asked for a frame still opens a window. The path of `start_url` differs between the two modes; the plugin never parses it. |
+| `display` | (v1.29.0; built) `"frame"` when `start_url` may be set as the `src` of an iframe on `frame_origin`; the response then looks like `{"start_url": "https://intelligence.smaily.com/onboarding/start/f/AQx…#t=AQ3f…", "expires_at": "…", "display": "frame"}`. Absent or `"window"`: open `start_url` in a new window. An engine without the frame mode sends no `display`, so a plugin that asked for a frame still opens a window. The path of `start_url` differs between the two modes; the plugin never parses it. |
 
 **Response 409** — the account already has a store (a live or suspended one; a deleted store does not count, see rule 6):
 
@@ -2921,7 +2921,7 @@ Open `console_url` for the shop admin. The console asks the person to sign in. T
 | --- | --- | --- | --- |
 | 400 | `validation_failed` | A field is missing or malformed. | Its own settings error. |
 | 400 | `opener_origin_not_allowed` | `opener_origin` is not an origin, or not an accepted one. `message` says why. | Its own error; a plugin bug, not a store problem. |
-| 400 | `frame_origin_not_allowed` | (v1.29.0; specified, engine side in progress) `frame_origin` is not an origin, is not `https`, or is not accepted. `message` says why. | Call §21 again without `display` and open a new window. |
+| 400 | `frame_origin_not_allowed` | (v1.29.0; built) `frame_origin` is not an origin, is not `https`, or is not accepted. `message` says why. | Call §21 again without `display` and open a new window. |
 | 401 | `smaily_login_refused` | Smaily refused the API login. | "Check the Smaily API login in the plugin settings." |
 | 403 | `smaily_paid_package_required` | Smaily answered code 227: the package has no API access. | "Your Smaily package does not include API access", and the package upgrade. No onboarding. |
 | 404 | `not_found` | The self-service path is off. | The operator path (contact Smaily). |
@@ -2936,8 +2936,8 @@ The Smaily refusals (`401`, `403`, `409`, `502`) arrive **before** any window ex
 1. Shows the shop address from the link for confirmation. A wrong address is corrected in the plugin settings and the start is repeated.
 2. Asks for three things, and nothing else — the shop address, the Smaily account and the plugin connection come from the plugin:
    - **Terms**: one checkbox, with a link to the terms of service and the data processing agreement. The engine records the terms version and the time.
-   - **Sector** ("What does your shop sell?"): **every active sector can be picked** (v1.29.0, Erkki 2026-11-12; built). A sector that is not active says "set up by our team". When no store is live yet in the picked sector, the Smaily team checks the sector's recommendation rules for this store. The check holds only the last step, switching recommendations on; the store can do everything else at once. The check is per store, until the first store of the sector is live. (Specified, engine side in progress: the window itself says "You are among the first in this sector. Our team reviews the recommendation rules before you switch recommendations on." Today the store's console says it.)
-   - **Console email**: the email for the store's console account. (v1.29.0; specified, engine side in progress) Pre-filled from `admin_email` when the plugin sent it.
+   - **Sector** ("What does your shop sell?"): **every active sector can be picked** (v1.29.0, Erkki 2026-11-12; built). A sector that is not active says "set up by our team". When no store is live yet in the picked sector, the Smaily team checks the sector's recommendation rules for this store. The check holds only the last step, switching recommendations on; the store can do everything else at once. The check is per store, until the first store of the sector is live. (Built: the window itself says "You are among the first in this sector. Our team reviews the recommendation rules before you switch recommendations on.")
+   - **Console email**: the email for the store's console account. (v1.29.0; built) Pre-filled from `admin_email` when the plugin sent it.
 3. On submit, the engine creates in one step: the store; a console **editor** account for the email, with a sign-in link sent to it; the Smaily API login, stored encrypted; a record of the terms acceptance. The campaign statistics sync starts at once. Contact sync stays off: **nothing is written to any Smaily contact before recommendations are switched on for the store** (by the store in its console, or by the operator).
 4. Sends the setup token to the window that opened it:
 
@@ -2950,7 +2950,7 @@ The Smaily refusals (`401`, `403`, `409`, `502`) arrive **before** any window ex
 
    The target origin is the `opener_origin` of the start request, by default the origin of `shop_url` — never `*`. The window also shows the setup link with a copy button, for the case where the message cannot arrive.
 
-   (v1.29.0; specified, engine side in progress) In frame mode the same message goes to `window.parent` on `frame_origin`:
+   (v1.29.0; built) In frame mode the same message goes to `window.parent` on `frame_origin`:
 
    ```js
    window.parent.postMessage(
@@ -2959,7 +2959,7 @@ The Smaily refusals (`401`, `403`, `409`, `502`) arrive **before** any window ex
    );
    ```
 
-5. (v1.29.0; specified, engine side in progress) Shows the **welcome step** and stays open ([Welcome step](#welcome-step)). Today the window ends on the setup link and an "Open your console" button that signs the person in, in the same window, for 5 minutes after the submit.
+5. (v1.29.0; built) Shows the **welcome step** and stays open ([Welcome step](#welcome-step)).
 
 **What the plugin does with the message**:
 
@@ -2986,7 +2986,7 @@ Check `event.origin` against the engine base URL. Send the token to the shop bac
 
 #### Welcome step
 
-(v1.29.0; specified, engine side in progress. The engine window renders it — Erkki 2026-11-12; a connector builds nothing for it.)
+(v1.29.0; built. The engine window renders it — Erkki 2026-11-12; a connector builds nothing for it.)
 
 After the submit the window shows the welcome step and stays open:
 
@@ -3013,7 +3013,7 @@ A window whose link is expired or not valid posts no `ready`. The window accepts
 
 #### The modal (frame mode)
 
-(v1.29.0; specified, engine side in progress.) What the plugin builds to hold the window:
+(v1.29.0; built.) What the plugin builds to hold the window:
 
 - **Size.** At least **560 × 640 CSS pixels**; the window scrolls inside a smaller frame.
 - **Iframe attributes.**

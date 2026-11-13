@@ -101,14 +101,14 @@ final class ContactLanguageResolver {
 	public function for_user( \WP_User $user, string $storefront_language = '' ): string {
 		$user_id = (int) $user->ID;
 
-		$language = $this->normalize( $storefront_language );
+		$language = self::normalize( $storefront_language );
 
 		if ( $language === '' ) {
 			$language = $this->from_user_meta( $user_id );
 		}
 
 		if ( $language === '' ) {
-			$language = $this->normalize( (string) ( $this->order_language_provider )( $user_id ) );
+			$language = self::normalize( (string) ( $this->order_language_provider )( $user_id ) );
 		}
 
 		if ( $language === '' ) {
@@ -126,7 +126,7 @@ final class ContactLanguageResolver {
 	 * `_user_preferred_language` → multilingual default → site locale.
 	 */
 	public function for_order( \WC_Order $order ): string {
-		$language = $this->normalize( (string) $order->get_meta( self::ORDER_LANGUAGE_META ) );
+		$language = self::normalize( (string) $order->get_meta( self::ORDER_LANGUAGE_META ) );
 
 		if ( $language === '' ) {
 			$customer_id = (int) $order->get_customer_id();
@@ -153,7 +153,7 @@ final class ContactLanguageResolver {
 	 * @param string $storefront_language The language the cart recorded, '' when none.
 	 */
 	public function for_guest( string $storefront_language = '' ): string {
-		$language = $this->normalize( $storefront_language );
+		$language = self::normalize( $storefront_language );
 
 		if ( $language === '' ) {
 			$language = $this->default_language();
@@ -198,7 +198,7 @@ final class ContactLanguageResolver {
 		$languages = array();
 
 		foreach ( $this->detector->get_detected_languages() as $code ) {
-			$normalized = $this->normalize( (string) $code );
+			$normalized = self::normalize( (string) $code );
 			if ( $normalized !== '' ) {
 				$languages[] = $normalized;
 			}
@@ -217,7 +217,7 @@ final class ContactLanguageResolver {
 
 		$value = get_user_meta( $user_id, $this->user_pref_meta_key(), true );
 
-		return is_string( $value ) ? $this->normalize( $value ) : '';
+		return is_string( $value ) ? self::normalize( $value ) : '';
 	}
 
 	private function user_pref_meta_key(): string {
@@ -237,12 +237,12 @@ final class ContactLanguageResolver {
 	 * code, so a single-language store still keys *something* sensible.
 	 */
 	private function default_language(): string {
-		$default = $this->normalize( $this->detector->get_default_language() );
+		$default = self::normalize( $this->detector->get_default_language() );
 		if ( $default !== '' ) {
 			return $default;
 		}
 
-		return $this->normalize( function_exists( 'get_locale' ) ? (string) get_locale() : '' );
+		return self::normalize( function_exists( 'get_locale' ) ? (string) get_locale() : '' );
 	}
 
 	/**
@@ -282,9 +282,11 @@ final class ContactLanguageResolver {
 	/**
 	 * Collapse a locale to a lowercase 2-letter-ish language subtag
 	 * (`en_US` → `en`, `ET` → `et`). Smaily and the merchant's Make automations
-	 * both key on the short code.
+	 * both key on the short code. The workflow lookup compares a mapping
+	 * row's language in this form too (`Multilingual\Router`, CON-203), so
+	 * the two can never disagree on what "the same language" is.
 	 */
-	private function normalize( string $code ): string {
+	public static function normalize( string $code ): string {
 		$code = trim( $code );
 		if ( $code === '' ) {
 			return '';

@@ -21,7 +21,8 @@ defined( 'ABSPATH' ) || exit;
  * (WPML and Polylang use 2-letter ISO 639-1 codes like "et", "en";
  * TranslatePress sometimes uses 5-letter locale strings like "en_GB").
  * Callers should treat them as opaque identifiers; comparison is
- * case-sensitive string equality.
+ * case-sensitive string equality — except the workflow lookup, which also
+ * matches a mapping row by its short form (`en_GB` ↔ `en`, CON-203).
  */
 interface DetectorInterface {
 

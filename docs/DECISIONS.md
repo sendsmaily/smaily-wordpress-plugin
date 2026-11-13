@@ -10572,7 +10572,8 @@ cart was on.
 - Nothing is recorded on the site-locale fallback (its "current language" is
   `get_locale()`, never a contact language source — F3-47) or on
   TranslatePress (its adapter reports the default language, not the
-  shopper's).
+  shopper's). *Superseded for TranslatePress by CON-203: the adapter now
+  reports the shopper's language and the cart records it.*
 **Rationale:** the content column is our own JSON already read as wire input
 (F3-53) and already carries a per-cart flag, so the language needs no
 schema change, no upgrade step and no background job to wait on a schema.
@@ -10801,6 +10802,47 @@ same row; follow-up). Pinned by `tests/Unit/DB/MigratorTest.php`,
 `tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php`,
 `tests/Unit/REST/BackfillEndpointTest.php` and
 `tests/Integration/RecEngineSchemaGateTest.php`.
+
+### CON-203 — A per-language workflow is found whatever form its language code is stored in; TranslatePress carts record the shopper's language (2026-11-13)
+
+**Context:** the workflow mapping stores each row under the code the
+multilingual plugin lists (TranslatePress: locales such as `en_GB`); every
+send path looks the row up with the short code `ContactLanguageResolver`
+returns (`en`). On a TranslatePress store a per-language row never matched,
+so the email went through the fallback row or not at all. Separately, the
+TranslatePress adapter's `get_current_language()` returned the store's
+default language, so PRO-4253 recorded no cart language on TranslatePress.
+**Decision:**
+- Normalise on lookup only. `Router::find_mapping()` keeps its exact query;
+  when it finds nothing (and the code is not `default`), it reads the
+  trigger's rows in saved order and takes the first whose code reads the same
+  through `ContactLanguageResolver::normalize()`, now public static — the one
+  normaliser for both sides. Then the fallback row, as before.
+- Nothing is normalised on write and no row is migrated: the settings screen
+  matches rows against the plugin's listed codes, and rows on real stores
+  keep working as stored.
+- `TranslatePressAdapter::get_current_language()` returns TranslatePress's
+  `$TRP_LANGUAGE` global (set on `plugins_loaded` from the request URL's
+  language slug, the default language when there is none; read by
+  TranslatePress's own `locale` filter), else the store default as before.
+  `CartHookHandler` records it like WPML's and Polylang's (the PRO-4253
+  exclusion is removed). The resolver stays context-independent (F3-47).
+**Rationale:** one comparison rule in one place; a short-code store keeps
+the same first query, so its behaviour cannot change; existing long-code rows
+start matching without an upgrade step.
+**Alternatives:** normalise on write (rejected — breaks the settings
+screen's row matching and needs a migration of stored rows); a SQL `LIKE`
+rule (rejected — a second copy of the normaliser); translate the short code
+back to a listed long code through the detector (rejected — depends on the
+plugin's language list at send time).
+**Relationships:** F3-47, PRO-4253, PRO-3187 (transactional lookup uses the
+same `find_mapping()`). Two rows of one language (`en_GB` and `en_US`): the
+first saved wins — the resolver cannot tell them apart either. A WPML code
+such as `pt-br` now also matches the resolver's `pt`. An AJAX or REST cart
+request whose URL has no TranslatePress language slug records the default
+language — TranslatePress's own answer for that request. Pinned by
+`RouterTest`, `TranslatePressAdapterTest`, `CartHookHandlerTest` and
+`tests/Integration/CartPipelineTest.php`.
 
 ### CON-286 — An import state the database cannot read is an error; the orders window is asked once (2026-11-13)
 

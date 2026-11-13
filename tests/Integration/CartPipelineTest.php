@@ -14,6 +14,7 @@ use Smaily\Connect\Integrations\WooCommerce\CartHookHandler;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Multilingual\Router;
+use Smaily\Connect\Multilingual\TranslatePressAdapter;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
@@ -42,6 +43,9 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *   - STOREFRONT LANGUAGE (PRO-4253): a guest cart changed on a non-default
  *     storefront is reminded in that language, through that language's
  *     workflow.
+ *   - TRANSLATEPRESS (CON-203): the same on a store that lists its
+ *     languages as locales (`en_GB`) — the cart records TranslatePress's
+ *     request language and the `en_GB` workflow row answers the `en` lookup.
  *
  * The Smaily API is mocked at the pre_http_request seam (the established
  * pattern for the contact/autoresponder API) — no live traffic.
@@ -103,6 +107,8 @@ final class CartPipelineTest extends TestCase {
 		$this->created_users    = array();
 
 		delete_option( Router::OPTION_MODE );
+		delete_option( 'trp_settings' );
+		unset( $GLOBALS['TRP_LANGUAGE'] );
 		DetectorFactory::reset();
 		$this->forget_cart_sweeper();
 
@@ -411,6 +417,48 @@ final class CartPipelineTest extends TestCase {
 		self::assertSame( 'lt', $captured['addresses'][0]['language'] );
 	}
 
+	/**
+	 * CON-203: TranslatePress lists `et_EE` / `en_GB`, so the mapping rows
+	 * hold those codes, while the reminder looks its workflow up by the short
+	 * code `en`. The guest changes the cart on the English storefront.
+	 */
+	public function test_a_translatepress_cart_is_reminded_through_its_long_code_language_workflow(): void {
+		$this->seed_credentials();
+		$this->translatepress_store();
+		update_option( Router::OPTION_MODE, Router::MODE_B );
+		$this->map_language_workflow( 'et_EE', '6161', 1 );
+		$this->map_language_workflow( 'en_GB', '6363', 0 );
+
+		// TranslatePress sets its request language early (plugins_loaded),
+		// before WooCommerce reports any cart change.
+		$GLOBALS['TRP_LANGUAGE'] = 'en_GB';
+
+		wp_set_current_user( 0 );
+		$product_id = $this->make_product( 'TranslatePress Product', 5.00 );
+		$this->boot_wc_cart();
+		WC()->cart->add_to_cart( $product_id, 1 );
+
+		$handler = new CartHookHandler( new CartSessionStore() );
+		CartHookHandler::reset_request_guard();
+		$handler->on_cart_updated();
+
+		$content = CartSessionStore::decode_content( (string) $this->tracker_row()['cart_content'] );
+		self::assertIsArray( $content );
+		self::assertSame( 'en_GB', $content['language'], 'The cart records the TranslatePress storefront language.' );
+
+		$handler->on_checkout_update_order_review( 'billing_email=translatepress-cart%40example.test' );
+		$this->rewind_tracker_row( (int) $this->tracker_row()['id'], 30 * MINUTE_IN_SECONDS );
+		$this->forget_cart_sweeper();
+		unset( $GLOBALS['TRP_LANGUAGE'] ); // The sweep runs where no storefront is.
+		do_action( 'smly_plus_abandoned_cart' );
+		self::assertSame( 1, $this->queue_count() );
+
+		$captured = $this->flush_capturing();
+		self::assertIsArray( $captured, 'The reminder must reach the transport.' );
+		self::assertSame( '6363', (string) $captured['autoresponder'], 'The en_GB row answers the en lookup, not the fallback.' );
+		self::assertSame( 'en', $captured['addresses'][0]['language'] );
+	}
+
 	public function test_legacy_autoresponder_id_carries_over_as_the_fallback(): void {
 		// Upgrade continuity (F3-54 order): no mapping row — the id the
 		// upgraded store still has in the legacy option drives the send.
@@ -664,6 +712,25 @@ final class CartPipelineTest extends TestCase {
 		$cached = new \ReflectionProperty( DetectorFactory::class, 'cached' );
 		$cached->setAccessible( true );
 		$cached->setValue( null, $detector );
+	}
+
+	/**
+	 * Stands in for TranslatePress: the real adapter, on settings that list
+	 * the store's languages as locales. Its request language is the
+	 * `$TRP_LANGUAGE` global a test sets. tearDown() removes both.
+	 */
+	private function translatepress_store(): void {
+		update_option(
+			'trp_settings',
+			array(
+				'default-language'      => 'et_EE',
+				'translation-languages' => array( 'et_EE', 'en_GB' ),
+			)
+		);
+
+		$cached = new \ReflectionProperty( DetectorFactory::class, 'cached' );
+		$cached->setAccessible( true );
+		$cached->setValue( null, new TranslatePressAdapter() );
 	}
 
 	/**
