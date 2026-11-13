@@ -42,7 +42,9 @@ class Client {
 	/**
 	 * Fired after every answer (CON-290): the account's subdomain, '' or
 	 * the RefusalReason code, the HTTP method and the endpoint.
-	 * Report\ConnectionHealth listens.
+	 * Report\ConnectionHealth listens. It never carries a customer
+	 * identifier: every endpoint is a fixed name (`contact`,
+	 * `autoresponder`, …); an address goes only in the query or body.
 	 */
 	public const RESULT_HOOK = 'smly_plus_smaily_api_result';
 

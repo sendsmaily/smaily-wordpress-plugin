@@ -71,7 +71,10 @@ class Client {
 	/**
 	 * Fired after every request's last attempt (CON-290): '' or the
 	 * engine's error code (`network_error` when no answer came), the HTTP
-	 * method and the URL. Report\ConnectionHealth listens.
+	 * method, and the URL path when it contains `/ingest/`, else ''.
+	 * Report\ConnectionHealth listens. It never carries a customer
+	 * identifier: the GDPR customer URLs (§8/§9/§10) hold the email in
+	 * their path, so a path outside `/ingest/` is never passed.
 	 */
 	public const RESULT_HOOK = 'smly_plus_engine_api_result';
 
@@ -842,11 +845,14 @@ class Client {
 
 	/**
 	 * Tell the installation report how this request went (CON-290,
-	 * RESULT_HOOK): '' or the error code, the method and the URL. A code
-	 * only, never a message text.
+	 * RESULT_HOOK): '' or the error code, the method, and the URL path only
+	 * when it is an `/ingest/` path. A code only, never a message text or a
+	 * customer identifier.
 	 */
 	private function announce_result( string $error_code, string $method, string $url ): void {
-		do_action( self::RESULT_HOOK, $error_code, $method, $url );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- wp_parse_url() only adds a PHP < 5.4.7 fallback; the plugin needs PHP 8.0, and this runs on every engine call, unit tests included.
+		$path = (string) parse_url( $url, PHP_URL_PATH );
+		do_action( self::RESULT_HOOK, $error_code, $method, strpos( $path, '/ingest/' ) !== false ? $path : '' );
 	}
 
 	/**

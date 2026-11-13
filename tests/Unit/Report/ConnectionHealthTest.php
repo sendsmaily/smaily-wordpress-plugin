@@ -93,23 +93,23 @@ final class ConnectionHealthTest extends TestCase {
 
 	public function test_a_repeated_success_is_written_at_most_every_five_minutes(): void {
 		$health = $this->health();
-		$health->record_engine( '', 'POST', 'https://intelligence.smaily.com/api/v1/ingest/orders' );
-		$health->record_engine( '', 'POST', 'https://intelligence.smaily.com/api/v1/ingest/orders' );
-		$health->record_engine( '', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
+		$health->record_engine( '', 'POST', '/api/v1/ingest/orders' );
+		$health->record_engine( '', 'POST', '/api/v1/ingest/orders' );
+		$health->record_engine( '', 'GET', '/api/v1/ingest/ping' );
 		self::assertSame( 1, $this->writes, 'A storefront /relay request must not write the option each time.' );
 
 		$later = $this->health( self::NOW + ConnectionHealth::WRITE_EVERY_SECONDS );
-		$later->record_engine( '', 'POST', 'https://intelligence.smaily.com/api/v1/ingest/orders' );
+		$later->record_engine( '', 'POST', '/api/v1/ingest/orders' );
 		self::assertSame( 2, $this->writes );
 		self::assertSame( self::NOW + ConnectionHealth::WRITE_EVERY_SECONDS, $later->engine()['last_sync_at'] );
 	}
 
 	public function test_a_change_of_status_is_written_at_once(): void {
 		$health = $this->health();
-		$health->record_engine( '', 'POST', 'https://intelligence.smaily.com/api/v1/ingest/orders' );
-		$health->record_engine( 'network_error', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
-		$health->record_engine( 'network_error', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
-		$health->record_engine( 'api_key_revoked', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
+		$health->record_engine( '', 'POST', '/api/v1/ingest/orders' );
+		$health->record_engine( 'network_error', 'GET', '/api/v1/ingest/ping' );
+		$health->record_engine( 'network_error', 'GET', '/api/v1/ingest/ping' );
+		$health->record_engine( 'api_key_revoked', 'GET', '/api/v1/ingest/ping' );
 
 		self::assertSame( 3, $this->writes );
 		self::assertSame( 'api_key_revoked', $health->engine()['last_error_code'] );
@@ -117,7 +117,7 @@ final class ConnectionHealthTest extends TestCase {
 
 	public function test_only_a_code_is_stored_never_a_text(): void {
 		$health = $this->health();
-		$health->record_engine( 'No customer with email jane@example.com', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
+		$health->record_engine( 'No customer with email jane@example.com', 'GET', '/api/v1/ingest/ping' );
 
 		self::assertSame( 'unknown_error', $health->engine()['last_error_code'] );
 		self::assertStringNotContainsString( 'jane@example.com', (string) json_encode( $this->options ) );

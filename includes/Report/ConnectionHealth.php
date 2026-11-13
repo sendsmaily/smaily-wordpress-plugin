@@ -28,7 +28,8 @@ use Smaily\Connect\Smaily\RecEngine\Client as EngineClient;
  *     or sends an email);
  *   - `RecEngine\Client::request_url()` fires its RESULT_HOOK with '' or
  *     the engine's error code (`network_error` when no answer came), the
- *     method and the URL; a 2xx POST to an `/ingest/` URL is a sync.
+ *     method and the `/ingest/` path ('' for any other path); a 2xx POST
+ *     to an `/ingest/` path is a sync.
  *
  * This class decides what counts as a sync and records them in one option.
  * It stores codes only, never a message text (CON-301). A shopper's `/relay`
@@ -73,10 +74,10 @@ class ConnectionHealth {
 	/**
 	 * @param mixed $error_code '' for a 2xx answer, else the engine's error code.
 	 * @param mixed $method     The HTTP method.
-	 * @param mixed $url        The request URL; a POST to an `/ingest/` URL writes data.
+	 * @param mixed $path       The `/ingest/` path, '' for any other; a POST to one writes data.
 	 */
-	public function record_engine( $error_code = '', $method = '', $url = '' ): void {
-		$this->record( 'engine', null, (string) $error_code, $method === 'POST' && strpos( (string) $url, '/ingest/' ) !== false );
+	public function record_engine( $error_code = '', $method = '', $path = '' ): void {
+		$this->record( 'engine', null, (string) $error_code, $method === 'POST' && strpos( (string) $path, '/ingest/' ) !== false );
 	}
 
 	/**
