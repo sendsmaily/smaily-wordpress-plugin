@@ -660,12 +660,21 @@ back to `get_locale()` in cron = the WP **site** locale (`en`), which on an
 daily. **Abandoned-cart reminders have one more source, FIRST (PRO-4253):**
 the storefront language the cart recorded — `CartHookHandler::on_cart_updated()`
 reads the multilingual plugin's current language through the detector on the
-shopper's own request (nothing on the site-locale fallback or TranslatePress)
+shopper's own request (nothing on the site-locale fallback; TranslatePress
+since CON-203, whose adapter returns its `$TRP_LANGUAGE` request global, the
+store default before TranslatePress sets it)
 and stores it in `cart_content` (`CartSessionStore::encode_content()`, beside
 the CON-196 tick); `CartPayloadBuilder` passes it to `for_user()` /
 `for_guest()`, where it is normalised, clamped and filtered like any other
 source. The resolver itself still reads nothing from the request — the
-language reaches it as data. **Two rules:** (1) a NEW datetime-style sin — never reintroduce a raw
+language reaches it as data. **The workflow lookup compares languages in the
+same short form (CON-203):** a mapping row keeps the code the multilingual
+plugin lists (TranslatePress `en_GB`), the send paths look up the resolver's
+`en`; `Multilingual\Router::find_mapping()` tries the exact code first (a
+WPML/Polylang store's query is unchanged), then a row whose code reads the
+same through `ContactLanguageResolver::normalize()` — the one normaliser,
+never a second copy — before the fallback row. No migration: stored rows
+keep their long codes. **Two rules:** (1) a NEW datetime-style sin — never reintroduce a raw
 `get_user_locale()`/`get_locale()` language source on the contact path; route it
 through the resolver. (2) **Omit `language` when the resolver returns `''`** —
 Smaily treats absent as "leave existing intact", empty as "wipe"; the

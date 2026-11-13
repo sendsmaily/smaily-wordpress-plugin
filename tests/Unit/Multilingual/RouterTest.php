@@ -188,6 +188,107 @@ final class RouterTest extends TestCase {
 		self::assertNull( ( new Router() )->resolve_workflow( 'welcome', 'et' ) );
 	}
 
+	/**
+	 * CON-203: TranslatePress lists its languages as locales, so the mapping
+	 * holds `en_GB` while the send path looks up the short code `en`.
+	 */
+	public function test_a_long_code_row_is_found_for_its_short_language_code(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_B );
+
+		$wpdb->trigger_rows          = array(
+			array( 'workflow_id' => '71', 'account_key' => 'default', 'language' => 'et_EE' ),
+			array( 'workflow_id' => '72', 'account_key' => 'default', 'language' => 'en_GB' ),
+		);
+		$wpdb->next_fallback_get_row = array( 'workflow_id' => '71', 'account_key' => 'default', 'language' => 'et_EE' );
+
+		$match = ( new Router() )->resolve_workflow( 'abandoned_cart', 'en' );
+
+		self::assertNotNull( $match );
+		self::assertSame( 72, $match->workflow_id, 'The English row, not the fallback.' );
+		self::assertSame( 'en_GB', $match->matched_language );
+		self::assertSame( 1, $wpdb->get_row_calls, 'The fallback is not consulted once a same-language row answers.' );
+	}
+
+	public function test_a_long_code_mode_a_row_keeps_its_account(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_A );
+
+		$wpdb->trigger_rows = array(
+			array( 'workflow_id' => '81', 'account_key' => 'en_account', 'language' => 'en_GB' ),
+		);
+
+		$match = ( new Router() )->resolve_workflow( 'welcome', 'en' );
+
+		self::assertNotNull( $match );
+		self::assertSame( 81, $match->workflow_id );
+		self::assertSame( 'en_account', $match->account_key );
+	}
+
+	public function test_a_long_code_transactional_row_is_found_for_its_short_language_code(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_B );
+
+		$wpdb->trigger_rows = array(
+			array( 'workflow_id' => '91', 'account_key' => 'transactional', 'language' => 'en_GB' ),
+		);
+
+		$match = ( new Router() )->resolve_workflow( 'order_confirmation', 'en' );
+
+		self::assertNotNull( $match );
+		self::assertSame( 91, $match->workflow_id );
+	}
+
+	public function test_a_short_code_row_is_found_by_the_exact_lookup_alone(): void {
+		// WPML and Polylang list short codes: the row is found exactly as
+		// before, and the same-language lookup never runs.
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_B );
+
+		$wpdb->next_get_row = array( 'workflow_id' => '42', 'account_key' => 'default', 'language' => 'et' );
+		$wpdb->trigger_rows = array(
+			array( 'workflow_id' => '43', 'account_key' => 'default', 'language' => 'et_EE' ),
+		);
+
+		$match = ( new Router() )->resolve_workflow( 'welcome', 'et' );
+
+		self::assertSame( 42, $match->workflow_id );
+		self::assertSame( 0, $wpdb->get_results_calls );
+	}
+
+	public function test_another_language_still_reaches_the_fallback_row(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_B );
+
+		$wpdb->trigger_rows          = array(
+			array( 'workflow_id' => '71', 'account_key' => 'default', 'language' => 'et_EE' ),
+			array( 'workflow_id' => '73', 'account_key' => 'default', 'language' => 'default' ),
+		);
+		$wpdb->next_fallback_get_row = array( 'workflow_id' => '71', 'account_key' => 'default', 'language' => 'et_EE' );
+
+		$match = ( new Router() )->resolve_workflow( 'welcome', 'lt' );
+
+		self::assertSame( 71, $match->workflow_id );
+	}
+
+	public function test_the_default_bucket_never_takes_the_same_language_lookup(): void {
+		$wpdb            = $this->fake_wpdb();
+		$GLOBALS['wpdb'] = $wpdb;
+		Functions\when( 'get_option' )->justReturn( Router::MODE_SINGLE );
+
+		$wpdb->trigger_rows = array(
+			array( 'workflow_id' => '74', 'account_key' => 'default', 'language' => 'en_GB' ),
+		);
+
+		self::assertNull( ( new Router() )->resolve_workflow( 'welcome', 'en' ) );
+		self::assertSame( 0, $wpdb->get_results_calls );
+	}
+
 	public function test_transactional_trigger_uses_the_callers_language_even_in_single_mode(): void {
 		$wpdb            = $this->fake_wpdb();
 		$GLOBALS['wpdb'] = $wpdb;
@@ -248,7 +349,7 @@ final class RouterTest extends TestCase {
 
 		self::assertNotNull( $match );
 		self::assertSame( 33, $match->workflow_id );
-		self::assertSame( array( 'order_confirmation', 'default' ), $wpdb->all_args[2] );
+		self::assertSame( array( 'order_confirmation', 'default' ), $wpdb->all_args[3], 'After the exact, same-language and fallback lookups.' );
 	}
 
 	public function test_transactional_trigger_with_null_language_looks_up_the_default_row(): void {
@@ -549,6 +650,9 @@ final class RouterTest extends TestCase {
 			public ?array $row_queue           = null;
 			/** prepare() args of every lookup, in call order. */
 			public array $all_args             = array();
+			/** The trigger's rows the same-language lookup reads (CON-203). */
+			public array $trigger_rows         = array();
+			public int $get_results_calls      = 0;
 
 			public function prepare( string $sql, ...$args ): string {
 				$this->captured_args = $args;
@@ -565,6 +669,11 @@ final class RouterTest extends TestCase {
 					return $this->next_get_row;
 				}
 				return $this->next_fallback_get_row;
+			}
+
+			public function get_results( string $sql, string $output = ARRAY_A ): array {
+				++$this->get_results_calls;
+				return $this->trigger_rows;
 			}
 		};
 	}
