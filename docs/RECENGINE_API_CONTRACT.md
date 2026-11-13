@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.24
+# Smaily Recommendation Engine — API Contract v1.32
 
-**Version**: 1.31.0
+**Version**: 1.32.0
 **Published**: 2026-05-19
-**Last updated**: 2026-11-13 (v1.31.0 — the design page in a modal: a design link minted with `display: "frame"` keeps its session in the page, not in a cookie, so the page works in a frame inside the store admin in every browser; the plugin may name the origin of its admin page (`frame_origin`); the page tells its parent when it is ready and when it has unsaved changes (§22). Drafted as v1.26.0; that number was never published. MINOR bump: additive only — INT-14. Previous: 2026-11-13, v1.30.0 — an order can say where it was made: optional `channel`, `online` or `in_store`; a store's second order system (for example its tills) sends its orders into the same engine store with its own API key, by the sender rules of §5 "A second order source". An in-store order is credited by the same rules as any order, and the store's console shows the credited part made in the store. MINOR bump: one new optional field. Previous: 2026-11-12, v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step are specified and the engine side is in progress, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-13 (v1.32.0 — outcome events: a booking system sends a customer's bookings and their states (`booked`, `cancelled`, `no_show`, `attended`) to the new §6b `POST /api/v1/ingest/outcomes`. An unknown type is stored as `other`, never rejected. A booking holds back the customer's recommendations in a store whose sector reads it. The events are not revenue and teach the engine nothing yet. The shopper's export (§8) and delete (§9) include them. MINOR bump: additive only — INT-259. Previous: 2026-11-13, v1.31.0 — the design page in a modal: a design link minted with `display: "frame"` keeps its session in the page, not in a cookie, so the page works in a frame inside the store admin in every browser; the plugin may name the origin of its admin page (`frame_origin`); the page tells its parent when it is ready and when it has unsaved changes (§22). Drafted as v1.26.0; that number was never published. MINOR bump: additive only — INT-14. Previous: 2026-11-13, v1.30.0 — an order can say where it was made: optional `channel`, `online` or `in_store`; a store's second order system (for example its tills) sends its orders into the same engine store with its own API key, by the sender rules of §5 "A second order source". An in-store order is credited by the same rules as any order, and the store's console shows the credited part made in the store. MINOR bump: one new optional field. Previous: 2026-11-12, v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step are specified and the engine side is in progress, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -52,6 +52,7 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
    - [POST /api/v1/ingest/customers](#4-post-apiv1ingestcustomers)
    - [POST /api/v1/ingest/orders](#5-post-apiv1ingestorders)
    - [POST /api/v1/ingest/browse](#6-post-apiv1ingestbrowse)
+   - [POST /api/v1/ingest/outcomes](#6b-post-apiv1ingestoutcomes)
    - [POST /api/v1/identity/merge](#7-post-apiv1identitymerge)
    - [GET /api/v1/customer/{email}/export](#8-get-apiv1customeremailexport)
    - [DELETE /api/v1/customer/{email}](#9-delete-apiv1customeremail)
@@ -283,6 +284,7 @@ HTTP 400 Bad Request
 | `/api/v1/ingest/catalog` | 100 requests | per 1 second |
 | `/api/v1/ingest/customers` | 100 requests | per 1 second |
 | `/api/v1/ingest/orders` | 100 requests | per 1 second |
+| `/api/v1/ingest/outcomes` | 100 requests | per 1 second |
 | `/api/v1/ingest/history` | 100 requests | per 1 second |
 | `/api/v1/identity/merge` | 100 requests | per 1 second |
 | `/api/v1/automations/{key}/setup-link` | 10 requests | per 60 seconds |
@@ -1392,6 +1394,76 @@ Returned when every event in the request was already processed (matching `event_
 
 ---
 
+### 6b. POST /api/v1/ingest/outcomes
+
+(v1.32.0) Outcome events from a store's booking system: a customer booked, cancelled, did not come, or came. A completed, paid visit is **not** an outcome event: it is an order (§5), one per visit, `status: completed`, with the services performed and any products as lines. A deposit, a prepaid booking, a voucher or a no-show is never sent as an order.
+
+**URL**: `POST /api/v1/ingest/outcomes`
+
+**Auth**: `Authorization: Bearer sk_...`
+
+**Request**
+
+```json
+{
+  "events": [
+    {
+      "event_id": "0f5e2a8c-3b1d-4c7e-9a2f-6d8b1e4c5a70",
+      "customer_email": "jane@example.com",
+      "type": "booked",
+      "subject_id": "bk-48213",
+      "sku": "svc-haircut",
+      "value": 35.00,
+      "currency": "EUR",
+      "occurred_at": "2026-11-13T09:12:00Z",
+      "scheduled_for": "2026-11-20T14:00:00Z",
+      "source": "booking"
+    }
+  ]
+}
+```
+
+1–100 events per request. The wrapper is validated as a whole (`400 validation_failed`); each event is validated on its own, as browse (§6).
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `event_id` | UUID | YES | Transport dedup, as §6: the same `event_id` again within 90 days is counted in `deduplicated` and not written. |
+| `customer_email` | string | one of the two | Matched in any letter case. |
+| `external_id` | string | one of the two | The store's customer id (§4). Used when no email matches. |
+| `type` | string | YES | `booked`, `cancelled`, `no_show` or `attended`. A sector may define its own `x_<pack>_<name>` type. **Any other value is stored as `other` with the value kept, and is never rejected**, so a new type needs no sender change. A new base type is a MINOR contract change. |
+| `subject_id` | string | YES for `booked`, `cancelled`, `no_show` | The source's booking id. A later `cancelled`, `no_show` or `attended` with the same `subject_id` (and `source`) closes the `booked`. Optional for `attended` (a walk-in). |
+| `sku` | string | NO | The service, as in the catalog (§3). |
+| `value`, `currency` | number, ISO 4217 | NO | The booked price. **Never revenue**: revenue comes only from orders. |
+| `occurred_at` | ISO 8601 | YES | When it happened. A UTC offset is accepted and stored in UTC. |
+| `scheduled_for` | ISO 8601 | YES for `booked` | The appointment time. |
+| `source` | string | NO | A label for the sending system (`booking`). Part of the natural key. |
+
+No free text, note, treatment reason or practitioner field exists: the engine stores none.
+
+**Natural key.** One stored event per (store, `source`, `subject_id`, `type`). A re-sent `booked` for the same booking replaces the stored one (a moved appointment is a new `booked` event with the same `subject_id`). An event without `subject_id` is stored as sent.
+
+**Customer.** The customer must exist (§4 or §5); an outcome event never creates one. An unknown customer is an item error. A customer who objected to profiling (§10): the event is not stored and is counted in `skipped`.
+
+**Response `200`**
+
+```json
+{ "ok": true, "processed": 1, "deduplicated": 0, "skipped": 0, "errors": [] }
+```
+
+`errors[]`: `{index, field, message}` per refused event — `field: "customer"` for an unknown customer, else the field that failed validation (`scheduled_for` for a `booked` without it, `subject_id`, …). A refused event's `event_id` is not registered, so a corrected retry is processed.
+
+**What the engine does with them.**
+
+- In a sector that reads bookings (salons), a customer with a booking whose appointment time plus 2 days has not passed, and that no `cancelled`, `no_show` or `attended` has closed, gets no recommendations: the contact's recommendation fields are emptied at the next run. The next run after the booking ends gives them again. A `cancelled` or `no_show` also makes the customer due for a new invitation to book at once.
+- The holdout reading counts a customer with a completed visit order or an `attended` event as a visit (the store's console, "visit rate").
+- Nothing learns from the events.
+
+**Retention.** 14 months from `occurred_at`, as browse and email events (§8 `data_retention_policy.outcome_events`).
+
+**Rate limit.** 100 requests per second per store, as the other ingest endpoints.
+
+---
+
 ### 7. POST /api/v1/identity/merge
 
 Anonymous visitor → known customer manual merge. The plugin calls this when a customer logs in and we have cookies tied to an anonymous session that we now want to bind to the customer.
@@ -1505,7 +1577,7 @@ GDPR data export. Returns all engine-held data for the customer.
 
 > **Consent is not exported.** The engine does not store consent (see §4) — Smaily owns it. The export contains **no `consent` object**; a reader must not assume consent state is recoverable from this endpoint. Identity is **email-only** (no `smaily_contact_id`, dropped in W4).
 
-**Response 200 OK** (`format=json`) — the example below is the **real deployed body** (curl-verified). `customer`, `orders`, and `order_items` are full table rows; the event arrays (`browse_events`, `email_events`, `recommendations`, `visitor_tokens`) are returned as `[]` when empty and otherwise carry the full rows of the respective table:
+**Response 200 OK** (`format=json`) — the example below is the **real deployed body** (curl-verified). `customer`, `orders`, and `order_items` are full table rows; the event arrays (`browse_events`, `email_events`, `recommendations`, `visitor_tokens`, `outcome_events`) are returned as `[]` when empty and otherwise carry the full rows of the respective table:
 ```json
 {
   "export_metadata": {
@@ -1517,10 +1589,11 @@ GDPR data export. Returns all engine-held data for the customer.
       "browse_events": "14 months",
       "email_events": "14 months",
       "recommendations": "730 days",
+      "outcome_events": "14 months from the event",
       "orders": "60 months from the order date; an order still linked to a purchase-attribution record is kept as long as that record",
       "replaced_recommendations": "180 days after the replacement; one still linked to a click or purchase record is kept as long as that record, at most 730 days",
       "decision_log": "30 days",
-      "visitor_tokens": "14 months from the token's last activity (its creation, or the latest order that carried it)",
+      "visitor_tokens": "14 months from the token's last activity (its creation, or the latest order or login that carried it)",
       "rec_attribution": "730 days",
       "customer_engagement_history": "730 days",
       "trigger_candidates": "30 days after the engine acted on the signal, or 90 days after detection if it never acted; one still linked to an issued recommendation is kept as long as that recommendation",
@@ -1533,6 +1606,7 @@ GDPR data export. Returns all engine-held data for the customer.
       "browse_events": "comparison with the same month last year (seasonal purchases), plus two months of margin",
       "email_events": "comparison with the same month last year (seasonal purchases), plus two months of margin",
       "recommendations": "two-year reporting and purchase look-back",
+      "outcome_events": "comparison with the same month last year (seasonal visits), plus two months of margin",
       "orders": "learning buying patterns and timing reminders; purchases older than five years change the recommendations of very few customers. The store keeps its own accounting records itself",
       "replaced_recommendations": "crediting a later click or purchase to the email that showed the product, and not repeating products too soon",
       "decision_log": "explaining why a recommendation was chosen (support and error tracing)",
@@ -1616,13 +1690,16 @@ GDPR data export. Returns all engine-held data for the customer.
   "browse_events": [],
   "email_events": [],
   "recommendations": [],
-  "visitor_tokens": []
+  "visitor_tokens": [],
+  "outcome_events": []
 }
 ```
 
+> **`outcome_events`** (v1.32.0) holds the shopper's stored outcome events (§6b), full rows, `[]` when empty. Absent before v1.32.0.
+
 > **`data_retention_policy`** (v1.13.0, PRO-4108) lists every kind of data the engine's privacy policy (§4 "How long we keep data") lists, with the period after which the engine's nightly cleanup deletes it. Each value is a human-readable string — show it, do not parse it. `recommendations` is the period for an issued recommendation that was not replaced by a newer one; `replaced_recommendations` is the period for a replaced one. `orders` are deleted 60 months after the order date (v1.19.1, INT-185). `customers` and `catalog` are never deleted automatically while the store uses the service; their values start with `indefinite`. When the merchant closes the store's Smaily account, all of the store's data is deleted; removing the plugin only pauses the store ([§16](#16-post-apiv1storeuninstall)). Keys are only added, never renamed or removed, within contract 1.x.
 
-> **`data_retention_purpose`** (v1.14.0, PRO-4116) has the same keys as `data_retention_policy` and says why each period is as long as it is. Each value is a human-readable string — show it, do not parse it. The three tiers: behavioural signals (`browse_events` for identified and anonymous visitors, `email_events`) are kept **14 months from the event**; visitor tokens **14 months from their last activity**; outcomes (`recommendations`, `rec_attribution`, `customer_engagement_history`) **730 days**; orders **60 months from the order date** (v1.19.1); master data (`customers`, `catalog`) while the store uses the service.
+> **`data_retention_purpose`** (v1.14.0, PRO-4116) has the same keys as `data_retention_policy` and says why each period is as long as it is. Each value is a human-readable string — show it, do not parse it. The three tiers: behavioural signals (`browse_events` for identified and anonymous visitors, `email_events`, and since v1.32.0 `outcome_events`) are kept **14 months from the event**; visitor tokens **14 months from their last activity**; outcomes (`recommendations`, `rec_attribution`, `customer_engagement_history`) **730 days**; orders **60 months from the order date** (v1.19.1); master data (`customers`, `catalog`) while the store uses the service.
 
 > **Note**: `order_items` is a **top-level** array (not nested under `orders`); join on `order_id`. The export does **not** include a `rec_attribution` array (the engine's export omits attribution rows) — if the plugin needs attribution data for a subject-access request, request it separately; it is not part of this endpoint's payload today.
 
@@ -1638,7 +1715,8 @@ GDPR data export. Returns all engine-held data for the customer.
   "browse_events": [],
   "email_events": [],
   "recommendations": [],
-  "visitor_tokens": []
+  "visitor_tokens": [],
+  "outcome_events": []
 }
 ```
 
@@ -1683,6 +1761,7 @@ GDPR full data deletion.
     "order_items": 18,
     "browse_events": 247,
     "email_events": 89,
+    "outcome_events": 6,
     "recommendations": 145,
     "rec_attribution": 67,
     "visitor_tokens": 3,
@@ -1692,6 +1771,8 @@ GDPR full data deletion.
   "deleted_at": "2026-05-19T10:15:23Z"
 }
 ```
+
+`records_removed.outcome_events` (v1.32.0): the shopper's outcome events (§6b), deleted with the rest.
 
 `audit_log_id` references the `gdpr_audit_log` row that records the deletion fact (not its content) — **required for GDPR compliance as proof**.
 
@@ -4143,6 +4224,12 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **§22 messages.** New events `ready` and `changes` (`unsaved`), posted in every frame, also for a link without `display`; `saved` and `closed` unchanged. The `email_key` row no longer mentions a switch to another email (the page has none).
 - **§22 *Embedding* rule 6.** Modal size (at least 1024 × 640), iframe attributes, one link per opening, 20 seconds for `ready`.
 - **What the plugin does.** Nothing is required. **A plugin built for v1.18.0 or later keeps working unchanged**: without `display`, a link behaves as before (cookie session, in a tab or in a frame), and the plugin ignores the new `ready` and `changes` events as rule 4 asks. To show the page in a modal in every browser, mint with `display: "frame"` and follow rules 4–6.
+
+**v1.32.0** (2026-11-13) — **Outcome events**. MINOR bump per the [Versioning](#versioning) rule (one new endpoint, one new export array, one new delete count; backward-compatible). INT-259, Erkki's decisions 2026-11-13.
+- **§6b `POST /api/v1/ingest/outcomes`** (new): a booking system sends `booked`, `cancelled`, `no_show` and `attended`; an unknown type is stored as `other` with its value, never rejected; a sector may add `x_<pack>_<name>` types; natural key (store, `source`, `subject_id`, `type`); an event never creates a customer; a customer who objected to profiling is counted in `skipped`. A completed, paid visit is an order (§5). `value` is never revenue. Nothing learns from the events.
+- **Salons.** A booking that is still open holds back the customer's recommendations; a cancellation or no-show makes the customer due for a new invitation to book.
+- **§8 export** gains `outcome_events` and the `outcome_events` keys of `data_retention_policy` and `data_retention_purpose` (14 months from the event). **§9 delete** gains `records_removed.outcome_events`.
+- **What the plugin does.** Nothing. **A plugin built for an earlier version keeps working unchanged.** The reader of §6b is a booking-system bridge.
 
 ### Appendix F: Migration notes
 
