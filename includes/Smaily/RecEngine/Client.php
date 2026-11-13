@@ -76,7 +76,7 @@ class Client {
 	 * identifier: the GDPR customer URLs (§8/§9/§10) hold the email in
 	 * their path, so a path outside `/ingest/` is never passed.
 	 */
-	public const RESULT_HOOK = 'smly_plus_engine_api_result';
+	public const RESULT_HOOK = 'smaily_connect_engine_api_result';
 
 	// ---------------------------------------------------------------
 	// Path constants — every URL the plugin sends to the engine flows
@@ -852,6 +852,7 @@ class Client {
 	private function announce_result( string $error_code, string $method, string $url ): void {
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- wp_parse_url() only adds a PHP < 5.4.7 fallback; the plugin needs PHP 8.0, and this runs on every engine call, unit tests included.
 		$path = (string) parse_url( $url, PHP_URL_PATH );
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- the constant value IS the plugin prefix (smaily_connect_*); PCP can't resolve self::CONST.
 		do_action( self::RESULT_HOOK, $error_code, $method, strpos( $path, '/ingest/' ) !== false ? $path : '' );
 	}
 

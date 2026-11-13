@@ -10609,8 +10609,12 @@ a settings save and daily, plus the `disconnected` and `deactivated` events.
   `browse_tracking` and `intelligence` on the main connection while the
   engine is connected (`connected` is `sending_allowed()`); the engine API
   key and tenant name never go in.
-- Health: the two HTTP clients fire `smly_plus_smaily_api_result` /
-  `smly_plus_engine_api_result` with the error CODE only;
+- Health: the two HTTP clients fire `smaily_connect_smaily_api_result` /
+  `smaily_connect_engine_api_result` with the error CODE only (renamed from
+  the internal `smly_plus_` prefix before 3.22.0 shipped them — pre-3.22.0
+  audit I6: any plugin can listen, so the documented public prefix; a Smaily
+  POST answered 2xx whose body code refuses the write announces that refusal's
+  code, never '' — audit L2, so a refused write is no sync);
   `Report\ConnectionHealth` keeps the last status per Smaily subdomain and
   for the engine in `smly_plus_connection_health`, a success written at most
   every 5 minutes (a shopper's `/relay` request passes that chokepoint).
@@ -10644,6 +10648,9 @@ loses history to the janitor); not reporting a cleared Transactional account
 stored credentials"); a production gate on `wp_get_environment_type()` to
 keep dev sites quiet (rejected — the contract counts a staging copy as its own
 installation; the dev guard lives in wp-env instead).
+No filter or setting to switch the installation report off — connecting the
+Smaily account is the consent (wordpress.org guideline 7); Erkki, 2026-11-13,
+after the pre-3.22.0 audit L3.
 **Relationships:** CON-301 (codes, never message text), PRO-2433 (the new AS
 group is in `Deactivation::AS_GROUPS`), PRO-2437 (armed from the hourly
 check), CON-285 (pending-only checks). Pinned by `tests/Unit/Report/*`,

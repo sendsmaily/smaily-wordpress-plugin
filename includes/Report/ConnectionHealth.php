@@ -25,7 +25,8 @@ use Smaily\Connect\Smaily\RecEngine\Client as EngineClient;
  *   - `Smaily\Client::request()` fires its RESULT_HOOK with the account's
  *     subdomain, '' or the RefusalReason code, the method and the endpoint;
  *     a 2xx POST is a sync (every POST writes contacts, triggers a workflow
- *     or sends an email);
+ *     or sends an email) unless its body code refused the write — that
+ *     answer carries a code (pre-3.22.0 audit L2);
  *   - `RecEngine\Client::request_url()` fires its RESULT_HOOK with '' or
  *     the engine's error code (`network_error` when no answer came), the
  *     method and the `/ingest/` path ('' for any other path); a 2xx POST

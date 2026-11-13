@@ -66,6 +66,60 @@ final class ClientTest extends TestCase {
 		$this->addToAssertionCount( 2 ); // The two expectations, checked at tearDown.
 	}
 
+	/**
+	 * Pre-3.22.0 audit L2: Smaily refuses many writes with HTTP 200 and a
+	 * body code other than 101. The installation report must hear a failure
+	 * code (read as RetryPolicy reads it, PRO-3862), never Smaily's message,
+	 * while the caller still gets the body back to decide on, as before.
+	 *
+	 * @dataProvider refusing_write_bodies
+	 */
+	public function test_a_write_refused_in_a_200_body_is_announced_as_a_failure( string $body, string $expected ): void {
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'wp_remote_post' )->justReturn( $this->successful_response( $body ) );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+
+		$announced = null;
+		Actions\expectDone( Client::RESULT_HOOK )->once()->whenHappen(
+			static function ( ...$args ) use ( &$announced ): void {
+				$announced = $args;
+			}
+		);
+
+		$reply = ( new Client( 'demo', 'user', 'pass' ) )->upsert_subscribers( array( array( 'email' => 'jane.doe@example.com' ) ) );
+
+		self::assertSame( array( 'demo', $expected, 'POST', 'contact' ), $announced );
+		self::assertNotSame( '', $expected );
+		self::assertArrayHasKey( 'code', $reply, 'What the caller sees is unchanged.' );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: string}>
+	 */
+	public static function refusing_write_bodies(): array {
+		return array(
+			'invalid data'             => array( '{"code":203,"message":"Invalid data for jane.doe@example.com"}', 'permanent_envelope_203' ),
+			'a code a retry can pass'  => array( '{"code":225,"message":"Database insert failed"}', RefusalReason::UNREACHABLE ),
+			'paid package in the body' => array( '{"code":227,"message":"A paid package is required."}', RefusalReason::PLAN_BLOCKED ),
+		);
+	}
+
+	/**
+	 * A GET's body code is an answer, not a refused write: 206 is Smaily's
+	 * "no such contact", which the cart reminder's consent read meets daily.
+	 */
+	public function test_a_read_answered_with_a_body_code_is_announced_as_a_success(): void {
+		$body = '{"code":206,"message":"Could not find requested email address"}';
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'wp_remote_get' )->justReturn( $this->successful_response( $body ) );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+		Actions\expectDone( Client::RESULT_HOOK )->once()->with( 'demo', '', 'GET', 'contact' );
+
+		self::assertFalse( ( new Client( 'demo', 'user', 'pass' ) )->has_contact( 'jane.doe@example.com' ) );
+	}
+
 	public function test_check_connection_names_rejected_credentials_on_4xx(): void {
 		Functions\when( 'wp_remote_get' )->justReturn( $this->successful_response( '{"error":"unauthorized"}' ) );
 		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 401 );
