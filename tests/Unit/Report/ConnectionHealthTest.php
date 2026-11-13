@@ -14,6 +14,8 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Report\ConnectionHealth;
+use Smaily\Connect\Smaily\Client as SmailyClient;
+use Smaily\Connect\Smaily\RecEngine\Client as EngineClient;
 
 final class ConnectionHealthTest extends TestCase {
 
@@ -62,18 +64,18 @@ final class ConnectionHealthTest extends TestCase {
 
 	public function test_a_successful_write_is_a_sync_and_a_read_is_not(): void {
 		$health = $this->health();
-		$health->record_smaily( 'Shop', '', false );
+		$health->record_smaily( 'Shop', '', 'GET', 'autoresponder' );
 		self::assertNull( $health->smaily( 'shop' )['last_sync_at'], 'A read writes no data.' );
 
-		$health->record_smaily( 'shop', '', true );
+		$health->record_smaily( 'shop', '', 'POST', 'contact' );
 		self::assertSame( self::NOW, $health->smaily( 'shop' )['last_sync_at'] );
 		self::assertSame( 'ok', $health->smaily( 'SHOP' )['status'], 'The subdomain is matched in lower case.' );
 	}
 
 	public function test_a_failure_reads_failing_with_its_code_and_keeps_the_last_sync(): void {
 		$health = $this->health();
-		$health->record_smaily( 'shop', '', true );
-		$health->record_smaily( 'shop', 'plan_blocked', true );
+		$health->record_smaily( 'shop', '', 'POST', 'contact' );
+		$health->record_smaily( 'shop', 'plan_blocked', 'POST', 'contact' );
 
 		self::assertSame(
 			array(
@@ -84,30 +86,30 @@ final class ConnectionHealthTest extends TestCase {
 			$health->smaily( 'shop' )
 		);
 
-		$health->record_smaily( 'shop', '', false );
+		$health->record_smaily( 'shop', '', 'GET', 'autoresponder' );
 		self::assertSame( 'ok', $health->smaily( 'shop' )['status'], 'The next answer that succeeds clears it.' );
 		self::assertNull( $health->smaily( 'shop' )['last_error_code'] );
 	}
 
 	public function test_a_repeated_success_is_written_at_most_every_five_minutes(): void {
 		$health = $this->health();
-		$health->record_engine( '', true );
-		$health->record_engine( '', true );
-		$health->record_engine( '', false );
+		$health->record_engine( '', 'POST', 'https://intelligence.smaily.com/api/v1/ingest/orders' );
+		$health->record_engine( '', 'POST', 'https://intelligence.smaily.com/api/v1/ingest/orders' );
+		$health->record_engine( '', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
 		self::assertSame( 1, $this->writes, 'A storefront /relay request must not write the option each time.' );
 
 		$later = $this->health( self::NOW + ConnectionHealth::WRITE_EVERY_SECONDS );
-		$later->record_engine( '', true );
+		$later->record_engine( '', 'POST', 'https://intelligence.smaily.com/api/v1/ingest/orders' );
 		self::assertSame( 2, $this->writes );
 		self::assertSame( self::NOW + ConnectionHealth::WRITE_EVERY_SECONDS, $later->engine()['last_sync_at'] );
 	}
 
 	public function test_a_change_of_status_is_written_at_once(): void {
 		$health = $this->health();
-		$health->record_engine( '', true );
-		$health->record_engine( 'network_error', false );
-		$health->record_engine( 'network_error', false );
-		$health->record_engine( 'api_key_revoked', false );
+		$health->record_engine( '', 'POST', 'https://intelligence.smaily.com/api/v1/ingest/orders' );
+		$health->record_engine( 'network_error', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
+		$health->record_engine( 'network_error', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
+		$health->record_engine( 'api_key_revoked', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
 
 		self::assertSame( 3, $this->writes );
 		self::assertSame( 'api_key_revoked', $health->engine()['last_error_code'] );
@@ -115,7 +117,7 @@ final class ConnectionHealthTest extends TestCase {
 
 	public function test_only_a_code_is_stored_never_a_text(): void {
 		$health = $this->health();
-		$health->record_engine( 'No customer with email jane@example.com', false );
+		$health->record_engine( 'No customer with email jane@example.com', 'GET', 'https://intelligence.smaily.com/api/v1/ingest/ping' );
 
 		self::assertSame( 'unknown_error', $health->engine()['last_error_code'] );
 		self::assertStringNotContainsString( 'jane@example.com', (string) json_encode( $this->options ) );
@@ -125,8 +127,8 @@ final class ConnectionHealthTest extends TestCase {
 		$health = new ConnectionHealth();
 		$health->register();
 
-		self::assertNotFalse( has_action( ConnectionHealth::SMAILY_HOOK, array( $health, 'record_smaily' ) ) );
-		self::assertNotFalse( has_action( ConnectionHealth::ENGINE_HOOK, array( $health, 'record_engine' ) ) );
+		self::assertNotFalse( has_action( SmailyClient::RESULT_HOOK, array( $health, 'record_smaily' ) ) );
+		self::assertNotFalse( has_action( EngineClient::RESULT_HOOK, array( $health, 'record_engine' ) ) );
 	}
 
 	private function health( int $now = self::NOW ): ConnectionHealth {

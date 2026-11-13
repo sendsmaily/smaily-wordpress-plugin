@@ -96,19 +96,21 @@ class SettingsEndpoint {
 	private $transactional_status;
 
 	/**
-	 * The installation report (CON-290): a save schedules a snapshot, and a
-	 * save that clears a Smaily account sends the `disconnected` event first.
-	 * Null sends nothing.
+	 * The installation report (CON-290), built on demand: a save schedules
+	 * a snapshot, and a save that clears a Smaily account sends the
+	 * `disconnected` event first. Null sends nothing.
+	 *
+	 * @var (callable(): InstallationReport)|null
 	 */
-	private ?InstallationReport $report;
+	private $report_factory;
 
 	/**
 	 * @param (callable(): array<string, mixed>)|null $transactional_status See the property.
-	 * @param InstallationReport|null                 $report               See the property.
+	 * @param (callable(): InstallationReport)|null   $report_factory       See the property.
 	 */
-	public function __construct( ?callable $transactional_status = null, ?InstallationReport $report = null ) {
+	public function __construct( ?callable $transactional_status = null, ?callable $report_factory = null ) {
 		$this->transactional_status = $transactional_status;
-		$this->report               = $report;
+		$this->report_factory       = $report_factory;
 	}
 
 	public function register(): void {
@@ -200,8 +202,8 @@ class SettingsEndpoint {
 
 		// A saved setup is reported in the background, a few minutes on
 		// (CON-290) — never from this request.
-		if ( $this->report !== null && $response->get_status() === 200 ) {
-			$this->report->setup_saved();
+		if ( $this->report_factory !== null && $response->get_status() === 200 ) {
+			( $this->report_factory )()->setup_saved();
 		}
 
 		return $response;
@@ -322,7 +324,7 @@ class SettingsEndpoint {
 	 * @param array<string, mixed> $data
 	 */
 	private function report_cleared_accounts( array $data ): void {
-		if ( $this->report === null ) {
+		if ( $this->report_factory === null ) {
 			return;
 		}
 
@@ -346,7 +348,7 @@ class SettingsEndpoint {
 		}
 
 		if ( $cleared !== array() ) {
-			$this->report->send_event( ReportBuilder::EVENT_DISCONNECTED, $cleared );
+			( $this->report_factory )()->send_event( ReportBuilder::EVENT_DISCONNECTED, $cleared );
 		}
 	}
 

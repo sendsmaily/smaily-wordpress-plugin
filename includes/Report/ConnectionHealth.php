@@ -12,6 +12,9 @@ namespace Smaily\Connect\Report;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Smaily\Client as SmailyClient;
+use Smaily\Connect\Smaily\RecEngine\Client as EngineClient;
+
 /**
  * The installation report (contract installation-report-v1 §"Connections")
  * tells, for each Smaily account and for Campaign Intelligence, whether the
@@ -19,24 +22,23 @@ defined( 'ABSPATH' ) || exit;
  * that wrote data succeeded. Nothing else in the plugin keeps that, so the
  * two HTTP chokepoints announce every answer:
  *
- *   - `Smaily\Client::request()` fires SMAILY_HOOK with the account's
- *     subdomain, '' or the RefusalReason code, and whether it was a POST
- *     (a request that writes contacts, triggers a workflow or sends an email);
- *   - `RecEngine\Client::request_url()` fires ENGINE_HOOK with '' or the
- *     engine's error code (`network_error` when no answer came), and whether
- *     it was an accepted ingest POST.
+ *   - `Smaily\Client::request()` fires its RESULT_HOOK with the account's
+ *     subdomain, '' or the RefusalReason code, the method and the endpoint;
+ *     a 2xx POST is a sync (every POST writes contacts, triggers a workflow
+ *     or sends an email);
+ *   - `RecEngine\Client::request_url()` fires its RESULT_HOOK with '' or
+ *     the engine's error code (`network_error` when no answer came), the
+ *     method and the URL; a 2xx POST to an `/ingest/` URL is a sync.
  *
- * This class records them in one option. It stores codes only, never a
- * message text (CON-301). A shopper's `/relay` request reaches the engine
- * chokepoint, so a success is written at most once per WRITE_EVERY_SECONDS;
- * a change of status or error code is written at once.
+ * This class decides what counts as a sync and records them in one option.
+ * It stores codes only, never a message text (CON-301). A shopper's `/relay`
+ * request reaches the engine chokepoint, so a success is written at most
+ * once per WRITE_EVERY_SECONDS; a change of status or error code is written
+ * at once.
  */
 class ConnectionHealth {
 
 	public const OPTION = 'smly_plus_connection_health';
-
-	public const SMAILY_HOOK = 'smly_plus_smaily_api_result';
-	public const ENGINE_HOOK = 'smly_plus_engine_api_result';
 
 	public const STATUS_OK      = 'ok';
 	public const STATUS_FAILING = 'failing';
@@ -45,34 +47,36 @@ class ConnectionHealth {
 	public const WRITE_EVERY_SECONDS = 300;
 
 	/** The contract's code rule; anything else is stored as UNKNOWN_CODE. */
-	private const CODE_PATTERN = '/^[a-z0-9_]{1,64}$/';
+	public const CODE_PATTERN = '/^[a-z0-9_]{1,64}$/';
 
 	private const UNKNOWN_CODE = 'unknown_error';
 
 	public function register(): void {
-		add_action( self::SMAILY_HOOK, array( $this, 'record_smaily' ), 10, 3 );
-		add_action( self::ENGINE_HOOK, array( $this, 'record_engine' ), 10, 2 );
+		add_action( SmailyClient::RESULT_HOOK, array( $this, 'record_smaily' ), 10, 4 );
+		add_action( EngineClient::RESULT_HOOK, array( $this, 'record_engine' ), 10, 3 );
 	}
 
 	/**
 	 * @param mixed $subdomain  The account's subdomain.
 	 * @param mixed $error_code '' for a 2xx answer, else the RefusalReason code.
-	 * @param mixed $wrote      Whether the request writes data.
+	 * @param mixed $method     The HTTP method; a POST writes data.
+	 * @param mixed $endpoint   The API endpoint.
 	 */
-	public function record_smaily( $subdomain, $error_code = '', $wrote = false ): void {
+	public function record_smaily( $subdomain, $error_code = '', $method = '', $endpoint = '' ): void {
 		$key = strtolower( trim( (string) $subdomain ) );
 		if ( $key === '' ) {
 			return;
 		}
-		$this->record( array( 'smaily', $key ), (string) $error_code, (bool) $wrote );
+		$this->record( 'smaily', $key, (string) $error_code, $method === 'POST' );
 	}
 
 	/**
 	 * @param mixed $error_code '' for a 2xx answer, else the engine's error code.
-	 * @param mixed $ingested   Whether the engine accepted an ingest request.
+	 * @param mixed $method     The HTTP method.
+	 * @param mixed $url        The request URL; a POST to an `/ingest/` URL writes data.
 	 */
-	public function record_engine( $error_code = '', $ingested = false ): void {
-		$this->record( array( 'engine' ), (string) $error_code, (bool) $ingested );
+	public function record_engine( $error_code = '', $method = '', $url = '' ): void {
+		$this->record( 'engine', null, (string) $error_code, $method === 'POST' && strpos( (string) $url, '/ingest/' ) !== false );
 	}
 
 	/**
@@ -103,14 +107,13 @@ class ConnectionHealth {
 	}
 
 	/**
-	 * @param array<int, string> $path Where the entry sits in the option.
+	 * @param string      $group 'smaily' or 'engine'.
+	 * @param string|null $key   The subdomain within 'smaily'; null for 'engine'.
 	 */
-	private function record( array $path, string $error_code, bool $wrote ): void {
-		$all   = $this->all();
-		$entry = $all;
-		foreach ( $path as $part ) {
-			$entry = isset( $entry[ $part ] ) && is_array( $entry[ $part ] ) ? $entry[ $part ] : array();
-		}
+	private function record( string $group, ?string $key, string $error_code, bool $wrote ): void {
+		$all    = $this->all();
+		$parent = isset( $all[ $group ] ) && is_array( $all[ $group ] ) ? $all[ $group ] : array();
+		$entry  = $key === null ? $parent : ( isset( $parent[ $key ] ) && is_array( $parent[ $key ] ) ? $parent[ $key ] : array() );
 
 		$now  = $this->now();
 		$code = $error_code === '' ? '' : ( preg_match( self::CODE_PATTERN, $error_code ) ? $error_code : self::UNKNOWN_CODE );
@@ -128,11 +131,11 @@ class ConnectionHealth {
 			$entry['last_sync_at'] = $now;
 		}
 
-		if ( count( $path ) === 2 ) {
-			$all[ $path[0] ]             = isset( $all[ $path[0] ] ) && is_array( $all[ $path[0] ] ) ? $all[ $path[0] ] : array();
-			$all[ $path[0] ][ $path[1] ] = $entry;
+		if ( $key === null ) {
+			$all[ $group ] = $entry;
 		} else {
-			$all[ $path[0] ] = $entry;
+			$parent[ $key ] = $entry;
+			$all[ $group ]  = $parent;
 		}
 
 		update_option( self::OPTION, $all, false );

@@ -546,21 +546,26 @@ abstract class AbstractBackfillJob implements BackfillJobInterface {
 	 * this: as_next_scheduled_action() answers `true` both for a running
 	 * action and for a pending async one, so it cannot tell "only I run"
 	 * from "another copy waits", and a second copy was queued.
+	 *
+	 * @param array<int|string, mixed>|null $args Only an action with exactly
+	 *                                            these args; null = any args.
 	 */
-	public static function action_pending( string $hook, string $group ): bool {
+	public static function action_pending( string $hook, string $group, ?array $args = null ): bool {
 		if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
 			return false;
 		}
 
-		$ids = as_get_scheduled_actions(
-			array(
-				'hook'     => $hook,
-				'group'    => $group,
-				'status'   => 'pending', // ActionScheduler_Store::STATUS_PENDING.
-				'per_page' => 1,
-			),
-			'ids'
+		$query = array(
+			'hook'     => $hook,
+			'group'    => $group,
+			'status'   => 'pending', // ActionScheduler_Store::STATUS_PENDING.
+			'per_page' => 1,
 		);
+		if ( $args !== null ) {
+			$query['args'] = $args;
+		}
+
+		$ids = as_get_scheduled_actions( $query, 'ids' );
 
 		return is_array( $ids ) && $ids !== array();
 	}

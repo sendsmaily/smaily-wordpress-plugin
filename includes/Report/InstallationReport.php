@@ -13,6 +13,8 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
 use Smaily\Connect\Settings\CredentialSet;
+use Smaily\Connect\Smaily\Client as SmailyClient;
+use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Support\DebugLog;
 
 /**
@@ -63,8 +65,6 @@ class InstallationReport {
 	public const RETRY_JITTER_SECONDS    = 30;
 	public const MAX_RETRY_AFTER_SECONDS = 3600;
 
-	private const CODE_PATTERN = '/^[a-z0-9_]{1,64}$/';
-
 	private ReportBuilder $builder;
 
 	public function __construct( ?ReportBuilder $builder = null ) {
@@ -81,7 +81,7 @@ class InstallationReport {
 		}
 
 		$args = array( ReportBuilder::TRIGGER_SETUP_SAVED, 0 );
-		if ( $this->pending( $args ) ) {
+		if ( AbstractBackfillJob::action_pending( self::HOOK, self::AS_GROUP, $args ) ) {
 			return;
 		}
 
@@ -120,13 +120,12 @@ class InstallationReport {
 		}
 
 		try {
-			$credentials = $this->builder->main_credentials();
-			$body        = $this->builder->build( ReportBuilder::EVENT_SNAPSHOT, $trigger );
-			if ( $credentials === null || $body === null ) {
+			$built = $this->builder->build( ReportBuilder::EVENT_SNAPSHOT, $trigger );
+			if ( $built === null ) {
 				return;
 			}
 
-			$result = $this->send( $body, $credentials );
+			$result = $this->send( $built['body'], $built['credentials'] );
 		} catch ( \Throwable $e ) {
 			DebugLog::write( sprintf( '[smaily-connect installation-report] trigger=%s failed: %s', $trigger, DebugLog::where( $e ) ) );
 			return;
@@ -148,10 +147,9 @@ class InstallationReport {
 	 */
 	public function send_event( string $event, array $removed_accounts = array(), bool $engine_removed = false ): void {
 		try {
-			$credentials = $this->builder->main_credentials();
-			$body        = $this->builder->build( $event, '', $removed_accounts, $engine_removed );
-			if ( $credentials !== null && $body !== null ) {
-				$this->send( $body, $credentials );
+			$built = $this->builder->build( $event, '', $removed_accounts, $engine_removed );
+			if ( $built !== null ) {
+				$this->send( $built['body'], $built['credentials'] );
 			}
 		} catch ( \Throwable $e ) {
 			DebugLog::write( sprintf( '[smaily-connect installation-report] event=%s failed: %s', $event, DebugLog::where( $e ) ) );
@@ -237,17 +235,14 @@ class InstallationReport {
 		}
 
 		$answer = json_decode( (string) wp_remote_retrieve_body( $response ), true );
-		$error  = is_array( $answer ) && isset( $answer['error'] ) && is_string( $answer['error'] ) && preg_match( self::CODE_PATTERN, $answer['error'] )
+		$error  = is_array( $answer ) && isset( $answer['error'] ) && is_string( $answer['error'] ) && preg_match( ConnectionHealth::CODE_PATTERN, $answer['error'] )
 			? $answer['error']
 			: '';
 		DebugLog::write( sprintf( '[smaily-connect installation-report] %s http=%d error=%s', $label, $status, $error !== '' ? $error : '-' ) );
 
-		$retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
-		$retry_after = is_array( $retry_after ) ? (string) reset( $retry_after ) : (string) $retry_after;
-
 		return array(
 			'retry'       => $status === 429 || $status >= 500,
-			'retry_after' => is_numeric( $retry_after ) ? max( 0, (int) $retry_after ) : 0,
+			'retry_after' => SmailyClient::retry_after_seconds( $response ) ?? 0,
 		);
 	}
 
@@ -262,8 +257,8 @@ class InstallationReport {
 		}
 
 		$args = array( ReportBuilder::TRIGGER_DAILY, 0 );
-		if ( $trigger !== ReportBuilder::TRIGGER_DAILY && ! $this->pending( $args ) ) {
-			as_schedule_single_action( $this->now() + $this->random( 0, DAY_IN_SECONDS ), self::HOOK, $args, self::AS_GROUP );
+		if ( $trigger !== ReportBuilder::TRIGGER_DAILY && ! AbstractBackfillJob::action_pending( self::HOOK, self::AS_GROUP, $args ) ) {
+			$this->ensure_scheduled();
 			return;
 		}
 
@@ -281,30 +276,5 @@ class InstallationReport {
 
 		$wait = max( self::RETRY_DELAYS[ $attempt ] + $this->random( 0, self::RETRY_JITTER_SECONDS ), $retry_after );
 		as_schedule_single_action( $this->now() + $wait, self::HOOK, array( $trigger, $attempt + 1 ), self::AS_GROUP );
-	}
-
-	/**
-	 * Whether this report waits as a pending action — the one running now
-	 * is not pending (CON-285).
-	 *
-	 * @param array<int, mixed> $args
-	 */
-	private function pending( array $args ): bool {
-		if ( ! function_exists( 'as_get_scheduled_actions' ) ) {
-			return false;
-		}
-
-		$ids = as_get_scheduled_actions(
-			array(
-				'hook'     => self::HOOK,
-				'args'     => $args,
-				'group'    => self::AS_GROUP,
-				'status'   => 'pending',
-				'per_page' => 1,
-			),
-			'ids'
-		);
-
-		return is_array( $ids ) && $ids !== array();
 	}
 }

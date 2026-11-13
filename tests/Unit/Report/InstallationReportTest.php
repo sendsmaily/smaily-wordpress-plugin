@@ -276,7 +276,7 @@ final class InstallationReportTest extends TestCase {
 
 	public function test_an_event_never_throws_into_the_disconnect_or_the_deactivation(): void {
 		$builder = $this->createMock( ReportBuilder::class );
-		$builder->method( 'main_credentials' )->willThrowException( new \RuntimeException( 'database gone' ) );
+		$builder->method( 'build' )->willThrowException( new \RuntimeException( 'database gone' ) );
 
 		( new InstallationReport( $builder ) )->send_event( ReportBuilder::EVENT_DEACTIVATED );
 
@@ -336,7 +336,7 @@ final class InstallationReportTest extends TestCase {
 				if ( ! $this->connected ) {
 					return null;
 				}
-				return $event === ReportBuilder::EVENT_SNAPSHOT
+				$body = $event === ReportBuilder::EVENT_SNAPSHOT
 					? array(
 						'event'   => $event,
 						'trigger' => $trigger,
@@ -346,6 +346,10 @@ final class InstallationReportTest extends TestCase {
 						'removed'        => $removed,
 						'engine_removed' => $engine_removed,
 					);
+				return array(
+					'body'        => $body,
+					'credentials' => new CredentialSet( 'example', 'api-user', 'api-pass' ),
+				);
 			}
 		);
 

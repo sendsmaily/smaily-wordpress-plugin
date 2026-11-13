@@ -73,29 +73,32 @@ class RecEngineEndpoint {
 	private $on_connected;
 
 	/**
-	 * The installation report (CON-290): a disconnect sends the
+	 * The installation report (CON-290), built on demand: a connect
+	 * schedules a `setup_saved` snapshot, and a disconnect sends the
 	 * `disconnected` event before the key is deleted. Null sends nothing.
+	 *
+	 * @var (callable(): InstallationReport)|null
 	 */
-	private ?InstallationReport $report;
+	private $report_factory;
 
 	/**
 	 * @param callable(): SetupExchange                              $exchange_factory
 	 * @param callable(string $api_key, string $base_url): Client    $client_factory
 	 * @param callable(): bool                                       $on_connected
-	 * @param InstallationReport|null                                $report
+	 * @param (callable(): InstallationReport)|null                  $report_factory
 	 */
 	public function __construct(
 		RecEngineSettings $settings,
 		callable $exchange_factory,
 		callable $client_factory,
 		callable $on_connected,
-		?InstallationReport $report = null
+		?callable $report_factory = null
 	) {
 		$this->settings         = $settings;
 		$this->exchange_factory = $exchange_factory;
 		$this->client_factory   = $client_factory;
 		$this->on_connected     = $on_connected;
-		$this->report           = $report;
+		$this->report_factory   = $report_factory;
 	}
 
 	public function register(): void {
@@ -205,6 +208,10 @@ class RecEngineEndpoint {
 			case ExchangeResult::KIND_SUCCESS:
 				$this->settings->store( $result );
 				$import_started = ( $this->on_connected )();
+				// Connecting is a setup save the report tells (CON-290).
+				if ( $this->report_factory !== null ) {
+					( $this->report_factory )()->setup_saved();
+				}
 				return new WP_REST_Response(
 					array(
 						'connected'                 => true,
@@ -338,8 +345,8 @@ class RecEngineEndpoint {
 
 	public function disconnect( WP_REST_Request $request ): WP_REST_Response {
 		// Before the key goes, with the Smaily connections that stay (CON-290).
-		if ( $this->report !== null && $this->settings->is_connected() ) {
-			$this->report->send_event( ReportBuilder::EVENT_DISCONNECTED, array(), true );
+		if ( $this->report_factory !== null && $this->settings->is_connected() ) {
+			( $this->report_factory )()->send_event( ReportBuilder::EVENT_DISCONNECTED, array(), true );
 		}
 		$this->settings->disconnect();
 		return new WP_REST_Response(

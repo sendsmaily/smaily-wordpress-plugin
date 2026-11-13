@@ -169,6 +169,37 @@ final class Router implements WorkflowResolverInterface {
 	}
 
 	/**
+	 * The trigger types mapped to a workflow, by account key — one query
+	 * (the installation report's automations, CON-290).
+	 *
+	 * @return array<string, array<int, string>>
+	 */
+	public function mapped_triggers_by_account(): array {
+		global $wpdb;
+
+		$table = $wpdb->prefix . self::TABLE_SUFFIX;
+
+		// See find_mapping() — table-name interpolation rationale.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( "SELECT DISTINCT account_key, trigger_type FROM {$table} WHERE workflow_id <> %s", '' ),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
+
+		$mapped = array();
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			if ( is_array( $row ) && isset( $row['account_key'], $row['trigger_type'] ) ) {
+				$mapped[ (string) $row['account_key'] ][] = (string) $row['trigger_type'];
+			}
+		}
+
+		return $mapped;
+	}
+
+	/**
 	 * Picks the language slug the lookup should use. Modes C and 'single'
 	 * collapse every language into the 'default' bucket because the
 	 * mapping has a single row per trigger.

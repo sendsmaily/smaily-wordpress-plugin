@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Smaily\RecEngine;
 
-use Smaily\Connect\Report\ConnectionHealth;
 use Smaily\Connect\Settings\RecEngineSettings;
 
 defined( 'ABSPATH' ) || exit;
@@ -68,6 +67,13 @@ class Client {
 	 * string the contract explicitly forbids branching on.
 	 */
 	public const ERROR_TENANT_INACTIVE = 'tenant_inactive';
+
+	/**
+	 * Fired after every request's last attempt (CON-290): '' or the
+	 * engine's error code (`network_error` when no answer came), the HTTP
+	 * method and the URL. Report\ConnectionHealth listens.
+	 */
+	public const RESULT_HOOK = 'smly_plus_engine_api_result';
 
 	// ---------------------------------------------------------------
 	// Path constants — every URL the plugin sends to the engine flows
@@ -785,7 +791,7 @@ class Client {
 			$response = wp_remote_request( $url, $args );
 			if ( is_wp_error( $response ) ) {
 				if ( $attempts >= $max_attempts ) {
-					do_action( ConnectionHealth::ENGINE_HOOK, 'network_error', false );
+					$this->announce_result( 'network_error', $method, $url );
 					// The WP_Error's code, never its text (CON-301).
 					throw new ApiException(
 						0,
@@ -806,9 +812,7 @@ class Client {
 			$this->check_engine_version( wp_remote_retrieve_header( $response, 'x-engine-version' ) );
 
 			if ( $status >= 200 && $status < 300 ) {
-				// The installation report's health (CON-290): an accepted
-				// ingest POST is a sync.
-				do_action( ConnectionHealth::ENGINE_HOOK, '', $method === 'POST' && strpos( $url, '/ingest/' ) !== false );
+				$this->announce_result( '', $method, $url );
 				return $decoded;
 			}
 
@@ -830,10 +834,19 @@ class Client {
 
 			$retry_after = $status === 429 ? self::retry_after_of( $decoded, $response ) : 0;
 
-			do_action( ConnectionHealth::ENGINE_HOOK, $error_code, false );
+			$this->announce_result( $error_code, $method, $url );
 
 			throw new ApiException( $status, $error_code, $message, $decoded, $retry_after > 0 ? $retry_after : null );
 		}
+	}
+
+	/**
+	 * Tell the installation report how this request went (CON-290,
+	 * RESULT_HOOK): '' or the error code, the method and the URL. A code
+	 * only, never a message text.
+	 */
+	private function announce_result( string $error_code, string $method, string $url ): void {
+		do_action( self::RESULT_HOOK, $error_code, $method, $url );
 	}
 
 	/**

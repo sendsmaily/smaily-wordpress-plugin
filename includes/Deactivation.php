@@ -71,7 +71,7 @@ final class Deactivation {
 		// The `deactivated` installation report (CON-290): once, now, while
 		// the plugin still runs; it never throws and never holds this up
 		// past its 5-second timeout.
-		( new InstallationReport() )->send_event( ReportBuilder::EVENT_DEACTIVATED );
+		Bootstrap::instance()->installation_report()->send_event( ReportBuilder::EVENT_DEACTIVATED );
 
 		self::cancel_action_scheduler_jobs();
 		// The recurring set is gone, so the "verified" marker is a lie —

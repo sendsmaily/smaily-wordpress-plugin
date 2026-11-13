@@ -75,8 +75,8 @@ class HookHandler {
 	public const SOURCE_REGISTRATION   = 'registration';
 	public const SOURCE_MY_ACCOUNT     = 'my_account';
 
-	private const OPTION_WELCOME_ENABLED     = 'smly_plus_welcome_enabled';
-	private const OPTION_FIRST_ORDER_ENABLED = 'smly_plus_first_order_enabled';
+	public const OPTION_WELCOME_ENABLED     = 'smly_plus_welcome_enabled';
+	public const OPTION_FIRST_ORDER_ENABLED = 'smly_plus_first_order_enabled';
 
 	/**
 	 * Order meta recording that the buyer ticked the block-checkout newsletter

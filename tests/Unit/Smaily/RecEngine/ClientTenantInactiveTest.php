@@ -21,7 +21,6 @@ use Brain\Monkey;
 use Brain\Monkey\Actions;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
-use Smaily\Connect\Report\ConnectionHealth;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
 
@@ -120,17 +119,17 @@ final class ClientTenantInactiveTest extends TestCase {
 	 * @param array<string, mixed> $body
 	 */
 	public function test_every_answer_is_announced_for_the_installation_report_with_its_code_only(): void {
-		Actions\expectDone( ConnectionHealth::ENGINE_HOOK )->once()->with( 'tenant_inactive', false );
+		Actions\expectDone( Client::RESULT_HOOK )->once()->with( 'tenant_inactive', 'GET', 'https://base.test' . Client::PATH_PING );
 		try {
 			$this->client_answering( 403, array( 'error' => 'tenant_inactive', 'message' => 'Deactivated.' ) )->ping();
 		} catch ( ApiException $e ) {
 			unset( $e );
 		}
 
-		Actions\expectDone( ConnectionHealth::ENGINE_HOOK )->once()->with( '', true );
+		Actions\expectDone( Client::RESULT_HOOK )->once()->with( '', 'POST', 'https://base.test' . Client::PATH_INGEST_ORDERS );
 		$this->client_answering( 200, array( 'ok' => true ) )->ingest_orders( array() );
 
-		Actions\expectDone( ConnectionHealth::ENGINE_HOOK )->once()->with( '', false );
+		Actions\expectDone( Client::RESULT_HOOK )->once()->with( '', 'GET', 'https://base.test' . Client::PATH_PING );
 		$this->client_answering( 200, array( 'ok' => true ) )->ping();
 		$this->addToAssertionCount( 3 ); // The three expectations, checked at tearDown.
 	}

@@ -68,7 +68,7 @@ class TransactionalGate {
 	/** Order statuses a follow-up never goes out on, whatever is ticked. */
 	private const FOLLOW_UP_CLOSED_STATUSES = array( 'cancelled', 'refunded', 'failed', 'trash' );
 
-	public const OPTION_ENABLED = 'smly_plus_transactional_emails_enabled';
+	private const OPTION_ENABLED = 'smly_plus_transactional_emails_enabled';
 
 	/** Bare WC status slugs (no 'wc-' prefix) treated as "shipped" — Settings persists this option. */
 	public const OPTION_SHIPPED_STATUSES = 'smly_plus_shipped_order_statuses';
@@ -213,6 +213,24 @@ class TransactionalGate {
 			return self::REASON_STATUS_NOT_COUNTING;
 		}
 		return '';
+	}
+
+	/**
+	 * Order and shipping emails through the Transactional account are
+	 * switched on: the master switch and at least one trigger's toggle
+	 * (the installation report's `transactional_emails`, CON-290).
+	 */
+	public static function any_enabled(): bool {
+		if ( ! (bool) get_option( self::OPTION_ENABLED, false ) ) {
+			return false;
+		}
+		foreach ( self::TRIGGERS as $trigger ) {
+			if ( (bool) get_option( $trigger['toggle_option'], false ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
