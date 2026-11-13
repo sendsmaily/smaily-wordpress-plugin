@@ -140,11 +140,10 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 * @return array<int, array{0: string, 1: string, 2: array<string, mixed>}>
 	 */
 	private function rows_to_queue( int $entity_id ): array {
-		$post = $this->units_to_send( $entity_id );
-		if ( $post === null ) {
+		if ( $this->is_collapsed_translation( $entity_id ) ) {
 			return array();
 		}
-		[ $is_trashed, $units ] = $post;
+		[ $is_trashed, $units ] = $this->post_units( $entity_id );
 
 		if ( $units === null ) {
 			// A published product WooCommerce cannot load is not sent (CC.4).
@@ -397,24 +396,16 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	}
 
 	/**
-	 * What this import sends for one enumerated parent post — the single
-	 * decision enqueue_record() and manifest_items() share.
-	 *
-	 * @return array{0: bool, 1: array<int, \WC_Product|null>|null}|null Null
-	 *         when nothing is sent for the post; else [is_trashed, units],
-	 *         units by id (CatalogPayloadBuilder::expand_by_id(), a variation
-	 *         that does not load kept as null), or null for a product
-	 *         WooCommerce cannot load.
-	 */
-	private function units_to_send( int $entity_id ): ?array {
-		return $this->is_collapsed_translation( $entity_id ) ? null : $this->post_units( $entity_id );
-	}
-
-	/**
-	 * units_to_send() for a post that is not a collapsed translation; the
-	 * manifest runs the collapse check itself first (CON-312).
+	 * What this import sends for one enumerated parent post that is not a
+	 * collapsed translation — the single decision enqueue_record() and
+	 * manifest_items() share; each runs the collapse check itself first
+	 * (CON-312).
 	 *
 	 * @return array{0: bool, 1: array<int, \WC_Product|null>|null}
+	 *         [is_trashed, units], units by id
+	 *         (CatalogPayloadBuilder::expand_by_id(), a variation that does
+	 *         not load kept as null), or null for a product WooCommerce
+	 *         cannot load.
 	 */
 	private function post_units( int $entity_id ): array {
 		// A trashed product stays in the catalog as in_stock=false (kept for the

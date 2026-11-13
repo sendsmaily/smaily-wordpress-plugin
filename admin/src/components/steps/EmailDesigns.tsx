@@ -386,6 +386,11 @@ function DesignWindow({
   }, [requestClose]);
 
   const title = __( 'Edit design', 'smaily-connect' );
+  const newTabButton = (
+    <Button variant="secondary" size="sm" type="button" onClick={onNewTab}>
+      { __( 'Open in a new tab', 'smaily-connect' ) }
+    </Button>
+  );
 
   return createPortal(
     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 font-sans">
@@ -407,9 +412,7 @@ function DesignWindow({
         <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
           <h2 id={titleId} className="text-lg font-semibold text-text-primary">{title}</h2>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" type="button" onClick={onNewTab}>
-              { __( 'Open in a new tab', 'smaily-connect' ) }
-            </Button>
+            {newTabButton}
             <Button ref={closeRef} variant="ghost" size="sm" type="button" onClick={requestClose}>
               { __( 'Close', 'smaily-connect' ) }
             </Button>
@@ -419,11 +422,7 @@ function DesignWindow({
           <Banner
             tone="warning"
             className="m-4 mb-0"
-            actions={(
-              <Button variant="secondary" size="sm" type="button" onClick={onNewTab}>
-                { __( 'Open in a new tab', 'smaily-connect' ) }
-              </Button>
-            )}
+            actions={newTabButton}
           >
             { __( 'The design page did not open.', 'smaily-connect' ) }
           </Banner>
