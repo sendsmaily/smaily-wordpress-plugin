@@ -97,26 +97,47 @@ final class SubscriberPayloadBuilderTest extends TestCase {
 		self::assertSame( 'Example Shop', $payload['site_title'] );
 	}
 
-	public function test_gender_enum_transforms_zero_to_female(): void {
+	/**
+	 * The Gender input stores 1 = Male, 2 = Female (CON-309).
+	 *
+	 * @dataProvider provide_stored_genders
+	 */
+	public function test_a_stored_gender_is_sent_as_the_value_the_shopper_chose( ?string $stored, ?string $expected ): void {
 		Functions\when( 'get_option' )->justReturn( array( 'user_gender' ) );
 
 		$user = $this->fake_user( 42, 'alice@example.test' );
-		$this->seed_meta( 42, 'user_gender', '0' );
+		if ( $stored !== null ) {
+			$this->seed_meta( 42, 'user_gender', $stored );
+		}
 
 		$payload = ( new SubscriberPayloadBuilder() )->build( $user );
 
-		self::assertSame( 'Female', $payload['user_gender'] );
+		if ( $expected === null ) {
+			self::assertArrayNotHasKey( 'user_gender', $payload, 'No known gender → omitted, so Smaily keeps what it has.' );
+			return;
+		}
+		self::assertSame( $expected, $payload['user_gender'] );
 	}
 
-	public function test_gender_enum_transforms_non_zero_to_male(): void {
-		Functions\when( 'get_option' )->justReturn( array( 'user_gender' ) );
+	/**
+	 * @return array<string, array{0: ?string, 1: ?string}>
+	 */
+	public static function provide_stored_genders(): array {
+		return array(
+			'male'             => array( '1', 'Male' ),
+			'female'           => array( '2', 'Female' ),
+			'empty'            => array( '', null ),
+			'missing'          => array( null, null ),
+			'zero'             => array( '0', null ),
+			'unexpected value' => array( 'female', null ),
+		);
+	}
 
-		$user = $this->fake_user( 42, 'alice@example.test' );
-		$this->seed_meta( 42, 'user_gender', '1' );
-
-		$payload = ( new SubscriberPayloadBuilder() )->build( $user );
-
-		self::assertSame( 'Male', $payload['user_gender'] );
+	/**
+	 * @dataProvider provide_stored_genders
+	 */
+	public function test_gender_label_is_the_one_mapping_both_syncs_use( ?string $stored, ?string $expected ): void {
+		self::assertSame( $expected, SubscriberPayloadBuilder::gender_label( (string) $stored ) );
 	}
 
 	public function test_birthday_normalises_to_yyyy_mm_dd(): void {
@@ -190,7 +211,7 @@ final class SubscriberPayloadBuilderTest extends TestCase {
 
 		$user = $this->fake_user( 42, 'alice@example.test', array( 'first_name' => 'Alice' ) );
 		$this->seed_meta( 42, 'user_phone', '+372 555 12345' );
-		$this->seed_meta( 42, 'user_gender', '0' );
+		$this->seed_meta( 42, 'user_gender', '2' );
 
 		$payload = ( new SubscriberPayloadBuilder() )->build( $user );
 
@@ -226,7 +247,7 @@ final class SubscriberPayloadBuilderTest extends TestCase {
 
 		$user = $this->fake_user( 42, 'alice@example.test', array( 'first_name' => 'Alice' ) );
 		$this->seed_meta( 42, 'user_phone', '+372 555 12345' );
-		$this->seed_meta( 42, 'user_gender', '0' );
+		$this->seed_meta( 42, 'user_gender', '2' );
 		$this->seed_meta( 42, 'user_dob', '1984-02-24' );
 
 		$payload = ( new SubscriberPayloadBuilder() )->build( $user );
