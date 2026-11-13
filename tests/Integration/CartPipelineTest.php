@@ -429,13 +429,17 @@ final class CartPipelineTest extends TestCase {
 		$this->map_language_workflow( 'et_EE', '6161', 1 );
 		$this->map_language_workflow( 'en_GB', '6363', 0 );
 
+		// TranslatePress sets its request language early (plugins_loaded),
+		// before WooCommerce reports any cart change.
+		$GLOBALS['TRP_LANGUAGE'] = 'en_GB';
+
 		wp_set_current_user( 0 );
 		$product_id = $this->make_product( 'TranslatePress Product', 5.00 );
 		$this->boot_wc_cart();
 		WC()->cart->add_to_cart( $product_id, 1 );
 
-		$GLOBALS['TRP_LANGUAGE'] = 'en_GB';
-		$handler                 = new CartHookHandler( new CartSessionStore() );
+		$handler = new CartHookHandler( new CartSessionStore() );
+		CartHookHandler::reset_request_guard();
 		$handler->on_cart_updated();
 
 		$content = CartSessionStore::decode_content( (string) $this->tracker_row()['cart_content'] );
