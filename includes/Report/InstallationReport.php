@@ -166,7 +166,7 @@ class InstallationReport {
 	 * @param mixed $parsed_args The request arguments.
 	 * @param mixed $url         The request URL.
 	 */
-	public function limit_connect_time( $handle, $parsed_args = array(), $url = '' ): void {
+	public static function limit_connect_time( $handle, $parsed_args = array(), $url = '' ): void {
 		if ( $url === self::ENDPOINT && $handle instanceof \CurlHandle ) {
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt -- WordPress's HTTP API exposes no connect timeout; this sets one on its own cURL handle, for the report request only.
 			curl_setopt( $handle, CURLOPT_CONNECTTIMEOUT, self::CONNECT_TIMEOUT_SECONDS );
@@ -200,7 +200,7 @@ class InstallationReport {
 			);
 		}
 
-		add_action( 'http_api_curl', array( $this, 'limit_connect_time' ), 10, 3 );
+		add_action( 'http_api_curl', array( self::class, 'limit_connect_time' ), 10, 3 );
 		try {
 			$response = wp_remote_post(
 				self::ENDPOINT,
@@ -217,7 +217,7 @@ class InstallationReport {
 				)
 			);
 		} finally {
-			remove_action( 'http_api_curl', array( $this, 'limit_connect_time' ), 10 );
+			remove_action( 'http_api_curl', array( self::class, 'limit_connect_time' ), 10 );
 		}
 
 		if ( is_wp_error( $response ) ) {
