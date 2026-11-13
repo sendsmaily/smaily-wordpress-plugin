@@ -86,7 +86,7 @@ final class SubscriberSyncFieldSelectionTest extends TestCase {
 		$female = $this->make_contact(
 			array(
 				'user_phone'  => '+372 555 12345',
-				'user_gender' => '0',
+				'user_gender' => '2',
 			)
 		);
 		$male   = $this->make_contact(
@@ -105,13 +105,37 @@ final class SubscriberSyncFieldSelectionTest extends TestCase {
 		self::assertSame( 'Male', $this->row_for( $rows, $male )['user_gender'] );
 	}
 
+	/**
+	 * The Gender input stores 1 = Male, 2 = Female. The contact sync read 2 as
+	 * Male while the older sync read it as Female (CON-309): both now send the
+	 * same value, and nothing when no gender is stored.
+	 */
+	public function test_both_contact_syncs_send_the_gender_the_shopper_chose(): void {
+		$this->save_selection( $this->wizard_selection() );
+
+		$female = $this->make_contact( array( 'user_gender' => '2' ) );
+		$male   = $this->make_contact( array( 'user_gender' => '1' ) );
+		$none   = $this->make_contact( array() );
+
+		$rows = $this->sync_contacts();
+
+		self::assertSame( 'Female', $this->row_for( $rows, $female )['user_gender'], 'A shopper who chose Female reaches Smaily as Female.' );
+		self::assertSame( 'Male', $this->row_for( $rows, $male )['user_gender'] );
+		self::assertArrayNotHasKey( 'user_gender', $this->row_for( $rows, $none ), 'No stored gender → omitted, so Smaily keeps what it has.' );
+
+		$legacy = static fn ( int $user_id ): array => \Smaily_Connect\Integrations\WooCommerce\Data_Handler::get_user_data( $user_id );
+		self::assertSame( 'Female', $legacy( $female )['user_gender'] );
+		self::assertSame( 'Male', $legacy( $male )['user_gender'] );
+		self::assertArrayNotHasKey( 'user_gender', $legacy( $none ) );
+	}
+
 	public function test_unticking_them_sends_neither_so_smaily_keeps_what_it_has(): void {
 		$this->save_selection( array( 'first_name', 'last_name' ) );
 
 		$user_id = $this->make_contact(
 			array(
 				'user_phone'  => '+372 555 12345',
-				'user_gender' => '0',
+				'user_gender' => '2',
 			)
 		);
 
@@ -164,7 +188,7 @@ final class SubscriberSyncFieldSelectionTest extends TestCase {
 		$user_id = $this->make_contact(
 			array(
 				'user_phone'  => '+372 555 24680',
-				'user_gender' => '0',
+				'user_gender' => '2',
 			)
 		);
 
@@ -192,7 +216,7 @@ final class SubscriberSyncFieldSelectionTest extends TestCase {
 		$user_id = $this->make_contact(
 			array(
 				'user_phone'  => '+372 555 12345',
-				'user_gender' => '0',
+				'user_gender' => '2',
 				'user_dob'    => '1984-02-24',
 			)
 		);

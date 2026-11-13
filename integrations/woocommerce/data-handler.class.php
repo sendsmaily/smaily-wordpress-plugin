@@ -90,13 +90,9 @@ class Data_Handler {
 					}
 					break;
 				case 'user_gender':
-					$gender     = $meta['user_gender'][0] ?? '';
-					$gender_map = array(
-						'1' => 'Male',
-						'2' => 'Female',
-					);
-					if ( isset( $gender_map[ $gender ] ) ) {
-						$user_sync_data['user_gender'] = $gender_map[ $gender ];
+					$gender = SubscriberPayloadBuilder::gender_label( (string) ( $meta['user_gender'][0] ?? '' ) );
+					if ( $gender !== null ) {
+						$user_sync_data['user_gender'] = $gender;
 					}
 					break;
 				case 'site_title':

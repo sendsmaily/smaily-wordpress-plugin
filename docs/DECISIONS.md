@@ -10679,6 +10679,26 @@ and the filter path need them).
 profile). Pinned by `ProfileSettingsStorefrontFieldsTest` and
 `tests/Integration/SubscriberFieldFormsTest.php`.
 
+### CON-309 — A stored gender reaches Smaily as the shopper chose it (2026-11-13)
+
+**Context:** the Gender input stores user meta `user_gender` as 1 = Male,
+2 = Female, and it always has. The older sync (`Data_Handler`) has read it
+that way since upstream #124. The contact sync (`SubscriberPayloadBuilder`)
+kept the pre-#124 rule, `'0'` → Female and anything else → Male, so a
+shopper who chose Female reached Smaily as Male. The tests and
+`spec/FIELD_MAPPING.md` §2 pinned the same wrong rule.
+**Decision:** one mapping, `SubscriberPayloadBuilder::gender_label()`:
+`'1'` → `Male`, `'2'` → `Female`, any other value (none stored included) →
+no `user_gender` key, so Smaily keeps what it has. Both syncs call it. The
+wire key and the `Male`/`Female` strings are unchanged (F2-7).
+**Rationale:** the two syncs already sent the same strings; only the
+reading of the stored value differed, and the form decides that reading.
+**Alternatives:** keep `'0'` → Female for old data (rejected — no version
+of the form wrote `0`).
+**Relationships:** F2-7, PRO-1683. Contacts already in Smaily with the wrong
+value are not corrected. Pinned by `SubscriberPayloadBuilderTest` and
+`SubscriberSyncFieldSelectionTest`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
