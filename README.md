@@ -33,7 +33,7 @@ What's next is **a real-merchant pilot** (acceptance criteria in [`docs/TESTING.
 
 | Component | Minimum | Tested up to |
 |-----------|---------|--------------|
-| WordPress | 6.6 | 7.0 |
+| WordPress | 6.6 | 7.1 |
 | WooCommerce | 6.9 | 10.7 |
 | PHP | 8.0 | 8.3 |
 | Smaily account | Active | — |
