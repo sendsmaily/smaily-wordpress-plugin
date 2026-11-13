@@ -263,6 +263,10 @@ msgstr ""
 msgid "The import could not be started. Try again in a few minutes."
 msgstr ""
 
+#: includes/REST/BackfillEndpoint.php:307
+msgid "The import status could not be read from the database. Try again in a few minutes."
+msgstr ""
+
 #: includes/REST/BackfillEndpoint.php:375
 msgid "This import cannot run: the plugin did not finish its database update. Contact Smaily support."
 msgstr ""
@@ -2170,13 +2174,21 @@ msgid_plural "Smaily refused %d customers, so they were not imported. Fix them a
 msgstr[0] ""
 msgstr[1] ""
 
-#. translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is Smaily's reason.
+#. translators: %d is the number of customers the plugin could not read.
+#: admin/src/components/steps/Step2Subscribers.tsx:318
+#, js-format
+msgid "%d customer could not be read from your store, so it was not imported:"
+msgid_plural "%d customers could not be read from your store, so they were not imported:"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is the reason.
 #: admin/src/components/steps/Step2Subscribers.tsx:225
 #, js-format
 msgid "User %1$d (%2$s): %3$s"
 msgstr ""
 
-#. translators: %d is the number of refused customers not listed.
+#. translators: %d is the number of skipped customers not listed.
 #: admin/src/components/steps/Step2Subscribers.tsx:234
 #, js-format
 msgid "…and %d more."

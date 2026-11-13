@@ -102,6 +102,44 @@ final class CatalogManifestTest extends TestCase {
 		self::assertSame( array(), $queue->enqueued );
 	}
 
+	/**
+	 * CON-286: a products import state that cannot be read is not "no import
+	 * running" — the night is skipped like a running import.
+	 */
+	public function test_nothing_is_sent_when_the_import_state_cannot_be_read(): void {
+		$queue  = $this->fake_queue();
+		$client = $this->client();
+
+		$this->manifest( $queue, $client, null, array( 'import_active' => null ) )->run();
+
+		self::assertSame( array(), $client->sent );
+		self::assertSame( array(), $queue->enqueued, 'A skipped night writes no row.' );
+
+		// The real check: the products state row read fails (read_state() false).
+		$GLOBALS['wpdb'] = new class() {
+			public string $prefix     = 'wp_';
+			public string $last_error = '';
+
+			public function prepare( string $sql, ...$args ): string {
+				return $sql;
+			}
+
+			/** @return null */
+			public function get_row( string $sql, string $output = 'ARRAY_A' ) {
+				$this->last_error = "Unknown column 'sent_count' in 'field list'";
+				return null;
+			}
+		};
+		try {
+			$this->manifest( $queue, $client, null, array( 'real_import_state' => true ) )->run();
+		} finally {
+			unset( $GLOBALS['wpdb'] );
+		}
+
+		self::assertSame( array(), $client->sent );
+		self::assertSame( array(), $queue->enqueued );
+	}
+
 	public function test_nothing_is_sent_while_catalog_changes_wait(): void {
 		$queue  = $this->fake_queue();
 		$client = $this->client();
@@ -438,7 +476,7 @@ final class CatalogManifestTest extends TestCase {
 	// --- doubles -------------------------------------------------------------
 
 	/**
-	 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} $opts
+	 * @param array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} $opts
 	 */
 	private function manifest( IngestQueue $queue, Client $client, ?RecEngineSettings $settings = null, array $opts = array() ): CatalogManifest {
 		$catalog = new class( ! empty( $opts['throw'] ), $opts['items'] ?? null, $opts['on_walk'] ?? null ) extends CatalogBackfillJob {
@@ -470,19 +508,22 @@ final class CatalogManifestTest extends TestCase {
 		};
 
 		return new class( $queue, $settings ?? new FakeRecEngineSettings(), static fn (): Client => $client, $catalog, $opts ) extends CatalogManifest {
-			/** @var array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} */
+			/** @var array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} */
 			private array $opts;
 
 			/**
-			 * @param array{import_active?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} $opts
+			 * @param array{import_active?: bool|null, real_import_state?: bool, changes_waiting?: bool, throw?: bool, limit?: int, items?: array<int, array{sku: string, in_stock: bool}>, on_walk?: callable(): void, last_error?: array{type: int, message: string, file: string, line: int}|null} $opts
 			 */
 			public function __construct( IngestQueue $queue, RecEngineSettings $settings, callable $client_factory, CatalogBackfillJob $catalog, array $opts ) {
 				parent::__construct( $queue, $settings, $client_factory, $catalog );
 				$this->opts = $opts;
 			}
 
-			protected function import_active(): bool {
-				return ! empty( $this->opts['import_active'] );
+			protected function import_active(): ?bool {
+				if ( ! empty( $this->opts['real_import_state'] ) ) {
+					return parent::import_active();
+				}
+				return array_key_exists( 'import_active', $this->opts ) ? $this->opts['import_active'] : false;
 			}
 
 			protected function catalog_changes_waiting(): bool {

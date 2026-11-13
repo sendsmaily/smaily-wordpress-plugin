@@ -48,9 +48,10 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *      it sends, two or more, is about the request, and stops the import as
  *      in 3.
  *   5. A contact whose payload cannot be built (it throws) is skipped and
- *      listed in OPTION_REFUSED the same way, with the error class and line
- *      as its reason, and the walk goes on (CON-302). It never counts as a
- *      Smaily refusal in 4.
+ *      listed in OPTION_UNREADABLE, with the error class and line as its
+ *      reason, and the walk goes on (CON-302). It never counts as a Smaily
+ *      refusal in 4, and is listed apart from them (CON-305): Smaily never
+ *      saw it.
  *
  * The Smaily API call itself is delegated to a Client instance supplied
  * via constructor injection so tests don't need wp_remote_post mocks.
@@ -72,15 +73,22 @@ class BackfillJob implements BackfillJobInterface {
 	public const META_KEY     = '_smaily_synced_at';
 
 	/**
-	 * The contacts Smaily refused for good in the current run (PRO-3988),
-	 * and those whose payload could not be built (CON-302):
+	 * The contacts Smaily refused for good in the current run (PRO-3988):
 	 * `{count: int, contacts: list<{user_id: int, reason: string}>}`, the list
 	 * capped at MAX_LISTED_REFUSALS. Cleared by start(). Autoload off; the
 	 * reason never holds an email address.
 	 */
 	public const OPTION_REFUSED = 'smly_plus_contact_import_refused';
 
-	/** How many refused contacts OPTION_REFUSED lists; `count` keeps the total. */
+	/**
+	 * The contacts of the current run whose payload could not be built
+	 * (CON-302) — Smaily never saw them, so they are counted apart from
+	 * OPTION_REFUSED (CON-305). Same shape, cap and rules; the reason is the
+	 * error class and line.
+	 */
+	public const OPTION_UNREADABLE = 'smly_plus_contact_import_unreadable';
+
+	/** How many contacts each skip list holds; `count` keeps the total. */
 	public const MAX_LISTED_REFUSALS = 20;
 
 	/**
@@ -118,7 +126,8 @@ class BackfillJob implements BackfillJobInterface {
 	 * background cron still benefits from the freshness optimization;
 	 * only the merchant-driven start path resets it.
 	 *
-	 * @return int The backfill_job row id.
+	 * @return int The backfill_job row id, or 0 when the row could not be
+	 *             written (CON-286): nothing was started.
 	 */
 	public function start( bool $reset_freshness = true ): int {
 		global $wpdb;
@@ -128,8 +137,9 @@ class BackfillJob implements BackfillJobInterface {
 
 		$table = $this->table_name();
 
-		// A new run lists only its own refused contacts (PRO-3988).
+		// A new run lists only its own skipped contacts (PRO-3988, CON-305).
 		delete_option( self::OPTION_REFUSED );
+		delete_option( self::OPTION_UNREADABLE );
 
 		// PRO-1715: with an empty audience the walk has nothing to POST, so the
 		// run is recorded as finished right here rather than as 'running' with
@@ -183,7 +193,7 @@ class BackfillJob implements BackfillJobInterface {
 		// private const). Real arguments are bound via %s / %d placeholders.
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
-		$wpdb->query(
+		$written = $wpdb->query(
 			$wpdb->prepare(
 				"INSERT INTO {$table} (job_type, target, status, total_count, processed_count, synced_count, started_at) VALUES (%s, %s, %s, %d, %d, 0, %s) ON DUPLICATE KEY UPDATE status = VALUES(status), total_count = VALUES(total_count), processed_count = 0, synced_count = 0, cursor_value = NULL, started_at = VALUES(started_at), completed_at = NULL, error_message = NULL",
 				self::BACKFILL_TYPE,
@@ -194,6 +204,13 @@ class BackfillJob implements BackfillJobInterface {
 				current_time( 'mysql', true )
 			)
 		);
+		// The state row could not be written (CON-286, as CON-282 for the
+		// Campaign Intelligence imports): nothing started. 0 tells the caller
+		// to schedule no batch — the REST route answers start_failed.
+		if ( $written === false ) {
+			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect backfill.start] the state row could not be written' );
+			return 0;
+		}
 
 		$id = (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -516,8 +533,10 @@ class BackfillJob implements BackfillJobInterface {
 			);
 		}
 		// A contact that was not built is not Smaily's refusal, so it never
-		// counts toward the request-wide refusal above.
-		$this->record_refusals( array_merge( $refused, $not_built ) );
+		// counts toward the request-wide refusal above, and it is listed
+		// apart from them (CON-305).
+		$this->record_skipped( self::OPTION_REFUSED, $refused );
+		$this->record_skipped( self::OPTION_UNREADABLE, $not_built );
 
 		\Smaily\Connect\Support\DebugLog::write(
 			sprintf(
@@ -667,24 +686,25 @@ class BackfillJob implements BackfillJobInterface {
 	}
 
 	/**
-	 * Add this page's refused contacts to the run's list (PRO-3988).
+	 * Add this page's skipped contacts to one of the run's lists:
+	 * OPTION_REFUSED (PRO-3988) or OPTION_UNREADABLE (CON-305).
 	 *
-	 * @param array<int, array{user_id: int, reason: string}> $refused
+	 * @param array<int, array{user_id: int, reason: string}> $skipped
 	 */
-	private function record_refusals( array $refused ): void {
-		if ( $refused === array() ) {
+	private function record_skipped( string $option, array $skipped ): void {
+		if ( $skipped === array() ) {
 			return;
 		}
 
-		$stored   = get_option( self::OPTION_REFUSED );
+		$stored   = get_option( $option );
 		$count    = is_array( $stored ) ? (int) ( $stored['count'] ?? 0 ) : 0;
 		$contacts = is_array( $stored ) && is_array( $stored['contacts'] ?? null ) ? $stored['contacts'] : array();
 
 		update_option(
-			self::OPTION_REFUSED,
+			$option,
 			array(
-				'count'    => $count + count( $refused ),
-				'contacts' => array_slice( array_merge( $contacts, $refused ), 0, self::MAX_LISTED_REFUSALS ),
+				'count'    => $count + count( $skipped ),
+				'contacts' => array_slice( array_merge( $contacts, $skipped ), 0, self::MAX_LISTED_REFUSALS ),
 			),
 			false
 		);

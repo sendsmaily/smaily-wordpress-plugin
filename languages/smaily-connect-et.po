@@ -215,6 +215,10 @@ msgstr "Import lakkas taustal töötamast."
 msgid "The import could not be started. Try again in a few minutes."
 msgstr "Importi ei õnnestunud käivitada. Proovi mõne minuti pärast uuesti."
 
+#: includes/REST/BackfillEndpoint.php:307
+msgid "The import status could not be read from the database. Try again in a few minutes."
+msgstr "Impordi olekut ei õnnestunud andmebaasist lugeda. Proovi mõne minuti pärast uuesti."
+
 #: includes/REST/BackfillEndpoint.php:375
 msgid "This import cannot run: the plugin did not finish its database update. Contact Smaily support."
 msgstr "Seda importi ei saa käivitada: plugin ei lõpetanud oma andmebaasi uuendust. Võta ühendust Smaily toega."
@@ -1122,13 +1126,21 @@ msgid_plural "Smaily refused %d customers, so they were not imported. Fix them a
 msgstr[0] "Smaily lükkas tagasi %d kliendi, seetõttu teda ei imporditud. Paranda andmed ja käivita import uuesti:"
 msgstr[1] "Smaily lükkas tagasi %d klienti, seetõttu neid ei imporditud. Paranda andmed ja käivita import uuesti:"
 
-#. translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is Smaily's reason.
+#. translators: %d is the number of customers the plugin could not read.
+#: admin/src/components/steps/Step2Subscribers.tsx:318
+#, js-format
+msgid "%d customer could not be read from your store, so it was not imported:"
+msgid_plural "%d customers could not be read from your store, so they were not imported:"
+msgstr[0] "%d kliendi andmeid ei õnnestunud sinu poest lugeda, seetõttu teda ei imporditud:"
+msgstr[1] "%d kliendi andmeid ei õnnestunud sinu poest lugeda, seetõttu neid ei imporditud:"
+
+#. translators: %1$d is a WordPress user ID, %2$s is a partly hidden email address, %3$s is the reason.
 #: admin/src/components/steps/Step2Subscribers.tsx:225
 #, js-format
 msgid "User %1$d (%2$s): %3$s"
 msgstr "Kasutaja %1$d (%2$s): %3$s"
 
-#. translators: %d is the number of refused customers not listed.
+#. translators: %d is the number of skipped customers not listed.
 #: admin/src/components/steps/Step2Subscribers.tsx:234
 #, js-format
 msgid "…and %d more."

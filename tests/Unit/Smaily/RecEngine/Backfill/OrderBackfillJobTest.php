@@ -1,8 +1,9 @@
 <?php
 /**
  * Unit: OrderBackfillJob's pure storage-mode mapping (3.5.2), the single-source
- * mapped-status list and the history window's dates (CON-245). The walk itself
- * runs against both order storages in RecEngineOrderBackfillTest.
+ * mapped-status list, the history window's dates (CON-245) and a cursor that
+ * is not a window (CON-286). The walk itself runs against both order storages
+ * in RecEngineOrderBackfillTest.
  *
  * @package Smaily\Connect\Tests\Unit\Smaily\RecEngine\Backfill
  */
@@ -12,10 +13,21 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine\Backfill;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\HistoryConfig;
+use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
+use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
 
 final class OrderBackfillJobTest extends TestCase {
+
+	protected function tearDown(): void {
+		unset( $GLOBALS['wpdb'] );
+		parent::tearDown();
+	}
 
 	public function test_legacy_table_spec_targets_wp_posts(): void {
 		$spec = OrderBackfillJob::table_spec( false, 'wp_' );
@@ -80,5 +92,81 @@ final class OrderBackfillJobTest extends TestCase {
 
 		// A custom status is NOT denylisted and maps to a non-empty sale enum.
 		self::assertSame( 'processing', $builder->map_status( 'label-printed' ), 'A custom status defaults through as a sale (F3-42).' );
+	}
+
+	/**
+	 * CON-286: a running import whose cursor is not a window (a bare order id
+	 * of a 3.20 run, or anything else) fails the run with the error type and
+	 * line, and never asks the engine for its history settings — only start()
+	 * does, once per run.
+	 */
+	public function test_a_cursor_that_is_not_a_window_fails_the_run_without_asking_the_engine(): void {
+		foreach ( array( '12345', '', '{"until":"2026-11-13 10:00:00"}' ) as $cursor ) {
+			$wpdb            = $this->fake_wpdb( $cursor );
+			$GLOBALS['wpdb'] = $wpdb;
+			$pings           = 0;
+			$flusher         = $this->createMock( OrderFlusher::class );
+			$flusher->method( 'sending_allowed' )->willReturn( true );
+			$flusher->expects( self::never() )->method( 'flush' );
+			$history = new HistoryConfig(
+				new FakeRecEngineSettings(),
+				static function () use ( &$pings ): Client {
+					++$pings;
+					throw new \LogicException( 'The batch must not ask the engine.' );
+				}
+			);
+			$job     = new OrderBackfillJob( $this->createMock( IngestQueue::class ), $flusher, $history );
+
+			$result = $job->process_batch();
+
+			self::assertSame( 0, $pings, "cursor '{$cursor}': no history request." );
+			self::assertTrue( $result['completed'], "cursor '{$cursor}': the tick chain ends." );
+			self::assertSame( 0, $result['processed'] );
+			self::assertCount( 1, $wpdb->updates, "cursor '{$cursor}': only the failure is written." );
+			self::assertSame( BackfillJobInterface::STATUS_FAILED, $wpdb->updates[0]['data']['status'] );
+			self::assertMatchesRegularExpression( '/^UnexpectedValueException at OrderBackfillJob\.php:\d+$/', $wpdb->updates[0]['data']['error_message'] );
+			self::assertSame( BackfillJobInterface::STATUS_RUNNING, $wpdb->updates[0]['where']['status'], 'A cancel that landed meanwhile stays a cancel.' );
+		}
+	}
+
+	/**
+	 * A $wpdb whose orders state row is a running import with $cursor.
+	 */
+	private function fake_wpdb( string $cursor ): object {
+		return new class( $cursor ) {
+			public string $prefix = 'wp_';
+			/** @var array<int, array<string, mixed>> */
+			public array $updates = array();
+			private string $cursor;
+
+			public function __construct( string $cursor ) {
+				$this->cursor = $cursor;
+			}
+
+			public function prepare( string $sql, ...$args ): string {
+				return $sql;
+			}
+
+			/** @return array<string, string> */
+			public function get_row( string $sql, string $output = 'ARRAY_A' ): array {
+				return array(
+					'id'              => '9',
+					'status'          => BackfillJobInterface::STATUS_RUNNING,
+					'cursor_value'    => $this->cursor,
+					'processed_count' => '50',
+					'total_count'     => '200',
+					'started_at'      => '2026-11-13 10:00:00',
+				);
+			}
+
+			/**
+			 * @param array<string, mixed> $data
+			 * @param array<string, mixed> $where
+			 */
+			public function update( string $table, array $data, array $where, $format = null, $where_format = null ): int {
+				$this->updates[] = compact( 'table', 'data', 'where' );
+				return 1;
+			}
+		};
 	}
 }

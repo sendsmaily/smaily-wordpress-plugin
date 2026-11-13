@@ -10802,6 +10802,94 @@ same row; follow-up). Pinned by `tests/Unit/DB/MigratorTest.php`,
 `tests/Unit/REST/BackfillEndpointTest.php` and
 `tests/Integration/RecEngineSchemaGateTest.php`.
 
+### CON-286 — An import state the database cannot read is an error; the orders window is asked once (2026-11-13)
+
+**Context:** CON-282 made `AbstractBackfillJob::read_state()` tell a database
+error (false) from "never ran" (null), but three readers still took false for
+"nothing there". The status route checked only null and passed false to
+`is_stalled( string, array )`: a TypeError, a 500 on every card whose row did
+not read — the Contacts card even with CON-291's reason, which covers only
+the three Campaign Intelligence cards. The nightly product list read the
+products import through `is_running()`, which answers false for an unreadable
+row, so it could send a list while an import ran. The contact import's
+`start()` did not check its INSERT, so a failed write still returned the old
+row's id and the daily refresh scheduled a batch for it. And the orders
+import built a new history window — one engine ping — for any cursor that did
+not read as a window, on every batch whose cursor write did not land.
+**Decision:**
+- **Status route:** `read_state()` false answers 200 with `status: failed` and
+  "The import status could not be read from the database. Try again in a few
+  minutes." for all four cards. The cards already show a failed status with
+  its reason, so no UI change; the route writes nothing.
+- **Nightly product list:** `CatalogManifest::import_active()` answers null for
+  an unreadable products row, and the night is skipped with a debug line —
+  the existing rule for a running import (no row, nothing sent). Not a failed
+  row: the next night reads again, and a failed row would show the merchant a
+  database hiccup they cannot act on.
+- **Contact import start:** `BackfillJob::start()` returns 0 when its INSERT
+  fails, as `AbstractBackfillJob::start()` does since CON-282. The REST route
+  already answers 500 `start_failed` on 0; the daily refresh now schedules no
+  batch and the next daily tick tries again.
+- **Orders window — fail, not rebuild:** `OrderBackfillJob::next_page()`
+  throws `UnexpectedValueException` for a cursor that is not a window; the
+  batch marks the run failed with the error type and line (PRO-3890) and the
+  tick chain ends. Only `start()` asks the engine for the window, once a run.
+**Rationale:** an unreadable state is not an answer, so no reader may act as if
+it were "idle", "not running" or "started". For the orders cursor, a rebuilt
+window would not match the run's `total_count` or its §25 report, and it
+restarts from the newest order anyway — the same as Import now, without the
+new history import. Since CON-282 a cursor write that does not land ends the
+run, so a rebuilt window could only ever be asked once per run; failing makes
+that guarantee structural and visible.
+**Alternatives:** a new card status for "unreadable" (rejected: two UI paths
+for one message; the failed status already carries a reason); fail the
+manifest's row (rejected above); persist a rebuilt window at once (rejected:
+the window would still differ from the run's total and §25 report).
+**Out of scope:** `ImportsOnConnect::start()` and `CatalogImportOnConnect` read
+`is_running()` too (unreadable = not running); their start then fails on the
+same database and schedules nothing (CON-282), so they are left as they are.
+A 3.20 orders run still running with a bare-id cursor on an update straight to
+this release now fails; that store's one-time after-update start (CON-247)
+starts the orders import again with a new window, and anywhere else Import
+now does.
+**Relationships:** CON-282, CON-291, PRO-3890, PRO-3886, PRO-3987. Pinned by
+`tests/Unit/REST/BackfillEndpointTest.php`,
+`tests/Unit/Smaily/BackfillJobTest.php`,
+`tests/Unit/Smaily/RecEngine/CatalogManifestTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/OrderBackfillJobTest.php`,
+`admin/src/components/steps/Step2Subscribers.backfillCopy.test.tsx` and
+`tests/Integration/RecEngineSchemaGateTest.php`.
+
+### CON-305 — The contact import lists the customers it could not read apart from Smaily's refusals (2026-11-13)
+
+**Context:** since CON-302 the contact import skips a customer whose payload
+cannot be built and adds it to `OPTION_REFUSED`, the list of customers Smaily
+refused for good (PRO-3988). The panel's "Smaily refused N customers" then
+counted customers Smaily never saw, and told the merchant to fix data that
+Smaily had not judged.
+**Decision:** a second option, `BackfillJob::OPTION_UNREADABLE`
+(`smly_plus_contact_import_unreadable`, autoload off), with the same shape,
+cap (20 listed, `count` the total) and rules as `OPTION_REFUSED`; `start()`
+clears both. The status route returns it as `unreadable` beside `refused`, and
+the panel shows two lines, each with its own list and "…and N more.":
+"Smaily refused N customers…" and "N customers could not be read from your
+store, so they were not imported:". The personal-data eraser removes the user
+from both lists; the integration `EnvScrub` flushes both.
+**Rationale:** counted apart at the source, the two numbers stay right without
+the panel guessing from a reason's text. A second option rather than a `kind`
+per entry keeps each list's cap its own, so 20 refusals cannot hide every
+unreadable customer, and the eraser and the route read one shape.
+**Alternatives:** a `kind` field per entry in one option (rejected: one shared
+cap, and every reader filters); tell the two apart by the reason's
+`Class at file:line` shape (rejected: a guess on text).
+**Out of scope:** a list stored by 3.22.0 keeps its mixed entries until the
+next run's `start()` clears it.
+**Relationships:** CON-302, PRO-3988, PRO-3906 (eraser). Pinned by
+`tests/Unit/Smaily/BackfillJobTest.php`,
+`tests/Unit/REST/BackfillEndpointTest.php`,
+`admin/src/components/steps/Step2Subscribers.backfillCopy.test.tsx` and
+`tests/Integration/RecEngineGdprTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

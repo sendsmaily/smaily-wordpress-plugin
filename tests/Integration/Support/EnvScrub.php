@@ -148,6 +148,8 @@ final class EnvScrub {
 			// Same class again (PRO-3988): the contact import's refused-contact
 			// list is autoload=false and asserted on by ContactBackfillAudienceTest.
 			\Smaily\Connect\Smaily\BackfillJob::OPTION_REFUSED,
+			// CON-305: its twin, the contacts the import could not read.
+			\Smaily\Connect\Smaily\BackfillJob::OPTION_UNREADABLE,
 			// Same class again (CON-247): the import sequence a connection
 			// starts and its one-time after-update marker are autoload=false
 			// and asserted on by RecEngineImportsOnConnectTest; a cached

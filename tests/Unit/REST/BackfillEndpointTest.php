@@ -211,22 +211,25 @@ final class BackfillEndpointTest extends TestCase {
 	}
 
 	public function test_a_start_that_could_not_write_its_row_schedules_no_tick(): void {
-		$request = new WP_REST_Request();
-		$request->set_param( 'job_type', 'products' );
+		// The contact import reports a failed write the same way (CON-286).
+		foreach ( array( 'products', 'contacts' ) as $job_type ) {
+			$request = new WP_REST_Request();
+			$request->set_param( 'job_type', $job_type );
 
-		$enqueued = array();
-		Functions\when( 'as_enqueue_async_action' )->alias(
-			static function ( string $hook ) use ( &$enqueued ): int {
-				$enqueued[] = $hook;
-				return 1;
-			}
-		);
+			$enqueued = array();
+			Functions\when( 'as_enqueue_async_action' )->alias(
+				static function ( string $hook ) use ( &$enqueued ): int {
+					$enqueued[] = $hook;
+					return 1;
+				}
+			);
 
-		$response = ( new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) ) )->start( $request );
+			$response = ( new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) ) )->start( $request );
 
-		self::assertSame( 500, $response->get_status() );
-		self::assertSame( 'start_failed', $response->get_data()['error'] );
-		self::assertSame( array(), $enqueued, 'CON-282: a tick would walk the row as it was.' );
+			self::assertSame( 500, $response->get_status(), $job_type );
+			self::assertSame( 'start_failed', $response->get_data()['error'], $job_type );
+			self::assertSame( array(), $enqueued, $job_type . ': CON-282: a tick would walk the row as it was.' );
+		}
 	}
 
 	/**
@@ -386,6 +389,29 @@ final class BackfillEndpointTest extends TestCase {
 		self::assertSame( 'idle', $response->get_data()['status'] );
 		self::assertSame( 0, $response->get_data()['total'] );
 		self::assertNull( $response->get_data()['eta_seconds'] );
+	}
+
+	/**
+	 * CON-286: a state row the database cannot read is an error on every
+	 * card — never "idle", and never a 500 (the row used to reach
+	 * is_stalled() as false).
+	 */
+	public function test_status_of_a_state_row_the_database_cannot_read_is_an_error_on_every_card(): void {
+		foreach ( array( 'contacts', 'products', 'customers', 'orders' ) as $job_type ) {
+			$request = new WP_REST_Request();
+			$request->set_param( 'job_type', $job_type );
+			$GLOBALS['wpdb'] = $this->unreadable_wpdb();
+
+			$response = ( new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) ) )->status( $request );
+			$data     = $response->get_data();
+
+			self::assertSame( 200, $response->get_status(), $job_type );
+			self::assertSame( BackfillJobInterface::STATUS_FAILED, $data['status'], $job_type );
+			self::assertSame( 'The import status could not be read from the database. Try again in a few minutes.', $data['error'], $job_type );
+			self::assertNull( $data['refused'], $job_type );
+			self::assertNull( $data['unreadable'], $job_type );
+			self::assertNull( $data['history'], $job_type );
+		}
 	}
 
 	public function test_status_computes_percent_and_eta(): void {
@@ -561,6 +587,75 @@ final class BackfillEndpointTest extends TestCase {
 		);
 	}
 
+	/**
+	 * CON-305: the contacts the plugin could not read are their own list, not
+	 * counted with the ones Smaily refused.
+	 */
+	public function test_status_lists_the_contacts_that_could_not_be_read_apart_from_the_refused(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'contacts' );
+
+		Functions\when( 'get_option' )->alias(
+			static function ( $key, $default = false ) {
+				if ( $key === BackfillJob::OPTION_REFUSED ) {
+					return array(
+						'count'    => 2,
+						'contacts' => array(
+							array(
+								'user_id' => 42,
+								'reason'  => 'permanent_envelope_204: Smaily API returned code 204',
+							),
+						),
+					);
+				}
+				if ( $key === BackfillJob::OPTION_UNREADABLE ) {
+					return array(
+						'count'    => 3,
+						'contacts' => array(
+							array(
+								'user_id' => 51,
+								'reason'  => 'TypeError at SubscriberPayloadBuilder.php:88',
+							),
+						),
+					);
+				}
+				return $key === 'smly_plus_contact_sync_mode' ? 'checkout_optin' : $default;
+			}
+		);
+		Functions\when( 'get_userdata' )->justReturn( false );
+
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_state(
+			array(
+				'id'              => 82,
+				'status'          => BackfillJobInterface::STATUS_COMPLETED,
+				'processed_count' => '200',
+				'total_count'     => '200',
+				'started_at'      => '2026-11-13 10:00:00',
+				'completed_at'    => '2026-11-13 10:05:00',
+				'error_message'   => null,
+			)
+		);
+
+		$data = ( new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) ) )->status( $request )->get_data();
+
+		self::assertSame( 2, $data['refused']['count'] );
+		self::assertSame( array( 42 ), array_column( $data['refused']['contacts'], 'user_id' ) );
+		self::assertSame(
+			array(
+				'count'    => 3,
+				'contacts' => array(
+					array(
+						'user_id'  => 51,
+						'email'    => null,
+						'edit_url' => null,
+						'reason'   => 'TypeError at SubscriberPayloadBuilder.php:88',
+					),
+				),
+			),
+			$data['unreadable']
+		);
+	}
+
 	public function test_status_has_no_refused_list_when_smaily_refused_nobody(): void {
 		$request = new WP_REST_Request();
 		$request->set_param( 'job_type', 'contacts' );
@@ -580,6 +675,7 @@ final class BackfillEndpointTest extends TestCase {
 		$data = ( new BackfillEndpoint( fn (): BackfillJob => $this->fake_job( 0 ) ) )->status( $request )->get_data();
 
 		self::assertNull( $data['refused'] );
+		self::assertNull( $data['unreadable'] );
 	}
 
 	/**
@@ -732,6 +828,26 @@ final class BackfillEndpointTest extends TestCase {
 			}
 			public function get_row( string $sql, string $output = ARRAY_A ) {
 				return $this->state;
+			}
+		};
+	}
+
+	/**
+	 * A $wpdb whose state-row read fails, as on a missing column.
+	 */
+	private function unreadable_wpdb(): object {
+		return new class() {
+			public string $prefix     = 'wp_';
+			public string $last_error = '';
+
+			public function prepare( string $sql, ...$args ): string {
+				return $sql;
+			}
+
+			/** @return null */
+			public function get_row( string $sql, string $output = ARRAY_A ) {
+				$this->last_error = "Unknown column 'sent_count' in 'field list'";
+				return null;
 			}
 		};
 	}

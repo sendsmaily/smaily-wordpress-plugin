@@ -32,7 +32,8 @@ export interface BackfillStatusResponse {
   /**
    * Why a failed import stopped (PRO-3881): Smaily's answer for the contact
    * import, the error type and line for a Campaign Intelligence import, or a
-   * sentence for one that stopped running. Email addresses are masked on the
+   * sentence for one that stopped running or whose state could not be read
+   * (CON-286). Email addresses are masked on the
    * server. Null unless the status is 'failed'.
    */
   error: string | null;
@@ -41,6 +42,12 @@ export interface BackfillStatusResponse {
    * import skipped (PRO-3988). Null when none was refused.
    */
   refused?: BackfillRefusals | null;
+  /**
+   * Contacts job: the customers the plugin could not read in this run, which
+   * the import skipped (CON-302) — counted apart from `refused`, since Smaily
+   * never saw them (CON-305). Null when there were none.
+   */
+  unreadable?: BackfillRefusals | null;
   /** MySQL DATETIME in UTC, or null when the job has never been started. */
   started_at: string | null;
   /** Set once the job reaches a terminal status; null while running/idle. */

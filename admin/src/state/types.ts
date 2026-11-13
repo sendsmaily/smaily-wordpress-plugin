@@ -84,6 +84,8 @@ export interface BackfillProgress {
   audienceEstimate: number | null;
   /** Contacts job: the customers Smaily refused for good in this run (PRO-3988). */
   refused?: BackfillRefusals | null;
+  /** Contacts job: the customers the plugin could not read in this run (CON-305). */
+  unreadable?: BackfillRefusals | null;
   /** Orders job: the history import's part being sent (CON-248); null otherwise. */
   history?: BackfillHistory | null;
 }
@@ -103,18 +105,18 @@ export interface BackfillHistory {
   horizon_months: number;
 }
 
-/** One customer Smaily refused in the contact import (PRO-3988). */
+/** One customer the contact import skipped: Smaily refused it (PRO-3988) or the plugin could not read it (CON-305). */
 export interface BackfillRefusedContact {
   user_id: number;
   /** The address with only its first character before the `@`; null for a deleted user. */
   email: string | null;
   /** The user's profile screen, or null. */
   edit_url: string | null;
-  /** Smaily's answer, addresses masked. */
+  /** Smaily's answer (addresses masked), or the error type and line for a customer that could not be read. */
   reason: string;
 }
 
-/** The contact import's refused customers: the total and up to 20 of them. */
+/** One of the contact import's skip lists: the total and up to 20 of them. */
 export interface BackfillRefusals {
   count: number;
   contacts: BackfillRefusedContact[];

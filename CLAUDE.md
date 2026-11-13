@@ -414,7 +414,9 @@ the products import `running` (incl. the import-on-connect wait — but
 no batch of it queued or running in Action Scheduler, started over
 `STALL_GRACE_SECONDS` = 10 min ago, PRO-3886 — so an import that
 deactivation or a crashed batch left `running` no longer skips every night;
-the status route reports it `failed` and nothing restarts it), any
+the status route reports it `failed` and nothing restarts it) or a products
+state row that cannot be read (`read_state()` false — CON-286; never "not
+running"), any
 pending catalog.* row in the ingest queue (`IngestQueue::has_pending`, parked
 retries included). Past those, the night's ONE `catalog.manifest` row is
 written BEFORE the walk (PRO-3987 — a run the host kills mid-walk leaves it
@@ -518,6 +520,16 @@ stray tick re-sent one page to the engine every 30 s. Now:
   every later update (`smly_plus_schema_deferred`). `false` still stops the run.
 - An import batch walks only a `running` row, and ends the run when its
   cursor write matches no row (LESSONS 2.31).
+- **`read_state()` false is an error to every reader, never "idle", "not
+  running" or "never ran" (CON-286).** The status route answers `failed` with
+  "The import status could not be read…" for all four cards (it used to pass
+  false to `is_stalled()` — a 500); the nightly product list skips the night;
+  `start()` of both import kinds returns 0 on a failed INSERT (the contact
+  import's too — the REST route answers `start_failed`, the daily refresh
+  schedules no batch). A new reader of the state row handles false the same
+  way. The orders import asks the engine for its window only in `start()`: a
+  cursor that is not a window (a 3.20 bare id) FAILS the run
+  (`UnexpectedValueException`), it is never rebuilt per batch.
 
 ### An import's queue rows carry their run's mark; the flushers count the accepted ones (CON-248)
 The import's rows drain through the same queue and flushers as the live
@@ -2086,6 +2098,13 @@ else `catalog.upsert`, no object) and the import goes on (CON-304,
 (PRO-3890) — `$wpdb` itself never throws, so test that path with a filter
 that runs a bad query before it throws (`RecEngineImportStopTest`). The
 queue writes stay outside that catch.
+The Smaily contact import skips a contact whose payload throws the same way
+and lists it in `Smaily\BackfillJob::OPTION_UNREADABLE` — apart from the
+contacts Smaily refused (`OPTION_REFUSED`, PRO-3988), because Smaily never saw
+it (CON-305): the status route returns `unreadable` beside `refused` and the
+panel shows two lines. A new skip reason picks its list deliberately, and the
+personal-data eraser clears every list (`GdprHandler`); a new list is added
+to `EnvScrub`'s flush list.
 
 
 ## Linear discipline (Smaily process bridge)

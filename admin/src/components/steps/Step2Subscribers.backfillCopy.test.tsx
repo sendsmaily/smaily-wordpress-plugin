@@ -212,6 +212,99 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
     expect(screen.getByText('…and 19 more.')).toBeInTheDocument();
   });
 
+  /**
+   * CON-305: a customer the plugin could not read never reached Smaily, so
+   * it is counted on its own line, not among the ones Smaily refused.
+   */
+  it('lists the customers the plugin could not read apart from the ones Smaily refused', async () => {
+    vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(
+      status({
+        status: 'completed',
+        processed: 300,
+        synced: 290,
+        total: 300,
+        percent: 100,
+        started_at: '2026-11-13 10:00:00',
+        completed_at: '2026-11-13 10:05:00',
+        refused: {
+          count: 1,
+          contacts: [
+            { user_id: 42, email: 'j***@example.com', edit_url: null, reason: 'Smaily API returned code 204' },
+          ],
+        },
+        unreadable: {
+          count: 2,
+          contacts: [
+            {
+              user_id: 51,
+              email: 'm***@example.com',
+              edit_url: 'https://shop.example.com/wp-admin/user-edit.php?user_id=51',
+              reason: 'TypeError at SubscriberPayloadBuilder.php:88',
+            },
+          ],
+        },
+      }),
+    );
+
+    render(<Step2Subscribers state={state} dispatch={vi.fn()} />);
+
+    expect(
+      await screen.findByText(/Smaily refused 1 customer, so it was not imported\./),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('2 customers could not be read from your store, so they were not imported:'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'User 51 (m***@example.com): TypeError at SubscriberPayloadBuilder.php:88' }),
+    ).toHaveAttribute('href', 'https://shop.example.com/wp-admin/user-edit.php?user_id=51');
+    expect(screen.getByText('User 42 (j***@example.com): Smaily API returned code 204')).toBeInTheDocument();
+    expect(screen.getByText('…and 1 more.')).toBeInTheDocument();
+  });
+
+  it('shows only the unreadable line when Smaily refused nobody', async () => {
+    vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(
+      status({
+        status: 'completed',
+        processed: 300,
+        synced: 299,
+        total: 300,
+        percent: 100,
+        started_at: '2026-11-13 10:00:00',
+        completed_at: '2026-11-13 10:05:00',
+        refused: null,
+        unreadable: {
+          count: 1,
+          contacts: [{ user_id: 51, email: null, edit_url: null, reason: 'TypeError at SubscriberPayloadBuilder.php:88' }],
+        },
+      }),
+    );
+
+    render(<Step2Subscribers state={state} dispatch={vi.fn()} />);
+
+    expect(
+      await screen.findByText('1 customer could not be read from your store, so it was not imported:'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Smaily refused/)).not.toBeInTheDocument();
+  });
+
+  /** CON-286: a state row the database cannot read is an error, never idle. */
+  it('shows a state that could not be read as an error', async () => {
+    vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(
+      status({
+        status: 'failed',
+        error: 'The import status could not be read from the database. Try again in a few minutes.',
+      }),
+    );
+
+    render(<Step2Subscribers state={state} dispatch={vi.fn()} />);
+
+    expect(
+      await screen.findByText(
+        'Backfill failed: The import status could not be read from the database. Try again in a few minutes.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('lists no refused customers when Smaily refused none', async () => {
     vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(
       status({
