@@ -101,7 +101,7 @@ All in the `smaily_connect_*` namespace (locations in parentheses):
 | `smaily_connect_janitor_failed_retention_days` | see `QueueJanitor` | Retention of `failed` queue rows |
 | `smaily_connect_failed_notice_threshold` | see `NotificationManager` | Failed-row count that triggers the admin health notice |
 | `smaily_connect_abandoned_cart_max_age_seconds` | `DAY_IN_SECONDS` | Abandoned-cart backlog window (F3-37) — `CartAbandonmentSweeper` + the legacy drain (PRO-1195) |
-| `smaily_connect_account_fields` | — | Legacy: extra fields on the account profile-settings form (`profile-settings.class.php`) |
+| `smaily_connect_account_fields` | — | Legacy: the fields `profile-settings.class.php` prints (Phone / Gender / Birthday per the sync selection, plus the newsletter box). Phone / Gender / Birthday show on the wp-admin user profile only; set a field's `hide_in_checkout` / `hide_in_account` / `hide_in_registration` to `false` here to print it on that storefront form again (PRO-4252) |
 
 NB: there is **no** `smaily_connect_beacon_consent` filter — browse consent is
 only the WP Consent API signal, the JS `consentOverride` hatch (§4), and the

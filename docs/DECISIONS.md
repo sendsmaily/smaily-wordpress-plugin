@@ -4879,6 +4879,10 @@ running store with only the Smaily transport faked, against both stored shapes;
 with no email). Unchanged for a legacy-configured store, including that an
 unticked box stays unticked.
 
+**Superseded in part by PRO-4252 (2026-11-13):** the selection now decides the
+inputs on the wp-admin user profile only; the checkout, registration and
+account details forms no longer get Phone, Gender or Birthday.
+
 **Relationships:** completes PRO-1683/PRO-1684 (the sync side) — the selection
 now has exactly one interpreter with two vocabularies. `Data_Handler::
 get_user_data()` still reads the option as a map for the registered-user opt-in
@@ -10500,6 +10504,35 @@ really stopped, without a claim §25 does not allow. When INT-225 adds a
 INT-225 (the engine's "stopped" state). Pinned by
 `tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php` and
 `tests/Integration/RecEngineHistoryProgressTest.php`.
+
+### PRO-4252 — The plugin adds only the newsletter box to a storefront form (2026-11-13)
+
+**Context:** the contact sync's field selection also decided which inputs
+`Profile_Settings` printed: Gender and Birthday went into the classic
+checkout's billing section, and Phone, Gender and Birthday onto the My
+Account registration and account details forms. No merchant asked for them,
+no setting turned them off, and the block checkout never had them. The
+checkout and registration copies were never even saved (WooCommerce stores
+only `billing_`/`shipping_` keys, and the save callback checks the account
+details nonce only).
+**Decision (Erkki, 2026-11-13):** the field selection has no bearing on any
+storefront form. The three fields default to `hide_in_checkout`,
+`hide_in_account` and `hide_in_registration` true; `hide_in_admin` stays
+false, so the wp-admin user profile still shows the selected ones. The
+newsletter box is unchanged. Because `smaily_is_field_visible()` reads the
+same flags, an account details save no longer writes these keys, so a stored
+value is kept and still syncs where it is selected.
+**Rationale:** what the merchant sends to Smaily is a different question from
+what the shopper is asked; the forms are the merchant's own. Flags instead of
+removing the fields keep the developer path: `smaily_connect_account_fields`
+sets a field's `hide_in_*` flags to false and it is printed again, and
+saved from the account details form.
+**Alternatives:** a merchant setting for the extra fields (rejected — nobody
+asked for one); deleting the field definitions (rejected — the admin profile
+and the filter path need them).
+**Relationships:** narrows PRO-1743 (its form reader still decides the admin
+profile). Pinned by `ProfileSettingsStorefrontFieldsTest` and
+`tests/Integration/SubscriberFieldFormsTest.php`.
 
 ## How to keep this document going
 
