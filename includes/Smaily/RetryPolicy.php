@@ -149,11 +149,13 @@ final class RetryPolicy {
 
 	/**
 	 * The refusing body code of a reply, or null when the reply is a success
-	 * (101), carries no numeric body code, or nothing was sent.
+	 * (101), carries no numeric body code, or nothing was sent. Public so
+	 * Client can announce a refused write to its RESULT_HOOK the same way
+	 * (CON-290 health, pre-3.22.0 audit L2).
 	 *
 	 * @param array<string, mixed>|null $exchange A Client::last_exchange().
 	 */
-	private static function envelope_refusal( ?array $exchange ): ?int {
+	public static function envelope_refusal( ?array $exchange ): ?int {
 		$body = $exchange['response']['body'] ?? null;
 		if ( ! is_array( $body ) || ! isset( $body['code'] ) || ! is_numeric( $body['code'] ) ) {
 			return null;

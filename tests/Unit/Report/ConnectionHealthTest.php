@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Unit\Report;
 
 use Brain\Monkey;
+use Brain\Monkey\Actions;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Report\ConnectionHealth;
@@ -89,6 +90,39 @@ final class ConnectionHealthTest extends TestCase {
 		$health->record_smaily( 'shop', '', 'GET', 'autoresponder' );
 		self::assertSame( 'ok', $health->smaily( 'shop' )['status'], 'The next answer that succeeds clears it.' );
 		self::assertNull( $health->smaily( 'shop' )['last_error_code'] );
+	}
+
+	/**
+	 * Pre-3.22.0 audit L2: a write Smaily refuses in a 200 body (here 203)
+	 * reaches the hook as a failure code, so the account reads failing and
+	 * `last_sync_at` stays on the last write that succeeded.
+	 */
+	public function test_a_write_refused_in_a_200_body_keeps_the_last_sync(): void {
+		Functions\when( 'get_bloginfo' )->justReturn( '' );
+		Functions\when( 'apply_filters' )->returnArg( 2 );
+		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+
+		$this->health()->record_smaily( 'shop', '', 'POST', 'contact' );
+
+		$later = $this->health( self::NOW + ConnectionHealth::WRITE_EVERY_SECONDS );
+		Actions\expectDone( SmailyClient::RESULT_HOOK )->once()->whenHappen( array( $later, 'record_smaily' ) );
+
+		$body = '{"code":203,"message":"Invalid data for jane.doe@example.com"}';
+		Functions\when( 'wp_remote_post' )->justReturn( array( 'body' => $body ) );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( $body );
+		( new SmailyClient( 'shop', 'user', 'pass' ) )->upsert_subscribers( array( array( 'email' => 'jane.doe@example.com' ) ) );
+
+		self::assertSame(
+			array(
+				'status'          => 'failing',
+				'last_sync_at'    => self::NOW,
+				'last_error_code' => 'permanent_envelope_203',
+			),
+			$later->smaily( 'shop' )
+		);
+		self::assertStringNotContainsString( 'jane.doe@example.com', (string) json_encode( $this->options ) );
 	}
 
 	public function test_a_repeated_success_is_written_at_most_every_five_minutes(): void {

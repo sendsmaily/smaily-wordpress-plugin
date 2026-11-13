@@ -109,8 +109,16 @@ category filter above (F3-50).
 
 ## 3. Action hooks
 
-Public `do_action` surface is minimal — the plugin defines no public action
-hooks of its own. (The legacy abandoned-cart hook pair
+Public `do_action` surface is minimal — two result hooks, fired after every
+answer of the two HTTP clients (CON-290; `Report\ConnectionHealth` listens):
+
+| Action | Arguments | Fired by |
+|---|---|---|
+| `smaily_connect_smaily_api_result` | subdomain, error code (`''` on success), HTTP method, endpoint name | `Smaily\Client::request()` — a 2xx write whose body code refuses it carries a code |
+| `smaily_connect_engine_api_result` | error code (`''` on success), HTTP method, the `/ingest/` path (`''` for any other path) | `RecEngine\Client::request_url()` |
+
+They carry codes only — never a message text, a credential or a customer
+identifier. (The legacy abandoned-cart hook pair
 `smaily_connect_cron_abandoned_carts_status`/`_email` is RETIRED, PRO-1195:
 nothing fires it and nothing listens on it anymore.) Everything scheduled is
 an **Action Scheduler** hook
