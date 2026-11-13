@@ -1597,6 +1597,43 @@ Rows stored before CON-301 keep their old text until the janitor prunes them.
 Pinned per store by a test that puts an address in the remote message and
 asserts it is absent (DECISIONS "CON-301").
 
+### The installation report goes to subscription.smaily.com — tests and dev sites NEVER reach it (CON-290)
+`Report\InstallationReport` POSTs contract installation-report-v1 (private
+repo `erkkimarkus/subscription`, docs/contracts/installation-report-v1.md) to
+`InstallationReport::ENDPOINT` — the one place the URL is written — with the
+MAIN Smaily account's API user and password as Basic auth (header only). It
+says which site, versions, Smaily accounts and features, each connection's
+health as an error CODE and the last sync time; never customer, admin or
+order data, never the engine key. Rules:
+- **Only while a Smaily marketing account is connected** (guideline 7):
+  `ReportBuilder::main_credentials()` null ⇒ nothing is scheduled or sent; a
+  Transactional account alone never counts.
+- **Snapshots only from Action Scheduler**: hook
+  `smly_plus_installation_report` (args `[trigger, attempt]`), group
+  `smaily-connect-installation-report` (in `Deactivation::AS_GROUPS`). A
+  settings save (`SettingsEndpoint`) or a Campaign Intelligence connect
+  schedules `setup_saved` 5 min on (debounced, pending-only check); the
+  daily one is armed by the hourly `register_action_scheduler_jobs` pass and
+  re-set after each attempt. Retries only for 429/5xx/timeout/network.
+- **Events inline, once, never thrown**: `disconnected` BEFORE a credential
+  or key is deleted (`RecEngineEndpoint::disconnect()`, and
+  `SettingsEndpoint` when a save clears a connected language or Transactional
+  account), `deactivated` first in `Deactivation::run()`. A new place that
+  deletes Smaily credentials sends `disconnected` first.
+- **Health**: `Smaily\Client::request()` and `RecEngine\Client::request_url()`
+  fire `ConnectionHealth::SMAILY_HOOK` / `ENGINE_HOOK` with a code only;
+  `ConnectionHealth` stores them in `smly_plus_connection_health` (in
+  EnvScrub's flush list).
+- **Never contact the live receiver from a test or a dev site — a report
+  there creates a real record.** `.wp-env.json` / `.wp-env.min.json` mount
+  `tests/Integration/Fixtures/mu-plugins` as `wp-content/mu-plugins`; its
+  guard answers every un-intercepted request to `subscription.smaily.com`
+  with a WP_Error in every wp-env process (suite, WP-Cron, AS runner), and the
+  integration bootstrap loads it too. A running env started before that
+  mapping needs `wp-env start --update`. Tests answer report requests on
+  `pre_http_request` (priority below `PHP_INT_MAX`); unit tests stub
+  `wp_remote_post`. No walk against the receiver.
+
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with
 `wc_get_order( $id )->delete( true )`. `wp_delete_post( $order_id, true )` does
