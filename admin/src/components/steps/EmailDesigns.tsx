@@ -9,8 +9,11 @@ import { Banner, Button } from '../primitives';
 /** §23 kinds; an item of any other kind is ignored. */
 const KNOWN_KINDS = ['engine', 'plugin', 'transactional'];
 
-/** Milliseconds before the design window points at "Open in a new tab". */
-export const HINT_DELAY_MS = 8000;
+/**
+ * Milliseconds the design window waits for the page's `ready` message before
+ * it offers "Open in a new tab" (contract §22 Embedding rule 4, CON-311).
+ */
+export const READY_TIMEOUT_MS = 20000;
 
 interface EmailDesignsContextValue {
   /** The last §23 read by email key; null while there is none to show. */
@@ -112,7 +115,9 @@ type DesignFrame =
  *
  * Where the engine lets this admin frame its design page (`frameable`,
  * decided on the server), the click opens a window over the admin at once
- * and shows the page in it when the one-time link arrives (CON-288).
+ * and shows the page in it when the one-time link arrives (CON-288). Each
+ * opening mints its own `display: "frame"` link, whose session lives in the
+ * page, not in a cookie the browser may refuse in a frame (CON-311).
  * Otherwise it opens a new tab: pop-up blockers allow a new tab only from
  * the click itself, and the link comes from an async request, so the click
  * opens a blank tab at once, cuts it off from this page, and sends it to the
@@ -154,7 +159,7 @@ export function EditDesign({ emailKey }: { emailKey: string }): React.JSX.Elemen
     tab.opener = null;
     context.awaitReturn(true);
     setPending(true);
-    getDesignLink(emailKey, window.location.href)
+    getDesignLink(emailKey, window.location.href, 'tab')
       .then((link) => {
         if (!isEngineLink(link)) {
           throw new Error('Not a link on the engine origin.');
@@ -173,7 +178,7 @@ export function EditDesign({ emailKey }: { emailKey: string }): React.JSX.Elemen
     setError(null);
     const ticket = ++opening.current;
     setFrame({ status: 'loading' });
-    getDesignLink(emailKey, window.location.href)
+    getDesignLink(emailKey, window.location.href, 'frame')
       .then((link) => {
         if (ticket === opening.current) {
           setFrame(isEngineLink(link) ? { status: 'ready', url: link.url, origin: link.engine_origin } : { status: 'failed' });
@@ -246,15 +251,18 @@ export function EditDesign({ emailKey }: { emailKey: string }): React.JSX.Elemen
 /**
  * The window over the darkened admin that shows the design page in a frame
  * (CON-288, contract §22 Embedding). Esc, the close button and a click on
- * the darkened page close it; keyboard focus stays inside it. A frame the
- * browser refuses cannot be told apart from a slow one, so the header
- * always offers "Open in a new tab" (a fresh link: the frame's is used up),
- * and a hint points at it when the page has not loaded after 8 seconds.
+ * the darkened page close it — after "Close without saving?" while the page
+ * reports unsaved changes (CON-311); keyboard focus stays inside it. The
+ * header always offers "Open in a new tab" (a fresh link: the frame's is
+ * used up), and the window offers it again when the page has not said it is
+ * ready 20 seconds after the frame got its link.
  *
  * The design page posts {type: 'smaily_intelligence_design', event:
- * 'saved' | 'closed'} to this page (§22 Embedding rule 4). Only a message
- * from the engine's origin counts, and it is a hint to read §23 again —
- * never a state or an id to take from it.
+ * 'ready' | 'changes' | 'saved' | 'closed'} to this page (§22 Embedding
+ * rule 4). Only a message from the engine's origin counts: `ready` ends the
+ * loading state, `changes` carries `unsaved`, `saved` reads §23 again and
+ * `closed` closes the window (the page asked about unsaved changes itself).
+ * A message is a hint — never a design state or an id to take from it.
  */
 function DesignWindow({
   frame,
@@ -272,8 +280,10 @@ function DesignWindow({
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [hint, setHint] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  // The page's last `unsaved` value; false until its first `changes`.
+  const unsaved = useRef(false);
   // The latest handlers, so the listeners below are added once.
   const handlers = useRef({ onClose, onSaved });
   useEffect(() => {
@@ -282,17 +292,27 @@ function DesignWindow({
 
   const origin = frame.status === 'ready' ? frame.origin : null;
 
+  // Esc, the close button and the darkened page: ask first while the page
+  // holds unsaved changes.
+  const requestClose = useCallback((): void => {
+    if (unsaved.current && !window.confirm(__( 'Close without saving?', 'smaily-connect' ))) {
+      return;
+    }
+    handlers.current.onClose();
+  }, []);
+
   useEffect(() => {
     closeRef.current?.focus();
   }, []);
 
+  // The wait for `ready` starts when the frame gets its link.
   useEffect(() => {
-    if (origin === null || loaded) {
+    if (origin === null || pageReady) {
       return undefined;
     }
-    const timer = window.setTimeout(() => setHint(true), HINT_DELAY_MS);
+    const timer = window.setTimeout(() => setTimedOut(true), READY_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
-  }, [origin, loaded]);
+  }, [origin, pageReady]);
 
   useEffect(() => {
     if (origin === null) {
@@ -303,11 +323,18 @@ function DesignWindow({
       if (event.origin !== origin || typeof data !== 'object' || data === null) {
         return;
       }
-      const message = data as { type?: unknown; event?: unknown };
+      const message = data as { type?: unknown; event?: unknown; unsaved?: unknown };
       if (message.type !== 'smaily_intelligence_design') {
         return;
       }
-      if (message.event === 'closed') {
+      if (message.event === 'ready') {
+        setPageReady(true);
+        setTimedOut(false);
+      } else if (message.event === 'changes') {
+        if (typeof message.unsaved === 'boolean') {
+          unsaved.current = message.unsaved;
+        }
+      } else if (message.event === 'closed') {
         handlers.current.onClose();
       } else if (message.event === 'saved') {
         handlers.current.onSaved();
@@ -324,7 +351,7 @@ function DesignWindow({
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        handlers.current.onClose();
+        requestClose();
         return;
       }
       if (event.key !== 'Tab') {
@@ -356,7 +383,7 @@ function DesignWindow({
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('focusin', onFocusIn);
     };
-  }, []);
+  }, [requestClose]);
 
   const title = __( 'Edit design', 'smaily-connect' );
 
@@ -368,14 +395,14 @@ function DesignWindow({
         tabIndex={-1}
         aria-hidden="true"
         className="absolute inset-0 h-full w-full cursor-default bg-text-primary/60"
-        onClick={onClose}
+        onClick={requestClose}
       />
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-10 flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
+        className="relative z-10 flex h-full w-full flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
       >
         <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
           <h2 id={titleId} className="text-lg font-semibold text-text-primary">{title}</h2>
@@ -383,35 +410,44 @@ function DesignWindow({
             <Button variant="secondary" size="sm" type="button" onClick={onNewTab}>
               { __( 'Open in a new tab', 'smaily-connect' ) }
             </Button>
-            <Button ref={closeRef} variant="ghost" size="sm" type="button" onClick={onClose}>
+            <Button ref={closeRef} variant="ghost" size="sm" type="button" onClick={requestClose}>
               { __( 'Close', 'smaily-connect' ) }
             </Button>
           </div>
         </div>
-        {hint && (
-          <Banner tone="warning" className="m-4 mb-0">
-            { __( 'Is the design page not showing? Your browser may not allow it inside the WordPress admin. Press Open in a new tab.', 'smaily-connect' ) }
+        {timedOut && (
+          <Banner
+            tone="warning"
+            className="m-4 mb-0"
+            actions={(
+              <Button variant="secondary" size="sm" type="button" onClick={onNewTab}>
+                { __( 'Open in a new tab', 'smaily-connect' ) }
+              </Button>
+            )}
+          >
+            { __( 'The design page did not open.', 'smaily-connect' ) }
           </Banner>
         )}
         {frame.status === 'failed' && (
           <Banner tone="danger" className="m-4 mb-0">{error}</Banner>
         )}
         <div className="relative min-h-0 flex-1">
-          {frame.status !== 'failed' && !loaded && (
+          {frame.status !== 'failed' && !pageReady && !timedOut && (
             <div role="status" className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-text-secondary">
               <span className="scp-spin h-4 w-4 rounded-full border-2 border-current border-t-transparent" aria-hidden />
               { __( 'Opening the design page…', 'smaily-connect' ) }
             </div>
           )}
           {frame.status === 'ready' && (
+            // §22 Embedding rule 6: the clipboard and full screen for the
+            // editor, no referrer, no sandbox. The link is set once and
+            // never reloaded: a reload ends a frame link's session.
             <iframe
               title={title}
               src={frame.url}
+              allow="clipboard-read; clipboard-write; fullscreen"
+              referrerPolicy="no-referrer"
               className="h-full w-full border-0"
-              onLoad={() => {
-                setLoaded(true);
-                setHint(false);
-              }}
             />
           )}
         </div>

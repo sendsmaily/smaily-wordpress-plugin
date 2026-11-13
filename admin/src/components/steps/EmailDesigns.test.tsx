@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 
 import { ApiError } from '../../api/client';
 import { getDesignLink, getEmailDesigns, type DesignLinkResponse, type EmailDesign } from '../../api/emailDesigns';
-import { EditDesign, EmailDesignsProvider, HINT_DELAY_MS } from './EmailDesigns';
+import { EditDesign, EmailDesignsProvider, READY_TIMEOUT_MS } from './EmailDesigns';
 
 vi.mock('../../api/emailDesigns', async (importOriginal) => {
   const original = await importOriginal<Record<string, unknown>>();
@@ -124,7 +124,7 @@ describe('EditDesign', () => {
     // and cut off from this page.
     expect(openSpy).toHaveBeenCalledWith('', '_blank');
     expect(tab.opener).toBeNull();
-    expect(linkMock).toHaveBeenCalledWith('plugin.welcome', window.location.href);
+    expect(linkMock).toHaveBeenCalledWith('plugin.welcome', window.location.href, 'tab');
 
     await act(async () => {
       resolveLink(link());
@@ -275,12 +275,35 @@ describe('EditDesign in a window over the admin (CON-288)', () => {
     expect(screen.getByText('Opening the design page…')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus();
     expect(openSpy).not.toHaveBeenCalled();
-    expect(linkMock).toHaveBeenCalledWith('plugin.welcome', window.location.href);
+    // A frame link: its session lives in the page, not in a cookie (CON-311).
+    expect(linkMock).toHaveBeenCalledWith('plugin.welcome', window.location.href, 'frame');
 
     await act(async () => {
       resolveLink(link());
     });
-    expect(dialog.querySelector('iframe')).toHaveAttribute('src', `${ENGINE}/design/email/dl_1`);
+    const frame = dialog.querySelector('iframe');
+    expect(frame).toHaveAttribute('src', `${ENGINE}/design/email/dl_1`);
+    // §22 Embedding rule 6.
+    expect(frame).toHaveAttribute('allow', 'clipboard-read; clipboard-write; fullscreen');
+    expect(frame).toHaveAttribute('referrerpolicy', 'no-referrer');
+    expect(frame).not.toHaveAttribute('sandbox');
+  });
+
+  it('mints a new frame link for every opening', async () => {
+    linkMock
+      .mockResolvedValueOnce(link())
+      .mockResolvedValueOnce(link({ url: `${ENGINE}/design/email/dl_2` }));
+    await openWindow();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit design' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(linkMock).toHaveBeenCalledTimes(2);
+    expect(linkMock).toHaveBeenLastCalledWith('plugin.welcome', window.location.href, 'frame');
+    expect(screen.getByRole('dialog').querySelector('iframe')).toHaveAttribute('src', `${ENGINE}/design/email/dl_2`);
   });
 
   it.each([
@@ -347,42 +370,129 @@ describe('EditDesign in a window over the admin (CON-288)', () => {
     post(ENGINE, { type: 'something_else', event: 'closed' });
     post(ENGINE, 'smaily_intelligence_design');
     post(ENGINE, { type: 'smaily_intelligence_design', event: 'deleted' });
-    // Contract v1.31.0 §22 rule 4: the page in a frame also posts `ready` and `changes`.
-    post(ENGINE, { type: 'smaily_intelligence_design', event: 'ready', email_key: 'plugin.welcome' });
-    post(ENGINE, { type: 'smaily_intelligence_design', event: 'changes', email_key: 'plugin.welcome', unsaved: true });
+    post('https://evil.example', { type: 'smaily_intelligence_design', event: 'ready' });
+    post('https://evil.example', { type: 'smaily_intelligence_design', event: 'changes', unsaved: true });
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(designsMock).toHaveBeenCalledTimes(1);
+    // No `ready` from the engine: still loading. No `changes` from it: closes without asking.
+    expect(screen.getByText('Opening the design page…')).toBeInTheDocument();
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    confirmSpy.mockRestore();
+    // Closing reads the list once; none of the messages above did.
+    await waitFor(() => expect(designsMock).toHaveBeenCalledTimes(2));
   });
 
-  it('points at "Open in a new tab" when the page has not loaded after 8 seconds', async () => {
-    await openWindow(true);
-    const hint = /Is the design page not showing\?/;
+  it('offers a new tab when the page has not said it is ready 20 seconds after the frame got its link', async () => {
+    const frame = await openWindow(true);
+    const notOpened = 'The design page did not open.';
 
+    // The iframe's load event says nothing: it fires for an expired link too.
+    fireEvent.load(frame);
     act(() => {
-      vi.advanceTimersByTime(HINT_DELAY_MS - 1);
+      vi.advanceTimersByTime(READY_TIMEOUT_MS - 1);
     });
-    expect(screen.queryByText(hint)).not.toBeInTheDocument();
+    expect(screen.queryByText(notOpened)).not.toBeInTheDocument();
+    expect(screen.getByText('Opening the design page…')).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(screen.getByText(hint)).toBeInTheDocument();
+    expect(screen.getByText(notOpened)).toBeInTheDocument();
+    expect(screen.queryByText('Opening the design page…')).not.toBeInTheDocument();
+
+    // The offer opens a fresh tab link.
+    const tab = fakeTab();
+    openSpy.mockReturnValue(tab);
+    linkMock.mockResolvedValueOnce(link({ url: `${ENGINE}/design/email/dl_2` }));
+    const offers = screen.getAllByRole('button', { name: 'Open in a new tab' });
+    fireEvent.click(offers[offers.length - 1] as HTMLElement);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(linkMock).toHaveBeenLastCalledWith('plugin.welcome', window.location.href, 'tab');
+    expect(tab.location.href).toBe(`${ENGINE}/design/email/dl_2`);
   });
 
-  it('shows no hint when the page loads in time', async () => {
-    const frame = await openWindow(true);
+  it('ends the loading state on ready and offers no new tab later', async () => {
+    await openWindow(true);
 
-    fireEvent.load(frame);
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'ready', email_key: 'plugin.welcome' });
     act(() => {
-      vi.advanceTimersByTime(HINT_DELAY_MS);
+      vi.advanceTimersByTime(READY_TIMEOUT_MS);
     });
 
-    expect(screen.queryByText(/Is the design page not showing\?/)).not.toBeInTheDocument();
     expect(screen.queryByText('Opening the design page…')).not.toBeInTheDocument();
+    expect(screen.queryByText('The design page did not open.')).not.toBeInTheDocument();
+    // A second ready changes nothing.
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'ready', email_key: 'plugin.welcome' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['Esc', (): void => { fireEvent.keyDown(document, { key: 'Escape' }); }],
+    ['the close button', (): void => { fireEvent.click(screen.getByRole('button', { name: 'Close' })); }],
+    ['a click on the darkened page', (): void => { fireEvent.click(screen.getByRole('dialog').previousElementSibling as HTMLElement); }],
+  ])('asks before closing on %s while the page has unsaved changes', async (_name, close) => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await openWindow();
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'ready', email_key: 'plugin.welcome' });
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'changes', email_key: 'plugin.welcome', unsaved: true });
+
+    // "Cancel" keeps the window and the frame.
+    act(close);
+    expect(confirmSpy).toHaveBeenCalledWith('Close without saving?');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // "OK" closes it.
+    confirmSpy.mockReturnValue(true);
+    act(close);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it('closes without asking once the changes are saved, and on the page\'s own Close', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    await openWindow();
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'changes', email_key: 'plugin.welcome', unsaved: true });
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'saved', email_key: 'plugin.welcome', version: 2 });
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'changes', email_key: 'plugin.welcome', unsaved: false });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // The page asks its own "Leave without saving?" before it posts closed.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit design' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'changes', email_key: 'plugin.welcome', unsaved: true });
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'closed', email_key: 'plugin.welcome' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    expect(confirmSpy).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('starts every opening without unsaved changes', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await openWindow();
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'changes', email_key: 'plugin.welcome', unsaved: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit design' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    confirmSpy.mockRestore();
   });
 
   it('opens a fresh link in a new tab from the window', async () => {

@@ -405,6 +405,39 @@ final class EmailDesignsTest extends TestCase {
 		}
 	}
 
+	public function test_the_window_mints_a_frame_link_and_the_new_tab_a_tab_link(): void {
+		$this->connect( 'tok_design_display' );
+
+		foreach ( array( 'frame', 'tab' ) as $display ) {
+			$response = RestRequestHelper::post( '/rec-engine/emails/design-link', array( 'email_key' => 'plugin.welcome', 'display' => $display ) );
+
+			self::assertSame( 200, $response->get_status(), $display );
+			$sent = self::$engine->last_design_link_request()['body'];
+			self::assertSame( $display, $sent['display'] ?? null, $display );
+			// The window is offered only on the site URL's own origin (§22
+			// Embedding rule 1 (a)), so the plugin names no other origin.
+			self::assertArrayNotHasKey( 'frame_origin', $sent, $display );
+		}
+
+		$response = RestRequestHelper::post( '/rec-engine/emails/design-link', array( 'email_key' => 'plugin.welcome', 'display' => 'popup' ) );
+		self::assertSame( 400, $response->get_status(), 'Another display is refused before any engine call.' );
+		self::assertSame( 'tab', self::$engine->last_design_link_request()['body']['display'] ?? null );
+	}
+
+	public function test_the_mock_refuses_an_unknown_display_like_the_engine(): void {
+		$this->connect( 'tok_design_mock_display' );
+		$settings = new RecEngineSettings();
+		$client   = new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 1 );
+
+		try {
+			$client->email_design_link( 'plugin.welcome', array( 'display' => 'popup' ) );
+			self::fail( 'The engine answers 422 for a display that is not tab or frame.' );
+		} catch ( ApiException $e ) {
+			self::assertSame( 422, $e->getCode() );
+			self::assertSame( 'display', $e->errors()[0]['field'] );
+		}
+	}
+
 	public function test_an_unknown_email_key_answers_404(): void {
 		$this->connect( 'tok_design_unknown' );
 
