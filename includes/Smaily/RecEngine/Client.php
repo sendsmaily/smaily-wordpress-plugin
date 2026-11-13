@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Smaily\RecEngine;
 
+use Smaily\Connect\Report\ConnectionHealth;
 use Smaily\Connect\Settings\RecEngineSettings;
 
 defined( 'ABSPATH' ) || exit;
@@ -784,6 +785,7 @@ class Client {
 			$response = wp_remote_request( $url, $args );
 			if ( is_wp_error( $response ) ) {
 				if ( $attempts >= $max_attempts ) {
+					do_action( ConnectionHealth::ENGINE_HOOK, 'network_error', false );
 					// The WP_Error's code, never its text (CON-301).
 					throw new ApiException(
 						0,
@@ -804,6 +806,9 @@ class Client {
 			$this->check_engine_version( wp_remote_retrieve_header( $response, 'x-engine-version' ) );
 
 			if ( $status >= 200 && $status < 300 ) {
+				// The installation report's health (CON-290): an accepted
+				// ingest POST is a sync.
+				do_action( ConnectionHealth::ENGINE_HOOK, '', $method === 'POST' && strpos( $url, '/ingest/' ) !== false );
 				return $decoded;
 			}
 
@@ -824,6 +829,8 @@ class Client {
 			}
 
 			$retry_after = $status === 429 ? self::retry_after_of( $decoded, $response ) : 0;
+
+			do_action( ConnectionHealth::ENGINE_HOOK, $error_code, false );
 
 			throw new ApiException( $status, $error_code, $message, $decoded, $retry_after > 0 ? $retry_after : null );
 		}

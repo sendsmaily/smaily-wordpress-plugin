@@ -12,6 +12,8 @@ namespace Smaily\Connect;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\DB\LegacyOrderDateIndex;
+use Smaily\Connect\Report\InstallationReport;
+use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
@@ -24,6 +26,8 @@ use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 /**
  * Runs on plugin deactivation.
  *
+ *   - The `deactivated` installation report goes to Smaily's subscription
+ *     service first (CON-290), when a Smaily account is connected.
  *   - Action Scheduler actions in the plugin's groups are CANCELLED
  *     (PRO-2433). Action Scheduler re-arms a recurring action after every
  *     run whether or not the hook still has a listener, so left queued the
@@ -60,9 +64,15 @@ final class Deactivation {
 		HistoryProgress::AS_GROUP,
 		LegacyOrderDateIndex::AS_GROUP,
 		LoginMerge::AS_GROUP,
+		InstallationReport::AS_GROUP,
 	);
 
 	public static function run(): void {
+		// The `deactivated` installation report (CON-290): once, now, while
+		// the plugin still runs; it never throws and never holds this up
+		// past its 5-second timeout.
+		( new InstallationReport() )->send_event( ReportBuilder::EVENT_DEACTIVATED );
+
 		self::cancel_action_scheduler_jobs();
 		// The recurring set is gone, so the "verified" marker is a lie —
 		// drop it so a re-activation re-arms on the next `init` instead of

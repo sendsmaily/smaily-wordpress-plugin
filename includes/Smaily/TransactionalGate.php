@@ -68,7 +68,7 @@ class TransactionalGate {
 	/** Order statuses a follow-up never goes out on, whatever is ticked. */
 	private const FOLLOW_UP_CLOSED_STATUSES = array( 'cancelled', 'refunded', 'failed', 'trash' );
 
-	private const OPTION_ENABLED = 'smly_plus_transactional_emails_enabled';
+	public const OPTION_ENABLED = 'smly_plus_transactional_emails_enabled';
 
 	/** Bare WC status slugs (no 'wc-' prefix) treated as "shipped" — Settings persists this option. */
 	public const OPTION_SHIPPED_STATUSES = 'smly_plus_shipped_order_statuses';

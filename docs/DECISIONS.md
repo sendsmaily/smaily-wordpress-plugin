@@ -10582,6 +10582,70 @@ global read (rejected — misses Polylang).
 `ContactLanguageResolverTest`, `CartPayloadBuilderTest` and
 `tests/Integration/CartPipelineTest.php`.
 
+### CON-290 — The store reports its installation to Smaily's subscription service (2026-11-13)
+
+**Context:** Smaily could not see which stores run the plugin, on which
+Smaily account and version, with which features, and whether each connection
+works. The subscription service's contract installation-report-v1 (v1.0.1,
+`erkkimarkus/subscription` docs/contracts/installation-report-v1.md) sets the
+shape; Erkki approved the full v1 for WooCommerce on 2026-11-13: snapshots on
+a settings save and daily, plus the `disconnected` and `deactivated` events.
+**Decision:**
+- `Report\ReportBuilder` builds the body: the default account, each Mode A
+  language account (with `language`) and the Transactional account
+  (`role: transactional`). The MAIN account — the default one, else the
+  first other marketing account — authenticates the request (Basic auth with
+  its API user and password, in the header only). With no connected Smaily
+  marketing account there is no body and nothing is sent (wordpress.org
+  guideline 7); a Transactional account alone never authenticates.
+- Features: `subscriber_sync` and the three automations only after the
+  wizard's Finish, an automation only when switched on AND mapped to a
+  workflow of that account (abandoned cart's legacy workflow id counts on the
+  default account, as CartFlusher's fallback); `campaign_intelligence`,
+  `browse_tracking` and `intelligence` on the main connection while the
+  engine is connected (`connected` is `sending_allowed()`); the engine API
+  key and tenant name never go in.
+- Health: the two HTTP clients fire `smly_plus_smaily_api_result` /
+  `smly_plus_engine_api_result` with the error CODE only;
+  `Report\ConnectionHealth` keeps the last status per Smaily subdomain and
+  for the engine in `smly_plus_connection_health`, a success written at most
+  every 5 minutes (a shopper's `/relay` request passes that chokepoint).
+- `Report\InstallationReport` sends: AS hook `smly_plus_installation_report`
+  (args `[trigger, attempt]`, group `smaily-connect-installation-report`).
+  A settings save (and a Campaign Intelligence connect) schedules
+  `setup_saved` 5 minutes on unless one is pending; the daily report is 24 h
+  after the last snapshot attempt, the first at a random moment within 24 h
+  (the hourly recurring-jobs check arms it on a connected store). 429/5xx/
+  timeout/network: retries at 60/120/240 s + 0–30 s, a longer Retry-After
+  wins, one over an hour ends the try; any other answer one log line, no
+  retry; never a redirect, never a queue, never an admin notice. Total
+  timeout 5 s, connect 3 s (an `http_api_curl` callback, the HTTP API has no
+  connect timeout).
+- Events inline, once, no retry, never thrown: `disconnected` from the
+  Campaign Intelligence disconnect route (before the key is deleted; the
+  Smaily connections that stay, without `intelligence`) and from a settings
+  save that clears a connected language or Transactional account (before the
+  credentials are overwritten); `deactivated` first in `Deactivation::run()`.
+  Uninstall sends nothing — WordPress deactivates first.
+- The endpoint is the constant `InstallationReport::ENDPOINT`; tests and the
+  wp-env sites never reach it (a must-use guard mounted by `.wp-env.json`
+  and loaded by the integration bootstrap).
+**Rationale:** the contract's own rules, applied to what this plugin holds;
+recording health at the two chokepoints is the only place that sees every
+answer, and an action keeps the extension point free of storage.
+**Alternatives:** health derived from the queues and NotificationManager's
+probe (rejected — it only covers the default account, keeps no reason and
+loses history to the janitor); not reporting a cleared Transactional account
+(rejected — the contract says "wherever the plugin deletes a Smaily account's
+stored credentials"); a production gate on `wp_get_environment_type()` to
+keep dev sites quiet (rejected — the contract counts a staging copy as its own
+installation; the dev guard lives in wp-env instead).
+**Relationships:** CON-301 (codes, never message text), PRO-2433 (the new AS
+group is in `Deactivation::AS_GROUPS`), PRO-2437 (armed from the hourly
+check), CON-285 (pending-only checks). Pinned by `tests/Unit/Report/*`,
+`SettingsEndpointTest`, `RecEngineDisconnectTest`, the two client tests and
+`tests/Integration/InstallationReportTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

@@ -98,6 +98,10 @@ The plugin uses the [Smaily Public API](https://smaily.com/help/api/) to connect
 * send abandoned-cart data to the selected Smaily workflow; and
 * send order and shipping confirmations and the follow-up email when Smaily Transactional is configured.
 
+**Smaily installation report**
+
+When a Smaily account is connected, Smaily Connect sends Smaily (https://subscription.smaily.com) an installation report when you save the settings, once a day, and when you remove a connection or deactivate the plugin, authenticated with the connected Smaily account's API credentials, which Smaily only checks and never stores: the site address, the WordPress, WooCommerce, PHP and plugin versions, the connected Smaily accounts, the switched-on features, whether each connection works (error codes only) and the time of the last successful sync — never customer, subscriber or order data.
+
 **Smaily Campaign Intelligence — optional**
 
 If the site administrator connects Campaign Intelligence using a one-time setup link issued by Smaily, the plugin sends the following WooCommerce data to that service:

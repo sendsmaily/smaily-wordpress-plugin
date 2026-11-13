@@ -12,6 +12,8 @@ namespace Smaily\Connect\REST;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\Report\InstallationReport;
+use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
@@ -71,20 +73,29 @@ class RecEngineEndpoint {
 	private $on_connected;
 
 	/**
+	 * The installation report (CON-290): a disconnect sends the
+	 * `disconnected` event before the key is deleted. Null sends nothing.
+	 */
+	private ?InstallationReport $report;
+
+	/**
 	 * @param callable(): SetupExchange                              $exchange_factory
 	 * @param callable(string $api_key, string $base_url): Client    $client_factory
 	 * @param callable(): bool                                       $on_connected
+	 * @param InstallationReport|null                                $report
 	 */
 	public function __construct(
 		RecEngineSettings $settings,
 		callable $exchange_factory,
 		callable $client_factory,
-		callable $on_connected
+		callable $on_connected,
+		?InstallationReport $report = null
 	) {
 		$this->settings         = $settings;
 		$this->exchange_factory = $exchange_factory;
 		$this->client_factory   = $client_factory;
 		$this->on_connected     = $on_connected;
+		$this->report           = $report;
 	}
 
 	public function register(): void {
@@ -326,6 +337,10 @@ class RecEngineEndpoint {
 	}
 
 	public function disconnect( WP_REST_Request $request ): WP_REST_Response {
+		// Before the key goes, with the Smaily connections that stay (CON-290).
+		if ( $this->report !== null && $this->settings->is_connected() ) {
+			$this->report->send_event( ReportBuilder::EVENT_DISCONNECTED, array(), true );
+		}
 		$this->settings->disconnect();
 		return new WP_REST_Response(
 			array( 'disconnected' => true ),

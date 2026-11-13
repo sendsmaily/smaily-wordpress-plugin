@@ -20,6 +20,8 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use LogicException;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Report\InstallationReport;
+use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\REST\RecEngineEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
@@ -121,6 +123,38 @@ final class RecEngineDisconnectTest extends TestCase {
 		self::assertTrue( $request['key_stored'], 'The call is made while the key is still stored.' );
 		self::assertArrayNotHasKey( RecEngineSettings::OPTION_API_KEY, $this->options, 'The key is deleted afterwards.' );
 		self::assertArrayNotHasKey( RecEngineSettings::OPTION_CONNECTED, $this->options );
+	}
+
+	public function test_the_disconnect_route_reports_the_disconnect_to_smaily_before_the_key_goes(): void {
+		$this->connected( array( 'store_uninstall' => self::MAP_URL ) );
+		$fail = static function (): void {
+			throw new LogicException( 'Disconnect needs no setup exchange, route client or import.' );
+		};
+		$key_when_sent = null;
+		$report        = $this->createMock( InstallationReport::class );
+		$report->expects( self::once() )
+			->method( 'send_event' )
+			->with( ReportBuilder::EVENT_DISCONNECTED, array(), true )
+			->willReturnCallback(
+				function () use ( &$key_when_sent ): void {
+					$key_when_sent = array_key_exists( RecEngineSettings::OPTION_API_KEY, $this->options );
+				}
+			);
+
+		( new RecEngineEndpoint( new RecEngineSettings(), $fail, $fail, $fail, $report ) )->disconnect( new WP_REST_Request() );
+
+		self::assertTrue( $key_when_sent, 'The disconnected report goes while the key is still stored (CON-290).' );
+		self::assertArrayNotHasKey( RecEngineSettings::OPTION_API_KEY, $this->options );
+	}
+
+	public function test_a_disconnect_with_nothing_connected_reports_nothing(): void {
+		$fail   = static function (): void {
+			throw new LogicException( 'Disconnect needs no setup exchange, route client or import.' );
+		};
+		$report = $this->createMock( InstallationReport::class );
+		$report->expects( self::never() )->method( 'send_event' );
+
+		( new RecEngineEndpoint( new RecEngineSettings(), $fail, $fail, $fail, $report ) )->disconnect( new WP_REST_Request() );
 	}
 
 	public function test_disconnect_ends_the_imports_the_connection_started(): void {
