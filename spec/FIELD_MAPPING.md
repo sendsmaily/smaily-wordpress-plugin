@@ -42,7 +42,7 @@ doesn't toggle it on or off — every payload carries it.
 | `last_name`   | Last name | `last_name`         | trim                               |
 | `nickname`    | Nickname  | `nickname`          | trim                               |
 | `user_phone`  | Phone     | `user_phone`        | trim                               |
-| `user_gender` | Gender    | `user_gender`       | `'0'` → `'Female'`, else `'Male'`  |
+| `user_gender` | Gender    | `user_gender`       | `'1'` → `'Male'`, `'2'` → `'Female'`, else omitted |
 | `birthday`    | Birthday  | `user_dob`          | `gmdate('Y-m-d', strtotime(value))`|
 
 ### Why the `user_*` prefix is preserved
