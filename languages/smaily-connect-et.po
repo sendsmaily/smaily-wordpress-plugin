@@ -215,6 +215,10 @@ msgstr "Import lakkas taustal töötamast."
 msgid "The import could not be started. Try again in a few minutes."
 msgstr "Importi ei õnnestunud käivitada. Proovi mõne minuti pärast uuesti."
 
+#: includes/REST/BackfillEndpoint.php:375
+msgid "This import cannot run: the plugin did not finish its database update. Contact Smaily support."
+msgstr "Seda importi ei saa käivitada: plugin ei lõpetanud oma andmebaasi uuendust. Võta ühendust Smaily toega."
+
 #: includes/REST/BackfillEndpoint.php:516
 msgid "Unsupported job_type."
 msgstr "Toetamata töötüüp (job_type)."

@@ -23,6 +23,7 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
+use Smaily\Connect\Tests\Unit\Support\SchemaColumnWpdb;
 
 final class ImportsOnConnectTest extends TestCase {
 
@@ -67,8 +68,11 @@ final class ImportsOnConnectTest extends TestCase {
 		parent::setUp();
 		Monkey\setUp();
 
-		// The update has reached the schema this code needs (CON-282).
+		// The update has reached the schema this code needs (CON-282), its
+		// column included (CON-291).
 		$this->options[ Constants::OPTION_SCHEMA_VERSION ] = Migrator::REQUIRED_VERSION;
+		$GLOBALS['wpdb'] = new SchemaColumnWpdb( true );
+		Migrator::forget_schema_check();
 
 		$options = &$this->options;
 		Functions\when( 'get_option' )->alias(
@@ -144,6 +148,8 @@ final class ImportsOnConnectTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		Migrator::forget_schema_check();
+		unset( $GLOBALS['wpdb'] );
 		Monkey\tearDown();
 		parent::tearDown();
 	}
@@ -561,6 +567,31 @@ final class ImportsOnConnectTest extends TestCase {
 		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_UPDATE_CHECKED, $this->options, 'The after-update start is not spent.' );
 		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_RERUN_CHECKED, $this->options );
 		self::assertCount( 1, $this->scheduled_for( ImportsOnConnect::HOOK ), 'The check comes back.' );
+	}
+
+	/**
+	 * CON-291: the update recorded the schema, but the column is not there
+	 * and no later upgrade adds it. The check moves nothing and does not come
+	 * back; the hourly registration does not arm it either.
+	 */
+	public function test_without_the_column_the_check_moves_nothing_and_stops_coming_back(): void {
+		$GLOBALS['wpdb']                           = new SchemaColumnWpdb( false );
+		$this->options[ ImportsOnConnect::OPTION ] = array( 'customers', 'orders' );
+		$this->row( 'customers', 'completed' );
+
+		$this->sequence()->run_check();
+		$this->sequence()->ensure_check_scheduled();
+
+		self::assertSame( array(), $this->started );
+		self::assertSame( array( 'customers', 'orders' ), $this->options[ ImportsOnConnect::OPTION ], 'Not forgotten: it goes on once the column is there.' );
+		self::assertArrayNotHasKey( ImportsOnConnect::OPTION_UPDATE_CHECKED, $this->options );
+		self::assertSame( array(), $this->scheduled, 'No check is armed.' );
+
+		// The column is added later: the hourly registration arms the check.
+		$GLOBALS['wpdb'] = new SchemaColumnWpdb( true );
+		Migrator::forget_schema_check();
+		$this->sequence()->ensure_check_scheduled();
+		self::assertCount( 1, $this->scheduled_for( ImportsOnConnect::HOOK ) );
 	}
 
 	public function test_a_store_3_21_0_left_without_a_finished_history_import_gets_the_sequence_once_more(): void {

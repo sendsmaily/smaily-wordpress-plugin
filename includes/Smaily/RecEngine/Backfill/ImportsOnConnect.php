@@ -65,7 +65,8 @@ use Smaily\Connect\Smaily\EventQueue;
  * every state read and start failed — the after-update start was spent and
  * sequences were forgotten with nothing sent. So:
  *   - the check does nothing until the schema is ready (Migrator::
- *     schema_ready()); it comes back later;
+ *     schema_ready()); it comes back later — but not when the update
+ *     recorded the schema without its column (CON-291, schema_failed());
  *   - a state row the database could not read, or an import that could not
  *     be started, is never taken as ended: nothing moves, nothing is
  *     forgotten, the next check tries again;
@@ -171,11 +172,16 @@ final class ImportsOnConnect {
 	/**
 	 * The check action: the one-time after-update start, the one-time CON-282
 	 * re-run, then advance(), then the next check while a sequence remains.
-	 * Before the update reaches the schema it only comes back later.
+	 * Before the update reaches the schema it only comes back later. When the
+	 * update recorded the schema without its column (CON-291) it does not
+	 * come back: the hourly registration arms it again once the column is
+	 * there (ensure_check_scheduled()).
 	 */
 	public function run_check(): void {
 		if ( ! Migrator::schema_ready() ) {
-			$this->schedule_next_check();
+			if ( ! Migrator::schema_failed() ) {
+				$this->schedule_next_check();
+			}
 			return;
 		}
 
@@ -400,13 +406,14 @@ final class ImportsOnConnect {
 	/**
 	 * Arm the check when the one-time after-update start is still to decide,
 	 * or a sequence waits for a part to end. Called from the hourly-verified
-	 * recurring-job registration, so a deactivate/reactivate re-arms it.
+	 * recurring-job registration, so a deactivate/reactivate re-arms it. Not
+	 * while the schema's column is missing (CON-291): nothing could move.
 	 */
 	public function ensure_check_scheduled(): void {
 		$pending_update = (string) get_option( self::OPTION_UPDATE_CHECKED, '' ) === ''
 			|| (string) get_option( self::OPTION_RERUN_CHECKED, '' ) === '';
 		$waiting        = $this->stored() !== array() && $this->settings->sending_allowed();
-		if ( ( ! $pending_update && ! $waiting ) || ! function_exists( 'as_schedule_single_action' ) || ! function_exists( 'as_next_scheduled_action' ) ) {
+		if ( ( ! $pending_update && ! $waiting ) || ! function_exists( 'as_schedule_single_action' ) || ! function_exists( 'as_next_scheduled_action' ) || Migrator::schema_failed() ) {
 			return;
 		}
 

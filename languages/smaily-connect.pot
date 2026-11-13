@@ -263,6 +263,10 @@ msgstr ""
 msgid "The import could not be started. Try again in a few minutes."
 msgstr ""
 
+#: includes/REST/BackfillEndpoint.php:375
+msgid "This import cannot run: the plugin did not finish its database update. Contact Smaily support."
+msgstr ""
+
 #: includes/REST/BackfillEndpoint.php:516
 msgid "Unsupported job_type."
 msgstr ""

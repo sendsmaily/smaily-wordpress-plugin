@@ -10466,7 +10466,9 @@ failed row in the Event Log (Retry there runs it again) costs less than a
 stopped import and a blocked live queue. Never the error's text (CON-301).
 **Not covered:** an error in an import's own enqueue step — the catalog import
 loads each product there — still fails the import (PRO-3890): at that point a
-broken record cannot be told from a database error.
+broken record cannot be told from a database error. **Closed by CON-304
+(2026-11-13)** for the catalog import: a product that throws there fails
+alone, and a throw after a failed query still stops the import.
 **Relationships:** PRO-3890, PRO-3902, PRO-3988, CON-301. Pinned by
 `CustomerFlusherTest`, `BackfillJobTest` and `RecEngineCustomerBackfillTest`.
 
@@ -10706,6 +10708,100 @@ of the form wrote `0`).
 **Relationships:** F2-7, PRO-1683. Contacts already in Smaily with the wrong
 value are not corrected. Pinned by `SubscriberPayloadBuilderTest` and
 `SubscriberSyncFieldSelectionTest`.
+
+### CON-304 — A product the catalog import cannot load fails alone (2026-11-13)
+
+**Context:** CON-302 left one gap ("Not covered" above): the catalog import
+loads each product while it queues it, before the flusher, and a Throwable
+there marked the whole import failed (PRO-3890). One broken product therefore
+stopped the import at the same place on every run.
+**Decision:** `CatalogBackfillJob::enqueue_record()` catches a Throwable per
+parent post around loading and building its rows (the multilingual check,
+`wc_get_product()`, the variation fan-out, a trashed unit's captured object).
+- **A database error is told apart by `$wpdb->last_error`:** `$wpdb` never
+  throws — a failed query sets `last_error`, and the next query clears it —
+  so a Throwable with `last_error` set comes after a failed query (e.g.
+  WooCommerce's "Invalid product." when the read came back empty). It is
+  thrown on and stops the import as before (PRO-3890). The queue writes run
+  outside the catch, after every row of the post is built, so a broken
+  variable product queues no partial set.
+- **Otherwise the product fails alone, in the CON-302 shape:** one queue row
+  for the parent post id — `catalog.delete` when the post is trashed, else
+  `catalog.upsert`, no captured object, the run's mark — marked failed with
+  `<Class> at file:line` (never the message, CON-301) and `last_response
+  {outcome: "not_built"}`. It shows in the Event Log like a CON-302 row. It
+  is never sent on this run, so `sent_count` leaves it out (CON-248);
+  `processed_count` counts it like every enumerated post.
+**Rationale:** the same product throws again on every run, so stopping the
+import gains nothing. A queue row is where support already looks for a
+record that did not reach the engine, and reusing the CON-302 row keeps one
+reading of "not built". The import's own `error_message` holds one reason
+for a stopped import and is not shown for a completed one.
+**Limits:** Retry in the Event Log runs the row as the live sync would run
+that id: right for a simple or trashed product; for a published variable
+product it builds the parent, not its variations — Import now, once the
+product loads again, is the full fix. A database error that throws nothing
+(a product that loads as `false`) is unchanged: a published one is skipped
+(CC.4), a trashed one gets the PRO-1498 tombstone.
+**Alternatives:** listing the products on the import's state row, as the
+contact import does (`OPTION_REFUSED`, CON-302) — rejected, the catalog
+import's panel shows no such list and a new option or column was not asked
+for; catching around the whole of `enqueue_record()` — rejected, it would
+also swallow a throw from the queue write.
+**Relationships:** CON-302, PRO-3890, CON-301, CON-248, PRO-1506. Pinned by
+`CatalogBackfillJobTest` and `RecEngineImportStopTest`.
+
+### CON-291 — A background upgrade error stays out of the queue run; the schema gate reads the column (2026-11-13)
+
+**Context:** since CON-282 the upgrade also runs on
+`action_scheduler_before_process_queue`. An exception from `Activation::run()`
+there escaped into Action Scheduler and ended the whole queue run — every
+plugin's actions — on every run until the upgrade succeeded (audit
+2026-11-04 L1). And `Migrator::schema_ready()` read only the stored version:
+dbDelta reports nothing, so a store whose database refused migration 013's
+`ALTER` recorded 13 without `sent_count`; the imports could not start and the
+sequence and progress checks re-armed forever, about 1 500 empty actions a
+day, with nothing shown (audit L2). Nothing was sent wrongly either way.
+**Decision:**
+- The queue-run hook calls `Bootstrap::maybe_run_upgrade_in_background()`: it
+  catches any `Throwable` and logs its class and file:line, never its message.
+  The lock is released in `finally` and the version stamp stays last, so it
+  is not written and the next run retries. `admin_init` keeps throwing — that
+  request is the site owner's, and a hidden error there would only show in a
+  debug log.
+- `schema_ready()` = version reached AND the column exists: one
+  `SHOW COLUMNS … LIKE 'sent_count'`, remembered for the request (cleared by
+  `migrate()`); a read error is not remembered and counts as neither ready
+  nor failed. `schema_failed()` = version reached, column missing.
+- When it has failed: the import tick ends its chain; the sequence check and
+  the history-progress check do not re-arm, and their hourly re-arm
+  (`ensure_check_scheduled()` / `ensure_scheduled()`) skips — so the bound is
+  zero background actions until the column exists, after which the hourly
+  registration re-arms them and the stored sequence goes on. The Products,
+  Customers and Orders cards show the failed state with "This import cannot
+  run: the plugin did not finish its database update. Contact Smaily
+  support.", and Import now answers 500 `schema_incomplete` with the same
+  text, before any history import begins.
+**Rationale:** the throw was narrow (an Action Scheduler store that cannot
+save), but its reach was the whole site's background work. The card is where
+the merchant meets the stuck import; an admin notice on every screen would be
+louder than a problem that sends nothing wrong. No later upgrade re-runs a
+recorded step, so waiting cannot help; the fix is a human one (support adds
+the column or grants `ALTER`).
+**Alternatives:** catch on `admin_init` too (rejected: hides the error from
+the person who can act on it); bound the waits by a count (rejected: still
+fires actions for a state no wait can fix); roll the stored version back so
+the next update re-runs 013 (rejected: the next update may be weeks away, and
+it rewrites the Migrator's bookkeeping for one column); a NotificationManager
+notice (rejected above).
+**Relationships:** CON-282 (the gate and the hook), PRO-2434 (lock, stamp
+last), CON-248 (`sent_count`). The contacts card is not covered (it reads the
+same row; follow-up). Pinned by `tests/Unit/DB/MigratorTest.php`,
+`tests/Unit/BootstrapTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/ImportsOnConnectTest.php`,
+`tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php`,
+`tests/Unit/REST/BackfillEndpointTest.php` and
+`tests/Integration/RecEngineSchemaGateTest.php`.
 
 ### CON-203 — A per-language workflow is found whatever form its language code is stored in; TranslatePress carts record the shopper's language (2026-11-13)
 

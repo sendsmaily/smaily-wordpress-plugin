@@ -12,6 +12,7 @@ namespace Smaily\Connect\REST;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\ContactAudience;
@@ -196,6 +197,18 @@ class BackfillEndpoint {
 			);
 		}
 
+		// The update recorded the schema without the column the import
+		// writes (CON-291): nothing can start, and trying again won't help.
+		if ( $job_type !== BackfillJob::BACKFILL_TYPE && Migrator::schema_failed() ) {
+			return new WP_REST_Response(
+				array(
+					'error'   => 'schema_incomplete',
+					'message' => self::schema_incomplete_message(),
+				),
+				500
+			);
+		}
+
 		if ( $job_type !== BackfillJob::BACKFILL_TYPE && $this->before_engine_start !== null ) {
 			( $this->before_engine_start )( $job_type );
 		}
@@ -249,6 +262,27 @@ class BackfillEndpoint {
 		$job_type = $this->resolve_job_type( $request );
 		if ( $job_type === null ) {
 			return $this->unsupported_job_type_response();
+		}
+
+		// The card shows why the import cannot run instead of waiting (CON-291).
+		if ( $job_type !== BackfillJob::BACKFILL_TYPE && Migrator::schema_failed() ) {
+			return new WP_REST_Response(
+				array(
+					'status'            => BackfillJobInterface::STATUS_FAILED,
+					'processed'         => 0,
+					'synced'            => 0,
+					'total'             => 0,
+					'percent'           => 0,
+					'eta_seconds'       => null,
+					'error'             => self::schema_incomplete_message(),
+					'refused'           => null,
+					'started_at'        => null,
+					'completed_at'      => null,
+					'audience_estimate' => null,
+					'history'           => null,
+				),
+				200
+			);
 		}
 
 		$row = AbstractBackfillJob::read_state( $job_type, $this->target_for( $job_type ) );
@@ -335,6 +369,10 @@ class BackfillEndpoint {
 			),
 			200
 		);
+	}
+
+	private static function schema_incomplete_message(): string {
+		return __( 'This import cannot run: the plugin did not finish its database update. Contact Smaily support.', 'smaily-connect' );
 	}
 
 	/**

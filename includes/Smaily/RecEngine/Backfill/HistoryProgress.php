@@ -84,7 +84,9 @@ use Smaily\Connect\Support\DebugLog;
  * CON-282: before the update reaches the schema (Migrator::schema_ready()),
  * or while an import's state row cannot be read, the check decides and
  * reports nothing — it never ends the import on what it could not read; it
- * comes back at the next check.
+ * comes back at the next check. When the update recorded the schema without
+ * its column (CON-291, Migrator::schema_failed()) it does not come back
+ * until the column is there.
  *
  * Not final: tests subclass to stub the order counts and the stall check.
  */
@@ -211,7 +213,7 @@ class HistoryProgress {
 	 */
 	public function ensure_scheduled(): void {
 		$state = $this->state();
-		if ( $state === null || $state['ended'] || $state['reported_phase'] === self::PHASE_COMPLETE || ! $this->settings->sending_allowed() ) {
+		if ( $state === null || $state['ended'] || $state['reported_phase'] === self::PHASE_COMPLETE || ! $this->settings->sending_allowed() || Migrator::schema_failed() ) {
 			return;
 		}
 
@@ -329,9 +331,12 @@ class HistoryProgress {
 			return false;
 		}
 
-		// Not readable yet (CON-282): wait for the next check.
+		// Not readable yet (CON-282): wait for the next check — unless the
+		// update recorded the schema without its column (CON-291), which no
+		// later check fixes: the hourly registration arms it again once the
+		// column is there.
 		if ( ! Migrator::schema_ready() ) {
-			return true;
+			return ! Migrator::schema_failed();
 		}
 		// Each part's state row, read once for this check.
 		$rows = array();

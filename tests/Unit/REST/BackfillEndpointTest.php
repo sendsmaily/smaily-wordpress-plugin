@@ -12,11 +12,14 @@ namespace Smaily\Connect\Tests\Unit\REST;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Constants;
+use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\REST\BackfillEndpoint;
 use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\RetryPolicy;
+use Smaily\Connect\Tests\Unit\Support\SchemaColumnWpdb;
 use WP_REST_Request;
 
 final class BackfillEndpointTest extends TestCase {
@@ -43,6 +46,7 @@ final class BackfillEndpointTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		Migrator::forget_schema_check();
 		Monkey\tearDown();
 		parent::tearDown();
 		unset( $GLOBALS['wpdb'] );
@@ -223,6 +227,48 @@ final class BackfillEndpointTest extends TestCase {
 		self::assertSame( 500, $response->get_status() );
 		self::assertSame( 'start_failed', $response->get_data()['error'] );
 		self::assertSame( array(), $enqueued, 'CON-282: a tick would walk the row as it was.' );
+	}
+
+	/**
+	 * CON-291: the update recorded the schema, but the column the import
+	 * writes is not there. Import now starts nothing and says why; the card
+	 * shows the same reason instead of waiting.
+	 */
+	public function test_without_the_column_import_now_starts_nothing_and_the_card_says_why(): void {
+		$GLOBALS['wpdb'] = new SchemaColumnWpdb( false );
+		Migrator::forget_schema_check();
+		Functions\when( 'get_option' )->alias(
+			static fn ( $key, $default = false ) => $key === Constants::OPTION_SCHEMA_VERSION ? Migrator::REQUIRED_VERSION : $default
+		);
+		$started = false;
+		$job     = $this->createMock( BackfillJobInterface::class );
+		$job->method( 'start' )->willReturnCallback(
+			static function () use ( &$started ): int {
+				$started = true;
+				return 5;
+			}
+		);
+		$before = false;
+		$route  = new BackfillEndpoint(
+			static fn () => $job,
+			null,
+			static function () use ( &$before ): void {
+				$before = true;
+			}
+		);
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'job_type', 'orders' );
+		$response = $route->start( $request );
+
+		self::assertSame( 500, $response->get_status() );
+		self::assertSame( 'schema_incomplete', $response->get_data()['error'] );
+		self::assertFalse( $started, 'Nothing starts.' );
+		self::assertFalse( $before, 'No history import begins.' );
+
+		$status = $route->status( $request )->get_data();
+		self::assertSame( BackfillJobInterface::STATUS_FAILED, $status['status'] );
+		self::assertSame( 'This import cannot run: the plugin did not finish its database update. Contact Smaily support.', $status['error'] );
 	}
 
 	public function test_import_now_on_the_orders_card_begins_a_history_import_before_the_run_starts(): void {

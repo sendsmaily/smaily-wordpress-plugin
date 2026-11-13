@@ -488,13 +488,31 @@ stray tick re-sent one page to the engine every 30 s. Now:
 - `maybe_run_upgrade` also runs on `action_scheduler_before_process_queue`
   (every AS queue run: WP-Cron, the async runner, WP-CLI) — still behind
   `UpgradeLock`, version stamp last (PRO-2434). Never move it onto a
-  shopper's page request.
+  shopper's page request. On that hook it runs through
+  `maybe_run_upgrade_in_background()`, which catches any `Throwable` and logs
+  its class + file:line only (CON-291): thrown there, it ended the whole AS
+  run — every plugin's actions — on every run. The lock is released and the
+  version stays unstamped, so the next run retries. `admin_init` still lets
+  it throw, where the site owner sees it.
 - **A background job whose queries name a table or column a migration adds
   must check `Migrator::schema_ready()` first and WAIT (reschedule) while it is
   false — never end, forget or decide a one-time step.** The import tick, the
   sequence check (incl. both one-time starts) and the history-progress check
   do. `Migrator::REQUIRED_VERSION` is pinned to the highest migration file
   (`MigratorTest`) — a new migration bumps it in the same commit.
+- **`schema_ready()` checks the version AND the column (CON-291)** — dbDelta
+  reports nothing, so a `.sql` step the database refused (no `ALTER` right) is
+  recorded as applied. One `SHOW COLUMNS` of `sent_count`, remembered for the
+  request (`forget_schema_check()` clears it; `migrate()` calls it); a read
+  error is not remembered and decides nothing. `schema_failed()` = version
+  recorded, column missing: no later upgrade adds it, so the tick ends its
+  chain, the sequence and progress checks stop re-arming (their hourly
+  `ensure_*` re-arm skips too, and picks them up once the column is there),
+  and the import cards + Import now show `schema_incomplete`. A new migration
+  whose column a background job needs moves `REQUIRED_COLUMN` with it.
+  **Integration-test trap:** a test that drops the column must call
+  `Migrator::forget_schema_check()` after the drop — an earlier check in the
+  same process remembered it present.
 - A `.php` migration no later one depends on answers `Migrator::DEFERRED` when
   not done (migration 012): later migrations still run, it is retried first on
   every later update (`smly_plus_schema_deferred`). `false` still stops the run.
@@ -2068,9 +2086,15 @@ A row whose `row_to_object()` throws (its stored data cannot be built) is
 marked failed ALONE — reason `<Class> at file:line`, `last_response`
 `{outcome: "not_built"}` — and the rest of the batch is sent (CON-302).
 Left pending it would come first in every later flush of its event type and
-stop each one, live sync included. An import's own enqueue step (the
-catalog import loads each product there) is not covered: an error there
-still fails the import (PRO-3890).
+stop each one, live sync included. The catalog import loads each product
+earlier, while it queues them: a product that throws there gets the same
+failed `not_built` row at once (its parent id, `catalog.delete` if trashed,
+else `catalog.upsert`, no object) and the import goes on (CON-304,
+`CatalogBackfillJob::enqueue_record()`). A throw after a failed query
+(`$wpdb->last_error` set) is a database error and still fails the import
+(PRO-3890) — `$wpdb` itself never throws, so test that path with a filter
+that runs a bad query before it throws (`RecEngineImportStopTest`). The
+queue writes stay outside that catch.
 
 
 ## Linear discipline (Smaily process bridge)

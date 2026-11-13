@@ -18,6 +18,7 @@ use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
+use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -73,8 +74,14 @@ final class RecEngineImportStopTest extends TestCase {
 		$this->forget_live_events();
 		$this->job()->start();
 
-		// A product that cannot be built — any error that is not the engine's.
+		// A database error: a query fails while the product loads, and the
+		// load throws (CON-304 — a throw with no failed query is a broken
+		// product, which fails alone; see the next test).
 		$fail = static function () {
+			global $wpdb;
+			$suppress = $wpdb->suppress_errors( true );
+			$wpdb->query( 'SELECT 1 FROM smaily_connect_no_such_table' );
+			$wpdb->suppress_errors( $suppress );
 			throw new \RuntimeException( 'database went away' );
 		};
 		add_filter( 'woocommerce_product_class', $fail );
@@ -105,6 +112,51 @@ final class RecEngineImportStopTest extends TestCase {
 		$synced = self::$engine->state()['catalog_in_stock_by_sku'] ?? array();
 		self::assertArrayHasKey( 'woo-' . $first, $synced );
 		self::assertArrayHasKey( 'woo-' . $second, $synced );
+	}
+
+	/**
+	 * CON-304: a product that throws while the import loads it fails alone.
+	 * The import sends the others and completes; the product's queue row is
+	 * failed with the error type and where it was thrown, never its text,
+	 * and the run's sent_count leaves it out.
+	 */
+	public function test_a_product_that_throws_while_it_loads_fails_alone_and_the_import_goes_on(): void {
+		$first  = $this->simple( 'a' );
+		$broken = $this->simple( 'b' );
+		$third  = $this->simple( 'c' );
+		$this->forget_live_events();
+		$this->job()->start();
+
+		$fail = static function ( $classname, $product_type = '', $post_type = '', $product_id = 0 ) use ( $broken ) {
+			if ( (int) $product_id === $broken ) {
+				throw new \RuntimeException( 'cannot read the product of jane@example.com' );
+			}
+			return $classname;
+		};
+		add_filter( 'woocommerce_product_class', $fail, 10, 4 );
+		try {
+			do_action( BackfillJobInterface::TICK_HOOK, self::JOB_TYPE );
+		} finally {
+			remove_filter( 'woocommerce_product_class', $fail, 10 );
+		}
+
+		$job = $this->job_row();
+		self::assertSame( BackfillJobInterface::STATUS_COMPLETED, $job['status'], 'The import goes on past the product.' );
+		self::assertNull( $job['error_message'] );
+		self::assertSame( 3, (int) $job['processed_count'] );
+		self::assertSame( 2, (int) $job['sent_count'], 'The broken product is not counted as sent.' );
+		$synced = self::$engine->state()['catalog_in_stock_by_sku'] ?? array();
+		self::assertArrayHasKey( 'woo-' . $first, $synced );
+		self::assertArrayHasKey( 'woo-' . $third, $synced, 'The product after it is sent too.' );
+		self::assertArrayNotHasKey( 'woo-' . $broken, $synced );
+
+		$row = $this->queue_row_for( $broken );
+		self::assertSame( CatalogHookHandler::EVENT_CATALOG_UPSERT, $row['event_type'] );
+		self::assertSame( IngestQueue::STATUS_FAILED, $row['status'] );
+		self::assertMatchesRegularExpression( '/^RuntimeException at RecEngineImportStopTest\.php:\d+$/', (string) $row['last_error'] );
+		self::assertSame( '{"outcome":"not_built"}', $row['last_response'] );
+		self::assertNull( $row['sent_payload'], 'Nothing was sent for it.' );
+		self::assertStringNotContainsString( 'jane@', (string) $row['last_error'] . (string) $row['last_response'], 'Never the error text (CON-301).' );
 	}
 
 	public function test_a_running_import_with_nothing_driving_it_stops_blocking_the_nightly_list(): void {
@@ -158,6 +210,15 @@ final class RecEngineImportStopTest extends TestCase {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}smly_plus_backfill_job WHERE job_type = %s AND target = %s", self::JOB_TYPE, AbstractBackfillJob::TARGET ), ARRAY_A );
+		self::assertIsArray( $row );
+		return $row;
+	}
+
+	/** @return array<string, mixed> */
+	private function queue_row_for( int $product_id ): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}smly_rec_event_queue WHERE entity_id = %s ORDER BY id DESC LIMIT 1", (string) $product_id ), ARRAY_A );
 		self::assertIsArray( $row );
 		return $row;
 	}
