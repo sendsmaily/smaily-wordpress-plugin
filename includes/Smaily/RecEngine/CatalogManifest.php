@@ -87,6 +87,16 @@ class CatalogManifest {
 	 */
 	public const MAX_UNLOADABLE_PERCENT = 20;
 
+	/**
+	 * Whether more than MAX_UNLOADABLE_PERCENT of the products the list
+	 * covers could not be loaded.
+	 *
+	 * @param array{products: int, unloadable: int} $counts
+	 */
+	private static function too_many_unloadable( array $counts ): bool {
+		return $counts['unloadable'] * 100 > $counts['products'] * self::MAX_UNLOADABLE_PERCENT;
+	}
+
 	/** Store-time hour the manifest runs at. */
 	public const RUN_HOUR = 3;
 
@@ -197,43 +207,32 @@ class CatalogManifest {
 		$how             = self::stopped_by( $this->last_error() );
 
 		if ( $row['phase'] === self::PHASE_SEND ) {
-			$this->queue->mark_failed(
+			$this->fail_row(
 				$row['id'],
 				sprintf(
 					/* translators: %s: how the run was stopped and where, e.g. "PHP time limit at Client.php:210". */
 					__( 'The run was stopped while it sent the product list (%s). The engine may not have received it.', 'smaily-connect' ),
 					$how
-				)
-			);
-			$this->queue->store_exchange(
-				$row['id'],
-				$row['sent'],
-				(string) wp_json_encode(
-					array(
-						'outcome' => 'error',
-						'reason'  => 'run_stopped',
-					)
-				)
+				),
+				array(
+					'outcome' => 'error',
+					'reason'  => 'run_stopped',
+				),
+				$row['sent']
 			);
 			return;
 		}
 
-		$this->queue->mark_failed(
+		$this->fail_row(
 			$row['id'],
 			sprintf(
 				/* translators: %s: how the run was stopped and where, e.g. "PHP time limit at CatalogBackfillJob.php:144". */
 				__( 'Not sent: the run was stopped while it built the product list (%s).', 'smaily-connect' ),
 				$how
-			)
-		);
-		$this->queue->store_exchange(
-			$row['id'],
-			null,
-			(string) wp_json_encode(
-				array(
-					'outcome' => 'skipped',
-					'reason'  => 'run_stopped',
-				)
+			),
+			array(
+				'outcome' => 'skipped',
+				'reason'  => 'run_stopped',
 			)
 		);
 	}
@@ -271,59 +270,46 @@ class CatalogManifest {
 
 	/** The walk and the send for the night's row $id. */
 	private function build_and_send( int $id ): void {
-		$limit  = $this->max_products();
-		$counts = null;
+		$limit = $this->max_products();
 		try {
 			$products = $this->catalog->manifest_items( $limit, $counts );
 		} catch ( \Throwable $e ) {
 			$this->log_skip( 'building the product list failed: ' . DebugLog::where( $e ) );
-			$this->queue->mark_failed(
+			$this->fail_row(
 				$id,
 				sprintf(
 					/* translators: %s: the error type and where it happened, e.g. "RuntimeException at CatalogBackfillJob.php:144". */
 					__( 'Not sent: building the product list stopped on an unexpected error (%s).', 'smaily-connect' ),
 					DebugLog::where( $e )
-				)
-			);
-			$this->queue->store_exchange(
-				$id,
-				null,
-				(string) wp_json_encode(
-					array(
-						'outcome' => 'skipped',
-						'reason'  => 'build_failed',
-					)
+				),
+				array(
+					'outcome' => 'skipped',
+					'reason'  => 'build_failed',
 				)
 			);
 			return;
 		}
 
 		if ( count( $products ) > $limit ) {
-			$this->queue->mark_failed(
+			$this->fail_row(
 				$id,
 				sprintf(
 					/* translators: %s: the most products the nightly product list can hold, e.g. "50,000". */
 					__( 'Not sent: the store has more than %s products, the most the nightly product list can hold.', 'smaily-connect' ),
 					number_format_i18n( $limit )
-				)
-			);
-			$this->queue->store_exchange(
-				$id,
-				null,
-				(string) wp_json_encode(
-					array(
-						'outcome' => 'skipped',
-						'reason'  => 'too_many_products',
-						'limit'   => $limit,
-					)
+				),
+				array(
+					'outcome' => 'skipped',
+					'reason'  => 'too_many_products',
+					'limit'   => $limit,
 				)
 			);
 			return;
 		}
 
-		if ( $counts['unloadable'] * 100 > $counts['products'] * self::MAX_UNLOADABLE_PERCENT ) {
+		if ( self::too_many_unloadable( $counts ) ) {
 			$this->log_skip( sprintf( 'too many products could not be loaded: %d of %d, more than %d%%', $counts['unloadable'], $counts['products'], self::MAX_UNLOADABLE_PERCENT ) );
-			$this->queue->mark_failed(
+			$this->fail_row(
 				$id,
 				sprintf(
 					/* translators: 1: products that could not be loaded, 2: products in the list, 3: the most that may fail to load, in percent, e.g. "20". */
@@ -331,19 +317,13 @@ class CatalogManifest {
 					number_format_i18n( $counts['unloadable'] ),
 					number_format_i18n( $counts['products'] ),
 					self::MAX_UNLOADABLE_PERCENT
-				)
-			);
-			$this->queue->store_exchange(
-				$id,
-				null,
-				(string) wp_json_encode(
-					array(
-						'outcome'       => 'skipped',
-						'reason'        => 'too_many_unloadable',
-						'unloadable'    => $counts['unloadable'],
-						'products'      => $counts['products'],
-						'limit_percent' => self::MAX_UNLOADABLE_PERCENT,
-					)
+				),
+				array(
+					'outcome'       => 'skipped',
+					'reason'        => 'too_many_unloadable',
+					'unloadable'    => $counts['unloadable'],
+					'products'      => $counts['products'],
+					'limit_percent' => self::MAX_UNLOADABLE_PERCENT,
 				)
 			);
 			return;
@@ -362,15 +342,16 @@ class CatalogManifest {
 			return;
 		} catch ( \Throwable $e ) {
 			$this->log_skip( 'the send failed: ' . DebugLog::where( $e ) );
-			$this->queue->mark_failed(
+			$this->fail_row(
 				$id,
 				sprintf(
 					/* translators: %s: the error type and where it happened, e.g. "TypeError at Client.php:210". */
 					__( 'The send stopped on an unexpected error (%s).', 'smaily-connect' ),
 					DebugLog::where( $e )
-				)
+				),
+				array( 'outcome' => 'error' ),
+				$sent
 			);
-			$this->queue->store_exchange( $id, $sent, (string) wp_json_encode( array( 'outcome' => 'error' ) ) );
 			return;
 		}
 
@@ -388,6 +369,18 @@ class CatalogManifest {
 				)
 			)
 		);
+	}
+
+	/**
+	 * Marks the night's row $id failed with $message, then stores its
+	 * exchange: the request it sent ($sent, null when nothing was sent) and
+	 * $exchange as its response.
+	 *
+	 * @param array<string, mixed> $exchange
+	 */
+	private function fail_row( int $id, string $message, array $exchange, ?string $sent = null ): void {
+		$this->queue->mark_failed( $id, $message );
+		$this->queue->store_exchange( $id, $sent, (string) wp_json_encode( $exchange ) );
 	}
 
 	/**
