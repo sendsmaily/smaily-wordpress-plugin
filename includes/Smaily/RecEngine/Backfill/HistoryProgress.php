@@ -60,19 +60,26 @@ use Smaily\Connect\Support\DebugLog;
  * (CON-284). At most one check is pending (CON-285).
  *
  * The import ends — no more reports, no more checks — once `complete` is
- * in, once the final report of a stopped orders part is in, or when its
- * orders part never started and no sequence waits to start it (Hold back,
- * a cancel). Nothing is sent while sending is not allowed (PRO-1893), and
- * Hold back keeps its promise: the first report of a connection waits for
- * the hold-back window, and a held-back import ends without one.
+ * in, once the final report of a stopped import is in, or when its orders
+ * part never started, no sequence waits to start it and nothing was
+ * reported for it. Nothing is sent while sending is not allowed
+ * (PRO-1893), and Hold back keeps its promise: the first report of a
+ * connection waits for the hold-back window, and a held-back import ends
+ * without one.
  *
- * CON-284: an orders part that was cancelled, failed or stalled gets ONE
+ * CON-284 (contract v1.28.0 §25 "Stopped import", Sender rule 12): an
+ * import the engine has heard of that stops before `complete` gets ONE
  * final report, at once, with the phase it reached (`started` or
- * `start_part_complete` — never `complete`, which says every order since
- * `horizon_start` is in) and its final counts. §25 has no phase that says
- * the import stopped (asked of the engine: INT-225). The report waits while
- * an order row queued before the stop still waits, so the counts are final;
- * a failed one is tried again like any other.
+ * `start_part_complete`, never `complete`), its final counts and
+ * `stop_reason`:
+ *   - its orders part ended cancelled (`cancelled`), failed (`failed`) or
+ *     stalled (`stalled`);
+ *   - its sequence ended before the orders part began: `cancelled` when the
+ *     merchant cancelled its products or customers import, else `failed`
+ *     (a part that could not start).
+ * The report waits while a row of the stopped part queued before the stop
+ * still waits, so the counts are final; a failed one is tried again like
+ * any other. Nothing is sent for that `import_id` after it.
  *
  * CON-282: before the update reaches the schema (Migrator::schema_ready()),
  * or while an import's state row cannot be read, the check decides and
@@ -335,29 +342,46 @@ class HistoryProgress {
 			}
 		}
 
-		$orders  = $rows['orders'];
-		$stopped = false;
+		$orders = $rows['orders'];
+		// The §25 stop_reason once the import stopped (CON-284), the queue's
+		// event types of the part that stopped, and when it ended.
+		$stop       = '';
+		$stop_types = array();
+		$stop_ended = '';
 		if ( $this->is_ours( $state, $orders ) && is_array( $orders ) ) {
-			$status  = (string) ( $orders['status'] ?? '' );
-			$stopped = $status === BackfillJobInterface::STATUS_CANCELLED || $status === BackfillJobInterface::STATUS_FAILED || $this->is_stalled( 'orders', $orders );
-			$state   = $this->with_orders_window( $state, $orders );
+			$stop       = $this->orders_stop_reason( $orders );
+			$stop_types = array( OrderFlusher::EVENT_ORDER_UPSERT );
+			$stop_ended = (string) ( $orders['completed_at'] ?? '' );
+			$state      = $this->with_orders_window( $state, $orders );
 		} else {
 			$orders = null;
 			if ( ! $this->sequence_waits_for_orders() ) {
-				// Held back or cancelled before its orders part began.
-				$this->end( $state );
-				return false;
+				// Ended before its orders part began. The engine has heard
+				// nothing of it (held back): there is nothing to stop.
+				if ( $state['reported_phase'] === '' ) {
+					$this->end( $state );
+					return false;
+				}
+				// Cancelled, or a part that could not start.
+				$stop = 'failed';
+				foreach ( self::BEFORE_ORDERS as $job_type => $event_types ) {
+					$stop_types = array_merge( $stop_types, $event_types );
+					$row        = $rows[ $job_type ];
+					if ( is_array( $row ) && $this->is_ours( $state, $row ) && (string) ( $row['status'] ?? '' ) === BackfillJobInterface::STATUS_CANCELLED ) {
+						$stop       = 'cancelled';
+						$stop_ended = (string) ( $row['completed_at'] ?? '' );
+					}
+				}
 			}
 		}
 
-		if ( $stopped && is_array( $orders ) ) {
-			// The final report (CON-284) waits for the order rows queued
+		if ( $stop !== '' ) {
+			// The final report waits for the rows of the stopped part queued
 			// before the stop: until they are sent, the counts are not final.
 			if ( $state['stopped_at'] === '' ) {
 				$state['stopped_at'] = gmdate( 'Y-m-d H:i:s', $this->now() );
 			}
-			$completed = (string) ( $orders['completed_at'] ?? '' );
-			if ( $this->queue->has_pending_before( array( OrderFlusher::EVENT_ORDER_UPSERT ), $completed !== '' ? $completed : (string) $state['stopped_at'] ) ) {
+			if ( $this->queue->has_pending_before( $stop_types, $stop_ended !== '' ? $stop_ended : (string) $state['stopped_at'] ) ) {
 				update_option( self::OPTION, $state, false );
 				return true;
 			}
@@ -375,15 +399,15 @@ class HistoryProgress {
 
 		$now = $this->now();
 		$due = $now - (int) $state['failed_at'] >= self::REPORT_EVERY_SECONDS
-			&& ( $stopped || $phase !== $state['reported_phase'] || $now - (int) $state['reported_at'] >= self::REPORT_EVERY_SECONDS );
+			&& ( $stop !== '' || $phase !== $state['reported_phase'] || $now - (int) $state['reported_at'] >= self::REPORT_EVERY_SECONDS );
 		if ( $due ) {
 			try {
-				( $this->client_factory )()->history_progress( $this->body( $state, $orders, $phase, $rows ) );
+				( $this->client_factory )()->history_progress( $this->body( $state, $orders, $phase, $rows, $stop ) );
 				$state['reported_phase'] = $phase;
 				$state['reported_at']    = $now;
 				$state['failed_at']      = 0;
-				// The stopped orders part's final report is in: the import ends.
-				$state['ended'] = $stopped;
+				// The stopped import's final report is in: the import ends.
+				$state['ended'] = $stop !== '';
 			} catch ( \Throwable $e ) {
 				$state['failed_at'] = $now;
 				DebugLog::write(
@@ -403,19 +427,37 @@ class HistoryProgress {
 	}
 
 	/**
-	 * Whether this orders import run is the history import's orders part:
-	 * it started at or after the import began.
+	 * Whether this import run is the history import's: it started at or
+	 * after the import began. For the orders import, that is its orders part.
 	 *
 	 * @param array<string, mixed>      $state
-	 * @param array<string, mixed>|null $orders
+	 * @param array<string, mixed>|null $row
 	 */
-	private function is_ours( array $state, ?array $orders ): bool {
-		if ( ! is_array( $orders ) ) {
+	private function is_ours( array $state, ?array $row ): bool {
+		if ( ! is_array( $row ) ) {
 			return false;
 		}
-		$started = (string) ( $orders['started_at'] ?? '' );
+		$started = (string) ( $row['started_at'] ?? '' );
 
 		return $started !== '' && strcmp( $started, (string) $state['begun_at'] ) >= 0;
+	}
+
+	/**
+	 * The §25 `stop_reason` of the orders part, or '' while it has not
+	 * stopped (running or completed).
+	 *
+	 * @param array<string, mixed> $orders
+	 */
+	private function orders_stop_reason( array $orders ): string {
+		$status = (string) ( $orders['status'] ?? '' );
+		if ( $status === BackfillJobInterface::STATUS_CANCELLED ) {
+			return 'cancelled';
+		}
+		if ( $status === BackfillJobInterface::STATUS_FAILED ) {
+			return 'failed';
+		}
+
+		return $this->is_stalled( 'orders', $orders ) ? 'stalled' : '';
 	}
 
 	/**
@@ -499,9 +541,10 @@ class HistoryProgress {
 	 * @param array<string, mixed>                           $state
 	 * @param array<string, mixed>|null                     $orders
 	 * @param array<string, array<string, mixed>|false|null> $rows Each part's state row, as the check read them.
+	 * @param string                                         $stop The `stop_reason` of a stopped import, '' otherwise.
 	 * @return array<string, mixed>
 	 */
-	private function body( array $state, ?array $orders, string $phase, array $rows ): array {
+	private function body( array $state, ?array $orders, string $phase, array $rows, string $stop ): array {
 		$orders_entity = array(
 			'expected'       => null,
 			'sent'           => 0,
@@ -517,7 +560,7 @@ class HistoryProgress {
 			);
 		}
 
-		return array(
+		$body = array(
 			'import_id'     => (string) $state['import_id'],
 			'phase'         => $phase,
 			'horizon_start' => substr( (string) $state['horizon'], 0, 10 ),
@@ -538,6 +581,12 @@ class HistoryProgress {
 				'buyers'    => array( 'expected' => $state['buyers_expected'] === null ? null : (int) $state['buyers_expected'] ),
 			),
 		);
+		// Only on a stopped import's final report; its phase is never `complete`.
+		if ( $stop !== '' ) {
+			$body['stop_reason'] = $stop;
+		}
+
+		return $body;
 	}
 
 	/**

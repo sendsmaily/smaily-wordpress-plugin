@@ -276,6 +276,7 @@ final class HistoryProgressTest extends TestCase {
 
 		self::assertSame( 'complete', $this->sent[0]['phase'] );
 		self::assertSame( 3990, $this->sent[0]['entities']['orders']['sent'] );
+		self::assertArrayNotHasKey( 'stop_reason', $this->sent[0], 'CON-284: an import that completes did not stop.' );
 		self::assertSame( array(), $this->scheduled, 'No next check once complete is in.' );
 
 		$this->now = self::NOW + DAY_IN_SECONDS;
@@ -387,7 +388,9 @@ final class HistoryProgressTest extends TestCase {
 			$this->progress()->run();
 
 			self::assertCount( 2, $this->sent, 'One final report at once, inside the five minutes — ' . $end );
+			self::assertArrayNotHasKey( 'stop_reason', $this->sent[0], 'The report before the stop — ' . $end );
 			self::assertSame( 'started', $this->sent[1]['phase'], 'CON-284: the phase it reached — ' . $end );
+			self::assertSame( $end, $this->sent[1]['stop_reason'], 'CON-284: why it stopped (§25 v1.28.0).' );
 			self::assertSame(
 				array(
 					'expected'       => 4000,
@@ -419,6 +422,7 @@ final class HistoryProgressTest extends TestCase {
 
 			self::assertCount( 2, $this->sent, $end );
 			self::assertSame( 'start_part_complete', $this->sent[1]['phase'], 'Not complete: orders since horizon_start are missing — ' . $end );
+			self::assertSame( $end, $this->sent[1]['stop_reason'], $end );
 			self::assertSame( 2600, $this->sent[1]['entities']['orders']['sent'], $end );
 			$this->assert_ended_without_more_reports( 2, $end );
 			$this->now     = self::NOW;
@@ -450,6 +454,7 @@ final class HistoryProgressTest extends TestCase {
 
 		self::assertCount( 1, $this->sent );
 		self::assertSame( 1501, $this->sent[0]['entities']['orders']['sent'] );
+		self::assertSame( 'cancelled', $this->sent[0]['stop_reason'] );
 		$this->assert_ended_without_more_reports( 1, 'cancelled' );
 	}
 
@@ -475,7 +480,80 @@ final class HistoryProgressTest extends TestCase {
 		$this->progress()->run();
 		self::assertCount( 2, $this->sent );
 		self::assertSame( 'start_part_complete', $this->sent[1]['phase'] );
+		self::assertSame( 'failed', $this->sent[1]['stop_reason'], 'The retry carries the same stop.' );
 		$this->assert_ended_without_more_reports( 2, 'failed' );
+	}
+
+	public function test_a_sequence_cancelled_before_its_orders_part_sends_one_final_cancelled_report(): void {
+		foreach ( array( 'products', 'customers' ) as $part ) {
+			$this->sent = array();
+			$this->rows = array();
+			$this->begin_with_sequence();
+			$this->row( 'products', 'running', array( 'sent_count' => '40' ) );
+			$this->progress()->run();
+			self::assertSame( 'started', $this->sent[0]['phase'], $part );
+
+			// The merchant cancels the part that runs: the sequence ends.
+			if ( $part === 'customers' ) {
+				$this->row( 'products', 'completed', array( 'sent_count' => '40', 'completed_at' => '2026-11-02 12:01:00' ) );
+			}
+			$this->row( $part, 'cancelled', array( 'sent_count' => '40', 'completed_at' => '2026-11-02 12:02:00' ) );
+			unset( $this->options[ ImportsOnConnect::OPTION ] );
+			$this->now = self::NOW + 60;
+			$this->progress()->run();
+
+			self::assertCount( 2, $this->sent, 'One final report at once — ' . $part );
+			self::assertSame( 'started', $this->sent[1]['phase'], 'The start part is not in — ' . $part );
+			self::assertSame( 'cancelled', $this->sent[1]['stop_reason'], $part );
+			self::assertSame( 40, $this->sent[1]['entities']['catalog']['sent'], 'Its final counts — ' . $part );
+			self::assertSame( 0, $this->sent[1]['entities']['orders']['sent'], $part );
+			$this->assert_ended_without_more_reports( 2, $part );
+			$this->now = self::NOW;
+		}
+	}
+
+	public function test_a_sequence_that_ends_before_its_orders_part_without_a_cancel_reports_failed(): void {
+		$this->begin_with_sequence();
+		$this->row( 'products', 'completed', array( 'completed_at' => '2026-11-02 12:01:00' ) );
+		$this->progress()->run();
+
+		// The next part could not start: ImportsOnConnect forgot the sequence.
+		unset( $this->options[ ImportsOnConnect::OPTION ] );
+		$this->now = self::NOW + 60;
+		$this->progress()->run();
+
+		self::assertCount( 2, $this->sent );
+		self::assertSame( 'started', $this->sent[1]['phase'] );
+		self::assertSame( 'failed', $this->sent[1]['stop_reason'] );
+		$this->assert_ended_without_more_reports( 2, 'failed' );
+	}
+
+	public function test_a_cancel_before_the_orders_part_waits_for_the_rows_queued_before_it(): void {
+		$this->begin_with_sequence();
+		$this->row( 'products', 'running' );
+		$this->progress()->run();
+		$this->row( 'products', 'cancelled', array( 'completed_at' => '2026-11-02 12:02:00' ) );
+		unset( $this->options[ ImportsOnConnect::OPTION ] );
+		$this->waiting[] = array(
+			'types'      => array( 'catalog.upsert' ),
+			'created_by' => '2026-11-02 12:02:00',
+			'max_id'     => null,
+		);
+		$this->now       = self::NOW + 60;
+		$this->scheduled = array();
+
+		$this->progress()->run();
+
+		self::assertCount( 1, $this->sent, 'Its counts are not final while a catalog row of the import waits.' );
+		self::assertFalse( $this->options[ HistoryProgress::OPTION ]['ended'] );
+		self::assertCount( 1, $this->scheduled, 'The next check comes.' );
+
+		$this->waiting   = array();
+		$this->scheduled = array();
+		$this->progress()->run();
+
+		self::assertSame( 'cancelled', $this->sent[1]['stop_reason'] );
+		$this->assert_ended_without_more_reports( 2, 'cancelled' );
 	}
 
 	public function test_an_orders_run_from_before_the_import_began_is_not_its_orders_part(): void {

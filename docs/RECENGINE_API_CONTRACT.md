@@ -1,8 +1,8 @@
 # Smaily Recommendation Engine — API Contract v1.24
 
-**Version**: 1.25.0
+**Version**: 1.29.0
 **Published**: 2026-05-19
-**Last updated**: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-12 (v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step are specified and the engine side is in progress, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -412,6 +412,8 @@ Setup-token exchange. **Unauthenticated endpoint** (one of two, with the onboard
 **Use case**: after tenant creation in the admin UI, Erkki gets a setup URL (e.g. `https://intelligence.smaily.com/setup/abc123xyz`). The client pastes this URL into the plugin's Settings; the plugin extracts the token (`abc123xyz`) and calls this endpoint to obtain its technical configuration.
 
 **Where the setup token comes from.** The operator's admin, the store's console (Settings → Connections), or — since v1.16.0 — the start window of a new store (§21), which sends it to the plugin's window in a browser message. The exchange is the same in every case.
+
+**After an exchange with a token from the start window (§21)** (v1.29.0), the plugin starts its history import at once, without another click: it reads `config.history` from the exchange response and follows the [§25 sender rules](#sender-rules-one-list-for-woocommerce-shopify-and-magento), beginning with `started`. The shop admin already asked for this by pressing "Try Intelligence free". An exchange with a token that the operator or the console issued keeps the plugin's current behaviour.
 
 **URL**: `POST /api/setup/exchange`
 
@@ -2816,9 +2818,14 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/go
 
 ### 21. POST /api/v1/onboarding/start
 
-> **Built; switched off until the terms text is published** (published 2026-10-22): the engine answers `404 not_found` until then. A connector must treat `404` as "not available yet", keep its current behaviour and show the operator path (contact Smaily). This endpoint has no setup-exchange endpoint map key: the plugin calls it before it has a connection, so it uses its path constant.
+> **Status (v1.29.0, 2026-11-12).** This section has two parts with different states. Each v1.29.0 item below carries its state.
+>
+> - **Built; switched off in production until the terms text is published** (v1.16.0 flow): start → start link → the start window in a **new window** → store creation → setup token by window message or pasted link. Also built: **every active sector can be picked**, and a store that picks a sector in which no store is live yet gets a check by the Smaily team that holds only switching recommendations on (INT-248). The engine answers `404 not_found` on this endpoint, and the start window answers `404`, until the terms of service and the data processing agreement are published. A connector must treat `404` as "not available yet", show no button and keep the operator path (contact Smaily).
+> - **Specified in v1.29.0; engine side in progress** — connectors can build against this text: the frame mode (`display`, `frame_origin`, the framed `start_url`, the `ready` / `created` / `closed` messages), `admin_email`, `language`, the welcome step with the plugin connection and the history import's progress, and "Open console" in a new tab. Until the engine has these, it ignores the four new request fields and sends no `display` in the response, so the start link opens in a new window as in v1.16.0. **A connector must keep the new-window flow and the paste-link field as its fallback** ([The modal](#the-modal-frame-mode)). The engine announces when the frame mode is on.
+>
+> This endpoint has no setup-exchange endpoint map key: the plugin calls it before it has a connection, so it uses its path constant.
 
-**Start Campaign Intelligence for a shop that has no store in the engine** (v1.16.0, INT-134, Erkki's decision 2026-10-21). Call it when the shop admin presses "Start Campaign Intelligence" in the plugin and the plugin has no engine connection yet.
+**Start Campaign Intelligence for a shop that has no store in the engine** (v1.16.0, INT-134, Erkki's decision 2026-10-21; v1.29.0, INT-247, Erkki's decisions 2026-11-12). Call it when the shop admin presses **"Try Intelligence free"** (Estonian: "Proovi Intelligence'i tasuta"; the button's name since v1.29.0) in the plugin and the plugin has no engine connection yet.
 
 **URL**: `POST /api/v1/onboarding/start`
 
@@ -2835,9 +2842,15 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/go
   "smaily_subdomain": "myshop",
   "smaily_username": "api-user",
   "smaily_password": "••••••••",
-  "opener_origin": "https://admin.shopify.com"
+  "opener_origin": "https://admin.shopify.com",
+  "display": "frame",
+  "frame_origin": "https://admin.shop.example",
+  "admin_email": "owner@shop.example",
+  "language": "et"
 }
 ```
+
+The example shows every field. A call sends `opener_origin` (new window) or `frame_origin` (frame), not both.
 
 | Field | Type | Notes |
 | --- | --- | --- |
@@ -2846,7 +2859,11 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/go
 | `smaily_subdomain` | string, max 64 | Only the subdomain (`myshop`), not `myshop.sendsmaily.net`. Letters, digits and `-`; case does not matter. |
 | `smaily_username` | string, 1–255 | Smaily API username. |
 | `smaily_password` | string, 1–255 | Smaily API password. |
-| `opener_origin` | string, optional, max 2048 | The origin of the plugin's window that opens `start_url` (scheme and host, optional port, no path), for example `https://admin.shopify.com`. The start window sends the setup token to this origin only. Omitted: the origin of `shop_url`. Accepted values: the origin of `shop_url`, `https://admin.shopify.com`, and the app hosts the engine lists (ask Smaily to add a Shopify app host). Any other value: `400 opener_origin_not_allowed`. |
+| `opener_origin` | string, optional, max 2048 | The origin of the plugin's window that opens `start_url` (scheme and host, optional port, no path), for example `https://admin.shopify.com`. The start window sends the setup token to this origin only. Omitted: the origin of `shop_url`. Accepted values: the origin of `shop_url`, `https://admin.shopify.com`, and the app hosts the engine lists (ask Smaily to add a Shopify app host). Any other value: `400 opener_origin_not_allowed`. Not used in frame mode. |
+| `display` | `"window"` \| `"frame"`, optional | (v1.29.0; specified, engine side in progress) How the plugin opens `start_url`. `"window"` (default): a new window, as in v1.16.0. `"frame"`: an iframe in a modal in the store admin ([The modal](#the-modal-frame-mode)). Any other value: `400 validation_failed`. |
+| `frame_origin` | string, optional, max 2048 | (v1.29.0; specified, engine side in progress) The origin (scheme, host, optional port; no path) of the store-admin page that holds the frame. Allowed only with `display: "frame"`. Omitted: the origin of `shop_url`. Accepted: an `https` origin that is the origin of `shop_url`, or is in the same registrable domain as the host of `shop_url` (Public Suffix List; `https://admin.shop.example` for `https://www.shop.example`), or an origin the engine lists (a Shopify app host; ask Smaily). No API key is needed for this (Erkki 2026-11-12). Any other value: `400 frame_origin_not_allowed`, and `message` says why. In frame mode the window posts its messages to this origin. |
+| `admin_email` | string (email), optional, max 254 | (v1.29.0; specified, engine side in progress) The email of the shop admin who pressed the button. The window pre-fills the console email with it; the shop admin can change it. Not a customer's email. **Shopify**: send it only when Shopify marks the staff email as verified. A malformed value is ignored, never a `400`. |
+| `language` | ISO 639-1, optional | (v1.29.0; specified, engine side in progress) The language of the window: `et` or `en`. Absent or not supported: the browser's language, as today. |
 
 **Response 200 OK** — the account has no store yet:
 
@@ -2861,6 +2878,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/go
 | --- | --- |
 | `start_url` | Opaque one-time URL. Open it at once with `window.open(start_url)` from the shop admin page (a new window or tab, top level, not an iframe). Do not store, log or send it anywhere else. The token is in the URL fragment (`#t=…`), which the browser does not send to any server. |
 | `expires_at` | Issue time + **5 minutes**. |
+| `display` | (v1.29.0; specified, engine side in progress) `"frame"` when `start_url` may be set as the `src` of an iframe on `frame_origin`; the response then looks like `{"start_url": "https://intelligence.smaily.com/onboarding/start/f/AQx…#t=AQ3f…", "expires_at": "…", "display": "frame"}`. Absent or `"window"`: open `start_url` in a new window. An engine without the frame mode sends no `display`, so a plugin that asked for a frame still opens a window. The path of `start_url` differs between the two modes; the plugin never parses it. |
 
 **Response 409** — the account already has a store (a live or suspended one; a deleted store does not count, see rule 6):
 
@@ -2880,6 +2898,7 @@ Open `console_url` for the shop admin. The console asks the person to sign in. T
 | --- | --- | --- | --- |
 | 400 | `validation_failed` | A field is missing or malformed. | Its own settings error. |
 | 400 | `opener_origin_not_allowed` | `opener_origin` is not an origin, or not an accepted one. `message` says why. | Its own error; a plugin bug, not a store problem. |
+| 400 | `frame_origin_not_allowed` | (v1.29.0; specified, engine side in progress) `frame_origin` is not an origin, is not `https`, or is not accepted. `message` says why. | Call §21 again without `display` and open a new window. |
 | 401 | `smaily_login_refused` | Smaily refused the API login. | "Check the Smaily API login in the plugin settings." |
 | 403 | `smaily_paid_package_required` | Smaily answered code 227: the package has no API access. | "Your Smaily package does not include API access", and the package upgrade. No onboarding. |
 | 404 | `not_found` | The self-service path is off. | The operator path (contact Smaily). |
@@ -2887,11 +2906,16 @@ Open `console_url` for the shop admin. The console asks the person to sign in. T
 | 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). | Try again later. |
 | 502 | `smaily_unavailable` | Smaily did not answer. | Try again shortly. |
 
+The Smaily refusals (`401`, `403`, `409`, `502`) arrive **before** any window exists. The plugin shows them itself, with the texts of [Texts the plugin shows](#texts-the-plugin-shows). No store is created and nothing is sent to Smaily in any of these cases.
+
 **The start window** (engine-hosted; the plugin builds nothing for it):
 
 1. Shows the shop address from the link for confirmation. A wrong address is corrected in the plugin settings and the start is repeated.
-2. Asks the store to accept the terms of service, pick its industry and give the email for its console account. Only the industries open for self-service can be picked (today pet and beauty); the others say "set up by our team".
-3. On submit, the engine creates in one step: the store; a console **editor** account for the email, with a sign-in link sent to it; the Smaily API login, stored encrypted; a record of the terms acceptance. The campaign statistics sync starts at once. Contact sync stays off: **nothing is written to any Smaily contact before the operator activates the store.**
+2. Asks for three things, and nothing else — the shop address, the Smaily account and the plugin connection come from the plugin:
+   - **Terms**: one checkbox, with a link to the terms of service and the data processing agreement. The engine records the terms version and the time.
+   - **Sector** ("What does your shop sell?"): **every active sector can be picked** (v1.29.0, Erkki 2026-11-12; built). A sector that is not active says "set up by our team". When no store is live yet in the picked sector, the Smaily team checks the sector's recommendation rules for this store. The check holds only the last step, switching recommendations on; the store can do everything else at once. The check is per store, until the first store of the sector is live. (Specified, engine side in progress: the window itself says "You are among the first in this sector. Our team reviews the recommendation rules before you switch recommendations on." Today the store's console says it.)
+   - **Console email**: the email for the store's console account. (v1.29.0; specified, engine side in progress) Pre-filled from `admin_email` when the plugin sent it.
+3. On submit, the engine creates in one step: the store; a console **editor** account for the email, with a sign-in link sent to it; the Smaily API login, stored encrypted; a record of the terms acceptance. The campaign statistics sync starts at once. Contact sync stays off: **nothing is written to any Smaily contact before recommendations are switched on for the store** (by the store in its console, or by the operator).
 4. Sends the setup token to the window that opened it:
 
    ```js
@@ -2902,6 +2926,17 @@ Open `console_url` for the shop admin. The console asks the person to sign in. T
    ```
 
    The target origin is the `opener_origin` of the start request, by default the origin of `shop_url` — never `*`. The window also shows the setup link with a copy button, for the case where the message cannot arrive.
+
+   (v1.29.0; specified, engine side in progress) In frame mode the same message goes to `window.parent` on `frame_origin`:
+
+   ```js
+   window.parent.postMessage(
+     { type: 'smaily_intelligence_setup', setup_token: '…', setup_url: 'https://intelligence.smaily.com/setup/…' },
+     '<frame_origin>'
+   );
+   ```
+
+5. (v1.29.0; specified, engine side in progress) Shows the **welcome step** and stays open ([Welcome step](#welcome-step)). Today the window ends on the setup link and an "Open your console" button that signs the person in, in the same window, for 5 minutes after the submit.
 
 **What the plugin does with the message**:
 
@@ -2920,10 +2955,129 @@ Check `event.origin` against the engine base URL. Send the token to the shop bac
 1. **Five minutes.** The start link stops working at `expires_at`, 5 minutes after it was issued. The window then says "This link has expired or is not valid. Start again from your plugin."
 2. **One store.** A start link creates at most one store. A second submit of the same link — or any later start for the same Smaily account while its store exists — answers "this Smaily account already has a store" with the console link, and hands out no setup token.
 3. **One Smaily account, one store.** The subdomain identifies the account; case and surrounding spaces do not matter. Stores with several Smaily accounts are not covered: such a store is set up by the operator.
-4. **No contact writes before activation.** The new store has contact sync off until the operator activates it.
+4. **No contact writes before activation.** The new store has contact sync off until recommendations are switched on for it (by the store in its console, or by the operator).
 5. **Credentials.** The engine never returns the Smaily API login, and never writes it to a log or an audit record. It is stored encrypted, as when the operator enters it.
 6. **A deleted store frees its account** (Erkki 2026-10-21). A store that is purged, or whose deletion was requested (§16 "What deletion does"), no longer holds its Smaily account. A start for that account answers `200` with a start link, and the submit creates a new store; the old store gives up the account at that moment. The new store starts empty: nothing of the deleted store's data comes back. A paused store (§16, no connection left) still holds it: `start` answers `store_exists`, and the store is connected again with a new setup exchange.
-7. **Window origin.** The setup token goes only to the origin named by `opener_origin` (default: the shop's origin). The origin travels inside the encrypted start link; the engine stores it nowhere else.
+7. **Window origin.** The setup token goes only to the origin named by `opener_origin` (default: the shop's origin) — in frame mode, by `frame_origin`. The origin travels inside the encrypted start link; the engine stores it nowhere else.
+8. **Sector check.** (v1.29.0, built) A store that picks a sector with no live store can do every step except switching recommendations on, until the Smaily team has checked the sector for it.
+
+#### Welcome step
+
+(v1.29.0; specified, engine side in progress. The engine window renders it — Erkki 2026-11-12; a connector builds nothing for it.)
+
+After the submit the window shows the welcome step and stays open:
+
+- "Welcome! Your shop is connected", with three short lists: what the engine does by itself, what the store is asked later, and (for a sector without a live store) the team's check.
+- **Connection**: "Connecting your plugin…" until the plugin has redeemed the setup token ([§1](#1-post-apisetupexchange)); then "Plugin connected". When no exchange arrives within 60 seconds, the step shows the setup link and "Paste this link into your plugin".
+- **History import**: the progress the plugin reports with [§25](#25-post-apiv1ingesthistoryprogress) — "History is arriving, N%" when the plugin sends `expected` counts, else the months that have arrived; "typically 1–3 hours"; and the stopped state of v1.28.0 with its reason. "You can close this window; the import continues in the background."
+- **"Open console"**: opens the store's console in a **new browser tab**, signed in as the console email, on the console's onboarding page. The sign-in works one time, for **5 minutes** after the submit (Erkki 2026-11-12: the time stays 5 minutes). After that the button opens the console sign-in page; the invite email has the sign-in link. The plugin's own "Open console" button uses [§24](#24-post-apiv1consoleentry), which gives a fresh link at any time. The console never runs in a frame.
+- **"Close"**: posts `closed` (below).
+
+**Console email without a mailbox check** (Erkki 2026-11-12: today's behaviour stays). The person who submits the window gets the editor account and the 5-minute sign-in for the email in the form, pre-filled or typed. The invite email still goes to that mailbox.
+
+**Messages to the parent** (frame mode only), posted to `frame_origin`, never `*`:
+
+```js
+{ type: 'smaily_intelligence_onboarding', event: 'ready' }
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `type` | `"smaily_intelligence_onboarding"` | Fixed. The setup token keeps its own type, `smaily_intelligence_setup`. |
+| `event` | `"ready"` \| `"created"` \| `"closed"` | `ready`: the window read its link and shows the form, or shows "this Smaily account already has a store". `created`: the store exists and the welcome step is shown (the setup message was posted just before). `closed`: the shop admin pressed "Close" or "Cancel". Unknown value: ignore the message. |
+
+A window whose link is expired or not valid posts no `ready`. The window accepts no message from the parent.
+
+#### The modal (frame mode)
+
+(v1.29.0; specified, engine side in progress.) What the plugin builds to hold the window:
+
+- **Size.** At least **560 × 640 CSS pixels**; the window scrolls inside a smaller frame.
+- **Iframe attributes.**
+
+  ```html
+  <iframe
+    src="<start_url>"
+    title="Campaign Intelligence"
+    referrerpolicy="no-referrer"
+    style="width:100%;height:100%;border:0"
+  ></iframe>
+  ```
+
+  `referrerpolicy="no-referrer"` keeps the admin page's address (for example a Magento admin URL with its secret key) out of the engine's request. Do not set `sandbox`. If the platform requires it, allow at least `allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox`; without the two popup values "Open console" cannot open its tab.
+
+- **One modal, one link.** Call §21 when the shop admin presses the button, and set `start_url` as the frame's `src` at once. Never store, log or reuse it. A second press calls §21 again.
+- **Only when the response says so.** Set `start_url` as an iframe `src` only when the response carries `display: "frame"`. Without it, open a new window.
+- **Wait for `ready`.** Start a 10-second wait when the `src` is set. When no `ready` arrives, remove the frame and show "Open in a new window": call §21 again without `display` and open `start_url` with `window.open`, as in v1.16.0. Do not use the iframe's `load` event: it fires also for an expired link and for a refused frame.
+- **Fallback (required).** Three cases lead to the new window of v1.16.0: no `display` in the response, `400 frame_origin_not_allowed`, no `ready` in 10 seconds. The plugin's paste-link field stays.
+- **Close.** The plugin's own close control (×, backdrop, Escape) may close the modal at any time after `created`: the store exists and the import continues. Before `created`, closing the modal creates nothing.
+- **Check the origin.** Read a message only when `event.origin` equals the origin of the engine base URL.
+- **Do not** read the frame's content, inject script into it, or pass the link anywhere else.
+
+The engine lets only the accepted `frame_origin` (for Shopify also `https://admin.shopify.com`) frame the window. The window needs no sign-in and sets no cookie, so a browser that blocks third-party cookies changes nothing.
+
+#### Sequences per connector
+
+Steps marked **(P)** are the plugin's, **(E)** the engine's, **(A)** the shop admin's.
+
+**WooCommerce**
+
+1. **(A)** Presses "Try Intelligence free" on the plugin's page. The button shows only while the plugin holds a working Smaily API login and no engine connection.
+2. **(P)** Opens its modal with "Connecting your shop" ([Texts the plugin shows](#texts-the-plugin-shows)). The shop backend calls §21 with `shop_url`, `platform: "woocommerce"`, the stored Smaily login, `display: "frame"`, `admin_email` (the WordPress user's email), `language`. No `frame_origin`: a WordPress admin runs on the site's own origin.
+3. **(E)** Checks the Smaily login. A refusal ends here: the plugin shows it in the modal.
+4. **(P)** On `200` with `display: "frame"`: sets `start_url` as the iframe's `src` and waits for `ready` (10 seconds). Without `display` in the response, or without `ready`: opens a new window (the v1.16.0 flow; the setup message then arrives from the opened window).
+5. **(A)** Accepts the terms, picks the sector, checks the email, presses "Start".
+6. **(E)** Creates the store. Posts the setup message, then `created`. Shows the welcome step.
+7. **(P)** Sends the setup token to the shop backend, which runs the §1 exchange and stores the API key.
+8. **(P)** Starts the history import: §25 `started`, catalogue, customers, orders newest first, `start_part_complete`, `complete`.
+9. **(E)** The welcome step shows "Plugin connected" and the import's progress.
+10. **(A)** Presses "Open console" (new tab, signed in) or closes the modal. The plugin's page then shows "Connected", the import's progress from its own counts, and its own "Open console" button (§24 when the engine has it switched on, else the console address).
+
+**Magento** — as WooCommerce, with these differences:
+
+- Step 2: `platform: "magento"`. `frame_origin` = the admin's origin when it differs from the storefront's origin (an admin on its own host). `admin_email` = the admin user's email.
+- Step 2: an admin on `http`, or on a domain unrelated to the storefront, cannot frame the window: the engine answers `400 frame_origin_not_allowed` and the plugin opens a new window. In a new window the setup message goes to `opener_origin`, which accepts only the storefront's origin or a listed origin; for an unlisted admin host the shop admin pastes the setup link, as today.
+- Step 1: a shop with several websites and several Smaily accounts stays on the operator path (rule 3). The button shows only for a shop with one Smaily account.
+
+**Shopify** — an embedded app runs inside `https://admin.shopify.com`; the chain of windows decides what works.
+
+1. **(A)** Presses "Try Intelligence free" in the embedded app.
+2. **(P)** The app backend calls §21 with `platform: "shopify"`, `opener_origin: "https://admin.shopify.com"` (as today), and `admin_email` only when Shopify marks the staff email as verified.
+3. **Default: a new window and the paste link** (the built flow). The app opens `start_url` top-level. The setup message cannot reach the app from that window, so the window shows the setup link ("Paste this link into your plugin"), and the shop admin pastes it into the app's setup-link field. Steps 7–10 of WooCommerce follow.
+4. **Frame mode, only after the Shopify team confirms the chain.** The frame works only when the app's own page (on the app host) holds the iframe directly, and the app host is on the engine's list. Then `frame_origin` = the app host, and the setup message reaches the app page as `window.parent`. A modal that Shopify itself renders from a URL has `admin.shopify.com` as its parent; the message then cannot reach the app. This contract does not state how Shopify's modal API behaves.
+
+#### What each connector builds
+
+**All three**
+
+- **Button** "Try Intelligence free" ([Texts the plugin shows](#texts-the-plugin-shows)), shown while the plugin has a working Smaily API login and no engine connection. Hide it when §21 answers `404` (the path is off).
+- **Modal host**: the plugin's own modal with the "Connecting your shop" state, the refusal states, and the iframe ([The modal](#the-modal-frame-mode)).
+- **Server-side §21 call** with `display: "frame"`, `admin_email`, `language`; never from the browser.
+- **Message listener**: `smaily_intelligence_setup` (send the token to the backend, run §1) and `smaily_intelligence_onboarding` (`ready`, `created`, `closed`), with the `event.origin` check.
+- **Fallback**: no `display` in the response, `400 frame_origin_not_allowed`, or no `ready` in 10 seconds → a new window (v1.16.0), and the existing paste-link field stays.
+- **Automatic history import** after the §1 exchange with a start-window token, with §25 progress, `expected` counts and `stop_reason` (v1.28.0).
+- **After the modal**: the plugin's page shows "Connected", the import's progress, "Open console" (§24) and, optionally, "Show the welcome again" (the plugin's own short welcome, not the engine window — a start link cannot be opened twice).
+
+**WooCommerce**: no `frame_origin`. `admin_email` from the signed-in WordPress user.
+
+**Magento**: `frame_origin` when the admin has its own host; new-window fallback for an `http` or unrelated admin host; the button only for a shop with one Smaily account.
+
+**Shopify**: new window + paste link first. Frame mode only after the team confirms that the app page holds the iframe and Smaily lists the app host.
+
+#### Texts the plugin shows
+
+The plugin renders these states itself, because they happen before the engine window exists. The button wording is Erkki's decision (2026-11-12). The Estonian texts for `smaily_login_refused`, `store_exists` and `smaily_unavailable` were approved by Erkki on 2026-11-12.
+
+| State | English | Estonian |
+| --- | --- | --- |
+| Button | Try Intelligence free | Proovi Intelligence'i tasuta |
+| Card | Personal product recommendations in your Smaily emails. Trying it is free. Setup takes you a few minutes. Your shop address and Smaily account come from the plugin; you copy nothing. | Isiklikud tootesoovitused sinu Smaily kirjadesse. Proovimine on tasuta. Seadistus võtab sinult paar minutit. Sinu poe aadress ja Smaily konto võetakse pluginast, midagi ei pea kopeerima. |
+| Connecting | Connecting your shop · Sending your shop address · Checking your Smaily account | Ühendame sinu poe · Saadame poe aadressi · Kontrollime sinu Smaily kontot |
+| `smaily_login_refused` | Smaily refused the API login stored in this plugin. Check it in the plugin settings and try again. No store was created. | Smaily ei võtnud pluginas salvestatud API sisselogimist vastu. Kontrolli seda plugina seadetes ja proovi uuesti. Poodi ei loodud. |
+| `smaily_paid_package_required` | Intelligence needs a paid Smaily package. Your Smaily account is on the free package. Trying Intelligence is free, but it works only with a paid Smaily package. No store was created and nothing was sent. — button "Sign in to Smaily and see the packages" (`https://<subdomain>.sendsmaily.net/`) | Intelligence vajab Smaily tasulist paketti. Sinu Smaily konto on praegu tasuta paketil. Intelligence'i proovimine on tasuta, aga see töötab ainult tasulise Smaily paketiga. Poodi ei loodud ja midagi ei saadetud. — nupp „Logi Smailysse ja vaata pakette“ |
+| `store_exists` | This Smaily account already has a store in Intelligence. — button "Open console" (`console_url`, new tab). To connect this plugin, create a setup link in the console (Settings → Connections) and paste it here. | Sellel Smaily kontol on Intelligence'is juba pood. — nupp „Ava konsool“. Plugina ühendamiseks loo konsoolis seadistuslink (Seaded → Ühendused) ja kleebi see siia. |
+| `smaily_unavailable`, `429` | Smaily did not answer. Try again shortly. | Smaily ei vastanud. Proovi varsti uuesti. |
+| `404` | (no button) | (nuppu pole) |
 
 **Audit log**: the store creation (`admin_audit_log`, action `tenant.create`, `metadata.via = "self_service"`, with the industry, the platform and the Smaily subdomain) and the terms acceptance (`terms.accept`, with the terms version), both with the console email as the actor. When the account was held by a deleted store (rule 6), one more record: `tenant.smaily_account_released` on the old store, which names the old store only. The setup exchange writes its existing records (§1).
 
@@ -3195,7 +3349,7 @@ curl -X GET "https://intelligence.smaily.com/api/v1/emails/designs?email_key=plu
 
 ### 24. POST /api/v1/console/entry
 
-> **Not live yet.** The engine has console entry switched off (an engine flag). Until the engine announces that it switches console entry on for connectors, every call answers `404 not_found`, the console entry page answers `404`, and the setup exchange (§1) does not return the `console_entry` key. The plugin treats `404` as "not available" and hides the "Open Campaign Intelligence" button or shows the console address (`https://intelligence.smaily.com/login`) instead. **The engine announces when it switches console entry on.**
+> **Not live yet.** The engine has console entry switched off (an engine flag). Until the engine announces that it switches console entry on for connectors, every call answers `404 not_found`, the console entry page answers `404`, and the setup exchange (§1) does not return the `console_entry` key. The plugin treats `404` as "not available" and hides the "Open Campaign Intelligence" button or shows the console address (`https://intelligence.smaily.com/login`) instead. **The engine announces when it switches console entry on.** (v1.29.0, Erkki's decision 2026-11-12: console entry goes on together with the engine release of the §21 frame mode and welcome step. It is still off today.)
 
 **One-time link that opens the store's Campaign Intelligence console for the shop admin who pressed "Open Campaign Intelligence"** (v1.19.0, INT-180, Erkki's decisions 2026-10-26 and 2026-10-27). Call it when the shop admin presses the button in the plugin. Call it once per press, never on page load and never in the background.
 
@@ -3319,7 +3473,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/console/entry \
 
 **Rate limit**: 100 requests per second per store (the ingest tier).
 
-**When to call**: at each phase change (`started`, `start_part_complete`, `complete`), and at most every 5 minutes while the import runs. Each call carries the counts so far.
+**When to call**: at each phase change (`started`, `start_part_complete`, `complete`), and at most every 5 minutes while the import runs. Each call carries the counts so far. (v1.28.0) When the import stops before `complete`, call once more with `stop_reason` ([Stopped import](#stopped-import)). (v1.29.0) While the welcome step of the start window ([§21](#21-post-apiv1onboardingstart)) is open, the window shows the progress the engine holds for the store; a plugin that reports `expected` counts lets the window show a percentage.
 
 **Request body**:
 
@@ -3347,6 +3501,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/console/entry \
 | `entities.catalog`, `entities.customers`, `entities.orders` | object, required | `sent` (integer ≥ 0, required): rows sent and accepted so far in this import. `expected` (integer ≥ 0 or `null`, optional): the number in scope, counted by the platform; omit it when counting is too expensive. |
 | `entities.orders.oldest_sent_at` | date or `null`, optional | The oldest order date sent so far. Newest first, so it moves back in time. |
 | `store_config` | object, optional | (v1.21.0) Only on `started`: the platform setup as on the setup exchange ([§1 `store_config`](#store-config)). Send it when `customer_account_scope` changed since the setup exchange; the engine stores it as on §1 (an unknown value is stored as absent, never a `400`). Ignored on the other phases. |
+| `stop_reason` | `cancelled` \| `failed` \| `stalled` or `null`, optional | (v1.28.0) The import stopped at `phase` and will send nothing more. `cancelled`: the store's admin cancelled it. `failed`: it ended with an error. `stalled`: the connector saw it make no progress and gave up. Not allowed with `complete`. No other value and no free text ([Stopped import](#stopped-import)). |
 | `entities.buyers` | object, optional | `expected` (integer ≥ 0 or `null`, optional): the number of distinct customers with a purchase order (`completed` or `processing`) since `horizon_start`, counted by the platform (one `COUNT(DISTINCT customer)`). With it, the engine can show the store owner what share of the customer base it already knows ("we know N% of your customer base"). Without it, the engine shows only the months that have arrived. |
 
 No date may be more than one day ahead of the engine's clock. Counts and dates only — the body never carries a person's data.
@@ -3361,15 +3516,18 @@ No date may be more than one day ahead of the engine's clock. Counts and dates o
   "phase": "start_part_complete",
   "start_part_complete_at": "2026-10-27T14:02:11.000Z",
   "complete_at": null,
+  "stop_reason": null,
+  "stopped_at": null,
   "history": { "start_months": 18, "horizon_months": 60, "order": "newest_first" }
 }
 ```
 
 | Field | Notes |
 | --- | --- |
-| `stale` | `true` when the call named an earlier phase than the engine already holds for this `import_id`; nothing changed. |
+| `stale` | `true` when the call named an earlier phase than the engine already holds for this `import_id`, or (v1.28.0) the import already stopped, or the call is a stop for a `complete` import; nothing changed. |
 | `import_id`, `phase` | The import and the phase the engine holds for the store after the call. |
 | `start_part_complete_at`, `complete_at` | When the engine first received that phase for this import (engine time), or `null`. A `complete` call also sets `start_part_complete_at` when it is not set. |
+| `stop_reason`, `stopped_at` | (v1.28.0) The reason and the engine time of the stop the engine holds for this import, or `null`. |
 | `history` | The current `config.history` ([§1](#1-post-apisetupexchange)). |
 
 **Rules**:
@@ -3378,14 +3536,40 @@ No date may be more than one day ahead of the engine's clock. Counts and dates o
 2. **One import per engine store.** The engine stores the progress per engine store (tenant) and keeps the store's latest import. A call with another `import_id` — from this connection or another connection of the same store — replaces it and starts over at its phase.
 3. **A connector with several engine stores reports each one separately.** A connector that serves several engine stores (for example one engine store per Smaily account) reports each store's import to that store's API key. One call never covers two engine stores.
 4. **`complete` implies the start part.** A connector may go from `started` to `complete` directly (a small store).
-5. **Send again = a new import.** "Send history again" in the store's admin starts a new `import_id` with `started`. Only a new import, or `complete`, makes the engine analyse the history again; the rows of the background part never do.
+5. **Send again = a new import.** "Send history again" in the store's admin starts a new `import_id` with `started`. Only a new import, `complete` or a stop after the start part makes the engine analyse the history again; the rows of the background part never do.
+6. **A stopped import is over.** (v1.28.0) See [Stopped import](#stopped-import).
+
+#### Stopped import
+
+(v1.28.0, INT-225.) When an import stops before `complete` — the store's admin cancelled it, it failed, or it stalled — the connector calls progress once more with the phase the import reached, the final counts and `stop_reason`:
+
+```json
+{
+  "import_id": "woo-2026-11-04-1",
+  "phase": "started",
+  "stop_reason": "failed",
+  "horizon_start": "2021-11-04",
+  "entities": {
+    "catalog":   { "sent": 1200 },
+    "customers": { "sent": 4000 },
+    "orders":    { "sent": 900, "oldest_sent_at": "2026-02-11" }
+  }
+}
+```
+
+1. **The engine stops waiting.** A stop before `start_part_complete` leaves the start part not in: the store's onboarding says that the import stopped, and why, and waits for a new import. A stop after `start_part_complete` keeps the start part in; the engine reads what arrived and does not wait for `complete`.
+2. **Nothing moves back.** The stored phase and its time stay. A stop that names an earlier phase than the stored one still stops the import; the stored phase and counts stay.
+3. **Final.** Every later call with the same `import_id` — a stop, a phase, `complete` — changes nothing (`stale: true`). To send the history again, start a new `import_id` with `started` (rule 5); it replaces the stopped import.
+4. **Never after `complete`.** A stop for an import the engine already holds as `complete` is ignored (`stale: true`). A call with `phase: "complete"` and a `stop_reason` is a `400 validation_failed` that names `stop_reason`.
+5. **A fixed list.** `stop_reason` is `cancelled`, `failed` or `stalled`. Any other value is a `400 validation_failed` that names `stop_reason`. The call never carries an error message, a person's name or address, or other free text.
+6. **Optional.** A connector that never sends `stop_reason` keeps working as before; its stopped import stays at its last phase.
 
 **Errors**:
 
 | Status | `error` | Meaning |
 | --- | --- | --- |
 | 400 | `invalid_json` | The body is not JSON. |
-| 400 | `validation_failed` | A field is missing or out of range (`details` names it). Fix the call; do not retry it unchanged. |
+| 400 | `validation_failed` | A field is missing or out of range (`details` names it), or (v1.28.0) `stop_reason` is not one of the list or comes with `complete`. Fix the call; do not retry it unchanged. |
 | 401 | `unauthorised` | Missing, unknown or revoked key, see [Authentication](#authentication). |
 | 403 | `tenant_inactive` | The store is suspended or marked for deletion (§2, §16). |
 | 429 | `rate_limit_exceeded` | See [Rate limiting](#rate-limiting). |
@@ -3406,6 +3590,7 @@ No date may be more than one day ahead of the engine's clock. Counts and dates o
 9. Never send an order older than `horizon_start`. The engine does not store it ([§5 History horizon](#history-horizon)).
 10. Live events (new orders, customer changes, stock) keep flowing during the import, as before.
 11. Send more than one order request per minute: at one 50-order request a minute, 80,000 orders take more than a day. The engine accepts 100 requests per second.
+12. (v1.28.0) When the import stops before `complete`, call progress once with the phase reached, the final counts and `stop_reason`: `cancelled` when the store's admin cancelled it, `failed` when it ended with an error, `stalled` when it made no progress and the connector gave up. Send no further call for that `import_id`; to send the history again, start a new import.
 
 #### Without the call
 
@@ -3860,6 +4045,21 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **§1 `smaily_subdomain`** (INT-209). The setup-exchange answer names the engine store's Smaily account (trimmed, lower case; `null` when the store has none). A connector that connects several websites to separate engine stores compares it case-insensitively with the website's own Smaily account and refuses a mismatching link before storing anything or starting an import. A later version (INT-208, several Smaily accounts per store) will also name the account the link joined.
 - **What the plugin does.** Nothing is required. A plugin that sends none of the three fields sees no change in what it sends or reads, except `designs_updated` in the PUT response and new §23 `version` values after a brand change. A connector of several websites should check `smaily_subdomain` before storing a new connection.
 - **Shapes.** Request: three optional §18 fields. Response: `designs_updated` (§18) and `smaily_subdomain` (§1).
+
+**v1.28.0** (2026-11-08) — **A connector can say that its history import stopped**. MINOR bump per the [Versioning](#versioning) rule (one new optional request field and two new response fields; backward-compatible). INT-225, Erkki's decisions 2026-11-04 and 2026-11-05. Numbered after the v1.26.0 and v1.27.0 drafts, which touch other sections:
+- **The gap.** When a store's history import was cancelled, failed or stalled, the connector could not say so, and the engine held the store at `started` forever.
+- **§25 `stop_reason`** (new, optional): `cancelled`, `failed` or `stalled`, on the progress call that names the phase the import reached. A stopped import is final; a new `import_id` starts over; a stop for a `complete` import is ignored; an unknown reason or a stop with `complete` is a `400` that names `stop_reason`. A stop before the start part keeps the start part not in; a stop after it keeps the start part in, and the engine stops waiting for `complete`.
+- **What the plugin does.** Send one last progress call with `stop_reason` when an import stops (Sender rule 12). **A plugin that never sends it keeps working unchanged.**
+- **Shapes.** Request: optional `stop_reason` (§25). Response: `stop_reason`, `stopped_at` (§25).
+
+**v1.29.0** (2026-11-12) — **"Try Intelligence free" from the plugin, in a modal**. MINOR bump per the [Versioning](#versioning) rule (four new optional request fields, one new optional response field, one new error value, one new window-message type; backward-compatible). INT-247, Erkki's decisions 2026-11-12. Published for planning before the engine side is complete; §21 Status says which parts the engine serves:
+- **Built (behind the switch that is off until the terms are published).** The v1.16.0 flow in a new window. **Every active sector can be picked**; a sector with no live store gets a check by the Smaily team for that store, which holds only switching recommendations on (INT-248).
+- **Specified; engine side in progress.** **§21 `display` and `frame_origin`**: a start link asked with `display: "frame"` opens in an iframe in the store admin; the engine accepts the shop's own origin, an `https` origin in the same registrable domain, or a listed app host; the response says `display: "frame"` when the link may be framed; new error `400 frame_origin_not_allowed`. **§21 `admin_email`, `language`**: the plugin may pre-fill the console email and name the window's language. **§21 welcome step and messages**: the window ends on a welcome step with the plugin connection, the history import's progress and "Open console" (new tab, signed in for 5 minutes); new messages `ready`, `created`, `closed` (type `smaily_intelligence_onboarding`); the setup message is unchanged.
+- **Button.** "Try Intelligence free" / "Proovi Intelligence'i tasuta" replaces "Start Campaign Intelligence". The plugin renders the button, the card and the refusals itself (§21 Texts the plugin shows; three Estonian refusal texts may still change).
+- **§1.** After an exchange with a token from the start window, the plugin starts the history import by itself. **§25.** The welcome step shows the progress the plugin reports.
+- **§24.** Console entry goes on together with the engine release of the frame mode; it is still off.
+- **What the plugin does.** Build the button, the modal host, the message listener and the automatic import, and **keep the new-window flow and the paste-link field as the fallback**: an engine without the frame mode ignores the new fields and sends no `display`. **A plugin built for v1.16.0–v1.28.0 keeps working unchanged.**
+- **Shapes.** Request: optional `display`, `frame_origin`, `admin_email`, `language` (§21). Response: optional `display` (§21). Error: `frame_origin_not_allowed` (§21). Window message: `smaily_intelligence_onboarding` (§21).
 
 ### Appendix F: Migration notes
 

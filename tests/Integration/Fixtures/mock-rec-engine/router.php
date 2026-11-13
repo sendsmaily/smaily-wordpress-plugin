@@ -2129,7 +2129,12 @@ if ( $method === 'POST' && $path === '/api/v1/console/entry' ) {
 // and their counts. A phase is never moved back (rule 1: an earlier phase is
 // `stale` and changes nothing); another `import_id` replaces the import (rule
 // 2). A test plays a failing engine with `history_progress_status` (500 →
-// db_failure; 0 answers normally again).
+// db_failure; 0 answers normally again). v1.28.0 "Stopped import" (CON-284):
+// `stop_reason` is null or one of `cancelled|failed|stalled`, never with
+// `complete` — else `400 validation_failed` naming `stop_reason`; a stop is
+// final (every later call for that `import_id` is `stale`), a stop of a
+// `complete` import is `stale`, and a stop naming an earlier phase still
+// stops without moving the phase back.
 if ( $method === 'POST' && $path === '/api/v1/ingest/history/progress' ) {
 	require_bearer_auth();
 
@@ -2170,6 +2175,12 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/history/progress' ) {
 			}
 		}
 	}
+	$stop_reason = $body['stop_reason'] ?? null;
+	if ( $field === null && $stop_reason !== null
+		&& ( ! in_array( $stop_reason, array( 'cancelled', 'failed', 'stalled' ), true ) || $body['phase'] === 'complete' )
+	) {
+		$field = 'stop_reason';
+	}
 	if ( $field !== null ) {
 		reply(
 			400,
@@ -2189,9 +2200,15 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/history/progress' ) {
 			'phase'                  => $body['phase'],
 			'start_part_complete_at' => null,
 			'complete_at'            => null,
+			'stop_reason'            => null,
+			'stopped_at'             => null,
 		);
-	} elseif ( array_search( $body['phase'], $phases, true ) < array_search( $held['phase'], $phases, true ) ) {
+	} elseif ( ( $held['stop_reason'] ?? null ) !== null || ( $stop_reason !== null && $held['phase'] === 'complete' ) ) {
+		// Stopped already, or a stop of a complete import: final.
 		$stale = true;
+	} elseif ( array_search( $body['phase'], $phases, true ) < array_search( $held['phase'], $phases, true ) ) {
+		// An earlier phase moves nothing back; a stop naming one still stops.
+		$stale = $stop_reason === null;
 	} else {
 		$held['phase'] = $body['phase'];
 	}
@@ -2200,6 +2217,10 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/history/progress' ) {
 	}
 	if ( ! $stale && $held['phase'] === 'complete' && $held['complete_at'] === null ) {
 		$held['complete_at'] = $now;
+	}
+	if ( ! $stale && $stop_reason !== null ) {
+		$held['stop_reason'] = $stop_reason;
+		$held['stopped_at']  = $now;
 	}
 	$state['history_progress_held'] = $held;
 	save_state( $state_file, $state );
@@ -2213,6 +2234,8 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/history/progress' ) {
 			'phase'                  => $held['phase'],
 			'start_part_complete_at' => $held['start_part_complete_at'],
 			'complete_at'            => $held['complete_at'],
+			'stop_reason'            => $held['stop_reason'] ?? null,
+			'stopped_at'             => $held['stopped_at'] ?? null,
 			'history'                => MOCK_HISTORY_CONFIG,
 		)
 	);
