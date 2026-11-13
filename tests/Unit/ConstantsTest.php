@@ -72,6 +72,6 @@ final class ConstantsTest extends TestCase {
 	}
 
 	public function test_version_helper_reflects_define(): void {
-		self::assertSame( '3.22.0', Constants::version() );
+		self::assertSame( '3.23.0', Constants::version() );
 	}
 }
