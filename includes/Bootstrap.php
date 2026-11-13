@@ -38,6 +38,8 @@ use Smaily\Connect\Integrations\WooCommerce\LegacyHookBridge;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Multilingual\Router as MultilingualRouter;
+use Smaily\Connect\Report\ConnectionHealth;
+use Smaily\Connect\Report\InstallationReport;
 use Smaily\Connect\REST\EndpointRegistry;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -250,6 +252,12 @@ final class Bootstrap {
 		add_action( LegacyOrderDateIndex::HOOK, array( $this, 'on_order_date_index' ) );
 		// A login's §4 + §7 calls (CON-268): queued by the login, sent here.
 		add_action( LoginMerge::HOOK, array( $this, 'on_login_merge' ), 10, 5 );
+		// The installation report to Smaily's subscription service (CON-290):
+		// a snapshot after a settings save and once a day, sent here; the
+		// last answer of each connection, which the report carries, is
+		// recorded from the two HTTP clients.
+		add_action( InstallationReport::HOOK, array( $this, 'on_installation_report' ), 10, 2 );
+		( new ConnectionHealth() )->register();
 
 		// Storefront browse-beacon enqueue (3.4.3). wp_enqueue_scripts is a
 		// front-end-only hook; StorefrontBeacon::enqueue() self-gates on
@@ -425,6 +433,17 @@ final class Bootstrap {
 	 */
 	public function on_login_merge( $user_id = 0, $token = '', $anon_session_id = '', $consent = 0, $attempt = 1 ): void {
 		$this->login_merge()->run( $user_id, $token, $anon_session_id, $consent, $attempt );
+	}
+
+	/**
+	 * Action Scheduler callback for smly_plus_installation_report — one
+	 * installation report snapshot (CON-290).
+	 *
+	 * @param mixed $trigger `setup_saved` or `daily`.
+	 * @param mixed $attempt 0 for the first try, 1–3 for a retry.
+	 */
+	public function on_installation_report( $trigger = '', $attempt = 0 ): void {
+		( new InstallationReport() )->run( $trigger, $attempt );
 	}
 
 	/**
@@ -958,6 +977,11 @@ final class Bootstrap {
 		// MAX_ATTEMPTS times. A store that switches from HPOS to legacy
 		// storage gets it within the hour; a connect schedules it at once.
 		( new LegacyOrderDateIndex() )->ensure_scheduled();
+
+		// The daily installation report (CON-290): one single action on a
+		// store with a connected Smaily marketing account — the first at a
+		// random moment within 24 hours; each run sets the next.
+		( new InstallationReport() )->ensure_scheduled();
 
 		update_option( self::OPTION_AS_JOBS_VERIFIED, time(), false );
 	}

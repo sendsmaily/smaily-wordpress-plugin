@@ -15,6 +15,7 @@ use Smaily\Connect\Bootstrap;
 use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
+use Smaily\Connect\Report\InstallationReport;
 use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
@@ -104,7 +105,10 @@ final class EndpointRegistry {
 				// lines (PRO-4091), so the screen doesn't show the old one.
 				static function () use ( $bootstrap ): array {
 					return $bootstrap->transactional_status()->snapshot();
-				}
+				},
+				// A save is reported to Smaily's subscription service
+				// (CON-290).
+				new InstallationReport()
 			),
 			new EventsEndpoint(
 				// "Send again" (PRO-2324) runs the same gate + payload
@@ -132,8 +136,11 @@ final class EndpointRegistry {
 				static function () use ( $bootstrap ): bool {
 					$started = $bootstrap->imports_on_connect()->start();
 					( new LegacyOrderDateIndex() )->ensure_scheduled();
+					// Connecting is a setup save the report tells (CON-290).
+					( new InstallationReport() )->setup_saved();
 					return $started;
-				}
+				},
+				new InstallationReport()
 			),
 			new AutomationsEndpoint(
 				new RecEngineSettings(),
