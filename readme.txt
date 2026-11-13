@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.22.0
+Stable tag: 3.23.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -191,6 +191,16 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.23.0 =
+* Fixed: one product that cannot be loaded no longer stops the products import. That product fails alone, and the rest are sent.
+* Fixed: the nightly product list lists a product it cannot load as out of stock and sends the rest. When more than 20% of the products cannot be loaded, that night's list is not sent, and the Event Log says why.
+* Fixed: a failing background database update no longer stops other plugins' background jobs. The import cards say so when the update is incomplete.
+* Fixed: on a TranslatePress store, the per-language workflows are found, and abandoned-cart reminders go out in the shopper's storefront language.
+* Improved: an import card shows an error when the import's state cannot be read from the database.
+* Improved: the contact import lists the customers whose stored data cannot be read apart from the customers Smaily refused.
+* Fixed: Edit design works in a browser that blocks third-party cookies, such as Safari. The window asks before it closes over unsaved changes.
+* Updated to the Smaily Campaign Intelligence API contract v1.31.0.
+
 = 3.22.0 =
 * New: on a WPML or Polylang store, an abandoned-cart reminder goes out in the storefront language of the shopper's last cart change, guests included.
 * Changed: the plugin adds only the newsletter box to the checkout and My Account forms. Phone, gender and birthday stay on the user profile in wp-admin.
@@ -212,33 +222,16 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Fixed: a connected store that ran 3.21.0 and whose order history has not been sent in full with 3.21 starts the whole sequence (products, customers, orders) once more by itself. It waits while another import runs; an import you held back or cancelled stays stopped.
 * Improved: Import now says so when an import could not be started.
 
-= 3.21.0 =
-* New: connecting Campaign Intelligence imports your products, then customers, then orders, each when the one before has finished. Hold back or Cancel stops the sequence.
-* New: a connected store that never finished its customers or orders import starts it once after this update, without a click. An import you held back or cancelled stays stopped.
-* New: "Open Campaign Intelligence" in Settings opens your store's console with a one-time sign-in link.
-* Improved: imports send faster, at a steady pace. The Orders import sends the last 18 months first, then older orders back to 60 months; older orders are not sent.
-* Improved: the import cards count the records Campaign Intelligence accepted, and the import reports its progress to it.
-* Improved: on legacy order storage, a database index added in the background speeds up the Orders import, only where the server can build it without blocking writes.
-* Changed: Campaign Intelligence gets only the customers it can use: those your contact sync sends to Smaily, those with an order in the history window, and a customer who logs in with marketing consent.
-* New: a customer who logs in with marketing consent gets the store's visitor cookie, so the Recommendations block knows them after logout. A login no longer waits for Campaign Intelligence.
-* Improved: your store's server sets the email-click cookies, so Safari keeps them for their full lifetime.
-* Changed: an automation card shows its workflow and settings only while it is on, and an automation that is off makes no discount code.
-* Changed: a design Campaign Intelligence delivers to Smaily as a workflow is used for emails on the Smaily account it names, transactional emails included, in your store's default language. This replaces the 3.19.0 "main Smaily account" rule.
-* Privacy: erasing a customer's personal data also cancels their waiting background login sync, so it cannot send the erased customer to Campaign Intelligence again.
-* Fixed: an update from 1.x or 2.0.0 removes the old abandoned-cart table only after every unsent cart is copied.
-* Fixed: the Edit design "Back to your store" link is set only for your store's own admin address.
-* Updated to the Smaily Campaign Intelligence API contract v1.24.0.
-
 == Upgrade Notice ==
+
+= 3.23.0 =
+One product that cannot be loaded no longer stops the products import or the nightly product list. Edit design works where the browser blocks third-party cookies, such as Safari. TranslatePress stores send abandoned-cart reminders in the shopper's language.
 
 = 3.22.0 =
 Abandoned-cart reminders follow the shopper's storefront language on WPML and Polylang stores. The checkout and My Account forms get only the newsletter box. A connected Smaily account gets an installation report with no customer data.
 
 = 3.21.1 =
 Fixes a history import that could repeat itself or stop after it started when the plugin updated in the background. A connected store whose order history has not been sent in full with 3.21 starts the imports once more by itself, unless you held back or cancelled an import.
-
-= 3.21.0 =
-A store connected to Campaign Intelligence starts the imports it never finished (products, customers, orders) once after this update, unless you held them back. On legacy order storage it adds one posts-table index in the background, only where it builds online.
 
 == Screenshots ==
 

@@ -11056,6 +11056,36 @@ CON-173 (the tab). Pinned by
 `tests/Unit/REST/EmailDesignsEndpointTest.php` and
 `tests/Integration/EmailDesignsTest.php`.
 
+### Plugin Check 2.2.0 inlined-React errors accepted for 3.23.0 (Erkki, 2026-11-13)
+
+**Context:** Plugin Check 2.2.0 adds a check that reports 3 ERRORs on
+`dist/admin/admin.js`: `inlined_react`, `inlined_react_dom` and
+`inlined_react_jsx_runtime` ("the bundled copy predates React 19 and will
+likely break when WordPress upgrades to React 19"). The after-3.22.0 audit
+(#339, M1) found them; the released 3.22.0 asset gives the same three under
+2.2.0, so they are not from that delta. The gates up to 3.22.0 ran Plugin
+Check 2.1.0, which has no such check.
+**Decision:** accept the three ERRORs for 3.23.0. The release gate expects
+exactly 3 ERRORs (these three, on `dist/admin/admin.js`) and the 17 accepted
+WARNINGS; any other finding still stops the release.
+**Rationale:** the admin bundle carries its own React 18.3 (`package.json`
+`react` / `react-dom` `^18.3.1`) and takes only `wp.i18n` from WordPress
+(`admin/wizard.php` enqueues it with the single dependency `wp-i18n`;
+`admin/src/lib/i18n.ts` reads `window.wp.i18n`). It shares no component with
+WordPress's React, so a WordPress move to React 19 does not change the React
+the admin runs on — no clash today. The cost is the review signal (an ERROR
+reads as a defect to a reviewer or a merchant who runs Plugin Check) and the
+bundle size React takes from the 250 KB gzip budget.
+**Alternatives:** build the admin bundle against WordPress's React
+(`wp-element`) before 3.23.0 — rejected for this release: it needs its own
+compatibility check on the oldest supported stack (WordPress 6.6), so it is
+planned work, not a release fix.
+**Relationships:** follow-up Story CON-314 "The admin screens use WordPress's
+own React instead of bundling a copy" — when it lands, the gate expects
+0 ERRORs again. Audit report
+`docs/audits/SECURITY_CODE_QUALITY_DELTA_AUDIT_2026-11-13_AFTER_3.22.0.md`
+(M1); CLAUDE.md "Running PCP" records the expected counts.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

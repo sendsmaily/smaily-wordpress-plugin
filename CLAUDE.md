@@ -82,13 +82,19 @@ environment moves wp-env without touching `.wp-env.json`. `wp-env start`
 fails with "port is already allocated" when the port is taken — don't stop
 someone else's container; pass the same variables to every later `wp-env
 run`/`stop`. The suite does not depend on the dev port.
-**Check which checkout the running wp-env mounts** (2026-10-22): the Mac's
-running `wp-env-connect-…` containers mount the OLDER checkout path
-`/Users/erkkimarkus/Downloads/smaily/connect`, not `connect-woo` — a local
-integration run there tests that tree, not this repo, until wp-env is
-restarted from `connect-woo`. `docker inspect <cli> --format '{{range
-.Mounts}}{{.Source}} {{end}}'` shows the source. Until then, rely on CI's two
-integration legs (the 2026-10-22 PRs did).
+**Check which checkout the running wp-env mounts** (updated 2026-11-13):
+since 2026-11-13 the Mac's dev wp-env runs from `connect-woo` — containers
+`wp-env-connect-woo-5fca6546-*`, dev site on 8888, tests site on 8889, the
+plugin mounted from `/Users/erkkimarkus/Downloads/smaily/connect-woo` (the
+main checkout, never a worktree) plus the installation-report mu-plugins
+guard. The older `connect` checkout is gone (an empty directory is left);
+its six `wp-env-connect-d0898c10-*` containers are stopped, not removed — don't
+start them. A worktree's changes reach the dev site only once they are on
+the main checkout. `docker inspect <cli> --format '{{range
+.Mounts}}{{.Source}} {{end}}'` shows the source. **The dev site's stored
+engine key is refused (401)** — a walk needs a fresh SANDBOX setup token
+first (see the setup-token note below). **Plugin Check 2.2.0 is installed
+(active) on the dev site** — the PCP gate below uses it as is.
 
 **Filtered/single-test integration runs:** prefer the wrapper — it passes
 extra args through to phpunit AND keeps the PRO-1240 smly_rec_* snapshot/
@@ -897,6 +903,18 @@ Two gotchas that cost real time (2026-06-25, the pre-3.0 PCP-clean pass):
   push discipline is what made it survivable). Always unzip the ZIP to a DIFFERENT
   dir (`smaily-connect-pkg`) + pin `--slug=smaily-connect`; never target the mounted
   plugin path with destructive container commands.
+**Expected result with Plugin Check 2.2.0 (since 3.23.0, 2026-11-13):** exactly
+**3 ERRORS / 17 WARNINGS**. The three ERRORs are `inlined_react`,
+`inlined_react_dom` and `inlined_react_jsx_runtime` on `dist/admin/admin.js`
+(the admin bundle carries its own React 18.3) — accepted by Erkki for 3.23.0
+(DECISIONS "Plugin Check 2.2.0 inlined-React errors accepted for 3.23.0";
+follow-up CON-314 moves the admin onto WordPress's React, after which the
+gate expects 0 ERRORS). The 17 WARNINGs are the accepted `DirectQuery` /
+`NoCaching` / `DynamicHooknameFound` / `UnescapedDBParameter` set listed in
+the last release-gate row of `docs/audits/INDEX.md` (lines move between
+releases; compare by file and code). Any other ERROR or WARNING stops the
+release. Plugin Check 2.1.0 (the gates up to 3.22.0) had no inlined-React
+check and gave 0 ERRORS.
 The `plugin_updater_detected` finding (the `Update URI` clobber-guard, F3-35) is GONE —
 the header was removed 2026-07-23 ahead of the sendsmaily upstream merge (ships in
 v3.9.0; see DECISIONS F3-35). The `mismatched_plugin_name` note is history only: it was
@@ -1010,7 +1028,12 @@ they are no longer how the released asset is produced. Full sequence (verified
    **Run it from the repo root**: from another directory its bundle-scope step cannot load jsdom from the repo's
    `node_modules` and reports "a shipped bundle is not an IIFE or leaks
    globals" with no FAIL line above it — a false alarm (seen 2026-10-06 on the
-   3.16.1 asset; the same ZIP passed from the repo root).
+   3.16.1 asset; the same ZIP passed from the repo root). In a fresh worktree
+   run `npm ci` first, for the same reason (jsdom). Then run Plugin Check on
+   the same ZIP as "Running PCP" describes (unzip to `smaily-connect-pkg`,
+   `--slug=smaily-connect --exclude-directories=vendor`, remove the copy and
+   the copied ZIP after); with Plugin Check 2.2.0 the expected result is 3
+   ERRORS (the accepted inlined-React three) / 17 WARNINGS.
 7. **Release it — merge the bump, tag, let CI build, then publish to wordpress.org.**
    a. Land the bump commit on `main` of `sendsmaily/smaily-wordpress-plugin`
       through a PR (topic branch → PR → squash merge; see "Changes reach `main`
