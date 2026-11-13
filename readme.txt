@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.21.1
+Stable tag: 3.22.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -191,6 +191,22 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.22.0 =
+* New: on a WPML or Polylang store, an abandoned-cart reminder goes out in the storefront language of the shopper's last cart change, guests included.
+* Changed: the plugin adds only the newsletter box to the checkout and My Account forms. Phone, gender and birthday stay on the user profile in wp-admin.
+* New: while a Smaily account is connected, the plugin sends Smaily an installation report: versions, accounts, switched-on features and whether each connection works. No customer or order data.
+* New: Settings shows the installed plugin version.
+* New: on an https admin, Edit design opens the email design page in a window over the admin.
+* Improved: when a history import stops, Campaign Intelligence is told how far it got and why.
+* Improved: Import now never starts a second run of an import that is already running.
+* Improved: a product, customer or order that cannot be prepared for Campaign Intelligence fails alone, and the rest are sent. The contact import skips such a contact.
+* Fixed: a setup link for another Smaily account's Campaign Intelligence store is refused.
+* Fixed: a contact whose stored gender is Female now syncs to Smaily as Female (it was sent as Male).
+* Privacy: logs, stored errors and the admin keep only error codes, never the message text from Smaily or Campaign Intelligence, which can name a customer.
+* Privacy: the personal-data export and erasure also find the orders of the customer's account placed under an older address.
+* Developer: new action hooks `smaily_connect_smaily_api_result` and `smaily_connect_engine_api_result` after each Smaily and Campaign Intelligence answer.
+* Updated to the Smaily Campaign Intelligence API contract v1.29.0.
+
 = 3.21.1 =
 * Fixed: a history import could repeat itself or stop right after it started when the plugin updated in the background. The update now also completes in the background, without a visit to wp-admin.
 * Fixed: a connected store that ran 3.21.0 and whose order history has not been sent in full with 3.21 starts the whole sequence (products, customers, orders) once more by itself. It waits while another import runs; an import you held back or cancelled stays stopped.
@@ -213,24 +229,16 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Fixed: the Edit design "Back to your store" link is set only for your store's own admin address.
 * Updated to the Smaily Campaign Intelligence API contract v1.24.0.
 
-= 3.20.0 =
-* New: the welcome, first-order and abandoned-cart emails can each carry a single-use discount code. Pick a WooCommerce coupon and the number of days a code stays valid. Each code copies the coupon's discount and restrictions, brands included, works once and only for the shopper's email address, and reaches Smaily with its last valid day.
-* New: a shopper who still has an unused, valid code from the same automation gets that code again, not a new one. No code is made for an address that WooCommerce cannot restrict a coupon to exactly; the email goes without it.
-* New: unused codes are deleted 30 days after they expire.
-* Privacy: the personal-data export lists the codes made for an address. Erasure deletes the unused ones and removes the address from the used ones.
-* Changed: Disconnect and deleting the plugin now tell Campaign Intelligence that the connection ends. Campaign Intelligence revokes the plugin's key and, if your store has no other connection, pauses the store and keeps its data: no recommendations and none of its automated emails until you connect again with a new setup link.
-* Updated to the Smaily Campaign Intelligence API contract v1.18.0.
-
 == Upgrade Notice ==
+
+= 3.22.0 =
+Abandoned-cart reminders follow the shopper's storefront language on WPML and Polylang stores. The checkout and My Account forms get only the newsletter box. A connected Smaily account gets an installation report with no customer data.
 
 = 3.21.1 =
 Fixes a history import that could repeat itself or stop after it started when the plugin updated in the background. A connected store whose order history has not been sent in full with 3.21 starts the imports once more by itself, unless you held back or cancelled an import.
 
 = 3.21.0 =
 A store connected to Campaign Intelligence starts the imports it never finished (products, customers, orders) once after this update, unless you held them back. On legacy order storage it adds one posts-table index in the background, only where it builds online.
-
-= 3.20.0 =
-Adds single-use discount codes to the welcome, first-order and abandoned-cart emails. Disconnect and deleting the plugin now tell Campaign Intelligence that the connection ends; it pauses a store with no other connection and keeps its data. Safe update.
 
 == Screenshots ==
 
