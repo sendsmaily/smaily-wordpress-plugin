@@ -108,25 +108,80 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 		return array_map( 'intval', $ids );
 	}
 
+	/**
+	 * A product that throws while it is loaded or built here fails alone
+	 * (CON-304): its row is queued already failed, as the flusher fails a
+	 * row it cannot build (CON-302), and the import goes on. A Throwable
+	 * after a failed database query (`$wpdb->last_error` set) is a database
+	 * error, not a broken product: it is thrown on and stops the import
+	 * (PRO-3890). The queue writes run outside the catch.
+	 */
 	protected function enqueue_record( int $entity_id ): void {
+		try {
+			$rows = $this->rows_to_queue( $entity_id );
+		} catch ( \Throwable $e ) {
+			if ( $this->database_failed() ) {
+				throw $e;
+			}
+			$this->enqueue_not_built( $entity_id, $e );
+			return;
+		}
+
+		foreach ( $rows as list( $event_type, $unit_id, $payload ) ) {
+			$this->queue->enqueue( $event_type, $unit_id, $this->import_payload( $payload ) );
+		}
+	}
+
+	/**
+	 * The rows one enumerated parent post queues, as [event_type, entity_id,
+	 * payload]; none for a post this import does not send.
+	 *
+	 * @return array<int, array{0: string, 1: string, 2: array<string, mixed>}>
+	 */
+	private function rows_to_queue( int $entity_id ): array {
 		$post = $this->units_to_send( $entity_id );
 		if ( $post === null ) {
-			return;
+			return array();
 		}
 		[ $is_trashed, $units ] = $post;
 
 		if ( $units === null ) {
-			$this->enqueue_unavailable_unresolvable( $entity_id );
-			return;
+			return array( $this->unavailable_unresolvable_row( $entity_id ) );
 		}
 
+		$rows = array();
 		foreach ( $units as $unit ) {
-			if ( $is_trashed ) {
-				$this->enqueue_unavailable( $unit );
-				continue;
-			}
-			$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_UPSERT, (string) $unit->get_id(), $this->import_payload() );
+			$rows[] = $is_trashed
+				? $this->unavailable_row( $unit )
+				: array( CatalogHookHandler::EVENT_CATALOG_UPSERT, (string) $unit->get_id(), array() );
 		}
+		return $rows;
+	}
+
+	/**
+	 * Queue the post's row already failed: a catalog.delete for a trashed
+	 * post, else a catalog.upsert, with no captured object. It stores the
+	 * error type and where it was thrown, never its text (CON-301), and
+	 * `last_response {outcome: "not_built"}`. It carries the run's mark like
+	 * every import row but is never sent, so the run's sent_count leaves it
+	 * out (CON-248).
+	 */
+	private function enqueue_not_built( int $entity_id, \Throwable $e ): void {
+		$event_type = $this->post_status( $entity_id ) === 'trash'
+			? CatalogHookHandler::EVENT_CATALOG_DELETE
+			: CatalogHookHandler::EVENT_CATALOG_UPSERT;
+		$id         = $this->queue->enqueue( $event_type, (string) $entity_id, $this->import_payload() );
+		if ( $id === null ) {
+			return;
+		}
+		$this->queue->mark_failed( $id, \Smaily\Connect\Support\DebugLog::where( $e ) );
+		$this->queue->store_exchange( $id, null, (string) wp_json_encode( array( 'outcome' => 'not_built' ) ) );
+	}
+
+	/** Whether the last database query failed. */
+	private function database_failed(): bool {
+		global $wpdb;
+		return (string) ( $wpdb->last_error ?? '' ) !== '';
 	}
 
 	/**
@@ -254,28 +309,32 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	}
 
 	/**
-	 * Enqueue a trashed unit as an in_stock=false removal: capture its object now
+	 * The row of a trashed unit, an in_stock=false removal: capture its object now
 	 * (a trashed post is still loadable) and route it as catalog.delete — the
 	 * flusher stamps in_stock=false, so the engine keeps the SKU (no delete-by-key)
 	 * and the order-history join survives. ensure_valid_removal() force-fills
 	 * category_path/product_url with a sane fallback if they still come back
 	 * blank (PRO-1498) — the removal must always reach the engine, never be
 	 * silently skipped (extends F3-43's never-drop principle).
+	 *
+	 * @return array{0: string, 1: string, 2: array<string, mixed>}
 	 */
-	private function enqueue_unavailable( \WC_Product $unit ): void {
+	private function unavailable_row( \WC_Product $unit ): array {
 		$object = $this->builder->ensure_valid_removal( $this->builder->build( $unit, '' ) );
-		$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_DELETE, (string) $unit->get_id(), $this->import_payload( array( 'object' => $object ) ) );
+		return array( CatalogHookHandler::EVENT_CATALOG_DELETE, (string) $unit->get_id(), array( 'object' => $object ) );
 	}
 
 	/**
-	 * Same as enqueue_unavailable(), for a trashed product id that no longer
+	 * Same as unavailable_row(), for a trashed product id that no longer
 	 * resolves to a WC_Product at all — build a minimal tombstone from the
 	 * bare id (PRO-1498) so a previously-synced product still gets marked
 	 * unavailable.
+	 *
+	 * @return array{0: string, 1: string, 2: array<string, mixed>}
 	 */
-	private function enqueue_unavailable_unresolvable( int $product_id ): void {
+	private function unavailable_unresolvable_row( int $product_id ): array {
 		$object = $this->builder->build_unresolvable( $product_id, '' );
-		$this->queue->enqueue( CatalogHookHandler::EVENT_CATALOG_DELETE, (string) $product_id, $this->import_payload( array( 'object' => $object ) ) );
+		return array( CatalogHookHandler::EVENT_CATALOG_DELETE, (string) $product_id, array( 'object' => $object ) );
 	}
 
 	/**
