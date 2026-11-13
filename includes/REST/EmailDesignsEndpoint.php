@@ -27,10 +27,13 @@ use WP_REST_Response;
  *     { emails: [...] }; the Smaily workflow ids in it are stored for the
  *     send paths (EmailDesignWorkflows). The admin reads it when the email
  *     settings open and when the store returns from the design page.
- *   POST /rec-engine/emails/design-link  body: { email_key, return_url? }
+ *   POST /rec-engine/emails/design-link  body: { email_key, return_url?,
+ *     display? }
  *     → engine §22 { url, expires_at } plus `engine_origin` — a one-time
  *     link the admin opens at once, in a frame over the admin or in a new
- *     tab (CON-288). Never stored or logged here. `engine_origin` is the
+ *     tab (CON-288). `display` (`frame` | `tab`) is passed on as §22's
+ *     `display`: a frame link keeps its session in the page, not in a
+ *     cookie (CON-311). Never stored or logged here. `engine_origin` is the
  *     origin of the engine base URL: the admin opens only a link on it and
  *     takes the design page's messages only from it (§22 Embedding).
  *
@@ -52,6 +55,9 @@ class EmailDesignsEndpoint {
 
 	/** §17 `return_url` limit, which §22 takes over. */
 	private const RETURN_URL_MAX = 2048;
+
+	/** §22 `display` values (contract v1.31.0). */
+	private const DISPLAYS = array( 'frame', 'tab' );
 
 	private EmailDesignWorkflows $workflows;
 
@@ -92,6 +98,11 @@ class EmailDesignsEndpoint {
 						'type'     => 'string',
 						'required' => false,
 					),
+					'display'    => array(
+						'type'     => 'string',
+						'required' => false,
+						'enum'     => self::DISPLAYS,
+					),
 				),
 			)
 		);
@@ -128,6 +139,10 @@ class EmailDesignsEndpoint {
 		$language = $this->admin_language();
 		if ( $language !== '' ) {
 			$body['language'] = $language;
+		}
+		$display = (string) $request->get_param( 'display' );
+		if ( in_array( $display, self::DISPLAYS, true ) ) {
+			$body['display'] = $display;
 		}
 
 		try {

@@ -3195,9 +3195,13 @@ msgstr "Kujunduse kontroll ebaõnnestus — ava kujundus, et see parandada"
 msgid "Open in a new tab"
 msgstr "Ava uuel vahekaardil"
 
-#: admin/src/components/steps/EmailDesigns.tsx:393
-msgid "Is the design page not showing? Your browser may not allow it inside the WordPress admin. Press Open in a new tab."
-msgstr "Kas kujunduse lehte ei kuvata? Sinu brauser ei pruugi lubada seda WordPressi haldusliideses näidata. Vajuta „Ava uuel vahekaardil“."
+#: admin/src/components/steps/EmailDesigns.tsx:298
+msgid "Close without saving?"
+msgstr "Kas sulgeda salvestamata?"
+
+#: admin/src/components/steps/EmailDesigns.tsx:428
+msgid "The design page did not open."
+msgstr "Kujunduse leht ei avanenud."
 
 #: admin/src/components/steps/EmailDesigns.tsx:403
 msgid "Opening the design page…"

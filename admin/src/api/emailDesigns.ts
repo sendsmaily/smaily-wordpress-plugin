@@ -45,13 +45,20 @@ export function getEmailDesigns(signal?: AbortSignal): Promise<EmailDesignsRespo
 }
 
 /**
+ * Where the design page opens (§22 `display`): `frame` keeps its session in
+ * the page, so it works in the window over the admin where the browser
+ * blocks third-party cookies (CON-311); `tab` is a new browser tab.
+ */
+export type DesignDisplay = 'frame' | 'tab';
+
+/**
  * Ask for a one-time link to the design page of one email. `returnUrl` is
  * where the page's back button goes; the server leaves it out when the
  * engine would refuse it.
  */
-export function getDesignLink(emailKey: string, returnUrl: string): Promise<DesignLinkResponse> {
+export function getDesignLink(emailKey: string, returnUrl: string, display: DesignDisplay): Promise<DesignLinkResponse> {
   return apiRequest<DesignLinkResponse>('/rec-engine/emails/design-link', {
     method: 'POST',
-    body: { email_key: emailKey, return_url: returnUrl },
+    body: { email_key: emailKey, return_url: returnUrl, display },
   });
 }

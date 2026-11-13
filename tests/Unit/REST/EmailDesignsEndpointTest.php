@@ -196,6 +196,28 @@ final class EmailDesignsEndpointTest extends TestCase {
 		self::assertSame( array(), $client->received['body'] );
 	}
 
+	public function test_design_link_passes_on_a_frame_or_tab_display_and_nothing_else(): void {
+		foreach ( array( 'frame', 'tab' ) as $display ) {
+			$client  = $this->stub_client( array( 'url' => 'https://engine.unit/design/email/dl_1', 'expires_at' => 'x' ) );
+			$request = $this->link_request( 'plugin.welcome' );
+			$request->set_param( 'display', $display );
+
+			$this->endpoint( new FakeRecEngineSettings(), $client )->design_link( $request );
+
+			self::assertSame( $display, $client->received['body']['display'] ?? null, $display );
+		}
+
+		foreach ( array( 'popup', '' ) as $display ) {
+			$client  = $this->stub_client( array( 'url' => 'https://engine.unit/design/email/dl_1', 'expires_at' => 'x' ) );
+			$request = $this->link_request( 'plugin.welcome' );
+			$request->set_param( 'display', $display );
+
+			$this->endpoint( new FakeRecEngineSettings(), $client )->design_link( $request );
+
+			self::assertArrayNotHasKey( 'display', $client->received['body'], $display );
+		}
+	}
+
 	public function test_design_link_refuses_an_engine_answer_that_is_not_a_web_link(): void {
 		$client = $this->stub_client( array( 'url' => 'javascript:alert(1)', 'expires_at' => 'x' ) );
 
