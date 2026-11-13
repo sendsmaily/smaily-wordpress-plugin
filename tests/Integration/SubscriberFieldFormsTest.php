@@ -111,8 +111,9 @@ final class SubscriberFieldFormsTest extends TestCase {
 	 * newsletter box — whatever the contact sync's field selection holds.
 	 */
 	public function test_the_field_selection_adds_nothing_to_a_storefront_form(): void {
-		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
 		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+		// After the save: the subscribers tab writes this switch too.
+		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
 
 		// A guest: a subscribed customer is not offered the box again.
 		wp_set_current_user( 0 );
@@ -134,8 +135,8 @@ final class SubscriberFieldFormsTest extends TestCase {
 	}
 
 	public function test_with_the_newsletter_box_off_the_checkout_gets_nothing(): void {
-		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, false );
 		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, false );
 
 		self::assertSame( $this->empty_checkout(), $this->checkout_fields() );
 	}
@@ -169,8 +170,9 @@ final class SubscriberFieldFormsTest extends TestCase {
 	 * storefront form again and saved from the account details form.
 	 */
 	public function test_the_field_filter_brings_the_inputs_back_and_they_save(): void {
-		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
 		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+		// After the save: the subscribers tab writes this switch too.
+		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
 
 		$show = static function ( array $fields ): array {
 			foreach ( array( 'user_gender', 'user_phone', 'user_dob' ) as $key ) {
