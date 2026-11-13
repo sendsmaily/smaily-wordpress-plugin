@@ -518,11 +518,17 @@ the queue's `sent` rows. `Backfill\HistoryProgress` (option
 `smaily-rec-history-progress` in `Deactivation::AS_GROUPS`) reports §25 from a
 single self-re-arming action (60 s checks, a phase change at once, counts at
 most every 300 s, a failed report or a check that throws retried after 300 s —
-CON-284) and unschedules itself once the import ends. An orders import that
-ends cancelled, failed or stalled gets ONE final report with the phase it
-reached (`started` or `start_part_complete`, never `complete` — §25 has no
-"stopped" phase yet, INT-225) and its final counts, then the import ends
-(CON-284). A connection's sequence begins ONE import id; the Orders
+CON-284) and unschedules itself once the import ends. An import the engine
+has heard of that stops before `complete` gets ONE final report with the
+phase it reached (`started` or `start_part_complete`, never `complete`), its
+final counts and `stop_reason` (contract v1.28.0 §25 "Stopped import"): its
+orders part cancelled / failed / stalled → that word; its sequence ended
+before the orders part → `cancelled` when its products or customers run was
+cancelled, else `failed`. Then the import ends and nothing more is sent for
+that `import_id`. A normal report leaves `stop_reason` out; an import with no
+report in yet (Hold back) ends silently (CON-284). The mock answers `400
+validation_failed` naming `stop_reason` for a value outside the list or one
+sent with `complete`. A connection's sequence begins ONE import id; the Orders
 card's Import now begins a new one, Products/Customers Import now none.
 **Integration-test trap:** a `do_action( HistoryProgress::HOOK )` run does not
 consume the action AS has queued — the import's first check sits at +180 s

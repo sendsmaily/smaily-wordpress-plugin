@@ -10468,6 +10468,11 @@ broken record cannot be told from a database error.
 
 ### CON-284 — A stopped orders import ends with one final §25 report (2026-11-04)
 
+**Superseded in part (2026-11-13)** by "CON-284 — The final report of a
+stopped import carries `stop_reason`" below: the final report now carries
+`stop_reason`, and an import stopped before its orders part also gets one.
+The rest of this entry (the phase, the timing, the retry) stands.
+
 **Context:** When the orders part of a history import was cancelled, failed
 or stalled, `HistoryProgress` ended the import without a report, so the
 engine kept the last phase and counts it had heard — up to 5 minutes old,
@@ -10500,6 +10505,41 @@ really stopped, without a claim §25 does not allow. When INT-225 adds a
 INT-225 (the engine's "stopped" state). Pinned by
 `tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php` and
 `tests/Integration/RecEngineHistoryProgressTest.php`.
+
+### CON-284 — The final report of a stopped import carries `stop_reason` (2026-11-13)
+
+**Context:** contract v1.28.0 (INT-225) gives §25 an optional `stop_reason`
+(`cancelled`, `failed`, `stalled`) for the last progress call of an import
+that stopped before `complete` (§25 "Stopped import", Sender rule 12). The
+engine then stops waiting for that import; every later call for its
+`import_id` is `stale`. A stop with `complete`, or any other value, is a
+`400 validation_failed` naming `stop_reason`. The interim rule above sent the
+final report without saying the import stopped, and an import cancelled
+during its products or customers part sent nothing at all, so the engine
+held it at `started`.
+**Decision:** every history import the engine has heard of (at least one
+report went in) that stops before `complete` gets ONE final report with the
+phase it reached, its final counts and `stop_reason`, and nothing after it:
+- orders part cancelled → `cancelled`, failed → `failed`, stalled →
+  `stalled` (as before, the phase is `started` or `start_part_complete`);
+- the sequence ended before the orders part began: `cancelled` when the
+  products or customers run of this import was cancelled (Cancel or Hold
+  back), else `failed` (a part that could not start, ImportsOnConnect
+  forgot the sequence); the phase is `started`.
+The report waits while a row of the stopped part (order rows; catalog and
+customer rows before the orders part) queued before the stop still waits. An
+import with no report in yet (Hold back inside the hold-back window) still
+ends silently: the engine has nothing to stop, and Hold back keeps "nothing
+is sent". A normal import never sends `stop_reason`; the key is left out, not
+`null`.
+**Rationale:** the contract's own state replaces the interim workaround; the
+store's onboarding can say the import stopped and ask for a new one.
+**Alternatives:** keep silence for a pre-orders cancel (rejected: the engine
+would wait at `started` forever); send `stop_reason: null` on every report
+(rejected: no gain, and "omit" matches the contract's "optional").
+**Relationships:** CON-248, the 2026-11-04 CON-284 entry above, INT-225. The
+mock validates `stop_reason` and holds a stop as final. Pinned by
+`HistoryProgressTest` and `RecEngineHistoryProgressTest`.
 
 ### PRO-4253 — An abandoned-cart reminder goes out in the storefront language of the shopper's last cart change (2026-11-13)
 

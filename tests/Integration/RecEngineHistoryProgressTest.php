@@ -3,7 +3,8 @@
  * Integration: the §25 history progress report (CON-248) — the phases reach
  * the engine in order with the counts of rows it accepted, a failed report is
  * tried again, the import finishes whatever the report does, and a cancelled
- * orders import ends with one final report (CON-284).
+ * import ends with one final report that carries `stop_reason` (CON-284,
+ * contract v1.28.0), which the mock validates like the live engine.
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -13,13 +14,16 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportRows;
 use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
@@ -110,6 +114,9 @@ final class RecEngineHistoryProgressTest extends TestCase {
 		self::assertCount( 3, $reports );
 		$complete = $reports[2];
 		self::assertSame( 'complete', $complete['phase'] );
+		foreach ( $reports as $report ) {
+			self::assertArrayNotHasKey( 'stop_reason', $report, 'CON-284: an import that completes never says it stopped.' );
+		}
 		$window = OrderBackfillJob::decode_window( (string) $this->row( 'orders' )['cursor_value'] );
 		self::assertIsArray( $window );
 		self::assertSame( substr( $window['horizon'], 0, 10 ), $complete['horizon_start'], 'The window the orders run walked: 60 months back.' );
@@ -186,13 +193,84 @@ final class RecEngineHistoryProgressTest extends TestCase {
 		self::assertCount( 2, $reports, 'One final report after the cancel.' );
 		self::assertSame( $reports[0]['import_id'], $reports[1]['import_id'] );
 		self::assertSame( 'started', $reports[1]['phase'], 'CON-284: stopped inside the start part — never complete.' );
+		self::assertSame( 'cancelled', $reports[1]['stop_reason'], 'CON-284: §25 v1.28.0 says why it stopped.' );
+		self::assertArrayNotHasKey( 'stop_reason', $reports[0] );
 		self::assertSame( 0, $reports[1]['entities']['orders']['sent'], 'Its final count: no order was sent.' );
 		self::assertSame( 2, $reports[1]['entities']['orders']['expected'] );
+		self::assertSame( 'cancelled', self::$engine->state()['history_progress_held']['stop_reason'], 'The engine holds the import as stopped.' );
 		self::assertTrue( $this->state()['ended'] );
 		self::assertFalse( $this->check_queued(), 'The check unschedules itself.' );
 
 		do_action( HistoryProgress::HOOK );
 		self::assertCount( 2, self::$engine->history_progress_requests(), 'No second final report.' );
+	}
+
+	public function test_a_history_import_cancelled_before_its_orders_part_sends_one_final_report(): void {
+		$this->connect( 'tok_progress_cancel_products' );
+		do_action( HistoryProgress::HOOK );
+		self::assertSame( 'started', self::$engine->history_progress_requests()[0]['phase'] );
+
+		$response = RestRequestHelper::post( '/backfill/cancel', array( 'job_type' => 'products' ) );
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( array(), get_option( ImportsOnConnect::OPTION, array() ), 'The cancel ended the sequence: no orders part will start.' );
+		do_action( HistoryProgress::HOOK );
+
+		$reports = self::$engine->history_progress_requests();
+		self::assertCount( 2, $reports, 'One final report after the cancel.' );
+		self::assertSame( $reports[0]['import_id'], $reports[1]['import_id'] );
+		self::assertSame( 'started', $reports[1]['phase'] );
+		self::assertSame( 'cancelled', $reports[1]['stop_reason'] );
+		self::assertTrue( $this->state()['ended'] );
+		self::assertFalse( $this->check_queued(), 'The check unschedules itself.' );
+
+		do_action( HistoryProgress::HOOK );
+		self::assertCount( 2, self::$engine->history_progress_requests(), 'No second final report.' );
+	}
+
+	public function test_the_mock_rejects_a_stop_reason_the_live_engine_rejects_and_holds_a_stop_as_final(): void {
+		$this->connect( 'tok_progress_stop_reason' );
+		$settings = new RecEngineSettings();
+		$client   = new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 1 );
+		$body     = array(
+			'import_id'     => 'woo-stop-reason-test',
+			'phase'         => 'started',
+			'horizon_start' => '2021-11-04',
+			'entities'      => array(
+				'catalog'   => array( 'sent' => 0 ),
+				'customers' => array( 'sent' => 0 ),
+				'orders'    => array( 'sent' => 0 ),
+			),
+		);
+
+		foreach (
+			array(
+				'free text'          => array( 'stop_reason' => 'the store ran out of memory' ),
+				'with complete'      => array(
+					'phase'       => 'complete',
+					'stop_reason' => 'failed',
+				),
+				'not a known reason' => array( 'stop_reason' => 'paused' ),
+			) as $case => $patch
+		) {
+			try {
+				$client->history_progress( array_merge( $body, $patch ) );
+				self::fail( 'A 400 was expected — ' . $case );
+			} catch ( ApiException $e ) {
+				self::assertSame( 400, $e->getCode(), $case );
+				self::assertSame( 'validation_failed', $e->error_code(), $case );
+				self::assertSame( 'stop_reason', $e->details()[0]['field'] ?? null, 'The error names stop_reason — ' . $case );
+			}
+		}
+
+		$client->history_progress( $body );
+		$stopped = $client->history_progress( array_merge( $body, array( 'stop_reason' => 'stalled' ) ) );
+		self::assertFalse( $stopped['stale'] );
+		self::assertSame( 'stalled', $stopped['stop_reason'] );
+		self::assertIsString( $stopped['stopped_at'] );
+
+		$later = $client->history_progress( array_merge( $body, array( 'phase' => 'complete' ) ) );
+		self::assertTrue( $later['stale'], 'A stopped import is final.' );
+		self::assertSame( 'started', $later['phase'] );
 	}
 
 	public function test_import_now_on_the_orders_card_starts_a_new_history_import(): void {
