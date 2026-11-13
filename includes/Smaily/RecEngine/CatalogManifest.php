@@ -37,7 +37,11 @@ defined( 'ABSPATH' ) || exit;
  * `recommendable=false` comes back only with a §3 upsert. It is listed out
  * of stock from its database ids (a variable product's published and
  * private variations, else itself), a debug line names its id with the
- * error type and place, and the rest of the list is sent. A database error
+ * error type and place, and the rest of the list is sent — unless more than
+ * MAX_UNLOADABLE_PERCENT of the products the list covers (parent posts, not
+ * skus) could not be loaded: then the row is marked failed with the counts
+ * and nothing is sent, since so many failures point at a fault in the store
+ * that would send the catalog out of stock. A database error
  * while the list is built (a throw while `$wpdb->last_error` is set,
  * CON-304's rule) or a multilingual detector that throws still fails the
  * night: nothing is sent.
@@ -73,6 +77,15 @@ class CatalogManifest {
 
 	/** Contract §3c: at most this many items, in one request. */
 	public const MAX_PRODUCTS = 50000;
+
+	/**
+	 * The most products, in percent of the products the list covers, that may
+	 * be listed out of stock because they could not be loaded (CON-312). Over
+	 * it the night is not sent: so many failures point at a fault in the
+	 * store, not at broken products. The same 20% as the engine's own §3c
+	 * truncation guard on removals. Products are parent posts, not skus.
+	 */
+	public const MAX_UNLOADABLE_PERCENT = 20;
 
 	/** Store-time hour the manifest runs at. */
 	public const RUN_HOUR = 3;
@@ -258,9 +271,10 @@ class CatalogManifest {
 
 	/** The walk and the send for the night's row $id. */
 	private function build_and_send( int $id ): void {
-		$limit = $this->max_products();
+		$limit  = $this->max_products();
+		$counts = null;
 		try {
-			$products = $this->catalog->manifest_items( $limit );
+			$products = $this->catalog->manifest_items( $limit, $counts );
 		} catch ( \Throwable $e ) {
 			$this->log_skip( 'building the product list failed: ' . DebugLog::where( $e ) );
 			$this->queue->mark_failed(
@@ -301,6 +315,34 @@ class CatalogManifest {
 						'outcome' => 'skipped',
 						'reason'  => 'too_many_products',
 						'limit'   => $limit,
+					)
+				)
+			);
+			return;
+		}
+
+		if ( $counts['unloadable'] * 100 > $counts['products'] * self::MAX_UNLOADABLE_PERCENT ) {
+			$this->log_skip( sprintf( 'too many products could not be loaded: %d of %d, more than %d%%', $counts['unloadable'], $counts['products'], self::MAX_UNLOADABLE_PERCENT ) );
+			$this->queue->mark_failed(
+				$id,
+				sprintf(
+					/* translators: 1: products that could not be loaded, 2: products in the list, 3: the most that may fail to load, in percent, e.g. "20". */
+					__( 'Not sent: %1$s of %2$s products could not be loaded, more than %3$s%%. The list would have marked them all out of stock.', 'smaily-connect' ),
+					number_format_i18n( $counts['unloadable'] ),
+					number_format_i18n( $counts['products'] ),
+					self::MAX_UNLOADABLE_PERCENT
+				)
+			);
+			$this->queue->store_exchange(
+				$id,
+				null,
+				(string) wp_json_encode(
+					array(
+						'outcome'       => 'skipped',
+						'reason'        => 'too_many_unloadable',
+						'unloadable'    => $counts['unloadable'],
+						'products'      => $counts['products'],
+						'limit_percent' => self::MAX_UNLOADABLE_PERCENT,
 					)
 				)
 			);

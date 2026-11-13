@@ -467,6 +467,12 @@ msgstr ""
 msgid "Not sent: the store has more than %s products, the most the nightly product list can hold."
 msgstr ""
 
+#. translators: 1: products that could not be loaded, 2: products in the list, 3: the most that may fail to load, in percent, e.g. "20".
+#: includes/Smaily/RecEngine/CatalogManifest.php:330
+#, php-format
+msgid "Not sent: %1$s of %2$s products could not be loaded, more than %3$s%%. The list would have marked them all out of stock."
+msgstr ""
+
 #. translators: %s: the error type and where it happened, e.g. "TypeError at Client.php:210".
 #: includes/Smaily/RecEngine/CatalogManifest.php:316
 #, php-format

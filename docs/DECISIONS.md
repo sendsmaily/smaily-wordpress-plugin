@@ -10962,13 +10962,31 @@ stock. Still a failed night (nothing sent, the PRO-3987 row failed): a
 Throwable while `$wpdb->last_error` is set (CON-304's rule), a failed read in
 the fallback, and a multilingual detector that throws — without it the
 canonical sku cannot be worked out.
+**Guard (Erkki, 2026-11-13):** when more than 20% of the products the list
+covers went through that fallback, the night's list is not sent: the
+`catalog.manifest` row is marked failed with the counts in plain words, its
+stored answer is `{outcome: "skipped", reason: "too_many_unloadable",
+unloadable, products, limit_percent}`, and a debug line gives the counts. At
+or below 20% the list is sent. One constant,
+`CatalogManifest::MAX_UNLOADABLE_PERCENT` = 20 — the same figure as the
+engine's own §3c truncation guard, which removes nothing when a list would
+remove more than 20% of the live catalog. Products are counted, not skus:
+enumerated parent posts, a translation collapsed into its canonical not
+counted again; a product counts as unloadable when it went through the
+fallback (it threw, or a published one loaded as nothing). A variation that
+loads as nothing does not make its product unloadable, and a trashed
+product that loads as nothing (the PRO-1498 path) is not counted as one.
 **Rationale:** `in_stock=false` keeps the row and its `recommendable`; a
 tombstone would need a §3 upsert to undo. `in_stock=false` and not the
 `_stock_status` meta: the product's state is unknown, and out of stock is
 the side that cannot recommend a product a shopper cannot buy. One
 enumeration stays (PRO-3859): the fallback runs only for a post the import's
-own walk enumerated, and the collapse check runs again first, so a
-translation never overrides its canonical's item. The variation-children
+own walk enumerated, and the collapse check runs first, outside the
+fallback, so a translation never overrides its canonical's item. The guard:
+a few broken products are product faults, but so many failures point at a
+fault in the store (a broken plugin or filter) that would otherwise send a
+large part of the catalog out of stock — the same reasoning as the engine's
+own truncation guard, so the same figure. The variation-children
 read (and the `product_type` term read) is the only extra read: the walk
 enumerates parent posts, and a variable product's variations exist only as
 its children, so without it a broken variable product's variations would be
@@ -10977,8 +10995,8 @@ left out — and tombstoned.
 nothing is still not sent (CC.4), one that throws fails alone (CON-304). A
 variable product with one variation that throws (rather than loading as
 nothing) is listed whole from the database, all its variations out of
-stock. A fault that throws for every product (e.g. a broken stock filter)
-now sends the whole store out of stock instead of failing the night.
+stock. A fault that breaks 20% of the products or fewer still sends them
+out of stock for the night.
 **Alternatives:** (b) fail the night as before (rejected: one product stops
 the list every night); (c) read `_stock_status` for the fallback (rejected:
 the product's state is unknown); leaving the product out (rejected: the

@@ -198,13 +198,22 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 *
 	 * A product that cannot be loaded is still listed, out of stock, from its
 	 * database ids (CON-312) — see post_manifest_items(). A database error
-	 * is thrown on: the caller sends nothing then.
+	 * is thrown on: the caller sends nothing then. $counts tells the caller
+	 * how many products the list covers and how many of them could not be
+	 * loaded — products are enumerated parent posts, a translation collapsed
+	 * into its canonical not counted again; not skus.
 	 *
+	 * @param array{products: int, unloadable: int}|null $counts
+	 * @param-out array{products: int, unloadable: int} $counts
 	 * @return array<int, array{sku: string, in_stock: bool}>
 	 */
-	public function manifest_items( int $limit ): array {
-		$items = array();
-		$after = 0;
+	public function manifest_items( int $limit, ?array &$counts = null ): array {
+		$counts = array(
+			'products'   => 0,
+			'unloadable' => 0,
+		);
+		$items  = array();
+		$after  = 0;
 
 		do {
 			$ids = $this->fetch_ids_after( $after, $this->batch_size() );
@@ -214,7 +223,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 			}
 			$loaded = $ids;
 			foreach ( $ids as $entity_id ) {
-				foreach ( $this->post_manifest_items( $entity_id, $loaded ) as $item ) {
+				foreach ( $this->post_manifest_items( $entity_id, $loaded, $counts ) as $item ) {
 					$items[] = $item;
 				}
 
@@ -239,12 +248,20 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 * would be tombstoned by the engine (§3c) — `recommendable=false`, which
 	 * only a later §3 upsert recomputes. A Throwable after a failed database
 	 * query (`$wpdb->last_error` set, CON-304's rule) is thrown on: the night
-	 * is not sent.
+	 * is not sent. The collapse check runs first, outside the fallback: a
+	 * translation never lists an item that overrides its canonical's, and a
+	 * detector that throws there fails the night.
 	 *
-	 * @param int[] $loaded The batch's loaded post ids, for release_loaded_posts().
+	 * @param int[]                                 $loaded The batch's loaded post ids, for release_loaded_posts().
+	 * @param array{products: int, unloadable: int} $counts
 	 * @return array<int, array{sku: string, in_stock: bool}>
 	 */
-	private function post_manifest_items( int $entity_id, array &$loaded ): array {
+	private function post_manifest_items( int $entity_id, array &$loaded, array &$counts ): array {
+		if ( $this->is_collapsed_translation( $entity_id ) ) {
+			return array();
+		}
+		++$counts['products'];
+
 		try {
 			$items = $this->loaded_manifest_items( $entity_id, $loaded );
 			if ( $items !== null ) {
@@ -258,6 +275,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 			$why = DebugLog::where( $e );
 		}
 
+		++$counts['unloadable'];
 		self::log_listed_out_of_stock( $entity_id, $why );
 		return $this->not_loaded_items( $entity_id );
 	}
@@ -271,11 +289,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 * @return array<int, array{sku: string, in_stock: bool}>|null
 	 */
 	private function loaded_manifest_items( int $entity_id, array &$loaded ): ?array {
-		$post = $this->units_to_send( $entity_id );
-		if ( $post === null ) {
-			return array();
-		}
-		[ $is_trashed, $units ] = $post;
+		[ $is_trashed, $units ] = $this->post_units( $entity_id );
 
 		if ( $units === null ) {
 			return $is_trashed ? array( $this->builder->manifest_item_unresolvable( $entity_id ) ) : null;
@@ -301,18 +315,13 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 * children get_children() reads) when its `product_type` term is
 	 * `variable`, else the post itself. Each sku comes from
 	 * SkuResolver::resolve_id(), which needs only the id and the detector; a
-	 * detector that throws is thrown on, and the night is not sent. A
-	 * translation whose canonical is enumerated lists nothing, as in
-	 * units_to_send(), so its out-of-stock item never overrides the
-	 * canonical's. A failed database read here is thrown on too: a list
-	 * without the product's variations would tombstone them.
+	 * detector that throws is thrown on, and the night is not sent. A failed
+	 * database read here is thrown on too: a list without the product's
+	 * variations would tombstone them.
 	 *
 	 * @return array<int, array{sku: string, in_stock: bool}>
 	 */
 	private function not_loaded_items( int $entity_id ): array {
-		if ( $this->is_collapsed_translation( $entity_id ) ) {
-			return array();
-		}
 		$ids = $this->is_variable_post( $entity_id ) ? $this->variation_ids( $entity_id ) : array( $entity_id );
 		if ( $this->database_failed() ) {
 			throw new \RuntimeException( 'A database read failed while a product that cannot be loaded was listed.' );
@@ -398,10 +407,16 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 *         WooCommerce cannot load.
 	 */
 	private function units_to_send( int $entity_id ): ?array {
-		if ( $this->is_collapsed_translation( $entity_id ) ) {
-			return null;
-		}
+		return $this->is_collapsed_translation( $entity_id ) ? null : $this->post_units( $entity_id );
+	}
 
+	/**
+	 * units_to_send() for a post that is not a collapsed translation; the
+	 * manifest runs the collapse check itself first (CON-312).
+	 *
+	 * @return array{0: bool, 1: array<int, \WC_Product|null>|null}
+	 */
+	private function post_units( int $entity_id ): array {
 		// A trashed product stays in the catalog as in_stock=false (kept for the
 		// order-history join / training) instead of an upsert; a published one
 		// upserts with its real stock. Decided per parent post — every expanded

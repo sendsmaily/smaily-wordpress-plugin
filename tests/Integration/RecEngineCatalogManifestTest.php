@@ -204,7 +204,8 @@ final class RecEngineCatalogManifestTest extends TestCase {
 	 * CON-312: a product that cannot be loaded is listed out of stock from
 	 * its database ids — a simple one under its own sku, a variable one as
 	 * its variations — and the rest of the list is sent, so the engine
-	 * removes nothing.
+	 * removes nothing. Two of ten products (parent posts) is exactly the 20%
+	 * the list may hold.
 	 */
 	public function test_a_product_that_cannot_be_loaded_is_listed_out_of_stock_and_the_rest_is_sent(): void {
 		$first     = $this->simple( 'first', 'instock' );
@@ -215,6 +216,10 @@ final class RecEngineCatalogManifestTest extends TestCase {
 		$parent_id = (int) $variable->save();
 		$var_a     = $this->variation( $parent_id, 'instock' );
 		$var_b     = $this->variation( $parent_id, 'instock' );
+		$others    = array();
+		for ( $i = 1; $i <= 6; $i++ ) {
+			$others[] = $this->simple( 'other ' . $i, 'instock' );
+		}
 		$this->forget_live_events();
 		$this->run_import();
 
@@ -246,6 +251,9 @@ final class RecEngineCatalogManifestTest extends TestCase {
 			'woo-' . $var_a  => false,
 			'woo-' . $var_b  => false,
 		);
+		foreach ( $others as $other ) {
+			$expected[ 'woo-' . $other ] = true;
+		}
 		ksort( $expected );
 		self::assertSame( $expected, $manifest, 'Every product is listed; the ones that cannot be loaded out of stock, a variable one as its variations.' );
 
@@ -258,6 +266,48 @@ final class RecEngineCatalogManifestTest extends TestCase {
 		self::assertMatchesRegularExpression( '/product ' . $broken . ' could not be loaded \(RuntimeException at RecEngineCatalogManifestTest\.php:\d+\); listed out of stock/', $logged );
 		self::assertMatchesRegularExpression( '/product ' . $parent_id . ' could not be loaded \(RuntimeException at RecEngineCatalogManifestTest\.php:\d+\); listed out of stock/', $logged );
 		self::assertStringNotContainsString( 'jane@example.com', $logged, 'Never the error text (CON-301).' );
+	}
+
+	/**
+	 * CON-312: over 20% of the products could not be loaded — a fault in the
+	 * store, not broken products — so nothing is sent and the row says why.
+	 */
+	public function test_more_than_a_fifth_of_products_not_loading_sends_nothing_and_the_event_log_says_why(): void {
+		$this->simple( 'a', 'instock' );
+		$broken = $this->simple( 'b', 'instock' );
+		$this->simple( 'c', 'instock' );
+		$this->forget_live_events();
+
+		$fail = static function ( $classname, $product_type = '', $post_type = '', $product_id = 0 ) use ( $broken ) {
+			if ( (int) $product_id === $broken ) {
+				throw new \RuntimeException( 'cannot read the product of jane@example.com' );
+			}
+			return $classname;
+		};
+		add_filter( 'woocommerce_product_class', $fail, 10, 4 );
+		try {
+			do_action( CatalogManifest::HOOK );
+		} finally {
+			remove_filter( 'woocommerce_product_class', $fail, 10 );
+		}
+
+		self::assertArrayNotHasKey( 'manifest_count', self::$engine->state(), 'No list was sent.' );
+		$rows = $this->manifest_rows();
+		self::assertCount( 1, $rows );
+		self::assertSame( 'failed', $rows[0]['status'] );
+		self::assertSame( 'Not sent: 1 of 3 products could not be loaded, more than 20%. The list would have marked them all out of stock.', $rows[0]['last_error'] );
+		$detail = $this->detail( (int) $rows[0]['id'] );
+		self::assertSame(
+			array(
+				'outcome'       => 'skipped',
+				'reason'        => 'too_many_unloadable',
+				'unloadable'    => 1,
+				'products'      => 3,
+				'limit_percent' => 20,
+			),
+			json_decode( $detail['last_response'], true )
+		);
+		self::assertStringNotContainsString( 'jane@', $rows[0]['last_error'] . $detail['last_response'] );
 	}
 
 	/**

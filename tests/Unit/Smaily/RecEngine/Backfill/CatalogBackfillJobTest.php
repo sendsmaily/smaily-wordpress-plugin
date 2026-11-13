@@ -298,6 +298,41 @@ final class CatalogBackfillJobTest extends TestCase {
 		);
 	}
 
+	public function test_manifest_counts_products_and_the_ones_that_could_not_be_loaded(): void {
+		// Products are parent posts, not skus: a variable product that throws
+		// counts once however many variations it lists. A collapsed
+		// translation is not counted; a variation that loads as nothing does
+		// not make its product unloadable.
+		Functions\when( '_prime_post_caches' )->justReturn( null );
+		Functions\when( 'wp_cache_supports' )->justReturn( true );
+		Functions\when( 'wp_cache_flush_runtime' )->justReturn( true );
+		$job = $this->job(
+			$this->fake_queue(),
+			array(
+				1 => $this->fake_product( 1, '' ),
+				2 => new \TypeError( 'bad' ),
+			),
+			array(),
+			array(
+				'ids'        => array( 1, 2, 3, 4 ),
+				'canonical'  => array( 4 => 1 ),
+				'enumerated' => array( 1 ),
+				'variations' => array( 2 => array( 21, 22, 23 ) ),
+			)
+		);
+
+		$items = $job->manifest_items( 50000, $counts );
+
+		self::assertCount( 5, $items, 'woo-1, three variations of 2, woo-3.' );
+		self::assertSame(
+			array(
+				'products'   => 3,
+				'unloadable' => 2,
+			),
+			$counts
+		);
+	}
+
 	public function test_manifest_lists_a_published_product_that_loads_as_nothing_out_of_stock(): void {
 		// The CC.4 gap: wc_get_product() returns false, nothing throws. The
 		// import still sends nothing for it; the manifest no longer leaves it out.
