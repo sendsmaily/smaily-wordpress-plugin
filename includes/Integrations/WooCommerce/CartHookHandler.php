@@ -11,6 +11,10 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Multilingual\DetectorFactory;
+use Smaily\Connect\Multilingual\DetectorInterface;
+use Smaily\Connect\Multilingual\SiteLocaleAdapter;
+use Smaily\Connect\Multilingual\TranslatePressAdapter;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\CartSessionStore;
 
@@ -24,7 +28,8 @@ use Smaily\Connect\Smaily\CartSessionStore;
  *   - every cart change (`woocommerce_cart_updated`) upserts one row per WC
  *     session (`cart_token` = the session customer id — the user id for
  *     logged-in customers, an opaque hash for GUESTS), with our own minimal
- *     item shape [{product_id, variation_id, quantity}];
+ *     item shape [{product_id, variation_id, quantity}], and the storefront
+ *     language the change was made on (PRO-4253 — see storefront_language());
  *   - an email identity as soon as one is known: the logged-in user, a
  *     session-persisted billing email, or a checkout-entered email (classic
  *     `woocommerce_checkout_update_order_review` POST / the Store API
@@ -49,8 +54,12 @@ class CartHookHandler {
 
 	private CartSessionStore $store;
 
-	public function __construct( CartSessionStore $store ) {
-		$this->store = $store;
+	/** Null: the active multilingual plugin's detector, asked at capture time. */
+	private ?DetectorInterface $detector;
+
+	public function __construct( CartSessionStore $store, ?DetectorInterface $detector = null ) {
+		$this->store    = $store;
+		$this->detector = $detector;
 	}
 
 	/** Reset the per-request guard — tests only. */
@@ -109,7 +118,9 @@ class CartHookHandler {
 			$identity['email'],
 			$identity['first_name'],
 			$identity['last_name'],
-			$items
+			$items,
+			null,
+			$this->storefront_language()
 		);
 
 		// A login migrates the guest cart onto a new session token; drop any
@@ -281,6 +292,27 @@ class CartHookHandler {
 		}
 
 		return $identity;
+	}
+
+	/**
+	 * The language of the storefront this cart change is made on, as the
+	 * store's multilingual plugin reports it for this request (PRO-4253) —
+	 * the reminder is prepared later, in a scheduled run that cannot know it.
+	 * Read once per tracked change, on the shopper's own request; the
+	 * ContactLanguageResolver normalises and clamps it at send time.
+	 *
+	 * '' (record nothing) when no multilingual plugin can tell: on a
+	 * single-language store the "current language" is the site locale, which
+	 * is never a contact language source (F3-47), and the TranslatePress
+	 * adapter reports the store's default language, not the shopper's.
+	 */
+	private function storefront_language(): string {
+		$detector = $this->detector ?? DetectorFactory::create();
+		if ( $detector instanceof SiteLocaleAdapter || $detector instanceof TranslatePressAdapter ) {
+			return '';
+		}
+
+		return trim( $detector->get_current_language() );
 	}
 
 	/**

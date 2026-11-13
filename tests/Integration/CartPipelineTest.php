@@ -11,6 +11,9 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CartHookHandler;
+use Smaily\Connect\Multilingual\DetectorFactory;
+use Smaily\Connect\Multilingual\DetectorInterface;
+use Smaily\Connect\Multilingual\Router;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
@@ -36,6 +39,9 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
  *     needs zero reconfiguration.
  *   - F3-37 backlog guard: a row older than the reminder window is expired
  *     without emailing; nothing is enqueued for it.
+ *   - STOREFRONT LANGUAGE (PRO-4253): a guest cart changed on a non-default
+ *     storefront is reminded in that language, through that language's
+ *     workflow.
  *
  * The Smaily API is mocked at the pre_http_request seam (the established
  * pattern for the contact/autoresponder API) — no live traffic.
@@ -50,6 +56,9 @@ final class CartPipelineTest extends TestCase {
 
 	/** @var array<int, int> */
 	private array $created_products = array();
+
+	/** The language the stand-in multilingual plugin reports for the request. */
+	private string $storefront_language = '';
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -92,6 +101,10 @@ final class CartPipelineTest extends TestCase {
 		}
 		$this->created_products = array();
 		$this->created_users    = array();
+
+		delete_option( Router::OPTION_MODE );
+		DetectorFactory::reset();
+		$this->forget_cart_sweeper();
 
 		// Drop any Smaily client cached from this test's seeded credentials.
 		$bootstrap = \Smaily\Connect\Bootstrap::instance();
@@ -352,6 +365,52 @@ final class CartPipelineTest extends TestCase {
 		self::assertSame( 'Maasikas', $captured['addresses'][0]['last_name'] );
 	}
 
+	/**
+	 * PRO-4253: the reminder is prepared in a scheduled run, where the
+	 * shopper's storefront is gone — the cart change recorded it. The guest
+	 * switches from the default `et` storefront to `lt` before leaving; the
+	 * reminder goes out in `lt`, through the `lt` workflow (mode B).
+	 */
+	public function test_a_guest_cart_is_reminded_in_the_storefront_language_it_was_last_changed_on(): void {
+		$this->seed_credentials();
+		$this->et_lt_store();
+		update_option( Router::OPTION_MODE, Router::MODE_B );
+		$this->map_language_workflow( 'et', '6161', 1 );
+		$this->map_language_workflow( 'lt', '6262', 0 );
+
+		wp_set_current_user( 0 );
+		$product_id = $this->make_product( 'Storefront Product', 5.00 );
+		$this->boot_wc_cart();
+		WC()->cart->add_to_cart( $product_id, 1 );
+
+		$handler = new CartHookHandler( new CartSessionStore() );
+		$this->storefront_language = 'et';
+		$handler->on_cart_updated();
+		CartHookHandler::reset_request_guard();
+		$this->storefront_language = 'lt';
+		$handler->on_cart_updated();
+
+		// A request where the plugin reports no language keeps `lt`.
+		CartHookHandler::reset_request_guard();
+		$this->storefront_language = '';
+		$handler->on_cart_updated();
+
+		$content = CartSessionStore::decode_content( (string) $this->tracker_row()['cart_content'] );
+		self::assertIsArray( $content );
+		self::assertSame( 'lt', $content['language'], 'The cart records the storefront language of its last change.' );
+
+		$handler->on_checkout_update_order_review( 'billing_email=storefront-cart%40example.test' );
+		$this->rewind_tracker_row( (int) $this->tracker_row()['id'], 30 * MINUTE_IN_SECONDS );
+		$this->forget_cart_sweeper();
+		do_action( 'smly_plus_abandoned_cart' );
+		self::assertSame( 1, $this->queue_count() );
+
+		$captured = $this->flush_capturing();
+		self::assertIsArray( $captured, 'The reminder must reach the transport.' );
+		self::assertSame( '6262', (string) $captured['autoresponder'], 'The storefront language picks its own workflow, not the default one.' );
+		self::assertSame( 'lt', $captured['addresses'][0]['language'] );
+	}
+
 	public function test_legacy_autoresponder_id_carries_over_as_the_fallback(): void {
 		// Upgrade continuity (F3-54 order): no mapping row — the id the
 		// upgraded store still has in the legacy option drives the send.
@@ -589,6 +648,47 @@ final class CartPipelineTest extends TestCase {
 			)
 		);
 		self::assertSame( 200, $response->get_status() );
+	}
+
+	/**
+	 * Stands in for a multilingual plugin: an `et` store that also sells in
+	 * `lt`, whose current language is $this->storefront_language. tearDown()
+	 * puts the real detector back.
+	 */
+	private function et_lt_store(): void {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_default_language' )->willReturn( 'et' );
+		$detector->method( 'get_detected_languages' )->willReturn( array( 'et', 'lt' ) );
+		$detector->method( 'get_current_language' )->willReturnCallback( fn (): string => $this->storefront_language );
+
+		$cached = new \ReflectionProperty( DetectorFactory::class, 'cached' );
+		$cached->setAccessible( true );
+		$cached->setValue( null, $detector );
+	}
+
+	/**
+	 * The sweeper's payload builder keeps the language resolver (and with it
+	 * the detector) it made first; drop it so the next sweep asks again.
+	 */
+	private function forget_cart_sweeper(): void {
+		$prop = new \ReflectionProperty( \Smaily\Connect\Bootstrap::instance(), 'cart_sweeper' );
+		$prop->setAccessible( true );
+		$prop->setValue( \Smaily\Connect\Bootstrap::instance(), null );
+	}
+
+	private function map_language_workflow( string $language, string $workflow_id, int $is_default_fallback ): void {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$wpdb->insert(
+			$wpdb->prefix . Router::TABLE_SUFFIX,
+			array(
+				'trigger_type'        => 'abandoned_cart',
+				'language'            => $language,
+				'account_key'         => 'default',
+				'workflow_id'         => $workflow_id,
+				'is_default_fallback' => $is_default_fallback,
+			)
+		);
 	}
 
 	private function seed_credentials(): void {

@@ -47,8 +47,9 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *     deserialized WC object — product details are fetched fresh via
  *     wc_get_product() at build time (same as legacy);
  *   - language comes ONLY from ContactLanguageResolver (`for_user` for a
- *     known user, `for_guest` otherwise) and is OMITTED when unresolved —
- *     F3-47 rules (absent preserves, '' wipes);
+ *     known user, `for_guest` otherwise), which takes the storefront
+ *     language the cart recorded first (PRO-4253), and is OMITTED when
+ *     unresolved — F3-47 rules (absent preserves, '' wipes);
  *   - guests are supported: names fall back to the checkout-captured
  *     columns when there is no WP user.
  *
@@ -123,8 +124,8 @@ class CartPayloadBuilder {
 		}
 
 		$language = $user instanceof \WP_User
-			? $this->resolver()->for_user( $user )
-			: $this->resolver()->for_guest();
+			? $this->resolver()->for_user( $user, $content['language'] )
+			: $this->resolver()->for_guest( $content['language'] );
 
 		$fields = $this->contact_fields( $row, $user, $sync_fields, $language )
 			+ $this->product_fields( $items );

@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- exception messages are captured to the Event Log / returned to admin-only read models, never echoed to a browser; output-escaping does not apply.
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\Report\ConnectionHealth;
 
 /**
  * Thin HTTP wrapper around https://{subdomain}.sendsmaily.net/api/*.
@@ -361,6 +362,7 @@ class Client {
 		// text: the transport's or Smaily's can name the contact (CON-301).
 		if ( is_wp_error( $response ) ) {
 			$this->last_exchange['response'] = array( 'error' => $response->get_error_code() );
+			$this->announce_result( RefusalReason::UNREACHABLE, $method );
 			throw new ApiException(
 				'Smaily HTTP transport error: ' . $response->get_error_code(),
 				0
@@ -383,7 +385,7 @@ class Client {
 				? (int) $body['code']
 				: null;
 
-			throw new ApiException(
+			$exception = new ApiException(
 				sprintf(
 					'Smaily API returned HTTP %d for %s %s%s',
 					$code,
@@ -395,9 +397,23 @@ class Client {
 				$this->retry_after_seconds( $response ),
 				$smaily_code
 			);
+			$this->announce_result( RefusalReason::classify( $exception ), $method );
+			throw $exception;
 		}
 
+		$this->announce_result( '', $method );
+
 		return $body;
+	}
+
+	/**
+	 * Tell the installation report how this account's request went (CON-290,
+	 * Report\ConnectionHealth): '' or the RefusalReason code, and whether it
+	 * was a POST — every POST this client makes writes data. The subdomain
+	 * and a code only, never a credential or a message text.
+	 */
+	private function announce_result( string $error_code, string $method ): void {
+		do_action( ConnectionHealth::SMAILY_HOOK, $this->subdomain, $error_code, $method === 'POST' );
 	}
 
 	/**

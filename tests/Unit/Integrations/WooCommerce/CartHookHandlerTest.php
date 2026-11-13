@@ -13,6 +13,9 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CartHookHandler;
+use Smaily\Connect\Multilingual\DetectorInterface;
+use Smaily\Connect\Multilingual\SiteLocaleAdapter;
+use Smaily\Connect\Multilingual\TranslatePressAdapter;
 use Smaily\Connect\Smaily\CartSessionStore;
 
 require_once dirname( __DIR__, 4 ) . '/includes/smaily-options.class.php';
@@ -242,6 +245,52 @@ final class CartHookHandlerTest extends TestCase {
 		self::assertSame( array( 'buyer@example.test' ), $this->store->deleted_emails );
 	}
 
+	/**
+	 * PRO-4253: every tracked cart change carries the storefront language the
+	 * multilingual plugin reports for the shopper's request — a guest's too.
+	 */
+	public function test_cart_change_records_the_storefront_language(): void {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_current_language' )->willReturn( 'lt' );
+
+		$this->handler( 'guest-token', $this->cart( array( array( 'product_id' => 5, 'quantity' => 1 ) ) ), $detector )->on_cart_updated();
+
+		self::assertSame( 'lt', $this->store->upserts[0]['language'] );
+	}
+
+	public function test_a_later_change_on_another_storefront_records_that_language(): void {
+		$language = 'lt';
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_current_language' )->willReturnCallback(
+			static function () use ( &$language ): string {
+				return $language;
+			}
+		);
+		$handler = $this->handler( 'guest-token', $this->cart( array( array( 'product_id' => 5, 'quantity' => 1 ) ) ), $detector );
+
+		$handler->on_cart_updated();
+		CartHookHandler::reset_request_guard();
+		$language = 'et';
+		$handler->on_cart_updated();
+
+		self::assertSame( array( 'lt', 'et' ), array_column( $this->store->upserts, 'language' ) );
+	}
+
+	public function test_no_language_is_recorded_without_a_multilingual_plugin(): void {
+		// The site-locale fallback's "current language" is get_locale() —
+		// never a contact language source (F3-47).
+		$this->handler( 'tok', $this->cart( array( array( 'product_id' => 5, 'quantity' => 1 ) ) ), new SiteLocaleAdapter() )->on_cart_updated();
+
+		self::assertSame( '', $this->store->upserts[0]['language'] );
+	}
+
+	public function test_no_language_is_recorded_on_translatepress(): void {
+		// Its adapter reports the store default, not the shopper's language.
+		$this->handler( 'tok', $this->cart( array( array( 'product_id' => 5, 'quantity' => 1 ) ) ), new TranslatePressAdapter() )->on_cart_updated();
+
+		self::assertSame( '', $this->store->upserts[0]['language'] );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	private function stub_gates( bool $setup_completed, bool $enabled ): void {
@@ -262,19 +311,25 @@ final class CartHookHandlerTest extends TestCase {
 	}
 
 	/**
-	 * Handler with the WC seams stubbed: fixed session token + cart double.
+	 * Handler with the WC seams stubbed: fixed session token + cart double,
+	 * and a detector that knows no storefront language unless one is given.
 	 *
 	 * @param object|null $cart
 	 */
-	private function handler( string $token, $cart ): CartHookHandler {
-		return new class( $this->store, $token, $cart ) extends CartHookHandler {
+	private function handler( string $token, $cart, ?DetectorInterface $detector = null ): CartHookHandler {
+		if ( $detector === null ) {
+			$detector = $this->createMock( DetectorInterface::class );
+			$detector->method( 'get_current_language' )->willReturn( '' );
+		}
+
+		return new class( $this->store, $token, $cart, $detector ) extends CartHookHandler {
 			private string $token;
 
 			/** @var object|null */
 			private $cart;
 
-			public function __construct( CartSessionStore $store, string $token, $cart ) {
-				parent::__construct( $store );
+			public function __construct( CartSessionStore $store, string $token, $cart, DetectorInterface $detector ) {
+				parent::__construct( $store, $detector );
 				$this->token = $token;
 				$this->cart  = $cart;
 			}
@@ -341,8 +396,8 @@ final class CartHookHandlerTest extends TestCase {
 			/** @var array<int, array{0: string, 1: string}> */
 			public array $email_cleanups = array();
 
-			public function upsert( string $cart_token, int $user_id, string $email, string $first_name, string $last_name, array $items, ?string $cart_updated = null ): bool {
-				$this->upserts[] = compact( 'cart_token', 'user_id', 'email', 'first_name', 'last_name', 'items', 'cart_updated' );
+			public function upsert( string $cart_token, int $user_id, string $email, string $first_name, string $last_name, array $items, ?string $cart_updated = null, string $language = '' ): bool {
+				$this->upserts[] = compact( 'cart_token', 'user_id', 'email', 'first_name', 'last_name', 'items', 'cart_updated', 'language' );
 				return true;
 			}
 

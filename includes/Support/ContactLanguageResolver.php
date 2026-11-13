@@ -36,7 +36,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * Context-independent by construction (no ICL_LANGUAGE_CODE /
  * pll_current_language reads), so it returns the same answer in a cron tick
- * as in an HTTP request — the property the legacy helper lacked.
+ * as in an HTTP request — the property the legacy helper lacked. An
+ * abandoned-cart reminder passes in the storefront language the cart
+ * recorded when the shopper changed it (PRO-4253) — a value read and stored
+ * on that storefront request, not here — and it comes first.
  *
  * Empty-value policy mirrors SubscriberPayloadBuilder: when no language can be
  * determined the resolver returns '' and the CALLER omits the field. Smaily
@@ -89,13 +92,20 @@ final class ContactLanguageResolver {
 	/**
 	 * Resolve the language code for a WP user (contact sync, automations).
 	 *
-	 * Priority: `_user_preferred_language` → most-recent order's
+	 * Priority: the cart's storefront language (abandoned-cart reminder
+	 * only, PRO-4253) → `_user_preferred_language` → most-recent order's
 	 * `wpml_language` → multilingual default → site locale.
+	 *
+	 * @param string $storefront_language The language the cart recorded, '' when none.
 	 */
-	public function for_user( \WP_User $user ): string {
+	public function for_user( \WP_User $user, string $storefront_language = '' ): string {
 		$user_id = (int) $user->ID;
 
-		$language = $this->from_user_meta( $user_id );
+		$language = $this->normalize( $storefront_language );
+
+		if ( $language === '' ) {
+			$language = $this->from_user_meta( $user_id );
+		}
 
 		if ( $language === '' ) {
 			$language = $this->normalize( (string) ( $this->order_language_provider )( $user_id ) );
@@ -135,12 +145,21 @@ final class ContactLanguageResolver {
 	/**
 	 * Resolve the language code for a contact we know only by email (a GUEST
 	 * abandoned cart, PRO-1195): no user meta and no order exists yet, so the
-	 * chain starts at the multilingual default → site-locale short code. Kept
-	 * on the resolver so guest sends obey the same F3-47 rules as every other
-	 * contact path (context-independent, clamped, omit-on-empty by the caller).
+	 * chain is the storefront language the cart recorded (PRO-4253) → the
+	 * multilingual default → site-locale short code. Kept on the resolver so
+	 * guest sends obey the same F3-47 rules as every other contact path
+	 * (context-independent, clamped, omit-on-empty by the caller).
+	 *
+	 * @param string $storefront_language The language the cart recorded, '' when none.
 	 */
-	public function for_guest(): string {
-		return $this->filtered( $this->clamp_to_active( $this->default_language() ), null );
+	public function for_guest( string $storefront_language = '' ): string {
+		$language = $this->normalize( $storefront_language );
+
+		if ( $language === '' ) {
+			$language = $this->default_language();
+		}
+
+		return $this->filtered( $this->clamp_to_active( $language ), null );
 	}
 
 	/**

@@ -518,11 +518,17 @@ the queue's `sent` rows. `Backfill\HistoryProgress` (option
 `smaily-rec-history-progress` in `Deactivation::AS_GROUPS`) reports §25 from a
 single self-re-arming action (60 s checks, a phase change at once, counts at
 most every 300 s, a failed report or a check that throws retried after 300 s —
-CON-284) and unschedules itself once the import ends. An orders import that
-ends cancelled, failed or stalled gets ONE final report with the phase it
-reached (`started` or `start_part_complete`, never `complete` — §25 has no
-"stopped" phase yet, INT-225) and its final counts, then the import ends
-(CON-284). A connection's sequence begins ONE import id; the Orders
+CON-284) and unschedules itself once the import ends. An import the engine
+has heard of that stops before `complete` gets ONE final report with the
+phase it reached (`started` or `start_part_complete`, never `complete`), its
+final counts and `stop_reason` (contract v1.28.0 §25 "Stopped import"): its
+orders part cancelled / failed / stalled → that word; its sequence ended
+before the orders part → `cancelled` when its products or customers run was
+cancelled, else `failed`. Then the import ends and nothing more is sent for
+that `import_id`. A normal report leaves `stop_reason` out; an import with no
+report in yet (Hold back) ends silently (CON-284). The mock answers `400
+validation_failed` naming `stop_reason` for a value outside the list or one
+sent with `complete`. A connection's sequence begins ONE import id; the Orders
 card's Import now begins a new one, Products/Customers Import now none.
 **Integration-test trap:** a `do_action( HistoryProgress::HOOK )` run does not
 consume the action AS has queued — the import's first check sits at +180 s
@@ -633,7 +639,15 @@ code; normalised to the short form (`en_US`→`en`). The scar it routes around
 (Prike, F3-47): the legacy cron's `Helper::get_current_language_code()` falls
 back to `get_locale()` in cron = the WP **site** locale (`en`), which on an
 `et`-content store with an `en` WP locale clobbered ~1000 contacts to `en`
-daily. **Two rules:** (1) a NEW datetime-style sin — never reintroduce a raw
+daily. **Abandoned-cart reminders have one more source, FIRST (PRO-4253):**
+the storefront language the cart recorded — `CartHookHandler::on_cart_updated()`
+reads the multilingual plugin's current language through the detector on the
+shopper's own request (nothing on the site-locale fallback or TranslatePress)
+and stores it in `cart_content` (`CartSessionStore::encode_content()`, beside
+the CON-196 tick); `CartPayloadBuilder` passes it to `for_user()` /
+`for_guest()`, where it is normalised, clamped and filtered like any other
+source. The resolver itself still reads nothing from the request — the
+language reaches it as data. **Two rules:** (1) a NEW datetime-style sin — never reintroduce a raw
 `get_user_locale()`/`get_locale()` language source on the contact path; route it
 through the resolver. (2) **Omit `language` when the resolver returns `''`** —
 Smaily treats absent as "leave existing intact", empty as "wipe"; the
@@ -1583,6 +1597,43 @@ Rows stored before CON-301 keep their old text until the janitor prunes them.
 Pinned per store by a test that puts an address in the remote message and
 asserts it is absent (DECISIONS "CON-301").
 
+### The installation report goes to subscription.smaily.com — tests and dev sites NEVER reach it (CON-290)
+`Report\InstallationReport` POSTs contract installation-report-v1 (private
+repo `erkkimarkus/subscription`, docs/contracts/installation-report-v1.md) to
+`InstallationReport::ENDPOINT` — the one place the URL is written — with the
+MAIN Smaily account's API user and password as Basic auth (header only). It
+says which site, versions, Smaily accounts and features, each connection's
+health as an error CODE and the last sync time; never customer, admin or
+order data, never the engine key. Rules:
+- **Only while a Smaily marketing account is connected** (guideline 7):
+  `ReportBuilder::main_credentials()` null ⇒ nothing is scheduled or sent; a
+  Transactional account alone never counts.
+- **Snapshots only from Action Scheduler**: hook
+  `smly_plus_installation_report` (args `[trigger, attempt]`), group
+  `smaily-connect-installation-report` (in `Deactivation::AS_GROUPS`). A
+  settings save (`SettingsEndpoint`) or a Campaign Intelligence connect
+  schedules `setup_saved` 5 min on (debounced, pending-only check); the
+  daily one is armed by the hourly `register_action_scheduler_jobs` pass and
+  re-set after each attempt. Retries only for 429/5xx/timeout/network.
+- **Events inline, once, never thrown**: `disconnected` BEFORE a credential
+  or key is deleted (`RecEngineEndpoint::disconnect()`, and
+  `SettingsEndpoint` when a save clears a connected language or Transactional
+  account), `deactivated` first in `Deactivation::run()`. A new place that
+  deletes Smaily credentials sends `disconnected` first.
+- **Health**: `Smaily\Client::request()` and `RecEngine\Client::request_url()`
+  fire `ConnectionHealth::SMAILY_HOOK` / `ENGINE_HOOK` with a code only;
+  `ConnectionHealth` stores them in `smly_plus_connection_health` (in
+  EnvScrub's flush list).
+- **Never contact the live receiver from a test or a dev site — a report
+  there creates a real record.** `.wp-env.json` / `.wp-env.min.json` mount
+  `tests/Integration/Fixtures/mu-plugins` as `wp-content/mu-plugins`; its
+  guard answers every un-intercepted request to `subscription.smaily.com`
+  with a WP_Error in every wp-env process (suite, WP-Cron, AS runner), and the
+  integration bootstrap loads it too. A running env started before that
+  mapping needs `wp-env start --update`. Tests answer report requests on
+  `pre_http_request` (priority below `PHP_INT_MAX`); unit tests stub
+  `wp_remote_post`. No walk against the receiver.
+
 ### Delete orders via wc_get_order()->delete(true) — wp_delete_post is an HPOS no-op (2026-07-07 flake)
 Any test/walk/script that creates a WC order MUST clean it up with
 `wc_get_order( $id )->delete( true )`. `wp_delete_post( $order_id, true )` does
@@ -1966,8 +2017,9 @@ repo: a red staleness run is the signal to sync.
   flushes the cart queue must answer that GET — in the default consent mode a
   reminder to an unknown address is skipped. Pass
   `PipelineFixture::subscribed_contact_read()` to `PipelineFixture::flush()`.
-  The classic checkout's newsletter tick lives in the tracker's `cart_content`
-  (`CartSessionStore::encode_content()`/`decode_content()` — read it only
+  The classic checkout's newsletter tick — and the storefront language
+  (PRO-4253) — live in the tracker's `cart_content`
+  (`CartSessionStore::encode_content()`/`decode_content()` — read them only
   through those).
 
 ---

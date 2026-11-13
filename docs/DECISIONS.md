@@ -10472,6 +10472,11 @@ broken record cannot be told from a database error.
 
 ### CON-284 — A stopped orders import ends with one final §25 report (2026-11-04)
 
+**Superseded in part (2026-11-13)** by "CON-284 — The final report of a
+stopped import carries `stop_reason`" below: the final report now carries
+`stop_reason`, and an import stopped before its orders part also gets one.
+The rest of this entry (the phase, the timing, the retry) stands.
+
 **Context:** When the orders part of a history import was cancelled, failed
 or stalled, `HistoryProgress` ended the import without a report, so the
 engine kept the last phase and counts it had heard — up to 5 minutes old,
@@ -10504,6 +10509,146 @@ really stopped, without a claim §25 does not allow. When INT-225 adds a
 INT-225 (the engine's "stopped" state). Pinned by
 `tests/Unit/Smaily/RecEngine/Backfill/HistoryProgressTest.php` and
 `tests/Integration/RecEngineHistoryProgressTest.php`.
+
+### CON-284 — The final report of a stopped import carries `stop_reason` (2026-11-13)
+
+**Context:** contract v1.28.0 (INT-225) gives §25 an optional `stop_reason`
+(`cancelled`, `failed`, `stalled`) for the last progress call of an import
+that stopped before `complete` (§25 "Stopped import", Sender rule 12). The
+engine then stops waiting for that import; every later call for its
+`import_id` is `stale`. A stop with `complete`, or any other value, is a
+`400 validation_failed` naming `stop_reason`. The interim rule above sent the
+final report without saying the import stopped, and an import cancelled
+during its products or customers part sent nothing at all, so the engine
+held it at `started`.
+**Decision:** every history import the engine has heard of (at least one
+report went in) that stops before `complete` gets ONE final report with the
+phase it reached, its final counts and `stop_reason`, and nothing after it:
+- orders part cancelled → `cancelled`, failed → `failed`, stalled →
+  `stalled` (as before, the phase is `started` or `start_part_complete`);
+- the sequence ended before the orders part began: `cancelled` when the
+  products or customers run of this import was cancelled (Cancel or Hold
+  back), else `failed` (a part that could not start, ImportsOnConnect
+  forgot the sequence); the phase is `started`.
+The report waits while a row of the stopped part (order rows; catalog and
+customer rows before the orders part) queued before the stop still waits. An
+import with no report in yet (Hold back inside the hold-back window) still
+ends silently: the engine has nothing to stop, and Hold back keeps "nothing
+is sent". A normal import never sends `stop_reason`; the key is left out, not
+`null`.
+**Rationale:** the contract's own state replaces the interim workaround; the
+store's onboarding can say the import stopped and ask for a new one.
+**Alternatives:** keep silence for a pre-orders cancel (rejected: the engine
+would wait at `started` forever); send `stop_reason: null` on every report
+(rejected: no gain, and "omit" matches the contract's "optional").
+**Relationships:** CON-248, the 2026-11-04 CON-284 entry above, INT-225. The
+mock validates `stop_reason` and holds a stop as final. Pinned by
+`HistoryProgressTest` and `RecEngineHistoryProgressTest`.
+
+### PRO-4253 — An abandoned-cart reminder goes out in the storefront language of the shopper's last cart change (2026-11-13)
+
+**Context:** A multilingual store with one Smaily workflow per language saw
+every guest reminder go out in the default language. The reminder is built
+in the scheduled sweep, where the shopper's storefront is gone, and
+`ContactLanguageResolver` is context-independent on purpose (F3-47): a guest
+has no stored preference and no order, so it always fell to the default. A
+registered shopper got their stored preference, whichever storefront the
+cart was on.
+**Decision (Erkki, 2026-11-13):**
+- Every tracked cart change (`CartHookHandler::on_cart_updated()`, guests
+  and registered shoppers) records the current language the store's
+  multilingual plugin reports for that request, read through the generic
+  detector (`DetectorFactory`). A change where no language is known keeps
+  the recorded one; a change on another storefront replaces it.
+- It is stored inside `cart_content` (`CartSessionStore::encode_content()` /
+  `decode_content()`, beside the CON-196 newsletter tick) — no column, no
+  migration. A cart saved before this reads with no language.
+- `for_user()` / `for_guest()` take it as their first source; normalisation,
+  the clamp to the active languages and the `smaily_connect_contact_language`
+  filter apply as before, and with no recorded language the old order is
+  unchanged. The resolver still reads nothing from the request.
+- Nothing is recorded on the site-locale fallback (its "current language" is
+  `get_locale()`, never a contact language source — F3-47) or on
+  TranslatePress (its adapter reports the default language, not the
+  shopper's).
+**Rationale:** the content column is our own JSON already read as wire input
+(F3-53) and already carries a per-cart flag, so the language needs no
+schema change, no upgrade step and no background job to wait on a schema.
+The detector is how every other part of the plugin asks which multilingual
+plugin runs; a WPML-only read would leave Polylang stores where they were.
+**Alternatives:** a new tracker column (needs a migration and the schema
+gate — rejected); reading the language in the resolver at send time
+(impossible in a scheduled run, and breaks F3-47); a WPML-only cookie or
+global read (rejected — misses Polylang).
+**Relationships:** F3-47 (resolver rules), PRO-1195 (cart tracker), CON-196
+(the newsletter tick in the same content). Pinned by
+`tests/Unit/Smaily/CartSessionStoreTest.php`, `CartHookHandlerTest`,
+`ContactLanguageResolverTest`, `CartPayloadBuilderTest` and
+`tests/Integration/CartPipelineTest.php`.
+
+### CON-290 — The store reports its installation to Smaily's subscription service (2026-11-13)
+
+**Context:** Smaily could not see which stores run the plugin, on which
+Smaily account and version, with which features, and whether each connection
+works. The subscription service's contract installation-report-v1 (v1.0.1,
+`erkkimarkus/subscription` docs/contracts/installation-report-v1.md) sets the
+shape; Erkki approved the full v1 for WooCommerce on 2026-11-13: snapshots on
+a settings save and daily, plus the `disconnected` and `deactivated` events.
+**Decision:**
+- `Report\ReportBuilder` builds the body: the default account, each Mode A
+  language account (with `language`) and the Transactional account
+  (`role: transactional`). The MAIN account — the default one, else the
+  first other marketing account — authenticates the request (Basic auth with
+  its API user and password, in the header only). With no connected Smaily
+  marketing account there is no body and nothing is sent (wordpress.org
+  guideline 7); a Transactional account alone never authenticates.
+- Features: `subscriber_sync` and the three automations only after the
+  wizard's Finish, an automation only when switched on AND mapped to a
+  workflow of that account (abandoned cart's legacy workflow id counts on the
+  default account, as CartFlusher's fallback); `campaign_intelligence`,
+  `browse_tracking` and `intelligence` on the main connection while the
+  engine is connected (`connected` is `sending_allowed()`); the engine API
+  key and tenant name never go in.
+- Health: the two HTTP clients fire `smly_plus_smaily_api_result` /
+  `smly_plus_engine_api_result` with the error CODE only;
+  `Report\ConnectionHealth` keeps the last status per Smaily subdomain and
+  for the engine in `smly_plus_connection_health`, a success written at most
+  every 5 minutes (a shopper's `/relay` request passes that chokepoint).
+- `Report\InstallationReport` sends: AS hook `smly_plus_installation_report`
+  (args `[trigger, attempt]`, group `smaily-connect-installation-report`).
+  A settings save (and a Campaign Intelligence connect) schedules
+  `setup_saved` 5 minutes on unless one is pending; the daily report is 24 h
+  after the last snapshot attempt, the first at a random moment within 24 h
+  (the hourly recurring-jobs check arms it on a connected store). 429/5xx/
+  timeout/network: retries at 60/120/240 s + 0–30 s, a longer Retry-After
+  wins, one over an hour ends the try; any other answer one log line, no
+  retry; never a redirect, never a queue, never an admin notice. Total
+  timeout 5 s, connect 3 s (an `http_api_curl` callback, the HTTP API has no
+  connect timeout).
+- Events inline, once, no retry, never thrown: `disconnected` from the
+  Campaign Intelligence disconnect route (before the key is deleted; the
+  Smaily connections that stay, without `intelligence`) and from a settings
+  save that clears a connected language or Transactional account (before the
+  credentials are overwritten); `deactivated` first in `Deactivation::run()`.
+  Uninstall sends nothing — WordPress deactivates first.
+- The endpoint is the constant `InstallationReport::ENDPOINT`; tests and the
+  wp-env sites never reach it (a must-use guard mounted by `.wp-env.json`
+  and loaded by the integration bootstrap).
+**Rationale:** the contract's own rules, applied to what this plugin holds;
+recording health at the two chokepoints is the only place that sees every
+answer, and an action keeps the extension point free of storage.
+**Alternatives:** health derived from the queues and NotificationManager's
+probe (rejected — it only covers the default account, keeps no reason and
+loses history to the janitor); not reporting a cleared Transactional account
+(rejected — the contract says "wherever the plugin deletes a Smaily account's
+stored credentials"); a production gate on `wp_get_environment_type()` to
+keep dev sites quiet (rejected — the contract counts a staging copy as its own
+installation; the dev guard lives in wp-env instead).
+**Relationships:** CON-301 (codes, never message text), PRO-2433 (the new AS
+group is in `Deactivation::AS_GROUPS`), PRO-2437 (armed from the hourly
+check), CON-285 (pending-only checks). Pinned by `tests/Unit/Report/*`,
+`SettingsEndpointTest`, `RecEngineDisconnectTest`, the two client tests and
+`tests/Integration/InstallationReportTest.php`.
 
 ### PRO-4252 — The plugin adds only the newsletter box to a storefront form (2026-11-13)
 

@@ -16,6 +16,8 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Integrations\WooCommerce\LegacyHookBridge;
+use Smaily\Connect\Report\InstallationReport;
+use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\ContactSyncMode;
@@ -94,10 +96,19 @@ class SettingsEndpoint {
 	private $transactional_status;
 
 	/**
-	 * @param (callable(): array<string, mixed>)|null $transactional_status See the property.
+	 * The installation report (CON-290): a save schedules a snapshot, and a
+	 * save that clears a Smaily account sends the `disconnected` event first.
+	 * Null sends nothing.
 	 */
-	public function __construct( ?callable $transactional_status = null ) {
+	private ?InstallationReport $report;
+
+	/**
+	 * @param (callable(): array<string, mixed>)|null $transactional_status See the property.
+	 * @param InstallationReport|null                 $report               See the property.
+	 */
+	public function __construct( ?callable $transactional_status = null, ?InstallationReport $report = null ) {
 		$this->transactional_status = $transactional_status;
+		$this->report               = $report;
 	}
 
 	public function register(): void {
@@ -167,20 +178,33 @@ class SettingsEndpoint {
 
 		switch ( $tab ) {
 			case 'connection':
-				return $this->save_connection( $data );
+				$response = $this->save_connection( $data );
+				break;
 			case 'subscribers':
-				return $this->save_subscribers( $data );
+				$response = $this->save_subscribers( $data );
+				break;
 			case 'woocommerce':
-				return $this->save_woocommerce( $data );
+				$response = $this->save_woocommerce( $data );
+				break;
 			case 'recommendations':
-				return $this->save_recommendations( $data );
+				$response = $this->save_recommendations( $data );
+				break;
 			case 'finish':
-				return $this->save_finish();
+				$response = $this->save_finish();
+				break;
 			default:
 				// Defensive — in_array() above forbids reaching here, but the
 				// switch needs a terminal arm for return-type narrowing.
 				return $this->error_response( array(), 400 );
 		}
+
+		// A saved setup is reported in the background, a few minutes on
+		// (CON-290) — never from this request.
+		if ( $this->report !== null && $response->get_status() === 200 ) {
+			$this->report->setup_saved();
+		}
+
+		return $response;
 	}
 
 	/**
@@ -232,6 +256,8 @@ class SettingsEndpoint {
 		if ( ! empty( $errors ) ) {
 			return $this->error_response( $errors, 400 );
 		}
+
+		$this->report_cleared_accounts( $data );
 
 		$this->persist_credentials( self::LEGACY_OPTION_API_CREDENTIALS, $subdomain, $username, $password );
 
@@ -285,6 +311,43 @@ class SettingsEndpoint {
 		$this->save_transactional_account( $data );
 
 		return $this->success_response();
+	}
+
+	/**
+	 * The `disconnected` installation report (CON-290), sent BEFORE this save
+	 * clears a connected Smaily account: a language account or the
+	 * Transactional account whose subdomain or username the payload empties.
+	 * The default account cannot be cleared here (it is required above).
+	 *
+	 * @param array<string, mixed> $data
+	 */
+	private function report_cleared_accounts( array $data ): void {
+		if ( $this->report === null ) {
+			return;
+		}
+
+		$incoming = array();
+		$accounts = isset( $data['perLanguageAccounts'] ) && is_array( $data['perLanguageAccounts'] ) ? $data['perLanguageAccounts'] : array();
+		foreach ( $accounts as $account ) {
+			if ( is_array( $account ) && isset( $account['accountKey'] ) ) {
+				$incoming[ sanitize_key( (string) $account['accountKey'] ) ] = isset( $account['credentials'] ) && is_array( $account['credentials'] ) ? $account['credentials'] : array();
+			}
+		}
+		$incoming['transactional'] = isset( $data['transactionalCredentials'] ) && is_array( $data['transactionalCredentials'] ) ? $data['transactionalCredentials'] : array();
+
+		$credentials = new Credentials();
+		$cleared     = array();
+		foreach ( $incoming as $account_key => $creds ) {
+			$stored = $account_key === '' ? null : $credentials->get( (string) $account_key );
+			$empty  = ! isset( $creds['subdomain'], $creds['username'] ) || trim( (string) $creds['subdomain'] ) === '' || trim( (string) $creds['username'] ) === '';
+			if ( $stored !== null && $stored->is_complete() && $empty ) {
+				$cleared[] = (string) $account_key;
+			}
+		}
+
+		if ( $cleared !== array() ) {
+			$this->report->send_event( ReportBuilder::EVENT_DISCONNECTED, $cleared );
+		}
 	}
 
 	/**

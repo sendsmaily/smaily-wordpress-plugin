@@ -12,8 +12,10 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Unit\Smaily;
 
 use Brain\Monkey;
+use Brain\Monkey\Actions;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Report\ConnectionHealth;
 use Smaily\Connect\Smaily\ApiException;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\RefusalReason;
@@ -47,6 +49,22 @@ final class ClientTest extends TestCase {
 		$client = new Client( 'demo', 'user', 'pass' );
 
 		self::assertSame( RefusalReason::OK, $client->check_connection() );
+	}
+
+	public function test_every_answer_is_announced_for_the_installation_report(): void {
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'wp_remote_retrieve_body' )->justReturn( '{"code":101}' );
+
+		Functions\when( 'wp_remote_post' )->justReturn( $this->successful_response( '{"code":101}' ) );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
+		Actions\expectDone( ConnectionHealth::SMAILY_HOOK )->once()->with( 'demo', '', true );
+		( new Client( 'demo', 'user', 'pass' ) )->upsert_subscribers( array( array( 'email' => 'jane@example.com' ) ) );
+
+		Functions\when( 'wp_remote_get' )->justReturn( $this->successful_response( '{}' ) );
+		Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 401 );
+		Actions\expectDone( ConnectionHealth::SMAILY_HOOK )->once()->with( 'demo', RefusalReason::CREDENTIALS_REJECTED, false );
+		( new Client( 'demo', 'user', 'pass' ) )->check_connection();
+		$this->addToAssertionCount( 2 ); // The two expectations, checked at tearDown.
 	}
 
 	public function test_check_connection_names_rejected_credentials_on_4xx(): void {

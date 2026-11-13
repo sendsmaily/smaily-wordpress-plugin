@@ -12,7 +12,10 @@ namespace Smaily\Connect\Tests\Unit\REST;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Report\InstallationReport;
+use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\REST\SettingsEndpoint;
+use Smaily_Connect\Includes\Cypher;
 use WP_REST_Request;
 
 final class SettingsEndpointTest extends TestCase {
@@ -629,6 +632,93 @@ final class SettingsEndpointTest extends TestCase {
 		self::assertArrayNotHasKey( 'smly_plus_rec_sync_customers', $this->option_writes );
 		self::assertArrayNotHasKey( 'smly_plus_rec_sync_products', $this->option_writes );
 		self::assertArrayNotHasKey( 'smly_plus_rec_track_cart_events', $this->option_writes );
+	}
+
+	public function test_a_save_schedules_the_installation_report_and_a_refused_one_does_not(): void {
+		$report = $this->createMock( InstallationReport::class );
+		$report->expects( self::once() )->method( 'setup_saved' );
+		$report->expects( self::never() )->method( 'send_event' );
+		$endpoint = new SettingsEndpoint( null, $report );
+
+		$saved = new WP_REST_Request();
+		$saved->set_param( 'tab', 'subscribers' );
+		$saved->set_param( 'data', array( 'subscriberSyncEnabled' => true ) );
+		self::assertSame( 200, $endpoint->handle( $saved )->get_status() );
+
+		$refused = new WP_REST_Request();
+		$refused->set_param( 'tab', 'connection' );
+		$refused->set_param( 'data', array( 'smailyCredentials' => array( 'subdomain' => '' ) ) );
+		self::assertSame( 400, $endpoint->handle( $refused )->get_status() );
+	}
+
+	public function test_clearing_the_transactional_account_reports_the_disconnect_before_its_credentials_go(): void {
+		Cypher::$decrypt_return = 'stored-secret';
+		$this->option_writes['smly_plus_credentials_transactional'] = array(
+			'subdomain' => 'trxdemo',
+			'username'  => 'bob',
+			'password'  => 'encrypted:stored-secret',
+		);
+
+		$stored_when_sent = null;
+		$report           = $this->createMock( InstallationReport::class );
+		$report->expects( self::once() )
+			->method( 'send_event' )
+			->with( ReportBuilder::EVENT_DISCONNECTED, array( 'transactional' ) )
+			->willReturnCallback(
+				function () use ( &$stored_when_sent ): void {
+					$stored_when_sent = $this->option_writes['smly_plus_credentials_transactional']['subdomain'];
+				}
+			);
+
+		try {
+			$response = ( new SettingsEndpoint( null, $report ) )->handle( $this->connection_save( array( 'subdomain' => '', 'username' => '', 'password' => '' ) ) );
+		} finally {
+			Cypher::$decrypt_return = '';
+		}
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( 'trxdemo', $stored_when_sent, 'The event goes while the credentials are still stored.' );
+		self::assertSame( '', $this->option_writes['smly_plus_credentials_transactional']['subdomain'] );
+	}
+
+	public function test_a_save_that_keeps_the_transactional_account_reports_no_disconnect(): void {
+		Cypher::$decrypt_return = 'stored-secret';
+		$this->option_writes['smly_plus_credentials_transactional'] = array(
+			'subdomain' => 'trxdemo',
+			'username'  => 'bob',
+			'password'  => 'encrypted:stored-secret',
+		);
+		$report = $this->createMock( InstallationReport::class );
+		$report->expects( self::never() )->method( 'send_event' );
+
+		try {
+			( new SettingsEndpoint( null, $report ) )->handle( $this->connection_save( array( 'subdomain' => 'trxdemo', 'username' => 'bob', 'password' => '' ) ) );
+		} finally {
+			Cypher::$decrypt_return = '';
+		}
+	}
+
+	/**
+	 * A connection-tab save that keeps the default account.
+	 *
+	 * @param array<string, string> $transactional
+	 */
+	private function connection_save( array $transactional ): WP_REST_Request {
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'connection' );
+		$request->set_param(
+			'data',
+			array(
+				'smailyCredentials'        => array(
+					'subdomain' => 'mypetshop',
+					'username'  => 'alice',
+					'password'  => '',
+				),
+				'transactionalCredentials' => $transactional,
+			)
+		);
+
+		return $request;
 	}
 
 	public function test_permission_check_denies_non_admin(): void {

@@ -12,6 +12,7 @@
     "SCRIPT_DEBUG": true
   },
   "mappings": {
-    "wp-content/plugins/smaily-connect": "."
+    "wp-content/plugins/smaily-connect": ".",
+    "wp-content/mu-plugins": "./tests/Integration/Fixtures/mu-plugins"
   }
 }

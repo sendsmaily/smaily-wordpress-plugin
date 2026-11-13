@@ -74,6 +74,11 @@ define( 'SMAILY_CONNECT_TEST_ENGINE_HOST', '127.0.0.1' );
 
 require_once $wp_load;
 
+// The suite never reaches Smaily's subscription service (CON-290). wp-env
+// mounts this guard as a must-use plugin; loading it here as well keeps it on
+// in an env started before that mapping existed.
+require_once __DIR__ . '/Fixtures/mu-plugins/smaily-connect-no-installation-report.php';
+
 // WooCommerce order storage the suite runs on (PRO-3435). The order backfill
 // and the personal-data exporter/eraser read orders straight from the active
 // table — wc_orders (HPOS) or wp_posts (legacy) — so a run covers only the

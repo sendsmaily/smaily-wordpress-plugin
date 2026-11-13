@@ -169,6 +169,10 @@ final class EnvScrub {
 			// Same class again (CON-259): the orders-import index's state is
 			// autoload=false and asserted on by LegacyOrderDateIndexTest.
 			\Smaily\Connect\DB\LegacyOrderDateIndex::OPTION,
+			// Same class again (CON-290): each connection's last answer is
+			// autoload=false and read into the installation report that
+			// InstallationReportTest asserts on.
+			\Smaily\Connect\Report\ConnectionHealth::OPTION,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );
