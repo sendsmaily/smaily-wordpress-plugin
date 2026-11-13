@@ -347,6 +347,9 @@ describe('EditDesign in a window over the admin (CON-288)', () => {
     post(ENGINE, { type: 'something_else', event: 'closed' });
     post(ENGINE, 'smaily_intelligence_design');
     post(ENGINE, { type: 'smaily_intelligence_design', event: 'deleted' });
+    // Contract v1.31.0 §22 rule 4: the page in a frame also posts `ready` and `changes`.
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'ready', email_key: 'plugin.welcome' });
+    post(ENGINE, { type: 'smaily_intelligence_design', event: 'changes', email_key: 'plugin.welcome', unsaved: true });
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     await act(async () => {
