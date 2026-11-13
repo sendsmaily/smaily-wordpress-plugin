@@ -2038,6 +2038,10 @@ if ( empty( $state['email_designs_unavailable'] ) && $method === 'POST' && preg_
 	if ( array_key_exists( 'language', $body ) && ( ! is_string( $body['language'] ) || preg_match( '/^[a-z]{2}$/', $body['language'] ) !== 1 ) ) {
 		$errors[] = array( 'field' => 'language', 'message' => 'Must be an ISO 639-1 code.' );
 	}
+	// v1.31.0: `display` is `tab` or `frame`, anything else → 422.
+	if ( array_key_exists( 'display', $body ) && ! in_array( $body['display'], array( 'tab', 'frame' ), true ) ) {
+		$errors[] = array( 'field' => 'display', 'message' => 'Must be tab or frame.' );
+	}
 	if ( $errors !== array() ) {
 		reply( 422, array( 'error' => 'validation_failed', 'errors' => $errors ) );
 	}

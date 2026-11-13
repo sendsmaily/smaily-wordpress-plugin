@@ -10252,7 +10252,9 @@ opened a new tab (CON-173). This is a port of CON-257 under CON-231 rule 1.
   and returns to the button. The header always offers "Open in a new tab"
   (a fresh link — the frame's is used up); a hint points at it when the frame
   has not loaded after 8 seconds (a refused frame cannot be told apart from a
-  slow one).
+  slow one). (Superseded by CON-311: a `display: "frame"` link per opening,
+  a 20-second wait for the page's `ready`, and a question before closing
+  over unsaved changes.)
 - **Engine origin only:** the design-link answer adds `engine_origin`, the
   origin of the stored engine base URL — never the key or the base URL's
   path. The admin opens a link (frame or tab) only when it starts with
@@ -10986,6 +10988,55 @@ PRO-3987, CON-304, CON-301, PRO-1498 (`resolve_id()` tombstone). Pinned by
 `tests/Unit/Smaily/RecEngine/Backfill/CatalogBackfillJobTest.php`,
 `tests/Unit/Smaily/RecEngine/CatalogPayloadBuilderTest.php` and
 `tests/Integration/RecEngineCatalogManifestTest.php`.
+
+### CON-311 — The design window mints a frame link each time and waits for the page's `ready` (2026-11-13)
+
+**Context:** since CON-288 "Edit design" shows the engine's §22 design page in
+a window over the admin. That link keeps its session in a cookie, and a
+browser that blocks third-party cookies (Safari by default) may refuse it
+inside the frame: the page then says so and nothing else. The window could
+not tell that from a slow page, so it pointed at "Open in a new tab" after
+8 seconds. Contract v1.31.0 §22 adds `display: "frame"` (the session lives in
+the page), the `ready` and `changes` (`unsaved`) messages and Embedding
+rule 6. Erkki approved this design on 2026-11-13.
+**Decision:**
+- **One frame link per opening:** the design-link route takes `display`
+  (`frame` | `tab`, any other value refused with 400 by the route's schema)
+  and passes it on as §22 `display`. The window mints `frame` every time it
+  opens; "Open in a new tab" (and the tab used where the window is not
+  offered) mints `tab`. The frame's `src` is set once and never reloaded —
+  a reload ends a frame link's session.
+- **No `frame_origin`:** the window is offered only when `frameable()` holds —
+  the site URL is https and has the admin's own origin — which is rule 1 (a),
+  the origin the engine already allows. An admin on another origin still
+  gets the new tab.
+- **`ready`, not `load`:** the loading state lasts until the page posts
+  `ready`; 20 seconds after the frame gets its link without one, the window
+  says "The design page did not open." and offers "Open in a new tab". A
+  later `ready` removes the offer. The iframe's `load` event is not used: it
+  fires for an expired link and for the refused-cookie page too.
+- **Unsaved changes:** the window keeps the last `changes.unsaved` (false
+  until the first). Esc, the close button and a click on the darkened page
+  ask "Close without saving?" (`window.confirm`, as elsewhere in the admin)
+  while it is true. `closed` closes at once — the page asked its own
+  question first; `saved` reads §23 again, as before.
+- **Rule 6:** the window covers the admin with a 16 px margin (at least
+  1024 × 640 wherever the screen is that large); the iframe carries
+  `allow="clipboard-read; clipboard-write; fullscreen"` and
+  `referrerpolicy="no-referrer"`, and no `sandbox`. Messages still count only
+  from the engine origin.
+**Rationale:** a session in the page is the only way the frame works where
+third-party cookies are blocked; `ready` is the only signal that tells a
+working page from a refused or expired one.
+**Not covered:** "Open in a new tab" in the header closes the window without
+asking about unsaved changes — a confirm before `window.open()` can outlast
+the click's pop-up allowance. Whether the page saves in Safari is human
+acceptance (Erkki); the tests prove the mechanics.
+**Relationships:** CON-288 (the window; its 8-second hint is replaced),
+CON-173 (the tab). Pinned by
+`admin/src/components/steps/EmailDesigns.test.tsx`,
+`tests/Unit/REST/EmailDesignsEndpointTest.php` and
+`tests/Integration/EmailDesignsTest.php`.
 
 ## How to keep this document going
 
