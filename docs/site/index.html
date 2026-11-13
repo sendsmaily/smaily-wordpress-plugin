@@ -701,12 +701,14 @@ td code{white-space:nowrap}
       <p>Consent is captured by your store — the checkout marketing checkbox, or the newsletter box on the My Account registration form or in Account details. The Smaily newsletter block is different: it sends the signup straight to Smaily, so your store does not record it. The record is a single subscribed‑or‑not mark on the customer's account.</p>
       <h3>Language routing</h3>
       <p>The <strong>language</strong> sent with each contact is resolved from the customer's preferred language, then their most recent order's language, then the site's multilingual default (WPML / Polylang / TranslatePress) — never from the request context. This keeps a scheduled sync and a live request giving the same answer, so a store with an English WordPress locale but Estonian content doesn't get its contacts mislabelled.</p>
+      <p>An <strong>abandoned‑cart reminder</strong> has one more source, which comes first: when your store runs WPML or Polylang, the plugin records the store language the shopper is using each time they add to or change their cart, and the reminder goes out in the language of their last cart change — for guests and logged‑in shoppers alike. A cart with no recorded language uses the order above. A language your store no longer offers is replaced by the default.</p>
     </div>
     <div data-lang="et">
       <p><strong>Subscribers only (consent)</strong> režiimis sünkroonitakse klient Smailysse ainult siis, kui su pood on ta märkinud turundusele tellijaks. Su poe enda turundusnõusoleku‑kirje on tõend — plugin ei eelda kunagi nõusolekut, vaid peegeldab seda, mille su pood salvestas.</p>
       <p>Nõusoleku salvestab su pood — kassa turunduse‑märkeruut või uudiskirja märkeruut „Minu konto“ registreerimisvormil või konto andmetes. Smaily uudiskirja plokk on teistsugune: see saadab liitumise otse Smailysse, nii et su pood seda ei salvesta. Kirje on üks märge kliendi kontol: kas ta on tellija või mitte.</p>
       <h3>Keele suunamine</h3>
       <p>Iga kontaktiga saadetav <strong>keel</strong> tuletatakse kliendi eelistatud keelest, siis ta viimasest tellimusest, siis saidi mitmekeelsest vaikekeelest (WPML / Polylang / TranslatePress) — mitte kunagi päringu kontekstist. Nii annavad ajastatud sünk ja reaalajas päring sama tulemuse, ja inglise WordPressi‑lokaadiga aga eesti sisuga pood ei saa oma kontakte valesti märgitud.</p>
+      <p><strong>Pooleli jäänud korvi meeldetuletusel</strong> on veel üks allikas, mis tuleb esimesena: kui su pood kasutab WPML‑i või Polylangi, salvestab plugin iga kord, kui ostleja korvi midagi lisab või seda muudab, poe keele, mida ta parajasti kasutab, ja meeldetuletus läheb välja tema viimase korvimuudatuse keeles — nii külalistele kui ka sisse logitud ostlejatele. Kui korvil pole keelt salvestatud, kehtib ülaltoodud järjekord. Keel, mida su pood enam ei paku, asendatakse vaikekeelega.</p>
     </div>
   </div>
 

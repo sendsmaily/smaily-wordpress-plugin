@@ -10541,6 +10541,47 @@ would wait at `started` forever); send `stop_reason: null` on every report
 mock validates `stop_reason` and holds a stop as final. Pinned by
 `HistoryProgressTest` and `RecEngineHistoryProgressTest`.
 
+### PRO-4253 — An abandoned-cart reminder goes out in the storefront language of the shopper's last cart change (2026-11-13)
+
+**Context:** A multilingual store with one Smaily workflow per language saw
+every guest reminder go out in the default language. The reminder is built
+in the scheduled sweep, where the shopper's storefront is gone, and
+`ContactLanguageResolver` is context-independent on purpose (F3-47): a guest
+has no stored preference and no order, so it always fell to the default. A
+registered shopper got their stored preference, whichever storefront the
+cart was on.
+**Decision (Erkki, 2026-11-13):**
+- Every tracked cart change (`CartHookHandler::on_cart_updated()`, guests
+  and registered shoppers) records the current language the store's
+  multilingual plugin reports for that request, read through the generic
+  detector (`DetectorFactory`). A change where no language is known keeps
+  the recorded one; a change on another storefront replaces it.
+- It is stored inside `cart_content` (`CartSessionStore::encode_content()` /
+  `decode_content()`, beside the CON-196 newsletter tick) — no column, no
+  migration. A cart saved before this reads with no language.
+- `for_user()` / `for_guest()` take it as their first source; normalisation,
+  the clamp to the active languages and the `smaily_connect_contact_language`
+  filter apply as before, and with no recorded language the old order is
+  unchanged. The resolver still reads nothing from the request.
+- Nothing is recorded on the site-locale fallback (its "current language" is
+  `get_locale()`, never a contact language source — F3-47) or on
+  TranslatePress (its adapter reports the default language, not the
+  shopper's).
+**Rationale:** the content column is our own JSON already read as wire input
+(F3-53) and already carries a per-cart flag, so the language needs no
+schema change, no upgrade step and no background job to wait on a schema.
+The detector is how every other part of the plugin asks which multilingual
+plugin runs; a WPML-only read would leave Polylang stores where they were.
+**Alternatives:** a new tracker column (needs a migration and the schema
+gate — rejected); reading the language in the resolver at send time
+(impossible in a scheduled run, and breaks F3-47); a WPML-only cookie or
+global read (rejected — misses Polylang).
+**Relationships:** F3-47 (resolver rules), PRO-1195 (cart tracker), CON-196
+(the newsletter tick in the same content). Pinned by
+`tests/Unit/Smaily/CartSessionStoreTest.php`, `CartHookHandlerTest`,
+`ContactLanguageResolverTest`, `CartPayloadBuilderTest` and
+`tests/Integration/CartPipelineTest.php`.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or

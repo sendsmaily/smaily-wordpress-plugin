@@ -226,6 +226,82 @@ final class ContactLanguageResolverTest extends TestCase {
 		self::assertSame( 'et', $resolver->for_order( $this->order( '', 0 ) ) );
 	}
 
+	// ---- cart storefront language (PRO-4253) -----------------------------
+
+	public function test_for_guest_uses_the_storefront_language_the_cart_recorded(): void {
+		$resolver = $this->resolver( $this->detector( 'et', array( 'et', 'lt' ) ), static fn ( int $id ): string => '' );
+
+		self::assertSame( 'lt', $resolver->for_guest( 'lt' ) );
+	}
+
+	public function test_for_guest_without_a_recorded_language_falls_back_to_default(): void {
+		$resolver = $this->resolver( $this->detector( 'et', array( 'et', 'lt' ) ), static fn ( int $id ): string => '' );
+
+		self::assertSame( 'et', $resolver->for_guest( '' ) );
+		self::assertSame( 'et', $resolver->for_guest() );
+	}
+
+	public function test_for_guest_returns_empty_when_nothing_resolves(): void {
+		Functions\when( 'get_locale' )->justReturn( '' );
+
+		$resolver = $this->resolver( $this->detector( '' ), static fn ( int $id ): string => '' );
+
+		// The caller omits the key, so Smaily keeps the contact's language.
+		self::assertSame( '', $resolver->for_guest( '' ) );
+	}
+
+	public function test_storefront_language_is_normalised(): void {
+		$resolver = $this->resolver( $this->detector( 'et', array( 'et', 'lt' ) ), static fn ( int $id ): string => '' );
+
+		self::assertSame( 'lt', $resolver->for_guest( 'lt_LT' ) );
+	}
+
+	public function test_storefront_language_the_store_no_longer_offers_clamps_to_default(): void {
+		$resolver = $this->resolver( $this->detector( 'et', array( 'et', 'en' ) ), static fn ( int $id ): string => '' );
+
+		self::assertSame( 'et', $resolver->for_guest( 'lt' ) );
+		self::assertSame( 'et', $resolver->for_user( $this->user( 42 ), 'lt' ) );
+	}
+
+	public function test_for_user_storefront_language_wins_over_the_stored_preference(): void {
+		$this->seed_meta( 42, '_user_preferred_language', 'et' );
+
+		$resolver = $this->resolver(
+			$this->detector( 'et', array( 'et', 'lt' ) ),
+			static fn ( int $id ): string => 'et'
+		);
+
+		self::assertSame( 'lt', $resolver->for_user( $this->user( 42 ), 'lt' ) );
+	}
+
+	public function test_for_user_without_a_recorded_language_keeps_the_existing_order(): void {
+		$this->seed_meta( 42, '_user_preferred_language', 'lt' );
+
+		$resolver = $this->resolver(
+			$this->detector( 'et', array( 'et', 'lt' ) ),
+			static fn ( int $id ): string => 'et'
+		);
+
+		self::assertSame( 'lt', $resolver->for_user( $this->user( 42 ), '' ), 'Preference first, as before.' );
+		self::assertSame( 'lt', $resolver->for_user( $this->user( 42 ) ) );
+	}
+
+	public function test_filter_override_wins_over_the_storefront_language(): void {
+		Functions\when( 'apply_filters' )->alias(
+			static function ( string $hook, $value ) {
+				if ( $hook === ContactLanguageResolver::FILTER_LANGUAGE ) {
+					return 'xx';
+				}
+				return $value;
+			}
+		);
+
+		$resolver = $this->resolver( $this->detector( 'et', array( 'et', 'lt' ) ), static fn ( int $id ): string => '' );
+
+		self::assertSame( 'xx', $resolver->for_guest( 'lt' ) );
+		self::assertSame( 'xx', $resolver->for_user( $this->user( 42 ), 'lt' ) );
+	}
+
 	// ---- helpers ----------------------------------------------------------
 
 	private function resolver( DetectorInterface $detector, callable $order_language_provider ): ContactLanguageResolver {

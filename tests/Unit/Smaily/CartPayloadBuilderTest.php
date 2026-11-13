@@ -13,7 +13,9 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Multilingual\DetectorFactory;
+use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Smaily\CartPayloadBuilder;
+use Smaily\Connect\Support\ContactLanguageResolver;
 
 require_once dirname( __DIR__, 3 ) . '/includes/smaily-options.class.php';
 
@@ -349,7 +351,60 @@ final class CartPayloadBuilderTest extends TestCase {
 		self::assertArrayNotHasKey( 'user_id', $payload['fields'] );
 	}
 
+	/**
+	 * PRO-4253: the storefront language the cart recorded is the reminder's
+	 * language — for a guest, and for a registered shopper over the language
+	 * stored on their account.
+	 */
+	public function test_a_guest_cart_uses_the_storefront_language_it_recorded(): void {
+		$payload = $this->builder( $this->et_lt_resolver() )->build(
+			$this->row( '{"items":[{"product_id":11,"variation_id":0,"quantity":1}],"language":"lt"}' )
+		);
+
+		self::assertNotNull( $payload );
+		self::assertSame( 'lt', $payload['language'] );
+		self::assertSame( 'lt', $payload['fields']['language'] );
+	}
+
+	public function test_a_registered_shoppers_cart_uses_the_storefront_language_over_the_account_one(): void {
+		Functions\when( 'get_user_meta' )->justReturn( 'et' );
+		Functions\when( 'get_userdata' )->alias(
+			static function ( int $id ) {
+				return new class( $id ) extends \WP_User {
+					public function __construct( int $id ) {
+						$this->ID = $id;
+					}
+				};
+			}
+		);
+		$row            = $this->row( '{"items":[{"product_id":11,"variation_id":0,"quantity":1}],"language":"lt"}' );
+		$row['user_id'] = 42;
+
+		$payload = $this->builder( $this->et_lt_resolver() )->build( $row );
+
+		self::assertNotNull( $payload );
+		self::assertSame( 'lt', $payload['language'] );
+	}
+
+	public function test_a_cart_saved_before_the_change_uses_the_default_language(): void {
+		$payload = $this->builder( $this->et_lt_resolver() )->build( $this->row() );
+
+		self::assertNotNull( $payload );
+		self::assertSame( 'et', $payload['language'] );
+	}
+
 	// --- helpers -------------------------------------------------------------
+
+	/**
+	 * A resolver on an `et` store that also sells in `lt`.
+	 */
+	private function et_lt_resolver(): ContactLanguageResolver {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_default_language' )->willReturn( 'et' );
+		$detector->method( 'get_detected_languages' )->willReturn( array( 'et', 'lt' ) );
+
+		return new ContactLanguageResolver( $detector, static fn ( int $id ): string => '' );
+	}
 
 	/**
 	 * @return array<string, mixed>
@@ -370,8 +425,8 @@ final class CartPayloadBuilderTest extends TestCase {
 	/**
 	 * Builder with the two WC-pricing seams stubbed (unit env has no WC).
 	 */
-	private function builder(): CartPayloadBuilder {
-		return new class extends CartPayloadBuilder {
+	private function builder( ?ContactLanguageResolver $resolver = null ): CartPayloadBuilder {
+		return new class( $resolver ) extends CartPayloadBuilder {
 			protected function sale_price_display( $product ): string {
 				return '12.40 €';
 			}

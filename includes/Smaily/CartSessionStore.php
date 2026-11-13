@@ -21,8 +21,9 @@ use Smaily\Connect\Privacy\AddressMatch;
  * One row per WC session (`cart_token` = WC session customer id — the user id
  * for logged-in customers, an opaque hash for guests). `cart_content` is OUR
  * OWN minimal JSON shape ([{product_id, variation_id, quantity}], wrapped
- * with the classic checkout's newsletter tick while it is ticked — see
- * encode_content()), never a serialized WC object — the F3-53 poison class
+ * with the classic checkout's newsletter tick while it is ticked and the
+ * storefront language once one is known — see encode_content()), never a
+ * serialized WC object — the F3-53 poison class
  * was `serialize(get_cart())` rows deserializing to something a later plugin
  * version couldn't read.
  *
@@ -59,6 +60,10 @@ class CartSessionStore {
 	 *                                                        (The legacy drain passes the
 	 *                                                        original timestamp through so
 	 *                                                        the backlog guard still applies.)
+	 * @param string                            $language     The storefront language this cart
+	 *                                                        change was made on, '' when not
+	 *                                                        known (PRO-4253). '' keeps the
+	 *                                                        language recorded before.
 	 *
 	 * @return bool Whether the row is stored. False when the database refused
 	 *              the write, and when there was nothing to store (an empty
@@ -72,7 +77,8 @@ class CartSessionStore {
 		string $first_name,
 		string $last_name,
 		array $items,
-		?string $cart_updated = null
+		?string $cart_updated = null,
+		string $language = ''
 	): bool {
 		global $wpdb;
 
@@ -91,12 +97,20 @@ class CartSessionStore {
 		);
 		$existing_id = is_array( $existing ) ? $existing['id'] : null;
 
+		$previous = is_array( $existing ) ? self::decode_content( (string) $existing['cart_content'] ) : null;
+
 		// A cart change keeps the newsletter tick the checkout reported for
 		// this session (CON-196): the classic order review saves the cart
 		// right after it reports the box.
-		$ticked = is_array( $existing ) && ( self::decode_content( (string) $existing['cart_content'] )['newsletter_optin'] ?? false );
+		$ticked = $previous['newsletter_optin'] ?? false;
 
-		$json = self::encode_content( $items, $ticked );
+		// The language of the last change made on a known storefront wins
+		// (PRO-4253); a change where none is known keeps the recorded one.
+		if ( $language === '' ) {
+			$language = $previous['language'] ?? '';
+		}
+
+		$json = self::encode_content( $items, $ticked, $language );
 		if ( $json === null ) {
 			return false;
 		}
@@ -200,7 +214,7 @@ class CartSessionStore {
 			return;
 		}
 
-		$json = self::encode_content( $decoded['items'], $ticked );
+		$json = self::encode_content( $decoded['items'], $ticked, $decoded['language'] );
 		if ( $json === null ) {
 			return;
 		}
@@ -209,32 +223,39 @@ class CartSessionStore {
 	}
 
 	/**
-	 * `cart_content` as written: the item list, or — only while the shopper
-	 * has the newsletter box ticked in the classic checkout (CON-196) —
-	 * `{"items": [...], "newsletter_optin": true}`. An unticked cart keeps
-	 * the plain list every earlier version wrote and reads.
+	 * `cart_content` as written: the item list, or — while the shopper has
+	 * the newsletter box ticked in the classic checkout (CON-196), or once
+	 * the storefront language is known (PRO-4253) — an object
+	 * `{"items": [...], "newsletter_optin": true, "language": "lt"}` that
+	 * carries only the keys that apply. A cart with neither keeps the plain
+	 * list every earlier version wrote and reads.
 	 *
 	 * @param array<int, array<string, mixed>> $items
+	 * @param string                           $language The storefront language as the
+	 *                                                   multilingual plugin reported it,
+	 *                                                   '' when not known.
 	 */
-	public static function encode_content( array $items, bool $newsletter_optin ): ?string {
-		$items = array_values( $items );
-		$json  = wp_json_encode(
-			$newsletter_optin
-				? array(
-					'items'            => $items,
-					'newsletter_optin' => true,
-				)
-				: $items
-		);
+	public static function encode_content( array $items, bool $newsletter_optin, string $language = '' ): ?string {
+		$items   = array_values( $items );
+		$content = array( 'items' => $items );
+		if ( $newsletter_optin ) {
+			$content['newsletter_optin'] = true;
+		}
+		if ( $language !== '' ) {
+			$content['language'] = $language;
+		}
+
+		$json = wp_json_encode( count( $content ) > 1 ? $content : $items );
 
 		return is_string( $json ) ? $json : null;
 	}
 
 	/**
 	 * Read either `cart_content` shape (see encode_content()). Null when the
-	 * value is not ours — treat stored rows as wire input (F3-53).
+	 * value is not ours — treat stored rows as wire input (F3-53). A cart
+	 * saved before PRO-4253 reads with `language` ''.
 	 *
-	 * @return array{items: array<int, mixed>, newsletter_optin: bool}|null
+	 * @return array{items: array<int, mixed>, newsletter_optin: bool, language: string}|null
 	 */
 	public static function decode_content( string $json ): ?array {
 		$decoded = json_decode( $json, true );
@@ -246,12 +267,14 @@ class CartSessionStore {
 			return array(
 				'items'            => is_array( $decoded['items'] ) ? array_values( $decoded['items'] ) : array(),
 				'newsletter_optin' => ( $decoded['newsletter_optin'] ?? false ) === true,
+				'language'         => isset( $decoded['language'] ) && is_string( $decoded['language'] ) ? $decoded['language'] : '',
 			);
 		}
 
 		return array(
 			'items'            => array_values( $decoded ),
 			'newsletter_optin' => false,
+			'language'         => '',
 		);
 	}
 
