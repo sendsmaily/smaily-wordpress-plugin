@@ -638,7 +638,7 @@ final class SettingsEndpointTest extends TestCase {
 		$report = $this->createMock( InstallationReport::class );
 		$report->expects( self::once() )->method( 'setup_saved' );
 		$report->expects( self::never() )->method( 'send_event' );
-		$endpoint = new SettingsEndpoint( null, $report );
+		$endpoint = new SettingsEndpoint( null, static fn (): InstallationReport => $report );
 
 		$saved = new WP_REST_Request();
 		$saved->set_param( 'tab', 'subscribers' );
@@ -671,7 +671,7 @@ final class SettingsEndpointTest extends TestCase {
 			);
 
 		try {
-			$response = ( new SettingsEndpoint( null, $report ) )->handle( $this->connection_save( array( 'subdomain' => '', 'username' => '', 'password' => '' ) ) );
+			$response = ( new SettingsEndpoint( null, static fn (): InstallationReport => $report ) )->handle( $this->connection_save( array( 'subdomain' => '', 'username' => '', 'password' => '' ) ) );
 		} finally {
 			Cypher::$decrypt_return = '';
 		}
@@ -692,7 +692,7 @@ final class SettingsEndpointTest extends TestCase {
 		$report->expects( self::never() )->method( 'send_event' );
 
 		try {
-			( new SettingsEndpoint( null, $report ) )->handle( $this->connection_save( array( 'subdomain' => 'trxdemo', 'username' => 'bob', 'password' => '' ) ) );
+			( new SettingsEndpoint( null, static fn (): InstallationReport => $report ) )->handle( $this->connection_save( array( 'subdomain' => 'trxdemo', 'username' => 'bob', 'password' => '' ) ) );
 		} finally {
 			Cypher::$decrypt_return = '';
 		}

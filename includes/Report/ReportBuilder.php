@@ -11,10 +11,10 @@ namespace Smaily\Connect\Report;
 
 defined( 'ABSPATH' ) || exit;
 
-// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one read of the plugin's own mapping table per report (at most a few a day).
-
 use Smaily\Connect\Constants;
+use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Multilingual\Router;
+use Smaily\Connect\REST\BeaconEndpoint;
 use Smaily\Connect\Settings\CredentialSet;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -59,6 +59,14 @@ class ReportBuilder {
 
 	private ConnectionHealth $health;
 
+	/**
+	 * The trigger types mapped to a workflow, by account key — read once per
+	 * build(), on first use.
+	 *
+	 * @var array<string, array<int, string>>|null
+	 */
+	private ?array $mapped = null;
+
 	public function __construct( ?Credentials $credentials = null, ?RecEngineSettings $engine = null, ?ConnectionHealth $health = null ) {
 		$this->credentials = $credentials ?? new Credentials();
 		$this->engine      = $engine ?? new RecEngineSettings();
@@ -76,23 +84,27 @@ class ReportBuilder {
 	}
 
 	/**
-	 * The report body, or null when no Smaily marketing account is connected.
+	 * The report body and the main account's credentials that authenticate
+	 * it, or null when no Smaily marketing account is connected.
 	 *
 	 * @param string             $event                One of the EVENT_* constants.
 	 * @param string             $trigger              A TRIGGER_* constant for a snapshot, '' otherwise.
 	 * @param array<int, string> $removed_accounts     Account keys a `disconnected` event removes.
 	 * @param bool               $engine_removed       True when a `disconnected` event removes Campaign Intelligence.
 	 *
-	 * @return array<string, mixed>|null
+	 * @return array{body: array<string, mixed>, credentials: CredentialSet}|null
 	 */
 	public function build( string $event, string $trigger = '', array $removed_accounts = array(), bool $engine_removed = false ): ?array {
-		$main = $this->main_credentials();
-		if ( $main === null ) {
+		$all = $this->marketing_accounts( array() );
+		if ( $all === array() ) {
 			return null;
 		}
+		$main         = $all[0]['set'];
+		$accounts     = $removed_accounts === array() ? $all : $this->marketing_accounts( $removed_accounts );
+		$this->mapped = null;
 
 		$connections = array();
-		foreach ( $this->marketing_accounts( $removed_accounts ) as $index => $account ) {
+		foreach ( $accounts as $index => $account ) {
 			$connections[] = $this->marketing_connection( $account, $index === 0 && ! $engine_removed );
 		}
 
@@ -102,7 +114,7 @@ class ReportBuilder {
 				'transactional',
 				$transactional,
 				'',
-				$this->transactional_emails_on() ? array( 'transactional_emails' ) : array()
+				TransactionalGate::any_enabled() ? array( 'transactional_emails' ) : array()
 			);
 		}
 
@@ -121,7 +133,10 @@ class ReportBuilder {
 		$body['sent_at']     = IsoDate::to_z( $this->now() );
 		$body['connections'] = $connections;
 
-		return $body;
+		return array(
+			'body'        => $body,
+			'credentials' => $main,
+		);
 	}
 
 	protected function now(): int {
@@ -202,7 +217,7 @@ class ReportBuilder {
 		$engine = $with_engine && $this->engine->is_connected() && $this->engine->tenant_id() !== '';
 		if ( $engine ) {
 			$features[] = 'campaign_intelligence';
-			if ( (bool) get_option( 'smly_plus_rec_track_browsing', false ) ) {
+			if ( (bool) get_option( BeaconEndpoint::OPTION_TRACK_BROWSING, false ) ) {
 				$features[] = 'browse_tracking';
 			}
 		}
@@ -255,14 +270,17 @@ class ReportBuilder {
 	 * @return array<int, string>
 	 */
 	private function automations_on( string $account_key ): array {
-		$mapped = $this->mapped_triggers( $account_key );
+		if ( $this->mapped === null ) {
+			$this->mapped = $this->mapped_triggers();
+		}
+		$mapped = $this->mapped[ $account_key ] ?? array();
 		$cart   = \Smaily_Connect\Includes\Options::abandoned_cart_status();
 
 		$on = array();
-		if ( (bool) get_option( 'smly_plus_welcome_enabled', false ) && in_array( 'welcome', $mapped, true ) ) {
+		if ( (bool) get_option( HookHandler::OPTION_WELCOME_ENABLED, false ) && in_array( 'welcome', $mapped, true ) ) {
 			$on[] = 'welcome_automation';
 		}
-		if ( (bool) get_option( 'smly_plus_first_order_enabled', false ) && in_array( 'first_order', $mapped, true ) ) {
+		if ( (bool) get_option( HookHandler::OPTION_FIRST_ORDER_ENABLED, false ) && in_array( 'first_order', $mapped, true ) ) {
 			$on[] = 'first_order_automation';
 		}
 		if ( $cart['enabled'] && ( in_array( 'abandoned_cart', $mapped, true ) || ( $account_key === Credentials::DEFAULT_ACCOUNT_KEY && $cart['autoresponder_id'] > 0 ) ) ) {
@@ -273,32 +291,12 @@ class ReportBuilder {
 	}
 
 	/**
-	 * The trigger types mapped to a workflow of this account.
+	 * The trigger types mapped to a workflow, by account key.
 	 *
-	 * @return array<int, string>
+	 * @return array<string, array<int, string>>
 	 */
-	protected function mapped_triggers( string $account_key ): array {
-		global $wpdb;
-
-		$table = $wpdb->prefix . Router::TABLE_SUFFIX;
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- the table name is the prefix + a class constant.
-		$rows = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT trigger_type FROM {$table} WHERE account_key = %s AND workflow_id <> ''", $account_key ) );
-
-		return is_array( $rows ) ? array_map( 'strval', $rows ) : array();
-	}
-
-	/** Order and shipping emails through the Transactional account are switched on. */
-	private function transactional_emails_on(): bool {
-		if ( ! (bool) get_option( TransactionalGate::OPTION_ENABLED, false ) ) {
-			return false;
-		}
-		foreach ( TransactionalGate::TRIGGERS as $trigger ) {
-			if ( (bool) get_option( $trigger['toggle_option'], false ) ) {
-				return true;
-			}
-		}
-
-		return false;
+	protected function mapped_triggers(): array {
+		return ( new Router() )->mapped_triggers_by_account();
 	}
 
 	/**

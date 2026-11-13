@@ -155,6 +155,8 @@ final class Bootstrap {
 	private ?TransactionalFlusher $transactional_flusher         = null;
 	private ?TransactionalResend $transactional_resend           = null;
 
+	private ?InstallationReport $installation_report = null;
+
 	/** @var array<string, Client> */
 	private array $smaily_clients = array();
 
@@ -443,7 +445,7 @@ final class Bootstrap {
 	 * @param mixed $attempt 0 for the first try, 1–3 for a retry.
 	 */
 	public function on_installation_report( $trigger = '', $attempt = 0 ): void {
-		( new InstallationReport() )->run( $trigger, $attempt );
+		$this->installation_report()->run( $trigger, $attempt );
 	}
 
 	/**
@@ -981,7 +983,7 @@ final class Bootstrap {
 		// The daily installation report (CON-290): one single action on a
 		// store with a connected Smaily marketing account — the first at a
 		// random moment within 24 hours; each run sets the next.
-		( new InstallationReport() )->ensure_scheduled();
+		$this->installation_report()->ensure_scheduled();
 
 		update_option( self::OPTION_AS_JOBS_VERIFIED, time(), false );
 	}
@@ -1493,6 +1495,18 @@ final class Bootstrap {
 		}
 
 		return $this->transactional_resend;
+	}
+
+	/**
+	 * The installation report to Smaily's subscription service (CON-290) —
+	 * one per request, built on first use.
+	 */
+	public function installation_report(): InstallationReport {
+		if ( $this->installation_report === null ) {
+			$this->installation_report = new InstallationReport();
+		}
+
+		return $this->installation_report;
 	}
 
 	// ---------------------------------------------------------------

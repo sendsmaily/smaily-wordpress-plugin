@@ -21,7 +21,6 @@ use Brain\Monkey;
 use Brain\Monkey\Actions;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
-use Smaily\Connect\Report\ConnectionHealth;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
 
@@ -120,19 +119,54 @@ final class ClientTenantInactiveTest extends TestCase {
 	 * @param array<string, mixed> $body
 	 */
 	public function test_every_answer_is_announced_for_the_installation_report_with_its_code_only(): void {
-		Actions\expectDone( ConnectionHealth::ENGINE_HOOK )->once()->with( 'tenant_inactive', false );
+		Actions\expectDone( Client::RESULT_HOOK )->once()->with( 'tenant_inactive', 'GET', Client::PATH_PING );
 		try {
 			$this->client_answering( 403, array( 'error' => 'tenant_inactive', 'message' => 'Deactivated.' ) )->ping();
 		} catch ( ApiException $e ) {
 			unset( $e );
 		}
 
-		Actions\expectDone( ConnectionHealth::ENGINE_HOOK )->once()->with( '', true );
+		Actions\expectDone( Client::RESULT_HOOK )->once()->with( '', 'POST', Client::PATH_INGEST_ORDERS );
 		$this->client_answering( 200, array( 'ok' => true ) )->ingest_orders( array() );
 
-		Actions\expectDone( ConnectionHealth::ENGINE_HOOK )->once()->with( '', false );
+		Actions\expectDone( Client::RESULT_HOOK )->once()->with( '', 'GET', Client::PATH_PING );
 		$this->client_answering( 200, array( 'ok' => true ) )->ping();
 		$this->addToAssertionCount( 3 ); // The three expectations, checked at tearDown.
+	}
+
+	/**
+	 * The GDPR customer URLs (§8/§9/§10) carry the email in their path; the
+	 * result hook must never pass it on, in any argument (CON-290, CON-301).
+	 */
+	public function test_a_gdpr_customer_call_announces_no_customer_identifier(): void {
+		$email = 'jane.doe+shop@example.com';
+		$calls = array();
+		Actions\expectDone( Client::RESULT_HOOK )->times( 3 )->whenHappen(
+			static function ( ...$args ) use ( &$calls ): void {
+				$calls[] = $args;
+			}
+		);
+
+		$this->client_answering( 200, array( 'ok' => true ) )->customer_delete( $email );
+		try {
+			$this->client_answering( 404, array( 'error' => 'not_found', 'message' => "No customer with email '{$email}'" ) )->customer_export( $email );
+		} catch ( ApiException $e ) {
+			unset( $e );
+		}
+		$this->client_answering( 200, array( 'ok' => true ) )->customer_opt_out( $email, array( 'opted_out' => true ) );
+
+		self::assertSame(
+			array(
+				array( '', 'DELETE', '' ),
+				array( 'not_found', 'GET', '' ),
+				array( '', 'POST', '' ),
+			),
+			$calls
+		);
+		$flat = (string) json_encode( $calls );
+		foreach ( array( $email, rawurlencode( $email ), 'jane' ) as $identifier ) {
+			self::assertStringNotContainsString( $identifier, $flat );
+		}
 	}
 
 	private function client_answering( int $status, array $body ): Client {

@@ -141,7 +141,7 @@ final class RecEngineDisconnectTest extends TestCase {
 				}
 			);
 
-		( new RecEngineEndpoint( new RecEngineSettings(), $fail, $fail, $fail, $report ) )->disconnect( new WP_REST_Request() );
+		( new RecEngineEndpoint( new RecEngineSettings(), $fail, $fail, $fail, static fn (): InstallationReport => $report ) )->disconnect( new WP_REST_Request() );
 
 		self::assertTrue( $key_when_sent, 'The disconnected report goes while the key is still stored (CON-290).' );
 		self::assertArrayNotHasKey( RecEngineSettings::OPTION_API_KEY, $this->options );
@@ -154,7 +154,7 @@ final class RecEngineDisconnectTest extends TestCase {
 		$report = $this->createMock( InstallationReport::class );
 		$report->expects( self::never() )->method( 'send_event' );
 
-		( new RecEngineEndpoint( new RecEngineSettings(), $fail, $fail, $fail, $report ) )->disconnect( new WP_REST_Request() );
+		( new RecEngineEndpoint( new RecEngineSettings(), $fail, $fail, $fail, static fn (): InstallationReport => $report ) )->disconnect( new WP_REST_Request() );
 	}
 
 	public function test_disconnect_ends_the_imports_the_connection_started(): void {

@@ -90,7 +90,7 @@ final class ReportBuilderTest extends TestCase {
 	public function test_a_daily_snapshot_has_the_contract_shape(): void {
 		$this->connect_everything();
 
-		$body = $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY );
+		$body = $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['body'];
 
 		self::assertSame(
 			array(
@@ -149,7 +149,7 @@ final class ReportBuilderTest extends TestCase {
 		$this->options['admin_email'] = 'owner@example-store.test';
 		$this->options['blogname']    = 'Jane Doe Shop';
 
-		$json = (string) json_encode( $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_SETUP_SAVED ) );
+		$json = (string) json_encode( $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_SETUP_SAVED )['body'] );
 
 		foreach ( array( 'api-user', 'api-pass', 'tx-user', 'tx-pass', self::API_KEY, 'owner@example-store.test', 'Jane Doe', 'MiuMjau Tenant' ) as $secret ) {
 			self::assertStringNotContainsString( $secret, $json );
@@ -161,7 +161,7 @@ final class ReportBuilderTest extends TestCase {
 		$this->connect_everything();
 		unset( $this->options['smly_plus_setup_completed'] );
 
-		$features = $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['connections'][0]['features'];
+		$features = $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['body']['connections'][0]['features'];
 
 		self::assertSame( array( 'campaign_intelligence', 'browse_tracking' ), $features, 'Sync and the automations wait for the wizard; the engine connection does not.' );
 	}
@@ -174,7 +174,7 @@ final class ReportBuilderTest extends TestCase {
 			'autoresponder_id' => 0,
 		);
 
-		$features = $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['connections'][0]['features'];
+		$features = $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['body']['connections'][0]['features'];
 
 		self::assertNotContains( 'welcome_automation', $features );
 		self::assertNotContains( 'abandoned_cart', $features );
@@ -184,13 +184,13 @@ final class ReportBuilderTest extends TestCase {
 		$this->connect_everything();
 		$this->engine_refused = true;
 
-		self::assertFalse( $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['connections'][0]['intelligence']['connected'] );
+		self::assertFalse( $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['body']['connections'][0]['intelligence']['connected'] );
 	}
 
 	public function test_a_campaign_intelligence_disconnect_carries_the_smaily_connections_that_stay(): void {
 		$this->connect_everything();
 
-		$body = $this->builder()->build( ReportBuilder::EVENT_DISCONNECTED, '', array(), true );
+		$body = $this->builder()->build( ReportBuilder::EVENT_DISCONNECTED, '', array(), true )['body'];
 
 		self::assertSame( 'disconnected', $body['event'] );
 		self::assertArrayNotHasKey( 'trigger', $body, 'A trigger goes with a snapshot only.' );
@@ -203,7 +203,7 @@ final class ReportBuilderTest extends TestCase {
 	public function test_a_cleared_transactional_account_leaves_the_report(): void {
 		$this->connect_everything();
 
-		$body = $this->builder()->build( ReportBuilder::EVENT_DISCONNECTED, '', array( 'transactional' ) );
+		$body = $this->builder()->build( ReportBuilder::EVENT_DISCONNECTED, '', array( 'transactional' ) )['body'];
 
 		self::assertSame( array( 'marketing' ), array_column( $body['connections'], 'role' ) );
 		self::assertSame( 'example', $body['smaily_subdomain'], 'The main account still authenticates it.' );
@@ -212,7 +212,7 @@ final class ReportBuilderTest extends TestCase {
 	public function test_a_deactivation_carries_the_connections_as_they_are(): void {
 		$this->connect_everything();
 
-		$body = $this->builder()->build( ReportBuilder::EVENT_DEACTIVATED );
+		$body = $this->builder()->build( ReportBuilder::EVENT_DEACTIVATED )['body'];
 
 		self::assertSame( 'deactivated', $body['event'] );
 		self::assertArrayNotHasKey( 'trigger', $body );
@@ -226,7 +226,7 @@ final class ReportBuilderTest extends TestCase {
 		$this->options['smly_plus_multilingual_mode'] = 'A';
 		$GLOBALS['wpdb'] = $this->option_names( array( 'smly_plus_credentials_et', 'smly_plus_credentials_en', 'smly_plus_credentials_transactional' ) );
 
-		$connections = $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['connections'];
+		$connections = $this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['body']['connections'];
 
 		self::assertSame( array( 'example', 'example-et' ), array_column( $connections, 'smaily_subdomain' ), 'An incomplete language account is not connected.' );
 		self::assertArrayNotHasKey( 'language', $connections[0] );
@@ -252,7 +252,7 @@ final class ReportBuilderTest extends TestCase {
 					'version' => '9.9.5',
 				),
 			),
-			$this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['platforms']
+			$this->builder()->build( ReportBuilder::EVENT_SNAPSHOT, ReportBuilder::TRIGGER_DAILY )['body']['platforms']
 		);
 	}
 
@@ -317,8 +317,8 @@ final class ReportBuilderTest extends TestCase {
 				return 1794571200;
 			}
 
-			protected function mapped_triggers( string $account_key ): array {
-				return $this->mapped[ $account_key ] ?? array();
+			protected function mapped_triggers(): array {
+				return $this->mapped;
 			}
 		};
 	}

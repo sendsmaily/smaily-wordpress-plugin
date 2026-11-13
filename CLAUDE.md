@@ -1621,9 +1621,11 @@ order data, never the engine key. Rules:
   account), `deactivated` first in `Deactivation::run()`. A new place that
   deletes Smaily credentials sends `disconnected` first.
 - **Health**: `Smaily\Client::request()` and `RecEngine\Client::request_url()`
-  fire `ConnectionHealth::SMAILY_HOOK` / `ENGINE_HOOK` with a code only;
-  `ConnectionHealth` stores them in `smly_plus_connection_health` (in
-  EnvScrub's flush list).
+  fire their own `RESULT_HOOK` with a code only (plus the method and the
+  Smaily endpoint name, or the engine's `/ingest/` path and '' for any other
+  path — the GDPR customer URLs hold the email, so the hook never carries a
+  customer identifier); `ConnectionHealth` decides which answer is a sync and
+  stores them in `smly_plus_connection_health` (in EnvScrub's flush list).
 - **Never contact the live receiver from a test or a dev site — a report
   there creates a real record.** `.wp-env.json` / `.wp-env.min.json` mount
   `tests/Integration/Fixtures/mu-plugins` as `wp-content/mu-plugins`; its

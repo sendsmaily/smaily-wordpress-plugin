@@ -107,8 +107,10 @@ final class EndpointRegistry {
 					return $bootstrap->transactional_status()->snapshot();
 				},
 				// A save is reported to Smaily's subscription service
-				// (CON-290).
-				new InstallationReport()
+				// (CON-290). Built on demand, like the resend below.
+				static function () use ( $bootstrap ): InstallationReport {
+					return $bootstrap->installation_report();
+				}
 			),
 			new EventsEndpoint(
 				// "Send again" (PRO-2324) runs the same gate + payload
@@ -136,11 +138,13 @@ final class EndpointRegistry {
 				static function () use ( $bootstrap ): bool {
 					$started = $bootstrap->imports_on_connect()->start();
 					( new LegacyOrderDateIndex() )->ensure_scheduled();
-					// Connecting is a setup save the report tells (CON-290).
-					( new InstallationReport() )->setup_saved();
 					return $started;
 				},
-				new InstallationReport()
+				// Connecting is a setup save the report tells, and a
+				// disconnect sends `disconnected` (CON-290). Built on demand.
+				static function () use ( $bootstrap ): InstallationReport {
+					return $bootstrap->installation_report();
+				}
 			),
 			new AutomationsEndpoint(
 				new RecEngineSettings(),
