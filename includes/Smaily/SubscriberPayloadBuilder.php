@@ -376,15 +376,7 @@ class SubscriberPayloadBuilder {
 			case 'user_phone':
 				return $this->trim_or_null( $this->user_meta( $user, 'user_phone' ) );
 			case 'user_gender':
-				$raw = $this->user_meta( $user, 'user_gender' );
-				if ( $raw === '' ) {
-					return null;
-				}
-				// Legacy enum convention (data-handler.class.php):
-				// '0' → Female, anything else → Male. Documented in
-				// FIELD_MAPPING.md §2 so future readers see the
-				// non-obvious mapping.
-				return $raw === '0' ? 'Female' : 'Male';
+				return self::gender_label( $this->user_meta( $user, 'user_gender' ) );
 			case 'birthday':
 				$raw = $this->user_meta( $user, 'user_dob' );
 				if ( $raw === '' ) {
@@ -413,6 +405,27 @@ class SubscriberPayloadBuilder {
 			default:
 				return null;
 		}
+	}
+
+	/**
+	 * The Smaily `user_gender` value for a stored `user_gender` user meta.
+	 *
+	 * The plugin's Gender input stores 1 = Male, 2 = Female. Any other
+	 * value (none stored included) gives null, so the field is omitted and
+	 * Smaily keeps what it holds. Both contact syncs read gender through
+	 * this one method (CON-309).
+	 *
+	 * @param string $stored The `user_gender` user meta value.
+	 *
+	 * @return string|null
+	 */
+	public static function gender_label( string $stored ): ?string {
+		$labels = array(
+			'1' => 'Male',
+			'2' => 'Female',
+		);
+
+		return $labels[ $stored ] ?? null;
 	}
 
 	private function user_meta( \WP_User $user, string $key ): string {
