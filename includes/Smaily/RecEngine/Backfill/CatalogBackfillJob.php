@@ -17,6 +17,7 @@ use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
 use Smaily\Connect\Smaily\RecEngine\IngestFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Support\DebugLog;
 
 /**
  * The cursor walks PARENT products (post_type=product, status publish OR trash)
@@ -146,11 +147,12 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 		[ $is_trashed, $units ] = $post;
 
 		if ( $units === null ) {
-			return array( $this->unavailable_unresolvable_row( $entity_id ) );
+			// A published product WooCommerce cannot load is not sent (CC.4).
+			return $is_trashed ? array( $this->unavailable_unresolvable_row( $entity_id ) ) : array();
 		}
 
 		$rows = array();
-		foreach ( $units as $unit ) {
+		foreach ( array_filter( $units ) as $unit ) {
 			$rows[] = $is_trashed
 				? $this->unavailable_row( $unit )
 				: array( CatalogHookHandler::EVENT_CATALOG_UPSERT, (string) $unit->get_id(), array() );
@@ -174,7 +176,7 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 		if ( $id === null ) {
 			return;
 		}
-		$this->queue->mark_failed( $id, \Smaily\Connect\Support\DebugLog::where( $e ) );
+		$this->queue->mark_failed( $id, DebugLog::where( $e ) );
 		$this->queue->store_exchange( $id, null, (string) wp_json_encode( array( 'outcome' => 'not_built' ) ) );
 	}
 
@@ -194,6 +196,10 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 * the list holds more than $limit items: the caller sends nothing then.
 	 * Each batch's loaded posts are released before the next one is read.
 	 *
+	 * A product that cannot be loaded is still listed, out of stock, from its
+	 * database ids (CON-312) — see post_manifest_items(). A database error
+	 * is thrown on: the caller sends nothing then.
+	 *
 	 * @return array<int, array{sku: string, in_stock: bool}>
 	 */
 	public function manifest_items( int $limit ): array {
@@ -208,19 +214,8 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 			}
 			$loaded = $ids;
 			foreach ( $ids as $entity_id ) {
-				$post = $this->units_to_send( $entity_id );
-				if ( $post === null ) {
-					continue;
-				}
-				[ $is_trashed, $units ] = $post;
-
-				if ( $units === null ) {
-					$items[] = $this->builder->manifest_item_unresolvable( $entity_id );
-				} else {
-					foreach ( $units as $unit ) {
-						$items[]  = $this->builder->manifest_item( $unit, $is_trashed );
-						$loaded[] = (int) $unit->get_id();
-					}
+				foreach ( $this->post_manifest_items( $entity_id, $loaded ) as $item ) {
+					$items[] = $item;
 				}
 
 				if ( count( $items ) > $limit ) {
@@ -233,6 +228,137 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 		} while ( count( $ids ) === $this->batch_size() );
 
 		return $items;
+	}
+
+	/**
+	 * The manifest items of one enumerated parent post (CON-312). A product
+	 * that throws while it is loaded or listed, or a published one that loads
+	 * as nothing (the CC.4 gap), is listed from its database ids instead, out
+	 * of stock (not_loaded_items()), and a debug line names its id with the
+	 * error type and place, never the message (CON-301). A product left out
+	 * would be tombstoned by the engine (§3c) — `recommendable=false`, which
+	 * only a later §3 upsert recomputes. A Throwable after a failed database
+	 * query (`$wpdb->last_error` set, CON-304's rule) is thrown on: the night
+	 * is not sent.
+	 *
+	 * @param int[] $loaded The batch's loaded post ids, for release_loaded_posts().
+	 * @return array<int, array{sku: string, in_stock: bool}>
+	 */
+	private function post_manifest_items( int $entity_id, array &$loaded ): array {
+		try {
+			$items = $this->loaded_manifest_items( $entity_id, $loaded );
+			if ( $items !== null ) {
+				return $items;
+			}
+			$why = 'it loaded as nothing';
+		} catch ( \Throwable $e ) {
+			if ( $this->database_failed() ) {
+				throw $e;
+			}
+			$why = DebugLog::where( $e );
+		}
+
+		self::log_listed_out_of_stock( $entity_id, $why );
+		return $this->not_loaded_items( $entity_id );
+	}
+
+	/**
+	 * The manifest items of a post as the import sends it; null for a
+	 * published product WooCommerce cannot load. A variation that loads as
+	 * nothing is listed out of stock under its own id.
+	 *
+	 * @param int[] $loaded
+	 * @return array<int, array{sku: string, in_stock: bool}>|null
+	 */
+	private function loaded_manifest_items( int $entity_id, array &$loaded ): ?array {
+		$post = $this->units_to_send( $entity_id );
+		if ( $post === null ) {
+			return array();
+		}
+		[ $is_trashed, $units ] = $post;
+
+		if ( $units === null ) {
+			return $is_trashed ? array( $this->builder->manifest_item_unresolvable( $entity_id ) ) : null;
+		}
+
+		$items = array();
+		foreach ( $units as $unit_id => $unit ) {
+			if ( $unit === null ) {
+				self::log_listed_out_of_stock( $unit_id, 'it loaded as nothing' );
+				$items[] = $this->builder->manifest_item_unresolvable( $unit_id );
+				continue;
+			}
+			$items[]  = $this->builder->manifest_item( $unit, $is_trashed );
+			$loaded[] = (int) $unit->get_id();
+		}
+		return $items;
+	}
+
+	/**
+	 * The manifest items of a product that could not be loaded, from its
+	 * database ids alone, all out of stock (CON-312): what expand() would list
+	 * — its published and private variations (the `product_variation`
+	 * children get_children() reads) when its `product_type` term is
+	 * `variable`, else the post itself. Each sku comes from
+	 * SkuResolver::resolve_id(), which needs only the id and the detector; a
+	 * detector that throws is thrown on, and the night is not sent. A
+	 * translation whose canonical is enumerated lists nothing, as in
+	 * units_to_send(), so its out-of-stock item never overrides the
+	 * canonical's. A failed database read here is thrown on too: a list
+	 * without the product's variations would tombstone them.
+	 *
+	 * @return array<int, array{sku: string, in_stock: bool}>
+	 */
+	private function not_loaded_items( int $entity_id ): array {
+		if ( $this->is_collapsed_translation( $entity_id ) ) {
+			return array();
+		}
+		$ids = $this->is_variable_post( $entity_id ) ? $this->variation_ids( $entity_id ) : array( $entity_id );
+		if ( $this->database_failed() ) {
+			throw new \RuntimeException( 'A database read failed while a product that cannot be loaded was listed.' );
+		}
+
+		$items = array();
+		foreach ( $ids as $id ) {
+			$items[] = $this->builder->manifest_item_unresolvable( $id );
+		}
+		return $items;
+	}
+
+	private static function log_listed_out_of_stock( int $post_id, string $why ): void {
+		DebugLog::write( sprintf( '[smaily-connect catalog.manifest] product %d could not be loaded (%s); listed out of stock', $post_id, $why ) );
+	}
+
+	/**
+	 * Whether the post's `product_type` term is `variable`. Protected so
+	 * tests can stand in for the term read.
+	 */
+	protected function is_variable_post( int $post_id ): bool {
+		return has_term( 'variable', 'product_type', $post_id );
+	}
+
+	/**
+	 * The ids of the post's published and private variations — what
+	 * WC_Product_Variable::get_children() reads. Protected so tests can stand
+	 * in for the query.
+	 *
+	 * @return int[]
+	 */
+	protected function variation_ids( int $parent_id ): array {
+		global $wpdb;
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_parent = %d AND post_type = %s AND post_status IN ( %s, %s ) ORDER BY menu_order ASC, ID ASC",
+				$parent_id,
+				'product_variation',
+				'publish',
+				'private'
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		return array_map( 'intval', $ids );
 	}
 
 	/**
@@ -265,16 +391,14 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 	 * What this import sends for one enumerated parent post — the single
 	 * decision enqueue_record() and manifest_items() share.
 	 *
-	 * @return array{0: bool, 1: array<int, \WC_Product>|null}|null Null when
-	 *         nothing is sent for the post; else [is_trashed, units], units
-	 *         null for a trashed product WooCommerce cannot load.
+	 * @return array{0: bool, 1: array<int, \WC_Product|null>|null}|null Null
+	 *         when nothing is sent for the post; else [is_trashed, units],
+	 *         units by id (CatalogPayloadBuilder::expand_by_id(), a variation
+	 *         that does not load kept as null), or null for a product
+	 *         WooCommerce cannot load.
 	 */
 	private function units_to_send( int $entity_id ): ?array {
-		$canonical_id = $this->detector->get_canonical_post_id( $entity_id );
-		if ( $canonical_id > 0 && $canonical_id !== $entity_id && $this->canonical_is_enumerated( $canonical_id ) ) {
-			// A translation whose canonical (default-language) post is itself a
-			// published product in this walk — the canonical enqueues itself on
-			// its own cursor step, so skip this one to avoid a duplicate SKU.
+		if ( $this->is_collapsed_translation( $entity_id ) ) {
 			return null;
 		}
 
@@ -297,15 +421,26 @@ class CatalogBackfillJob extends AbstractBackfillJob {
 			// The SQL cursor confirmed this id IS a product/trash post row, so a
 			// failed load here means WC couldn't classify it (e.g. a since-
 			// deactivated gift-card plugin's product_type) — a real gap, not "not
-			// ours". Only the trashed branch needs a tombstone (PRO-1498, F3-43
-			// never-drop); a publish-status load failure is a separate, tracked
-			// upsert-side gap (CC.4) out of scope here.
-			return $is_trashed ? array( true, null ) : null;
+			// ours". The import tombstones a trashed one (PRO-1498, F3-43
+			// never-drop) and sends nothing for a published one (CC.4); the
+			// manifest lists either out of stock (CON-312).
+			return array( $is_trashed, null );
 		}
 
 		// Same fan-out as the live hook: a variable product enqueues one row per
 		// variation unit; a simple product enqueues itself.
-		return array( $is_trashed, $this->builder->expand( $product ) );
+		return array( $is_trashed, $this->builder->expand_by_id( $product ) );
+	}
+
+	/**
+	 * Whether the post is a translation whose canonical (default-language)
+	 * post is itself a published product in this walk — the canonical sends
+	 * itself on its own cursor step, so this one is skipped to avoid a
+	 * duplicate SKU.
+	 */
+	private function is_collapsed_translation( int $entity_id ): bool {
+		$canonical_id = $this->detector->get_canonical_post_id( $entity_id );
+		return $canonical_id > 0 && $canonical_id !== $entity_id && $this->canonical_is_enumerated( $canonical_id );
 	}
 
 	/**

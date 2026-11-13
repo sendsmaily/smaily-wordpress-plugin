@@ -32,6 +32,16 @@ defined( 'ABSPATH' ) || exit;
  * catalog sync sends (a differing key reads to the engine as a deleted
  * product).
  *
+ * A product that cannot be loaded — it throws, or a published one loads as
+ * nothing — is not left out (CON-312): the engine would tombstone it, and
+ * `recommendable=false` comes back only with a §3 upsert. It is listed out
+ * of stock from its database ids (a variable product's published and
+ * private variations, else itself), a debug line names its id with the
+ * error type and place, and the rest of the list is sent. A database error
+ * while the list is built (a throw while `$wpdb->last_error` is set,
+ * CON-304's rule) or a multilingual detector that throws still fails the
+ * night: nothing is sent.
+ *
  * A partial or premature list would tombstone real products, so the night is
  * skipped — nothing sent — when the engine refuses the store (PRO-1893), the
  * products import runs or waits to start or its state cannot be read

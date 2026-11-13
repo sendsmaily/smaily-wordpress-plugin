@@ -200,11 +200,79 @@ final class RecEngineCatalogManifestTest extends TestCase {
 		self::assertSame( array(), $this->manifest_rows(), 'A skipped night writes no row.' );
 	}
 
+	/**
+	 * CON-312: a product that cannot be loaded is listed out of stock from
+	 * its database ids — a simple one under its own sku, a variable one as
+	 * its variations — and the rest of the list is sent, so the engine
+	 * removes nothing.
+	 */
+	public function test_a_product_that_cannot_be_loaded_is_listed_out_of_stock_and_the_rest_is_sent(): void {
+		$first     = $this->simple( 'first', 'instock' );
+		$broken    = $this->simple( 'broken', 'instock' );
+		$last      = $this->simple( 'last', 'instock' );
+		$variable  = new \WC_Product_Variable();
+		$variable->set_name( 'Manifest broken variable' );
+		$parent_id = (int) $variable->save();
+		$var_a     = $this->variation( $parent_id, 'instock' );
+		$var_b     = $this->variation( $parent_id, 'instock' );
+		$this->forget_live_events();
+		$this->run_import();
+
+		$fail = static function ( $classname, $product_type = '', $post_type = '', $product_id = 0 ) use ( $broken, $parent_id ) {
+			if ( in_array( (int) $product_id, array( $broken, $parent_id ), true ) ) {
+				throw new \RuntimeException( 'cannot read the product of jane@example.com' );
+			}
+			return $classname;
+		};
+		self::assertTrue( defined( 'WP_DEBUG' ) && WP_DEBUG, 'The suite runs with WP_DEBUG on (.wp-env.json).' );
+		$log_file = (string) tempnam( sys_get_temp_dir(), 'smaily-con312-manifest' );
+		$previous = (string) ini_set( 'error_log', $log_file );
+		add_filter( 'woocommerce_product_class', $fail, 10, 4 );
+		try {
+			do_action( CatalogManifest::HOOK );
+		} finally {
+			remove_filter( 'woocommerce_product_class', $fail, 10 );
+			ini_set( 'error_log', $previous );
+		}
+		$logged = (string) file_get_contents( $log_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		unlink( $log_file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+
+		$manifest = array_column( self::$engine->state()['last_manifest_items'], 'in_stock', 'sku' );
+		ksort( $manifest );
+		$expected = array(
+			'woo-' . $first  => true,
+			'woo-' . $broken => false,
+			'woo-' . $last   => true,
+			'woo-' . $var_a  => false,
+			'woo-' . $var_b  => false,
+		);
+		ksort( $expected );
+		self::assertSame( $expected, $manifest, 'Every product is listed; the ones that cannot be loaded out of stock, a variable one as its variations.' );
+
+		$rows = $this->manifest_rows();
+		self::assertCount( 1, $rows );
+		self::assertSame( 'sent', $rows[0]['status'] );
+		$answer = json_decode( $this->detail( (int) $rows[0]['id'] )['last_response'], true );
+		self::assertSame( 0, $answer['removed'], 'The engine removes nothing.' );
+
+		self::assertMatchesRegularExpression( '/product ' . $broken . ' could not be loaded \(RuntimeException at RecEngineCatalogManifestTest\.php:\d+\); listed out of stock/', $logged );
+		self::assertMatchesRegularExpression( '/product ' . $parent_id . ' could not be loaded \(RuntimeException at RecEngineCatalogManifestTest\.php:\d+\); listed out of stock/', $logged );
+		self::assertStringNotContainsString( 'jane@example.com', $logged, 'Never the error text (CON-301).' );
+	}
+
+	/**
+	 * A database error while the list is built (CON-304's rule: a throw
+	 * while `$wpdb->last_error` is set) still fails the night.
+	 */
 	public function test_a_list_that_fails_to_build_is_never_sent_and_the_event_log_says_why(): void {
 		$this->simple( 'a', 'instock' );
 		$this->simple( 'b', 'instock' );
 		$this->forget_live_events();
 		$fail = static function () {
+			global $wpdb;
+			$suppress = $wpdb->suppress_errors( true );
+			$wpdb->query( 'SELECT 1 FROM smaily_connect_no_such_table' );
+			$wpdb->suppress_errors( $suppress );
 			throw new \RuntimeException( 'stock lookup failed' );
 		};
 		add_filter( 'woocommerce_product_is_in_stock', $fail );

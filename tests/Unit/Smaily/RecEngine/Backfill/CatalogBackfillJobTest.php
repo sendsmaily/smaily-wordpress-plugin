@@ -268,7 +268,174 @@ final class CatalogBackfillJobTest extends TestCase {
 		);
 	}
 
+	public function test_manifest_lists_a_product_that_throws_out_of_stock_and_the_rest_as_usual(): void {
+		// CON-312: a product left out of the list would be tombstoned
+		// (recommendable=false), so it is listed out of stock from its id.
+		$items = $this->manifest_of(
+			array(
+				1 => $this->fake_product( 1, '' ),
+				2 => new \RuntimeException( 'cannot read jane@example.com' ),
+				3 => $this->fake_product( 3, '' ),
+			)
+		);
+
+		self::assertSame(
+			array(
+				array(
+					'sku'      => 'woo-1',
+					'in_stock' => true,
+				),
+				array(
+					'sku'      => 'woo-2',
+					'in_stock' => false,
+				),
+				array(
+					'sku'      => 'woo-3',
+					'in_stock' => true,
+				),
+			),
+			$items
+		);
+	}
+
+	public function test_manifest_lists_a_published_product_that_loads_as_nothing_out_of_stock(): void {
+		// The CC.4 gap: wc_get_product() returns false, nothing throws. The
+		// import still sends nothing for it; the manifest no longer leaves it out.
+		$items = $this->manifest_of( array( 1 => $this->fake_product( 1, '' ) ), array( 'ids' => array( 1, 2 ) ) );
+
+		self::assertSame( array( true, false ), array_column( $items, 'in_stock' ) );
+		self::assertSame( array( 'woo-1', 'woo-2' ), array_column( $items, 'sku' ) );
+	}
+
+	public function test_manifest_lists_the_variations_of_a_variable_product_that_throws_out_of_stock(): void {
+		// A variable product sends its variations, not itself: the fallback
+		// lists its published and private variations from the database.
+		$items = $this->manifest_of(
+			array(
+				1 => $this->fake_product( 1, '' ),
+				2 => new \TypeError( 'bad' ),
+			),
+			array( 'variations' => array( 2 => array( 21, 22 ) ) )
+		);
+
+		self::assertSame( array( 'woo-1', 'woo-21', 'woo-22' ), array_column( $items, 'sku' ), 'The variations are listed, not the parent.' );
+		self::assertSame( array( true, false, false ), array_column( $items, 'in_stock' ) );
+	}
+
+	public function test_manifest_lists_a_variation_that_loads_as_nothing_out_of_stock(): void {
+		$items = $this->manifest_of(
+			array( 5 => $this->fake_product( 5, '' ) ),
+			array(
+				'units'         => array( $this->fake_product( 51, '' ) ),
+				'missing_units' => array( 52 ),
+			)
+		);
+
+		self::assertSame(
+			array(
+				array(
+					'sku'      => 'woo-51',
+					'in_stock' => true,
+				),
+				array(
+					'sku'      => 'woo-52',
+					'in_stock' => false,
+				),
+			),
+			$items
+		);
+	}
+
+	public function test_manifest_fails_when_the_detector_throws(): void {
+		// Without the detector the canonical sku cannot be worked out, so the
+		// list cannot hold the product: the night is not sent.
+		$this->expectException( \RuntimeException::class );
+		$this->expectExceptionMessage( 'translation table unreadable' );
+
+		$this->manifest_of(
+			array(
+				1 => $this->fake_product( 1, '' ),
+				2 => $this->fake_product( 2, '' ),
+			),
+			array( 'detector_throws' => array( 2 ) )
+		);
+	}
+
+	public function test_manifest_fails_on_an_error_after_a_failed_database_query(): void {
+		// CON-304's rule: a throw while $wpdb->last_error is set is a
+		// database error, not a broken product.
+		$GLOBALS['wpdb'] = (object) array( 'last_error' => "Table 'wp_postmeta' doesn't exist" );
+		$this->expectException( \RuntimeException::class );
+		$this->expectExceptionMessage( 'Invalid product.' );
+
+		$this->manifest_of( array( 1 => new \RuntimeException( 'Invalid product.' ) ) );
+	}
+
+	public function test_manifest_fails_when_the_variations_of_a_product_that_throws_cannot_be_read(): void {
+		// A list without them would tombstone the variations.
+		$this->expectException( \RuntimeException::class );
+		$this->expectExceptionMessage( 'A database read failed while a product that cannot be loaded was listed.' );
+
+		$this->manifest_of(
+			array( 2 => new \TypeError( 'bad' ) ),
+			array(
+				'variations'       => array( 2 => array( 21 ) ),
+				'db_error_on_read' => true,
+			)
+		);
+	}
+
+	/**
+	 * The debug line names the product and where the error was thrown, never
+	 * its text (CON-301). Its own process: DebugLog writes only under
+	 * WP_DEBUG, a constant that would stay on for the rest of the suite.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_manifest_logs_the_product_it_could_not_load_without_the_error_text(): void {
+		define( 'WP_DEBUG', true );
+		$log      = (string) tempnam( sys_get_temp_dir(), 'smly-con312-log' );
+		$previous = (string) ini_set( 'error_log', $log );
+		try {
+			$this->manifest_of(
+				array(
+					2 => new \RuntimeException( 'cannot read jane@example.com' ),
+					3 => $this->fake_product( 3, '' ),
+				),
+				array( 'ids' => array( 2, 3, 4 ) )
+			);
+			$written = (string) file_get_contents( $log );
+		} finally {
+			ini_set( 'error_log', $previous );
+			unlink( $log );
+		}
+
+		self::assertMatchesRegularExpression( '/product 2 could not be loaded \(RuntimeException at CatalogBackfillJobTest\.php:\d+\); listed out of stock/', $written );
+		self::assertStringContainsString( 'product 4 could not be loaded (it loaded as nothing); listed out of stock', $written );
+		self::assertStringNotContainsString( 'jane@example.com', $written );
+	}
+
 	// --- doubles -------------------------------------------------------------
+
+	/**
+	 * The manifest of the given parent posts, all published, in one batch.
+	 *
+	 * @param array<int, \WC_Product|\Throwable> $products get_product() lookup; a Throwable is thrown.
+	 * @param array{ids?: array<int,int>, units?: array<int, \WC_Product>, missing_units?: int[], variations?: array<int, int[]>, detector_throws?: int[], db_error_on_read?: bool} $opts
+	 * @return array<int, array{sku: string, in_stock: bool}>
+	 */
+	private function manifest_of( array $products, array $opts = array() ): array {
+		Functions\when( '_prime_post_caches' )->justReturn( null );
+		Functions\when( 'wp_cache_supports' )->justReturn( true );
+		Functions\when( 'wp_cache_flush_runtime' )->justReturn( true );
+
+		$opts['ids'] = $opts['ids'] ?? array_keys( $products );
+		$units       = $opts['units'] ?? array();
+		unset( $opts['units'] );
+
+		return $this->job( $this->fake_queue(), $products, $units, $opts )->manifest_items( 50000 );
+	}
 
 	/**
 	 * Three published variable products (ids 1-3, each expanding to variations
@@ -327,18 +494,28 @@ final class CatalogBackfillJobTest extends TestCase {
 	}
 
 	/**
-	 * @param array<int, \WC_Product> $units builder->expand() result.
+	 * @param array<int, \WC_Product> $units   builder->expand_by_id() result.
+	 * @param int[]                   $missing Variation ids expand_by_id() reports as not loading.
 	 */
-	private function fake_builder( array $units ): CatalogPayloadBuilder {
-		return new class( $units ) extends CatalogPayloadBuilder {
-			/** @var array<int, \WC_Product> */
-			private array $units;
-			/** @param array<int, \WC_Product> $units */
-			public function __construct( array $units ) {
-				$this->units = $units;
+	private function fake_builder( array $units, array $missing = array() ): CatalogPayloadBuilder {
+		return new class( $units, $missing ) extends CatalogPayloadBuilder {
+			/** @var array<int, \WC_Product|null> */
+			private array $units = array();
+			/**
+			 * @param array<int, \WC_Product> $units
+			 * @param int[]                   $missing
+			 */
+			public function __construct( array $units, array $missing ) {
+				foreach ( $units as $unit ) {
+					$this->units[ (int) $unit->get_id() ] = $unit;
+				}
+				foreach ( $missing as $id ) {
+					$this->units[ $id ] = null;
+				}
 			}
-			public function expand( \WC_Product $product ): array {
-				return $this->units;
+			public function expand_by_id( \WC_Product $product ): array {
+				// No units given: a simple product, its own unit.
+				return $this->units === array() ? array( (int) $product->get_id() => $product ) : $this->units;
 			}
 			public function build( \WC_Product $product, string $event_uuid ): array {
 				$object = array(
@@ -378,6 +555,12 @@ final class CatalogBackfillJobTest extends TestCase {
 					'in_stock' => ! $trashed,
 				);
 			}
+			public function manifest_item_unresolvable( int $product_id ): array {
+				return array(
+					'sku'      => 'woo-' . $product_id,
+					'in_stock' => false,
+				);
+			}
 			public function ensure_valid_removal( array $object ): array {
 				if ( (string) ( $object['category_path'] ?? '' ) === '' ) {
 					$object['category_path'] = 'uncategorized';
@@ -394,20 +577,27 @@ final class CatalogBackfillJobTest extends TestCase {
 
 	/**
 	 * @param array<int, \WC_Product|\Throwable>             $products_by_id get_product() lookup; a Throwable is thrown.
-	 * @param array<int, \WC_Product>                        $expand_units   builder->expand() result.
-	 * @param array{canonical?: array<int,int>, status?: array<int,string>, enumerated?: array<int,int>, ids?: array<int,int>, batch_size?: int, log?: \ArrayObject<int,string>} $opts
+	 * @param array<int, \WC_Product>                        $expand_units   builder->expand_by_id() result.
+	 * @param array{canonical?: array<int,int>, status?: array<int,string>, enumerated?: array<int,int>, ids?: array<int,int>, batch_size?: int, log?: \ArrayObject<int,string>, missing_units?: int[], variations?: array<int, int[]>, detector_throws?: int[], db_error_on_read?: bool} $opts
 	 */
 	private function job( IngestQueue $queue, array $products_by_id, array $expand_units, array $opts = array() ): CatalogBackfillJob {
 		$canonical_map = $opts['canonical'] ?? array();
 		$status_map    = $opts['status'] ?? array();
 		$enumerated    = $opts['enumerated'] ?? array();
 
+		$detector_throws = $opts['detector_throws'] ?? array();
+
 		$detector = $this->createMock( DetectorInterface::class );
 		$detector->method( 'get_canonical_post_id' )->willReturnCallback(
-			static fn ( int $id ): int => $canonical_map[ $id ] ?? $id
+			static function ( int $id ) use ( $canonical_map, $detector_throws ): int {
+				if ( in_array( $id, $detector_throws, true ) ) {
+					throw new \RuntimeException( 'translation table unreadable' );
+				}
+				return $canonical_map[ $id ] ?? $id;
+			}
 		);
 
-		$builder = $this->fake_builder( $expand_units );
+		$builder = $this->fake_builder( $expand_units, $opts['missing_units'] ?? array() );
 		$flusher = $this->createMock( IngestFlusher::class );
 
 		return new class( $queue, $flusher, $builder, $detector, $products_by_id, $status_map, $enumerated, $opts ) extends CatalogBackfillJob {
@@ -422,12 +612,15 @@ final class CatalogBackfillJobTest extends TestCase {
 			private int $batch;
 			/** @var \ArrayObject<int, string> */
 			private \ArrayObject $log;
+			/** @var array<int, int[]> */
+			private array $variations;
+			private bool $db_error_on_read;
 
 			/**
 			 * @param array<int, \WC_Product|\Throwable> $products_by_id
 			 * @param array<int, string>      $status_map
 			 * @param array<int, int>         $enumerated
-			 * @param array{ids?: array<int,int>, batch_size?: int, log?: \ArrayObject<int,string>} $opts
+			 * @param array{ids?: array<int,int>, batch_size?: int, log?: \ArrayObject<int,string>, variations?: array<int, int[]>, db_error_on_read?: bool} $opts
 			 */
 			public function __construct( IngestQueue $queue, IngestFlusher $flusher, CatalogPayloadBuilder $builder, DetectorInterface $detector, array $products_by_id, array $status_map, array $enumerated, array $opts ) {
 				parent::__construct( $queue, $flusher, $builder, $detector );
@@ -436,7 +629,9 @@ final class CatalogBackfillJobTest extends TestCase {
 				$this->enumerated     = $enumerated;
 				$this->ids            = $opts['ids'] ?? array();
 				$this->batch          = $opts['batch_size'] ?? 100;
-				$this->log            = $opts['log'] ?? new \ArrayObject();
+				$this->log              = $opts['log'] ?? new \ArrayObject();
+				$this->variations       = $opts['variations'] ?? array();
+				$this->db_error_on_read = $opts['db_error_on_read'] ?? false;
 			}
 
 			public function run( int $id ): void {
@@ -467,6 +662,18 @@ final class CatalogBackfillJobTest extends TestCase {
 
 			protected function canonical_is_enumerated( int $canonical_id ): bool {
 				return in_array( $canonical_id, $this->enumerated, true );
+			}
+
+			protected function is_variable_post( int $post_id ): bool {
+				return isset( $this->variations[ $post_id ] );
+			}
+
+			protected function variation_ids( int $parent_id ): array {
+				if ( $this->db_error_on_read ) {
+					$GLOBALS['wpdb'] = (object) array( 'last_error' => "Table 'wp_posts' is marked as crashed" );
+					return array();
+				}
+				return $this->variations[ $parent_id ] ?? array();
 			}
 		};
 	}
