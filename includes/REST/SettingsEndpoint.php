@@ -410,19 +410,14 @@ class SettingsEndpoint {
 		if ( array_key_exists( 'followUpDelayDays', $data ) ) {
 			$follow_up_delay = TransactionalGate::delay_days_or_null( $data['followUpDelayDays'] );
 			if ( $follow_up_delay === null ) {
-				return $this->error_response(
-					array(
-						array(
-							'field'   => 'followUpDelayDays',
-							'message' => sprintf(
-								/* translators: 1: the shortest delay in days, 2: the longest. */
-								__( 'The follow-up email delay must be a whole number of days from %1$d to %2$d.', 'smaily-connect' ),
-								TransactionalGate::FOLLOW_UP_DELAY_MIN,
-								TransactionalGate::FOLLOW_UP_DELAY_MAX
-							),
-						),
-					),
-					400
+				return $this->field_error(
+					'followUpDelayDays',
+					sprintf(
+						/* translators: 1: the shortest delay in days, 2: the longest. */
+						__( 'The follow-up email delay must be a whole number of days from %1$d to %2$d.', 'smaily-connect' ),
+						TransactionalGate::FOLLOW_UP_DELAY_MIN,
+						TransactionalGate::FOLLOW_UP_DELAY_MAX
+					)
 				);
 			}
 		}
@@ -432,19 +427,14 @@ class SettingsEndpoint {
 		if ( array_key_exists( 'paymentReminderDelayMinutes', $data ) ) {
 			$payment_reminder_delay = TransactionalGate::delay_minutes_or_null( $data['paymentReminderDelayMinutes'] );
 			if ( $payment_reminder_delay === null ) {
-				return $this->error_response(
-					array(
-						array(
-							'field'   => 'paymentReminderDelayMinutes',
-							'message' => sprintf(
-								/* translators: 1: the shortest delay in minutes, 2: the longest. */
-								__( 'The payment reminder delay must be a whole number of minutes from %1$d to %2$d.', 'smaily-connect' ),
-								TransactionalGate::PAYMENT_REMINDER_DELAY_MIN,
-								TransactionalGate::PAYMENT_REMINDER_DELAY_MAX
-							),
-						),
-					),
-					400
+				return $this->field_error(
+					'paymentReminderDelayMinutes',
+					sprintf(
+						/* translators: 1: the shortest delay in minutes, 2: the longest. */
+						__( 'The payment reminder delay must be a whole number of minutes from %1$d to %2$d.', 'smaily-connect' ),
+						TransactionalGate::PAYMENT_REMINDER_DELAY_MIN,
+						TransactionalGate::PAYMENT_REMINDER_DELAY_MAX
+					)
 				);
 			}
 		}
@@ -771,6 +761,21 @@ class SettingsEndpoint {
 				'errors' => $errors,
 			),
 			$status
+		);
+	}
+
+	/**
+	 * A 400 that refuses one field's value, before anything is written.
+	 */
+	private function field_error( string $field, string $message ): WP_REST_Response {
+		return $this->error_response(
+			array(
+				array(
+					'field'   => $field,
+					'message' => $message,
+				),
+			),
+			400
 		);
 	}
 }
