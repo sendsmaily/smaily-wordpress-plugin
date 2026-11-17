@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-3.0+.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smaily Connect 3.23.0\n"
+"Project-Id-Version: Smaily Connect 3.24.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/smaily-connect\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3333,6 +3333,12 @@ msgstr ""
 
 #: admin/src/components/steps/OpenConsoleButton.tsx:102
 msgid "Campaign Intelligence could not be opened. Try again in a minute."
+msgstr ""
+
+#. translators: %s: the error code Smaily Campaign Intelligence answered with, e.g. "network_error".
+#: includes/REST/RecEngineEndpoint.php:327
+#, php-format
+msgid "The connection check failed (error code: %s)."
 msgstr ""
 
 #: admin/src/components/steps/TransactionalTriggersSection.tsx:167
