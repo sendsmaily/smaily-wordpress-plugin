@@ -124,7 +124,8 @@ class Credentials {
 	/**
 	 * The option key of every stored Smaily account: the legacy default
 	 * account first, then each per-account option (`PHASE2_OPTION_PREFIX`).
-	 * Read on a setup-link connect and on (de)activation only.
+	 * Read on a setup-link connect, on (de)activation, and by the invitation
+	 * notice on admin screens of a store with no default account.
 	 *
 	 * @return array<int, string>
 	 */
@@ -132,7 +133,7 @@ class Credentials {
 		global $wpdb;
 
 		$like = $wpdb->esc_like( self::PHASE2_OPTION_PREFIX ) . '%';
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- option_name scan on a setup-link connect or (de)activation only; the values are read through get_option().
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- option_name scan on a setup-link connect, on (de)activation, and for the invitation notice on admin screens of a store with no default account; the values are read through get_option().
 		$per_account = $wpdb->get_col(
 			$wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $like )
 		);
