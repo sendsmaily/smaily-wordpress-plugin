@@ -788,12 +788,24 @@ slow"):
   `smly_rec_%` in `complete`/`failed`/`canceled` older than 7 days
   (`scheduled_date_gmt`, the column AS's own cleaner and its
   `hook_status_scheduled_date_gmt` index use) plus their
-  `actionscheduler_logs` rows, in the same bounded batches as the queue prune.
+  `actionscheduler_logs` rows, in the same 1000-row batches as the queue prune.
   AS's own cleaner never purges `failed` — that is the residue this exists for.
   It NEVER touches `pending`/`in-progress`, and never another plugin's hook;
   a missing AS table is a no-op. Raw `$wpdb` because the AS store API has no
-  bulk delete by hook+age. The batch/ceiling/table-name seams are `protected`
+  bulk delete by hook+age. The batch/cap/table-name seams are `protected`
   for the integration test — don't inline them back.
+- **The janitor drains a backlog on a time budget (CON-335)**: one run (both
+  queues + the AS history) deletes batch after batch, 50 ms apart, until
+  nothing past retention is left or `RUN_BUDGET_SECONDS` (20) is spent; a run
+  that stops with rows left schedules ONE single action of the same hook a
+  minute later with `QueueJanitor::FOLLOW_UP_ARGS`, unless one is pending
+  (`action_pending()` with those args — the daily action, args `[]`, is always
+  pending, so never check the hook without them). `MAX_BATCHES_PER_RUN` (500
+  per status) is only a safety cap. A failed DELETE stops that status for the
+  run with a `delete_failed` debug line, no follow-up. The `now()`/`pause()`
+  seams are the fake clock for tests. **Integration-test trap:** a test that
+  runs `on_tick()` with rows left schedules a follow-up — unschedule it in
+  tearDown (`as_unschedule_all_actions( HOOK, FOLLOW_UP_ARGS, AS_GROUP )`).
 
 ### Build / test / walk commands
 - `npm run ci:strict` — PHPCS + PHPStan + PHPUnit unit + JS (eslint/tsc/vitest).

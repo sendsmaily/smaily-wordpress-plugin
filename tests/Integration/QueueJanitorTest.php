@@ -40,6 +40,52 @@ final class QueueJanitorTest extends TestCase {
 		Activation::run();
 	}
 
+	protected function tearDown(): void {
+		as_unschedule_all_actions( QueueJanitor::HOOK, QueueJanitor::FOLLOW_UP_ARGS, QueueJanitor::AS_GROUP );
+		parent::tearDown();
+	}
+
+	/**
+	 * Insert $count rows of one status and age in multi-row INSERTs (CON-335:
+	 * a backlog bigger than one 1000-row batch).
+	 */
+	private function seed_rows( string $table_suffix, string $status, int $age_days, int $count ): void {
+		global $wpdb;
+
+		$table      = QueueRowFixture::table( $table_suffix );
+		$created_at = gmdate( 'Y-m-d H:i:s', time() - ( $age_days * DAY_IN_SECONDS ) );
+		$ingest     = IngestQueue::TABLE_SUFFIX === $table_suffix;
+		$columns    = $ingest ? '(event_type, entity_id, payload, created_at, status, event_uuid)' : '(event_type, entity_id, payload, created_at, status)';
+		$value      = $wpdb->prepare( $ingest ? "(%s, %s, '{}', %s, %s, UUID())" : "(%s, %s, '{}', %s, %s)", 'janitor.bulk', 'e-bulk', $created_at, $status );
+
+		for ( $left = $count; $left > 0; $left -= 500 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- every value is prepared above.
+			$wpdb->query( "INSERT INTO {$table} {$columns} VALUES " . implode( ',', array_fill( 0, min( 500, $left ), $value ) ) );
+		}
+	}
+
+	private function count_rows( string $table_suffix, string $status ): int {
+		global $wpdb;
+		$table = QueueRowFixture::table( $table_suffix );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE status = %s", $status ) );
+	}
+
+	/** @return array<int, int> The pending follow-up runs. */
+	private function pending_follow_ups(): array {
+		return (array) as_get_scheduled_actions(
+			array(
+				'hook'     => QueueJanitor::HOOK,
+				'group'    => QueueJanitor::AS_GROUP,
+				'status'   => 'pending',
+				'args'     => QueueJanitor::FOLLOW_UP_ARGS,
+				'per_page' => -1,
+			),
+			'ids'
+		);
+	}
+
 	/**
 	 * Insert a row with a controlled age into one of the two queue tables.
 	 */
@@ -105,5 +151,44 @@ final class QueueJanitorTest extends TestCase {
 			$index = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Key_name = 'idx_created_at'" );
 			self::assertNotEmpty( $index, "{$table} has the idx_created_at index" );
 		}
+	}
+
+	public function test_a_backlog_over_one_batch_drains_in_one_run_and_keeps_pending(): void {
+		$this->seed_rows( IngestQueue::TABLE_SUFFIX, 'sent', 40, 2500 );
+		$this->seed_rows( EventQueue::TABLE_SUFFIX, 'failed', 100, 1200 );
+		$pending = $this->seed_row( IngestQueue::TABLE_SUFFIX, 'pending', 400 );
+
+		$deleted = ( new QueueJanitor() )->run();
+
+		self::assertSame( 3700, $deleted, 'the whole backlog goes in one run, batch after batch' );
+		self::assertSame( 0, $this->count_rows( IngestQueue::TABLE_SUFFIX, 'sent' ) );
+		self::assertSame( 0, $this->count_rows( EventQueue::TABLE_SUFFIX, 'failed' ) );
+		self::assertTrue( $this->row_exists( IngestQueue::TABLE_SUFFIX, $pending ), 'pending NEVER pruned, any age' );
+	}
+
+	public function test_a_run_whose_budget_ends_schedules_one_follow_up(): void {
+		$this->seed_rows( EventQueue::TABLE_SUFFIX, 'sent', 40, 2500 );
+
+		// The pause between batches jumps the clock past the budget: each
+		// run deletes one batch, then stops with rows left.
+		$janitor = new class() extends QueueJanitor {
+			private float $clock = 0.0;
+
+			protected function now(): float {
+				return $this->clock;
+			}
+
+			protected function pause( float $seconds ): void {
+				$this->clock += 100;
+			}
+		};
+
+		$janitor->on_tick();
+		self::assertSame( 1500, $this->count_rows( EventQueue::TABLE_SUFFIX, 'sent' ) );
+		self::assertCount( 1, $this->pending_follow_ups(), 'one follow-up a minute later' );
+
+		$janitor->on_tick();
+		self::assertSame( 500, $this->count_rows( EventQueue::TABLE_SUFFIX, 'sent' ) );
+		self::assertCount( 1, $this->pending_follow_ups(), 'never a second while one is pending' );
 	}
 }
