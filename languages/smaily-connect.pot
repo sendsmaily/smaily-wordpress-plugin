@@ -126,6 +126,14 @@ msgstr ""
 msgid "Install WP Consent API"
 msgstr ""
 
+#: includes/Notifications/NotificationManager.php:409
+msgid "Smaily Connect: no Smaily account is connected. Connect one to sync your customers to Smaily and send automated emails, whether you are new to Smaily or coming back to it."
+msgstr ""
+
+#: includes/Notifications/NotificationManager.php:414
+msgid "Create a Smaily account"
+msgstr ""
+
 #: includes/Notifications/NotificationManager.php:516
 msgid "Invalid request."
 msgstr ""
@@ -2011,6 +2019,7 @@ msgstr ""
 msgid "Step 1 of 6"
 msgstr ""
 
+#: includes/Notifications/NotificationManager.php:433
 #: admin/src/components/steps/Step1Connect.tsx:40
 msgid "Connect your Smaily account"
 msgstr ""
@@ -2020,6 +2029,7 @@ msgid "To create a connection, go to your Smaily account’s settings. Create a 
 msgstr ""
 
 #: admin/src/components/steps/Step1Connect.tsx:55
+#: includes/Notifications/NotificationManager.php:415
 msgid "User guide to create API credentials"
 msgstr ""
 

@@ -54,6 +54,12 @@ final class Constants {
 	public const DOCS_URL = 'https://smaily.com/connect-woo/';
 
 	/**
+	 * Where a store with no Smaily account creates one (CON-321; Erkki's URL
+	 * "for now", 2026-11-17 — change it here when Smaily names another).
+	 */
+	public const SIGNUP_URL = 'https://www.sendsmaily.net';
+
+	/**
 	 * REST namespace exposed by the plugin (e.g. /wp-json/smaily-connect/v1/...).
 	 */
 	public const REST_NAMESPACE = 'smaily-connect/v1';
