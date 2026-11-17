@@ -11086,6 +11086,58 @@ own React instead of bundling a copy" — when it lands, the gate expects
 `docs/audits/SECURITY_CODE_QUALITY_DELTA_AUDIT_2026-11-13_AFTER_3.22.0.md`
 (M1); CLAUDE.md "Running PCP" records the expected counts.
 
+### CON-321 — A store with no connected Smaily account is invited to connect one (2026-11-17)
+
+**Context:** about 2,000 sites run the plugin and about 90 have a connected
+Smaily account (installation reports, 2026-11-16). A store with no connected
+account heard nothing from the plugin, so no one there was invited to start
+using Smaily or to come back to it.
+**Decision:** one dismissible `notice-info` admin notice from
+`NotificationManager` (key `smaily_not_connected`). Erkki, 2026-11-17: it is
+shown on the plugin's own admin pages and as one notice across the WordPress
+admin, and a dismissal hides it for 90 days.
+- **Condition:** no main Smaily marketing account —
+  `ReportBuilder::main_credentials()` is null, the installation report's rule
+  (default account, else a Mode A language account; a Transactional account
+  alone does not count). The notice calls that method; there is no second
+  copy of the rule. The Campaign Intelligence connection plays no part.
+- **Who and where:** users with `Constants::CAPABILITY` (`manage_options`),
+  on every admin screen, the setup wizard and Settings included (Erkki,
+  2026-11-17 — the first draft left the wizard out because its first step is
+  the connect form; Erkki wants it there too).
+- **Dismissal:** per site, in the same `smly_notice_dismissed` timestamp map
+  as the other notices, read with a per-notice cooldown
+  (`INVITE_DISMISS_COOLDOWN` = 90 days; the others keep 24 h). A timestamp
+  option with `autoload=false`, never a no-expiry transient (PRO-2433).
+  Connecting an account removes the notice at once.
+- **Links:** "Connect your Smaily account" →
+  `admin.php?page=smaily-connect-settings#connection` (Settings sends a store
+  whose setup is unfinished to the wizard); "Create a Smaily account" →
+  `Constants::SIGNUP_URL` = `https://www.sendsmaily.net` (Erkki's URL "for
+  now", 2026-11-17 — one constant, so a later URL is a one-line change); "User
+  guide to create API credentials" → `Constants::docs_url()` + `#step1`, the
+  label and target the wizard's connect step already uses. The guide says
+  where the credentials are: settings (gear icon) → Integrations, the menu
+  name the wizard's own help text uses ("the “Integrations” tab"); the docs
+  site said `Settings → API` and is corrected with this change.
+- Nothing is sent to Smaily for this (guideline 7 — an unconnected store
+  sends nothing), and no e-mail goes to the store.
+**Rationale:** the existing notice machinery already has the capability
+check, the nonce'd dismiss link and the per-site dismissal store, so the
+invitation is one more notice there, not a new mechanism. Per site matches
+every other notice: the decision belongs to the store, and one administrator
+dismissing it for the site is the quiet behaviour the wordpress.org
+guidelines ask of admin notices (dismissible, limited, no nag).
+**Alternatives:** per-user dismissal (user meta) — rejected, no other notice
+here works that way; a notice on the plugin pages only — rejected by Erkki's
+decision; leaving the wizard out (the first draft) — reversed by Erkki; a
+sentence in the notice on where the credentials are — rejected to keep the
+notice short, the guide link carries it.
+**Relationships:** CON-290 (installation report, the same "connected" rule),
+PRO-2433. Pinned by `NotificationManagerTest` (unit) and
+`SmailyInviteNoticeTest` (integration). Erkki approved the EN and ET text
+on 2026-11-17.
+
 ### CON-323 — Every key starts with the connection's prefix (2026-11-17)
 
 **Context:** a spa connects three WooCommerce shops (and a till) to ONE

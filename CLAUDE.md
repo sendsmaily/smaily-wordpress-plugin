@@ -978,6 +978,13 @@ WRONG for this, so use **`bin/build-i18n.sh`** (it needs the wp-env container):
   non-zero if any `_i18n-src` reference is left or the admin catalog JSON is missing.
   A reference keeps its real `.ts`/`.tsx` extension; line numbers point at the
   transpiled JS, not the source.
+- **A worktree the dev container does not mount cannot use the default run, and
+  the host run is not a substitute for a commit** (CON-321, 2026-11-17):
+  `WP_CLI_BIN=vendor/bin/wp bash bin/build-i18n.sh` on the Mac (newer wp-cli,
+  PHP 8.5) rewrote the committed `.pot`/`-et.po` wholesale — other entry order,
+  header, every line reference (≈5,000 changed lines for one new string).
+  From such a worktree, add the new entries to both files by hand and leave the
+  full regeneration to a run in the container.
 
 ### Cutting a release ZIP + GH release (official repo; local build = the reference)
 **A release is cut in the official repository `sendsmaily/smaily-wordpress-plugin`

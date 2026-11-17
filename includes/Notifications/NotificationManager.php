@@ -18,6 +18,7 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\REST\BeaconEndpoint;
+use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
 use Smaily\Connect\Smaily\EventQueue;
@@ -77,6 +78,12 @@ final class NotificationManager {
 	/** Advisory key: the saved contact-field selection is in a shape we can't read. */
 	public const SYNC_FIELDS_ADVISORY_KEY = 'sync_fields_unreadable';
 
+	/** Invitation key: no Smaily marketing account is connected (CON-321). */
+	public const INVITE_KEY = 'smaily_not_connected';
+
+	/** A dismissed invitation stays away this long (CON-321, Erkki 2026-11-17). */
+	public const INVITE_DISMISS_COOLDOWN = 90 * DAY_IN_SECONDS;
+
 	private RecEngineSettings $settings;
 
 	/** @var callable():RecEngineClient */
@@ -85,21 +92,27 @@ final class NotificationManager {
 	/** @var callable():?SmailyClient */
 	private $smaily_client_factory;
 
+	private ?ReportBuilder $report_builder;
+
 	/**
 	 * @param callable():RecEngineClient $client_factory Lazily builds a connected
 	 *        rec-engine client (so we don't construct one when disconnected).
 	 * @param callable():?SmailyClient   $smaily_client_factory Builds the default
 	 *        Smaily client, or null when the email side isn't configured yet
 	 *        (so an un-set-up store isn't reported as "Smaily down").
+	 * @param ReportBuilder|null         $report_builder Answers whether a Smaily
+	 *        marketing account is connected; built on first use when null.
 	 */
 	public function __construct(
 		RecEngineSettings $settings,
 		callable $client_factory,
-		callable $smaily_client_factory
+		callable $smaily_client_factory,
+		?ReportBuilder $report_builder = null
 	) {
 		$this->settings              = $settings;
 		$this->client_factory        = $client_factory;
 		$this->smaily_client_factory = $smaily_client_factory;
+		$this->report_builder        = $report_builder;
 	}
 
 	public function register(): void {
@@ -363,6 +376,62 @@ final class NotificationManager {
 		// Same kind of advisory: the saved contact-field selection is in a shape
 		// this version can't read, so which fields the merchant chose is unknown.
 		$this->render_sync_fields_advisory( $dismissed, $now );
+
+		// No Smaily account connected: invite the store to start or come back.
+		$this->render_invite_notice( $dismissed, $now );
+	}
+
+	/**
+	 * Invitation (CON-321): no Smaily marketing account is connected, so the
+	 * plugin sends nothing to Smaily and the store would otherwise hear
+	 * nothing from it. "Connected" is the installation report's rule — a main
+	 * marketing account, a Transactional account alone does not count — read
+	 * through `ReportBuilder::main_credentials()`, never a copy of it.
+	 *
+	 * Shown on every admin screen, the setup wizard included (Erkki,
+	 * 2026-11-17). A dismissal hides it for 90 days; connecting an account
+	 * removes it at once.
+	 *
+	 * @param array<string, int> $dismissed
+	 */
+	private function render_invite_notice( array $dismissed, int $now ): void {
+		if ( $this->is_dismissed( self::INVITE_KEY, $dismissed, $now, self::INVITE_DISMISS_COOLDOWN ) ) {
+			return;
+		}
+
+		$this->report_builder = $this->report_builder ?? new ReportBuilder();
+		if ( $this->report_builder->main_credentials() !== null ) {
+			return;
+		}
+
+		printf(
+			'<div class="notice notice-info"><p>%1$s %2$s | %3$s | %4$s %5$s</p></div>',
+			esc_html__(
+				'Smaily Connect: no Smaily account is connected. Connect one to sync your customers to Smaily and send automated emails, whether you are new to Smaily or coming back to it.',
+				'smaily-connect'
+			),
+			wp_kses_post( $this->connect_link() ),
+			wp_kses_post( $this->external_link( Constants::SIGNUP_URL, __( 'Create a Smaily account', 'smaily-connect' ) ) ),
+			wp_kses_post( $this->external_link( Constants::docs_url() . '#step1', __( 'User guide to create API credentials', 'smaily-connect' ) ) ),
+			wp_kses_post( $this->dismiss_link( self::INVITE_KEY ) )
+		);
+	}
+
+	private function external_link( string $url, string $label ): string {
+		return sprintf(
+			'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+			esc_url( $url ),
+			esc_html( $label )
+		);
+	}
+
+	/** Settings → Connection; Settings sends a store whose setup is unfinished to the wizard. */
+	private function connect_link(): string {
+		return sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( admin_url( 'admin.php?page=smaily-connect-settings#connection' ) ),
+			esc_html__( 'Connect your Smaily account', 'smaily-connect' )
+		);
 	}
 
 	/**
@@ -470,13 +539,13 @@ final class NotificationManager {
 	}
 
 	/**
-	 * Is this notice inside its 24h dismiss cooldown?
+	 * Is this notice inside its dismiss cooldown (24h unless the notice sets its own)?
 	 *
 	 * @param array<string, int> $dismissed
 	 */
-	private function is_dismissed( string $key, array $dismissed, int $now ): bool {
+	private function is_dismissed( string $key, array $dismissed, int $now, int $cooldown = self::DISMISS_COOLDOWN ): bool {
 		$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
-		return $dismissed_at > 0 && ( $now - $dismissed_at ) < self::DISMISS_COOLDOWN;
+		return $dismissed_at > 0 && ( $now - $dismissed_at ) < $cooldown;
 	}
 
 	/**
@@ -503,7 +572,7 @@ final class NotificationManager {
 	}
 
 	/**
-	 * admin_post handler for the Dismiss link. Stamps the dismissal (24h cooldown)
+	 * admin_post handler for the Dismiss link. Stamps the dismissal (the notice's cooldown)
 	 * and bounces back to the referring admin page.
 	 */
 	public function handle_dismiss(): void {
