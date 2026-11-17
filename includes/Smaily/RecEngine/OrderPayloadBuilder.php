@@ -156,7 +156,8 @@ class OrderPayloadBuilder {
 	public function build( \WC_Order $order, string $event_uuid ): array {
 		$payload = array(
 			'event_id'          => $event_uuid,
-			'external_order_id' => (string) $order->get_id(),
+			// The connection prefix first (§5 v1.33.0, CON-323): `c2-1234`.
+			'external_order_id' => SkuResolver::prefix() . (string) $order->get_id(),
 			// Customer reference (W4 email identity); the engine auto-creates
 			// the customer from this when it doesn't exist yet.
 			'customer_email'    => strtolower( trim( (string) $order->get_billing_email() ) ),

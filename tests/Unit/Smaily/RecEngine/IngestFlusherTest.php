@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 
+use Brain\Monkey;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
@@ -20,8 +21,22 @@ use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 final class IngestFlusherTest extends TestCase {
+
+	use StubsConnectionPrefix;
+
+	protected function setUp(): void {
+		parent::setUp();
+		Monkey\setUp();
+		$this->stub_connection_prefix( '' );
+	}
+
+	protected function tearDown(): void {
+		Monkey\tearDown();
+		parent::tearDown();
+	}
 
 	public function test_returns_early_when_not_connected(): void {
 		$queue = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ) ) );
@@ -170,6 +185,50 @@ final class IngestFlusherTest extends TestCase {
 		self::assertSame( 'GONE-1', $client->sent_products[0]['sku'] );
 		self::assertFalse( $client->sent_products[0]['in_stock'], 'A delete must force in_stock=false.' );
 		self::assertSame( 'del-uuid', $client->sent_products[0]['event_id'], 'event_uuid → event_id on the captured object.' );
+	}
+
+	/**
+	 * CON-323: a delete row captured before the connect (or under a prefix
+	 * the engine has since moved the connection from) goes out under the
+	 * connection's prefix NOW — sku and tags.product_id, never twice.
+	 *
+	 * @dataProvider stored_delete_keys
+	 */
+	public function test_delete_row_is_sent_under_the_current_prefix( string $sku, string $product_id ): void {
+		$this->stub_connection_prefix( 'c2-' );
+		$row               = $this->upsert_row( 9, 0, 'del-prefix-uuid' );
+		$row['event_type'] = CatalogHookHandler::EVENT_CATALOG_DELETE;
+		$row['payload']    = (string) json_encode(
+			array(
+				'object' => array(
+					'sku'           => $sku,
+					'in_stock'      => true,
+					'event_id'      => '',
+					'category_path' => 'food',
+					'product_url'   => 'https://shop.example/p/7',
+					'external_id'   => '7',
+					'tags'          => array( 'product_id' => $product_id ),
+				),
+			)
+		);
+
+		$queue  = $this->fake_queue( array( $row ) );
+		$client = $this->success_client();
+		$this->fake_flusher( $queue, $client, true )->flush();
+
+		self::assertSame( 'c2-woo-7', $client->sent_products[0]['sku'] );
+		self::assertSame( 'c2-6', $client->sent_products[0]['tags']['product_id'] );
+	}
+
+	/**
+	 * @return array<string, array{string, string}>
+	 */
+	public static function stored_delete_keys(): array {
+		return array(
+			'queued before the connect' => array( 'woo-7', '6' ),
+			'queued under the prefix'   => array( 'c2-woo-7', 'c2-6' ),
+			'queued under a moved one'  => array( 'c5-woo-7', 'c5-6' ),
+		);
 	}
 
 	public function test_delete_row_with_stored_blank_required_fields_is_repaired_at_flush(): void {

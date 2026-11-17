@@ -17,8 +17,11 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 final class CatalogPayloadBuilderTest extends TestCase {
+
+	use StubsConnectionPrefix;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -94,6 +97,27 @@ final class CatalogPayloadBuilderTest extends TestCase {
 			$builder->manifest_item_unresolvable( 55 ),
 			'Same key build_unresolvable() sends.'
 		);
+	}
+
+	/**
+	 * CON-323: a connection with a prefix puts it in front of the catalog
+	 * `sku`, `tags.product_id` and the §3c item; `external_id` stays the raw
+	 * platform id (§15 renders by it).
+	 */
+	public function test_a_prefixed_connection_prefixes_the_catalog_and_manifest_keys(): void {
+		$this->stub_connection_prefix( 'c2-', array( 'default_product_cat' => 0 ) );
+		Functions\when( 'home_url' )->alias( static fn ( string $path = '' ): string => 'https://shop.test' . $path );
+		$builder = new CatalogPayloadBuilder();
+		$product = $this->fake_product( array( 'id' => 101, 'sku' => 'ACA-1', 'price' => '1.00', 'in_stock' => true ) );
+
+		$payload = $builder->build( $product, 'u' );
+
+		self::assertSame( 'c2-woo-101', $payload['sku'] );
+		self::assertSame( 'c2-101', $payload['tags']['product_id'] );
+		self::assertSame( '101', $payload['external_id'] );
+		self::assertSame( array( 'sku' => 'c2-woo-101', 'in_stock' => true ), $builder->manifest_item( $product, false ) );
+		self::assertSame( array( 'sku' => 'c2-woo-55', 'in_stock' => false ), $builder->manifest_item_unresolvable( 55 ) );
+		self::assertSame( 'c2-woo-55', $builder->build_unresolvable( 55, 'u' )['sku'] );
 	}
 
 	public function test_event_id_equals_supplied_queue_uuid(): void {

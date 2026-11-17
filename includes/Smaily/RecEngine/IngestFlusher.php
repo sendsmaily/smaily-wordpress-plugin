@@ -102,6 +102,9 @@ class IngestFlusher extends AbstractD6Flusher {
 			// object too — idempotent on an already-valid (post-PRO-1498)
 			// capture, and heals a pre-3.8.1 stuck row on Retry.
 			$object = $this->builder->ensure_valid_removal( $object );
+			// CON-323: the keys go out under the connection's prefix now,
+			// whatever prefix (or none) they were captured under.
+			$object = $this->builder->with_current_prefix( $object );
 
 			$object['event_id'] = $event_uuid;
 			$object['in_stock'] = false;

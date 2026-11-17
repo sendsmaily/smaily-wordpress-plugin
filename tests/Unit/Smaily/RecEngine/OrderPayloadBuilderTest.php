@@ -15,10 +15,25 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 
+use Brain\Monkey;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 final class OrderPayloadBuilderTest extends TestCase {
+
+	use StubsConnectionPrefix;
+
+	protected function setUp(): void {
+		parent::setUp();
+		Monkey\setUp();
+		$this->stub_connection_prefix( '' );
+	}
+
+	protected function tearDown(): void {
+		Monkey\tearDown();
+		parent::tearDown();
+	}
 
 	/** A genuine engine-issued rec id shape (the engine validates it as a uuid). */
 	private const REC_UUID = '11111111-2222-4333-8444-555555555555';
@@ -379,6 +394,30 @@ final class OrderPayloadBuilderTest extends TestCase {
 		self::assertCount( 2, $payload['items'] );
 		self::assertSame( 'woo-100', $payload['items'][0]['sku'], 'A line WITH a merchant SKU still keys woo-<id>.' );
 		self::assertSame( 'woo-432', $payload['items'][1]['sku'] );
+	}
+
+	/**
+	 * CON-323: on a connection with a prefix, the order id and every line key
+	 * start with it (§5 v1.33.0) — the deleted-product fallback key too.
+	 */
+	public function test_a_prefixed_connection_prefixes_the_order_id_and_every_line(): void {
+		$this->stub_connection_prefix( 'c2-' );
+		$order = $this->mock_order(
+			array(
+				'id'     => 1234,
+				'status' => 'completed',
+				'items'  => array(
+					$this->mock_item( 'HAS-SKU', 1, '10.00', '10.00', array( 'product_id' => 100 ) ),
+					$this->mock_item( '', 1, '5.00', '5.00', array( 'product' => null, 'item_id' => 88 ) ),
+				),
+			)
+		);
+
+		$payload = ( new OrderPayloadBuilder() )->build( $order, 'u' );
+
+		self::assertSame( 'c2-1234', $payload['external_order_id'] );
+		self::assertSame( 'c2-woo-100', $payload['items'][0]['sku'] );
+		self::assertSame( 'c2-woo-oi-88', $payload['items'][1]['sku'] );
 	}
 
 	public function test_deleted_product_line_keys_from_stored_item_ids(): void {

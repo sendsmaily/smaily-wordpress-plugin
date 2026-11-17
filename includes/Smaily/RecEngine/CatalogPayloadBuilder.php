@@ -249,6 +249,26 @@ class CatalogPayloadBuilder {
 	}
 
 	/**
+	 * A captured catalog.delete object's keys (`sku`, `tags.product_id`)
+	 * under the CURRENT connection prefix (CON-323). The object was built
+	 * when the row was queued — maybe before a connect, or under a prefix the
+	 * engine has since moved the connection from — and is sent at flush time
+	 * (IngestFlusher), so its keys are put under today's prefix, never twice.
+	 *
+	 * @param array<string, mixed> $object
+	 * @return array<string, mixed>
+	 */
+	public function with_current_prefix( array $object ): array {
+		if ( isset( $object['sku'] ) && is_string( $object['sku'] ) ) {
+			$object['sku'] = SkuResolver::reprefix( $object['sku'] );
+		}
+		if ( isset( $object['tags'] ) && is_array( $object['tags'] ) && isset( $object['tags']['product_id'] ) && is_scalar( $object['tags']['product_id'] ) ) {
+			$object['tags']['product_id'] = SkuResolver::reprefix( (string) $object['tags']['product_id'] );
+		}
+		return $object;
+	}
+
+	/**
 	 * Force a captured catalog.delete object into an always-sendable shape.
 	 * build() already derives category_path/product_url with real fallbacks
 	 * (the store's own default_product_cat term, the real permalink) for any

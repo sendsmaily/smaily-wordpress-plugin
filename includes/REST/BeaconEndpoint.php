@@ -287,7 +287,7 @@ class BeaconEndpoint {
 		// identity, server-side) BEFORE the profiling gate below — attach_
 		// logged_in_identity() itself checks the same gate, so an opted-out
 		// contact never gets an email attached in the first place.
-		$identity = $this->attach_logged_in_identity( $this->attach_visitor_token( $validation['events'] ) );
+		$identity = $this->attach_logged_in_identity( $this->attach_visitor_token( self::current_prefix_skus( $validation['events'] ) ) );
 
 		// SECOND GATE (a).1 — drop browse events carrying an OPTED-OUT contact's
 		// email before they leave the building. Anon events (no email) have no
@@ -540,6 +540,25 @@ class BeaconEndpoint {
 		}
 
 		return $kept;
+	}
+
+	/**
+	 * Every event's `sku` under the connection's CURRENT prefix (CON-323,
+	 * §6 v1.33.0): a `product_view` key comes from the page, and a page a
+	 * full-page cache kept from before a connect or a prefix move carries the
+	 * old one. SkuResolver::reprefix() drops that and adds today's, never
+	 * twice; with no prefix the key is sent as it came.
+	 *
+	 * @param array<int, array<string, mixed>> $events Validated events.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private static function current_prefix_skus( array $events ): array {
+		foreach ( $events as $index => $event ) {
+			if ( isset( $event['sku'] ) && is_string( $event['sku'] ) && $event['sku'] !== '' ) {
+				$events[ $index ]['sku'] = \Smaily\Connect\Smaily\RecEngine\Support\SkuResolver::reprefix( $event['sku'] );
+			}
+		}
+		return $events;
 	}
 
 	/**

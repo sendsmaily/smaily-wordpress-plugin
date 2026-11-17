@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
+use Smaily\Connect\Settings\RecEngineSettings;
 
 /**
  * Resolves the engine-side product key (`sku`) for a WC product or order line:
@@ -54,7 +55,7 @@ use Smaily\Connect\Multilingual\DetectorInterface;
  * one (DetectorFactory) — callers may inject one (tests, determinism).
  *
  * Key properties: `woo-{canonical_id}` is stable for the product's lifetime and
- * fits the engine's 64-char cap (ids are ints). Deleted products: current WC
+ * fits the engine's 72-char cap (ids are ints). Deleted products: current WC
  * ZEROES the order items' product/variation reference on permanent deletion
  * (verified empirically on WC 10.7 — `_product_id` becomes 0). When the id
  * survives, the line keys `woo-{canonical_id}` and ingests; when it's zeroed,
@@ -62,6 +63,13 @@ use Smaily\Connect\Multilingual\DetectorInterface;
  * the line is NEVER dropped — an order must never silently vanish for one
  * unkeyable line (F3-43). The fallback key won't match a catalog row (no
  * item-level inference), but the order still ingests.
+ *
+ * Connection prefix (contract v1.33.0, CON-323): every key starts with the
+ * code prefix the engine gave this connection (`c2-woo-101`, `c2-woo-oi-88`,
+ * `tags.product_id` `c2-101`), so several shops in one engine store can number
+ * their products from 1 without overwriting each other. The prefix is
+ * RecEngineSettings::connection_prefix() — '' for every connection made
+ * before 1.33.0, and then each key is exactly what it was before.
  *
  * Migration note (PRO-1224): a store already synced under the old scheme (real
  * SKU or `wc-{id}`) keeps those rows in the engine (UPSERT-only, no delete-by-
@@ -83,7 +91,7 @@ final class SkuResolver {
 	 *        the active one. Inject for tests / call-site determinism.
 	 */
 	public static function resolve( \WC_Product $product, ?DetectorInterface $detector = null ): string {
-		return self::KEY_PREFIX . (string) self::canonical_id( (int) $product->get_id(), $detector );
+		return self::prefix() . self::KEY_PREFIX . (string) self::canonical_id( (int) $product->get_id(), $detector );
 	}
 
 	/**
@@ -97,7 +105,7 @@ final class SkuResolver {
 	 *        the active one. Inject for tests / call-site determinism.
 	 */
 	public static function resolve_id( int $product_id, ?DetectorInterface $detector = null ): string {
-		return self::KEY_PREFIX . (string) self::canonical_id( $product_id, $detector );
+		return self::prefix() . self::KEY_PREFIX . (string) self::canonical_id( $product_id, $detector );
 	}
 
 	/**
@@ -128,21 +136,22 @@ final class SkuResolver {
 		if ( $id <= 0 ) {
 			// Deleted product, ids zeroed — key on the order-item id (always > 0
 			// on a saved line) so the order is never dropped. (F3-43.)
-			return self::KEY_PREFIX . 'oi-' . (string) $item->get_id();
+			return self::prefix() . self::KEY_PREFIX . 'oi-' . (string) $item->get_id();
 		}
-		return self::KEY_PREFIX . (string) self::canonical_id( $id, $detector );
+		return self::prefix() . self::KEY_PREFIX . (string) self::canonical_id( $id, $detector );
 	}
 
 	/**
-	 * The engine `tags.product_id` value for a catalog unit: the RAW (un-prefixed)
-	 * canonical PARENT product id, as a string.
+	 * The engine `tags.product_id` value for a catalog unit: the connection
+	 * prefix and the canonical PARENT product id, as a string (`c2-101`; the
+	 * bare id `101` for a connection without a prefix).
 	 *
 	 * This is the grouping/removal key — every variation of one product shares it,
 	 * so the engine groups the per-variation `woo-<variation_id>` rows back to
 	 * their product (cross-variant cadence / sample→full, PRO-1227) and removes a
 	 * whole product's SKUs at once on hard-delete (`catalog/remove` §3b, PRO-1230).
 	 *
-	 * RAW, no `woo-` prefix — deliberate parity with Shopify Connect, which emits
+	 * No `woo-` part — deliberate parity with Shopify Connect, which emits
 	 * the raw parent legacyResourceId (`tags.product_id = product.id`), and with
 	 * the contract's §3b example (`product_ids: ["7620134"]`, not `"woo-7620134"`).
 	 * Canonicalized (default-language) so a translated product groups to the same
@@ -156,20 +165,28 @@ final class SkuResolver {
 		$parent_id = ( method_exists( $product, 'get_parent_id' ) && (int) $product->get_parent_id() > 0 )
 			? (int) $product->get_parent_id()
 			: (int) $product->get_id();
-		return (string) self::canonical_id( $parent_id, $detector );
+		return self::prefix() . (string) self::canonical_id( $parent_id, $detector );
 	}
 
 	/**
-	 * The product id inside a `woo-<id>` key — the inverse of resolve_id(),
-	 * without the canonical-id step. 0 for any other key (an order-item
-	 * `woo-oi-<id>` key, a foreign or empty one).
+	 * The current connection prefix (CON-323) — the one accessor every key
+	 * this plugin sends starts with; '' when not connected or for a
+	 * connection without a prefix.
 	 */
-	public static function product_id_from_key( string $key ): int {
-		if ( 0 !== strpos( $key, self::KEY_PREFIX ) ) {
-			return 0;
-		}
-		$id = substr( $key, strlen( self::KEY_PREFIX ) );
-		return ctype_digit( $id ) ? (int) $id : 0;
+	public static function prefix(): string {
+		return ( new RecEngineSettings() )->connection_prefix();
+	}
+
+	/**
+	 * A key this plugin built earlier — a `sku` or a `tags.product_id` stored
+	 * on a queue row, or a `sku` a cached storefront page holds — under the
+	 * CURRENT connection prefix. The prefix it was built under (none, or one
+	 * the engine has since moved the connection from) is dropped first, so a
+	 * key is never prefixed twice. Idempotent.
+	 */
+	public static function reprefix( string $key ): string {
+		$bare = (string) preg_replace( '/^c[1-9][0-9]{0,3}-(?=' . self::KEY_PREFIX . '|[0-9]+$)/', '', $key );
+		return self::prefix() . $bare;
 	}
 
 	/**
