@@ -462,11 +462,15 @@ class SettingsEndpoint {
 		}
 
 		// The abandoned-cart cutoff (CON-326): a cutoff as long as the cart's
-		// lifetime never sends, so it is refused before anything is written.
-		$cutoff     = isset( $data['abandonedCartCutoffMinutes'] ) ? (int) $data['abandonedCartCutoffMinutes'] : 30;
-		$cutoff     = max( 10, $cutoff );
-		$max_cutoff = CartAbandonmentSweeper::max_cutoff_minutes();
-		if ( $cutoff > $max_cutoff ) {
+		// lifetime never sends, so with the reminder on it is refused before
+		// anything is written. With the reminder off the field is hidden, so a
+		// cutoff over the limit blocks nothing: the stored one is left as it is.
+		$cart        = ! empty( $data['abandonedCartEnabled'] );
+		$cutoff      = isset( $data['abandonedCartCutoffMinutes'] ) ? (int) $data['abandonedCartCutoffMinutes'] : 30;
+		$cutoff      = max( 10, $cutoff );
+		$max_cutoff  = CartAbandonmentSweeper::max_cutoff_minutes();
+		$cutoff_fits = $cutoff <= $max_cutoff;
+		if ( $cart && ! $cutoff_fits ) {
 			return $this->error_response(
 				array(
 					array(
@@ -485,7 +489,6 @@ class SettingsEndpoint {
 
 		$welcome  = ! empty( $data['welcomeEnabled'] );
 		$first    = ! empty( $data['firstOrderEnabled'] );
-		$cart     = ! empty( $data['abandonedCartEnabled'] );
 		$mappings = isset( $data['automationMappings'] ) && is_array( $data['automationMappings'] )
 			? $data['automationMappings']
 			: array();
@@ -514,7 +517,9 @@ class SettingsEndpoint {
 				'autoresponder_id' => $existing['autoresponder_id'],
 			)
 		);
-		update_option( self::LEGACY_OPTION_CART_CUTOFF, $cutoff );
+		if ( $cutoff_fits ) {
+			update_option( self::LEGACY_OPTION_CART_CUTOFF, $cutoff );
+		}
 
 		$this->save_transactional_triggers( $data );
 		$this->save_follow_up( $data, $follow_up_delay );

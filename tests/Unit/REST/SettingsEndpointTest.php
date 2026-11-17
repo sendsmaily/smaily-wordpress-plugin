@@ -323,6 +323,7 @@ final class SettingsEndpointTest extends TestCase {
 		$request->set_param(
 			'data',
 			array(
+				'abandonedCartEnabled'       => true,
 				'abandonedCartCutoffMinutes' => 106,
 				'automationMappings'         => array(),
 			)
@@ -330,6 +331,46 @@ final class SettingsEndpointTest extends TestCase {
 
 		self::assertSame( 400, $endpoint->handle( $request )->get_status() );
 		self::assertSame( 105, CartAbandonmentSweeper::max_cutoff_minutes() );
+	}
+
+	/**
+	 * Audit L1: a switched-off reminder hides the cutoff field, so a cutoff
+	 * stored over the limit before 3.24.0 (the admin posts it back as
+	 * hydrated) must not block the rest of the tab — and is left as stored.
+	 */
+	public function test_woocommerce_tab_saves_with_a_cutoff_over_the_limit_while_the_reminder_is_off(): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'welcomeEnabled'             => true,
+				'abandonedCartEnabled'       => false,
+				'abandonedCartCutoffMinutes' => 1500,
+				'automationMappings'         => array(),
+			)
+		);
+
+		self::assertTrue( $endpoint->handle( $request )->get_data()['saved'] );
+		self::assertTrue( $this->option_writes['smly_plus_welcome_enabled'] );
+		self::assertArrayNotHasKey( 'smaily_connect_abandoned_cart_cutoff', $this->option_writes, 'The stored cutoff is left as it is.' );
+	}
+
+	/**
+	 * Audit L1: a cart lifetime filtered under 25 minutes would put the limit
+	 * under the 10-minute minimum and refuse every cutoff.
+	 */
+	public function test_the_cutoff_limit_never_falls_under_the_minimum(): void {
+		Functions\when( 'apply_filters' )->alias(
+			static function ( string $hook, $value ) {
+				return $hook === CartAbandonmentSweeper::FILTER_MAX_AGE ? 20 * MINUTE_IN_SECONDS : $value;
+			}
+		);
+
+		self::assertSame( 10, CartAbandonmentSweeper::max_cutoff_minutes() );
 	}
 
 	public function test_connection_tab_persists_transactional_account_and_toggle(): void {
