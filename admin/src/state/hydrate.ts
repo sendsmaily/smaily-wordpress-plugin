@@ -78,6 +78,8 @@ export interface BootPayload {
     consentApiPresent?: boolean;
     /** The follow-up delay's range and default, from EnvDetector::snapshot() (PRO-4095). */
     followUpDelayLimits?: DayRangeLimits;
+    /** The longest abandoned-cart cutoff in minutes, from EnvDetector::snapshot() (CON-326). */
+    abandonedCartCutoffMaxMinutes?: number;
     /** The coupons a discount code can be cloned from, from EnvDetector::snapshot() (CON-199). */
     discountTemplates?: DiscountTemplate[];
     /** The "Valid for (days)" range and default (CON-199). */
@@ -290,6 +292,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       orderStatuses: env.orderStatuses ?? [],
       consentApiPresent: env.consentApiPresent ?? false,
       followUpDelayLimits: env.followUpDelayLimits,
+      abandonedCartCutoffMaxMinutes: env.abandonedCartCutoffMaxMinutes,
       discountTemplates: env.discountTemplates ?? [],
       discountValidDays: env.discountValidDays,
       newCouponUrl: env.newCouponUrl ?? '',

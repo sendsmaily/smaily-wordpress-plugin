@@ -50,6 +50,9 @@ class CartAbandonmentSweeper {
 	/** Same filter name as the legacy pass — merchant overrides carry over. */
 	public const FILTER_MAX_AGE = 'smaily_connect_abandoned_cart_max_age_seconds';
 
+	/** How often the recurring `smly_plus_abandoned_cart` action runs a sweep. */
+	public const SWEEP_INTERVAL_SECONDS = 15 * MINUTE_IN_SECONDS;
+
 	private const BATCH_SIZE = 200;
 
 	private CartSessionStore $store;
@@ -75,9 +78,8 @@ class CartAbandonmentSweeper {
 			'skipped'  => 0,
 		);
 
-		$now = time();
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- the constant value IS the plugin prefix (smaily_connect_*); PCP can't resolve self::CONST.
-		$max_age = (int) apply_filters( self::FILTER_MAX_AGE, DAY_IN_SECONDS );
+		$now     = time();
+		$max_age = self::max_age_seconds();
 		$floor   = gmdate( 'Y-m-d H:i:s', $now - $max_age );
 
 		// Housekeeping runs even when the feature is gated off, so tracker
@@ -136,13 +138,14 @@ class CartAbandonmentSweeper {
 				++$stats['enqueued'];
 			} catch ( \Throwable $e ) {
 				// Deterministic data-shape throw would recur every tick —
-				// terminal-mark THIS row and continue (F3-53 backstop).
+				// terminal-mark THIS row and continue (F3-53 backstop). The
+				// log names the error's type and place, never its message,
+				// which can carry the shopper's address (CON-327).
 				DebugLog::write(
 					sprintf(
-						'[smaily-connect cart.sweep] Cart row %d failed with %s: %s - marked without emailing.',
+						'[smaily-connect cart.sweep] Cart row %d failed with %s - marked without emailing.',
 						$id,
-						get_class( $e ),
-						$e->getMessage()
+						DebugLog::where( $e )
 					)
 				);
 				$this->store->mark_reminder_enqueued( $id );
@@ -155,6 +158,26 @@ class CartAbandonmentSweeper {
 		}
 
 		return $stats;
+	}
+
+	/**
+	 * How long a cart with no reminder is kept (default 24 h, filterable):
+	 * the sweep deletes it after that without emailing.
+	 */
+	public static function max_age_seconds(): int {
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- the constant value IS the plugin prefix (smaily_connect_*); PCP can't resolve self::CONST.
+		return (int) apply_filters( self::FILTER_MAX_AGE, DAY_IN_SECONDS );
+	}
+
+	/**
+	 * The longest cutoff a reminder can still go out with (CON-326): the
+	 * cart's lifetime minus one sweep interval, so at least one sweep runs
+	 * between the cutoff and the cart's deletion. 1425 minutes by default.
+	 * The Settings save refuses a longer one and the admin field shows it as
+	 * the field's maximum.
+	 */
+	public static function max_cutoff_minutes(): int {
+		return intdiv( self::max_age_seconds() - self::SWEEP_INTERVAL_SECONDS, MINUTE_IN_SECONDS );
 	}
 
 	/**

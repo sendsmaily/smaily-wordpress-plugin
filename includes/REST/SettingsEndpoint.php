@@ -20,6 +20,7 @@ use Smaily\Connect\Report\InstallationReport;
 use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\SetupState;
+use Smaily\Connect\Smaily\CartAbandonmentSweeper;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
@@ -447,11 +448,31 @@ class SettingsEndpoint {
 			}
 		}
 
+		// The abandoned-cart cutoff (CON-326): a cutoff as long as the cart's
+		// lifetime never sends, so it is refused before anything is written.
+		$cutoff     = isset( $data['abandonedCartCutoffMinutes'] ) ? (int) $data['abandonedCartCutoffMinutes'] : 30;
+		$cutoff     = max( 10, $cutoff );
+		$max_cutoff = CartAbandonmentSweeper::max_cutoff_minutes();
+		if ( $cutoff > $max_cutoff ) {
+			return $this->error_response(
+				array(
+					array(
+						'field'   => 'abandonedCartCutoffMinutes',
+						'message' => sprintf(
+							/* translators: 1: the shortest cutoff in minutes, 2: the longest. */
+							__( 'The abandoned-cart cutoff time must be from %1$d to %2$d minutes. A longer cutoff would send no reminder.', 'smaily-connect' ),
+							10,
+							$max_cutoff
+						),
+					),
+				),
+				400
+			);
+		}
+
 		$welcome  = ! empty( $data['welcomeEnabled'] );
 		$first    = ! empty( $data['firstOrderEnabled'] );
 		$cart     = ! empty( $data['abandonedCartEnabled'] );
-		$cutoff   = isset( $data['abandonedCartCutoffMinutes'] ) ? (int) $data['abandonedCartCutoffMinutes'] : 30;
-		$cutoff   = max( 10, $cutoff );
 		$mappings = isset( $data['automationMappings'] ) && is_array( $data['automationMappings'] )
 			? $data['automationMappings']
 			: array();
