@@ -4,6 +4,7 @@ import { __, sprintf } from '@admin/lib/i18n';
 import {
   FALLBACK_FOLLOW_UP_DELAY_LIMITS,
   FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS,
+  type DayRangeLimits,
   type WizardAction,
   type WizardState,
 } from '../../state/types';
@@ -131,22 +132,14 @@ export function TransactionalTriggersSection({
               trigger="follow_up"
               accountKey={TRANSACTIONAL_ACCOUNT_KEY}
             />
-            <div className="mt-4">
-              <Label htmlFor="smly-follow-up-delay">{ __( 'Days to wait', 'smaily-connect' ) }</Label>
-              <div className="mt-1 w-40">
-                <NumberInput
-                  id="smly-follow-up-delay"
-                  value={state.followUpDelayDays}
-                  onChange={(e) => dispatch({ type: 'SET_FOLLOW_UP_DELAY_DAYS', payload: Number(e.target.value) })}
-                  min={delayLimits.min}
-                  max={delayLimits.max}
-                  step={1}
-                />
-              </div>
-              <p className="mt-1 text-xs text-text-tertiary">
-                { __( 'From 1 to 90 days after the order reaches a ticked status.', 'smaily-connect' ) }
-              </p>
-            </div>
+            <DelayField
+              id="smly-follow-up-delay"
+              label={ __( 'Days to wait', 'smaily-connect' ) }
+              value={state.followUpDelayDays}
+              limits={delayLimits}
+              onChange={(days) => dispatch({ type: 'SET_FOLLOW_UP_DELAY_DAYS', payload: days })}
+              hint={ __( 'From 1 to 90 days after the order reaches a ticked status.', 'smaily-connect' ) }
+            />
             <StatusPicker
               state={state}
               title={ __( 'Starts the wait', 'smaily-connect' ) }
@@ -177,27 +170,19 @@ export function TransactionalTriggersSection({
               trigger="payment_reminder"
               accountKey={TRANSACTIONAL_ACCOUNT_KEY}
             />
-            <div className="mt-4">
-              <Label htmlFor="smly-payment-reminder-delay">{ __( 'Minutes to wait', 'smaily-connect' ) }</Label>
-              <div className="mt-1 w-40">
-                <NumberInput
-                  id="smly-payment-reminder-delay"
-                  value={state.paymentReminderDelayMinutes}
-                  onChange={(e) => dispatch({ type: 'SET_PAYMENT_REMINDER_DELAY_MINUTES', payload: Number(e.target.value) })}
-                  min={reminderLimits.min}
-                  max={reminderLimits.max}
-                  step={1}
-                />
-              </div>
-              <p className="mt-1 text-xs text-text-tertiary">
-                {sprintf(
-                  // translators: 1: the shortest wait in minutes, 2: the longest.
-                  __( 'From %1$d to %2$d minutes. The payment link in the email works until WooCommerce cancels the unpaid order — its “Hold stock (minutes)” setting under WooCommerce → Settings → Products → Inventory — so keep the wait shorter than that.', 'smaily-connect' ),
-                  reminderLimits.min,
-                  reminderLimits.max,
-                )}
-              </p>
-            </div>
+            <DelayField
+              id="smly-payment-reminder-delay"
+              label={ __( 'Minutes to wait', 'smaily-connect' ) }
+              value={state.paymentReminderDelayMinutes}
+              limits={reminderLimits}
+              onChange={(minutes) => dispatch({ type: 'SET_PAYMENT_REMINDER_DELAY_MINUTES', payload: minutes })}
+              hint={sprintf(
+                // translators: 1: the shortest wait in minutes, 2: the longest.
+                __( 'From %1$d to %2$d minutes. The payment link in the email works until WooCommerce cancels the unpaid order — its “Hold stock (minutes)” setting under WooCommerce → Settings → Products → Inventory — so keep the wait shorter than that.', 'smaily-connect' ),
+                reminderLimits.min,
+                reminderLimits.max,
+              )}
+            />
           </>
         }
       />
@@ -216,6 +201,40 @@ export function TransactionalTriggersSection({
           description={ __( 'The billing and delivery address, the delivery name, the phone number and the customer\'s order note.', 'smaily-connect' ) }
         />
       </Card>
+    </div>
+  );
+}
+
+interface DelayFieldProps {
+  id: string;
+  label: string;
+  value: number;
+  limits: DayRangeLimits;
+  onChange: (value: number) => void;
+  hint: React.ReactNode;
+}
+
+/**
+ * A wait in whole units — the follow-up email's days (PRO-4095) and the
+ * payment reminder's minutes (CON-328) — inside the server's accepted range.
+ */
+function DelayField({ id, label, value, limits, onChange, hint }: DelayFieldProps): React.JSX.Element {
+  return (
+    <div className="mt-4">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="mt-1 w-40">
+        <NumberInput
+          id={id}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          min={limits.min}
+          max={limits.max}
+          step={1}
+        />
+      </div>
+      <p className="mt-1 text-xs text-text-tertiary">
+        {hint}
+      </p>
     </div>
   );
 }
