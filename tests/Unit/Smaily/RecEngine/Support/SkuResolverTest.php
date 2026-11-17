@@ -83,12 +83,25 @@ final class SkuResolverTest extends TestCase {
 	}
 
 	public function test_is_own_key_matches_the_current_connection_prefix(): void {
-		$this->stub_connection_prefix( '' );
-		self::assertTrue( SkuResolver::is_own_key( 'c3-woo-7' ), 'No prefix: every key is the store\'s own.' );
-
 		$this->stub_connection_prefix( 'c2-' );
 		self::assertTrue( SkuResolver::is_own_key( 'c2-woo-7' ) );
 		self::assertFalse( SkuResolver::is_own_key( 'c3-woo-7' ), 'Another shop of the engine store.' );
+		self::assertFalse( SkuResolver::is_own_key( 'woo-7' ), 'A key from before the prefix is not under it.' );
+	}
+
+	/**
+	 * Audit L4: a connection made before contract 1.33.0 has no prefix, and a
+	 * §15 slot can name a prefixed shop's product of the same engine store.
+	 */
+	public function test_is_own_key_without_a_prefix_takes_only_the_plugins_own_keys(): void {
+		$this->stub_connection_prefix( '' );
+
+		self::assertTrue( SkuResolver::is_own_key( 'woo-7' ) );
+		self::assertTrue( SkuResolver::is_own_key( 'woo-oi-31' ), 'A deleted product\'s order-line key.' );
+		self::assertFalse( SkuResolver::is_own_key( 'c3-woo-7' ), 'Another connection\'s prefix.' );
+		self::assertFalse( SkuResolver::is_own_key( 'c9999-woo-7' ), 'The longest prefix shape.' );
+		self::assertFalse( SkuResolver::is_own_key( 'SHOPIFY-7' ), 'Not the plugin\'s namespace.' );
+		self::assertFalse( SkuResolver::is_own_key( '' ) );
 	}
 
 	/**

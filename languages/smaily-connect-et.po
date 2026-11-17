@@ -272,6 +272,10 @@ msgstr "See seadistuslink ei vii Smaily Campaign Intelligence'isse. Kopeeri sead
 msgid "Smaily Campaign Intelligence replied with an address outside https://intelligence.smaily.com, so the connection was not saved. Contact Smaily support."
 msgstr "Smaily Campaign Intelligence vastas aadressiga, mis ei ole https://intelligence.smaily.com, seega ühendust ei salvestatud. Võta ühendust Smaily toega."
 
+#: includes/Smaily/RecEngine/ExchangeResult.php:145
+msgid "Smaily Campaign Intelligence replied with a connection code this plugin cannot use, so the connection was not saved. Contact Smaily support."
+msgstr "Smaily Campaign Intelligence vastas ühenduse koodiga, mida see plugin kasutada ei saa, seega ühendust ei salvestatud. Võta ühendust Smaily toega."
+
 #: includes/REST/RecEngineEndpoint.php:215
 msgid "This setup link has already been used. Ask the engine administrator to generate a new one."
 msgstr "See seadistuslink on juba kasutatud. Palu mootori administraatoril genereerida uus."

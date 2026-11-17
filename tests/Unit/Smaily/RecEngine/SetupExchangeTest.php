@@ -37,6 +37,7 @@ final class SetupExchangeTest extends TestCase {
 		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
 		Functions\when( 'get_site_url' )->justReturn( 'https://shop.example' );
 		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( '__' )->returnArg( 1 );
 	}
 
 	protected function tearDown(): void {

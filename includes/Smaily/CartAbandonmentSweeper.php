@@ -172,12 +172,13 @@ class CartAbandonmentSweeper {
 	/**
 	 * The longest cutoff a reminder can still go out with (CON-326): the
 	 * cart's lifetime minus one sweep interval, so at least one sweep runs
-	 * between the cutoff and the cart's deletion. 1425 minutes by default.
-	 * The Settings save refuses a longer one and the admin field shows it as
-	 * the field's maximum.
+	 * between the cutoff and the cart's deletion. 1425 minutes by default,
+	 * never under the 10-minute minimum whatever the lifetime filter returns.
+	 * The Settings save refuses a longer one while the reminder is on, and the
+	 * admin field shows it as the field's maximum.
 	 */
 	public static function max_cutoff_minutes(): int {
-		return intdiv( self::max_age_seconds() - self::SWEEP_INTERVAL_SECONDS, MINUTE_IN_SECONDS );
+		return max( 10, intdiv( self::max_age_seconds() - self::SWEEP_INTERVAL_SECONDS, MINUTE_IN_SECONDS ) );
 	}
 
 	/**

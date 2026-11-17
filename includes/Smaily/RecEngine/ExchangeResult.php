@@ -142,7 +142,7 @@ final class ExchangeResult {
 
 	public static function prefix_invalid(): self {
 		$r         = new self( self::KIND_PREFIX_INVALID );
-		$r->reason = 'Smaily Campaign Intelligence replied with a connection code this plugin cannot use, so the connection was not saved. Contact Smaily support.';
+		$r->reason = __( 'Smaily Campaign Intelligence replied with a connection code this plugin cannot use, so the connection was not saved. Contact Smaily support.', 'smaily-connect' );
 		return $r;
 	}
 

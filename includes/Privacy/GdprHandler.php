@@ -18,6 +18,7 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\PaymentReminderCheck;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Client;
@@ -524,7 +525,9 @@ class GdprHandler {
 	 * copy, so IngestQueue::delete_for_privacy_request() cannot see it. The
 	 * user's waiting login jobs go too (CON-275): a run would send the
 	 * customer (§4) and bind the visitor token (§7). A new Action Scheduler
-	 * job that carries a user must be cancelled here as well.
+	 * job that carries a user must be cancelled here as well. So do the
+	 * orders' waiting payment-reminder checks (audit L2): WooCommerce keeps an
+	 * order's address on erasure by default, and a check would remind it.
 	 *
 	 * @param int[] $order_ids The ids of every order of the customer (order_ids_for()).
 	 */
@@ -540,6 +543,7 @@ class GdprHandler {
 
 		if ( $order_ids !== array() ) {
 			$deleted += $this->ingest_queue->delete_unsent( OrderFlusher::EVENT_ORDER_UPSERT, $order_ids );
+			$deleted += PaymentReminderCheck::forget_orders( $order_ids );
 		}
 
 		return $deleted > 0;

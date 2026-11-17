@@ -178,12 +178,15 @@ final class SkuResolver {
 	}
 
 	/**
-	 * Is the key under the current connection prefix? Always true on a
-	 * connection without one.
+	 * Is the key under the current connection prefix? On a connection
+	 * without one, only a key in the plugin's own `woo-` namespace is (audit
+	 * L4): a key under another connection's prefix (CONNECTION_PREFIX_SHAPE,
+	 * always at the start) names another shop's product of the same engine
+	 * store.
 	 */
 	public static function is_own_key( string $key ): bool {
 		$prefix = self::prefix();
-		return '' === $prefix || 0 === strpos( $key, $prefix );
+		return 0 === strpos( $key, '' === $prefix ? self::KEY_PREFIX : $prefix );
 	}
 
 	/**

@@ -27,7 +27,8 @@ use Smaily\Connect\Support\DebugLog;
  * the other transactional emails leave (TransactionalGate::
  * is_loggable_reason()). Any other order — paid, on hold, processing,
  * cancelled, gone, or anonymized by a personal-data erasure — leaves no row,
- * only a debug line with the order id and the reason.
+ * only a debug line with the order id and the reason. A personal-data erasure
+ * cancels the order's waiting action (forget_orders()).
  *
  * Not final: tests replace the flusher and the gate.
  */
@@ -74,6 +75,29 @@ class PaymentReminderCheck {
 		$delay = TransactionalGate::payment_reminder_delay_minutes() * MINUTE_IN_SECONDS;
 
 		return (int) as_schedule_single_action( time() + $delay, self::HOOK, array( $order_id ), self::AS_GROUP ) > 0;
+	}
+
+	/**
+	 * Cancel the waiting action of each order (audit L2): the personal-data
+	 * eraser calls it for the customer's orders, because WooCommerce keeps an
+	 * order's address on erasure by default and the action would then remind
+	 * the erased address. Returns how many actions were cancelled.
+	 *
+	 * @param int[] $order_ids
+	 */
+	public static function forget_orders( array $order_ids ): int {
+		if ( ! function_exists( 'as_unschedule_action' ) ) {
+			return 0;
+		}
+
+		$cancelled = 0;
+		foreach ( $order_ids as $order_id ) {
+			if ( (int) as_unschedule_action( self::HOOK, array( (int) $order_id ), self::AS_GROUP ) > 0 ) {
+				++$cancelled;
+			}
+		}
+
+		return $cancelled;
 	}
 
 	/**

@@ -824,6 +824,8 @@ final class Bootstrap {
 		// fixed here for order confirmation (PRO-1518).
 		add_action( 'woocommerce_store_api_checkout_order_processed', array( $transactional, 'on_block_checkout_order_processed' ), 10, 1 );
 		add_action( 'woocommerce_order_status_changed', array( $transactional, 'on_order_status_changed' ), 10, 4 );
+		// A status change a person made in wp-admin starts no payment reminder (audit L3).
+		add_action( 'woocommerce_order_edit_status', array( $transactional, 'on_order_edit_status' ), 10, 2 );
 
 		// Rec-engine identity merge (3.7). On login, explicitly bind the
 		// anon-session cookies to the now-known customer (§7) — complementary to

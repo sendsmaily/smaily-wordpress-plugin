@@ -18,7 +18,12 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\DB\QueueJanitor;
+use Smaily\Connect\Privacy\GdprHandler;
+use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
@@ -567,6 +572,77 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 			'bank transfer'    => array( 'checkout', 'bacs' ),
 			'cash on delivery' => array( 'checkout', 'cod' ),
 		);
+	}
+
+	public function test_a_fresh_checkout_order_the_gateway_fails_starts_one_wait(): void {
+		$this->configure_payment_reminder();
+
+		$product  = $this->make_product( 'Gateway Failed Product', 9.00 );
+		$order_id = $this->make_checkout_order( 'gateway-failed@example.test', $product, 'checkout' );
+
+		// The gateway's own change: not manual.
+		wc_get_order( $order_id )->update_status( 'failed', 'Payment declined.' );
+
+		self::assertCount( 1, PaymentReminderQueue::pending() );
+	}
+
+	/**
+	 * Audit L3: a change into failed made by a person in wp-admin (WooCommerce
+	 * marks it manual — the edit screen and the bulk edit), or one to an
+	 * order created over a day ago, starts no wait.
+	 *
+	 * @dataProvider failed_changes_never_reminded
+	 */
+	public function test_a_change_into_failed_by_staff_or_of_an_old_order_starts_no_wait( int $age_seconds, bool $manual ): void {
+		$this->configure_payment_reminder();
+
+		$product  = $this->make_product( 'Tidied Up Product', 9.00 );
+		$order_id = $this->make_checkout_order( 'tidied-up@example.test', $product, 'checkout' );
+		$order    = wc_get_order( $order_id );
+		$order->set_date_created( time() - $age_seconds );
+		$order->save();
+
+		wc_get_order( $order_id )->update_status( 'failed', $manual ? 'Order status changed by bulk edit:' : 'Payment declined.', $manual );
+
+		self::assertSame( array(), PaymentReminderQueue::pending() );
+		self::assertSame( '', wc_get_order( $order_id )->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) ) );
+	}
+
+	/**
+	 * @return array<string, array{0: int, 1: bool}>
+	 */
+	public static function failed_changes_never_reminded(): array {
+		return array(
+			'old order, bulk-marked failed in wp-admin' => array( 30 * DAY_IN_SECONDS, true ),
+			'fresh order, marked failed in wp-admin'    => array( 0, true ),
+			'old order, failed by the gateway'          => array( 2 * DAY_IN_SECONDS, false ),
+		);
+	}
+
+	public function test_an_erasure_cancels_the_orders_waiting_payment_reminder(): void {
+		// Audit L2: WooCommerce keeps the order's address on erasure by default.
+		$this->configure_payment_reminder();
+
+		$product  = $this->make_product( 'Erased Product', 9.00 );
+		$order_id = $this->make_checkout_order( 'erased-unpaid@example.test', $product, 'checkout' );
+		$this->fire_checkout_order_processed( $order_id );
+		self::assertCount( 1, PaymentReminderQueue::pending() );
+
+		$settings = new RecEngineSettings();
+		$result   = ( new GdprHandler(
+			$settings,
+			static function (): Client {
+				throw new \RuntimeException( 'engine must not be called while disconnected' );
+			},
+			new CartSessionStore(),
+			new EventQueue(),
+			new IngestQueue()
+		) )->erase( 'erased-unpaid@example.test' );
+
+		self::assertTrue( $result['items_removed'] );
+		self::assertSame( array(), PaymentReminderQueue::pending() );
+		self::assertSame( 0, PaymentReminderQueue::run_all() );
+		self::assertSame( 0, $this->queue_count( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) );
 	}
 
 	public function test_a_switched_off_payment_reminder_starts_no_wait_and_leaves_no_row(): void {
