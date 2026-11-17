@@ -16,6 +16,7 @@ use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 
 final class TransactionalPayloadBuilderTest extends TestCase {
@@ -162,6 +163,18 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 		self::assertSame( 'bacs', $context['payment_method_id'] );
 		self::assertSame( 'Flat rate, Local pickup', $context['shipping_method'] );
 		self::assertSame( 'flat_rate, local_pickup', $context['shipping_method_id'], 'Joined like the titles, so the two list the lines in the same order.' );
+	}
+
+	public function test_the_payment_reminder_carries_the_orders_payment_page(): void {
+		// CON-328: the link where the shopper finishes paying, as a plain URL
+		// (an ampersand stays an ampersand, like product_url).
+		$order = $this->fake_order( array( 'payment_url' => 'https://shop.test/checkout/order-pay/42/?pay_for_order=true&key=wc_order_abc' ) );
+
+		$reminder = $this->builder()->build( $order, TransactionalGate::TRIGGER_PAYMENT_REMINDER );
+		self::assertSame( 'https://shop.test/checkout/order-pay/42/?pay_for_order=true&key=wc_order_abc', $reminder['payment_url'] );
+
+		$confirmation = $this->builder()->build( $order, TransactionalGate::TRIGGER_ORDER_CONFIRMATION );
+		self::assertArrayNotHasKey( 'payment_url', $confirmation, 'Only the payment reminder carries the payment page.' );
 	}
 
 	public function test_existing_fields_keep_their_names_and_formats(): void {
@@ -688,6 +701,10 @@ final class TransactionalPayloadBuilderTest extends TestCase {
 
 			public function get_payment_method_title( $context = 'view' ) {
 				return (string) ( $this->p['payment_method'] ?? '' );
+			}
+
+			public function get_checkout_payment_url( $on_checkout = false ) {
+				return (string) ( $this->p['payment_url'] ?? '' );
 			}
 
 			public function get_shipping_method() {

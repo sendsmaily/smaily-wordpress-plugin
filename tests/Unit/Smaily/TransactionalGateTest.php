@@ -201,6 +201,50 @@ final class TransactionalGateTest extends TestCase {
 		self::assertNull( $gate->resolve_if_open( TransactionalGate::TRIGGER_ORDER_CONFIRMATION ), 'Same rule, same answer: the gate stays closed.' );
 	}
 
+	// --- payment reminder (CON-328) -------------------------------------------
+
+	public function test_the_payment_reminder_waits_its_minutes_and_the_follow_up_its_days(): void {
+		$this->options[ TransactionalGate::OPTION_PAYMENT_REMINDER_DELAY_MINUTES ] = 30;
+		$this->options[ TransactionalGate::OPTION_FOLLOW_UP_DELAY_DAYS ]          = 2;
+
+		self::assertSame( 30 * MINUTE_IN_SECONDS, TransactionalGate::delay_seconds( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) );
+		self::assertSame( 2 * DAY_IN_SECONDS, TransactionalGate::delay_seconds( TransactionalGate::TRIGGER_FOLLOW_UP ) );
+	}
+
+	/**
+	 * @dataProvider stored_payment_reminder_delays
+	 *
+	 * @param mixed $stored
+	 */
+	public function test_a_stored_payment_reminder_delay_outside_the_range_reads_as_the_default( $stored, int $expected ): void {
+		$this->options[ TransactionalGate::OPTION_PAYMENT_REMINDER_DELAY_MINUTES ] = $stored;
+
+		self::assertSame( $expected, TransactionalGate::payment_reminder_delay_minutes() );
+	}
+
+	/**
+	 * @return array<string, array{0: mixed, 1: int}>
+	 */
+	public static function stored_payment_reminder_delays(): array {
+		return array(
+			'the shortest'   => array( 5, 5 ),
+			'the longest'    => array( 1440, 1440 ),
+			'digits'         => array( '45', 45 ),
+			'too short'      => array( 4, TransactionalGate::PAYMENT_REMINDER_DELAY_DEFAULT ),
+			'too long'       => array( 1441, TransactionalGate::PAYMENT_REMINDER_DELAY_DEFAULT ),
+			'not a number'   => array( 'soon', TransactionalGate::PAYMENT_REMINDER_DELAY_DEFAULT ),
+			'a fraction'     => array( '7.5', TransactionalGate::PAYMENT_REMINDER_DELAY_DEFAULT ),
+		);
+	}
+
+	public function test_the_payment_reminder_is_one_of_the_switches_the_installation_report_counts(): void {
+		$this->options['smly_plus_order_confirmation_enabled']    = false;
+		$this->options['smly_plus_shipping_confirmation_enabled'] = false;
+		$this->options['smly_plus_payment_reminder_enabled']      = true;
+
+		self::assertTrue( TransactionalGate::any_enabled() );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	private function resolver_returning( ?WorkflowMatch $match ): WorkflowResolverInterface {

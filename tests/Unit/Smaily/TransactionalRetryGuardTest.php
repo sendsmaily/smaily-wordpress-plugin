@@ -175,6 +175,19 @@ final class TransactionalRetryGuardTest extends TestCase {
 		);
 	}
 
+	public function test_a_failed_payment_reminder_may_be_retried_because_no_woocommerce_email_stood_in(): void {
+		// CON-328: like the follow-up, the payment reminder has no WooCommerce
+		// email to fall back to; a retry re-checks the order before it sends.
+		self::assertSame(
+			'',
+			TransactionalRetryGuard::refusal_reason(
+				TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER,
+				(string) json_encode( array( 'to_status' => 'pending' ) ),
+				true
+			)
+		);
+	}
+
 	public function test_a_row_whose_order_is_gone_is_refused_with_its_own_reason(): void {
 		// Existence is resolved by the caller (one batched lookup) and handed
 		// in — the guard itself does no I/O.

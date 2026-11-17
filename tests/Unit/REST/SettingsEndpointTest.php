@@ -497,6 +497,67 @@ final class SettingsEndpointTest extends TestCase {
 		);
 	}
 
+	public function test_woocommerce_tab_persists_the_payment_reminder_settings(): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'automationMappings'          => array(),
+				'paymentReminderEnabled'      => true,
+				'paymentReminderDelayMinutes' => 45,
+			)
+		);
+
+		self::assertTrue( $endpoint->handle( $request )->get_data()['saved'] );
+		self::assertTrue( $this->option_writes['smly_plus_payment_reminder_enabled'] );
+		self::assertSame( 45, $this->option_writes['smly_plus_payment_reminder_delay_minutes'] );
+	}
+
+	/**
+	 * @dataProvider invalid_payment_reminder_delays
+	 *
+	 * @param mixed $minutes
+	 */
+	public function test_woocommerce_tab_refuses_a_payment_reminder_delay_outside_five_to_1440_minutes( $minutes ): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'automationMappings'          => array(),
+				'paymentReminderEnabled'      => true,
+				'paymentReminderDelayMinutes' => $minutes,
+			)
+		);
+
+		$response = $endpoint->handle( $request );
+
+		self::assertSame( 400, $response->get_status() );
+		self::assertSame( 'paymentReminderDelayMinutes', $response->get_data()['errors'][0]['field'] );
+		self::assertArrayNotHasKey( 'smly_plus_payment_reminder_delay_minutes', $this->option_writes );
+		self::assertArrayNotHasKey( 'smly_plus_payment_reminder_enabled', $this->option_writes, 'Nothing on the tab is saved.' );
+	}
+
+	/**
+	 * @return array<string, array{0: mixed}>
+	 */
+	public static function invalid_payment_reminder_delays(): array {
+		return array(
+			'too short' => array( 4 ),
+			'too long'  => array( 1441 ),
+			'fraction'  => array( 7.5 ),
+			'text'      => array( 'soon' ),
+			'negative'  => array( -20 ),
+		);
+	}
+
 	public function test_woocommerce_tab_persists_each_automations_discount_code_settings(): void {
 		$endpoint        = new SettingsEndpoint();
 		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
