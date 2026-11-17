@@ -136,13 +136,14 @@ class CartAbandonmentSweeper {
 				++$stats['enqueued'];
 			} catch ( \Throwable $e ) {
 				// Deterministic data-shape throw would recur every tick —
-				// terminal-mark THIS row and continue (F3-53 backstop).
+				// terminal-mark THIS row and continue (F3-53 backstop). The
+				// log names the error's type and place, never its message,
+				// which can carry the shopper's address (CON-327).
 				DebugLog::write(
 					sprintf(
-						'[smaily-connect cart.sweep] Cart row %d failed with %s: %s - marked without emailing.',
+						'[smaily-connect cart.sweep] Cart row %d failed with %s - marked without emailing.',
 						$id,
-						get_class( $e ),
-						$e->getMessage()
+						DebugLog::where( $e )
 					)
 				);
 				$this->store->mark_reminder_enqueued( $id );
