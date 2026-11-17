@@ -44,6 +44,13 @@ class TransactionalGate {
 	public const TRIGGER_ORDER_CONFIRMATION    = 'order_confirmation';
 	public const TRIGGER_SHIPPING_CONFIRMATION = 'shipping_confirmation';
 	public const TRIGGER_FOLLOW_UP             = 'follow_up';
+	public const TRIGGER_PAYMENT_REMINDER      = 'payment_reminder';
+
+	/**
+	 * The triggers whose email waits in the queue before it goes out
+	 * (PRO-4095, CON-328): one scheduled row, re-checked when it falls due.
+	 */
+	public const SCHEDULED_TRIGGERS = array( self::TRIGGER_FOLLOW_UP, self::TRIGGER_PAYMENT_REMINDER );
 
 	/**
 	 * Why the gate is closed — closed_reason()'s answer, one per condition
@@ -65,6 +72,17 @@ class TransactionalGate {
 	public const REASON_ORDER_CLOSED        = 'order_closed';
 	public const REASON_STATUS_NOT_COUNTING = 'status_not_counting';
 
+	/**
+	 * Why a payment reminder may not go out although the gate is open
+	 * (CON-328) — awaits_payment_reason()'s answer: the order is no longer
+	 * `pending` or `failed` with an amount to pay (paid, on hold, being
+	 * processed, cancelled).
+	 */
+	public const REASON_PAYMENT_NOT_AWAITED = 'payment_not_awaited';
+
+	/** Order statuses a payment reminder waits on: placed but not paid, or the payment failed (CON-328). */
+	private const AWAITING_PAYMENT_STATUSES = array( 'pending', 'failed' );
+
 	/** Order statuses a follow-up never goes out on, whatever is ticked. */
 	private const FOLLOW_UP_CLOSED_STATUSES = array( 'cancelled', 'refunded', 'failed', 'trash' );
 
@@ -82,6 +100,13 @@ class TransactionalGate {
 	public const FOLLOW_UP_DELAY_DEFAULT = 7;
 	public const FOLLOW_UP_DELAY_MIN     = 1;
 	public const FOLLOW_UP_DELAY_MAX     = 90;
+
+	/** Minutes the payment reminder waits after an unpaid order is placed or its payment fails (CON-328). */
+	public const OPTION_PAYMENT_REMINDER_DELAY_MINUTES = 'smly_plus_payment_reminder_delay_minutes';
+
+	public const PAYMENT_REMINDER_DELAY_DEFAULT = 20;
+	public const PAYMENT_REMINDER_DELAY_MIN     = 5;
+	public const PAYMENT_REMINDER_DELAY_MAX     = 1440;
 
 	/**
 	 * Single source of truth for everything that varies per trigger type —
@@ -123,6 +148,13 @@ class TransactionalGate {
 			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- config value only, consumed as a per-order-id meta guard key (get/update_meta_data by order id), never a WP_Query meta_query; WPCS flags any 'meta_key' array key regardless of context.
 			'meta_key'        => '_smly_plus_transactional_follow_up_status',
 			'statuses_option' => self::OPTION_FOLLOW_UP_STATUSES,
+		),
+		self::TRIGGER_PAYMENT_REMINDER      => array(
+			'toggle_option'   => 'smly_plus_payment_reminder_enabled',
+			'event_type'      => 'transactional.payment_reminder',
+			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- config value only, consumed as a per-order-id meta guard key (get/update_meta_data by order id), never a WP_Query meta_query; WPCS flags any 'meta_key' array key regardless of context.
+			'meta_key'        => '_smly_plus_transactional_payment_reminder_status',
+			'statuses_option' => null,
 		),
 	);
 
@@ -213,6 +245,39 @@ class TransactionalGate {
 			return self::REASON_STATUS_NOT_COUNTING;
 		}
 		return '';
+	}
+
+	/**
+	 * The rule a due row of a scheduled trigger checks after evaluate()
+	 * opens: the follow-up's order-status rules, or whether the order still
+	 * waits for payment. '' when the email may go out.
+	 */
+	public function due_reason( string $trigger_type, \WC_Order $order ): string {
+		return $trigger_type === self::TRIGGER_PAYMENT_REMINDER
+			? self::awaits_payment_reason( $order )
+			: $this->follow_up_due_reason( $order );
+	}
+
+	/**
+	 * Whether an order still waits for its payment (CON-328): `pending` or
+	 * `failed`, with an amount to pay. Checked when the payment reminder is
+	 * queued and again when it falls due. Returns REASON_PAYMENT_NOT_AWAITED,
+	 * or '' when the order still waits.
+	 */
+	public static function awaits_payment_reason( \WC_Order $order ): string {
+		return in_array( (string) $order->get_status(), self::AWAITING_PAYMENT_STATUSES, true ) && $order->needs_payment()
+			? ''
+			: self::REASON_PAYMENT_NOT_AWAITED;
+	}
+
+	/**
+	 * How long a scheduled trigger's email waits, in seconds: the follow-up
+	 * email's days or the payment reminder's minutes.
+	 */
+	public static function delay_seconds( string $trigger_type ): int {
+		return $trigger_type === self::TRIGGER_PAYMENT_REMINDER
+			? self::payment_reminder_delay_minutes() * MINUTE_IN_SECONDS
+			: self::follow_up_delay_days() * DAY_IN_SECONDS;
 	}
 
 	/**
@@ -355,6 +420,25 @@ class TransactionalGate {
 	 */
 	public static function delay_days_or_null( $days ): ?int {
 		return NumberInput::whole_number_in_range( $days, self::FOLLOW_UP_DELAY_MIN, self::FOLLOW_UP_DELAY_MAX );
+	}
+
+	/**
+	 * The payment reminder's delay in whole minutes,
+	 * PAYMENT_REMINDER_DELAY_MIN..MAX. Like the follow-up delay, a stored
+	 * value outside the range (or none) reads as the default.
+	 */
+	public static function payment_reminder_delay_minutes(): int {
+		return self::delay_minutes_or_null( get_option( self::OPTION_PAYMENT_REMINDER_DELAY_MINUTES, self::PAYMENT_REMINDER_DELAY_DEFAULT ) ) ?? self::PAYMENT_REMINDER_DELAY_DEFAULT;
+	}
+
+	/**
+	 * A whole number of minutes within PAYMENT_REMINDER_DELAY_MIN..MAX, or
+	 * null — the one rule the save route and the reader share.
+	 *
+	 * @param mixed $minutes
+	 */
+	public static function delay_minutes_or_null( $minutes ): ?int {
+		return NumberInput::whole_number_in_range( $minutes, self::PAYMENT_REMINDER_DELAY_MIN, self::PAYMENT_REMINDER_DELAY_MAX );
 	}
 
 	/**

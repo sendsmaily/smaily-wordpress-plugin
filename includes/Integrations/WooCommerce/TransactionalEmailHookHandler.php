@@ -17,7 +17,7 @@ use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 
 /**
- * Three triggers, each once-per-order-per-email-type (an order-meta guard —
+ * Four triggers, each once-per-order-per-email-type (an order-meta guard —
  * design point 1):
  *
  *   - order_confirmation: `woocommerce_checkout_order_processed` — a
@@ -38,6 +38,13 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *     when the new status is in `smly_plus_follow_up_order_statuses`.
  *     Nothing is sent then — the flusher queues the email to go out once
  *     the merchant's delay has passed. One status change can do both.
+ *   - payment_reminder (CON-328): an order placed at the store's own
+ *     checkout (`created_via` checkout or store-api — never one made in
+ *     wp-admin) that waits for its payment — on the two checkout hooks
+ *     above, and when its status changes into `failed`. Queued like the
+ *     follow-up, and re-checked when due: sent only if the order still
+ *     waits for payment. A bank transfer or cheque order (on-hold) and a
+ *     cash-on-delivery order (processing) have left `pending` by then.
  *
  * Gating (design point 2) is delegated whole to TransactionalGate — no
  * consent/opt-out check here (transactional sends override marketing
@@ -46,6 +53,9 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  * Not final: tests inject gate/builder/flusher doubles.
  */
 class TransactionalEmailHookHandler {
+
+	/** `created_via` of an order placed at the store's classic or block checkout (CON-328). */
+	private const CHECKOUT_CREATED_VIA = array( 'checkout', 'store-api' );
 
 	private TransactionalGate $gate;
 	private TransactionalPayloadBuilder $builder;
@@ -76,6 +86,7 @@ class TransactionalEmailHookHandler {
 		}
 
 		$this->attempt( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, $order );
+		$this->maybe_payment_reminder( $order );
 	}
 
 	/**
@@ -88,6 +99,7 @@ class TransactionalEmailHookHandler {
 	 */
 	public function on_block_checkout_order_processed( \WC_Order $order ): void {
 		$this->attempt( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, $order );
+		$this->maybe_payment_reminder( $order );
 	}
 
 	/**
@@ -106,7 +118,8 @@ class TransactionalEmailHookHandler {
 		$to        = OrderBackfillJob::bare_status( (string) $to_status );
 		$shipped   = in_array( $to, TransactionalGate::shipped_statuses(), true );
 		$follow_up = in_array( $to, TransactionalGate::follow_up_statuses(), true );
-		if ( ! $shipped && ! $follow_up ) {
+		$failed    = $to === 'failed';
+		if ( ! $shipped && ! $follow_up && ! $failed ) {
 			return;
 		}
 
@@ -121,6 +134,24 @@ class TransactionalEmailHookHandler {
 		if ( $follow_up ) {
 			$this->attempt( TransactionalGate::TRIGGER_FOLLOW_UP, $order, $to );
 		}
+		if ( $failed ) {
+			$this->maybe_payment_reminder( $order );
+		}
+	}
+
+	/**
+	 * The payment reminder (CON-328) for an order placed at the store's own
+	 * checkout that still waits for its payment. An order made in wp-admin
+	 * (or through the REST API) is never reminded, nor one with nothing to
+	 * pay.
+	 */
+	private function maybe_payment_reminder( \WC_Order $order ): void {
+		if ( ! in_array( (string) $order->get_created_via(), self::CHECKOUT_CREATED_VIA, true )
+			|| TransactionalGate::awaits_payment_reason( $order ) !== '' ) {
+			return;
+		}
+
+		$this->attempt( TransactionalGate::TRIGGER_PAYMENT_REMINDER, $order, (string) $order->get_status() );
 	}
 
 	private function attempt( string $trigger_type, \WC_Order $order, string $to_status = '' ): void {
@@ -142,8 +173,8 @@ class TransactionalEmailHookHandler {
 			return;
 		}
 
-		if ( $trigger_type === TransactionalGate::TRIGGER_FOLLOW_UP ) {
-			$this->flusher->schedule_follow_up( $order, $match, $to_status );
+		if ( in_array( $trigger_type, TransactionalGate::SCHEDULED_TRIGGERS, true ) ) {
+			$this->flusher->schedule( $trigger_type, $order, $match, $to_status );
 			return;
 		}
 
