@@ -22,6 +22,7 @@ use Smaily\Connect\Privacy\GdprHandler;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\PaymentReminderCheck;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\LoginMerge;
@@ -34,6 +35,7 @@ final class GdprHandlerTest extends TestCase {
 		Functions\when( 'get_user_meta' )->justReturn( '' );
 		Functions\when( 'get_user_by' )->justReturn( false );
 		Functions\when( 'get_option' )->justReturn( false );
+		Functions\when( 'as_unschedule_action' )->justReturn( null ); // No payment reminder waits (audit L2).
 		Functions\when( '__' )->returnArg( 1 );
 		Functions\when( '_n' )->alias(
 			static fn ( string $single, string $plural, int $number ): string => 1 === $number ? $single : $plural
@@ -283,6 +285,29 @@ final class GdprHandlerTest extends TestCase {
 
 		self::assertTrue( $result['items_removed'], 'A cancelled login job counts as removed.' );
 		self::assertSame( array( array( LoginMerge::HOOK, $job, LoginMerge::AS_GROUP ) ), $unscheduled );
+	}
+
+	public function test_erase_cancels_the_orders_waiting_payment_reminders(): void {
+		// Audit L2: WooCommerce keeps the order's address on erasure by default.
+		$unscheduled = array();
+		Functions\when( 'as_unschedule_action' )->alias(
+			function ( string $hook, array $args, string $group ) use ( &$unscheduled ): ?int {
+				$unscheduled[] = array( $hook, $args, $group );
+				return $args === array( 12 ) ? 40 : null;
+			}
+		);
+		$orders = array( $this->fake_order( 11, '11', array() ), $this->fake_order( 12, '12', array() ) );
+
+		$result = $this->handler( $this->fake_store( array() ), null, $orders, $this->fake_ingest_queue( 0 ) )->erase( 'erase-me@example.test' );
+
+		self::assertTrue( $result['items_removed'], 'A cancelled reminder counts as removed.' );
+		self::assertSame(
+			array(
+				array( PaymentReminderCheck::HOOK, array( 11 ), PaymentReminderCheck::AS_GROUP ),
+				array( PaymentReminderCheck::HOOK, array( 12 ), PaymentReminderCheck::AS_GROUP ),
+			),
+			$unscheduled
+		);
 	}
 
 	public function test_a_wp_user_whose_address_differs_by_an_accent_is_not_the_requester(): void {

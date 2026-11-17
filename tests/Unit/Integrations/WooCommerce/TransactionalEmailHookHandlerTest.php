@@ -496,6 +496,46 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		self::assertCount( 1, $scheduled->actions );
 	}
 
+	public function test_an_order_a_person_marked_failed_in_wp_admin_starts_no_wait(): void {
+		// Audit L3: WooCommerce fires woocommerce_order_edit_status for the
+		// edit screen's and the bulk edit's (manual) change, before the change.
+		$scheduled        = $this->record_scheduled_actions();
+		$this->orders[56] = $this->fake_order( 56, 'buyer@example.test', 'checkout', 'failed', true );
+		$handler          = new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $this->recording_flusher() );
+
+		$handler->on_order_edit_status( 56, 'failed' );
+		$handler->on_order_status_changed( 56, 'pending', 'failed' );
+
+		self::assertSame( array(), $scheduled->actions );
+		self::assertSame( '', $this->orders[56]->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) ) );
+	}
+
+	public function test_an_order_older_than_a_day_that_fails_starts_no_wait(): void {
+		// Audit L3: an order placed before 3.24.0 has no reminder marker.
+		$scheduled         = $this->record_scheduled_actions();
+		$order             = $this->fake_order( 57, 'buyer@example.test', 'checkout', 'failed', true );
+		$order->created_at = time() - TransactionalEmailHookHandler::PAYMENT_REMINDER_FAILED_MAX_ORDER_AGE_SECONDS - 60;
+		$this->orders[57]  = $order;
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $this->recording_flusher() ) )
+			->on_order_status_changed( 57, 'pending', 'failed' );
+
+		self::assertSame( array(), $scheduled->actions );
+	}
+
+	public function test_an_old_order_placed_at_the_checkout_still_starts_the_wait_there(): void {
+		// The age bound is for the change into failed only; the checkout hook is unchanged.
+		$scheduled         = $this->record_scheduled_actions();
+		$order             = $this->fake_order( 58, 'buyer@example.test', 'checkout', 'pending', true );
+		$order->created_at = time() - 2 * DAY_IN_SECONDS;
+		$this->orders[58]  = $order;
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $this->recording_flusher() ) )
+			->on_order_processed( 58, array(), $order );
+
+		self::assertCount( 1, $scheduled->actions );
+	}
+
 	/**
 	 * @dataProvider orders_never_reminded
 	 */
@@ -679,8 +719,10 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 			private bool $needs_payment;
 			private string $payment_method;
 			private array $meta = array();
+			public int $created_at;
 
 			public function __construct( int $id, string $email, string $created_via, string $status, bool $needs_payment, string $payment_method ) {
+				$this->created_at     = time();
 				$this->id             = $id;
 				$this->email          = $email;
 				$this->created_via    = $created_via;
@@ -699,6 +741,10 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 
 			public function get_created_via( $context = 'view' ) {
 				return $this->created_via;
+			}
+
+			public function get_date_created( $context = 'view' ) {
+				return new \DateTime( '@' . $this->created_at );
 			}
 
 			public function get_status( $context = 'view' ): string {

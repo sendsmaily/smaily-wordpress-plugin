@@ -42,7 +42,9 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *   - payment_reminder (CON-328): an order placed at the store's own
  *     checkout (`created_via` checkout or store-api — never one made in
  *     wp-admin), on the two checkout hooks above and when its status
- *     changes into `failed`. Nothing goes to the queue then: one Action
+ *     changes into `failed` — that change only for an order created in the
+ *     last 24 hours whose status no person changed in wp-admin (audit L3,
+ *     on_order_edit_status()). Nothing goes to the queue then: one Action
  *     Scheduler action (PaymentReminderCheck) waits the merchant's
  *     minutes and queues the reminder only if the order still waits for
  *     payment. A bank transfer, cheque or cash-on-delivery order is never
@@ -55,6 +57,12 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  * Not final: tests inject gate/builder/flusher doubles.
  */
 class TransactionalEmailHookHandler {
+
+	/** The oldest order a change into `failed` starts the payment reminder's wait for (audit L3). */
+	public const PAYMENT_REMINDER_FAILED_MAX_ORDER_AGE_SECONDS = DAY_IN_SECONDS;
+
+	/** @var array<int, true> Orders whose status a person changed in this request (on_order_edit_status()). */
+	private array $staff_status_changes = array();
 
 	private TransactionalGate $gate;
 	private TransactionalPayloadBuilder $builder;
@@ -133,9 +141,42 @@ class TransactionalEmailHookHandler {
 		if ( $follow_up ) {
 			$this->attempt( TransactionalGate::TRIGGER_FOLLOW_UP, $order, $to );
 		}
-		if ( $failed ) {
+		if ( $failed && $this->failed_without_staff_recently( $order ) ) {
 			$this->maybe_payment_reminder( $order );
 		}
+	}
+
+	/**
+	 * `woocommerce_order_edit_status` ($order_id, $new_status) — WooCommerce
+	 * fires it for a status change it marks as manual (a person made it: the
+	 * order edit screen, the bulk edit and status buttons of both order
+	 * lists), before the change reaches `woocommerce_order_status_changed`.
+	 * A gateway's change is never manual. Remembered for this request only
+	 * (audit L3).
+	 *
+	 * @param int|string $order_id
+	 * @param string     $new_status
+	 */
+	public function on_order_edit_status( $order_id, $new_status = '' ): void {
+		unset( $new_status );
+
+		$this->staff_status_changes[ (int) $order_id ] = true;
+	}
+
+	/**
+	 * Whether a change into `failed` may start the payment reminder's wait
+	 * (audit L3): no person made it in wp-admin, and the order was created
+	 * within PAYMENT_REMINDER_FAILED_MAX_ORDER_AGE_SECONDS — a merchant
+	 * tidying up old unpaid orders reminds no one.
+	 */
+	private function failed_without_staff_recently( \WC_Order $order ): bool {
+		if ( isset( $this->staff_status_changes[ $order->get_id() ] ) ) {
+			return false;
+		}
+
+		$created = $order->get_date_created();
+
+		return $created !== null && time() - $created->getTimestamp() <= self::PAYMENT_REMINDER_FAILED_MAX_ORDER_AGE_SECONDS;
 	}
 
 	/**
