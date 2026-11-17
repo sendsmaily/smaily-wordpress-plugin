@@ -199,6 +199,7 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Fixed: on the classic checkout, the abandoned-cart reminder goes to the email address the shopper typed or corrected last.
 * Fixed: an abandoned-cart cutoff time over 1425 minutes, which could never send a reminder, is refused when you save it.
 * Fixed: an order with no billing email is skipped instead of failing in Campaign Intelligence on every retry.
+* Fixed: old queue records are cleaned up in steps until none are left, and records from a history import are kept 7 days instead of 30. A queue table left oversized by the 3.21.0 import loop empties soon after the update.
 * Privacy: the personal-data export lists the shopper's bookings and visits held in Campaign Intelligence.
 * Updated to the Smaily Campaign Intelligence API contract v1.33.0.
 
@@ -228,11 +229,6 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Developer: new action hooks `smaily_connect_smaily_api_result` and `smaily_connect_engine_api_result` after each Smaily and Campaign Intelligence answer.
 * Updated to the Smaily Campaign Intelligence API contract v1.29.0.
 
-= 3.21.1 =
-* Fixed: a history import could repeat itself or stop right after it started when the plugin updated in the background. The update now also completes in the background, without a visit to wp-admin.
-* Fixed: a connected store that ran 3.21.0 and whose order history has not been sent in full with 3.21 starts the whole sequence (products, customers, orders) once more by itself. It waits while another import runs; an import you held back or cancelled stays stopped.
-* Improved: Import now says so when an import could not be started.
-
 == Upgrade Notice ==
 
 = 3.24.0 =
@@ -243,9 +239,6 @@ One product that cannot be loaded no longer stops the products import or the nig
 
 = 3.22.0 =
 Abandoned-cart reminders follow the shopper's storefront language on WPML and Polylang stores. The checkout and My Account forms get only the newsletter box. A connected Smaily account gets an installation report with no customer data.
-
-= 3.21.1 =
-Fixes a history import that could repeat itself or stop after it started when the plugin updated in the background. A connected store whose order history has not been sent in full with 3.21 starts the imports once more by itself, unless you held back or cancelled an import.
 
 == Screenshots ==
 
