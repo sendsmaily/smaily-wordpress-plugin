@@ -38,6 +38,7 @@ final class EmailDesignWorkflows {
 		'follow_up'             => 'plugin.follow_up',
 		'order_confirmation'    => 'transactional.order_confirmation',
 		'shipping_confirmation' => 'transactional.shipping_confirmation',
+		'payment_reminder'      => 'transactional.payment_reminder',
 	);
 
 	/** §23 kinds of the plugin's own emails; an engine email's ids are not the plugin's to use. */
