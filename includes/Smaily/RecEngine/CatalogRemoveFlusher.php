@@ -126,19 +126,12 @@ class CatalogRemoveFlusher extends AbstractD6Flusher {
 			$product_id = (string) ( $objects[ $index ]['product_id'] ?? '' );
 
 			if ( isset( $refused[ $product_id ] ) ) {
-				$this->queue->mark_failed( $id, 'd6_item_error field=product_ids' );
+				$error = array( 'field' => 'product_ids' );
+				$this->queue->mark_failed( $id, $this->item_error_message( $error ) );
 				$this->queue->store_exchange(
 					$id,
 					$this->trim_json( $objects[ $index ] ?? null ),
-					$this->trim_text(
-						(string) wp_json_encode(
-							array(
-								'http'    => 200,
-								'outcome' => 'rejected',
-								'error'   => array( 'field' => 'product_ids' ),
-							)
-						)
-					)
+					$this->response_json( 200, 'rejected', $error )
 				);
 				++$stats['failed'];
 				continue;

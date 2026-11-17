@@ -325,7 +325,7 @@ abstract class AbstractD6Flusher {
 	 *
 	 * @param array<string, mixed> $error A single errors[] entry.
 	 */
-	private function item_error_message( array $error ): string {
+	protected function item_error_message( array $error ): string {
 		$field = isset( $error['field'] ) ? (string) $error['field'] : '';
 		return sprintf( 'd6_item_error field=%s', $field );
 	}
@@ -404,7 +404,7 @@ abstract class AbstractD6Flusher {
 	 *
 	 * @param array<string, mixed>|null $error D6 errors[] entry for a rejected row.
 	 */
-	private function response_json( int $http, string $outcome, ?array $error = null ): string {
+	protected function response_json( int $http, string $outcome, ?array $error = null ): string {
 		$payload = array(
 			'http'    => $http,
 			'outcome' => $outcome,

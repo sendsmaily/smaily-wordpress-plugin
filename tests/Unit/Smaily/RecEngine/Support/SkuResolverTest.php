@@ -82,6 +82,15 @@ final class SkuResolverTest extends TestCase {
 		self::assertSame( 'woo-7', SkuResolver::resolve_id( 7 ), 'A stored value of the wrong shape is never sent.' );
 	}
 
+	public function test_is_own_key_matches_the_current_connection_prefix(): void {
+		$this->stub_connection_prefix( '' );
+		self::assertTrue( SkuResolver::is_own_key( 'c3-woo-7' ), 'No prefix: every key is the store\'s own.' );
+
+		$this->stub_connection_prefix( 'c2-' );
+		self::assertTrue( SkuResolver::is_own_key( 'c2-woo-7' ) );
+		self::assertFalse( SkuResolver::is_own_key( 'c3-woo-7' ), 'Another shop of the engine store.' );
+	}
+
 	/**
 	 * @dataProvider reprefixed_keys
 	 */

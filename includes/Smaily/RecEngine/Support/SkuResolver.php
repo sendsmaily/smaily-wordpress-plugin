@@ -178,6 +178,15 @@ final class SkuResolver {
 	}
 
 	/**
+	 * Is the key under the current connection prefix? Always true on a
+	 * connection without one.
+	 */
+	public static function is_own_key( string $key ): bool {
+		$prefix = self::prefix();
+		return '' === $prefix || 0 === strpos( $key, $prefix );
+	}
+
+	/**
 	 * A key this plugin built earlier — a `sku` or a `tags.product_id` stored
 	 * on a queue row, or a `sku` a cached storefront page holds — under the
 	 * CURRENT connection prefix. The prefix it was built under (none, or one
@@ -185,7 +194,7 @@ final class SkuResolver {
 	 * key is never prefixed twice. Idempotent.
 	 */
 	public static function reprefix( string $key ): string {
-		$bare = (string) preg_replace( '/^c[1-9][0-9]{0,3}-(?=' . self::KEY_PREFIX . '|[0-9]+$)/', '', $key );
+		$bare = (string) preg_replace( '/^' . RecEngineSettings::CONNECTION_PREFIX_SHAPE . '(?=' . self::KEY_PREFIX . '|[0-9]+$)/', '', $key );
 		return self::prefix() . $bare;
 	}
 
