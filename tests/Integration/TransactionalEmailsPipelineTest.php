@@ -22,6 +22,7 @@ use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
+use Smaily\Connect\Tests\Integration\Support\PaymentReminderQueue;
 use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
 use Smaily\Connect\Wizard\EnvDetector;
 
@@ -56,6 +57,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		}
 		$this->created_orders    = array();
 		$this->created_products  = array();
+		PaymentReminderQueue::forget();
 
 		// Drop any Smaily client cached from this test's seeded credentials.
 		$bootstrap = \Smaily\Connect\Bootstrap::instance();
@@ -435,7 +437,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 	/**
 	 * @dataProvider store_checkout_hooks
 	 */
-	public function test_an_unpaid_checkout_order_gets_one_payment_reminder_once_the_delay_has_passed( string $created_via ): void {
+	public function test_an_order_still_unpaid_when_the_wait_ends_gets_exactly_one_reminder( string $created_via ): void {
 		$this->configure_payment_reminder( 20 );
 
 		$product  = $this->make_product( 'Unpaid Product', 9.00 );
@@ -452,22 +454,24 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 				$this->fire_checkout_order_processed( $order_id );
 			}
 
-			// The shopper left the bank's page: nothing yet, the row waits its 20 minutes.
-			do_action( TransactionalFlusher::FLUSH_HOOK );
-			self::assertSame( array(), $captured, 'Nothing is sent before the delay has passed.' );
+			// The wait is held in Action Scheduler: no Event Log row yet.
+			self::assertSame( 0, $this->queue_count( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ), 'Nothing in the Event Log while the shopper may still pay.' );
+			$waiting = PaymentReminderQueue::pending();
+			self::assertCount( 1, $waiting );
+			self::assertSame( array( $order_id ), array_values( $waiting[0]->get_args() ), 'The action carries the order id only.' );
+			$at = $waiting[0]->get_schedule()->get_date()->getTimestamp();
+			self::assertGreaterThanOrEqual( $before + 20 * MINUTE_IN_SECONDS, $at );
+			self::assertLessThanOrEqual( time() + 20 * MINUTE_IN_SECONDS, $at );
 
-			$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER );
-			self::assertSame( 'pending', $row['status'] );
-			$due = strtotime( $row['next_retry_at'] . ' UTC' );
-			self::assertGreaterThanOrEqual( $before + 20 * MINUTE_IN_SECONDS, $due );
-			self::assertLessThanOrEqual( time() + 20 * MINUTE_IN_SECONDS, $due );
-			self::assertSame( $row['next_retry_at'], $this->listed_row( (int) $row['id'], 'pending' )['scheduled_for'], 'The Event Log reads it as scheduled, with its send time.' );
-
-			// The payment page's own failure moves the order to failed: still one reminder.
+			// The payment page's own failure moves the order to failed: still one wait.
 			wc_get_order( $order_id )->update_status( 'failed' );
-			self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) );
+			self::assertCount( 1, PaymentReminderQueue::pending() );
 
-			$this->make_due( (int) $row['id'] );
+			// The wait ends: the order is still unpaid, so its row is queued, due now.
+			self::assertSame( 1, PaymentReminderQueue::run_all() );
+			self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) );
+			self::assertSame( array(), $captured, 'The flusher sends it, not the action.' );
+
 			do_action( TransactionalFlusher::FLUSH_HOOK );
 		} finally {
 			remove_filter( 'pre_http_request', $fake, 10 );
@@ -479,7 +483,10 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertSame( array( 'unpaid@example.test' ), $captured[0]['body']['to'] );
 		self::assertSame( wc_get_order( $order_id )->get_checkout_payment_url(), $captured[0]['body']['context']['payment_url'] );
 		self::assertSame( 'Unpaid Product', $captured[0]['body']['context']['product_name_1'] );
-		self::assertSame( 'sent', $this->queue_row( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER )['status'] );
+		self::assertSame( 1, $this->queue_count( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) );
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER );
+		self::assertSame( 'sent', $row['status'] );
+		self::assertNotEmpty( $row['sent_payload'], 'The Event Log shows the request that went out (F3-44).' );
 		self::assertSame( TransactionalFlusher::META_STATUS_SENT, wc_get_order( $order_id )->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) ) );
 	}
 
@@ -496,7 +503,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 	/**
 	 * @dataProvider orders_that_stopped_waiting_for_payment
 	 */
-	public function test_a_payment_reminder_whose_order_stopped_waiting_for_payment_is_skipped_with_the_reason( string $status_at_due ): void {
+	public function test_an_order_that_stopped_waiting_for_payment_leaves_no_event_log_row( string $status_at_the_end ): void {
 		$this->configure_payment_reminder();
 
 		$product  = $this->make_product( 'Settled Product', 9.00 );
@@ -507,26 +514,17 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		add_filter( 'pre_http_request', $fake, 10, 3 );
 		try {
 			$this->fire_checkout_order_processed( $order_id );
-			// Paid at the bank, or the gateway's own outcome: a bank transfer or
-			// cheque waits on-hold, cash on delivery goes to processing.
-			wc_get_order( $order_id )->update_status( $status_at_due );
+			// Paid at the bank, or set on hold / to processing by the gateway, or cancelled.
+			wc_get_order( $order_id )->update_status( $status_at_the_end );
 
-			$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER );
-			$this->make_due( (int) $row['id'] );
+			self::assertSame( 1, PaymentReminderQueue::run_all() );
 			do_action( TransactionalFlusher::FLUSH_HOOK );
 		} finally {
 			remove_filter( 'pre_http_request', $fake, 10 );
 		}
 
 		self::assertSame( array(), $captured, 'No reminder is sent.' );
-
-		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER );
-		self::assertSame( 'sent', $row['status'], 'Finished — nothing retries it.' );
-		self::assertNull( $row['sent_payload'] );
-		$listed = $this->listed_row( (int) $row['id'], '' );
-		self::assertTrue( $listed['skipped'], 'The Event Log reads it as skipped (PRO-4098).' );
-		self::assertSame( TransactionalFlusher::REASON_PAYMENT_NOT_AWAITED, $listed['skip_reason'] );
-		self::assertArrayNotHasKey( (int) $row['id'], RestRequestHelper::listed_smaily_events( 'sent' ) );
+		self::assertSame( 0, $this->queue_count( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ), 'No Event Log row.' );
 	}
 
 	/**
@@ -534,25 +532,44 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 	 */
 	public static function orders_that_stopped_waiting_for_payment(): array {
 		return array(
-			'paid'                          => array( 'processing' ),
-			'bank transfer or cheque'       => array( 'on-hold' ),
-			'cancelled'                     => array( 'cancelled' ),
-			'completed'                     => array( 'completed' ),
+			'paid'                    => array( 'processing' ),
+			'on hold'                 => array( 'on-hold' ),
+			'cancelled'               => array( 'cancelled' ),
+			'completed'               => array( 'completed' ),
 		);
 	}
 
-	public function test_an_order_made_in_wp_admin_gets_no_payment_reminder(): void {
+	/**
+	 * @dataProvider orders_never_reminded
+	 */
+	public function test_an_order_made_in_wp_admin_or_paid_offline_starts_no_wait( string $created_via, string $payment_method ): void {
 		$this->configure_payment_reminder();
 
-		$product  = $this->make_product( 'Admin Product', 9.00 );
-		$order_id = $this->make_checkout_order( 'admin-made@example.test', $product, 'admin' );
+		$product  = $this->make_product( 'No Wait Product', 9.00 );
+		$order_id = $this->make_checkout_order( 'no-wait@example.test', $product, $created_via );
+		$order    = wc_get_order( $order_id );
+		$order->set_payment_method( $payment_method );
+		$order->save();
 
+		$this->fire_checkout_order_processed( $order_id );
 		wc_get_order( $order_id )->update_status( 'failed' );
 
+		self::assertSame( array(), PaymentReminderQueue::pending() );
 		self::assertSame( 0, $this->queue_count( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) );
 	}
 
-	public function test_a_switched_off_payment_reminder_leaves_no_row(): void {
+	/**
+	 * @return array<string, array{0: string, 1: string}>
+	 */
+	public static function orders_never_reminded(): array {
+		return array(
+			'made in wp-admin' => array( 'admin', 'everypay' ),
+			'bank transfer'    => array( 'checkout', 'bacs' ),
+			'cash on delivery' => array( 'checkout', 'cod' ),
+		);
+	}
+
+	public function test_a_switched_off_payment_reminder_starts_no_wait_and_leaves_no_row(): void {
 		$this->configure_payment_reminder();
 		update_option( 'smly_plus_payment_reminder_enabled', false );
 
@@ -560,21 +577,47 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		$order_id = $this->make_checkout_order( 'off@example.test', $product, 'checkout' );
 		$this->fire_checkout_order_processed( $order_id );
 
+		self::assertSame( array(), PaymentReminderQueue::pending() );
 		self::assertSame( 0, $this->queue_count( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) );
+	}
+
+	public function test_a_reminder_without_a_workflow_when_the_wait_ends_says_why_in_the_event_log(): void {
+		$this->configure_payment_reminder();
+
+		$product  = $this->make_product( 'No Workflow Product', 9.00 );
+		$order_id = $this->make_checkout_order( 'no-workflow@example.test', $product, 'checkout' );
+		$this->fire_checkout_order_processed( $order_id );
+
+		// The merchant removes the reminder's workflow during the wait.
+		$this->configure(
+			array( 'order_confirmation' => '4242' ),
+			array( 'completed' ),
+			array(
+				'orderConfirmationEnabled' => false,
+				'paymentReminderEnabled'   => true,
+			)
+		);
+		PaymentReminderQueue::run_all();
+
+		$row = $this->queue_row( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER );
+		self::assertNotNull( $row, 'Like the other transactional emails, a reminder that cannot go out says why.' );
+		$listed = $this->listed_row( (int) $row['id'], '' );
+		self::assertTrue( $listed['skipped'] );
+		self::assertSame( TransactionalGate::REASON_NO_WORKFLOW, $listed['skip_reason'] );
 	}
 
 	public function test_placing_the_order_withdraws_the_cart_reminder_so_the_shopper_never_gets_both(): void {
 		// The cart reminder covers the cart, the payment reminder the placed
 		// order: placing the order withdraws a cart reminder still waiting
-		// (PRO-1723), while the payment reminder is queued for the same order.
+		// (PRO-1723), while the payment reminder's wait starts for the order.
 		update_option( 'smly_plus_setup_completed', true );
 		$this->configure_payment_reminder();
 		\Smaily\Connect\Integrations\WooCommerce\HookHandler::reset_seen();
 
-		$queue      = new EventQueue();
-		$cart_row   = $queue->enqueue( 'automation.abandoned_cart', 'cart:both', array( 'email' => 'both-reminders@example.test' ) );
-		$product    = $this->make_product( 'Both Reminders Product', 9.00 );
-		$order_id   = $this->make_checkout_order( 'both-reminders@example.test', $product, 'checkout' );
+		$queue    = new EventQueue();
+		$cart_row = $queue->enqueue( 'automation.abandoned_cart', 'cart:both', array( 'email' => 'both-reminders@example.test' ) );
+		$product  = $this->make_product( 'Both Reminders Product', 9.00 );
+		$order_id = $this->make_checkout_order( 'both-reminders@example.test', $product, 'checkout' );
 
 		$captured = array();
 		$fake     = $this->fake_transport( $captured );
@@ -590,7 +633,7 @@ final class TransactionalEmailsPipelineTest extends TestCase {
 		self::assertSame( $cart_row, (int) $cart['id'] );
 		self::assertSame( 'sent', $cart['status'], 'The cart reminder no longer waits to go out.' );
 		self::assertTrue( EventQueue::is_cancelled_response( (string) $cart['last_response'] ), 'It was withdrawn, never sent.' );
-		self::assertSame( 'pending', $this->queue_row( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER )['status'], 'The payment reminder waits instead.' );
+		self::assertCount( 1, PaymentReminderQueue::pending(), 'The payment reminder waits instead.' );
 	}
 
 	public function test_native_processing_order_email_suppressed_only_while_the_gate_holds(): void {

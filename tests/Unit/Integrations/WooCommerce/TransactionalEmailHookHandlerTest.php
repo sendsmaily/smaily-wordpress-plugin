@@ -16,6 +16,7 @@ use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\TransactionalEmailHookHandler;
+use Smaily\Connect\Smaily\PaymentReminderCheck;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
@@ -448,12 +449,16 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 	/**
 	 * @dataProvider store_checkouts
 	 */
-	public function test_an_unpaid_order_placed_at_the_checkout_schedules_the_payment_reminder( string $created_via, string $hook ): void {
-		$order            = $this->fake_order( 50, 'buyer@example.test', $created_via, 'pending', true );
+	public function test_an_order_placed_at_the_checkout_starts_the_payment_reminders_wait_and_queues_nothing( string $created_via, string $hook ): void {
+		$scheduled = $this->record_scheduled_actions();
+		$this->options[ TransactionalGate::OPTION_PAYMENT_REMINDER_DELAY_MINUTES ] = 30;
+		// Whatever the status is at the hook — the gateway may not have set it yet.
+		$order            = $this->fake_order( 50, 'buyer@example.test', $created_via, 'checkout-draft', false );
 		$this->orders[50] = $order;
 		$flusher          = $this->recording_flusher();
 		$handler          = new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $flusher );
 
+		$before = time();
 		if ( $hook === 'block' ) {
 			$handler->on_block_checkout_order_processed( $order );
 		} else {
@@ -461,7 +466,14 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		}
 
 		self::assertSame( array(), $flusher->calls, 'Nothing is sent now.' );
-		self::assertSame( array( array( 50, 1, 'pending' ) ), $flusher->payment_reminders );
+		self::assertSame( array(), $flusher->payment_reminders, 'Nothing is queued now — no Event Log row.' );
+		self::assertCount( 1, $scheduled->actions );
+		self::assertSame( PaymentReminderCheck::HOOK, $scheduled->actions[0]['hook'] );
+		self::assertSame( array( 50 ), $scheduled->actions[0]['args'] );
+		self::assertSame( PaymentReminderCheck::AS_GROUP, $scheduled->actions[0]['group'] );
+		self::assertGreaterThanOrEqual( $before + 30 * MINUTE_IN_SECONDS, $scheduled->actions[0]['at'] );
+		self::assertLessThanOrEqual( time() + 30 * MINUTE_IN_SECONDS, $scheduled->actions[0]['at'] );
+		self::assertSame( TransactionalFlusher::META_STATUS_QUEUED, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) ), 'The order has had its one wait.' );
 	}
 
 	/**
@@ -474,75 +486,98 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		);
 	}
 
-	public function test_an_order_whose_payment_failed_schedules_the_payment_reminder(): void {
+	public function test_an_order_whose_payment_failed_starts_the_wait(): void {
+		$scheduled        = $this->record_scheduled_actions();
 		$this->orders[51] = $this->fake_order( 51, 'buyer@example.test', 'store-api', 'failed', true );
-		$flusher          = $this->recording_flusher();
 
-		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $flusher ) )
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $this->recording_flusher() ) )
 			->on_order_status_changed( 51, 'pending', 'failed' );
 
-		self::assertSame( array( array( 51, 1, 'failed' ) ), $flusher->payment_reminders );
+		self::assertCount( 1, $scheduled->actions );
 	}
 
-	public function test_an_order_made_in_wp_admin_gets_no_payment_reminder(): void {
-		$this->orders[52] = $this->fake_order( 52, 'buyer@example.test', 'admin', 'failed', true );
+	/**
+	 * @dataProvider orders_never_reminded
+	 */
+	public function test_an_order_never_reminded_starts_no_wait( string $created_via, string $payment_method ): void {
+		$scheduled        = $this->record_scheduled_actions();
+		$order            = $this->fake_order( 52, 'buyer@example.test', $created_via, 'pending', true, $payment_method );
+		$this->orders[52] = $order;
 		$flusher          = $this->recording_flusher();
 
 		( new TransactionalEmailHookHandler( $this->gate_closed_because( TransactionalGate::REASON_NO_WORKFLOW ), $this->builder_returning( array() ), $flusher ) )
-			->on_order_status_changed( 52, 'pending', 'failed' );
+			->on_order_processed( 52, array(), $order );
 
-		self::assertSame( array(), $flusher->payment_reminders );
-		self::assertSame( array(), $flusher->skips, 'Not a checkout order: no attempt, so no skipped row either.' );
-	}
-
-	/**
-	 * @dataProvider orders_not_awaiting_payment
-	 */
-	public function test_an_order_that_does_not_wait_for_payment_gets_no_payment_reminder( string $status, bool $needs_payment ): void {
-		$order            = $this->fake_order( 53, 'buyer@example.test', 'checkout', $status, $needs_payment );
-		$this->orders[53] = $order;
-		$flusher          = $this->recording_flusher();
-
-		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $flusher ) )
-			->on_order_processed( 53, array(), $order );
-
-		self::assertSame( array(), $flusher->payment_reminders );
+		self::assertSame( array(), $scheduled->actions );
 		self::assertSame( '', $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) ) );
+		self::assertNotContains( TransactionalGate::TRIGGER_PAYMENT_REMINDER, array_column( $flusher->skips, 0 ), 'No Event Log row either.' );
 	}
 
 	/**
-	 * @return array<string, array{0: string, 1: bool}>
+	 * @return array<string, array{0: string, 1: string}>
 	 */
-	public static function orders_not_awaiting_payment(): array {
+	public static function orders_never_reminded(): array {
 		return array(
-			'bank transfer (on-hold)'          => array( 'on-hold', false ),
-			'cash on delivery (processing)'    => array( 'processing', false ),
-			'pending with nothing to pay'      => array( 'pending', false ),
+			'made in wp-admin'  => array( 'admin', 'everypay' ),
+			'made over REST'    => array( 'rest-api', 'everypay' ),
+			'bank transfer'     => array( 'checkout', 'bacs' ),
+			'cheque'            => array( 'checkout', 'cheque' ),
+			'cash on delivery'  => array( 'store-api', 'cod' ),
 		);
 	}
 
-	public function test_an_order_that_already_had_its_payment_reminder_gets_no_second_one(): void {
-		$order = $this->fake_order( 54, 'buyer@example.test', 'checkout', 'failed', true );
-		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), TransactionalFlusher::META_STATUS_QUEUED );
-		$this->orders[54] = $order;
-		$flusher          = $this->recording_flusher();
+	public function test_a_switched_off_payment_reminder_starts_no_wait(): void {
+		$scheduled        = $this->record_scheduled_actions();
+		$this->orders[53] = $this->fake_order( 53, 'buyer@example.test', 'checkout', 'pending', true );
 
-		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $flusher ) )
-			->on_order_status_changed( 54, 'pending', 'failed' );
+		( new TransactionalEmailHookHandler( $this->gate_closed_because( TransactionalGate::REASON_TRIGGER_OFF ), $this->builder_returning( array() ), $this->recording_flusher() ) )
+			->on_order_processed( 53, array(), $this->orders[53] );
 
-		self::assertSame( array(), $flusher->payment_reminders );
+		self::assertSame( array(), $scheduled->actions );
 	}
 
-	public function test_a_payment_reminder_that_cannot_be_scheduled_leaves_a_skipped_row(): void {
-		$order            = $this->fake_order( 55, 'buyer@example.test', 'checkout', 'pending', true );
-		$this->orders[55] = $order;
+	public function test_a_reminder_that_cannot_go_out_still_waits_so_the_end_of_the_wait_decides(): void {
+		// A missing workflow is decided — and logged — when the wait ends,
+		// and only for an order still unpaid then (PaymentReminderCheck).
+		$scheduled        = $this->record_scheduled_actions();
+		$this->orders[54] = $this->fake_order( 54, 'buyer@example.test', 'checkout', 'pending', true );
 		$flusher          = $this->recording_flusher();
 
 		( new TransactionalEmailHookHandler( $this->gate_closed_because( TransactionalGate::REASON_NO_WORKFLOW ), $this->builder_returning( array() ), $flusher ) )
-			->on_order_processed( 55, array(), $order );
+			->on_order_processed( 54, array(), $this->orders[54] );
 
-		self::assertSame( array(), $flusher->payment_reminders );
-		self::assertContains( array( TransactionalGate::TRIGGER_PAYMENT_REMINDER, 55, TransactionalGate::REASON_NO_WORKFLOW ), $flusher->skips );
+		self::assertCount( 1, $scheduled->actions );
+		self::assertNotContains( TransactionalGate::TRIGGER_PAYMENT_REMINDER, array_column( $flusher->skips, 0 ) );
+	}
+
+	public function test_an_order_whose_wait_already_started_starts_no_second_one(): void {
+		$scheduled = $this->record_scheduled_actions();
+		$order     = $this->fake_order( 55, 'buyer@example.test', 'checkout', 'failed', true );
+		$order->update_meta_data( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), TransactionalFlusher::META_STATUS_QUEUED );
+		$this->orders[55] = $order;
+
+		( new TransactionalEmailHookHandler( $this->gate_open_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ), $this->builder_returning( array() ), $this->recording_flusher() ) )
+			->on_order_status_changed( 55, 'pending', 'failed' );
+
+		self::assertSame( array(), $scheduled->actions );
+	}
+
+	/**
+	 * Record as_schedule_single_action() calls on the returned object.
+	 *
+	 * @return object{actions: array<int, array{at: int, hook: string, args: array<int, mixed>, group: string}>}
+	 */
+	private function record_scheduled_actions() {
+		$recorder = new class() {
+			public array $actions = array();
+		};
+		Functions\when( 'as_schedule_single_action' )->alias(
+			static function ( int $at, string $hook, array $args = array(), string $group = '' ) use ( $recorder ): int {
+				$recorder->actions[] = compact( 'at', 'hook', 'args', 'group' );
+				return count( $recorder->actions );
+			}
+		);
+		return $recorder;
 	}
 
 	// --- helpers -------------------------------------------------------------
@@ -625,7 +660,7 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 			}
 			public array $follow_ups        = array();
 			public array $payment_reminders = array();
-			public function schedule( string $trigger_type, \WC_Order $order, WorkflowMatch $match, string $to_status ): void {
+			public function schedule( string $trigger_type, \WC_Order $order, WorkflowMatch $match, string $to_status, int $delay_seconds ): void {
 				if ( $trigger_type === TransactionalGate::TRIGGER_PAYMENT_REMINDER ) {
 					$this->payment_reminders[] = array( $order->get_id(), $match->workflow_id, $to_status );
 					return;
@@ -635,21 +670,27 @@ final class TransactionalEmailHookHandlerTest extends TestCase {
 		};
 	}
 
-	private function fake_order( int $id, string $email, string $created_via = '', string $status = '', bool $needs_payment = false ): \WC_Order {
-		return new class( $id, $email, $created_via, $status, $needs_payment ) extends \WC_Order {
+	private function fake_order( int $id, string $email, string $created_via = '', string $status = '', bool $needs_payment = false, string $payment_method = '' ): \WC_Order {
+		return new class( $id, $email, $created_via, $status, $needs_payment, $payment_method ) extends \WC_Order {
 			private int $id;
 			private string $email;
 			private string $created_via;
 			private string $status;
 			private bool $needs_payment;
+			private string $payment_method;
 			private array $meta = array();
 
-			public function __construct( int $id, string $email, string $created_via, string $status, bool $needs_payment ) {
-				$this->id            = $id;
-				$this->email         = $email;
-				$this->created_via   = $created_via;
-				$this->status        = $status;
-				$this->needs_payment = $needs_payment;
+			public function __construct( int $id, string $email, string $created_via, string $status, bool $needs_payment, string $payment_method ) {
+				$this->id             = $id;
+				$this->email          = $email;
+				$this->created_via    = $created_via;
+				$this->status         = $status;
+				$this->needs_payment  = $needs_payment;
+				$this->payment_method = $payment_method;
+			}
+
+			public function get_payment_method( $context = 'view' ) {
+				return $this->payment_method;
 			}
 
 			public function get_id(): int {

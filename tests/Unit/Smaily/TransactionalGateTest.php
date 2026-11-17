@@ -203,14 +203,6 @@ final class TransactionalGateTest extends TestCase {
 
 	// --- payment reminder (CON-328) -------------------------------------------
 
-	public function test_the_payment_reminder_waits_its_minutes_and_the_follow_up_its_days(): void {
-		$this->options[ TransactionalGate::OPTION_PAYMENT_REMINDER_DELAY_MINUTES ] = 30;
-		$this->options[ TransactionalGate::OPTION_FOLLOW_UP_DELAY_DAYS ]          = 2;
-
-		self::assertSame( 30 * MINUTE_IN_SECONDS, TransactionalGate::delay_seconds( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) );
-		self::assertSame( 2 * DAY_IN_SECONDS, TransactionalGate::delay_seconds( TransactionalGate::TRIGGER_FOLLOW_UP ) );
-	}
-
 	/**
 	 * @dataProvider stored_payment_reminder_delays
 	 *

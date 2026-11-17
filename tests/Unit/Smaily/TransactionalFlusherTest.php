@@ -422,7 +422,7 @@ final class TransactionalFlusherTest extends TestCase {
 	// --- follow-up email (PRO-4095) --------------------------------------------
 
 	public function test_schedule_follow_up_queues_one_row_due_after_the_delay_and_sends_nothing_now(): void {
-		$this->stub_options( array( TransactionalGate::OPTION_FOLLOW_UP_DELAY_DAYS => 3 ) );
+		$this->stub_options( array() );
 		$order = $this->fake_order( 701, 'buyer@example.test' );
 
 		$queue   = $this->fake_queue( array() );
@@ -434,7 +434,7 @@ final class TransactionalFlusherTest extends TestCase {
 		);
 
 		$before = time();
-		$flusher->schedule( TransactionalGate::TRIGGER_FOLLOW_UP, $order, new WorkflowMatch( 8080, 'transactional' ), 'completed' );
+		$flusher->schedule( TransactionalGate::TRIGGER_FOLLOW_UP, $order, new WorkflowMatch( 8080, 'transactional' ), 'completed', 3 * DAY_IN_SECONDS );
 
 		self::assertCount( 1, $queue->scheduled );
 		self::assertSame( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP, $queue->scheduled[0]['event_type'] );
@@ -452,7 +452,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$order = $this->fake_order( 702, '' );
 		$queue = $this->fake_queue( array() );
 
-		$this->flusher( $queue, static fn () => null )->schedule( TransactionalGate::TRIGGER_FOLLOW_UP, $order, new WorkflowMatch( 1, 'transactional' ), 'completed' );
+		$this->flusher( $queue, static fn () => null )->schedule( TransactionalGate::TRIGGER_FOLLOW_UP, $order, new WorkflowMatch( 1, 'transactional' ), 'completed', DAY_IN_SECONDS );
 
 		self::assertSame( array(), $queue->scheduled );
 		self::assertSame( array( array( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP, '702', TransactionalFlusher::REASON_NO_BILLING_EMAIL ) ), $queue->skipped );
@@ -585,27 +585,29 @@ final class TransactionalFlusherTest extends TestCase {
 
 	// --- payment reminder (CON-328) -------------------------------------------
 
-	public function test_schedule_queues_a_payment_reminder_due_after_its_delay_in_minutes(): void {
-		$this->stub_options( array( TransactionalGate::OPTION_PAYMENT_REMINDER_DELAY_MINUTES => 45 ) );
+	public function test_schedule_queues_a_payment_reminder_due_at_once_when_its_wait_is_over(): void {
+		// CON-328: the wait was held in Action Scheduler (PaymentReminderCheck),
+		// so the row is due now and the next flusher pass sends it.
+		$this->stub_options( array() );
 		$order = $this->fake_order( 801, 'buyer@example.test', 'pending', true );
 
 		$queue   = $this->fake_queue( array() );
 		$flusher = $this->flusher(
 			$queue,
 			static function (): Client {
-				self::fail( 'Scheduling sends nothing — the send waits for the delay.' );
+				self::fail( 'Scheduling sends nothing — the flusher pass sends the row.' );
 			}
 		);
 
 		$before = time();
-		$flusher->schedule( TransactionalGate::TRIGGER_PAYMENT_REMINDER, $order, new WorkflowMatch( 7070, 'transactional' ), 'pending' );
+		$flusher->schedule( TransactionalGate::TRIGGER_PAYMENT_REMINDER, $order, new WorkflowMatch( 7070, 'transactional' ), 'pending', 0 );
 
 		self::assertCount( 1, $queue->scheduled );
 		self::assertSame( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER, $queue->scheduled[0]['event_type'] );
 		self::assertSame( 'buyer@example.test', $queue->scheduled[0]['payload']['to'] );
 		$due = strtotime( $queue->scheduled[0]['due_at'] . ' UTC' );
-		self::assertGreaterThanOrEqual( $before + 45 * MINUTE_IN_SECONDS, $due );
-		self::assertLessThanOrEqual( time() + 45 * MINUTE_IN_SECONDS, $due );
+		self::assertGreaterThanOrEqual( $before, $due );
+		self::assertLessThanOrEqual( time(), $due );
 		self::assertSame( TransactionalFlusher::META_STATUS_QUEUED, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) ), 'The order has had its one payment reminder.' );
 	}
 
