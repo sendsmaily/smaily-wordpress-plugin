@@ -8,7 +8,8 @@ import { __ } from '@admin/lib/i18n';
  * (PRO-4095, CON-328) — plus `workflow_inactive`, which only this screen can tell (it holds the
  * Smaily workflow list). One wording for both places that show a reason:
  * the card's status line and the Event Log's skipped row. The Event Log
- * also shows a skipped abandoned-cart reminder's reason through it (CON-196).
+ * also shows a skipped abandoned-cart reminder's reason through it (CON-196),
+ * and `no_billing_email` on an order Campaign Intelligence skipped (CON-330).
  */
 export function transactionalReasonMessage(reason: string): string {
   switch (reason) {

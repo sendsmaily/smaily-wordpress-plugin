@@ -11377,3 +11377,20 @@ CON-329 (rec-engine, separate). Pinned by the payment-reminder sections of
 `tests/Unit/Smaily/PaymentReminderCheckTest.php` and
 `tests/Integration/TransactionalEmailsPipelineTest.php` (the action runs
 through Action Scheduler's own runner, `Support\PaymentReminderQueue`).
+
+### CON-330 — An order with no billing email is skipped, not sent to Campaign Intelligence (2026-11-17)
+
+**Context:** an order with no billing email (one staff created by phone) was
+sent with `customer_email: ''`; the engine requires the field (contract §5)
+and refused it on every retry — a red Event Log row the merchant cannot fix.
+**Decision (Erkki, 2026-11-17, until the engine takes email-less buyers,
+INT-283):** `OrderFlusher` skips it as its fourth terminal skip — marked sent,
+nothing POSTed, `last_response` `{outcome: "skipped", reason:
+"no_billing_email"}`. The reason reuses the transactional emails' code, so the
+Event Log shows the one existing wording ("The order has no billing email
+address." / "Tellimusel puudub arve e-posti aadress.") and no new string is
+needed. The flusher is the one place the rule lives: the history import still
+queues such an order, and the skipped row is not counted in the import's
+`sent_count` (a terminal skip never reaches the accepted-row count, CON-248).
+`AbstractD6Flusher` gained `$skip_reason`, which a subclass sets before its
+`row_to_object()` returns null; the other skips record no reason, as before.
