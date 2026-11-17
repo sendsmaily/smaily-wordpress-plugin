@@ -89,7 +89,7 @@ export function TransactionalStatusLine({
             )
           : trigger === 'payment_reminder'
             ? __(
-                'This email goes out through Smaily’s transactional sending: the plugin waits the number of minutes you set here and checks that the order is still unpaid, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, each reminder still waiting, and each one that was not sent, is listed in the Event Log.',
+                'This email goes out through Smaily’s transactional sending: the plugin waits the number of minutes you set here and checks that the order is still unpaid, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. The Event Log lists each reminder that goes out and each one that could not be sent; an order paid in the meantime leaves no row.',
                 'smaily-connect',
               )
             : __(
