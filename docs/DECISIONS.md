@@ -11086,6 +11086,66 @@ own React instead of bundling a copy" — when it lands, the gate expects
 `docs/audits/SECURITY_CODE_QUALITY_DELTA_AUDIT_2026-11-13_AFTER_3.22.0.md`
 (M1); CLAUDE.md "Running PCP" records the expected counts.
 
+### CON-323 — Every key starts with the connection's prefix (2026-11-17)
+
+**Context:** a spa connects three WooCommerce shops (and a till) to ONE
+Campaign Intelligence store. Each shop numbers products and orders from 1, so
+`woo-101` and order `1234` of one shop overwrite another's (`(tenant, sku)`,
+`(tenant, external_order_id)`), and each shop's nightly §3c list tombstones the
+other shops' products. Contract v1.33.0 (engine INT-285) gives each new
+connection a code prefix at the setup exchange (`c<N>-`, `^c[1-9][0-9]{0,3}-$`)
+and scopes §3b/§3c to the calling connection; a key outside it is refused as
+`connection_prefix_mismatch`.
+**Decision (Erkki, 2026-11-17):**
+- The exchange sends `capabilities: ["connection_prefix"]` and, when the store
+  has one on record, `connection.previous_prefix`. `config.connection.prefix`
+  is stored in its own option, `smly_rec_connection_prefix`
+  (`RecEngineSettings::OPTION_CONNECTION_PREFIX`, autoloaded). A missing
+  `config.connection` is `""`; any other value than `""` or `c<N>-` refuses
+  the exchange (`ExchangeResult::KIND_PREFIX_INVALID`, shown as
+  `engine_unreachable` with a plain reason) — a garbage prefix is never stored.
+- Every ping (`Client::ping()` → `RecEngineSettings::note_ping()`) stores the
+  ping's prefix when it differs: the engine's operator may move a key to
+  another prefix before its first data. A ping without the block changes
+  nothing; a malformed value is ignored with a debug line that names no value.
+- Disconnect keeps the option, so the next exchange reports it as
+  `previous_prefix` and the engine gives the same prefix back (a wrong "new"
+  prefix would duplicate the shop's history). A successful exchange overwrites
+  it; uninstall deletes it with every `smly_rec_*` row.
+- One accessor, `RecEngineSettings::connection_prefix()` (`""` when not
+  connected), read through `SkuResolver::prefix()`. `SkuResolver` puts it in
+  front of `resolve()`, `resolve_id()`, both `resolve_order_item()` keys and
+  `product_group_id()` (`c2-woo-101`, `c2-woo-oi-88`, `tags.product_id`
+  `c2-101`); `OrderPayloadBuilder` in front of `external_order_id`. Catalog,
+  manifest, order lines and browse all reach it through those builders.
+- A key stored on a queue row (a `catalog.delete` tombstone, a
+  `catalog.remove` id) and a browse `sku` from a page a full-page cache kept
+  are put under the CURRENT prefix at send time — `SkuResolver::reprefix()`
+  drops a leading `c<N>-` before our own key shape (`woo-…` or a bare id) and
+  adds today's, so a key is never prefixed twice (`IngestFlusher`,
+  `CatalogRemoveFlusher`, `BeaconEndpoint`). Same idea as PRO-1506's
+  flush-time repair.
+- §3b `errors[]` (v1.33.0, an id outside the connection) marks that row FAILED
+  with the field only (`d6_item_error field=product_ids`, CON-301).
+- §15: a slot is rendered by its `external_id` only; the sku is opaque and is
+  never taken apart (`SkuResolver::product_id_from_key()` is gone). On a
+  prefixed connection a slot whose sku is not under the prefix names another
+  shop's product — its `external_id` is THAT shop's id — and is dropped.
+- Customers carry no prefix (they merge by email); no website code is added.
+**Rationale:** the prefix goes on in the existing single builders, so there is
+no second copy of the key rule. With `""` (every connection made before 1.33.0,
+and every connection until the engine switches assignment on) each wire
+payload is byte-identical to before — the whole existing unit and integration
+suite runs with `""` and is unchanged.
+**Alternatives:** a raw-key capture on queue rows with the prefix added only at
+send (rejected: changes the stored shape of every `catalog.delete` row and
+needs a no-prefix build mode in the resolver); parsing the prefix out of a
+slot sku on the storefront (rejected: §15 says treat the sku as opaque).
+**Relationships:** contract v1.33.0 (synced in #343); the mock enforces the
+connection scope per route (`connection_scope()` in `router.php`) and its §3c
+sku limit is 72. Live proof is human acceptance: the engine's assignment flag
+is off, so every live connection answers `""` today.
+
 ## How to keep this document going
 
 For every new significant technical decision (as part of a sub-PR plan or
