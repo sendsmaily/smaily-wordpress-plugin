@@ -311,6 +311,10 @@ msgstr ""
 msgid "Smaily Campaign Intelligence replied with an address outside https://intelligence.smaily.com, so the connection was not saved. Contact Smaily support."
 msgstr ""
 
+#: includes/Smaily/RecEngine/ExchangeResult.php:145
+msgid "Smaily Campaign Intelligence replied with a connection code this plugin cannot use, so the connection was not saved. Contact Smaily support."
+msgstr ""
+
 #. translators: %s: the Smaily account (subdomain) of the Campaign Intelligence store the setup link is for.
 #: includes/REST/RecEngineEndpoint.php:239
 #, php-format
