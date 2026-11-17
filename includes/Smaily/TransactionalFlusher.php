@@ -77,9 +77,10 @@ class TransactionalFlusher {
 	);
 
 	/**
-	 * The event types of TransactionalGate::SCHEDULED_TRIGGERS — rows queued
-	 * to go out after a delay and re-checked when due (PRO-4095, CON-328).
-	 * They replace no WooCommerce email, so none of them fails open.
+	 * Rows queued through schedule() and re-checked when due — the follow-up
+	 * email after its delay (PRO-4095), the payment reminder once its wait
+	 * in Action Scheduler is over (CON-328). They replace no WooCommerce
+	 * email, so none of them fails open.
 	 */
 	public const SCHEDULED_EVENT_TYPES = array(
 		self::EVENT_TYPE_FOLLOW_UP,
@@ -291,9 +292,10 @@ class TransactionalFlusher {
 
 	/**
 	 * Queue an order's follow-up email (PRO-4095) or payment reminder
-	 * (CON-328) — a TransactionalGate::SCHEDULED_TRIGGERS trigger — to go
-	 * out once the merchant's delay has passed. Called by the WC hook
-	 * handler once the gate is open. Nothing is sent now: the row waits as
+	 * (CON-328) — a SCHEDULED_EVENT_TYPES email — to go out after
+	 * $delay_seconds: the follow-up's days, from the WC hook handler; 0 for
+	 * the payment reminder, whose wait PaymentReminderCheck has already held.
+	 * Called once the gate is open. Nothing is sent now: the row waits as
 	 * `pending`, not due until now + the delay
 	 * (EventQueue::enqueue_scheduled()), and this flusher's recurring pass
 	 * sends it once due — after re-checking the gate and the order
@@ -304,14 +306,14 @@ class TransactionalFlusher {
 	 * The once-per-order marker is set here, so the order never gets a
 	 * second one, whatever happens to this one.
 	 */
-	public function schedule( string $trigger_type, \WC_Order $order, WorkflowMatch $match, string $to_status ): void {
+	public function schedule( string $trigger_type, \WC_Order $order, WorkflowMatch $match, string $to_status, int $delay_seconds ): void {
 		$payload = self::build_payload( $order, $match, array(), $to_status );
 		if ( $payload === null ) {
 			$this->record_skip( $trigger_type, $order->get_id(), self::REASON_NO_BILLING_EMAIL );
 			return;
 		}
 
-		$due_at                              = gmdate( 'Y-m-d H:i:s', time() + TransactionalGate::delay_seconds( $trigger_type ) );
+		$due_at                              = gmdate( 'Y-m-d H:i:s', time() + $delay_seconds );
 		$payload[ self::PAYLOAD_KEY_DUE_AT ] = $due_at;
 		$event_type                          = self::event_type_for( $trigger_type );
 

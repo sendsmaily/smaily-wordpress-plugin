@@ -64,6 +64,7 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\Flusher;
+use Smaily\Connect\Smaily\PaymentReminderCheck;
 use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
 use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
 use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
@@ -238,6 +239,9 @@ final class Bootstrap {
 		// Transactional-email queue-retry (PRO-1504 Stage 2) — drains rows a
 		// synchronous send_now() attempt left `pending` on its own AS action.
 		add_action( TransactionalFlusher::FLUSH_HOOK, array( $this, 'on_flush_transactional_queue' ) );
+		// The payment reminder's wait (CON-328): queues the reminder when it
+		// ends, only for an order that still waits for payment.
+		add_action( PaymentReminderCheck::HOOK, array( $this, 'on_payment_reminder_check' ), 10, 1 );
 
 		// REST endpoints + the AS callback that drives the backfill loop.
 		add_action( 'rest_api_init', array( $this, 'register_rest_endpoints' ) );
@@ -1053,6 +1057,15 @@ final class Bootstrap {
 	 */
 	public function on_flush_transactional_queue(): void {
 		$this->transactional_flusher()->flush();
+	}
+
+	/**
+	 * AS callback for PaymentReminderCheck::HOOK (CON-328).
+	 *
+	 * @param mixed $order_id
+	 */
+	public function on_payment_reminder_check( $order_id = 0 ): void {
+		( new PaymentReminderCheck( $this->transactional_gate(), $this->transactional_flusher() ) )->run( $order_id );
 	}
 
 	/**

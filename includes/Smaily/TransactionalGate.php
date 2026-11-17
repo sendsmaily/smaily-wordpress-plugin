@@ -47,12 +47,6 @@ class TransactionalGate {
 	public const TRIGGER_PAYMENT_REMINDER      = 'payment_reminder';
 
 	/**
-	 * The triggers whose email waits in the queue before it goes out
-	 * (PRO-4095, CON-328): one scheduled row, re-checked when it falls due.
-	 */
-	public const SCHEDULED_TRIGGERS = array( self::TRIGGER_FOLLOW_UP, self::TRIGGER_PAYMENT_REMINDER );
-
-	/**
 	 * Why the gate is closed — closed_reason()'s answer, one per condition
 	 * below (PRO-4091). The admin screen words them; stored in an Event Log
 	 * skipped row's last_response, so they are stable wire values.
@@ -260,24 +254,14 @@ class TransactionalGate {
 
 	/**
 	 * Whether an order still waits for its payment (CON-328): `pending` or
-	 * `failed`, with an amount to pay. Checked when the payment reminder is
-	 * queued and again when it falls due. Returns REASON_PAYMENT_NOT_AWAITED,
-	 * or '' when the order still waits.
+	 * `failed`, with an amount to pay. Checked when the payment reminder's
+	 * wait ends (PaymentReminderCheck) and again when its row is sent.
+	 * Returns REASON_PAYMENT_NOT_AWAITED, or '' when the order still waits.
 	 */
 	public static function awaits_payment_reason( \WC_Order $order ): string {
 		return in_array( (string) $order->get_status(), self::AWAITING_PAYMENT_STATUSES, true ) && $order->needs_payment()
 			? ''
 			: self::REASON_PAYMENT_NOT_AWAITED;
-	}
-
-	/**
-	 * How long a scheduled trigger's email waits, in seconds: the follow-up
-	 * email's days or the payment reminder's minutes.
-	 */
-	public static function delay_seconds( string $trigger_type ): int {
-		return $trigger_type === self::TRIGGER_PAYMENT_REMINDER
-			? self::payment_reminder_delay_minutes() * MINUTE_IN_SECONDS
-			: self::follow_up_delay_days() * DAY_IN_SECONDS;
 	}
 
 	/**
