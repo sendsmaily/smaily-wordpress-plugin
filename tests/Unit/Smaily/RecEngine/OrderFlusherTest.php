@@ -1,9 +1,9 @@
 <?php
 /**
  * OrderFlusher tests — the D6 per-item contract (errors[].index → failed row,
- * the rest sent), the order.* drain scoping, the order-gone and
- * status-no-longer-mappable terminal skips, and the terminal-4xx /
- * transient-retry paths.
+ * the rest sent), the order.* drain scoping, the order-gone,
+ * status-no-longer-mappable, empty-items and no-email terminal skips, and the
+ * terminal-4xx / transient-retry paths.
  *
  * @package Smaily\Connect\Tests
  */
@@ -14,6 +14,7 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
@@ -170,6 +171,54 @@ final class OrderFlusherTest extends TestCase {
 		self::assertSame( 1, $stats['skipped'] );
 		self::assertSame( array( 1 ), $queue->sent, 'Empty-items order leaves the queue without an engine call.' );
 		self::assertSame( array(), $queue->failed );
+	}
+
+	public function test_an_order_without_an_email_is_skipped_with_the_reason_and_not_sent(): void {
+		// CON-330: the engine requires customer_email — an order staff
+		// created with no billing email is refused on every retry. Terminal
+		// skip with a reason the Event Log words; no request.
+		// A request would throw a terminal 400 and fail the row — so a
+		// skipped, unfailed row proves nothing was POSTed.
+		$queue  = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ) ) );
+		$client = $this->throwing_client( new ApiException( 400, 'validation_failed', 'customer_email required' ) );
+		$flush  = $this->fake_flusher( $queue, $client, true, array( 100 => true ), 'completed', true, '' );
+
+		$stats = $flush->flush();
+
+		self::assertSame( 1, $stats['skipped'] );
+		self::assertSame( 0, $stats['failed'] );
+		self::assertSame( array( 1 ), $queue->sent, 'The row leaves the queue.' );
+		self::assertSame( array(), $queue->failed, 'Nothing was POSTed.' );
+		self::assertNull( $queue->exchanges[1]['sent'] );
+		$response = json_decode( (string) $queue->exchanges[1]['response'], true );
+		self::assertSame( 'skipped', $response['outcome'] );
+		self::assertSame( OrderFlusher::REASON_NO_BILLING_EMAIL, $response['reason'] );
+		self::assertSame( 'no_billing_email', EventQueue::skip_reason( (string) $queue->exchanges[1]['response'] ) );
+	}
+
+	public function test_the_no_email_reason_stays_on_its_own_row(): void {
+		// A vanished order after a no-email one in the same flush records no
+		// reason — the reason is cleared before each row.
+		$queue = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ), $this->upsert_row( 2, 999, 'u2' ) ) );
+		$flush = $this->fake_flusher( $queue, $this->d6_client( array() ), true, array( 100 => true ), 'completed', true, '' );
+
+		$stats = $flush->flush();
+
+		self::assertSame( 2, $stats['skipped'] );
+		self::assertSame( 'no_billing_email', EventQueue::skip_reason( (string) $queue->exchanges[1]['response'] ) );
+		self::assertSame( '', EventQueue::skip_reason( (string) $queue->exchanges[2]['response'] ) );
+	}
+
+	public function test_an_order_with_an_email_is_sent_unchanged(): void {
+		$queue = $this->fake_queue( array( $this->upsert_row( 1, 100, 'u1' ) ) );
+		$flush = $this->fake_flusher( $queue, $this->d6_client( array( 'processed' => 1 ) ), true, array( 100 => true ) );
+
+		$stats = $flush->flush();
+
+		self::assertSame( 1, $stats['sent'] );
+		self::assertSame( 0, $stats['skipped'] );
+		self::assertStringContainsString( '"customer_email":"buyer@example.test"', (string) $queue->exchanges[1]['sent'] );
+		self::assertStringContainsString( '"outcome":"accepted"', (string) $queue->exchanges[1]['response'] );
 	}
 
 	public function test_exchange_recorded_for_an_accepted_row(): void {
@@ -368,15 +417,17 @@ final class OrderFlusherTest extends TestCase {
 	/**
 	 * @param array<int, true> $orders_by_id Entity ids that resolve to an order.
 	 */
-	private function fake_flusher( IngestQueue $queue, Client $client, bool $connected, array $orders_by_id = array(), string $map_status = 'completed', bool $with_items = true ): OrderFlusher {
+	private function fake_flusher( IngestQueue $queue, Client $client, bool $connected, array $orders_by_id = array(), string $map_status = 'completed', bool $with_items = true, string $email = 'buyer@example.test' ): OrderFlusher {
 		$settings = new FakeRecEngineSettings( $connected );
 
-		$builder = new class( $map_status, $with_items ) extends OrderPayloadBuilder {
+		$builder = new class( $map_status, $with_items, $email ) extends OrderPayloadBuilder {
 			private string $map_status;
 			private bool $with_items;
-			public function __construct( string $map_status, bool $with_items ) {
+			private string $email;
+			public function __construct( string $map_status, bool $with_items, string $email ) {
 				$this->map_status = $map_status;
 				$this->with_items = $with_items;
+				$this->email      = $email;
 			}
 			public function map_status( string $wc_status ): string {
 				return $this->map_status;
@@ -385,6 +436,7 @@ final class OrderFlusherTest extends TestCase {
 				return array(
 					'external_order_id' => 'WC',
 					'event_id'          => $event_uuid,
+					'customer_email'    => $this->email,
 					'items'             => $this->with_items
 						? array( array( 'sku' => 'S', 'qty' => 1, 'unit_price' => 1.0, 'line_total' => 1.0 ) )
 						: array(),

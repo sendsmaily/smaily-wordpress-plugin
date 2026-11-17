@@ -592,7 +592,8 @@ class EventQueue {
 	/**
 	 * The reason code a record_skipped() row carries, or '' for any other
 	 * stored response — including the flushers' own terminal skips, which
-	 * record a note but no reason. The one place that knows that shape.
+	 * record a note and, only when they name one, a reason (the order
+	 * flusher's no-email skip, CON-330). The one place that knows that shape.
 	 */
 	public static function skip_reason( string $last_response ): string {
 		$decoded = json_decode( $last_response, true );

@@ -29,6 +29,7 @@ use Smaily\Connect\Support\MarketingConsent;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
+use Smaily\Connect\Tests\Integration\Support\EventsEndpointFactory;
 
 final class RecEngineOrdersTest extends TestCase {
 
@@ -321,6 +322,40 @@ final class RecEngineOrdersTest extends TestCase {
 			self::$engine->state()['last_orders_received'] ?? null,
 			'No engine call was made for the empty-items order.'
 		);
+	}
+
+	public function test_an_order_without_an_email_is_skipped_and_the_event_log_says_why(): void {
+		// CON-330: an order staff created with no billing email — the engine
+		// refuses an empty customer_email (§5), so nothing is sent and the
+		// Event Log row reads skipped with the reason.
+		$product  = $this->make_product( 'ORD-NO-EMAIL', '9.00' );
+		$order_id = $this->make_order( '', 'completed', $product );
+
+		$before = self::$engine->state()['last_orders_received'] ?? null;
+		$stats  = $this->flusher()->flush();
+
+		self::assertSame( 1, $stats['skipped'] );
+		self::assertSame( 0, $stats['sent'] );
+		self::assertSame( 0, $stats['failed'] );
+		self::assertSame(
+			$before,
+			self::$engine->state()['last_orders_received'] ?? null,
+			'No engine call was made for the order without an email.'
+		);
+
+		$request = new \WP_REST_Request( 'GET', '/smaily-connect/v1/events' );
+		$request->set_param( 'source', 'rec_engine' );
+		$events = EventsEndpointFactory::create()->list_events( $request )->get_data()['events'];
+		$event  = current(
+			array_filter(
+				$events,
+				static fn ( $e ) => $e['event_type'] === OrderFlusher::EVENT_ORDER_UPSERT && $e['entity_id'] === (string) $order_id
+			)
+		);
+
+		self::assertIsArray( $event, 'The skipped order is listed.' );
+		self::assertTrue( $event['skipped'] );
+		self::assertSame( OrderFlusher::REASON_NO_BILLING_EMAIL, $event['skip_reason'] );
 	}
 
 	public function test_uuid_rec_landing_rides_the_order_to_the_engine(): void {
