@@ -60,6 +60,7 @@ class TransactionalFlusher {
 	public const EVENT_TYPE_ORDER_CONFIRMATION    = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_ORDER_CONFIRMATION ]['event_type'];
 	public const EVENT_TYPE_SHIPPING_CONFIRMATION = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION ]['event_type'];
 	public const EVENT_TYPE_FOLLOW_UP             = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_FOLLOW_UP ]['event_type'];
+	public const EVENT_TYPE_PAYMENT_REMINDER      = TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_PAYMENT_REMINDER ]['event_type'];
 
 	/**
 	 * The set — the one place "which event types are
@@ -72,6 +73,17 @@ class TransactionalFlusher {
 		self::EVENT_TYPE_ORDER_CONFIRMATION,
 		self::EVENT_TYPE_SHIPPING_CONFIRMATION,
 		self::EVENT_TYPE_FOLLOW_UP,
+		self::EVENT_TYPE_PAYMENT_REMINDER,
+	);
+
+	/**
+	 * The event types of TransactionalGate::SCHEDULED_TRIGGERS — rows queued
+	 * to go out after a delay and re-checked when due (PRO-4095, CON-328).
+	 * They replace no WooCommerce email, so none of them fails open.
+	 */
+	public const SCHEDULED_EVENT_TYPES = array(
+		self::EVENT_TYPE_FOLLOW_UP,
+		self::EVENT_TYPE_PAYMENT_REMINDER,
 	);
 
 	public const FLUSH_HOOK = 'smly_plus_flush_transactional_events';
@@ -137,10 +149,13 @@ class TransactionalFlusher {
 	public const REASON_ORDER_CLOSED        = TransactionalGate::REASON_ORDER_CLOSED;
 	public const REASON_STATUS_NOT_COUNTING = TransactionalGate::REASON_STATUS_NOT_COUNTING;
 
+	/** Why a payment reminder that fell due was not sent: the order no longer waits for payment (CON-328). */
+	public const REASON_PAYMENT_NOT_AWAITED = TransactionalGate::REASON_PAYMENT_NOT_AWAITED;
+
 	/**
-	 * Payload key of a follow-up row: when it falls due (UTC "Y-m-d H:i:s").
-	 * The retry ceiling (PRO-1519) runs from this time, not from the hour
-	 * the row was queued days earlier.
+	 * Payload key of a scheduled row (follow-up, payment reminder): when it
+	 * falls due (UTC "Y-m-d H:i:s"). The retry ceiling (PRO-1519) runs from
+	 * this time, not from when the row was queued.
 	 */
 	public const PAYLOAD_KEY_DUE_AT = 'due_at';
 
@@ -275,35 +290,38 @@ class TransactionalFlusher {
 	}
 
 	/**
-	 * Queue an order's follow-up email to go out once the merchant's delay
-	 * has passed (PRO-4095) — called by the WC hook handler once the gate
-	 * is open. Nothing is sent now: the row waits as `pending`, not due
-	 * until now + the delay (EventQueue::enqueue_scheduled()), and this
-	 * flusher's recurring pass sends it once due — after re-checking the
-	 * gate and the order (follow_up_at_due()).
+	 * Queue an order's follow-up email (PRO-4095) or payment reminder
+	 * (CON-328) — a TransactionalGate::SCHEDULED_TRIGGERS trigger — to go
+	 * out once the merchant's delay has passed. Called by the WC hook
+	 * handler once the gate is open. Nothing is sent now: the row waits as
+	 * `pending`, not due until now + the delay
+	 * (EventQueue::enqueue_scheduled()), and this flusher's recurring pass
+	 * sends it once due — after re-checking the gate and the order
+	 * (scheduled_at_due()).
 	 *
 	 * The row carries the recipient (so a privacy erasure still finds and
 	 * deletes it) but no merge tags: those are built when it falls due.
 	 * The once-per-order marker is set here, so the order never gets a
-	 * second follow-up, whatever happens to this one.
+	 * second one, whatever happens to this one.
 	 */
-	public function schedule_follow_up( \WC_Order $order, WorkflowMatch $match, string $to_status ): void {
+	public function schedule( string $trigger_type, \WC_Order $order, WorkflowMatch $match, string $to_status ): void {
 		$payload = self::build_payload( $order, $match, array(), $to_status );
 		if ( $payload === null ) {
-			$this->record_skip( TransactionalGate::TRIGGER_FOLLOW_UP, $order->get_id(), self::REASON_NO_BILLING_EMAIL );
+			$this->record_skip( $trigger_type, $order->get_id(), self::REASON_NO_BILLING_EMAIL );
 			return;
 		}
 
-		$due_at                              = gmdate( 'Y-m-d H:i:s', time() + TransactionalGate::follow_up_delay_days() * DAY_IN_SECONDS );
+		$due_at                              = gmdate( 'Y-m-d H:i:s', time() + TransactionalGate::delay_seconds( $trigger_type ) );
 		$payload[ self::PAYLOAD_KEY_DUE_AT ] = $due_at;
+		$event_type                          = self::event_type_for( $trigger_type );
 
-		$id = $this->queue->enqueue_scheduled( self::EVENT_TYPE_FOLLOW_UP, (string) $order->get_id(), $payload, $due_at );
+		$id = $this->queue->enqueue_scheduled( $event_type, (string) $order->get_id(), $payload, $due_at );
 		if ( $id === null ) {
 			// Same silent-failure posture as send_now(): no row, no marker.
 			return;
 		}
 
-		$this->set_meta( (string) $order->get_id(), self::EVENT_TYPE_FOLLOW_UP, self::META_STATUS_QUEUED, $order );
+		$this->set_meta( (string) $order->get_id(), $event_type, self::META_STATUS_QUEUED, $order );
 	}
 
 	/**
@@ -440,12 +458,12 @@ class TransactionalFlusher {
 		try {
 			$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
 
-			if ( $event_type === self::EVENT_TYPE_FOLLOW_UP ) {
-				list( $reason, $payload ) = $this->follow_up_at_due( $order_id_str, $payload, $order );
+			if ( in_array( $event_type, self::SCHEDULED_EVENT_TYPES, true ) ) {
+				list( $reason, $payload ) = $this->scheduled_at_due( self::trigger_type_for( $event_type ), $order_id_str, $payload, $order );
 				if ( $reason !== '' ) {
 					// The row itself says why — no exchange is stored over it.
 					$this->queue->mark_skipped( $id, $reason );
-					$this->date_finished_follow_up( $event_type, $id );
+					$this->date_finished_scheduled( $event_type, $id );
 					return 'skipped';
 				}
 			}
@@ -477,56 +495,57 @@ class TransactionalFlusher {
 		$this->record_exchange( $id );
 
 		if ( $outcome !== 'retried' ) {
-			$this->date_finished_follow_up( $event_type, $id );
+			$this->date_finished_scheduled( $event_type, $id );
 		}
 
 		return $outcome;
 	}
 
 	/**
-	 * A follow-up row is queued up to 90 days before it can go out
+	 * A scheduled row is queued up to 90 days before it can go out
 	 * (PRO-4095), and its created_at is what "Last sent", the Event Log and
 	 * the janitor's retention read as the time of the send. So once the row
 	 * is finished — sent, skipped or failed — it dates from then (CON-169).
 	 * A row still waiting, or retried after a transient failure, keeps the
 	 * time it was queued; when it will go out is its next_retry_at.
 	 */
-	private function date_finished_follow_up( string $event_type, int $id ): void {
-		if ( $event_type === self::EVENT_TYPE_FOLLOW_UP ) {
+	private function date_finished_scheduled( string $event_type, int $id ): void {
+		if ( in_array( $event_type, self::SCHEDULED_EVENT_TYPES, true ) ) {
 			$this->queue->restart_age( array( $id ) );
 		}
 	}
 
 	/**
-	 * A follow-up that fell due may go out only if it still could be
-	 * scheduled now (PRO-4095): the order still exists, the gate is still
-	 * open for it, the order is not cancelled/refunded/failed/trashed and
-	 * still sits in a ticked status, and it has a billing email. Returns
-	 * the reason it may not ('' when it may) and the payload to send —
-	 * rebuilt from the order and the workflow as they are now, carrying
-	 * the stored due time and resend flag over.
+	 * A scheduled email that fell due may go out only if it still could be
+	 * scheduled now: the order still exists, the gate is still open for it,
+	 * the trigger's own rule still holds (TransactionalGate::due_reason() —
+	 * the follow-up's ticked status, PRO-4095; the payment reminder's
+	 * unpaid order, CON-328), and it has a billing email. Returns the
+	 * reason it may not ('' when it may) and the payload to send — rebuilt
+	 * from the order and the workflow as they are now, carrying the stored
+	 * due time and resend flag over.
 	 *
 	 * @param array<string, mixed> $payload
 	 *
 	 * @return array{0: string, 1: array<string, mixed>}
 	 */
-	private function follow_up_at_due( string $order_id_str, array $payload, ?\WC_Order $order ): array {
+	private function scheduled_at_due( string $trigger_type, string $order_id_str, array $payload, ?\WC_Order $order ): array {
 		$order = $order ?? self::load_order( (int) $order_id_str );
 		if ( $order === null ) {
 			return array( self::REASON_ORDER_MISSING, $payload );
 		}
 
-		list( $reason, $match ) = $this->gate->evaluate( TransactionalGate::TRIGGER_FOLLOW_UP, $order );
+		list( $reason, $match ) = $this->gate->evaluate( $trigger_type, $order );
 		if ( $match === null ) {
 			return array( $reason, $payload );
 		}
 
-		$reason = $this->gate->follow_up_due_reason( $order );
+		$reason = $this->gate->due_reason( $trigger_type, $order );
 		if ( $reason !== '' ) {
 			return array( $reason, $payload );
 		}
 
-		$fresh = self::build_payload( $order, $match, $this->builder->build( $order, TransactionalGate::TRIGGER_FOLLOW_UP ), (string) $order->get_status() );
+		$fresh = self::build_payload( $order, $match, $this->builder->build( $order, $trigger_type ), (string) $order->get_status() );
 		if ( $fresh === null ) {
 			return array( self::REASON_NO_BILLING_EMAIL, $payload );
 		}
@@ -647,9 +666,9 @@ class TransactionalFlusher {
 			return;
 		}
 
-		if ( $event_type === self::EVENT_TYPE_FOLLOW_UP ) {
-			// WooCommerce has no follow-up email to fall back to (PRO-4095);
-			// the mark_failed row is the whole record.
+		if ( in_array( $event_type, self::SCHEDULED_EVENT_TYPES, true ) ) {
+			// WooCommerce has no follow-up email or payment reminder to fall
+			// back to (PRO-4095, CON-328); the mark_failed row is the whole record.
 			return;
 		}
 

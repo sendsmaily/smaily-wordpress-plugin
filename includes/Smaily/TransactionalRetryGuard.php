@@ -77,10 +77,11 @@ final class TransactionalRetryGuard {
 
 		$payload = TransactionalFlusher::read_payload( $payload_json );
 
-		if ( $event_type === TransactionalFlusher::EVENT_TYPE_FOLLOW_UP ) {
-			// The follow-up has no WooCommerce email to fall back to
-			// (PRO-4095), so a failed one reached nobody — unless it was a
-			// deliberate second one, whose first still stands.
+		if ( in_array( $event_type, TransactionalFlusher::SCHEDULED_EVENT_TYPES, true ) ) {
+			// The follow-up and the payment reminder have no WooCommerce
+			// email to fall back to (PRO-4095, CON-328), so a failed one
+			// reached nobody — unless it was a deliberate second one, whose
+			// first still stands. A retried one is re-checked like a due one.
 			return empty( $payload[ TransactionalFlusher::PAYLOAD_KEY_RESEND ] ) ? '' : self::REASON_RESEND_FAILED;
 		}
 

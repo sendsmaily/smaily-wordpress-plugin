@@ -647,7 +647,7 @@ class EventsEndpoint {
 			// PRO-4098: every row skipped for good, from either queue, with
 			// or without a reason, reads "skipped" — not "sent".
 			'skipped'               => self::is_skipped( (string) ( $row['status'] ?? '' ), (string) ( $row['last_response'] ?? '' ) ),
-			// PRO-4095: a follow-up email waiting for its delay — when it
+			// PRO-4095, CON-328: a follow-up email or payment reminder waiting for its delay — when it
 			// will be sent (UTC), '' on every other row.
 			'scheduled_for'         => $this->scheduled_for( $row ),
 			// PRO-2324: may the merchant deliberately send this confirmation
@@ -691,7 +691,8 @@ class EventsEndpoint {
 	}
 
 	/**
-	 * When a pending follow-up row falls due, '' when it is not one or is
+	 * When a pending scheduled row (follow-up email, payment reminder —
+	 * PRO-4095, CON-328) falls due, '' when it is not one or is
 	 * already due. A retry park (record_attempt()) is due at once, so only
 	 * the delay the row was queued with reads as a future time.
 	 *
@@ -700,7 +701,7 @@ class EventsEndpoint {
 	private function scheduled_for( array $row ): string {
 		$due = (string) ( $row['next_retry_at'] ?? '' );
 
-		return (string) ( $row['event_type'] ?? '' ) === TransactionalFlusher::EVENT_TYPE_FOLLOW_UP
+		return in_array( (string) ( $row['event_type'] ?? '' ), TransactionalFlusher::SCHEDULED_EVENT_TYPES, true )
 			&& (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_PENDING
 			&& $due > current_time( 'mysql', true )
 			? $due
