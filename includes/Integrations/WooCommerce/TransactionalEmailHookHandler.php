@@ -56,9 +56,6 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  */
 class TransactionalEmailHookHandler {
 
-	/** Payment methods whose orders never wait as pending: bank transfer, cheque, cash on delivery (CON-328). */
-	private const OFFLINE_PAYMENT_METHODS = array( 'bacs', 'cheque', 'cod' );
-
 	private TransactionalGate $gate;
 	private TransactionalPayloadBuilder $builder;
 	private TransactionalFlusher $flusher;
@@ -151,8 +148,7 @@ class TransactionalEmailHookHandler {
 	 * switched off; once per order.
 	 */
 	private function maybe_payment_reminder( \WC_Order $order ): void {
-		if ( ! in_array( (string) $order->get_created_via(), PaymentReminderCheck::CHECKOUT_CREATED_VIA, true )
-			|| in_array( (string) $order->get_payment_method(), self::OFFLINE_PAYMENT_METHODS, true ) ) {
+		if ( ! PaymentReminderCheck::is_candidate( $order ) ) {
 			return;
 		}
 

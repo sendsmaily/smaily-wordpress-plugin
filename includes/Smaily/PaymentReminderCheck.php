@@ -42,12 +42,24 @@ class PaymentReminderCheck {
 	/** `created_via` of an order placed at the store's classic or block checkout. */
 	public const CHECKOUT_CREATED_VIA = array( 'checkout', 'store-api' );
 
+	/** Payment methods whose orders never wait as pending: bank transfer, cheque, cash on delivery (CON-328). */
+	public const OFFLINE_PAYMENT_METHODS = array( 'bacs', 'cheque', 'cod' );
+
 	private TransactionalGate $gate;
 	private TransactionalFlusher $flusher;
 
 	public function __construct( TransactionalGate $gate, TransactionalFlusher $flusher ) {
 		$this->gate    = $gate;
 		$this->flusher = $flusher;
+	}
+
+	/**
+	 * Whether an order may get the reminder's wait at all: placed at the
+	 * store's own checkout and not paid with an offline method.
+	 */
+	public static function is_candidate( \WC_Order $order ): bool {
+		return self::placed_at_checkout( $order )
+			&& ! in_array( (string) $order->get_payment_method(), self::OFFLINE_PAYMENT_METHODS, true );
 	}
 
 	/**
@@ -99,7 +111,7 @@ class PaymentReminderCheck {
 	 * Why the order gets no reminder now, '' when it still waits for payment.
 	 */
 	private static function not_waiting_reason( \WC_Order $order ): string {
-		if ( ! in_array( (string) $order->get_created_via(), self::CHECKOUT_CREATED_VIA, true ) ) {
+		if ( ! self::placed_at_checkout( $order ) ) {
 			return 'not_checkout';
 		}
 		if ( (string) $order->get_meta( '_anonymized' ) === 'yes' ) {
@@ -108,6 +120,10 @@ class PaymentReminderCheck {
 		}
 
 		return TransactionalGate::awaits_payment_reason( $order );
+	}
+
+	private static function placed_at_checkout( \WC_Order $order ): bool {
+		return in_array( (string) $order->get_created_via(), self::CHECKOUT_CREATED_VIA, true );
 	}
 
 	private static function log( int $order_id, string $reason ): void {
