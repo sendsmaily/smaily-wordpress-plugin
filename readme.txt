@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.23.0
+Stable tag: 3.24.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -60,7 +60,7 @@ Campaign Intelligence is an optional paid Smaily add-on. It is not enabled by de
 
 = Optional transactional emails =
 
-Connect a separate Smaily Transactional account to send WooCommerce order and shipping confirmations through Smaily, and a follow-up email a set number of days after an order reaches a status you choose. If an order or shipping confirmation fails in Smaily, the native WooCommerce email is used as a fallback. The follow-up email has no WooCommerce fallback: a failed follow-up shows in the Event Log, where you can retry it.
+Connect a separate Smaily Transactional account to send WooCommerce order and shipping confirmations through Smaily, a follow-up email a set number of days after an order reaches a status you choose, and a payment reminder to a shopper who placed an order and left it unpaid at the payment step. If an order or shipping confirmation fails in Smaily, the native WooCommerce email is used as a fallback. The follow-up email and the payment reminder have no WooCommerce fallback: a failed one shows in the Event Log, where you can retry it.
 
 = See what is happening =
 
@@ -96,7 +96,7 @@ The plugin uses the [Smaily Public API](https://smaily.com/help/api/) to connect
 * trigger workflows after form submissions and WooCommerce events, with the shopper's discount code and its last valid day when a discount code is switched on for the automation;
 * check a shopper's subscription status before an abandoned-cart reminder;
 * send abandoned-cart data to the selected Smaily workflow; and
-* send order and shipping confirmations and the follow-up email when Smaily Transactional is configured.
+* send order and shipping confirmations, the follow-up email and the payment reminder, with the order's payment page address, when Smaily Transactional is configured.
 
 **Smaily installation report**
 
@@ -165,7 +165,7 @@ No. Browse tracking is off by default. Events are sent only when the site admini
 
 = Can Smaily Connect send order and shipping confirmations? =
 
-Yes. You can optionally connect a separate Smaily Transactional account and use it for WooCommerce order and shipping confirmations, and for a follow-up email a set number of days after an order reaches a status you choose. If an order or shipping confirmation fails in Smaily, the plugin falls back to the corresponding native WooCommerce email. The follow-up email has no WooCommerce fallback: a failed follow-up shows in the Event Log, where you can retry it.
+Yes. You can optionally connect a separate Smaily Transactional account and use it for WooCommerce order and shipping confirmations, for a follow-up email a set number of days after an order reaches a status you choose, and for a payment reminder to a shopper who left an order unpaid at the payment step. If an order or shipping confirmation fails in Smaily, the plugin falls back to the corresponding native WooCommerce email. The follow-up email and the payment reminder have no WooCommerce fallback: a failed one shows in the Event Log, where you can retry it.
 
 = Does Smaily Connect support multilingual stores? =
 
@@ -190,6 +190,17 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 == Changelog ==
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
+
+= 3.24.0 =
+* New: several shops can share one Campaign Intelligence store. Each shop's connection puts its own code prefix in front of the product and order codes it sends, so shops that number them alike do not overwrite each other. A shop that joins a store with several shops must run 3.24.0 before its setup link is used. Existing stores send what they sent before.
+* New: the payment reminder, a transactional email to a shopper who placed an order at the checkout and left it unpaid at the payment step, with a link to pay, after the delay you set.
+* New: a store with no connected Smaily account sees a notice that invites it to connect one or to sign up. It can be dismissed for 90 days.
+* Improved: a newsletter box ticked on the block checkout counts for the abandoned-cart reminder at once, before the order is placed.
+* Fixed: on the classic checkout, the abandoned-cart reminder goes to the email address the shopper typed or corrected last.
+* Fixed: an abandoned-cart cutoff time over 1425 minutes, which could never send a reminder, is refused when you save it.
+* Fixed: an order with no billing email is skipped instead of failing in Campaign Intelligence on every retry.
+* Privacy: the personal-data export lists the shopper's bookings and visits held in Campaign Intelligence.
+* Updated to the Smaily Campaign Intelligence API contract v1.33.0.
 
 = 3.23.0 =
 * Fixed: one product that cannot be loaded no longer stops the products import. That product fails alone, and the rest are sent.
@@ -223,6 +234,9 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Improved: Import now says so when an import could not be started.
 
 == Upgrade Notice ==
+
+= 3.24.0 =
+Several shops can share one Campaign Intelligence store: a shop that joins a store with several shops must run 3.24.0 before its setup link is used. Adds a payment reminder for orders left unpaid at the payment step. Existing connections send what they sent before.
 
 = 3.23.0 =
 One product that cannot be loaded no longer stops the products import or the nightly product list. Edit design works where the browser blocks third-party cookies, such as Safari. TranslatePress stores send abandoned-cart reminders in the shopper's language.
