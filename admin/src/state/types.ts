@@ -369,6 +369,13 @@ export function normalizeContactSyncMode(value: string | undefined): ContactSync
  */
 export const FALLBACK_FOLLOW_UP_DELAY_LIMITS: DayRangeLimits = { min: 1, max: 90, default: 7 };
 
+/**
+ * CartAbandonmentSweeper::max_cutoff_minutes() at its default 24-hour cart
+ * lifetime — read only when the boot payload carries no
+ * abandonedCartCutoffMaxMinutes (no payload at all, or a test fixture).
+ */
+export const FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES = 1439;
+
 export interface WizardState {
   /** True when rendering inside Settings tabs (sub-PR 2.F). */
   inSettings: boolean;
@@ -422,6 +429,13 @@ export interface WizardState {
      * FALLBACK_FOLLOW_UP_DELAY_LIMITS.
      */
     followUpDelayLimits?: DayRangeLimits;
+    /**
+     * The longest abandoned-cart cutoff in minutes the save route accepts —
+     * one minute under the cart's lifetime (CartAbandonmentSweeper::
+     * max_cutoff_minutes(), CON-326). Optional so pre-existing env fixtures
+     * stay valid; absent reads as FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES.
+     */
+    abandonedCartCutoffMaxMinutes?: number;
     /**
      * The store's coupons a discount code can be cloned from (CON-199).
      * Optional so pre-existing env fixtures stay valid; absent = none.

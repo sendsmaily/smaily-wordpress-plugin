@@ -75,9 +75,8 @@ class CartAbandonmentSweeper {
 			'skipped'  => 0,
 		);
 
-		$now = time();
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- the constant value IS the plugin prefix (smaily_connect_*); PCP can't resolve self::CONST.
-		$max_age = (int) apply_filters( self::FILTER_MAX_AGE, DAY_IN_SECONDS );
+		$now     = time();
+		$max_age = self::max_age_seconds();
 		$floor   = gmdate( 'Y-m-d H:i:s', $now - $max_age );
 
 		// Housekeeping runs even when the feature is gated off, so tracker
@@ -156,6 +155,25 @@ class CartAbandonmentSweeper {
 		}
 
 		return $stats;
+	}
+
+	/**
+	 * How long a cart with no reminder is kept (default 24 h, filterable):
+	 * the sweep deletes it after that without emailing.
+	 */
+	public static function max_age_seconds(): int {
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- the constant value IS the plugin prefix (smaily_connect_*); PCP can't resolve self::CONST.
+		return (int) apply_filters( self::FILTER_MAX_AGE, DAY_IN_SECONDS );
+	}
+
+	/**
+	 * The longest cutoff a reminder can still go out with: a cutoff of the
+	 * cart's whole lifetime or more never sends (CON-326). 1439 minutes by
+	 * default. The Settings save refuses a longer one and the admin field
+	 * shows it as the field's maximum.
+	 */
+	public static function max_cutoff_minutes(): int {
+		return (int) ceil( self::max_age_seconds() / MINUTE_IN_SECONDS ) - 1;
 	}
 
 	/**

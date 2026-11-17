@@ -311,6 +311,26 @@ describe('wizardReducer — Step 3 WC automations', () => {
     expect(okay.abandonedCartCutoffMinutes).toBe(45);
   });
 
+  it('clamps abandoned-cart cutoff to one minute under the cart lifetime (CON-326)', () => {
+    const fallback = wizardReducer(baseState, {
+      type: 'SET_ABANDONED_CART_CUTOFF_MINUTES',
+      payload: 1440,
+    });
+    expect(fallback.abandonedCartCutoffMinutes).toBe(1439);
+
+    const longest = wizardReducer(baseState, {
+      type: 'SET_ABANDONED_CART_CUTOFF_MINUTES',
+      payload: 1439,
+    });
+    expect(longest.abandonedCartCutoffMinutes).toBe(1439);
+
+    const filtered = wizardReducer(
+      { ...baseState, env: { ...baseState.env, abandonedCartCutoffMaxMinutes: 119 } },
+      { type: 'SET_ABANDONED_CART_CUTOFF_MINUTES', payload: 120 },
+    );
+    expect(filtered.abandonedCartCutoffMinutes).toBe(119);
+  });
+
   it('upserts a mapping (insert + update by composite key)', () => {
     const inserted = wizardReducer(baseState, {
       type: 'UPSERT_AUTOMATION_MAPPING',
