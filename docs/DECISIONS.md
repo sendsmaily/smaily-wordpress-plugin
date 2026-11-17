@@ -11300,29 +11300,51 @@ no marketing-consent check, no discount code and no recommendations.
   PRO-4095 pattern); a stored value outside the range reads as the default. The
   card's hint says the payment link works until WooCommerce cancels the unpaid
   order (its "Hold stock" setting), so keep the wait shorter.
-- **Trigger:** an order with `created_via` `checkout` or `store-api` (never one
-  made in wp-admin or through the REST API) that waits for payment —
-  `pending` or `failed` and `needs_payment()` (`TransactionalGate::
-  awaits_payment_reason()`) — on `woocommerce_checkout_order_processed`,
-  `woocommerce_store_api_checkout_order_processed`, and a status change into
-  `failed`. ONE reminder per order: the order-meta guard
-  `_smly_plus_transactional_payment_reminder_status`, set when the row is
-  queued.
-- **One scheduling path for every delayed email:** the follow-up email's
-  machinery is shared, not copied. `TransactionalGate::SCHEDULED_TRIGGERS`
-  names the two delayed triggers; `TransactionalFlusher::schedule()` (was
-  `schedule_follow_up()`) writes one row through `EventQueue::
-  enqueue_scheduled()` with `next_retry_at` = now + `TransactionalGate::
-  delay_seconds()`; `scheduled_at_due()` (was `follow_up_at_due()`) re-reads
-  the order, re-evaluates the gate and asks `TransactionalGate::due_reason()`
-  — the follow-up's status rules or the reminder's "still waits for payment".
-  `SCHEDULED_EVENT_TYPES` drives the rest: the Event Log's "scheduled" time,
-  dating a finished row from its send (CON-169), no fail-open, retryable.
-- **At send time:** a reminder whose order no longer waits for payment (paid,
-  on hold, processing, cancelled, nothing left to pay) is finished as skipped
-  with reason `payment_not_awaited` ("When the wait ended, the order no longer
-  waited for payment…"); a gone order `order_missing`; a closed gate its own
-  reason. The PRO-4098 rules read it as skipped.
+- **The wait is held in Action Scheduler, not in the Event Log (Erkki,
+  2026-11-17, after the first version queued a "scheduled" row for every
+  checkout order):** the Event Log shows a payment-reminder row only when a
+  reminder really goes out (or cannot, see below). On
+  `woocommerce_checkout_order_processed`,
+  `woocommerce_store_api_checkout_order_processed` and a status change into
+  `failed`, `TransactionalEmailHookHandler` schedules ONE single action
+  (`Smaily\PaymentReminderCheck`, hook `smly_plus_payment_reminder_check`,
+  group `smaily-connect-payment-reminder`, in `Deactivation::AS_GROUPS`) at
+  now + the delay, carrying the order id only — whatever the order's status
+  is then (the gateway sets it after the hook; an older block checkout may
+  still read `checkout-draft`). Not for an order whose `created_via` is not
+  `checkout` / `store-api` (wp-admin, REST), whose payment method is `bacs`,
+  `cheque` or `cod`, or while the reminder is switched off (a non-loggable
+  closed reason). ONE per order: the order-meta guard
+  `_smly_plus_transactional_payment_reminder_status`, set when the action is
+  scheduled.
+- **When the wait ends** (`PaymentReminderCheck::run()`): the order is read
+  again. Gone, not a checkout order, anonymized by WooCommerce's personal-data
+  eraser (`_anonymized`), or no longer waiting for payment (`pending` /
+  `failed` + `needs_payment()`, `TransactionalGate::awaits_payment_reason()`)
+  → nothing is written, only a debug line with the order id and a reason
+  code. Otherwise the gate is evaluated: closed → the same Event Log skipped
+  row the other transactional emails leave for a loggable reason (PRO-4091),
+  nothing for a switched-off one; open → one `transactional.payment_reminder`
+  queue row, due now, which `TransactionalFlusher` sends on its next pass.
+- **One send path for every delayed email:** the follow-up email's machinery
+  is shared, not copied. `TransactionalFlusher::schedule()` (was
+  `schedule_follow_up()`) writes the row through `EventQueue::
+  enqueue_scheduled()` with the caller's delay (the follow-up's days; 0 for
+  the reminder); `scheduled_at_due()` (was `follow_up_at_due()`) re-reads the
+  order, re-evaluates the gate and asks `TransactionalGate::due_reason()` —
+  the follow-up's status rules or the reminder's "still waits for payment".
+  `SCHEDULED_EVENT_TYPES` drives the rest: dating a finished row from its
+  send (CON-169), no fail-open, retryable.
+- **Safety net at send time:** a reminder row whose order stopped waiting in
+  the minute between the action and the flush is finished as skipped with
+  reason `payment_not_awaited` ("When the wait ended, the order no longer
+  waited for payment…"); a gone order `order_missing`. The PRO-4098 rules
+  read it as skipped.
+- **Personal-data eraser (the CON-275 rule):** the waiting action carries no
+  user and no address, only the order id, so the eraser has nothing to cancel
+  by user. An order WooCommerce's eraser anonymized meanwhile is never
+  reminded (see above); a reminder row already queued for the address is
+  deleted by the existing queue erasure (PRO-2383).
 - **Merge fields:** the existing transactional order fields plus `payment_url`
   = `$order->get_checkout_payment_url()` — on the payment reminder only, as a
   plain URL like `product_url`.
@@ -11336,20 +11358,22 @@ no marketing-consent check, no discount code and no recommendations.
   report (its `transactional_emails` feature is `TransactionalGate::
   any_enabled()`, which reads every trigger in `TRIGGERS`, so the reminder
   counts there with no new field — the report contract has no per-email list).
-**Rationale:** the reminder reaches only shoppers who started an online
-payment and did not finish, re-checked just before it goes out, so a paid,
-offline or cancelled order never gets one. A cart reminder is withdrawn at
-"Place order", so a shopper never gets both for one purchase.
-**Alternatives:** a second scheduling path for the reminder — rejected, the
-follow-up's queue row, re-check and Event Log handling already fit; a
-reminder on a status change into `pending` — not taken (Erkki named the two
-checkout hooks and `failed`); not queueing offline-method orders at checkout
-— not possible there (the checkout hooks fire before the gateway sets the
-status), so they are queued and then skipped at due time.
+**Rationale:** most checkout orders are paid within minutes; holding the
+wait in Action Scheduler keeps them out of the Event Log, and deciding at the
+end of the wait (not at the hook, which fires before the gateway sets the
+status) is what tells a paid or offline order from an unpaid one. A cart
+reminder is withdrawn at "Place order", so a shopper never gets both for one
+purchase.
+**Alternatives:** a queue row waiting the delay, like the follow-up — the
+first version of this change; rejected by Erkki, every checkout order then
+left a "scheduled" and then a "skipped" row; a reminder on a status change
+into `pending` — not taken (Erkki named the two checkout hooks and `failed`).
 **Relationships:** PRO-4095 (follow-up machinery), PRO-4091 (status line,
 skipped rows), PRO-4098 / CON-2 (skipped outcome), PRO-1723 (cart reminder
 withdrawn at order), CON-173 (Edit design), CON-290 (installation report),
 CON-329 (rec-engine, separate). Pinned by the payment-reminder sections of
 `tests/Unit/Smaily/TransactionalFlusherTest.php`,
-`tests/Unit/Integrations/WooCommerce/TransactionalEmailHookHandlerTest.php`
-and `tests/Integration/TransactionalEmailsPipelineTest.php`.
+`tests/Unit/Integrations/WooCommerce/TransactionalEmailHookHandlerTest.php`,
+`tests/Unit/Smaily/PaymentReminderCheckTest.php` and
+`tests/Integration/TransactionalEmailsPipelineTest.php` (the action runs
+through Action Scheduler's own runner, `Support\PaymentReminderQueue`).
