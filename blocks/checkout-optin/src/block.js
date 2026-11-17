@@ -5,6 +5,9 @@ import {
 } from '@woocommerce/blocks-checkout';
 import { getSetting } from '@woocommerce/settings';
 
+// The Store API namespace the box's value is sent under.
+const NAMESPACE = 'smaily-checkout-optin';
+
 const { optInDefaultText, smailyCheckoutOptinActive, customerSubscribed } =
 	getSetting( 'smaily-checkout-optin_data' );
 
@@ -14,7 +17,7 @@ const Block = ( { children, checkoutExtensionData } ) => {
 
 	useEffect( () => {
 		// namespace, key, value
-		setExtensionData( 'smaily-checkout-optin', 'user_newsletter', checked );
+		setExtensionData( NAMESPACE, 'user_newsletter', checked );
 	}, [ checked, setExtensionData ] );
 
 	// The store records the box on the cart as soon as it changes, so a tick
@@ -22,7 +25,7 @@ const Block = ( { children, checkoutExtensionData } ) => {
 	const onChange = ( value ) => {
 		setChecked( value );
 		extensionCartUpdate( {
-			namespace: 'smaily-checkout-optin',
+			namespace: NAMESPACE,
 			data: { user_newsletter: value },
 		} );
 	};

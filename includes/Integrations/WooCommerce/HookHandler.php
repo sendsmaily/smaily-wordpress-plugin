@@ -11,6 +11,7 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Constants;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\AutomationMarker;
@@ -416,8 +417,8 @@ class HookHandler {
 	 * @param mixed $request The store-API request (array-accessible extensions bag).
 	 */
 	public function on_checkout_block_optin( \WC_Order $order, $request ): void {
-		$opted_in = isset( $request['extensions']['smaily-checkout-optin']['user_newsletter'] )
-			&& true === $request['extensions']['smaily-checkout-optin']['user_newsletter'];
+		$opted_in = isset( $request['extensions'][ Constants::CHECKOUT_OPTIN_NAMESPACE ]['user_newsletter'] )
+			&& true === $request['extensions'][ Constants::CHECKOUT_OPTIN_NAMESPACE ]['user_newsletter'];
 
 		// The order is saved by WooCommerce after this hook. An unticked box
 		// clears a tick left by an earlier submission of the same order (a

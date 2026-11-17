@@ -65,6 +65,12 @@ final class Constants {
 	public const REST_NAMESPACE = 'smaily-connect/v1';
 
 	/**
+	 * The Store API namespace the block checkout's newsletter box sends its
+	 * value under — the checkout-optin block's own identifier.
+	 */
+	public const CHECKOUT_OPTIN_NAMESPACE = 'smaily-checkout-optin';
+
+	/**
 	 * Option key holding the schema version run by DB\Migrator.
 	 */
 	public const OPTION_SCHEMA_VERSION = 'smly_plus_schema_version';

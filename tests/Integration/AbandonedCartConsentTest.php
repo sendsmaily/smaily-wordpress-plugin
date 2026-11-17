@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Constants;
 use Smaily\Connect\Integrations\WooCommerce\CartHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Smaily\CartFlusher;
@@ -451,7 +452,7 @@ final class AbandonedCartConsentTest extends TestCase {
 		$request->set_body(
 			(string) wp_json_encode(
 				array(
-					'namespace' => CartHookHandler::CHECKOUT_OPTIN_NAMESPACE,
+					'namespace' => Constants::CHECKOUT_OPTIN_NAMESPACE,
 					'data'      => array( 'user_newsletter' => $ticked ),
 				)
 			)
