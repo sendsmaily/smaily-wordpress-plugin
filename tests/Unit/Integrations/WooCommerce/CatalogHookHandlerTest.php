@@ -11,22 +11,29 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Unit\Integrations\WooCommerce;
 
+use Brain\Monkey;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 final class CatalogHookHandlerTest extends TestCase {
 
+	use StubsConnectionPrefix;
+
 	protected function setUp(): void {
 		parent::setUp();
+		Monkey\setUp();
+		$this->stub_connection_prefix( '' );
 		CatalogHookHandler::reset_seen();
 	}
 
 	protected function tearDown(): void {
 		CatalogHookHandler::reset_seen();
+		Monkey\tearDown();
 		parent::tearDown();
 	}
 

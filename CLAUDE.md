@@ -229,6 +229,35 @@ order-item id (`woo-oi-<item_id>`); a line is never dropped (F3-43).
   If you add a new SKU surface, use the resolver; if a record still can't be keyed,
   make it observable (terminal skip), never a silent pre-enqueue drop (LESSONS §2.11).
 
+### Every key is `<prefix>woo-<id>` — the prefix comes from the connection (CON-323)
+Contract v1.33.0: the engine gives each connection a code prefix (`c2-`, or
+`""`), so several shops in one engine store can number products and orders
+from 1. The key rule above now reads **`<prefix>woo-<id>`**: `c2-woo-101`,
+`c2-woo-oi-88`, `tags.product_id` `c2-101`, `external_order_id` `c2-1234`.
+- **One accessor:** `RecEngineSettings::connection_prefix()` (read through
+  `SkuResolver::prefix()`; `""` when not connected). It goes on only in the
+  existing builders — `SkuResolver` and `OrderPayloadBuilder`'s order id —
+  never at a call site. Customers carry no prefix.
+- **Stored keys are re-keyed at SEND time, never twice:** a `catalog.delete`
+  tombstone, a `catalog.remove` id and a browse `sku` from a cached page go
+  through `SkuResolver::reprefix()` (flushers, `/relay`). A new path that
+  sends a key it stored or received must do the same.
+- **Where it lives:** `smly_rec_connection_prefix` — set by the setup exchange
+  (which declares `capabilities: ["connection_prefix"]` and sends
+  `connection.previous_prefix` when the option exists), moved by every ping,
+  KEPT by Disconnect (the next exchange reports it, so a reconnect keeps its
+  prefix), deleted by uninstall. A prefix of the wrong shape refuses the
+  exchange.
+- **Storefront slots render by `external_id` only** (§15: the sku is opaque);
+  on a prefixed connection a slot under another prefix is another shop's
+  product and is dropped.
+- **`""` = byte-identical to before** — every live connection answers `""`
+  until the engine switches assignment on. The mock plays the scope:
+  `RecEngineMockServer::set_connection_prefix()` /
+  `set_setup_connection_prefix()`; a key outside it comes back
+  `connection_prefix_mismatch` like the engine's (§3/§5/§6 per row, §3b in
+  `errors[]`, §3c a whole-list 400).
+
 ### Order status: custom statuses go THROUGH; deleted-product lines are NEVER dropped (F3-42/F3-43)
 Two pilot data-loss fixes (engine brief 2026-06-19, order #58922) that flip
 earlier decisions — don't re-revert them:

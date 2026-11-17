@@ -109,6 +109,8 @@ final class EnvScrub {
 			RecEngineSettings::OPTION_CONFIG,
 			RecEngineSettings::OPTION_ISSUED_AT,
 			RecEngineSettings::OPTION_REFUSED_AT,
+			// CON-323: Disconnect keeps it, so only the scrub clears it.
+			RecEngineSettings::OPTION_CONNECTION_PREFIX,
 			// autoload=false and asserted on through the send paths (CON-173).
 			\Smaily\Connect\Settings\EmailDesignWorkflows::OPTION,
 			// One-time-stamp options (autoload=false → per-key cache) the

@@ -7,10 +7,12 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine\Support;
 
+use Brain\Monkey;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Smaily\RecEngine\Support\SkuResolver;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 /**
  * PRO-1224: one resolver supplies the engine product key on every surface
@@ -22,12 +24,19 @@ use Smaily\Connect\Smaily\RecEngine\Support\SkuResolver;
  * CC.2: the id is collapsed to its canonical (default-language) post via the
  * detector, so a translated product keys ONE canonical `woo-{id}` across catalog
  * + orders + browse (no per-language duplication). product_group_id() returns the
- * RAW canonical PARENT id for tags.product_id (grouping / §3b removal key).
+ * canonical PARENT id for tags.product_id (grouping / §3b removal key).
+ *
+ * CON-323: every key starts with the connection prefix; with '' (every
+ * connection before contract v1.33.0) each key is exactly what it was.
  */
 final class SkuResolverTest extends TestCase {
 
+	use StubsConnectionPrefix;
+
 	protected function setUp(): void {
 		parent::setUp();
+		Monkey\setUp();
+		$this->stub_connection_prefix( '' );
 		// Drop any cached detector so the no-detector cases resolve through the
 		// single-language SiteLocale fallback (passthrough) deterministically,
 		// independent of other tests in the process.
@@ -36,6 +45,7 @@ final class SkuResolverTest extends TestCase {
 
 	protected function tearDown(): void {
 		DetectorFactory::reset();
+		Monkey\tearDown();
 		parent::tearDown();
 	}
 
@@ -54,12 +64,49 @@ final class SkuResolverTest extends TestCase {
 		self::assertSame( 'woo-7', SkuResolver::resolve( $product ) );
 	}
 
-	public function test_product_id_from_key_reads_the_id_back_out_of_a_woo_key(): void {
-		self::assertSame( 7, SkuResolver::product_id_from_key( 'woo-7' ) );
-		self::assertSame( 0, SkuResolver::product_id_from_key( 'woo-oi-8001' ), 'An order-item key names no product.' );
-		self::assertSame( 0, SkuResolver::product_id_from_key( 'wc-7' ) );
-		self::assertSame( 0, SkuResolver::product_id_from_key( 'woo-' ) );
-		self::assertSame( 0, SkuResolver::product_id_from_key( '' ) );
+	public function test_every_key_starts_with_the_connection_prefix(): void {
+		$this->stub_connection_prefix( 'c2-' );
+
+		self::assertSame( 'c2-woo-7', SkuResolver::resolve( $this->product( 7, 'REAL-1' ) ) );
+		self::assertSame( 'c2-woo-7', SkuResolver::resolve_id( 7 ) );
+		self::assertSame( 'c2-woo-433', SkuResolver::resolve_order_item( $this->item( 432, 433 ) ) );
+		self::assertSame( 'c2-woo-oi-88', SkuResolver::resolve_order_item( $this->item( 0, 0, 88 ) ) );
+		self::assertSame( 'c2-800', SkuResolver::product_group_id( $this->variation( 101, 800 ) ) );
+	}
+
+	public function test_no_prefix_when_not_connected_or_the_stored_one_is_malformed(): void {
+		\Brain\Monkey\Functions\when( 'get_option' )->justReturn( false );
+		self::assertSame( '', SkuResolver::prefix(), 'Not connected: no prefix, even with one remembered.' );
+
+		$this->stub_connection_prefix( 'woo-' );
+		self::assertSame( 'woo-7', SkuResolver::resolve_id( 7 ), 'A stored value of the wrong shape is never sent.' );
+	}
+
+	/**
+	 * @dataProvider reprefixed_keys
+	 */
+	public function test_reprefix_puts_a_stored_key_under_the_current_prefix( string $prefix, string $stored, string $expected ): void {
+		$this->stub_connection_prefix( $prefix );
+
+		self::assertSame( $expected, SkuResolver::reprefix( $stored ) );
+		self::assertSame( $expected, SkuResolver::reprefix( SkuResolver::reprefix( $stored ) ), 'Never prefixed twice.' );
+	}
+
+	/**
+	 * @return array<string, array{string, string, string}>
+	 */
+	public static function reprefixed_keys(): array {
+		return array(
+			'a sku queued before the connect' => array( 'c2-', 'woo-7', 'c2-woo-7' ),
+			'a sku under the same prefix'     => array( 'c2-', 'c2-woo-7', 'c2-woo-7' ),
+			'a sku under a moved prefix'      => array( 'c3-', 'c2-woo-7', 'c3-woo-7' ),
+			'an order-item key'               => array( 'c2-', 'c12-woo-oi-88', 'c2-woo-oi-88' ),
+			'a raw parent id'                 => array( 'c2-', '101', 'c2-101' ),
+			'a prefixed parent id'            => array( 'c9999-', 'c2-101', 'c9999-101' ),
+			'no prefix keeps a bare sku'      => array( '', 'woo-7', 'woo-7' ),
+			'no prefix drops a stale one'     => array( '', 'c2-woo-7', 'woo-7' ),
+			'no prefix keeps a bare id'       => array( '', '101', '101' ),
+		);
 	}
 
 	public function test_order_item_prefers_variation_id(): void {
@@ -113,8 +160,8 @@ final class SkuResolverTest extends TestCase {
 	}
 
 	public function test_product_group_id_simple_is_own_canonical_id_raw(): void {
-		// A simple product (no parent) groups on its own canonical id, RAW —
-		// no `woo-` prefix (Shopify parity + §3b remove-by-id shape, PRO-1224).
+		// A simple product (no parent) groups on its own canonical id, with
+		// no `woo-` part (Shopify parity + §3b remove-by-id shape, PRO-1224).
 		$detector = $this->detector( array( 59221 => 59199 ) );
 
 		self::assertSame( '59199', SkuResolver::product_group_id( $this->product( 59221, '' ), $detector ) );

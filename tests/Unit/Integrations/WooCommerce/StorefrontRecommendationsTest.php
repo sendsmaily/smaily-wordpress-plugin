@@ -21,8 +21,11 @@ use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 final class StorefrontRecommendationsTest extends TestCase {
+
+	use StubsConnectionPrefix;
 
 	private const REC_A = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 	private const REC_B = '11111111-2222-4333-8444-555555555555';
@@ -41,6 +44,7 @@ final class StorefrontRecommendationsTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
+		$this->stub_connection_prefix( '' );
 		$this->transients = array();
 		$this->calls      = array();
 
@@ -145,7 +149,8 @@ final class StorefrontRecommendationsTest extends TestCase {
 					'sku'         => 'woo-24150',
 					'external_id' => '24150',
 				),
-				// external_id null ⇒ the id is the sku without its `woo-` prefix (§15).
+				// external_id null ⇒ no store product: the sku is opaque and
+				// never taken apart (§15 v1.33.0, CON-323).
 				array(
 					'position'    => 2,
 					'rec_id'      => self::REC_B,
@@ -161,9 +166,40 @@ final class StorefrontRecommendationsTest extends TestCase {
 					'rec_id'     => self::REC_A,
 					'product_id' => 24150,
 				),
+			),
+			$this->service()->slots( 42, '' )
+		);
+	}
+
+	/**
+	 * CON-323: on a connection with a prefix, a slot under it renders by its
+	 * `external_id`; a slot of another shop of the same engine store names
+	 * THAT shop's product id, so it is dropped, never shown as ours.
+	 */
+	public function test_a_prefixed_connection_renders_only_its_own_shops_slots(): void {
+		$this->stub_connection_prefix( 'c2-' );
+		$this->answer = array(
+			'slots' => array(
 				array(
-					'rec_id'     => self::REC_B,
-					'product_id' => 77,
+					'position'    => 1,
+					'rec_id'      => self::REC_A,
+					'sku'         => 'c2-woo-24150',
+					'external_id' => '24150',
+				),
+				array(
+					'position'    => 2,
+					'rec_id'      => self::REC_B,
+					'sku'         => 'c3-woo-77',
+					'external_id' => '77',
+				),
+			),
+		);
+
+		self::assertSame(
+			array(
+				array(
+					'rec_id'     => self::REC_A,
+					'product_id' => 24150,
 				),
 			),
 			$this->service()->slots( 42, '' )

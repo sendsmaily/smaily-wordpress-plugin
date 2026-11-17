@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 
+use Brain\Monkey;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
@@ -18,8 +19,22 @@ use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Unit\Support\FakeRecEngineSettings;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 final class CatalogRemoveFlusherTest extends TestCase {
+
+	use StubsConnectionPrefix;
+
+	protected function setUp(): void {
+		parent::setUp();
+		Monkey\setUp();
+		$this->stub_connection_prefix( '' );
+	}
+
+	protected function tearDown(): void {
+		Monkey\tearDown();
+		parent::tearDown();
+	}
 
 	public function test_returns_early_when_not_connected(): void {
 		$queue = $this->fake_queue( array( $this->remove_row( 1, '100' ) ) );
@@ -61,6 +76,42 @@ final class CatalogRemoveFlusherTest extends TestCase {
 		self::assertSame( array( 1, 2, 3 ), $queue->sent );
 		self::assertSame( 3, $stats['sent'] );
 		self::assertStringContainsString( '"outcome":"removed"', (string) $queue->exchanges[1]['response'] );
+	}
+
+	/**
+	 * CON-323: §3b ids go out under the connection's prefix now, whatever the
+	 * row was queued under; an id the engine names in errors[] (v1.33.0,
+	 * outside this connection) is FAILED with the field only, never "removed".
+	 */
+	public function test_ids_go_out_prefixed_and_an_id_outside_the_connection_fails(): void {
+		$this->stub_connection_prefix( 'c2-' );
+		$queue  = $this->fake_queue( array( $this->remove_row( 1, '100' ), $this->remove_row( 2, 'c2-200' ) ) );
+		$client = $this->success_client(
+			array(
+				'ok'               => true,
+				'removed_products' => 1,
+				'rows_tombstoned'  => 1,
+				'not_found'        => array(),
+				'errors'           => array(
+					array(
+						'product_id' => 'c2-200',
+						'field'      => 'product_ids',
+						'error'      => 'connection_prefix_mismatch',
+						'message'    => 'connection_prefix_mismatch: product_id must start with mari@example.com',
+					),
+				),
+			)
+		);
+
+		$stats = $this->flusher( $queue, $client, true )->flush();
+
+		self::assertSame( array( 'c2-100', 'c2-200' ), $client->sent_ids );
+		self::assertSame( array( 1 ), $queue->sent );
+		self::assertSame( 1, $stats['failed'] );
+		self::assertSame( 2, $queue->failed[0]['id'] );
+		self::assertSame( 'd6_item_error field=product_ids', $queue->failed[0]['error'] );
+		self::assertStringContainsString( '"outcome":"rejected"', (string) $queue->exchanges[2]['response'] );
+		self::assertStringNotContainsString( 'mari@example.com', (string) $queue->exchanges[2]['response'], 'Never the engine message (CON-301).' );
 	}
 
 	public function test_not_found_id_is_sent_not_retried_and_observable(): void {

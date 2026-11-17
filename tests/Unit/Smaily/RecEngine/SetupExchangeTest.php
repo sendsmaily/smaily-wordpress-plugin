@@ -19,14 +19,19 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Smaily\RecEngine\ExchangeResult;
 use Smaily\Connect\Smaily\RecEngine\SetupExchange;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 final class SetupExchangeTest extends TestCase {
+
+	use StubsConnectionPrefix;
 
 	private const BASE = 'https://intelligence.smaily.com';
 
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
+		// A store that never held a connection: no previous prefix.
+		Functions\when( 'get_option' )->justReturn( false );
 
 		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
 		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
@@ -173,10 +178,110 @@ final class SetupExchangeTest extends TestCase {
 	/**
 	 * Contract v1.21.0 §1: `store_config.customer_account_scope` is optional and
 	 * absent = `global`. A WordPress site is one website with one account per
-	 * email, which is `global`, so the exchange sends no `store_config` — only
-	 * the token and the plugin info.
+	 * email, which is `global`, so the exchange sends no `store_config`. v1.33.0
+	 * (CON-323): it declares `capabilities: ["connection_prefix"]`, and a store
+	 * that never held a connection sends no `connection`.
 	 */
-	public function test_the_exchange_sends_only_the_token_and_the_plugin_info(): void {
+	public function test_the_exchange_sends_the_token_the_plugin_info_and_the_capability(): void {
+		$sent = $this->sent_body();
+
+		self::assertSame( array( 'setup_token', 'plugin_info', 'capabilities' ), array_keys( $sent ) );
+		self::assertSame( 'tok_abc', $sent['setup_token'] );
+		self::assertSame( array( 'connection_prefix' ), $sent['capabilities'] );
+	}
+
+	/**
+	 * A reconnect keeps its prefix (§1 "Connection prefix"): the last
+	 * connection's prefix — kept by Disconnect — is reported, '' included.
+	 *
+	 * @dataProvider previous_prefixes
+	 */
+	public function test_a_reconnect_reports_the_previous_prefix( string $previous ): void {
+		$this->stub_connection_prefix( $previous );
+
+		$sent = $this->sent_body();
+
+		self::assertSame( array( 'previous_prefix' => $previous ), $sent['connection'] );
+	}
+
+	/**
+	 * @return array<string, array{string}>
+	 */
+	public static function previous_prefixes(): array {
+		return array(
+			'a prefixed connection'  => array( 'c2-' ),
+			'an unprefixed one'      => array( '' ),
+		);
+	}
+
+	/**
+	 * @dataProvider prefix_answers
+	 *
+	 * @param array<string, mixed>|null $connection The reply's `config.connection`, null = absent.
+	 */
+	public function test_the_reply_prefix_is_taken_when_it_has_the_engine_shape( ?array $connection, string $expected ): void {
+		$reply = $this->reply();
+		if ( $connection !== null ) {
+			$reply['config'] = array( 'connection' => $connection );
+		}
+		$this->engine_replies( $reply );
+
+		$result = ( new SetupExchange() )->exchange( 'tok_abc', self::BASE );
+
+		self::assertSame( ExchangeResult::KIND_SUCCESS, $result->kind );
+		self::assertSame( $expected, $result->connection_prefix );
+	}
+
+	/**
+	 * @return array<string, array{?array<string, mixed>, string}>
+	 */
+	public static function prefix_answers(): array {
+		return array(
+			'an engine before v1.33.0' => array( null, '' ),
+			'no prefix'                => array( array( 'prefix' => '' ), '' ),
+			'c2-'                      => array( array( 'prefix' => 'c2-' ), 'c2-' ),
+			'c9999-'                   => array( array( 'prefix' => 'c9999-' ), 'c9999-' ),
+		);
+	}
+
+	/**
+	 * A prefix of the wrong shape is never stored: every key sent under it
+	 * would be refused.
+	 *
+	 * @dataProvider malformed_prefixes
+	 *
+	 * @param mixed $prefix
+	 */
+	public function test_a_reply_with_a_malformed_prefix_is_refused( $prefix ): void {
+		$reply           = $this->reply();
+		$reply['config'] = array( 'connection' => array( 'prefix' => $prefix ) );
+		$this->engine_replies( $reply );
+
+		$result = ( new SetupExchange() )->exchange( 'tok_abc', self::BASE );
+
+		self::assertSame( ExchangeResult::KIND_PREFIX_INVALID, $result->kind );
+		self::assertSame( '', $result->api_key, 'A refused reply must not carry the API key to the caller.' );
+	}
+
+	/**
+	 * @return array<string, array{mixed}>
+	 */
+	public static function malformed_prefixes(): array {
+		return array(
+			'no dash'      => array( 'c2' ),
+			'c0-'          => array( 'c0-' ),
+			'five digits'  => array( 'c10000-' ),
+			'upper case'   => array( 'C2-' ),
+			'a key'        => array( 'woo-' ),
+			'a number'     => array( 2 ),
+			'null'         => array( null ),
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function sent_body(): array {
 		$sent = null;
 		Functions\expect( 'wp_remote_post' )
 			->once()
@@ -192,8 +297,7 @@ final class SetupExchangeTest extends TestCase {
 		( new SetupExchange() )->exchange( 'tok_abc', self::BASE );
 
 		self::assertIsArray( $sent );
-		self::assertSame( array( 'setup_token', 'plugin_info' ), array_keys( $sent ) );
-		self::assertSame( 'tok_abc', $sent['setup_token'] );
+		return $sent;
 	}
 
 	/**
