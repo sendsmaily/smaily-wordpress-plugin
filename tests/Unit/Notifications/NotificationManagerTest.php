@@ -12,6 +12,7 @@ namespace Smaily\Connect\Tests\Unit\Notifications;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Constants;
 use Smaily\Connect\Notifications\NotificationManager;
 use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Settings\CredentialSet;
@@ -169,10 +170,10 @@ final class NotificationManagerTest extends TestCase {
 	private const INVITE_TEXT = 'Smaily Connect: no Smaily account is connected.';
 
 	/**
-	 * What render() prints for an admin, with the given main account, dismissal
-	 * stamp and current screen.
+	 * What render() prints for a user, with the given main account and
+	 * dismissal stamp.
 	 */
-	private function render_invite( ?CredentialSet $main, ?int $dismissed_at = null, ?object $screen = null, bool $can = true ): string {
+	private function render_invite( ?CredentialSet $main, ?int $dismissed_at = null, bool $can = true ): string {
 		$builder = $this->createMock( ReportBuilder::class );
 		$builder->method( 'main_credentials' )->willReturn( $main );
 
@@ -189,12 +190,12 @@ final class NotificationManagerTest extends TestCase {
 		Functions\stubTranslationFunctions();
 		Functions\stubEscapeFunctions();
 		Functions\when( 'current_user_can' )->justReturn( $can );
-		Functions\when( 'get_current_screen' )->justReturn( $screen );
 		Functions\when( 'get_option' )->alias(
 			static function ( string $name, $fallback = false ) use ( $dismissed ) {
 				return $name === NotificationManager::OPTION_DISMISSED ? $dismissed : $fallback;
 			}
 		);
+		Functions\when( 'apply_filters' )->returnArg( 2 );
 		Functions\when( 'admin_url' )->alias( static fn ( string $path = '' ): string => 'https://shop.test/wp-admin/' . $path );
 		Functions\when( 'add_query_arg' )->alias( static fn ( array $args, string $url ): string => $url . '?' . http_build_query( $args ) );
 		Functions\when( 'wp_nonce_url' )->returnArg();
@@ -212,6 +213,8 @@ final class NotificationManagerTest extends TestCase {
 		self::assertStringContainsString( self::INVITE_TEXT, $html );
 		self::assertStringContainsString( 'notice-info', $html );
 		self::assertStringContainsString( 'admin.php?page=smaily-connect-settings#connection', $html );
+		self::assertStringContainsString( 'href="' . Constants::SIGNUP_URL . '"', $html, 'A store with no account can create one.' );
+		self::assertStringContainsString( 'href="' . Constants::DOCS_URL . '#step1"', $html, 'The guide to the API credentials is one click away.' );
 		self::assertStringContainsString( 'key=' . NotificationManager::INVITE_KEY, $html, 'The invitation can be dismissed.' );
 	}
 
@@ -222,7 +225,7 @@ final class NotificationManagerTest extends TestCase {
 	}
 
 	public function test_a_user_who_cannot_manage_the_plugin_sees_nothing(): void {
-		self::assertSame( '', $this->render_invite( null, null, null, false ) );
+		self::assertSame( '', $this->render_invite( null, null, false ) );
 	}
 
 	public function test_a_dismissed_invitation_stays_away_for_ninety_days(): void {
@@ -233,18 +236,6 @@ final class NotificationManagerTest extends TestCase {
 
 	public function test_a_dismissed_invitation_comes_back_after_ninety_days(): void {
 		$html = $this->render_invite( null, time() - 90 * DAY_IN_SECONDS - 1 );
-
-		self::assertStringContainsString( self::INVITE_TEXT, $html );
-	}
-
-	public function test_the_setup_wizard_shows_no_invitation_above_its_own_connect_form(): void {
-		$html = $this->render_invite( null, null, (object) array( 'id' => 'toplevel_page_smaily-connect-wizard' ) );
-
-		self::assertStringNotContainsString( self::INVITE_TEXT, $html );
-	}
-
-	public function test_the_settings_screen_shows_the_invitation(): void {
-		$html = $this->render_invite( null, null, (object) array( 'id' => 'toplevel_page_smaily-connect-settings' ) );
 
 		self::assertStringContainsString( self::INVITE_TEXT, $html );
 	}

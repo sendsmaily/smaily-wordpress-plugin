@@ -68,6 +68,7 @@ final class SmailyInviteNoticeTest extends TestCase {
 
 		self::assertStringContainsString( self::INVITE_TEXT, $html );
 		self::assertStringContainsString( 'page=smaily-connect-settings#connection', $html );
+		self::assertStringContainsString( \Smaily\Connect\Constants::SIGNUP_URL, $html );
 	}
 
 	public function test_a_transactional_account_alone_still_gets_the_invitation(): void {

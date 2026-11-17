@@ -388,16 +388,14 @@ final class NotificationManager {
 	 * marketing account, a Transactional account alone does not count — read
 	 * through `ReportBuilder::main_credentials()`, never a copy of it.
 	 *
-	 * Shown on every admin screen but the setup wizard, whose first step is the
-	 * connect form itself. A dismissal hides it for 90 days; connecting an
-	 * account removes it at once.
+	 * Shown on every admin screen, the setup wizard included (Erkki,
+	 * 2026-11-17). A dismissal hides it for 90 days; connecting an account
+	 * removes it at once.
 	 *
 	 * @param array<string, int> $dismissed
 	 */
 	private function render_invite_notice( array $dismissed, int $now ): void {
-		if ( $this->on_wizard_screen()
-			|| $this->is_dismissed( self::INVITE_KEY, $dismissed, $now, self::INVITE_DISMISS_COOLDOWN )
-		) {
+		if ( $this->is_dismissed( self::INVITE_KEY, $dismissed, $now, self::INVITE_DISMISS_COOLDOWN ) ) {
 			return;
 		}
 
@@ -407,21 +405,24 @@ final class NotificationManager {
 		}
 
 		printf(
-			'<div class="notice notice-info"><p>%1$s %2$s %3$s</p></div>',
+			'<div class="notice notice-info"><p>%1$s %2$s | %3$s | %4$s %5$s</p></div>',
 			esc_html__(
 				'Smaily Connect: no Smaily account is connected. Connect one to sync your customers to Smaily and send automated emails, whether you are new to Smaily or coming back to it.',
 				'smaily-connect'
 			),
 			wp_kses_post( $this->connect_link() ),
+			wp_kses_post( $this->external_link( Constants::SIGNUP_URL, __( 'Create a Smaily account', 'smaily-connect' ) ) ),
+			wp_kses_post( $this->external_link( Constants::docs_url() . '#step1', __( 'User guide to create API credentials', 'smaily-connect' ) ) ),
 			wp_kses_post( $this->dismiss_link( self::INVITE_KEY ) )
 		);
 	}
 
-	/** True on the setup wizard, where the connect form already is. */
-	private function on_wizard_screen(): bool {
-		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-
-		return $screen !== null && strpos( (string) $screen->id, 'smaily-connect-wizard' ) !== false;
+	private function external_link( string $url, string $label ): string {
+		return sprintf(
+			'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+			esc_url( $url ),
+			esc_html( $label )
+		);
 	}
 
 	/** Settings → Connection; Settings sends a store whose setup is unfinished to the wizard. */
