@@ -715,6 +715,8 @@ final class Bootstrap {
 		// Classic checkout posts the typed billing email on every order-review
 		// refresh — the earliest moment a GUEST identity is known.
 		add_action( 'woocommerce_checkout_update_order_review', array( $cart, 'on_checkout_update_order_review' ), 10, 1 );
+		// The billing email posts an order review as it changes (CON-325).
+		add_filter( 'woocommerce_checkout_fields', array( $cart, 'on_checkout_fields' ), 10, 1 );
 		// Block checkout's Store-API twin (cart/update-customer route).
 		add_action( 'woocommerce_store_api_cart_update_customer_from_request', array( $cart, 'on_store_api_update_customer' ), 10, 2 );
 		// The block checkout's newsletter box, sent as the shopper changes it

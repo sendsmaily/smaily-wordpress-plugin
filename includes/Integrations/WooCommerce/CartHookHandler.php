@@ -183,6 +183,29 @@ class CartHookHandler {
 	}
 
 	/**
+	 * `woocommerce_checkout_fields` — the classic checkout's billing email
+	 * refreshes the order review when it changes (CON-325), so the tracker
+	 * learns the address as it is typed or corrected, not only after the
+	 * next address or shipping change. The same WooCommerce class the
+	 * newsletter box carries (CON-202); classes already set are kept.
+	 *
+	 * @param mixed $fields The checkout fields.
+	 * @return mixed
+	 */
+	public function on_checkout_fields( $fields ) {
+		if ( ! is_array( $fields ) || ! isset( $fields['billing']['billing_email'] ) || ! is_array( $fields['billing']['billing_email'] ) || ! $this->tracking_enabled() ) {
+			return $fields;
+		}
+
+		$fields['billing']['billing_email']['class'] = array_merge(
+			(array) ( $fields['billing']['billing_email']['class'] ?? array() ),
+			array( 'update_totals_on_change' )
+		);
+
+		return $fields;
+	}
+
+	/**
 	 * Block checkout newsletter box — the Store API cart extension update
 	 * (`woocommerce_store_api_register_update_callback`, namespace
 	 * CHECKOUT_OPTIN_NAMESPACE) the block sends when the shopper ticks or

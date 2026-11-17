@@ -238,6 +238,36 @@ final class CartHookHandlerTest extends TestCase {
 		self::assertSame( array(), $this->store->optins );
 	}
 
+	/**
+	 * CON-325: a change of the classic checkout's billing email posts an
+	 * order review, so the tracker holds the address as last typed.
+	 */
+	public function test_the_classic_billing_email_refreshes_the_order_review(): void {
+		$fields = $this->handler( 'guest-token', null )->on_checkout_fields( $this->classic_fields( array( 'form-row-wide' ) ) );
+
+		self::assertSame( array( 'form-row-wide', 'update_totals_on_change' ), $fields['billing']['billing_email']['class'] );
+		self::assertSame( array( 'form-row-first' ), $fields['billing']['billing_first_name']['class'], 'Only the email field changes.' );
+	}
+
+	public function test_the_billing_email_class_is_added_when_no_class_is_set(): void {
+		$fields = $this->classic_fields( array() );
+		unset( $fields['billing']['billing_email']['class'] );
+
+		$fields = $this->handler( 'guest-token', null )->on_checkout_fields( $fields );
+
+		self::assertSame( array( 'update_totals_on_change' ), $fields['billing']['billing_email']['class'] );
+	}
+
+	public function test_the_billing_email_is_unchanged_while_tracking_is_off_or_absent(): void {
+		$this->stub_gates( true, false );
+		$fields = $this->classic_fields( array( 'form-row-wide' ) );
+		self::assertSame( $fields, $this->handler( 'guest-token', null )->on_checkout_fields( $fields ) );
+
+		$this->stub_gates( true, true );
+		$no_email = array( 'billing' => array( 'billing_first_name' => array( 'class' => array( 'form-row-first' ) ) ) );
+		self::assertSame( $no_email, $this->handler( 'guest-token', null )->on_checkout_fields( $no_email ) );
+	}
+
 	public function test_invalid_posted_email_is_ignored(): void {
 		$handler = $this->handler( 'guest-token', null );
 		$handler->on_checkout_update_order_review( 'billing_email=not-an-email' );
@@ -428,6 +458,25 @@ final class CartHookHandlerTest extends TestCase {
 				return false;
 			}
 		};
+	}
+
+	/**
+	 * Classic checkout fields as WooCommerce passes them.
+	 *
+	 * @param array<int, string> $email_class
+	 * @return array<string, array<string, array<string, mixed>>>
+	 */
+	private function classic_fields( array $email_class ): array {
+		return array(
+			'billing' => array(
+				'billing_first_name' => array( 'class' => array( 'form-row-first' ) ),
+				'billing_email'      => array(
+					'type'  => 'email',
+					'class' => $email_class,
+				),
+			),
+			'order'   => array(),
+		);
 	}
 
 	/**
