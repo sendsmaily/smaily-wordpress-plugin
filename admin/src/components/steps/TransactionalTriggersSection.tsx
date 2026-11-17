@@ -1,8 +1,9 @@
 import { type Dispatch } from 'react';
 
-import { __ } from '@admin/lib/i18n';
+import { __, sprintf } from '@admin/lib/i18n';
 import {
   FALLBACK_FOLLOW_UP_DELAY_LIMITS,
+  FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS,
   type WizardAction,
   type WizardState,
 } from '../../state/types';
@@ -20,7 +21,8 @@ const TRANSACTIONAL_ACCOUNT_KEY = 'transactional';
 
 /**
  * Transactional-email triggers — order confirmation + shipping
- * confirmation (PRO-1504 stage 1) + the follow-up email (PRO-4095).
+ * confirmation (PRO-1504 stage 1) + the follow-up email (PRO-4095) +
+ * the payment reminder (CON-328).
  * Relocated here from the old combined TransactionalEmailsSection by
  * PRO-1540: the account connection itself
  * (toggle + credentials + test) now lives on the Connection tab; this
@@ -41,6 +43,7 @@ export function TransactionalTriggersSection({
   }
 
   const delayLimits = state.env.followUpDelayLimits ?? FALLBACK_FOLLOW_UP_DELAY_LIMITS;
+  const reminderLimits = state.env.paymentReminderDelayLimits ?? FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS;
 
   return (
     <div className="space-y-4 border-t border-border-subtle pt-6">
@@ -152,6 +155,49 @@ export function TransactionalTriggersSection({
               selected={state.followUpOrderStatuses}
               onToggle={(status) => dispatch({ type: 'TOGGLE_FOLLOW_UP_ORDER_STATUS', payload: { status } })}
             />
+          </>
+        }
+      />
+
+      <AutomationSection
+        state={state}
+        dispatch={dispatch}
+        trigger="payment_reminder"
+        emailKey="transactional.payment_reminder"
+        title={ __( 'Payment reminder', 'smaily-connect' ) }
+        description={ __( 'Sent when an order placed at your checkout is still unpaid a set number of minutes later — the shopper left the payment page, or the payment failed. Never for bank transfer, cheque or cash on delivery orders.', 'smaily-connect' ) }
+        isEnabled={state.paymentReminderEnabled}
+        active={state.transactionalEmailsEnabled && state.paymentReminderEnabled}
+        onEnabledChange={(enabled) => dispatch({ type: 'SET_PAYMENT_REMINDER_ENABLED', payload: enabled })}
+        accountKeyOverride={TRANSACTIONAL_ACCOUNT_KEY}
+        extras={
+          <>
+            <TransactionalStatusLine
+              state={state}
+              trigger="payment_reminder"
+              accountKey={TRANSACTIONAL_ACCOUNT_KEY}
+            />
+            <div className="mt-4">
+              <Label htmlFor="smly-payment-reminder-delay">{ __( 'Minutes to wait', 'smaily-connect' ) }</Label>
+              <div className="mt-1 w-40">
+                <NumberInput
+                  id="smly-payment-reminder-delay"
+                  value={state.paymentReminderDelayMinutes}
+                  onChange={(e) => dispatch({ type: 'SET_PAYMENT_REMINDER_DELAY_MINUTES', payload: Number(e.target.value) })}
+                  min={reminderLimits.min}
+                  max={reminderLimits.max}
+                  step={1}
+                />
+              </div>
+              <p className="mt-1 text-xs text-text-tertiary">
+                {sprintf(
+                  // translators: 1: the shortest wait in minutes, 2: the longest.
+                  __( 'From %1$d to %2$d minutes. The payment link in the email works until WooCommerce cancels the unpaid order — its “Hold stock (minutes)” setting under WooCommerce → Settings → Products → Inventory — so keep the wait shorter than that.', 'smaily-connect' ),
+                  reminderLimits.min,
+                  reminderLimits.max,
+                )}
+              </p>
+            </div>
           </>
         }
       />

@@ -15,6 +15,7 @@ use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\Report\InstallationReport;
 use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\PaymentReminderCheck;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
 use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
@@ -65,6 +66,7 @@ final class Deactivation {
 		LegacyOrderDateIndex::AS_GROUP,
 		LoginMerge::AS_GROUP,
 		InstallationReport::AS_GROUP,
+		PaymentReminderCheck::AS_GROUP,
 	);
 
 	public static function run(): void {

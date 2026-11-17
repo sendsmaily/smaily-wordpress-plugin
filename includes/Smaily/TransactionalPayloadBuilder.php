@@ -142,6 +142,12 @@ class TransactionalPayloadBuilder {
 			'shipping_method_id' => $this->escape( $this->shipping_method_ids( $order ) ),
 		);
 
+		if ( $trigger === TransactionalGate::TRIGGER_PAYMENT_REMINDER ) {
+			// CON-328: the order's own payment page — where the shopper
+			// finishes paying. A URL, like product_url: not HTML-escaped.
+			$context['payment_url'] = (string) $order->get_checkout_payment_url();
+		}
+
 		if ( (bool) get_option( self::OPTION_PERSONAL_DATA, false ) ) {
 			$context += $this->personal_data_fields( $order );
 		}

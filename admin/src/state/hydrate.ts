@@ -4,6 +4,7 @@ import {
   defaultAutomationDiscounts,
   emptyCredentials,
   FALLBACK_FOLLOW_UP_DELAY_LIMITS,
+  FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS,
   idleAsync,
   idleBackfill,
   idleEngineAutomations,
@@ -78,6 +79,8 @@ export interface BootPayload {
     consentApiPresent?: boolean;
     /** The follow-up delay's range and default, from EnvDetector::snapshot() (PRO-4095). */
     followUpDelayLimits?: DayRangeLimits;
+    /** The payment reminder delay's range and default in minutes, from EnvDetector::snapshot() (CON-328). */
+    paymentReminderDelayLimits?: DayRangeLimits;
     /** The longest abandoned-cart cutoff in minutes, from EnvDetector::snapshot() (CON-326). */
     abandonedCartCutoffMaxMinutes?: number;
     /** The coupons a discount code can be cloned from, from EnvDetector::snapshot() (CON-199). */
@@ -151,6 +154,8 @@ export interface BootPayload {
     followUpEnabled?: boolean;
     followUpOrderStatuses?: string[];
     followUpDelayDays?: number;
+    paymentReminderEnabled?: boolean;
+    paymentReminderDelayMinutes?: number;
     transactionalPersonalData?: boolean;
     /** Each confirmation card's status line (PRO-4091) — see WizardState.transactionalStatus. */
     transactionalStatus?: Partial<Record<TransactionalTrigger, TransactionalSendStatus>>;
@@ -238,6 +243,8 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       followUpEnabled: false,
       followUpOrderStatuses: [],
       followUpDelayDays: FALLBACK_FOLLOW_UP_DELAY_LIMITS.default,
+      paymentReminderEnabled: false,
+      paymentReminderDelayMinutes: FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS.default,
       transactionalPersonalData: false,
       transactionalStatus: {},
       recEngineFeatures: {
@@ -292,6 +299,7 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
       orderStatuses: env.orderStatuses ?? [],
       consentApiPresent: env.consentApiPresent ?? false,
       followUpDelayLimits: env.followUpDelayLimits,
+      paymentReminderDelayLimits: env.paymentReminderDelayLimits,
       abandonedCartCutoffMaxMinutes: env.abandonedCartCutoffMaxMinutes,
       discountTemplates: env.discountTemplates ?? [],
       discountValidDays: env.discountValidDays,
@@ -328,6 +336,10 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
     followUpOrderStatuses: s.followUpOrderStatuses ?? [],
     followUpDelayDays:
       s.followUpDelayDays ?? (env.followUpDelayLimits ?? FALLBACK_FOLLOW_UP_DELAY_LIMITS).default,
+    paymentReminderEnabled: s.paymentReminderEnabled ?? false,
+    paymentReminderDelayMinutes:
+      s.paymentReminderDelayMinutes ??
+      (env.paymentReminderDelayLimits ?? FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS).default,
     transactionalPersonalData: s.transactionalPersonalData ?? false,
     // PHP sends an empty map as `[]`.
     transactionalStatus:
@@ -368,6 +380,7 @@ const VALID_TRIGGERS: readonly AutomationTrigger[] = [
   'order_confirmation',
   'shipping_confirmation',
   'follow_up',
+  'payment_reminder',
 ];
 
 /**

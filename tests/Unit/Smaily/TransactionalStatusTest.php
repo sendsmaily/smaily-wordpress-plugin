@@ -47,10 +47,12 @@ final class TransactionalStatusTest extends TestCase {
 				TransactionalGate::TRIGGER_ORDER_CONFIRMATION    => TransactionalGate::REASON_NO_WORKFLOW,
 				TransactionalGate::TRIGGER_SHIPPING_CONFIRMATION => TransactionalGate::REASON_PASSWORD_UNREADABLE,
 				TransactionalGate::TRIGGER_FOLLOW_UP             => TransactionalGate::REASON_TRIGGER_OFF,
+				TransactionalGate::TRIGGER_PAYMENT_REMINDER      => TransactionalGate::REASON_SWITCHED_OFF,
 			),
 			array(
 				TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION => '2026-10-15 08:30:00',
 				TransactionalFlusher::EVENT_TYPE_FOLLOW_UP          => '2026-10-14 07:00:00',
+				TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER   => '2026-10-13 06:00:00',
 			),
 			array()
 		);
@@ -73,6 +75,12 @@ final class TransactionalStatusTest extends TestCase {
 					'reason'                 => TransactionalGate::REASON_TRIGGER_OFF,
 					'workflowResolved'       => false,
 					'lastSentAt'             => '2026-10-14 07:00:00',
+					'untickedRecentStatuses' => array(),
+				),
+				TransactionalGate::TRIGGER_PAYMENT_REMINDER      => array(
+					'reason'                 => TransactionalGate::REASON_SWITCHED_OFF,
+					'workflowResolved'       => false,
+					'lastSentAt'             => '2026-10-13 06:00:00',
 					'untickedRecentStatuses' => array(),
 				),
 			),

@@ -11,13 +11,14 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Smaily\PaymentReminderCheck;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
 
 /**
- * Three triggers, each once-per-order-per-email-type (an order-meta guard —
+ * Four triggers, each once-per-order-per-email-type (an order-meta guard —
  * design point 1):
  *
  *   - order_confirmation: `woocommerce_checkout_order_processed` — a
@@ -38,6 +39,14 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *     when the new status is in `smly_plus_follow_up_order_statuses`.
  *     Nothing is sent then — the flusher queues the email to go out once
  *     the merchant's delay has passed. One status change can do both.
+ *   - payment_reminder (CON-328): an order placed at the store's own
+ *     checkout (`created_via` checkout or store-api — never one made in
+ *     wp-admin), on the two checkout hooks above and when its status
+ *     changes into `failed`. Nothing goes to the queue then: one Action
+ *     Scheduler action (PaymentReminderCheck) waits the merchant's
+ *     minutes and queues the reminder only if the order still waits for
+ *     payment. A bank transfer, cheque or cash-on-delivery order is never
+ *     scheduled.
  *
  * Gating (design point 2) is delegated whole to TransactionalGate — no
  * consent/opt-out check here (transactional sends override marketing
@@ -46,6 +55,9 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  * Not final: tests inject gate/builder/flusher doubles.
  */
 class TransactionalEmailHookHandler {
+
+	/** Payment methods whose orders never wait as pending: bank transfer, cheque, cash on delivery (CON-328). */
+	private const OFFLINE_PAYMENT_METHODS = array( 'bacs', 'cheque', 'cod' );
 
 	private TransactionalGate $gate;
 	private TransactionalPayloadBuilder $builder;
@@ -76,6 +88,7 @@ class TransactionalEmailHookHandler {
 		}
 
 		$this->attempt( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, $order );
+		$this->maybe_payment_reminder( $order );
 	}
 
 	/**
@@ -88,6 +101,7 @@ class TransactionalEmailHookHandler {
 	 */
 	public function on_block_checkout_order_processed( \WC_Order $order ): void {
 		$this->attempt( TransactionalGate::TRIGGER_ORDER_CONFIRMATION, $order );
+		$this->maybe_payment_reminder( $order );
 	}
 
 	/**
@@ -106,7 +120,8 @@ class TransactionalEmailHookHandler {
 		$to        = OrderBackfillJob::bare_status( (string) $to_status );
 		$shipped   = in_array( $to, TransactionalGate::shipped_statuses(), true );
 		$follow_up = in_array( $to, TransactionalGate::follow_up_statuses(), true );
-		if ( ! $shipped && ! $follow_up ) {
+		$failed    = $to === 'failed';
+		if ( ! $shipped && ! $follow_up && ! $failed ) {
 			return;
 		}
 
@@ -120,6 +135,42 @@ class TransactionalEmailHookHandler {
 		}
 		if ( $follow_up ) {
 			$this->attempt( TransactionalGate::TRIGGER_FOLLOW_UP, $order, $to );
+		}
+		if ( $failed ) {
+			$this->maybe_payment_reminder( $order );
+		}
+	}
+
+	/**
+	 * Start the payment reminder's wait (CON-328) for an order placed at the
+	 * store's own checkout: one Action Scheduler action, whatever the
+	 * order's status is now — the gateway may not have set it yet. Whether
+	 * the order still waits for payment is decided when the wait ends
+	 * (PaymentReminderCheck::run()). Never for an order made in wp-admin or
+	 * through the REST API, an order paid offline, or while the reminder is
+	 * switched off; once per order.
+	 */
+	private function maybe_payment_reminder( \WC_Order $order ): void {
+		if ( ! in_array( (string) $order->get_created_via(), PaymentReminderCheck::CHECKOUT_CREATED_VIA, true )
+			|| in_array( (string) $order->get_payment_method(), self::OFFLINE_PAYMENT_METHODS, true ) ) {
+			return;
+		}
+
+		$meta_key = TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER );
+		if ( (string) $order->get_meta( $meta_key ) !== '' ) {
+			return;
+		}
+
+		// A switched-off reminder schedules nothing. Any other closed reason
+		// is decided — and logged — when the wait ends, as for a due follow-up.
+		$reason = $this->gate->closed_reason( TransactionalGate::TRIGGER_PAYMENT_REMINDER, $order );
+		if ( $reason !== '' && ! TransactionalGate::is_loggable_reason( $reason ) ) {
+			return;
+		}
+
+		if ( PaymentReminderCheck::schedule( $order->get_id() ) ) {
+			$order->update_meta_data( $meta_key, TransactionalFlusher::META_STATUS_QUEUED );
+			$order->save();
 		}
 	}
 
@@ -143,7 +194,7 @@ class TransactionalEmailHookHandler {
 		}
 
 		if ( $trigger_type === TransactionalGate::TRIGGER_FOLLOW_UP ) {
-			$this->flusher->schedule_follow_up( $order, $match, $to_status );
+			$this->flusher->schedule( $trigger_type, $order, $match, $to_status, TransactionalGate::follow_up_delay_days() * DAY_IN_SECONDS );
 			return;
 		}
 

@@ -48,6 +48,7 @@ const CARDS: Array<[string, string]> = [
   ['Order confirmation', 'transactional.order_confirmation'],
   ['Shipping confirmation', 'transactional.shipping_confirmation'],
   ['Follow-up email', 'plugin.follow_up'],
+  ['Payment reminder', 'transactional.payment_reminder'],
   ['Replenishment due', 'replenish_due'],
 ];
 
@@ -70,6 +71,7 @@ function connectedState(): WizardState {
     orderConfirmationEnabled: true,
     shippingConfirmationEnabled: true,
     followUpEnabled: true,
+    paymentReminderEnabled: true,
   };
 }
 

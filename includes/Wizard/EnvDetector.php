@@ -137,6 +137,12 @@ class EnvDetector {
 				'max'     => TransactionalGate::FOLLOW_UP_DELAY_MAX,
 				'default' => TransactionalGate::FOLLOW_UP_DELAY_DEFAULT,
 			),
+			// CON-328 — the payment reminder delay's range and default (minutes).
+			'paymentReminderDelayLimits'    => array(
+				'min'     => TransactionalGate::PAYMENT_REMINDER_DELAY_MIN,
+				'max'     => TransactionalGate::PAYMENT_REMINDER_DELAY_MAX,
+				'default' => TransactionalGate::PAYMENT_REMINDER_DELAY_DEFAULT,
+			),
 			// CON-326 — the longest abandoned-cart cutoff the save route
 			// accepts (one sweep interval under the cart's lifetime).
 			'abandonedCartCutoffMaxMinutes' => CartAbandonmentSweeper::max_cutoff_minutes(),
@@ -558,6 +564,9 @@ class EnvDetector {
 			'followUpEnabled'               => (bool) get_option( TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_FOLLOW_UP ]['toggle_option'], false ),
 			'followUpOrderStatuses'         => TransactionalGate::follow_up_statuses(),
 			'followUpDelayDays'             => TransactionalGate::follow_up_delay_days(),
+			// The payment reminder (CON-328) — off, 20 minutes by default.
+			'paymentReminderEnabled'        => (bool) get_option( TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_PAYMENT_REMINDER ]['toggle_option'], false ),
+			'paymentReminderDelayMinutes'   => TransactionalGate::payment_reminder_delay_minutes(),
 			// PRO-3190: addresses, phone and order note in both confirmations — off by default.
 			'transactionalPersonalData'     => (bool) get_option( TransactionalPayloadBuilder::OPTION_PERSONAL_DATA, false ),
 			// PRO-4091: each confirmation card's status line.

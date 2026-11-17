@@ -55,7 +55,7 @@ final class TransactionalFlusherTest extends TestCase {
 		self::assertSame(
 			array(
 				TransactionalFlusher::DEFAULT_BATCH_SIZE,
-				array( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION, TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, TransactionalFlusher::EVENT_TYPE_FOLLOW_UP ),
+				array( TransactionalFlusher::EVENT_TYPE_ORDER_CONFIRMATION, TransactionalFlusher::EVENT_TYPE_SHIPPING_CONFIRMATION, TransactionalFlusher::EVENT_TYPE_FOLLOW_UP, TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ),
 				array(),
 			),
 			$queue->last_pending_args,
@@ -422,7 +422,7 @@ final class TransactionalFlusherTest extends TestCase {
 	// --- follow-up email (PRO-4095) --------------------------------------------
 
 	public function test_schedule_follow_up_queues_one_row_due_after_the_delay_and_sends_nothing_now(): void {
-		$this->stub_options( array( TransactionalGate::OPTION_FOLLOW_UP_DELAY_DAYS => 3 ) );
+		$this->stub_options( array() );
 		$order = $this->fake_order( 701, 'buyer@example.test' );
 
 		$queue   = $this->fake_queue( array() );
@@ -434,7 +434,7 @@ final class TransactionalFlusherTest extends TestCase {
 		);
 
 		$before = time();
-		$flusher->schedule_follow_up( $order, new WorkflowMatch( 8080, 'transactional' ), 'completed' );
+		$flusher->schedule( TransactionalGate::TRIGGER_FOLLOW_UP, $order, new WorkflowMatch( 8080, 'transactional' ), 'completed', 3 * DAY_IN_SECONDS );
 
 		self::assertCount( 1, $queue->scheduled );
 		self::assertSame( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP, $queue->scheduled[0]['event_type'] );
@@ -452,7 +452,7 @@ final class TransactionalFlusherTest extends TestCase {
 		$order = $this->fake_order( 702, '' );
 		$queue = $this->fake_queue( array() );
 
-		$this->flusher( $queue, static fn () => null )->schedule_follow_up( $order, new WorkflowMatch( 1, 'transactional' ), 'completed' );
+		$this->flusher( $queue, static fn () => null )->schedule( TransactionalGate::TRIGGER_FOLLOW_UP, $order, new WorkflowMatch( 1, 'transactional' ), 'completed', DAY_IN_SECONDS );
 
 		self::assertSame( array(), $queue->scheduled );
 		self::assertSame( array( array( TransactionalFlusher::EVENT_TYPE_FOLLOW_UP, '702', TransactionalFlusher::REASON_NO_BILLING_EMAIL ) ), $queue->skipped );
@@ -583,17 +583,139 @@ final class TransactionalFlusherTest extends TestCase {
 		self::assertSame( array(), $queue->marked_failed );
 	}
 
+	// --- payment reminder (CON-328) -------------------------------------------
+
+	public function test_schedule_queues_a_payment_reminder_due_at_once_when_its_wait_is_over(): void {
+		// CON-328: the wait was held in Action Scheduler (PaymentReminderCheck),
+		// so the row is due now and the next flusher pass sends it.
+		$this->stub_options( array() );
+		$order = $this->fake_order( 801, 'buyer@example.test', 'pending', true );
+
+		$queue   = $this->fake_queue( array() );
+		$flusher = $this->flusher(
+			$queue,
+			static function (): Client {
+				self::fail( 'Scheduling sends nothing — the flusher pass sends the row.' );
+			}
+		);
+
+		$before = time();
+		$flusher->schedule( TransactionalGate::TRIGGER_PAYMENT_REMINDER, $order, new WorkflowMatch( 7070, 'transactional' ), 'pending', 0 );
+
+		self::assertCount( 1, $queue->scheduled );
+		self::assertSame( TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER, $queue->scheduled[0]['event_type'] );
+		self::assertSame( 'buyer@example.test', $queue->scheduled[0]['payload']['to'] );
+		$due = strtotime( $queue->scheduled[0]['due_at'] . ' UTC' );
+		self::assertGreaterThanOrEqual( $before, $due );
+		self::assertLessThanOrEqual( time(), $due );
+		self::assertSame( TransactionalFlusher::META_STATUS_QUEUED, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) ), 'The order has had its one payment reminder.' );
+	}
+
 	/**
-	 * A follow-up row the way schedule_follow_up() leaves it, now due.
+	 * @dataProvider orders_still_waiting_for_payment
+	 */
+	public function test_a_due_payment_reminder_sends_while_the_order_still_waits_for_payment( string $status ): void {
+		$this->stub_options( array() );
+		$order             = $this->fake_order( 802, 'now@example.test', $status, true );
+		$this->orders[802] = $order;
+
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 41, 802, TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) ) );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::once() )
+			->method( 'send_message' )
+			->with( 7070, 'now@example.test', array( 'order_number' => '802' ) )
+			->willReturn( array( 'code' => 101 ) );
+		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
+
+		$this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 7070, 'transactional' ) ) )->flush();
+
+		self::assertSame( array( 41 ), $queue->marked_sent );
+		self::assertSame( array( 41 ), $queue->age_restarted, 'The row dates from its send (CON-169).' );
+		self::assertSame( TransactionalFlusher::META_STATUS_SENT, $order->get_meta( TransactionalFlusher::meta_key_for( TransactionalGate::TRIGGER_PAYMENT_REMINDER ) ) );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function orders_still_waiting_for_payment(): array {
+		return array(
+			'pending' => array( 'pending' ),
+			'failed'  => array( 'failed' ),
+		);
+	}
+
+	/**
+	 * @dataProvider orders_no_longer_waiting_for_payment
+	 */
+	public function test_a_due_payment_reminder_whose_order_no_longer_waits_is_skipped( string $status, bool $needs_payment ): void {
+		$this->stub_options( array() );
+		$this->orders[803] = $this->fake_order( 803, 'buyer@example.test', $status, $needs_payment );
+
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 42, 803, TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) ) );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::never() )->method( 'send_message' );
+
+		$stats = $this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 7070, 'transactional' ) ) )->flush();
+
+		self::assertSame( array( array( 'id' => 42, 'reason' => TransactionalFlusher::REASON_PAYMENT_NOT_AWAITED ) ), $queue->marked_skipped );
+		self::assertSame( array(), $queue->exchanges, 'The skipped row keeps its reason — nothing overwrites it.' );
+		self::assertSame( 1, $stats['skipped'] );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: bool}>
+	 */
+	public static function orders_no_longer_waiting_for_payment(): array {
+		return array(
+			'paid'                          => array( 'processing', false ),
+			'cash on delivery (processing)' => array( 'processing', false ),
+			'bank transfer (on-hold)'       => array( 'on-hold', false ),
+			'cancelled'                     => array( 'cancelled', false ),
+			'pending, nothing left to pay'  => array( 'pending', false ),
+		);
+	}
+
+	public function test_a_due_payment_reminder_with_the_email_switched_off_is_skipped_with_the_gate_reason(): void {
+		$this->stub_options( array() );
+		$this->orders[804] = $this->fake_order( 804, 'buyer@example.test', 'pending', true );
+
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 43, 804, TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) ) );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::never() )->method( 'send_message' );
+
+		$this->follow_up_flusher( $queue, $client, $this->gate_answering( TransactionalGate::REASON_TRIGGER_OFF, null ) )->flush();
+
+		self::assertSame( array( array( 'id' => 43, 'reason' => TransactionalGate::REASON_TRIGGER_OFF ) ), $queue->marked_skipped );
+	}
+
+	public function test_a_refused_payment_reminder_is_failed_without_any_woocommerce_email(): void {
+		$this->stub_options( array() );
+		$this->orders[805] = $this->fake_order( 805, 'buyer@example.test', 'pending', true );
+
+		$queue  = $this->fake_queue( array( $this->due_follow_up_row( 44, 805, TransactionalFlusher::EVENT_TYPE_PAYMENT_REMINDER ) ) );
+		$client = $this->createMock( Client::class );
+		$client->method( 'send_message' )->willReturn( array( 'code' => 203 ) );
+		$client->method( 'last_exchange' )->willReturn( array( 'request' => array(), 'response' => array( 'http' => 200 ) ) );
+
+		$processing = $this->stub_native_mailer( 'WC_Email_Customer_Processing_Order' );
+
+		$this->follow_up_flusher( $queue, $client, $this->gate_answering( '', new WorkflowMatch( 1, 'transactional' ) ) )->flush();
+
+		self::assertSame( 44, $queue->marked_failed[0]['id'] );
+		self::assertSame( array(), $processing->calls, 'The payment reminder has no WooCommerce email to fall back to.' );
+	}
+
+	/**
+	 * A follow-up row the way schedule() leaves it, now due.
 	 *
 	 * @return array<string, mixed>
 	 */
-	private function due_follow_up_row( int $id, int $order_id ): array {
+	private function due_follow_up_row( int $id, int $order_id, string $event_type = TransactionalFlusher::EVENT_TYPE_FOLLOW_UP ): array {
 		$due_at = gmdate( 'Y-m-d H:i:s', time() - 60 );
 
 		return array(
 			'id'         => $id,
-			'event_type' => TransactionalFlusher::EVENT_TYPE_FOLLOW_UP,
+			'event_type' => $event_type,
 			'entity_id'  => (string) $order_id,
 			'payload'    => json_encode(
 				array(
@@ -688,17 +810,23 @@ final class TransactionalFlusherTest extends TestCase {
 		return $email;
 	}
 
-	private function fake_order( int $id, string $email, string $status = '' ): \WC_Order {
-		return new class( $id, $email, $status ) extends \WC_Order {
+	private function fake_order( int $id, string $email, string $status = '', bool $needs_payment = false ): \WC_Order {
+		return new class( $id, $email, $status, $needs_payment ) extends \WC_Order {
 			private int $id;
 			private string $email;
 			private string $status;
+			private bool $needs_payment;
 			private array $meta = array();
 
-			public function __construct( int $id, string $email, string $status ) {
-				$this->id     = $id;
-				$this->email  = $email;
-				$this->status = $status;
+			public function __construct( int $id, string $email, string $status, bool $needs_payment ) {
+				$this->id            = $id;
+				$this->email         = $email;
+				$this->status        = $status;
+				$this->needs_payment = $needs_payment;
+			}
+
+			public function needs_payment() {
+				return $this->needs_payment;
 			}
 
 			public function get_id(): int {

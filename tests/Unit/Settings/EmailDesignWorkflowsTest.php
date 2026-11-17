@@ -168,6 +168,7 @@ final class EmailDesignWorkflowsTest extends TestCase {
 				'follow_up'             => 'plugin.follow_up',
 				'order_confirmation'    => 'transactional.order_confirmation',
 				'shipping_confirmation' => 'transactional.shipping_confirmation',
+				'payment_reminder'      => 'transactional.payment_reminder',
 			),
 			EmailDesignWorkflows::EMAIL_KEYS
 		);

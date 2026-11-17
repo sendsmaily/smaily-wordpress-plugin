@@ -86,6 +86,7 @@ class SettingsEndpoint {
 		'order_confirmation',
 		'shipping_confirmation',
 		'follow_up',
+		'payment_reminder',
 	);
 
 	/**
@@ -426,6 +427,28 @@ class SettingsEndpoint {
 			}
 		}
 
+		// The payment reminder's delay (CON-328), checked the same way.
+		$payment_reminder_delay = null;
+		if ( array_key_exists( 'paymentReminderDelayMinutes', $data ) ) {
+			$payment_reminder_delay = TransactionalGate::delay_minutes_or_null( $data['paymentReminderDelayMinutes'] );
+			if ( $payment_reminder_delay === null ) {
+				return $this->error_response(
+					array(
+						array(
+							'field'   => 'paymentReminderDelayMinutes',
+							'message' => sprintf(
+								/* translators: 1: the shortest delay in minutes, 2: the longest. */
+								__( 'The payment reminder delay must be a whole number of minutes from %1$d to %2$d.', 'smaily-connect' ),
+								TransactionalGate::PAYMENT_REMINDER_DELAY_MIN,
+								TransactionalGate::PAYMENT_REMINDER_DELAY_MAX
+							),
+						),
+					),
+					400
+				);
+			}
+		}
+
 		// The automations' discount codes (CON-199), checked the same way.
 		$discounts = null;
 		if ( array_key_exists( 'automationDiscounts', $data ) ) {
@@ -505,6 +528,7 @@ class SettingsEndpoint {
 
 		$this->save_transactional_triggers( $data );
 		$this->save_follow_up( $data, $follow_up_delay );
+		$this->save_payment_reminder( $data, $payment_reminder_delay );
 
 		// Replace the mapping table contents in one shot — Settings always
 		// sends the full list it wants persisted, no partial updates.
@@ -598,6 +622,21 @@ class SettingsEndpoint {
 
 		if ( $delay_days !== null ) {
 			update_option( TransactionalGate::OPTION_FOLLOW_UP_DELAY_DAYS, $delay_days );
+		}
+	}
+
+	/**
+	 * The payment reminder (CON-328): its switch and its delay — already
+	 * validated by save_woocommerce(), null when the payload carried none
+	 * (left as stored).
+	 *
+	 * @param array<string, mixed> $data
+	 */
+	private function save_payment_reminder( array $data, ?int $delay_minutes ): void {
+		update_option( TransactionalGate::TRIGGERS[ TransactionalGate::TRIGGER_PAYMENT_REMINDER ]['toggle_option'], ! empty( $data['paymentReminderEnabled'] ) );
+
+		if ( $delay_minutes !== null ) {
+			update_option( TransactionalGate::OPTION_PAYMENT_REMINDER_DELAY_MINUTES, $delay_minutes );
 		}
 	}
 

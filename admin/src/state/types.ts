@@ -145,10 +145,11 @@ export type AutomationTrigger =
   | 'abandoned_cart'
   | 'order_confirmation'
   | 'shipping_confirmation'
-  | 'follow_up';
+  | 'follow_up'
+  | 'payment_reminder';
 
-/** The transactional-email triggers (PRO-1504; the follow-up email, PRO-4095). */
-export type TransactionalTrigger = 'order_confirmation' | 'shipping_confirmation' | 'follow_up';
+/** The transactional-email triggers (PRO-1504; the follow-up email, PRO-4095; the payment reminder, CON-328). */
+export type TransactionalTrigger = 'order_confirmation' | 'shipping_confirmation' | 'follow_up' | 'payment_reminder';
 
 /** One confirmation's send status, as TransactionalStatus::snapshot() emits it (PRO-4091). */
 export interface TransactionalSendStatus {
@@ -186,9 +187,9 @@ export interface DiscountTemplate {
 }
 
 /**
- * A day-count setting's range and default, as the server validates it —
- * the follow-up delay (PRO-4095) and a discount code's "Valid for (days)"
- * (CON-199).
+ * A whole-number setting's range and default, as the server validates it —
+ * the follow-up delay in days (PRO-4095), a discount code's "Valid for
+ * (days)" (CON-199) and the payment reminder's delay in minutes (CON-328).
  */
 export interface DayRangeLimits {
   min: number;
@@ -370,6 +371,12 @@ export function normalizeContactSyncMode(value: string | undefined): ContactSync
 export const FALLBACK_FOLLOW_UP_DELAY_LIMITS: DayRangeLimits = { min: 1, max: 90, default: 7 };
 
 /**
+ * TransactionalGate::PAYMENT_REMINDER_DELAY_* (minutes) — read only when the
+ * boot payload carries no paymentReminderDelayLimits.
+ */
+export const FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS: DayRangeLimits = { min: 5, max: 1440, default: 20 };
+
+/**
  * CartAbandonmentSweeper::max_cutoff_minutes() at its default 24-hour cart
  * lifetime and 15-minute sweep — read only when the boot payload carries no
  * abandonedCartCutoffMaxMinutes (no payload at all, or a test fixture).
@@ -429,6 +436,13 @@ export interface WizardState {
      * FALLBACK_FOLLOW_UP_DELAY_LIMITS.
      */
     followUpDelayLimits?: DayRangeLimits;
+    /**
+     * The payment reminder delay's range and default in minutes
+     * (TransactionalGate::PAYMENT_REMINDER_DELAY_*, CON-328). Optional so
+     * pre-existing env fixtures stay valid; absent reads as
+     * FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS.
+     */
+    paymentReminderDelayLimits?: DayRangeLimits;
     /**
      * The longest abandoned-cart cutoff in minutes the save route accepts —
      * one sweep interval under the cart's lifetime (CartAbandonmentSweeper::
@@ -506,6 +520,10 @@ export interface WizardState {
   followUpOrderStatuses: string[];
   /** Days the follow-up email waits; the server accepts env.followUpDelayLimits' range. */
   followUpDelayDays: number;
+  /** The payment reminder (CON-328) — off by default. */
+  paymentReminderEnabled: boolean;
+  /** Minutes the payment reminder waits; the server accepts env.paymentReminderDelayLimits' range. */
+  paymentReminderDelayMinutes: number;
   /** Addresses, phone and order note in both confirmations (PRO-3190) — off by default. */
   transactionalPersonalData: boolean;
   /**
@@ -684,6 +702,8 @@ export type WizardAction =
   | { type: 'SET_FOLLOW_UP_ENABLED'; payload: boolean }
   | { type: 'TOGGLE_FOLLOW_UP_ORDER_STATUS'; payload: { status: string } }
   | { type: 'SET_FOLLOW_UP_DELAY_DAYS'; payload: number }
+  | { type: 'SET_PAYMENT_REMINDER_ENABLED'; payload: boolean }
+  | { type: 'SET_PAYMENT_REMINDER_DELAY_MINUTES'; payload: number }
   | { type: 'SET_TRANSACTIONAL_PERSONAL_DATA'; payload: boolean }
   | { type: 'SET_TRANSACTIONAL_STATUS'; payload: Partial<Record<TransactionalTrigger, TransactionalSendStatus>> }
 

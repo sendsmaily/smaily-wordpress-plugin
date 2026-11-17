@@ -4,7 +4,8 @@ import { __ } from '@admin/lib/i18n';
  * Why a transactional email does not go out, worded for the merchant
  * (PRO-4091). The codes come from the server — the send gate's
  * TransactionalGate::REASON_*, TransactionalFlusher::REASON_NO_BILLING_EMAIL
- * and the follow-up email's due-time reasons (PRO-4095) — plus `workflow_inactive`, which only this screen can tell (it holds the
+ * and the follow-up email's and payment reminder's due-time reasons
+ * (PRO-4095, CON-328) — plus `workflow_inactive`, which only this screen can tell (it holds the
  * Smaily workflow list). One wording for both places that show a reason:
  * the card's status line and the Event Log's skipped row. The Event Log
  * also shows a skipped abandoned-cart reminder's reason through it (CON-196).
@@ -44,6 +45,11 @@ export function transactionalReasonMessage(reason: string): string {
     case 'status_not_counting':
       return __(
         'When the wait ended, the order was no longer at a status ticked for the follow-up email.',
+        'smaily-connect',
+      );
+    case 'payment_not_awaited':
+      return __(
+        'When the wait ended, the order no longer waited for payment — it was paid, put on hold, cancelled or is being processed.',
         'smaily-connect',
       );
     // An abandoned-cart reminder the contact-sync mode does not allow

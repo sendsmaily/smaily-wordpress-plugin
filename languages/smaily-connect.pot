@@ -3330,3 +3330,35 @@ msgstr ""
 #: admin/src/components/steps/OpenConsoleButton.tsx:102
 msgid "Campaign Intelligence could not be opened. Try again in a minute."
 msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:167
+msgid "Payment reminder"
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:168
+msgid "Sent when an order placed at your checkout is still unpaid a set number of minutes later — the shopper left the payment page, or the payment failed. Never for bank transfer, cheque or cash on delivery orders."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:181
+msgid "Minutes to wait"
+msgstr ""
+
+#. translators: 1: the shortest wait in minutes, 2: the longest.
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:195
+#, js-format
+msgid "From %1$d to %2$d minutes. The payment link in the email works until WooCommerce cancels the unpaid order — its “Hold stock (minutes)” setting under WooCommerce → Settings → Products → Inventory — so keep the wait shorter than that."
+msgstr ""
+
+#: admin/src/components/steps/TransactionalStatusLine.tsx:92
+msgid "This email goes out through Smaily’s transactional sending: the plugin waits the number of minutes you set here and checks that the order is still unpaid, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. The Event Log lists each reminder that goes out and each one that could not be sent; an order paid in the meantime leaves no row."
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:52
+msgid "When the wait ended, the order no longer waited for payment — it was paid, put on hold, cancelled or is being processed."
+msgstr ""
+
+#. translators: 1: the shortest delay in minutes, 2: the longest.
+#: includes/REST/SettingsEndpoint.php:441
+#, php-format
+msgid "The payment reminder delay must be a whole number of minutes from %1$d to %2$d."
+msgstr ""
