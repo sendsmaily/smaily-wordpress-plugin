@@ -372,7 +372,7 @@ td code{white-space:nowrap}
       <p>You need:</p>
       <ul>
         <li>A <strong>WooCommerce store</strong> on WordPress, served over <strong>HTTPS</strong> (the Smaily and recommendation APIs are HTTPS‑only).</li>
-        <li>A <strong>Smaily account with API access</strong>. You create API users in Smaily under <span class="path">Settings → API</span> — you'll need the <strong>subdomain</strong>, <strong>API username</strong> and <strong>API password</strong>.</li>
+        <li>A <strong>Smaily account with API access</strong>. You create API users in Smaily under <span class="path">settings (gear icon) → Integrations</span> — you'll need the <strong>subdomain</strong>, <strong>API username</strong> and <strong>API password</strong>.</li>
         <li><em>(Optional)</em> A <strong>Campaign Intelligence setup link</strong> — a one‑time link of the form <code>https://intelligence.smaily.com/setup/…</code>, provided by Smaily if you use the recommendation add‑on.</li>
         <li><em>(With Campaign Intelligence)</em> <strong>Three store addresses your firewall lets through.</strong> The shopper's browser calls three public addresses on your store's own domain: <code>POST /wp-json/smaily-connect/v1/land</code> (an email‑link click, so that your store sets the click cookies), <code>POST /wp-json/smaily-connect/v1/relay</code> (browse tracking) and <code>GET /wp-json/smaily-connect/v1/recommendations</code> (the Recommendations block). A security plugin, a firewall or a CDN rule that blocks public requests to <code>/wp-json/</code> must let these three through. They need no login and carry no name or email address. When they are blocked, browse events are lost, the Recommendations block shows nothing, and the browser sets the click cookies instead (Safari keeps those for 7 days at most).</li>
       </ul>
@@ -393,7 +393,7 @@ td code{white-space:nowrap}
       <p>Sul on vaja:</p>
       <ul>
         <li><strong>WooCommerce'i poodi</strong> WordPressil, <strong>HTTPS</strong> kaudu (Smaily ja soovitus‑API‑d on ainult HTTPS).</li>
-        <li><strong>Smaily kontot API‑ligipääsuga</strong>. API‑kasutajad luuakse Smailys jaotises <span class="path">Settings → API</span> — vaja läheb <strong>alamdomeeni</strong>, <strong>API kasutajanime</strong> ja <strong>API parooli</strong>.</li>
+        <li><strong>Smaily kontot API‑ligipääsuga</strong>. API‑kasutajad luuakse Smailys jaotises <span class="path">Hammasratas → Liidestused</span> — vaja läheb <strong>alamdomeeni</strong>, <strong>API kasutajanime</strong> ja <strong>API parooli</strong>.</li>
         <li><em>(Valikuline)</em> <strong>Campaign Intelligence seadistuslinki</strong> — ühekordset linki kujul <code>https://intelligence.smaily.com/setup/…</code>, mille Smaily annab, kui kasutad soovitus‑lisa.</li>
         <li><em>(Campaign Intelligence'iga)</em> <strong>Kolme poe aadressi, mida sinu tulemüür läbi laseb.</strong> Ostja brauser pöördub sinu poe enda domeenil kolme avaliku aadressi poole: <code>POST /wp-json/smaily-connect/v1/land</code> (e‑kirja lingi klikk, et sinu pood seaks kliki küpsised), <code>POST /wp-json/smaily-connect/v1/relay</code> (sirvimise jälgimine) ja <code>GET /wp-json/smaily-connect/v1/recommendations</code> (soovituste plokk). Turvaplugin, tulemüür või CDN‑i reegel, mis blokeerib avalikud päringud aadressile <code>/wp-json/</code>, peab need kolm läbi laskma. Need ei vaja sisselogimist ega sisalda nime ega e‑posti aadressi. Kui need on blokeeritud, lähevad sirvimissündmused kaduma, soovituste plokk ei näita midagi ja kliki küpsised seab hoopis brauser (Safari hoiab neid kõige rohkem 7 päeva).</li>
       </ul>
@@ -466,13 +466,13 @@ td code{white-space:nowrap}
       <p>Until you finish the initial setup, clicking <strong>Smaily Connect</strong> in the admin sidebar opens the setup wizard, and clicking <strong>Settings</strong> sends you back to it — so just work through the steps in order. The wizard has <strong>6 steps</strong>; steps after Step 1 stay locked until your Smaily connection is verified.</p>
       <p>Once you finish the setup, <strong>Smaily Connect</strong> opens <strong>Settings</strong>, on the <strong>Connection</strong> tab. The <strong>Event Log</strong> tab shows what was sent and what failed. To go through the wizard again, use <span class="path">Smaily Connect → Run setup again</span>; it starts from your saved settings.</p>
       <p>The bottom of the <strong>Settings</strong> page names the installed version, "Smaily Connect" followed by the version number. Give it when you contact Smaily support.</p>
-      <p><strong>No Smaily account connected?</strong> Until one is, administrators see a notice on every WordPress admin screen except the setup wizard, where the connection form already is. Its <strong>Connect your Smaily account</strong> link opens the connection step. <strong>Dismiss</strong> hides the notice for 90 days for every administrator of the site; connecting an account removes it. A transactional emails account on its own does not count as a connected Smaily account.</p>
+      <p><strong>No Smaily account connected?</strong> Until one is, administrators see a notice on every WordPress admin screen, the setup wizard included. Its links open the connection step (<strong>Connect your Smaily account</strong>), Smaily's sign‑up page (<strong>Create a Smaily account</strong>) and <a href="#step1">Step 1</a> of this guide, which says where the API credentials are (<strong>User guide to create API credentials</strong>). <strong>Dismiss</strong> hides the notice for 90 days for every administrator of the site; connecting an account removes it. A transactional emails account on its own does not count as a connected Smaily account.</p>
     </div>
     <div data-lang="et">
       <p>Kuni algseadistus on lõpetamata, avab halduse külgribal <strong>Smaily Connect</strong>ile klõpsamine seadistusviisardi ja <strong>Seaded</strong> (Settings) klõpsamine saadab su sinna tagasi — nii et lihtsalt läbi sammud järjekorras. Viisardil on <strong>6 sammu</strong>; sammud pärast 1. sammu on lukus, kuni su Smaily ühendus on kinnitatud.</p>
       <p>Kui seadistus on lõpetatud, avab <strong>Smaily Connect</strong> <strong>Seadete</strong> (Settings) lehe <strong>Ühendus</strong>e vahekaardil. <strong>Sündmuste logi</strong> vahekaart näitab, mis saadeti ja mis ebaõnnestus. Viisardi uuesti läbimiseks vali <span class="path">Smaily Connect → Seadista uuesti</span>; see alustab su salvestatud seadetest.</p>
       <p><strong>Seadete</strong> lehe allservas on paigaldatud versioon: „Smaily Connect“ ja versiooninumber. Nimeta see, kui pöördud Smaily klienditoe poole.</p>
-      <p><strong>Smaily konto pole ühendatud?</strong> Kuni see pole ühendatud, näevad administraatorid teadet igal WordPressi halduse lehel peale seadistusviisardi, kus ühendamise vorm juba on. Teate link <strong>Loo ühendus oma Smaily kontoga</strong> (Connect your Smaily account) avab ühendamise sammu. <strong>Peida</strong> (Dismiss) peidab teate 90 päevaks kõigi saidi administraatorite eest; konto ühendamine eemaldab selle. Ainult tehingu‑e‑kirjade konto ei loe ühendatud Smaily kontoks.</p>
+      <p><strong>Smaily konto pole ühendatud?</strong> Kuni see pole ühendatud, näevad administraatorid teadet igal WordPressi halduse lehel, ka seadistusviisardis. Teate lingid avavad ühendamise sammu (<strong>Loo ühendus oma Smaily kontoga</strong>), Smaily konto loomise lehe (<strong>Loo Smaily konto</strong>) ja selle juhendi <a href="#step1">1. sammu</a>, kus on kirjas, kust API‑andmed leiad (<strong>Juhend API kasutaja loomiseks</strong>). <strong>Peida</strong> (Dismiss) peidab teate 90 päevaks kõigi saidi administraatorite eest; konto ühendamine eemaldab selle. Ainult tehingu‑e‑kirjade konto ei loe ühendatud Smaily kontoks.</p>
     </div>
   </div>
 
@@ -482,7 +482,7 @@ td code{white-space:nowrap}
       <p>Enter your Smaily API credentials — the plugin verifies them before saving.</p>
       <ul>
         <li><strong>Subdomain</strong> — the part before <code>.sendsmaily.net</code> (e.g. <code>yourcompany</code>).</li>
-        <li><strong>API username</strong> and <strong>API password</strong> — create these in Smaily under <span class="path">Settings → API</span>.</li>
+        <li><strong>API username</strong> and <strong>API password</strong> — log in to Smaily, open the settings (the gear icon) → <span class="path">Integrations</span> and create a new API user and password there.</li>
       </ul>
       <p>Press <strong>Test connection</strong>. On success you'll see <span class="pill ok">Verified</span> and <em>Connection verified</em>. You can change these credentials later under <span class="path">Settings → Connection</span>.</p>
       <p><strong>Upgrading from an older Smaily plugin?</strong> Your subdomain and API username are already filled in and the password field is empty — the plugin never sends a stored password back to the browser. Leave it empty and press <strong>Test connection</strong>: it uses the password already saved for that account. Type a password only if you are switching accounts or have rotated it.</p>
@@ -492,7 +492,7 @@ td code{white-space:nowrap}
       <p>Sisesta oma Smaily API‑andmed — plugin kontrollib need enne salvestamist üle.</p>
       <ul>
         <li><strong>Alamdomeen</strong> — osa enne <code>.sendsmaily.net</code> (nt <code>sinufirma</code>).</li>
-        <li><strong>API kasutajanimi</strong> ja <strong>API parool</strong> — need luuakse Smailys jaotises <span class="path">Settings → API</span>.</li>
+        <li><strong>API kasutajanimi</strong> ja <strong>API parool</strong> — logi Smailysse sisse, ava seaded (hammasratta ikoon) → <span class="path">Liidestused</span> ja loo seal uus API kasutaja ja parool.</li>
       </ul>
       <p>Vajuta <strong>Test connection</strong>. Õnnestumisel näed <span class="pill ok">Verified</span> ja <em>Connection verified</em>. Neid andmeid saad hiljem muuta jaotises <span class="path">Settings → Connection</span>.</p>
       <p><strong>Uuendad vanemalt Smaily pluginalt?</strong> Alamdomeen ja API kasutajanimi on juba täidetud ning parooli väli on tühi — plugin ei saada salvestatud parooli kunagi brauserisse tagasi. Jäta see tühjaks ja vajuta <strong>Test connection</strong>: kasutatakse juba salvestatud parooli. Sisesta parool ainult siis, kui vahetad kontot või oled parooli muutnud.</p>
@@ -1578,7 +1578,7 @@ td code{white-space:nowrap}
     <h2><span data-lang="en">Smaily connection errors</span><span data-lang="et">Smaily ühenduse vead</span></h2>
     <div data-lang="en">
       <ul>
-        <li><strong>Smaily rejected these credentials (401)</strong> — the subdomain, username or password is wrong. Double‑check them in Smaily under <span class="path">Settings → API</span>.</li>
+        <li><strong>Smaily rejected these credentials (401)</strong> — the subdomain, username or password is wrong. Double‑check them in Smaily under <span class="path">settings (gear icon) → Integrations</span>.</li>
         <li><strong>This account's package does not include API access (403)</strong> — the Smaily account is on a package without the API, so every request is refused whatever the credentials are. Upgrade the package in Smaily; the plugin picks the connection back up on its own, with nothing to re‑enter. Waiting does not help — this is not an outage.</li>
         <li><strong>Could not reach Smaily</strong> — a temporary network issue, or your server can't reach Smaily over HTTPS. Try again.</li>
         <li><strong>All three fields are required</strong> / <strong>Subdomain may contain only letters, numbers and dashes</strong> — fix the input and retry.</li>
@@ -1586,7 +1586,7 @@ td code{white-space:nowrap}
     </div>
     <div data-lang="et">
       <ul>
-        <li><strong>Smaily rejected these credentials (401)</strong> — alamdomeen, kasutajanimi või parool on vale. Kontrolli üle Smailys jaotises <span class="path">Settings → API</span>.</li>
+        <li><strong>Smaily rejected these credentials (401)</strong> — alamdomeen, kasutajanimi või parool on vale. Kontrolli üle Smailys jaotises <span class="path">Hammasratas → Liidestused</span>.</li>
         <li><strong>This account's package does not include API access (403)</strong> — Smaily konto pakett ei sisalda API‑t, seega keeldutakse igast päringust olenemata sellest, kas kontoandmed on õiged. Uuenda Smailys paketti; plugin taastab ühenduse ise ja midagi pole vaja uuesti sisestada. Ootamine ei aita — tegemist pole katkestusega.</li>
         <li><strong>Could not reach Smaily</strong> — ajutine võrgutõrge või su server ei jõua Smailyni HTTPS kaudu. Proovi uuesti.</li>
         <li><strong>All three fields are required</strong> / <strong>Subdomain may contain only letters, numbers and dashes</strong> — paranda sisend ja proovi uuesti.</li>
