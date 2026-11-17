@@ -11183,7 +11183,11 @@ and scopes §3b/§3c to the calling connection; a key outside it is refused as
 - §15: a slot is rendered by its `external_id` only; the sku is opaque and is
   never taken apart (`SkuResolver::product_id_from_key()` is gone). On a
   prefixed connection a slot whose sku is not under the prefix names another
-  shop's product — its `external_id` is THAT shop's id — and is dropped.
+  shop's product — its `external_id` is THAT shop's id — and is dropped. On a
+  connection without a prefix only a sku in the plugin's own `woo-` namespace
+  is the store's own (`SkuResolver::is_own_key()`, pre-3.24.0 audit L4): a
+  prefixed shop of the same engine store sends `c<n>-…` skus, which start with
+  `CONNECTION_PREFIX_SHAPE`, never `woo-`.
 - Customers carry no prefix (they merge by email); no website code is added.
 **Rationale:** the prefix goes on in the existing single builders, so there is
 no second copy of the key rule. With `""` (every connection made before 1.33.0,
@@ -11306,7 +11310,13 @@ no marketing-consent check, no discount code and no recommendations.
   reminder really goes out (or cannot, see below). On
   `woocommerce_checkout_order_processed`,
   `woocommerce_store_api_checkout_order_processed` and a status change into
-  `failed`, `TransactionalEmailHookHandler` schedules ONE single action
+  `failed` (that one only for an order created in the last 24 hours —
+  `TransactionalEmailHookHandler::PAYMENT_REMINDER_FAILED_MAX_ORDER_AGE_SECONDS`
+  — and never for a change WooCommerce marks manual, i.e. one a person made in
+  wp-admin, which it announces on `woocommerce_order_edit_status` before the
+  status-changed hook; pre-3.24.0 audit L3, Erkki 2026-11-17: bulk-marking old
+  unpaid orders `failed` reminded every shopper),
+  `TransactionalEmailHookHandler` schedules ONE single action
   (`Smaily\PaymentReminderCheck`, hook `smly_plus_payment_reminder_check`,
   group `smaily-connect-payment-reminder`, in `Deactivation::AS_GROUPS`) at
   now + the delay, carrying the order id only — whatever the order's status
@@ -11341,10 +11351,14 @@ no marketing-consent check, no discount code and no recommendations.
   waited for payment…"); a gone order `order_missing`. The PRO-4098 rules
   read it as skipped.
 - **Personal-data eraser (the CON-275 rule):** the waiting action carries no
-  user and no address, only the order id, so the eraser has nothing to cancel
-  by user. An order WooCommerce's eraser anonymized meanwhile is never
-  reminded (see above); a reminder row already queued for the address is
-  deleted by the existing queue erasure (PRO-2383).
+  user and no address, only the order id. The eraser cancels the waiting
+  action of each of the customer's orders (`PaymentReminderCheck::
+  forget_orders()`, `as_unschedule_action()` with the hook, the order id and
+  the group, from `GdprHandler::drop_waiting_updates()`; pre-3.24.0 audit L2,
+  Erkki 2026-11-17): WooCommerce keeps the order's address on erasure by
+  default, and the action would remind it. An order WooCommerce's eraser
+  anonymized is never reminded either (see above); a reminder row already
+  queued for the address is deleted by the existing queue erasure (PRO-2383).
 - **Merge fields:** the existing transactional order fields plus `payment_url`
   = `$order->get_checkout_payment_url()` — on the payment reminder only, as a
   plain URL like `product_url`.
@@ -11377,6 +11391,38 @@ CON-329 (rec-engine, separate). Pinned by the payment-reminder sections of
 `tests/Unit/Smaily/PaymentReminderCheckTest.php` and
 `tests/Integration/TransactionalEmailsPipelineTest.php` (the action runs
 through Action Scheduler's own runner, `Support\PaymentReminderQueue`).
+
+### CON-326 — The abandoned-cart cutoff is capped at the cart's lifetime minus one sweep (2026-11-17)
+
+**Context:** the "Cutoff time" had a 10-minute minimum and no maximum, while
+the sweep deletes a cart with no reminder after its lifetime (24 h, filter
+`smaily_connect_abandoned_cart_max_age_seconds`). A cutoff of 1440 minutes or
+more never sent a reminder, and one within 15 minutes of the lifetime could
+miss its only sweep.
+**Decision (orchestrator, 2026-11-17; merged in #347):** the longest cutoff is
+`CartAbandonmentSweeper::max_cutoff_minutes()` = the lifetime minus one sweep
+interval (`SWEEP_INTERVAL_SECONDS`, 15 min), 1425 minutes by default; it
+follows the filter. The WooCommerce-tab save refuses a longer one with 400
+`abandonedCartCutoffMinutes` and writes nothing on the tab; the admin field
+takes it as its `max` and its hint. **Amended by the pre-3.24.0 audit (L1,
+Erkki 2026-11-17):** the save refuses it only while the cart reminder is
+switched on (or switched on by that save). With the reminder off the field is
+hidden, so a cutoff over the limit — one stored before 3.24.0, posted back as
+hydrated — no longer blocks the rest of the tab; the stored cutoff is then
+left as it is (not clamped), and the refusal comes when the reminder is
+switched on with it, with the field on screen. The limit never falls under
+the 10-minute minimum, whatever the filter returns.
+**Rationale:** a cutoff that can never send is a silent failure, so it is
+refused where the merchant sets it; a hidden field must not block unrelated
+settings. Leaving the stored value untouched changes no setting the merchant
+did not see.
+**Alternatives:** clamp the stored cutoff on load or on a save with the
+reminder off — not taken: it silently rewrites a value the merchant set.
+**Relationships:** CON-327 (same PR), CON-255 (a switched-off card hides its
+extras). Pinned by `tests/Unit/REST/SettingsEndpointTest.php` (1425 saved,
+1426 refused with the reminder on, an over-limit cutoff with the reminder off
+saves the rest and is not written, a filtered lifetime's limit, the 10-minute
+floor of the limit) and the vitest reducer/field tests.
 
 ### CON-330 — An order with no billing email is skipped, not sent to Campaign Intelligence (2026-11-17)
 
