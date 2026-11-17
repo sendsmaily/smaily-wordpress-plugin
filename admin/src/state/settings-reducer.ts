@@ -3,6 +3,7 @@ import {
   defaultAutomationDiscounts,
   emptyCredentials,
   FALLBACK_FOLLOW_UP_DELAY_LIMITS,
+  FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS,
   idleAsync,
   idleBackfill,
   idleEngineAutomations,
@@ -134,6 +135,8 @@ export function buildSettingsInitialState(env: ServerEnv = {}): WizardState {
     followUpEnabled: false,
     followUpOrderStatuses: [],
     followUpDelayDays: FALLBACK_FOLLOW_UP_DELAY_LIMITS.default,
+    paymentReminderEnabled: false,
+    paymentReminderDelayMinutes: FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS.default,
     transactionalPersonalData: false,
     transactionalStatus: {},
 

@@ -3336,3 +3336,35 @@ msgstr "Campaign Intelligence'i ei õnnestunud avada. Proovi minuti pärast uues
 #, php-format
 msgid "The connection check failed (error code: %s)."
 msgstr "Ühenduse kontroll ebaõnnestus (veakood: %s)."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:167
+msgid "Payment reminder"
+msgstr "Maksemeeldetuletus"
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:168
+msgid "Sent when an order placed at your checkout is still unpaid a set number of minutes later — the shopper left the payment page, or the payment failed. Never for bank transfer, cheque or cash on delivery orders."
+msgstr "Saadetakse, kui sinu kassas esitatud tellimus on määratud arvu minutite järel endiselt maksmata — ostja lahkus makselehelt või makse ebaõnnestus. Mitte kunagi pangaülekande, tšeki ega lunamaksuga tellimuste puhul."
+
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:181
+msgid "Minutes to wait"
+msgstr "Ooteaeg minutites"
+
+#. translators: 1: the shortest wait in minutes, 2: the longest.
+#: admin/src/components/steps/TransactionalTriggersSection.tsx:195
+#, js-format
+msgid "From %1$d to %2$d minutes. The payment link in the email works until WooCommerce cancels the unpaid order — its “Hold stock (minutes)” setting under WooCommerce → Settings → Products → Inventory — so keep the wait shorter than that."
+msgstr "%1$d kuni %2$d minutit. Kirjas olev makselink töötab, kuni WooCommerce maksmata tellimuse tühistab — selle määrab seade „Hold stock (minutes)“ jaotises WooCommerce → Settings → Products → Inventory —, seega hoia ooteaeg sellest lühem."
+
+#: admin/src/components/steps/TransactionalStatusLine.tsx:92
+msgid "This email goes out through Smaily’s transactional sending: the plugin waits the number of minutes you set here and checks that the order is still unpaid, then Smaily sends the chosen workflow’s email straight away, so delays set in the workflow do not apply and the workflow shows no runs. Each send, each reminder still waiting, and each one that was not sent, is listed in the Event Log."
+msgstr "See kiri saadetakse Smaily tehingulise saatmise kaudu: plugin ootab siin määratud arvu minuteid ja kontrollib, et tellimus on endiselt maksmata, seejärel saadab Smaily valitud töövoo kirja kohe, seega töövoos seatud viivitused ei kehti ja töövoog ei näita käivitusi. Iga saatmine, iga veel ootel meeldetuletus ja iga meeldetuletus, mida ei saadetud, on kirjas Sündmuste logis."
+
+#: admin/src/lib/transactional-reasons.ts:52
+msgid "When the wait ended, the order no longer waited for payment — it was paid, put on hold, cancelled or is being processed."
+msgstr "Ooteaja lõppedes ei oodanud tellimus enam makset — see oli makstud, ootele pandud, tühistatud või töötlemisel."
+
+#. translators: 1: the shortest delay in minutes, 2: the longest.
+#: includes/REST/SettingsEndpoint.php:441
+#, php-format
+msgid "The payment reminder delay must be a whole number of minutes from %1$d to %2$d."
+msgstr "Maksemeeldetuletuse ooteaeg peab olema täisarv minuteid vahemikus %1$d kuni %2$d."

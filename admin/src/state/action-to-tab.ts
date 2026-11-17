@@ -53,6 +53,8 @@ export function actionToTab(action: WizardAction): SettingsTabKey | null {
     case 'SET_FOLLOW_UP_ENABLED':
     case 'TOGGLE_FOLLOW_UP_ORDER_STATUS':
     case 'SET_FOLLOW_UP_DELAY_DAYS':
+    case 'SET_PAYMENT_REMINDER_ENABLED':
+    case 'SET_PAYMENT_REMINDER_DELAY_MINUTES':
     case 'SET_TRANSACTIONAL_PERSONAL_DATA':
       return 'woocommerce';
 

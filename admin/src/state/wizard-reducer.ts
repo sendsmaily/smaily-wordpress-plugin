@@ -5,6 +5,7 @@ import {
   emptyCredentials,
   FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES,
   FALLBACK_FOLLOW_UP_DELAY_LIMITS,
+  FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS,
   idleAsync,
   idleBackfill,
   idleEngineAutomations,
@@ -81,6 +82,8 @@ export const wizardInitialState: WizardState = {
   followUpEnabled: false,
   followUpOrderStatuses: [],
   followUpDelayDays: FALLBACK_FOLLOW_UP_DELAY_LIMITS.default,
+  paymentReminderEnabled: false,
+  paymentReminderDelayMinutes: FALLBACK_PAYMENT_REMINDER_DELAY_LIMITS.default,
   transactionalPersonalData: false,
   transactionalStatus: {},
 
@@ -416,6 +419,12 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
 
     case 'SET_FOLLOW_UP_DELAY_DAYS':
       return { ...state, followUpDelayDays: action.payload };
+
+    case 'SET_PAYMENT_REMINDER_ENABLED':
+      return { ...state, paymentReminderEnabled: action.payload };
+
+    case 'SET_PAYMENT_REMINDER_DELAY_MINUTES':
+      return { ...state, paymentReminderDelayMinutes: action.payload };
 
     case 'TOGGLE_FOLLOW_UP_ORDER_STATUS':
       return {

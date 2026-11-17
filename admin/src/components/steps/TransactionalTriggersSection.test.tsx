@@ -394,6 +394,59 @@ describe('TransactionalTriggersSection', () => {
     });
   });
 
+  describe('the payment reminder (CON-328)', () => {
+    it('is off by default, and switched on waits 20 minutes and says how long the payment link works', async () => {
+      render(<Harness initial={connectedOffState()} />);
+
+      const reminder = sectionOf('Payment reminder');
+      const toggle = within(reminder).getByRole('switch', { name: 'Enable payment reminder' });
+      expect(toggle).not.toBeChecked();
+      expect(within(reminder).queryByRole('spinbutton', { name: 'Minutes to wait' })).not.toBeInTheDocument();
+
+      fireEvent.click(toggle);
+      await within(reminder).findByRole('option', { name: 'Order confirmed' });
+      const minutes = within(reminder).getByRole('spinbutton', { name: 'Minutes to wait' });
+      expect(minutes).toHaveValue(20);
+      expect(minutes).toHaveAttribute('min', '5');
+      expect(minutes).toHaveAttribute('max', '1440');
+      expect(within(reminder).getByText(/From 5 to 1440 minutes\. The payment link in the email works until WooCommerce cancels the unpaid order/)).toBeInTheDocument();
+    });
+
+    it('saves its switch and delay with the WooCommerce tab', async () => {
+      let latest = connectedOffState();
+      render(<Harness initial={latest} onState={(s) => { latest = s; }} />);
+
+      const reminder = sectionOf('Payment reminder');
+      fireEvent.click(within(reminder).getByRole('switch', { name: 'Enable payment reminder' }));
+      await within(reminder).findByRole('option', { name: 'Order confirmed' });
+      fireEvent.change(within(reminder).getByRole('spinbutton', { name: 'Minutes to wait' }), { target: { value: '45' } });
+
+      expect(buildTabPayload(latest, 'woocommerce')).toMatchObject({
+        paymentReminderEnabled: true,
+        paymentReminderDelayMinutes: 45,
+      });
+    });
+
+    it('says the plugin waits the minutes set here and checks the order is still unpaid', async () => {
+      render(
+        <Harness
+          initial={{
+            ...connectedState(),
+            transactionalEmailsEnabled: true,
+            paymentReminderEnabled: true,
+            transactionalStatus: {
+              payment_reminder: { reason: '', workflowResolved: true, lastSentAt: '', untickedRecentStatuses: [] },
+            },
+          }}
+        />,
+      );
+      await screen.findAllByRole('option', { name: 'Order confirmed' });
+
+      const reminder = sectionOf('Payment reminder');
+      expect(within(reminder).getByText(/the plugin waits the number of minutes you set here and checks that the order is still unpaid/)).toBeInTheDocument();
+    });
+  });
+
   it('keeps a single row on a one-language store', async () => {
     const initial: WizardState = {
       ...connectedState(),
