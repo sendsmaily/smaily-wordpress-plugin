@@ -802,7 +802,11 @@ slow"):
   (`action_pending()` with those args — the daily action, args `[]`, is always
   pending, so never check the hook without them). `MAX_BATCHES_PER_RUN` (500
   per status) is only a safety cap. A failed DELETE stops that status for the
-  run with a `delete_failed` debug line, no follow-up. The `now()`/`pause()`
+  run with a `delete_failed` debug line, no follow-up. A `sent` row of the
+  Campaign Intelligence queue that an import queued goes after 7 days, a live
+  one after 30: found by two `LIKE` patterns on the ImportRows mark
+  (`QueueJanitor::import_payload_patterns()`) — a new import payload shape
+  must keep matching one of them. The `now()`/`pause()`
   seams are the fake clock for tests. **Integration-test trap:** a test that
   runs `on_tick()` with rows left schedules a follow-up — unschedule it in
   tearDown (`as_unschedule_all_actions( HOOK, FOLLOW_UP_ARGS, AS_GROUP )`).

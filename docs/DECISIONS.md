@@ -11465,8 +11465,26 @@ batches in the budget, so it binds only if the clock misbehaves, and it then
 also schedules a follow-up. A DELETE that fails stops that status (or the
 history pass) for this run without a follow-up — the next daily run tries
 again — and writes a debug line with the code `delete_failed`, the table and
-the status, never `$wpdb->last_error` (CON-277). Ages and statuses are
-unchanged; `pending` (and `in-progress` in the scheduler) is never deleted.
+the status, never `$wpdb->last_error` (CON-277). The ages and statuses are
+unchanged but one; `pending` (and `in-progress` in the scheduler) is never
+deleted.
+**Import rows keep 7 days (Erkki, 2026-11-17, same release):** a `sent` row
+of the Campaign Intelligence queue that an import queued goes after
+`DEFAULT_IMPORT_SENT_RETENTION_DAYS` = 7 days (filter
+`smaily_connect_janitor_import_sent_retention_days`), through the same
+batches and budget; live `sent` rows keep 30 days, `failed` rows 90, and the
+Smaily queue has no import rows. The 3.21.0 loop's 3.3 million rows on the
+pilot were all import rows: with 7 days they clear right after the update,
+not in December. An import row is found in SQL, never by reading payloads
+into PHP. The ImportRows mark is appended to what the import queues
+(`array_merge( $payload, $mark )`), so it has two shapes, two `LIKE`
+patterns: `{"import":"…","run":"…"}` alone (customer, order and catalog
+upsert rows, which queue an empty payload) and `{"object":{…},"import":"…",
+"run":"…"}` (a catalog removal of a trashed product). No live row matches
+either: the live sync queues `[]`, `{"object":{…}}` (ending `}}`) or
+`{"product_id":"…"}`, and nothing rewrites a payload after the enqueue. A
+new import payload shape, or a live payload with an `import` key, must update
+`QueueJanitor::import_payload_patterns()`.
 **Rationale:** a time budget bounds the run the way the batch ceiling meant
 to (Action Scheduler gives a queue run 30 s), while a fast database clears a
 backlog many times faster; small batches keep each statement's lock short.

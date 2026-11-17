@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Activation;
 use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportRows;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\QueueRowFixture;
@@ -89,11 +90,11 @@ final class QueueJanitorTest extends TestCase {
 	/**
 	 * Insert a row with a controlled age into one of the two queue tables.
 	 */
-	private function seed_row( string $table_suffix, string $status, int $age_days ): int {
+	private function seed_row( string $table_suffix, string $status, int $age_days, string $payload = '{}' ): int {
 		$row = array(
 			'event_type' => 'janitor.test',
 			'entity_id'  => 'e-' . $status . '-' . $age_days,
-			'payload'    => '{}',
+			'payload'    => $payload,
 			'created_at' => gmdate( 'Y-m-d H:i:s', time() - ( $age_days * DAY_IN_SECONDS ) ),
 			'status'     => $status,
 		);
@@ -190,5 +191,41 @@ final class QueueJanitorTest extends TestCase {
 		$janitor->on_tick();
 		self::assertSame( 500, $this->count_rows( EventQueue::TABLE_SUFFIX, 'sent' ) );
 		self::assertCount( 1, $this->pending_follow_ups(), 'never a second while one is pending' );
+	}
+
+	/**
+	 * CON-335: a `sent` row an import queued goes after 7 days; a live row
+	 * keeps 30. The payloads are what the plugin writes: the mark alone
+	 * (customer, order and catalog upsert import rows), the mark after a
+	 * catalog removal's object, and the live shapes.
+	 */
+	public function test_sent_import_rows_go_after_seven_days_and_live_rows_keep_thirty(): void {
+		$mark    = (string) wp_json_encode( ImportRows::mark( 'orders', '2026-11-04 10:00:00' ) );
+		$removal = (string) wp_json_encode(
+			array_merge(
+				array( 'object' => array( 'sku' => 'woo-7', 'in_stock' => false ) ),
+				ImportRows::mark( 'products', '2026-11-04 10:00:00' )
+			)
+		);
+		$q       = IngestQueue::TABLE_SUFFIX;
+
+		$cases = array(
+			array( $this->seed_row( $q, 'sent', 8, $mark ), false, '8-day-old sent import row deleted' ),
+			array( $this->seed_row( $q, 'sent', 8, $removal ), false, '8-day-old sent import catalog removal deleted' ),
+			array( $this->seed_row( $q, 'sent', 6, $mark ), true, '6-day-old sent import row kept' ),
+			array( $this->seed_row( $q, 'sent', 8, '[]' ), true, '8-day-old sent live row kept' ),
+			array( $this->seed_row( $q, 'sent', 8, '{"object":{"sku":"woo-7","in_stock":false}}' ), true, '8-day-old sent live catalog removal kept' ),
+			array( $this->seed_row( $q, 'sent', 8, '{"product_id":"7"}' ), true, '8-day-old sent live product removal kept' ),
+			array( $this->seed_row( $q, 'sent', 31, '[]' ), false, '31-day-old sent live row deleted' ),
+			array( $this->seed_row( $q, 'failed', 40, $mark ), true, 'failed import row keeps 90 days' ),
+			array( $this->seed_row( $q, 'pending', 400, $mark ), true, 'pending import row NEVER pruned, any age' ),
+		);
+
+		$deleted = ( new QueueJanitor() )->run();
+
+		self::assertSame( 3, $deleted );
+		foreach ( $cases as [ $id, $should_survive, $why ] ) {
+			self::assertSame( $should_survive, $this->row_exists( $q, $id ), $why );
+		}
 	}
 }

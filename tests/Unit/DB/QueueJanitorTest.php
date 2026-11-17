@@ -44,10 +44,12 @@ final class QueueJanitorTest extends TestCase {
 		$this->wpdb = new class( $time ) {
 			public string $prefix     = 'wp_';
 			public string $last_error = '';
-			/** @var array<string, array<string, int>> Rows past retention: table => status => count. */
+			/** @var array<string, array<string, int>> Rows past retention: table => status (`sent_import` for the import rule) => count. */
 			public array $rows = array();
 			/** @var array<int, string> Every DELETE statement. */
 			public array $deletes = array();
+			/** @var array<int, string> "table|status" of every DELETE, in order. */
+			public array $keys = array();
 			/** @var array<string, bool> "table|status" => whether its DELETE fails. */
 			public array $fail = array();
 			/** Seconds one DELETE moves the clock on. */
@@ -63,12 +65,16 @@ final class QueueJanitorTest extends TestCase {
 			 * @return int|false
 			 */
 			public function query( string $sql ) {
-				if ( ! preg_match( "/^DELETE FROM (\\w+) WHERE status = '(\\w+)' AND created_at < '[^']+' LIMIT (\\d+)$/", $sql, $m ) ) {
+				if ( ! preg_match( "/^DELETE FROM (\\w+) WHERE status = '(\\w+)' AND created_at < '[^']+'( AND \\( payload LIKE .+\\))? LIMIT (\\d+)$/", $sql, $m ) ) {
 					return 0;
 				}
 				$this->deletes[]     = $sql;
 				$this->time->clock  += $this->delete_seconds;
-				[ , $table, $status, $limit ] = $m;
+				[ , $table, $status, $import, $limit ] = $m;
+				if ( $import !== '' ) {
+					$status .= '_import';
+				}
+				$this->keys[] = $table . '|' . $status;
 				if ( isset( $this->fail[ $table . '|' . $status ] ) ) {
 					$this->last_error = 'Lock wait timeout for customer@example.com';
 					return false;
@@ -95,16 +101,19 @@ final class QueueJanitorTest extends TestCase {
 				return vsprintf( str_replace( '%s', "'%s'", $query ), $args );
 			}
 
-			/** @return array<int, string> The DELETE statements for one table and status. */
+			public function esc_like( string $text ): string {
+				return addcslashes( $text, '_%\\' );
+			}
+
+			/** @return array<int, string> The DELETE statements for one table and status (`sent_import`: the import rule). */
 			public function deletes_of( string $table, string $status ): array {
-				return array_values(
-					array_filter(
-						$this->deletes,
-						static function ( string $sql ) use ( $table, $status ): bool {
-							return strpos( $sql, "DELETE FROM {$table} WHERE status = '{$status}'" ) === 0;
-						}
-					)
-				);
+				$of = array();
+				foreach ( $this->keys as $i => $key ) {
+					if ( $key === $table . '|' . $status ) {
+						$of[] = $this->deletes[ $i ];
+					}
+				}
+				return $of;
 			}
 		};
 		$GLOBALS['wpdb'] = $this->wpdb;
@@ -182,6 +191,28 @@ final class QueueJanitorTest extends TestCase {
 		foreach ( $this->wpdb->deletes as $sql ) {
 			self::assertStringEndsWith( 'LIMIT 1000', $sql, 'small batches only' );
 		}
+	}
+
+	public function test_sent_import_rows_drain_through_their_own_rule_on_the_engine_queue_only(): void {
+		$this->wpdb->rows = array(
+			self::INGEST_QUEUE => array(
+				'sent_import' => 2500,
+				'sent'        => 10,
+			),
+		);
+
+		$deleted = $this->janitor()->run();
+
+		self::assertSame( 2510, $deleted );
+		self::assertSame( 0, $this->wpdb->rows[ self::INGEST_QUEUE ]['sent_import'] );
+		self::assertCount( 3, $this->wpdb->deletes_of( self::INGEST_QUEUE, 'sent_import' ), 'the same 1000-row batches' );
+		self::assertSame( array(), $this->wpdb->deletes_of( self::EVENT_QUEUE, 'sent_import' ), 'the Smaily queue has no import rows' );
+
+		$import = $this->wpdb->deletes_of( self::INGEST_QUEUE, 'sent_import' )[0];
+		$cutoff = gmdate( 'Y-m-d', time() - 7 * DAY_IN_SECONDS );
+		self::assertStringContainsString( "created_at < '{$cutoff}", $import, '7 days, not 30' );
+		self::assertStringContainsString( "payload LIKE '{\"import\":\"%\",\"run\":\"%\"}'", $import );
+		self::assertStringContainsString( "payload LIKE '{\"object\":%,\"import\":\"%\",\"run\":\"%\"}'", $import );
 	}
 
 	public function test_a_run_that_finishes_schedules_no_follow_up(): void {

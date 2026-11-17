@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportRows;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Support\DebugLog;
 
@@ -26,7 +27,9 @@ use Smaily\Connect\Support\DebugLog;
  * Retention defaults: `sent` rows after 30 days (only useful as a short audit
  * trail — the engine has confirmed them), `failed` rows after 90 days (kept
  * much longer: they are the Event Log's diagnostic evidence and stay
- * retryable until pruned). Both are filterable.
+ * retryable until pruned). A `sent` row a Campaign Intelligence import queued
+ * (its payload carries the ImportRows mark) goes after 7 days (CON-335): an
+ * import queues a store's whole history at once. All are filterable.
  *
  * `pending` rows are NEVER touched, whatever their age — they are work, not
  * history; an old parked retry must survive until it terminally resolves.
@@ -53,8 +56,9 @@ class QueueJanitor {
 	public const HOOK     = 'smly_plus_queue_janitor';
 	public const AS_GROUP = 'smaily-connect';
 
-	public const DEFAULT_SENT_RETENTION_DAYS   = 30;
-	public const DEFAULT_FAILED_RETENTION_DAYS = 90;
+	public const DEFAULT_SENT_RETENTION_DAYS        = 30;
+	public const DEFAULT_FAILED_RETENTION_DAYS      = 90;
+	public const DEFAULT_IMPORT_SENT_RETENTION_DAYS = 7;
 
 	/**
 	 * Days a finished Action Scheduler row of ours is kept (PRO-2438).
@@ -156,6 +160,14 @@ class QueueJanitor {
 	 */
 	public function failed_retention_days(): int {
 		return max( 1, (int) apply_filters( 'smaily_connect_janitor_failed_retention_days', self::DEFAULT_FAILED_RETENTION_DAYS ) );
+	}
+
+	/**
+	 * Days a `sent` import row of the Campaign Intelligence queue is kept
+	 * before pruning (CON-335).
+	 */
+	public function import_sent_retention_days(): int {
+		return max( 1, (int) apply_filters( 'smaily_connect_janitor_import_sent_retention_days', self::DEFAULT_IMPORT_SENT_RETENTION_DAYS ) );
 	}
 
 	/**
@@ -358,6 +370,30 @@ class QueueJanitor {
 		return $deleted;
 	}
 
+	/**
+	 * The two payload shapes of an import row, as LIKE patterns, so SQL
+	 * finds them without reading payloads into PHP. The mark is appended to
+	 * what the import queues (AbstractBackfillJob::import_payload()), so it
+	 * is the whole payload of a customer, order or catalog upsert row —
+	 * `{"import":"orders","run":"…"}` — and follows the captured object of a
+	 * catalog removal — `{"object":{…},"import":"products","run":"…"}`. No
+	 * live row matches: the live sync queues `[]`, `{"object":{…}}` (which
+	 * ends `}}`) or `{"product_id":"…"}`.
+	 *
+	 * @return array{0: string, 1: string}
+	 */
+	private function import_payload_patterns(): array {
+		global $wpdb;
+
+		$import = '"' . ImportRows::KEY_IMPORT . '":"';
+		$run    = '","' . ImportRows::KEY_RUN . '":"';
+
+		return array(
+			$wpdb->esc_like( '{' . $import ) . '%' . $wpdb->esc_like( $run ) . '%' . $wpdb->esc_like( '"}' ),
+			$wpdb->esc_like( '{"object":' ) . '%' . $wpdb->esc_like( ',' . $import ) . '%' . $wpdb->esc_like( $run ) . '%' . $wpdb->esc_like( '"}' ),
+		);
+	}
+
 	private function prune_table( string $table_suffix ): int {
 		global $wpdb;
 
@@ -366,30 +402,35 @@ class QueueJanitor {
 		$table   = $wpdb->prefix . $table_suffix;
 		$deleted = 0;
 
-		$retention = array(
-			EventQueue::STATUS_SENT   => $this->sent_retention_days(),
-			EventQueue::STATUS_FAILED => $this->failed_retention_days(),
+		// [ status, days, extra condition, its values, log label ].
+		$rules = array(
+			array( EventQueue::STATUS_SENT, $this->sent_retention_days(), '', array(), EventQueue::STATUS_SENT ),
+			array( EventQueue::STATUS_FAILED, $this->failed_retention_days(), '', array(), EventQueue::STATUS_FAILED ),
 		);
+		if ( IngestQueue::TABLE_SUFFIX === $table_suffix ) {
+			array_unshift(
+				$rules,
+				array( EventQueue::STATUS_SENT, $this->import_sent_retention_days(), ' AND ( payload LIKE %s OR payload LIKE %s )', $this->import_payload_patterns(), 'sent_import' )
+			);
+		}
 
-		foreach ( $retention as $status => $days ) {
+		foreach ( $rules as list( $status, $days, $only, $only_values, $label ) ) {
 			// created_at is written as UTC (current_time('mysql', true) /
 			// gmdate) — compare against a UTC cutoff.
 			$cutoff = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
 
 			for ( $batch = 0; $this->next_batch( $batch, self::MAX_BATCHES_PER_RUN ); $batch++ ) {
-				// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery, PluginCheck.Security.DirectDB.UnescapedDBParameter
+				// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, PluginCheck.Security.DirectDB.UnescapedDBParameter -- the values are one array: status, cutoff, the import rule's LIKE patterns, the limit.
 				$rows = $wpdb->query(
 					$wpdb->prepare(
-						"DELETE FROM {$table} WHERE status = %s AND created_at < %s LIMIT %d",
-						$status,
-						$cutoff,
-						self::BATCH_SIZE
+						"DELETE FROM {$table} WHERE status = %s AND created_at < %s{$only} LIMIT %d",
+						array_merge( array( $status, $cutoff ), $only_values, array( self::BATCH_SIZE ) )
 					)
 				);
-				// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery
+				// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 
 				if ( false === $rows ) {
-					$this->log_delete_failed( $table_suffix, $status );
+					$this->log_delete_failed( $table_suffix, $label );
 					break;
 				}
 				$rows = is_numeric( $rows ) ? (int) $rows : 0;
