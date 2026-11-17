@@ -2155,8 +2155,10 @@ repo: a red staleness run is the signal to sync.
   start a subscription, a `user_newsletter` write or a welcome there.
   The classic billing email carries `update_totals_on_change` (CON-325), but
   WooCommerce's checkout script skips a text field's refresh while a required
-  address field is empty, so an email typed before the address still reaches
-  the tracker only with the next order review.
+  address field is empty — so `CartHookHandler::on_enqueue_scripts()` also
+  attaches one inline IIFE to `wc-checkout` that triggers `update_checkout`
+  on the email's `change`. An inline line, not a `dist/` bundle: a new
+  storefront FILE would still need its own Vite pass (PRO-2391).
   **Integration-test trap:** a test that posts to `/wc/store/v1/cart/extensions`
   through `rest_do_request()` needs `woocommerce_store_api_disable_nonce_check`
   for that call (`AbandonedCartConsentTest::block_box()`), and a test that sets

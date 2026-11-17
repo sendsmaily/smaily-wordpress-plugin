@@ -184,9 +184,12 @@ and before the trigger. It reads the contact from Smaily
   `cart_content` flag (PRO-4263); the subscription itself still comes only
   with the placed order. The classic billing email carries
   `update_totals_on_change` too, so a typed or corrected address reaches the
-  tracker — once the required address fields are filled, because
-  WooCommerce's checkout script skips the refresh of a text field while one
-  of them is empty (CON-325).
+  tracker about a second after the last key once the address is complete;
+  because WooCommerce's checkout script skips that refresh while a required
+  address field is empty, an inline line on `wc-checkout` also triggers
+  `update_checkout` on the email field's `change` (CON-325). A block tick
+  recorded before a page reload stays until the shopper changes the box
+  (Erkki: no on-load sync).
 - A Smaily read that fails takes the normal retry path — never a blind send.
 - Independent of the "Sync contacts to Smaily" switch (PRO-1678/PRO-1742).
 - Accepted limits: a contact deleted in Smaily reads as not found, so preset 1

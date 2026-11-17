@@ -11251,12 +11251,25 @@ reminder went to the old address (CON-325).
   classes already set are kept, only while cart tracking is on), so typing or
   correcting it posts an order review about a second after the last key — no
   blur needed — and the tracker holds the current address.
-**Limit found while building:** WooCommerce's checkout script
-(`maybe_update_checkout`) skips the refresh of a text field while a required
-address field in the same section is empty. So a guest who types only the
-email (and name) and leaves is still not identified on the classic checkout;
-walked on the dev site (WooCommerce 10.7). Closing that needs more than the
-class (e.g. a script that triggers the refresh itself) — open with Erkki.
+- **The class alone was not enough (found while building, decided by Erkki
+  2026-11-17):** WooCommerce's checkout script (`maybe_update_checkout`) skips
+  the refresh of a text field while a required address field in the same
+  section is empty, so a guest who typed only the email and left was still
+  not identified (walked on the dev site, WooCommerce 10.7). So
+  `CartHookHandler::on_enqueue_scripts()` (`wp_enqueue_scripts`, priority 20,
+  after WooCommerce registers `wc-checkout`; only while cart tracking is on)
+  attaches one line to `wc-checkout` with `wp_add_inline_script()`: on a
+  `change` of `#billing_email` it triggers WooCommerce's `update_checkout`,
+  the same event the newsletter box's change triggers. It is an IIFE with no
+  global of its own and is no file in `dist/`, so it needs no Vite pass and no
+  `check:bundle-scope` line. It fires on `change` (the field loses focus); the
+  class covers typing (about a second after the last key) once the address is
+  complete. With the address complete, leaving the field after an edit posts
+  one more order review with the same address — harmless.
+- **The block box is not re-sent when the page loads (Erkki, 2026-11-17):** the
+  box always renders unticked, while a tick recorded before a reload stays on
+  the cart until the shopper changes the box. That is accepted — no on-load
+  sync.
 **Alternatives:** record the block tick from `setExtensionData` — rejected:
 that data reaches the server only with the order. Hook the Store API
 `cart/update-customer` route for the box — rejected: the box is not part of
