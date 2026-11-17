@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Smaily\RecEngine;
 
 use Smaily\Connect\Settings\Credentials;
+use Smaily\Connect\Settings\RecEngineSettings;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -54,10 +55,19 @@ class SetupExchange {
 	 */
 	public const TEST_ENGINE_HOST_CONSTANT = 'SMAILY_CONNECT_TEST_ENGINE_HOST';
 
+	/**
+	 * The §1 `capabilities` value of a plugin that puts the connection's
+	 * prefix in front of every key it sends (contract v1.33.0, CON-323).
+	 */
+	public const CAPABILITY_CONNECTION_PREFIX = 'connection_prefix';
+
 	private Credentials $credentials;
 
-	public function __construct( ?Credentials $credentials = null ) {
+	private RecEngineSettings $settings;
+
+	public function __construct( ?Credentials $credentials = null, ?RecEngineSettings $settings = null ) {
 		$this->credentials = $credentials ?? new Credentials();
+		$this->settings    = $settings ?? new RecEngineSettings();
 	}
 
 	/**
@@ -227,9 +237,15 @@ class SetupExchange {
 		}
 
 		$payload = array(
-			'setup_token' => $setup_token,
-			'plugin_info' => self::build_plugin_info(),
+			'setup_token'  => $setup_token,
+			'plugin_info'  => self::build_plugin_info(),
+			'capabilities' => array( self::CAPABILITY_CONNECTION_PREFIX ),
 		);
+		// A reconnect keeps its prefix: report the last connection's (CON-323).
+		$previous_prefix = $this->settings->previous_prefix();
+		if ( $previous_prefix !== null ) {
+			$payload['connection'] = array( 'previous_prefix' => $previous_prefix );
+		}
 
 		$response = wp_remote_post(
 			rtrim( $engine_base_url, '/' ) . Client::PATH_SETUP_EXCHANGE,
@@ -269,6 +285,11 @@ class SetupExchange {
 				// before the caller stores the key or starts an import (§1).
 				if ( ! $this->is_store_account( $result->smaily_subdomain ) ) {
 					return ExchangeResult::account_mismatch( $result->smaily_subdomain );
+				}
+				// Never store a prefix of the wrong shape: every key sent
+				// under it would be refused (CON-323).
+				if ( RecEngineSettings::config_prefix( $result->config ) === null ) {
+					return ExchangeResult::prefix_invalid();
 				}
 				return $result;
 
