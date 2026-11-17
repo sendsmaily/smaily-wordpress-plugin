@@ -186,6 +186,58 @@ final class CartHookHandlerTest extends TestCase {
 		self::assertSame( array(), $this->store->optins );
 	}
 
+	/**
+	 * PRO-4263: the block checkout sends its newsletter box to the store as
+	 * the shopper changes it (a Store API cart extension update); the cart
+	 * records it like the classic tick, and unticking clears it. Nothing else
+	 * is written and nothing is sent.
+	 */
+	public function test_block_checkout_newsletter_box_is_recorded_on_the_cart(): void {
+		Functions\expect( 'update_user_meta' )->never();
+		Functions\expect( 'wp_remote_post' )->never();
+		Functions\expect( 'wp_remote_request' )->never();
+		$handler = $this->handler( 'guest-token', null );
+
+		$handler->on_store_api_newsletter_update( array( 'user_newsletter' => true ) );
+		$handler->on_store_api_newsletter_update( array( 'user_newsletter' => false ) );
+
+		self::assertSame(
+			array(
+				array( 'guest-token', true ),
+				array( 'guest-token', false ),
+			),
+			$this->store->optins
+		);
+		self::assertSame( array(), $this->store->upserts );
+		self::assertSame( array(), $this->store->identities );
+	}
+
+	public function test_block_checkout_box_counts_as_ticked_only_for_true(): void {
+		$handler = $this->handler( 'guest-token', null );
+
+		$handler->on_store_api_newsletter_update( array( 'user_newsletter' => '1' ) );
+		$handler->on_store_api_newsletter_update( array() );
+
+		self::assertSame(
+			array(
+				array( 'guest-token', false ),
+				array( 'guest-token', false ),
+			),
+			$this->store->optins
+		);
+	}
+
+	public function test_block_checkout_box_is_not_recorded_while_tracking_is_off_or_without_a_session(): void {
+		$this->stub_gates( true, false );
+		$this->handler( 'guest-token', null )->on_store_api_newsletter_update( array( 'user_newsletter' => true ) );
+
+		$this->stub_gates( true, true );
+		$this->handler( '', null )->on_store_api_newsletter_update( array( 'user_newsletter' => true ) );
+		$this->handler( 'guest-token', null )->on_store_api_newsletter_update( 'user_newsletter' );
+
+		self::assertSame( array(), $this->store->optins );
+	}
+
 	public function test_invalid_posted_email_is_ignored(): void {
 		$handler = $this->handler( 'guest-token', null );
 		$handler->on_checkout_update_order_review( 'billing_email=not-an-email' );

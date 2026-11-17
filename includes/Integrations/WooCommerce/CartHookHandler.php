@@ -33,7 +33,9 @@ use Smaily\Connect\Smaily\CartSessionStore;
  *     session-persisted billing email, or a checkout-entered email (classic
  *     `woocommerce_checkout_update_order_review` POST / the Store API
  *     update-customer route). A cart without an email is tracked but never
- *     synced (design rule: sync only once an identity is known).
+ *     synced (design rule: sync only once an identity is known);
+ *   - the checkout's newsletter box (CON-196): the classic order review,
+ *     or the block checkout's Store API cart extension update (PRO-4263).
  *
  * What clears a row: a completed order (classic + Store API + thank-you,
  * the legacy hook set) or emptying the cart. Clearing runs UNGATED — it is
@@ -47,6 +49,12 @@ use Smaily\Connect\Smaily\CartSessionStore;
  * Not final: tests inject a recording store double.
  */
 class CartHookHandler {
+
+	/**
+	 * The Store API namespace the block checkout's newsletter box sends its
+	 * value under — the checkout-optin block's own identifier.
+	 */
+	public const CHECKOUT_OPTIN_NAMESPACE = 'smaily-checkout-optin';
 
 	/** @var bool Per-request guard: woocommerce_cart_updated can fire several times per request. */
 	private static bool $tracked_this_request = false;
@@ -133,8 +141,8 @@ class CartHookHandler {
 	/**
 	 * Classic checkout AJAX (`woocommerce_checkout_update_order_review`) —
 	 * the moment a GUEST's typed billing email becomes visible server-side,
-	 * and the newsletter box with it. The block checkout reports the box only
-	 * with the placed order, so there a tick cannot count for the reminder.
+	 * and the newsletter box with it. The block checkout reports its box
+	 * through on_store_api_newsletter_update().
 	 *
 	 * @param string $posted_data The serialized checkout form data WC posts.
 	 */
@@ -172,6 +180,30 @@ class CartHookHandler {
 			: '';
 
 		$this->store->set_identity( $token, $email, $first, $last );
+	}
+
+	/**
+	 * Block checkout newsletter box — the Store API cart extension update
+	 * (`woocommerce_store_api_register_update_callback`, namespace
+	 * CHECKOUT_OPTIN_NAMESPACE) the block sends when the shopper ticks or
+	 * unticks the box (PRO-4263). Recorded on the cart like the classic tick
+	 * (CON-196): a tick counts for this cart's reminder, unticking clears it.
+	 * Nothing else happens here — the subscription is still made with the
+	 * order.
+	 *
+	 * @param mixed $data The `data` object the block sent.
+	 */
+	public function on_store_api_newsletter_update( $data ): void {
+		if ( ! is_array( $data ) || ! $this->tracking_enabled() ) {
+			return;
+		}
+
+		$token = $this->session_token();
+		if ( $token === '' ) {
+			return;
+		}
+
+		$this->store->set_newsletter_optin( $token, ( $data['user_newsletter'] ?? false ) === true );
 	}
 
 	/**

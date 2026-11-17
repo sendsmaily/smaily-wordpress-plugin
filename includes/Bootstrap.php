@@ -717,6 +717,16 @@ final class Bootstrap {
 		add_action( 'woocommerce_checkout_update_order_review', array( $cart, 'on_checkout_update_order_review' ), 10, 1 );
 		// Block checkout's Store-API twin (cart/update-customer route).
 		add_action( 'woocommerce_store_api_cart_update_customer_from_request', array( $cart, 'on_store_api_update_customer' ), 10, 2 );
+		// The block checkout's newsletter box, sent as the shopper changes it
+		// (PRO-4263).
+		if ( function_exists( 'woocommerce_store_api_register_update_callback' ) ) {
+			woocommerce_store_api_register_update_callback(
+				array(
+					'namespace' => CartHookHandler::CHECKOUT_OPTIN_NAMESPACE,
+					'callback'  => array( $cart, 'on_store_api_newsletter_update' ),
+				)
+			);
+		}
 		// A completed order clears the tracker rows (the legacy hook set:
 		// classic + Store API + thank-you).
 		add_action( 'woocommerce_checkout_order_processed', array( $cart, 'on_order_processed' ), 10, 1 );
