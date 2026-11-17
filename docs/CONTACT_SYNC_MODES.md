@@ -164,8 +164,8 @@ and before the trigger. It reads the contact from Smaily
 | Preset | Reminder goes out when |
 |---|---|
 | 1. All customers | always, unless Smaily has the contact unsubscribed |
-| 2. Subscribers only | the cart's WP user has `user_newsletter=1`, OR the box is ticked in this unfinished classic checkout, OR Smaily has the contact subscribed |
-| 3. Checkout opt-in only | the box is ticked in this unfinished classic checkout, OR Smaily has the contact subscribed (the preset keeps no store record for accounts) |
+| 2. Subscribers only | the cart's WP user has `user_newsletter=1`, OR the box is ticked in this unfinished checkout (classic or block), OR Smaily has the contact subscribed |
+| 3. Checkout opt-in only | the box is ticked in this unfinished checkout (classic or block), OR Smaily has the contact subscribed (the preset keeps no store record for accounts) |
 
 - A contact Smaily has as unsubscribed gets no reminder in **any** preset (skip
   reason `unsubscribed`); presets 2/3 otherwise skip with
@@ -178,14 +178,21 @@ and before the trigger. It reads the contact from Smaily
   last report in the tracker row's own `cart_content` JSON
   (`{"items": [...], "newsletter_optin": true}` while ticked, the plain item
   list otherwise — `CartSessionStore::encode_content()`), no schema change.
-  The block checkout reports the box only with the placed order, so a tick
-  there cannot count.
+  The block checkout sends the box as it changes, through the Store API cart
+  extension route (`extensionCartUpdate`, namespace `smaily-checkout-optin`,
+  `CartHookHandler::on_store_api_newsletter_update()`), into the same
+  `cart_content` flag (PRO-4263); the subscription itself still comes only
+  with the placed order. The classic billing email carries
+  `update_totals_on_change` too, so a typed or corrected address reaches the
+  tracker — once the required address fields are filled, because
+  WooCommerce's checkout script skips the refresh of a text field while one
+  of them is empty (CON-325).
 - A Smaily read that fails takes the normal retry path — never a blind send.
 - Independent of the "Sync contacts to Smaily" switch (PRO-1678/PRO-1742).
 - Accepted limits: a contact deleted in Smaily reads as not found, so preset 1
   enrols it again as subscribed; in preset 2 with `include_guests` off a
   guest's earlier tick never reached Smaily, so a returning guest is reminded
-  only after ticking the box again in the classic checkout.
+  only after ticking the box again at checkout.
 
 ## 7. Architecture (CC-1 single source)
 
