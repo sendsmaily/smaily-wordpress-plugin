@@ -1,8 +1,8 @@
-# Smaily Recommendation Engine — API Contract v1.32
+# Smaily Recommendation Engine — API Contract v1.33
 
-**Version**: 1.32.0
+**Version**: 1.33.0
 **Published**: 2026-05-19
-**Last updated**: 2026-11-13 (v1.32.0 — outcome events: a booking system sends a customer's bookings and their states (`booked`, `cancelled`, `no_show`, `attended`) to the new §6b `POST /api/v1/ingest/outcomes`. An unknown type is stored as `other`, never rejected. A booking holds back the customer's recommendations in a store whose sector reads it. The events are not revenue and teach the engine nothing yet. The shopper's export (§8) and delete (§9) include them. MINOR bump: additive only — INT-259. Previous: 2026-11-13, v1.31.0 — the design page in a modal: a design link minted with `display: "frame"` keeps its session in the page, not in a cookie, so the page works in a frame inside the store admin in every browser; the plugin may name the origin of its admin page (`frame_origin`); the page tells its parent when it is ready and when it has unsaved changes (§22). Drafted as v1.26.0; that number was never published. MINOR bump: additive only — INT-14. Previous: 2026-11-13, v1.30.0 — an order can say where it was made: optional `channel`, `online` or `in_store`; a store's second order system (for example its tills) sends its orders into the same engine store with its own API key, by the sender rules of §5 "A second order source". An in-store order is credited by the same rules as any order, and the store's console shows the credited part made in the store. MINOR bump: one new optional field. Previous: 2026-11-12, v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step are specified and the engine side is in progress, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-17 (v1.33.0 — one code prefix per shop connection: a connector that declares `capabilities: ["connection_prefix"]` at the setup exchange can get a code prefix for its connection (`config.connection.prefix`, for example `c2-`; also on the ping) and puts it in front of every product code, parent product id and order id it sends. Two shops in one engine store can then number their products and orders from 1 without overwriting each other. The nightly list (§3c) and removes (§3b) cover only the calling connection's own products, and the history progress (§25) is kept per connection. A connector without the capability, and every connection made before 1.33.0, has the prefix `""` and changes nothing. The engine side is built and switched off: the engine assigns prefixes only once it is switched on, and the refusal of a connector without the capability (`409 plugin_update_required`) is announced to the connector teams before it is switched on (§1 Status). MINOR bump: additive only — INT-285. Previous: 2026-11-13, v1.32.0 — outcome events: a booking system sends a customer's bookings and their states (`booked`, `cancelled`, `no_show`, `attended`) to the new §6b `POST /api/v1/ingest/outcomes`. An unknown type is stored as `other`, never rejected. A booking holds back the customer's recommendations in a store whose sector reads it. The events are not revenue and teach the engine nothing yet. The shopper's export (§8) and delete (§9) include them. MINOR bump: additive only — INT-259. Previous: 2026-11-13, v1.31.0 — the design page in a modal: a design link minted with `display: "frame"` keeps its session in the page, not in a cookie, so the page works in a frame inside the store admin in every browser; the plugin may name the origin of its admin page (`frame_origin`); the page tells its parent when it is ready and when it has unsaved changes (§22). Drafted as v1.26.0; that number was never published. MINOR bump: additive only — INT-14. Previous: 2026-11-13, v1.30.0 — an order can say where it was made: optional `channel`, `online` or `in_store`; a store's second order system (for example its tills) sends its orders into the same engine store with its own API key, by the sender rules of §5 "A second order source". An in-store order is credited by the same rules as any order, and the store's console shows the credited part made in the store. MINOR bump: one new optional field. Previous: 2026-11-12, v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step were specified before the engine side was complete; the engine side was built on 2026-11-13 and is switched off in production with the rest of §21, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
@@ -100,7 +100,8 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
 - Recommendation IDs: UUID v4
 - Visitor tokens: opaque strings of up to 64 characters — store, forward and compare a token exactly as received; do not depend on its length or characters. Engine-issued (email links, `smaily_vt`): `vt_` + exactly 10 characters `[a-z0-9]`. Store-created at checkout (v1.11.0, [§5](#store-created-visitor-token)) or at login (v1.22.0, [§7](#store-created-token-at-login)): `vs_` + exactly 22 characters `[A-Za-z0-9]`
 - Order `external_id`: text, plugin/platform-defined
-- SKU: text, max 64 characters
+- SKU: text, max 72 characters (v1.33.0: a 64-character platform key plus a connection prefix of up to 6 characters)
+- Connection prefix (v1.33.0, [§1](#connection-prefix)): `c<N>-`, N from 1 to 9999, lower case (for example `c2-`), or `""` for a connection without a prefix. Opaque: never parse it, never show it to the store, never derive it — read it from `config.connection.prefix`
 - Website code (v1.21.0): the platform's own stable website code (Magento: the website `code`, for example `base`, `lv`), a string of 1–64 characters, compared exactly as sent. The connector always names the website itself; the engine never derives one (a language can exist on several websites)
 
 **Paid Smaily package required.** Connect works only with a paid Smaily package: the engine reads and writes the store's Smaily data through the Smaily API, and Smaily gives API access only to paid packages. An account without one gets Smaily code 227 ("A paid package is required"). When the engine reports `smaily_paid_package_required` (§21), the plugin tells the store that its Smaily package does not include API access and offers the package upgrade instead of onboarding.
@@ -442,7 +443,9 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
     "ecommerce_platform_version": "8.5.1",
     "site_url": "https://erkkipood.ee"
   },
-  "store_config": { "customer_account_scope": "website" }
+  "store_config": { "customer_account_scope": "website" },
+  "capabilities": ["connection_prefix"],
+  "connection": { "previous_prefix": "c2-" }
 }
 ```
 
@@ -456,6 +459,20 @@ User-Agent: <plugin-identifier>/<version>  (e.g. "SmailyRecEngine-WooPlugin/0.1.
 | `store_config.customer_account_scope` | `"global"` \| `"website"` | NO | How the platform shares customer accounts between websites. `global`: one account per person (Magento "Share Customer Accounts: Global"). `website`: one account per person per website (Magento "Per Website"), so one email can have a store customer id on each website. Absent = `global`. |
 
 An unknown value is stored as absent (`global`), never a `400`: a failed setup exchange costs the whole connection. When the platform setting changes later, send the new value with the next history import's `started` call ([§25](#25-post-apiv1ingesthistoryprogress)) — a change of the setting moves accounts, so the connector re-sends its customers through a history import anyway. A request without `store_config` leaves the stored value as it is.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `capabilities` | string[] | NO | (v1.33.0) `connection_prefix`: this connector puts `config.connection.prefix` in front of every key it sends (§3, §3b, §3c, §5, §6). Unknown values are ignored. |
+| `connection.previous_prefix` | string | NO | (v1.33.0) On a reconnect: the prefix this connector held before, `""` if it held an unprefixed connection. Omit it on a first connection. A malformed value is ignored, never a `400`. |
+
+<a id="connection-prefix"></a>
+**Connection prefix** (v1.33.0, INT-285). The engine gives each new connection of a store a code prefix, and only to a connector that declares the `connection_prefix` capability. A reconnect keeps the prefix it had: the engine reuses the prefix the connector reports as `previous_prefix` when the store assigned it, otherwise the prefix of the store's most recent connection with the same `plugin_info.site_url` origin and `ecommerce_platform`, otherwise it assigns a new one. A wrong "new" prefix would duplicate the shop's whole catalog and order history, so always send `previous_prefix` when you have one. A connection that existed before 1.33.0, and a connection made without the `connection_prefix` capability, has the prefix `""`. An API key a Smaily operator creates for the store (for example for a second order source, [§5](#second-order-source)) is a connection of its own and gets its own prefix the same way.
+
+<a id="connection-prefix-status"></a>
+**Status** (2026-11-17). The engine side is built and switched off:
+- **Assigning.** Until the engine switches assignment on, every connection gets `config.connection.prefix: ""`, also a connector that declares the capability. Once it is on, only a connector that declares the capability (and an operator-created key) gets a prefix; a connector without it keeps `""`.
+- **Refusing.** Refusing an exchange without the capability (`409 plugin_update_required`, below) is off. It is announced on the connector issues, with its date, before the engine switches it on. Until then a connector without the capability connects as before.
+- **What the plugin does.** Declare the capability only once it puts the prefix in front of every key it sends. A plugin built for an earlier version keeps working unchanged while the refusal is off.
 
 **Response 200 OK**:
 ```json
@@ -514,11 +531,14 @@ An unknown value is stored as absent (`global`), never a `400`: a failed setup e
       "start_months": 18,
       "horizon_months": 60,
       "order": "newest_first"
-    }
+    },
+    "connection": { "prefix": "c2-" }
   },
   "issued_at": "2026-05-19T10:15:23Z"
 }
 ```
+
+**`config.connection.prefix`** (v1.33.0): the connection's code prefix ([Connection prefix](#connection-prefix)). Store it with the connection's other config, as you store `config.history`. Put it in front of every key you send: §3 `sku` and `tags.product_id`, §3b `product_ids`, §3c `sku`, §5 `external_order_id`, §6 `sku`. `""` = send keys as before.
 
 **`smaily_subdomain`** (v1.25.0, INT-209): the Smaily account of the engine store the link joined — the store's Smaily subdomain, trimmed and lower case; `null` when the store has none yet. A connector that connects several websites to separate engine stores compares it, case-insensitively, with the website's own Smaily account and refuses a mismatching link **before it stores the API key or starts an import** (the token is then used up: ask for a new setup link for the right store). A connector with one website may ignore it. A later version (INT-208, several Smaily accounts per store) will also name the account the link joined.
 
@@ -557,6 +577,18 @@ An unknown value is stored as absent (`global`), never a `400`: a failed setup e
 }
 ```
 
+<a id="plugin-update-required"></a>
+**Response 409 Conflict** (v1.33.0; only once the engine requires the capability — off until announced, see [Status](#connection-prefix-status)):
+```json
+{
+  "error": "plugin_update_required",
+  "message": "Update the plugin: this engine needs a plugin version that applies the connection prefix.",
+  "request_id": "req_..."
+}
+```
+
+The connector did not send `capabilities: ["connection_prefix"]` and the engine requires it. The setup token is **not** used: update the connector and run the exchange again with the same link.
+
 **Idempotency**: setup tokens are **one-time use**. The first exchange marks `used_at = NOW()`. A subsequent exchange returns 410. The plugin must securely store the API key from the first exchange.
 
 **Plugin-side**: after a successful exchange, the plugin stores `api_key`, `engine_base_url`, and `config` in its WordPress options table (api_key encrypted, `wp_options` with `autoload=false`).
@@ -587,12 +619,15 @@ User-Agent: SmailyRecEngine-WooPlugin/0.1.0
   "engine_version": "1.0.0",
   "ts": "2026-05-19T10:15:23Z",
   "config": {
-    "history": { "start_months": 18, "horizon_months": 60, "order": "newest_first" }
+    "history": { "start_months": 18, "horizon_months": 60, "order": "newest_first" },
+    "connection": { "prefix": "c2-" }
   }
 }
 ```
 
 `config.history` (v1.20.0) is the same block as in the setup exchange ([§1](#1-post-apisetupexchange)). Read it before each history import ([§25](#25-post-apiv1ingesthistoryprogress)), so a change reaches an installed plugin without reconnecting.
+
+`config.connection.prefix` (v1.33.0): the calling key's connection prefix, the same value as the exchange gave ([Connection prefix](#connection-prefix)); `""` for a connection without a prefix. A connector that lost its stored prefix reads it here.
 
 **Response 401** if the API key is invalid (see Authentication).
 
@@ -698,7 +733,7 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `event_id` | UUID v4 string | NO | Per-product transport-level dedup key. See [Idempotency](#idempotency). |
-| `sku` | string (max 64) | YES | **Canonical product-identity token — NOT the merchant's SKU field.** The stable platform product/variant id, namespaced by source (`shp-<variant_id>`, `woo-<id>`). Never the merchant-entered SKU string, and never a fallback to it. See [Product identity](#catalog-identity). |
+| `sku` | string (max 72) | YES | **Canonical product-identity token — NOT the merchant's SKU field.** The stable platform product/variant id, namespaced by source (`shp-<variant_id>`, `woo-<id>`). Never the merchant-entered SKU string, and never a fallback to it. See [Product identity](#catalog-identity). v1.33.0: the [connection prefix](#connection-prefix) followed by the platform key — `c2-woo-101`, `c1-shp-4471…`, `c3-ABC-123` (a Magento SKU); without a prefix, the platform key as before. |
 | `name` | string \| `{lang: string}` | YES | Product name |
 | `category_path` | string | YES | Hierarchical category (`food/dry`, `accessories/leashes`) |
 | `price` | number | YES | Customer's current selling price (NOT regular_price) |
@@ -755,7 +790,7 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
   - **Same key from every path.** The identical token must be emitted from catalog **and** order-line **and** browse ingest for the same product. Consistency is required only *within one tenant/source* (one store = one plugin); `shp-` and `woo-` namespaces never cross-join.
   - **Fail-loud enforcement (rolling out — see PRO-1223).** The engine will validate that each `sku` matches the sender's declared namespace pattern and route a non-conforming row to `errors[]` / `import_errors` rather than silently UPSERTing it. Senders must not rely on silent acceptance of off-scheme keys.
 - **One row per canonical product — collapse translations.** Send exactly one catalog row per real, purchasable product. Do **NOT** send a separate row per language: a multilingual product (WPML/Polylang) must be a **single `sku`** whose translations are carried in the `{lang: value}` object form of `name` / `description` / `product_url` (see *Multilingual variant* above). Keep the `sku` identical across languages and across syncs. Emitting one row per translation creates duplicate SKUs that the engine **cannot** dedupe (there is no language tag or parent link), producing language-mixed recommendations.
-- **Parent product id — `tags.product_id`.** Alongside the variant-level `sku`, emit the platform **parent product id** as `tags.product_id` (Shopify `<product_id>`, Woo `<product_id>`). All variants of one product share one `tags.product_id`. The engine uses it for **product-level removal** (see [§3b](#3b-post-apiv1ingestcatalogremove)) and for **cross-variant grouping** — it groups catalog variants sharing a `tags.product_id` into one product family for cross-variant cadence and `sample_to_full` (live since PRO-1227). `sku` stays the variant-level key and `external_id` stays the variant id; only the grouping is by parent. Shopify and Woo emit it today; Magento rolls it in with its canonical-key work. Where a sender does not emit it, product-level removal is unavailable and cadence/grouping degrade to per-SKU for that sender (per-SKU `in_stock=false` still works).
+- **Parent product id — `tags.product_id`.** Alongside the variant-level `sku`, emit the platform **parent product id** as `tags.product_id` (Shopify `<product_id>`, Woo `<product_id>`). All variants of one product share one `tags.product_id`; v1.33.0: it carries the [connection prefix](#connection-prefix) too (`c2-101`). The engine uses it for **product-level removal** (see [§3b](#3b-post-apiv1ingestcatalogremove)) and for **cross-variant grouping** — it groups catalog variants sharing a `tags.product_id` into one product family for cross-variant cadence and `sample_to_full` (live since PRO-1227). `sku` stays the variant-level key and `external_id` stays the variant id; only the grouping is by parent. Shopify and Woo emit it today; Magento rolls it in with its canonical-key work. Where a sender does not emit it, product-level removal is unavailable and cadence/grouping degrade to per-SKU for that sender (per-SKU `in_stock=false` still works).
 - **Real products only.** Do not send non-purchasable artifacts: language-switcher pseudo-products, gift cards, donation items, or virtual config entries. *(The engine additionally derives an internal `recommendable` flag at ingest to defensively exclude such items — see [Engine-internal fields](#engine-internal). The source should still not send them, to avoid catalog bloat.)*
 - **Lifecycle is UPSERT-only; removal is soft, never a hard delete.** The engine UPSERTs by `sku` and never removes a `sku` merely because it stopped appearing in a §3 sync or a full import. The one place absence counts is the nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest), which lists the store's complete catalog. **Removal is explicit and always *soft*:** either re-send the product with `in_stock=false` (per-SKU), or call [`POST /api/v1/ingest/catalog/remove`](#3b-post-apiv1ingestcatalogremove) with the parent `product_id` to tombstone all of a product's SKUs at once (the path for a platform hard-delete, where the webhook gives only the product id). A tombstone sets `in_stock=false` + `recommendable=false` — it drops the product from every recommendation path but **keeps the row**. Catalog rows (like `orders` / `order_items`) are **retained as a learning corpus** and are **never hard-deleted** except on GDPR erasure or tenant offboarding; the engine offers no full-catalog replace and deletes by absence only through the §3c manifest. A product missing from the nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest) is tombstoned the same way. When to send what is the [catalog sync lifecycle](#catalog-sync-lifecycle) below. **Consequence when changing the SKU scheme:** migrated old SKUs are **not** auto-removed — they linger as stale rows; orphan removal at a SKU-scheme migration is a **one-time manual purge** on the engine side, coordinated with the sender.
 
@@ -822,6 +857,9 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 
 Each product is validated **independently**: a product that fails validation goes to `errors[]` as `{index, sku?, field, message}` (`index` is its position in `products[]`; `sku` is included when present) and is **not** written; valid products in the same batch are still processed. A rejected product's `event_id` is **not** registered, so a corrected retry of that product still processes.
 
+<a id="connection-prefix-mismatch"></a>
+**`connection_prefix_mismatch`** (v1.33.0). A key with a [connection prefix](#connection-prefix) may write only rows whose `sku` and `tags.product_id` start with that prefix. A key without a prefix may not write a `sku` or `tags.product_id` that starts with another connection's prefix. Such a row is refused in `errors[]` (`field`: `sku` or `tags.product_id`) and is not stored; the other rows of the request are stored. The store's operator sees it in the import errors. The namespace enforcement of [Product identity](#catalog-identity) applies to connections without a prefix only.
+
 <a name="raw-attributes"></a>
 **Raw attributes** (stated in v1.24.0; the engine has done this since 2026-06-08). On every upsert the engine reads `raw_attributes` with a deterministic mapper (`lib/ingest/attribute-mapping.ts`, no AI call). It strips a platform prefix (`pa_`, `meta_`, `attribute_`, `wpcf-`, `_`) from each key, lower-cases it and maps the keys it knows into `tags`:
 - `species` / `pet` / `animal` → `tags.species` (`cat`, `dog`); `life_stage` / `lifestage` / `age` → `tags.life_stage` (`kitten`, `puppy`, `adult`, `senior`); `litter_type` → `tags.litter_type`;
@@ -885,7 +923,9 @@ Returned when every product carrying an `event_id` in the request was already pr
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
-| `product_ids` | string[] | YES | Platform **parent product ids** — the value the sender emits as `tags.product_id` (1–1000 per request). Matched against `catalog.tags.product_id` for the calling tenant. |
+| `product_ids` | string[] | YES | Platform **parent product ids** — the value the sender emits as `tags.product_id` (1–1000 per request). Matched against `catalog.tags.product_id` for the calling tenant. v1.33.0: they carry the [connection prefix](#connection-prefix) (`c2-101`). |
+
+**Per connection** (v1.33.0). The remove covers only the calling connection's own products: an id is matched against `tags.product_id` among the rows of the calling connection. An id of another connection is not removed; it is answered in `errors[]` as `{ "product_id", "field": "product_ids", "error": "connection_prefix_mismatch", "message" }`. `errors` is present only when there is one.
 
 **Semantics**:
 - **Soft tombstone, never a row delete.** For every catalog row of the tenant whose `tags.product_id` is in `product_ids`, the engine sets `in_stock=false` **and** `recommendable=false`. The rows — and their attributes, orders and attribution — are kept (see the retention invariant under [Catalog identity & lifecycle](#catalog-identity)). A hard row delete is **never** performed here.
@@ -933,14 +973,14 @@ Returned when every product carrying an `event_id` in the request was already pr
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `products` | array | YES | The store's **complete** product list, **0–50,000** items, in **one** request. Send every product the store has, in stock or not. |
-| `products[].sku` | string (1–64) | YES | The same `sku` value §3 sends for the product (the canonical identity token — see [Product identity](#catalog-identity)). One item per catalog row, variants included. |
+| `products[].sku` | string (1–72) | YES | The same `sku` value §3 sends for the product (the canonical identity token — see [Product identity](#catalog-identity)). One item per catalog row, variants included. |
 | `products[].in_stock` | boolean | YES | The product's stock now, with the same meaning as §3 `in_stock`. |
 
 Send nothing else (no names, prices or descriptions). Unknown keys are ignored. Send compact JSON: the request body must stay under 4.5 MB (the hosting limit; about 50,000 items with typical SKUs).
 
 **When and what to send.**
 - Once a night, at a quiet hour. Build the list immediately before sending it.
-- The list covers the **whole store catalog**, however many connections feed this tenant. A product left out is treated as deleted.
+- The list covers **the calling connection's own products** (v1.33.0): the products whose `sku` starts with its [connection prefix](#connection-prefix), or, for a connection without a prefix, every product that starts with no other connection's prefix. A product of this connection left out is treated as deleted; another connection's products are never touched. Removes, stock fixes, the "missing in engine" count and the 20% guard are all computed within that scope. A list holding an item outside the scope is rejected as a whole: `400 connection_prefix_mismatch`. A store with no prefixed connection keeps the earlier scope: the whole store catalog.
 - The list covers **every website of the store** (v1.21.0). It has no website field: a range change on one website is a §3 re-send of the product with its new `websites`.
 - A store with more than 50,000 products cannot use this endpoint yet; it must not send a partial list.
 
@@ -973,7 +1013,7 @@ Send nothing else (no names, prices or descriptions). Unknown keys are ignored. 
 
 `products_in_manifest` = distinct SKUs in the list; `removed` = rows tombstoned; `stock_fixed` = rows whose `in_stock` changed; `missing_in_engine` = SKUs in the list that the engine does not have; `guard_tripped` / `guard_reason` (`"empty_list"` | `"too_many_removals"` | `null`) = whether the guard stopped the removals; `would_remove` = rows the list would remove (equal to `removed` unless the guard tripped). The sender does not need to act on any of these; the engine's operator sees them.
 
-**Errors**: a malformed wrapper or item (`products` missing / not an array / more than 50,000 items; an item without a non-empty `sku` of at most 64 characters or without a boolean `in_stock`) → `400 validation_failed` (same shape as §3). The whole list is rejected: a partly accepted list would read as missing products. Auth and rate limit behave as the other ingest routes.
+**Errors**: a malformed wrapper or item (`products` missing / not an array / more than 50,000 items; an item without a non-empty `sku` of at most 72 characters or without a boolean `in_stock`) → `400 validation_failed` (same shape as §3). The whole list is rejected: a partly accepted list would read as missing products. Auth and rate limit behave as the other ingest routes.
 
 ---
 
@@ -1119,7 +1159,7 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `event_id` | UUID v4 string | NO | Per-order transport-level dedup key. See [Idempotency](#idempotency). |
-| `external_order_id` | string | YES | Plugin/platform order ID (UNIQUE per tenant — natural key) |
+| `external_order_id` | string | YES | Plugin/platform order ID (UNIQUE per tenant — natural key). v1.33.0: starts with the [connection prefix](#connection-prefix) (`c2-1234`). An order of a prefixed key whose id does not start with the prefix is refused in `errors[]` (`field`: `external_order_id`, `connection_prefix_mismatch`). Line `sku`s are references to the store's catalog and are not checked against the connection: a line may name another connection's product. |
 | `customer_email` | string | YES | Customer reference is by email (not external_id). Engine lowercases on ingest. |
 | `ordered_at` | ISO 8601 | YES | Order placement timestamp. A UTC offset is accepted and normalised to UTC (v1.24.0). |
 | `total_amount` | number | YES | Grand total charged — **gross/tax-inclusive**, incl. shipping, after discounts (see Amount semantics) |
@@ -1227,9 +1267,9 @@ Matching steps (run by the cron; PRO-1524, 2026-07-23 — a former 4th-priority
 **A second order source** (v1.30.0). A store may send orders from a second system (for example its tills) into the **same** engine store, next to its plugin. The second system:
 
 1. **Uses its own API key**, which a Smaily operator creates for the store. It does not run the setup exchange ([§1](#1-post-apisetupexchange)). Its key is a connection of the store like any other: while it is active, the store is not paused when the plugin disconnects ([§16](#16-post-apiv1storeuninstall)).
-2. **Prefixes its order ids** (`external_order_id`), for example `POS-1234`, so that no id equals an id of the plugin's orders. The order's natural key is `(store, external_order_id)`: an equal id replaces the other system's order.
+2. **Prefixes its order ids** (`external_order_id`), so that no id equals an id of the plugin's orders. The order's natural key is `(store, external_order_id)`: an equal id replaces the other system's order. (v1.33.0) It reads `config.connection.prefix` from the ping ([§2](#2-get-apiv1ingestping)): when its key has a [connection prefix](#connection-prefix), it starts every order id with it (`c4-1234`); when the prefix is `""` (a key created before the engine assigns prefixes), it keeps its own id prefix, for example `POS-1234`.
 3. **Sends only orders with a customer email** (`customer_email` is required). An order without an email cannot be sent.
-4. **Uses the store's canonical SKUs**: the `sku` values the plugin sends in its catalog ([§3](#3-post-apiv1ingestcatalog)) — the platform's canonical id (for example `woo-<id>`), never the merchant's own SKU field. The engine knows a product only from the catalog; a line with a SKU that is not in it names no product the engine can recommend, and a store with a SKU-identity policy rejects an order whose SKU lacks the store's prefix.
+4. **Uses the store's canonical SKUs**: the `sku` values the plugin sends in its catalog ([§3](#3-post-apiv1ingestcatalog)) — the platform's canonical id (for example `woo-<id>`), never the merchant's own SKU field. The engine knows a product only from the catalog; a line with a SKU that is not in it names no product the engine can recommend, and a store with a SKU-identity policy rejects an order whose SKU lacks the store's prefix. With connection prefixes (v1.33.0) the store's SKUs carry the shop's prefix (`c2-woo-101`); copy them from the catalog as they are.
 5. **Sends `channel: "in_store"` on every order**, also on every later sync of the same order. A sync without it stores `online`.
 6. **Sends no catalog, no catalog list and no history progress**: no call to §3, §3b, §3c or [§25](#25-post-apiv1ingesthistoryprogress). The plugin owns the catalog and the history import.
 7. **Sends customer rows only with fields it owns** ([§4](#4-post-apiv1ingestcustomers)). A sent value replaces the stored one; an omitted field keeps it. Do not send `external_id` or `website`: they are the website's customer id and website, which the store's pages use ([§15](#15-post-apiv1recommendationscustomer)). A customer row is optional — an order creates its customer from `customer_email`.
@@ -1300,7 +1340,7 @@ Browse events batch. The highest-volume endpoint.
 | `event_id` | UUID v4 string | YES | Plugin-generated, transport-level dedup key. Required for browse (no natural key). |
 | `session_id` | string | YES | Plugin manages the session cookie (`smaily_anon_sid`) |
 | `event_type` | enum | YES | See event types list |
-| `sku` | string | NO | SHOULD: send it for `product_view`, `cart_add`, `cart_remove`. An event without it is stored, not rejected (v1.24.0). |
+| `sku` | string | NO | SHOULD: send it for `product_view`, `cart_add`, `cart_remove`. An event without it is stored, not rejected (v1.24.0). v1.33.0: carries the [connection prefix](#connection-prefix), as in §3; a prefixed key's event whose `sku` does not start with the prefix is refused in `errors[]` (`field`: `sku`). |
 | `category_path` | string | NO | SHOULD: send it for `category_view`. An event without it is stored, not rejected (v1.24.0). |
 | `search_query` | string | NO | SHOULD: send it for `search`. An event without it is stored, not rejected (v1.24.0). |
 | `dwell_seconds` | integer | NO | Time on page (for `product_view`) |
@@ -2445,7 +2485,7 @@ A returning guest shopper (no store customer account), named by the visitor toke
 | `position` | 1-based, consecutive. |
 | `rec_id` | The recommendation (UUID). The same id is in the customer's email fields. |
 | `sku` | The canonical catalog key ([§3](#3-post-apiv1ingestcatalog)) — the stable product identity. |
-| `external_id` | The catalog row's `external_id`, **nullable**. When null, use `sku` (for `woo-` and `shp-` keys the platform id is the `sku` without its prefix). On a multilingual stand-in row it can differ from the id in `sku`; render with `external_id`, identify with `sku`. |
+| `external_id` | The catalog row's `external_id`, **nullable**. When null, use `sku`. Treat `sku` as opaque — never strip a prefix from it to find a product (v1.33.0: a `sku` can carry a [connection prefix](#connection-prefix), for example `c2-woo-101`, and a slot can name another shop's product of the same store); render with `external_id` and `product_url`. On a multilingual stand-in row it can differ from the id in `sku`; render with `external_id`, identify with `sku`. |
 | `name`, `description`, `product_url` | Localized in the customer's language (`customers.language`), else the tenant default — as in the email. `description` is not truncated. With several websites (v1.21.0), `product_url` is the render website's link and the language is the customer's on that website (see above). |
 | `price`, `compare_price` | Numbers; `compare_price` nullable. Read live from the catalog at request time. No currency — render in the store's own. |
 | `in_stock` | Live from the catalog. **Informational** — an out-of-stock slot is not removed. Re-check price and stock locally before rendering. |
@@ -2922,7 +2962,7 @@ curl -X POST https://intelligence.smaily.com/api/v1/automations/replenish_due/go
 
 ### 21. POST /api/v1/onboarding/start
 
-> **Status (v1.29.0, 2026-11-12).** This section has two parts with different states. Each v1.29.0 item below carries its state.
+> **Status (v1.29.0, 2026-11-12; updated 2026-11-13).** This section has two parts with different states. Each v1.29.0 item below carries its state.
 >
 > - **Built; switched off in production until the terms text is published** (v1.16.0 flow): start → start link → the start window in a **new window** → store creation → setup token by window message or pasted link. Also built: **every active sector can be picked**, and a store that picks a sector in which no store is live yet gets a check by the Smaily team that holds only switching recommendations on (INT-248). The engine answers `404 not_found` on this endpoint, and the start window answers `404`, until the terms of service and the data processing agreement are published. A connector must treat `404` as "not available yet", show no button and keep the operator path (contact Smaily).
 > - **Specified in v1.29.0; built, and switched off in production with the rest of this section** — connectors can build against this text: the frame mode (`display`, `frame_origin`, the framed `start_url`, the `ready` / `created` / `closed` messages), `admin_email`, `language`, the welcome step with the plugin connection and the history import's progress, and "Open console" in a new tab. An engine without these ignores the four new request fields and sends no `display` in the response, so the start link opens in a new window as in v1.16.0. **A connector must keep the new-window flow and the paste-link field as its fallback** ([The modal](#the-modal-frame-mode)). The engine announces when the frame mode is on.
@@ -3690,6 +3730,8 @@ No date may be more than one day ahead of the engine's clock. Counts and dates o
 5. **Send again = a new import.** "Send history again" in the store's admin starts a new `import_id` with `started`. Only a new import, `complete` or a stop after the start part makes the engine analyse the history again; the rows of the background part never do.
 6. **A stopped import is over.** (v1.28.0) See [Stopped import](#stopped-import).
 
+**Per connection** (v1.33.0). The engine keeps the progress of each connection separately: a call writes only its own connection's import, and a new `import_id` restarts only that connection. Onboarding waits until every connection that reported `started` has reached `start_part_complete` (or `complete`) and none stopped before it; the full history is complete when every connection's is. Shops of one store can import at the same time.
+
 #### Stopped import
 
 (v1.28.0, INT-225.) When an import stops before `complete` — the store's admin cancelled it, it failed, or it stalled — the connector calls progress once more with the phase the import reached, the final counts and `stop_reason`:
@@ -4203,9 +4245,9 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **What the plugin does.** Send one last progress call with `stop_reason` when an import stops (Sender rule 12). **A plugin that never sends it keeps working unchanged.**
 - **Shapes.** Request: optional `stop_reason` (§25). Response: `stop_reason`, `stopped_at` (§25).
 
-**v1.29.0** (2026-11-12) — **"Try Intelligence free" from the plugin, in a modal**. MINOR bump per the [Versioning](#versioning) rule (four new optional request fields, one new optional response field, one new error value, one new window-message type; backward-compatible). INT-247, Erkki's decisions 2026-11-12. Published for planning before the engine side is complete; §21 Status says which parts the engine serves:
+**v1.29.0** (2026-11-12) — **"Try Intelligence free" from the plugin, in a modal**. MINOR bump per the [Versioning](#versioning) rule (four new optional request fields, one new optional response field, one new error value, one new window-message type; backward-compatible). INT-247, Erkki's decisions 2026-11-12. Published for planning before the engine side was complete; the engine side was built on 2026-11-13, and §21 Status says what the engine serves:
 - **Built (behind the switch that is off until the terms are published).** The v1.16.0 flow in a new window. **Every active sector can be picked**; a sector with no live store gets a check by the Smaily team for that store, which holds only switching recommendations on (INT-248).
-- **Specified; engine side in progress.** **§21 `display` and `frame_origin`**: a start link asked with `display: "frame"` opens in an iframe in the store admin; the engine accepts the shop's own origin, an `https` origin in the same registrable domain, or a listed app host; the response says `display: "frame"` when the link may be framed; new error `400 frame_origin_not_allowed`. **§21 `admin_email`, `language`**: the plugin may pre-fill the console email and name the window's language. **§21 welcome step and messages**: the window ends on a welcome step with the plugin connection, the history import's progress and "Open console" (new tab, signed in for 5 minutes); new messages `ready`, `created`, `closed` (type `smaily_intelligence_onboarding`); the setup message is unchanged.
+- **Specified; built 2026-11-13, switched off in production with the rest of §21.** **§21 `display` and `frame_origin`**: a start link asked with `display: "frame"` opens in an iframe in the store admin; the engine accepts the shop's own origin, an `https` origin in the same registrable domain, or a listed app host; the response says `display: "frame"` when the link may be framed; new error `400 frame_origin_not_allowed`. **§21 `admin_email`, `language`**: the plugin may pre-fill the console email and name the window's language. **§21 welcome step and messages**: the window ends on a welcome step with the plugin connection, the history import's progress and "Open console" (new tab, signed in for 5 minutes); new messages `ready`, `created`, `closed` (type `smaily_intelligence_onboarding`); the setup message is unchanged.
 - **Button.** "Try Intelligence free" / "Proovi Intelligence'i tasuta" replaces "Start Campaign Intelligence". The plugin renders the button, the card and the refusals itself (§21 Texts the plugin shows; three Estonian refusal texts may still change).
 - **§1.** After an exchange with a token from the start window, the plugin starts the history import by itself. **§25.** The welcome step shows the progress the plugin reports.
 - **§24.** Console entry goes on together with the engine release of the frame mode; it is still off.
@@ -4230,6 +4272,14 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **Salons.** A booking that is still open holds back the customer's recommendations; a cancellation or no-show makes the customer due for a new invitation to book.
 - **§8 export** gains `outcome_events` and the `outcome_events` keys of `data_retention_policy` and `data_retention_purpose` (14 months from the event). **§9 delete** gains `records_removed.outcome_events`.
 - **What the plugin does.** Nothing. **A plugin built for an earlier version keeps working unchanged.** The reader of §6b is a booking-system bridge.
+
+**v1.33.0** (2026-11-17) — **One code prefix per shop connection**. MINOR bump per the [Versioning](#versioning) rule (new optional request and response fields, one new error value, one new error response that stays off until announced; backward-compatible while it is off). INT-285, Erkki's decisions 2026-11-17.
+- **The gap.** Two shops in one engine store number their products and orders from 1 (`woo-101`, order `1234`), so one shop overwrote the other's rows, and one shop's nightly list (§3c) removed the other shop's products.
+- **§1 `capabilities` and `connection.previous_prefix`** (new, optional request fields); **`config.connection.prefix`** (new response field, also on the §2 ping). A connector that declares `connection_prefix` gets a prefix for its connection (`c<N>-`); a reconnect keeps it. A connection without the capability, and every connection made before 1.33.0, has `""`.
+- **Keys carry the prefix**: §3 `sku` and `tags.product_id`, §3b `product_ids`, §3c `sku`, §5 `external_order_id`, §6 `sku`. `sku` max 72 (was 64). A key outside its connection is refused as `connection_prefix_mismatch` (§3, §3b, §5, §6 per item; §3c the whole list). Order line `sku`s are not checked.
+- **Per connection**: §3b and §3c cover only the calling connection's products; §25 progress is kept per connection. §5 "A second order source" starts its order ids with its own prefix when its key has one. §15: treat `sku` as opaque.
+- **Status.** The engine side is built and switched off: until the engine switches assignment on, every connection gets `""`, and then only a connector that declares the capability gets a prefix. `409 plugin_update_required` (an exchange without the capability; the token is not used) is off and is announced on the connector issues before it is switched on.
+- **What the plugin does.** Send `capabilities: ["connection_prefix"]` and, on a reconnect, `connection.previous_prefix`; store `config.connection.prefix`; put it in front of every key listed above. **A plugin built for an earlier version keeps working unchanged** until the refusal is announced and switched on.
 
 ### Appendix F: Migration notes
 
