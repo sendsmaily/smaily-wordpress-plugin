@@ -8775,7 +8775,8 @@ cart save that follows the review. The checkout copy of the box carries
 WooCommerce's `update_totals_on_change` class, so a change of the box alone
 posts an order review — without it a tick made last was never reported
 (CON-202). No schema change. The block checkout
-reports the box only with the placed order, so a tick there cannot count. The
+reports the box only with the placed order, so a tick there cannot count
+(superseded by PRO-4263 below: the block now sends the box as it changes). The
 consent inputs ride the queue payload at the top level (`user_id`,
 `newsletter_optin`): the tick as it stood when the sweeper queued the
 reminder, while the WP record and Smaily are read at send time. The mode is
@@ -11219,3 +11220,60 @@ written in full above.
 
 In each sub-PR's planning phase: "is this decision worth adding to DECISIONS?"
 Rule of thumb: **if the rationale requires more than one sentence**, add it.
+
+### PRO-4263 + CON-325 — The block checkout's box and the classic billing email reach the cart before the order (2026-11-17)
+
+**Context:** CON-196 counts a newsletter box ticked in the unfinished
+checkout as consent for the abandoned-cart reminder, but only the classic
+checkout reported it: the block checkout sent the box only with
+`POST /wc/store/v1/checkout`, and placing the order clears the cart tracker.
+In "Subscribers only" and "Checkout opt-in only" a new guest on the block
+checkout could never get a reminder, even after ticking the box (PRO-4263,
+verified on the dev site). In the classic checkout the billing email reached
+the store only with an order review, which WooCommerce posts after an
+address, shipping or box change — a corrected email was missed and the
+reminder went to the old address (CON-325).
+**Decision (Erkki, 2026-11-17):**
+- The block sends the box to the store when the shopper changes it —
+  `extensionCartUpdate( { namespace: 'smaily-checkout-optin', data: {
+  user_newsletter } } )` — and the server's
+  `woocommerce_store_api_register_update_callback` (registered in
+  `Bootstrap::register_woocommerce_hooks()` when the function exists) calls
+  `CartHookHandler::on_store_api_newsletter_update()`, which writes the same
+  `cart_content` flag as the classic tick (`CartSessionStore::
+  set_newsletter_optin()`, through `encode_content()`). Only a JSON `true` is
+  a tick; unticking clears it. Same gate as the rest of the tracker. Nothing
+  is sent to Smaily, no `user_newsletter` is written and no welcome starts:
+  the subscription still comes with the order (`setExtensionData`, as
+  before). `CartFlusher::consent_refusal()` is unchanged.
+- The classic billing email gets WooCommerce's `update_totals_on_change`
+  class (`CartHookHandler::on_checkout_fields()`, `woocommerce_checkout_fields`,
+  classes already set are kept, only while cart tracking is on), so typing or
+  correcting it posts an order review about a second after the last key — no
+  blur needed — and the tracker holds the current address.
+- **The class alone was not enough (found while building, decided by Erkki
+  2026-11-17):** WooCommerce's checkout script (`maybe_update_checkout`) skips
+  the refresh of a text field while a required address field in the same
+  section is empty, so a guest who typed only the email and left was still
+  not identified (walked on the dev site, WooCommerce 10.7). So
+  `CartHookHandler::on_enqueue_scripts()` (`wp_enqueue_scripts`, priority 20,
+  after WooCommerce registers `wc-checkout`; only while cart tracking is on)
+  attaches one line to `wc-checkout` with `wp_add_inline_script()`: on a
+  `change` of `#billing_email` it triggers WooCommerce's `update_checkout`,
+  the same event the newsletter box's change triggers. It is an IIFE with no
+  global of its own and is no file in `dist/`, so it needs no Vite pass and no
+  `check:bundle-scope` line. It fires on `change` (the field loses focus); the
+  class covers typing (about a second after the last key) once the address is
+  complete. With the address complete, leaving the field after an edit posts
+  one more order review with the same address — harmless.
+- **The block box is not re-sent when the page loads (Erkki, 2026-11-17):** the
+  box always renders unticked, while a tick recorded before a reload stays on
+  the cart until the shopper changes the box. That is accepted — no on-load
+  sync.
+**Alternatives:** record the block tick from `setExtensionData` — rejected:
+that data reaches the server only with the order. Hook the Store API
+`cart/update-customer` route for the box — rejected: the box is not part of
+that request.
+**Relationships:** CON-196 (the consent rule, unchanged), CON-202 (the
+classic box's class), PRO-4097 (a subscribed customer still sees no box),
+PRO-4093 (the welcome still starts only inside `run_as_storefront_optin()`).

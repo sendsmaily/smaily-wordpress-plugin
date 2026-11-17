@@ -2145,10 +2145,25 @@ repo: a red staleness run is the signal to sync.
   flushes the cart queue must answer that GET — in the default consent mode a
   reminder to an unknown address is skipped. Pass
   `PipelineFixture::subscribed_contact_read()` to `PipelineFixture::flush()`.
-  The classic checkout's newsletter tick — and the storefront language
+  The checkout's newsletter tick — and the storefront language
   (PRO-4253) — live in the tracker's `cart_content`
   (`CartSessionStore::encode_content()`/`decode_content()` — read them only
-  through those).
+  through those). The classic box reports it with the order review; the
+  block box sends it as it changes through the Store API cart extension
+  route (`extensionCartUpdate`, namespace `smaily-checkout-optin`,
+  `CartHookHandler::on_store_api_newsletter_update()`, PRO-4263) — never
+  start a subscription, a `user_newsletter` write or a welcome there.
+  The classic billing email carries `update_totals_on_change` (CON-325), but
+  WooCommerce's checkout script skips a text field's refresh while a required
+  address field is empty — so `CartHookHandler::on_enqueue_scripts()` also
+  attaches one inline IIFE to `wc-checkout` that triggers `update_checkout`
+  on the email's `change`. An inline line, not a `dist/` bundle: a new
+  storefront FILE would still need its own Vite pass (PRO-2391).
+  **Integration-test trap:** a test that posts to `/wc/store/v1/cart/extensions`
+  through `rest_do_request()` needs `woocommerce_store_api_disable_nonce_check`
+  for that call (`AbandonedCartConsentTest::block_box()`), and a test that sets
+  `WC()->customer`'s billing email clears it in tearDown — a guest cart's
+  identity is read from it.
 
 ---
 

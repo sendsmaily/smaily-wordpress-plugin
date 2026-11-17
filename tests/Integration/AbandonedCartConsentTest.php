@@ -71,6 +71,9 @@ final class AbandonedCartConsentTest extends TestCase {
 		if ( function_exists( 'WC' ) && WC()->cart instanceof \WC_Cart ) {
 			WC()->cart->empty_cart();
 		}
+		if ( function_exists( 'WC' ) && WC()->customer instanceof \WC_Customer ) {
+			WC()->customer->set_billing_email( '' );
+		}
 		wp_set_current_user( 0 );
 
 		$this->store->clean_up();
@@ -186,6 +189,119 @@ final class AbandonedCartConsentTest extends TestCase {
 		self::assertSame( 'sent', $this->cart_row( $email )['status'] );
 	}
 
+	/**
+	 * PRO-4263: a guest ticks the newsletter box in the block checkout and
+	 * leaves. The block sends the box through the Store API cart extension
+	 * route as it changes, so the tick counts for the reminder like a classic
+	 * one — before any order exists.
+	 *
+	 * @dataProvider consent_modes
+	 */
+	public function test_a_block_checkout_tick_gets_a_reminder( string $mode ): void {
+		$this->set_mode( $mode );
+
+		$email  = $this->abandon_a_cart( 'block_tick' );
+		$bodies = PipelineFixture::flush( CartFlusher::FLUSH_HOOK, self::smaily_not_found() );
+
+		self::assertNotNull( $this->reminder( $bodies ), 'The block checkout tick is consent for the reminder.' );
+		self::assertSame( 'sent', $this->cart_row( $email )['status'] );
+	}
+
+	public function test_a_block_checkout_box_unticked_again_is_no_consent(): void {
+		$this->set_mode( ContactSyncMode::MODE_CONSENT );
+
+		$email  = $this->abandon_a_cart( 'block_tick', true );
+		$bodies = PipelineFixture::flush( CartFlusher::FLUSH_HOOK, self::smaily_not_found() );
+
+		self::assertNull( $this->reminder( $bodies ) );
+		self::assertSame( 'no_marketing_consent', EventQueue::skip_reason( (string) $this->cart_row( $email )['last_response'] ) );
+	}
+
+	/**
+	 * PRO-4263: the tick is recorded on the cart only — no user meta, no
+	 * Smaily request, no queue row until the sweeper's reminder.
+	 */
+	public function test_a_block_checkout_tick_writes_nothing_but_the_cart(): void {
+		global $wpdb;
+
+		$product_id = $this->store->make_product( 'Block Tick Product' );
+		$user_id    = $this->store->make_user( 'pro4263-block-tick' );
+		wp_set_current_user( $user_id );
+		$this->boot_wc_cart();
+		WC()->cart->add_to_cart( $product_id, 1 );
+		$this->track_cart();
+
+		$queued   = (string) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}smly_plus_event_queue" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$requests = 0;
+		$count    = static function ( $pre ) use ( &$requests ) {
+			++$requests;
+			return $pre;
+		};
+		add_filter( 'pre_http_request', $count, 1 );
+		try {
+			$this->block_box( true );
+		} finally {
+			remove_filter( 'pre_http_request', $count, 1 );
+		}
+
+		self::assertSame( 0, $requests, 'Nothing is sent at tick time.' );
+		self::assertSame( '', get_user_meta( $user_id, 'user_newsletter', true ), 'The tick is no subscription and starts no welcome.' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		self::assertSame( $queued, (string) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}smly_plus_event_queue" ), 'No Smaily queue row is written at tick time.' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$content = (string) $wpdb->get_var( $wpdb->prepare( "SELECT cart_content FROM {$wpdb->prefix}smly_plus_cart_session WHERE user_id = %d", $user_id ) );
+		self::assertTrue( CartSessionStore::decode_content( $content )['newsletter_optin'] ?? false );
+	}
+
+	/**
+	 * CON-325: the classic checkout's billing email sits in an
+	 * `update_totals_on_change` wrapper, so WooCommerce posts an order review
+	 * when it is typed or corrected and the tracker gets the current address.
+	 */
+	public function test_the_classic_billing_email_refreshes_the_order_review(): void {
+		$fields = (array) apply_filters(
+			'woocommerce_checkout_fields',
+			array( 'billing' => WC()->countries->get_address_fields( '', 'billing_' ) )
+		);
+		$html   = woocommerce_form_field( 'billing_email', array( 'return' => true ) + $fields['billing']['billing_email'], '' );
+
+		self::assertMatchesRegularExpression( '/<p class="form-row[^"]*\bupdate_totals_on_change\b[^"]*"[^>]*id="billing_email_field"/', $html );
+		self::assertStringContainsString( 'type="email"', $html );
+	}
+
+	/**
+	 * CON-325: WooCommerce's checkout script gets the line that refreshes the
+	 * order review on a billing email change, through the plugin's real
+	 * `wp_enqueue_scripts` registration — attached to `wc-checkout` only.
+	 */
+	public function test_the_checkout_script_refreshes_the_order_review_on_an_email_change(): void {
+		$scripts    = wp_scripts();
+		$registered = isset( $scripts->registered['wc-checkout'] );
+		if ( ! $registered ) {
+			wp_register_script( 'wc-checkout', 'https://example.test/checkout.js', array( 'jquery' ), '1', true );
+		}
+		$before = (array) $scripts->get_data( 'wc-checkout', 'after' );
+
+		try {
+			foreach ( (array) ( $GLOBALS['wp_filter']['wp_enqueue_scripts']->callbacks[20] ?? array() ) as $callback ) {
+				if ( is_array( $callback['function'] ) && $callback['function'][0] instanceof CartHookHandler ) {
+					call_user_func( $callback['function'] );
+				}
+			}
+			$added = array_values( array_diff( (array) $scripts->get_data( 'wc-checkout', 'after' ), $before ) );
+		} finally {
+			if ( $registered ) {
+				$scripts->add_data( 'wc-checkout', 'after', $before );
+			} else {
+				wp_deregister_script( 'wc-checkout' );
+			}
+		}
+
+		self::assertCount( 1, $added, 'The plugin registers the email refresh on wp_enqueue_scripts.' );
+		self::assertStringContainsString( '.on("change","#billing_email"', $added[0] );
+		self::assertStringContainsString( '.trigger("update_checkout")', $added[0] );
+	}
+
 	public function test_a_tick_does_not_override_an_unsubscribe_in_smaily(): void {
 		$this->set_mode( ContactSyncMode::MODE_CONSENT );
 
@@ -281,6 +397,25 @@ final class AbandonedCartConsentTest extends TestCase {
 				do_action( 'woocommerce_checkout_update_order_review', self::posted_checkout( $email, false ) );
 				$this->track_cart();
 			}
+		} elseif ( $shopper === 'block_tick' ) {
+			// A guest on the block checkout: the email reaches the store with
+			// the Store API customer update, the box with the cart extension
+			// update the block sends when it changes (PRO-4263).
+			wp_set_current_user( 0 );
+			$this->boot_wc_cart();
+			WC()->cart->add_to_cart( $product_id, 1 );
+			$this->track_cart();
+
+			$email = 'pro4263-block-tick-' . wp_generate_password( 6, false ) . '@example.test';
+			WC()->customer->set_billing_email( $email );
+			( new CartHookHandler( new CartSessionStore() ) )->on_store_api_update_customer( WC()->customer );
+			$this->block_box( true );
+			$this->track_cart();
+
+			if ( $untick ) {
+				$this->block_box( false );
+				$this->track_cart();
+			}
 		} else {
 			$user_id = $this->store->make_user( 'con196-' . str_replace( '_', '-', $shopper ) );
 			$email   = PipelineFixture::email_of( $user_id );
@@ -304,6 +439,33 @@ final class AbandonedCartConsentTest extends TestCase {
 	private function track_cart(): void {
 		CartHookHandler::reset_request_guard();
 		( new CartHookHandler( new CartSessionStore() ) )->on_cart_updated();
+	}
+
+	/**
+	 * The block's box change as WooCommerce's `extensionCartUpdate()` sends it:
+	 * a POST to the Store API cart extension route under the block's namespace.
+	 */
+	private function block_box( bool $ticked ): void {
+		$request = new \WP_REST_Request( 'POST', '/wc/store/v1/cart/extensions' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body(
+			(string) wp_json_encode(
+				array(
+					'namespace' => CartHookHandler::CHECKOUT_OPTIN_NAMESPACE,
+					'data'      => array( 'user_newsletter' => $ticked ),
+				)
+			)
+		);
+
+		// The browser sends the Store API nonce; this request comes from no page.
+		add_filter( 'woocommerce_store_api_disable_nonce_check', '__return_true' );
+		try {
+			$response = rest_do_request( $request );
+		} finally {
+			remove_filter( 'woocommerce_store_api_disable_nonce_check', '__return_true' );
+		}
+
+		self::assertSame( 200, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
 	}
 
 	private static function posted_checkout( string $email, bool $ticked ): string {
