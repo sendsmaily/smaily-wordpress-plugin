@@ -647,8 +647,9 @@ class EventsEndpoint {
 			// PRO-4098: every row skipped for good, from either queue, with
 			// or without a reason, reads "skipped" — not "sent".
 			'skipped'               => self::is_skipped( (string) ( $row['status'] ?? '' ), (string) ( $row['last_response'] ?? '' ) ),
-			// PRO-4095, CON-328: a follow-up email or payment reminder waiting for its delay — when it
-			// will be sent (UTC), '' on every other row.
+			// PRO-4095, CON-328: a follow-up email or payment reminder
+			// waiting for its delay — when it will be sent (UTC), '' on
+			// every other row.
 			'scheduled_for'         => $this->scheduled_for( $row ),
 			// PRO-2324: may the merchant deliberately send this confirmation
 			// a second time? Only a transactional row Smaily itself sent, on
