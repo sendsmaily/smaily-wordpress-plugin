@@ -228,7 +228,10 @@ class Client {
 	 * @throws ApiException On 4xx (non-429) or unrecoverable network failure.
 	 */
 	public function ping(): array {
-		return $this->request( 'GET', self::PATH_PING );
+		$answer = $this->request( 'GET', self::PATH_PING );
+		// §2 `config.connection.prefix` wins over the stored one (CON-323).
+		$this->settings->note_ping( $answer );
+		return $answer;
 	}
 
 	// ---------------------------------------------------------------

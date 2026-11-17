@@ -52,6 +52,48 @@ function save_state( string $path, array $state ): void {
 	file_put_contents( $path, json_encode( $state ) );
 }
 
+/**
+ * The calling connection's scope (contract v1.33.0 §1 "Connection prefix",
+ * CON-323), mirroring the engine's lib/tenants/connection-prefix.ts: `own` is
+ * the connection's prefix ('' = a connection without one), `assigned` every
+ * prefix the store has. A test sets them with
+ * RecEngineMockServer::set_connection_prefix() / set_assigned_prefixes(), or
+ * the setup exchange assigns one.
+ *
+ * @return array{own: string, assigned: array<int, string>}
+ */
+function connection_scope( array $state ): array {
+	$own      = isset( $state['connection_prefix'] ) ? (string) $state['connection_prefix'] : '';
+	$assigned = ( isset( $state['assigned_prefixes'] ) && is_array( $state['assigned_prefixes'] ) ) ? array_map( 'strval', $state['assigned_prefixes'] ) : array();
+	if ( $own !== '' && ! in_array( $own, $assigned, true ) ) {
+		$assigned[] = $own;
+	}
+	return array(
+		'own'      => $own,
+		'assigned' => $assigned,
+	);
+}
+
+/** The engine's inConnectionScope(): a key of the caller's connection. */
+function in_connection_scope( string $key, array $scope ): bool {
+	if ( $scope['own'] !== '' ) {
+		return strpos( $key, $scope['own'] ) === 0;
+	}
+	foreach ( $scope['assigned'] as $prefix ) {
+		if ( strpos( $key, $prefix ) === 0 ) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/** The engine's connectionMismatchMessage(). */
+function connection_mismatch_message( array $scope, string $field ): string {
+	return $scope['own'] !== ''
+		? sprintf( "connection_prefix_mismatch: %s must start with this connection's prefix '%s' (config.connection.prefix)", $field, $scope['own'] )
+		: sprintf( "connection_prefix_mismatch: %s starts with another connection's prefix", $field );
+}
+
 // Every request that actually reaches the engine is counted, so a test can
 // assert the OPPOSITE: after a `403 tenant_inactive`, the plugin must stop
 // sending, and "zero further requests" is only provable from the receiving
@@ -215,6 +257,31 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 		);
 	}
 
+	// v1.33.0 §1 (CON-323): record what the plugin declared, and give the
+	// connection a prefix the way the engine does — only to a plugin with the
+	// `connection_prefix` capability; a `previous_prefix` the store assigned
+	// is reused, else the test's `setup_connection_prefix` (default '').
+	$capabilities    = ( isset( $body['capabilities'] ) && is_array( $body['capabilities'] ) ) ? $body['capabilities'] : array();
+	$previous_prefix = ( isset( $body['connection'] ) && is_array( $body['connection'] ) && array_key_exists( 'previous_prefix', $body['connection'] ) )
+		? $body['connection']['previous_prefix']
+		: null;
+	$state['setup_requests'][] = array(
+		'capabilities' => isset( $body['capabilities'] ) ? $body['capabilities'] : null,
+		'connection'   => isset( $body['connection'] ) ? $body['connection'] : null,
+	);
+	$assigned = ( isset( $state['assigned_prefixes'] ) && is_array( $state['assigned_prefixes'] ) ) ? $state['assigned_prefixes'] : array();
+	$prefix   = '';
+	if ( in_array( 'connection_prefix', $capabilities, true ) ) {
+		$prefix = is_string( $previous_prefix ) && in_array( $previous_prefix, $assigned, true )
+			? $previous_prefix
+			: ( isset( $state['setup_connection_prefix'] ) ? (string) $state['setup_connection_prefix'] : '' );
+	}
+	$state['connection_prefix'] = $prefix;
+	if ( $prefix !== '' && ! in_array( $prefix, $assigned, true ) ) {
+		$assigned[] = $prefix;
+	}
+	$state['assigned_prefixes'] = $assigned;
+
 	// Anything else: success. Mark token used.
 	$state[ 'used_' . $token ]   = true;
 	$state[ 'api_key' ]          = 'sk_mock_' . bin2hex( random_bytes( 16 ) );
@@ -299,6 +366,9 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				// v1.20.0: a nested object in `config` — the stored config
 				// must still parse and every flat key keep working.
 				'history'              => MOCK_HISTORY_CONFIG,
+				// v1.33.0 §1: the connection's code prefix (CON-323); a
+				// test answers a malformed one with `setup_prefix_answer`.
+				'connection'           => array( 'prefix' => array_key_exists( 'setup_prefix_answer', $state ) ? $state['setup_prefix_answer'] : $prefix ),
 			),
 			'issued_at'       => gmdate( 'c' ),
 		)
@@ -341,6 +411,11 @@ if ( $method === 'GET' && $path === '/api/v1/ingest/ping' ) {
 		} else {
 			unset( $ping['config'] );
 		}
+	}
+	// v1.33.0 §2: the calling key's connection prefix (CON-323) — always
+	// present on an engine since 1.33.0, also with an old history block.
+	if ( isset( $ping['config'] ) ) {
+		$ping['config']['connection'] = array( 'prefix' => array_key_exists( 'ping_prefix_answer', $state ) ? $state['ping_prefix_answer'] : connection_scope( $state )['own'] );
 	}
 	reply( 200, $ping );
 }
@@ -541,6 +616,23 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog' ) {
 			continue;
 		}
 
+		// v1.33.0 (CON-323): a key writes only its own connection's sku and
+		// parent product id — refused per row, the rest of the batch stored.
+		$scope          = connection_scope( $state );
+		$tag_product_id = isset( $product['tags']['product_id'] ) && is_scalar( $product['tags']['product_id'] ) ? (string) $product['tags']['product_id'] : null;
+		$mismatch       = ! in_connection_scope( $sku, $scope )
+			? 'sku'
+			: ( $tag_product_id !== null && ! in_connection_scope( $tag_product_id, $scope ) ? 'tags.product_id' : null );
+		if ( $mismatch !== null ) {
+			$errors[] = array(
+				'index'   => $index,
+				'sku'     => $sku,
+				'field'   => $mismatch,
+				'message' => connection_mismatch_message( $scope, $mismatch ),
+			);
+			continue;
+		}
+
 		if ( $event_id !== '' && in_array( $event_id, $seen, true ) ) {
 			++$deduplicated;
 			continue;
@@ -630,7 +722,8 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog' ) {
 // emitted — NOT the `woo-`-prefixed sku), 1..1000 per request; a malformed
 // wrapper is a 400 validation_failed. Idempotent: ids matching no ingested
 // row land in `not_found` (a success). NOT D6 — the response is
-// {ok, removed_products, rows_tombstoned, not_found}, no per-item errors[].
+// {ok, removed_products, rows_tombstoned, not_found}; v1.33.0 adds errors[]
+// for an id outside the calling connection, present only when there is one.
 if ( $method === 'POST' && $path === '/api/v1/ingest/catalog/remove' ) {
 	require_bearer_auth();
 
@@ -663,10 +756,23 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog/remove' ) {
 	$removed_products = 0;
 	$rows_tombstoned  = 0;
 	$not_found        = array();
+	// v1.33.0 (CON-323): only the calling connection's rows are matched; an
+	// id of another connection is answered in errors[] and removes nothing.
+	$scope       = connection_scope( $state );
+	$scope_errors = array();
 	foreach ( array_values( array_unique( $ids ) ) as $product_id ) {
+		if ( ! in_connection_scope( $product_id, $scope ) ) {
+			$scope_errors[] = array(
+				'product_id' => $product_id,
+				'field'      => 'product_ids',
+				'error'      => 'connection_prefix_mismatch',
+				'message'    => connection_mismatch_message( $scope, 'product_id' ),
+			);
+			continue;
+		}
 		$matched = 0;
 		foreach ( $group_by_sku as $sku => $group_id ) {
-			if ( (string) $group_id === $product_id ) {
+			if ( (string) $group_id === $product_id && in_connection_scope( (string) $sku, $scope ) ) {
 				++$matched;
 				$tombstoned[ (string) $sku ] = true;
 			}
@@ -683,22 +789,23 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog/remove' ) {
 	$state['last_catalog_removed'] = $ids;
 	save_state( $state_file, $state );
 
-	reply(
-		200,
-		array(
-			'ok'               => true,
-			'removed_products' => $removed_products,
-			'rows_tombstoned'  => $rows_tombstoned,
-			'not_found'        => array_values( $not_found ),
-		)
+	$answer = array(
+		'ok'               => true,
+		'removed_products' => $removed_products,
+		'rows_tombstoned'  => $rows_tombstoned,
+		'not_found'        => array_values( $not_found ),
 	);
+	if ( $scope_errors !== array() ) {
+		$answer['errors'] = $scope_errors; // Present only when there is one.
+	}
+	reply( 200, $answer );
 }
 
 // Nightly catalog manifest — §3c (contract v1.12.0, PRO-3859). The store's
 // complete product list in ONE request: `{"products":[{"sku","in_stock"}]}`,
 // 0–50,000 items. Validation mirrors the contract: a missing / non-array /
-// over-50,000 wrapper, or any item without a non-empty sku of at most 64
-// characters or without a boolean in_stock, is a 400 validation_failed for the
+// over-50,000 wrapper, or any item without a non-empty sku of at most 72
+// characters (v1.33.0; 64 before) or without a boolean in_stock, is a 400 validation_failed for the
 // whole list. Unknown item keys are ignored, as on the engine — the received
 // items are recorded raw so a test can assert the plugin sends nothing else.
 // The answer is computed against what /ingest/catalog accumulated: a known sku
@@ -715,7 +822,7 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog/manifest' ) {
 	$valid = $items !== null && count( $items ) <= 50000;
 	foreach ( $valid ? $items : array() as $item ) {
 		$sku = is_array( $item ) && isset( $item['sku'] ) && is_string( $item['sku'] ) ? $item['sku'] : '';
-		if ( $sku === '' || strlen( $sku ) > 64 || ! is_bool( $item['in_stock'] ?? null ) ) {
+		if ( $sku === '' || strlen( $sku ) > 72 || ! is_bool( $item['in_stock'] ?? null ) ) {
 			$valid = false;
 			break;
 		}
@@ -732,6 +839,23 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog/manifest' ) {
 		);
 	}
 
+	// v1.33.0 (CON-323): the list covers the calling connection's own
+	// products; an item outside its scope rejects the whole list.
+	$scope = connection_scope( $state );
+	foreach ( $items as $index => $item ) {
+		if ( ! in_connection_scope( $item['sku'], $scope ) ) {
+			$state['manifest_rejected_count'] = ( isset( $state['manifest_rejected_count'] ) ? (int) $state['manifest_rejected_count'] : 0 ) + 1;
+			save_state( $state_file, $state );
+			reply(
+				400,
+				array(
+					'error'   => 'connection_prefix_mismatch',
+					'message' => connection_mismatch_message( $scope, sprintf( 'products[%d].sku', $index ) ),
+				)
+			);
+		}
+	}
+
 	$listed = array();
 	foreach ( $items as $item ) {
 		$listed[ $item['sku'] ] = $item['in_stock']; // The last occurrence wins.
@@ -740,7 +864,14 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/catalog/manifest' ) {
 	$known      = ( isset( $state['catalog_in_stock_by_sku'] ) && is_array( $state['catalog_in_stock_by_sku'] ) ) ? $state['catalog_in_stock_by_sku'] : array();
 	$tombstoned = ( isset( $state['catalog_tombstoned'] ) && is_array( $state['catalog_tombstoned'] ) ) ? $state['catalog_tombstoned'] : array();
 
-	$live        = array_diff_key( $known, $tombstoned );
+	// Removes, stock fixes, the missing count and the guard: within the scope.
+	$in_scope = array();
+	foreach ( $known as $sku => $in_stock ) {
+		if ( in_connection_scope( (string) $sku, $scope ) ) {
+			$in_scope[ $sku ] = $in_stock;
+		}
+	}
+	$live        = array_diff_key( $in_scope, $tombstoned );
 	$to_remove   = array_keys( array_diff_key( $live, $listed ) );
 	$stock_fixed = 0;
 	foreach ( $listed as $sku => $in_stock ) {
@@ -1136,6 +1267,20 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/orders' ) {
 			continue;
 		}
 
+		// v1.33.0 (CON-323): a prefixed key's order ids start with its
+		// prefix. Line skus are not checked (they may name another
+		// connection's product).
+		$own_prefix = connection_scope( $state )['own'];
+		if ( $own_prefix !== '' && strpos( $external_id, $own_prefix ) !== 0 ) {
+			$errors[] = array(
+				'index'             => $index,
+				'external_order_id' => $external_id,
+				'field'             => 'external_order_id',
+				'message'           => connection_mismatch_message( connection_scope( $state ), 'external_order_id' ),
+			);
+			continue;
+		}
+
 		if ( $event_id !== '' && in_array( $event_id, $seen, true ) ) {
 			++$deduplicated;
 			continue;
@@ -1316,6 +1461,13 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/browse' ) {
 		}
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
 			$errors[] = array( 'index' => $index, 'field' => 'event_type', 'message' => 'Invalid enum value' );
+			continue;
+		}
+		// v1.33.0 (CON-323): a prefixed key's product codes carry its prefix.
+		$own_prefix = connection_scope( $state )['own'];
+		$event_sku  = isset( $event['sku'] ) ? (string) $event['sku'] : '';
+		if ( $own_prefix !== '' && $event_sku !== '' && strpos( $event_sku, $own_prefix ) !== 0 ) {
+			$errors[] = array( 'index' => $index, 'field' => 'sku', 'message' => connection_mismatch_message( connection_scope( $state ), 'sku' ) );
 			continue;
 		}
 		if ( in_array( $event_id, $seen, true ) ) {

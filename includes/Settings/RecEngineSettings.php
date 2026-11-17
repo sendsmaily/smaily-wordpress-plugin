@@ -42,6 +42,7 @@ use Throwable;
  *   smly_rec_config            json       autoload=false  cookie names + TTLs + rate limits
  *   smly_rec_issued_at         string     autoload=false  ISO 8601
  *   smly_rec_refused_at        int        autoload=true   unix ts of the first refusal
+ *   smly_rec_connection_prefix string     autoload=true   the connection's code prefix (CON-323)
  *
  * autoload=false on the api_key (and everything except the gates)
  * keeps the encrypted secret out of the alloptions cache that lands
@@ -76,6 +77,21 @@ class RecEngineSettings {
 	 * blob so a support read is a plain `wp option get`.
 	 */
 	public const OPTION_REFUSED_AT = 'smly_rec_refused_at';
+
+	/**
+	 * The code prefix the engine gave this connection (contract v1.33.0 §1
+	 * `config.connection.prefix`, CON-323): `c<N>-`, or '' for a connection
+	 * without one. Put in front of every product and order key the plugin
+	 * sends (Support\SkuResolver, OrderPayloadBuilder). Disconnect KEEPS it:
+	 * the next setup exchange reports it as `connection.previous_prefix`, so
+	 * a reconnect gets the same prefix back. Uninstall deletes it with every
+	 * other `smly_rec_*` row. Autoloaded: a bare non-secret string read on
+	 * storefront requests (browse keys), like OPTION_REFUSED_AT.
+	 */
+	public const OPTION_CONNECTION_PREFIX = 'smly_rec_connection_prefix';
+
+	/** The prefix shape the engine assigns (contract §1, the engine's own CHECK). */
+	public const CONNECTION_PREFIX_PATTERN = '/^c[1-9][0-9]{0,3}-$/';
 
 	public function is_connected(): bool {
 		return (bool) get_option( self::OPTION_CONNECTED, false );
@@ -182,6 +198,73 @@ class RecEngineSettings {
 		return is_array( $decoded ) ? $decoded : array();
 	}
 
+	/**
+	 * The code prefix to put in front of every key this connection sends
+	 * (CON-323): '' when not connected, for a connection without a prefix,
+	 * and for a stored value of the wrong shape.
+	 */
+	public function connection_prefix(): string {
+		if ( ! $this->is_connected() ) {
+			return '';
+		}
+		$prefix = get_option( self::OPTION_CONNECTION_PREFIX, '' );
+		return self::is_valid_prefix( $prefix ) ? (string) $prefix : '';
+	}
+
+	/**
+	 * The prefix of the store's last connection — kept by disconnect() —
+	 * for the setup exchange's `connection.previous_prefix`; null when the
+	 * store has none on record (never connected since CON-323).
+	 */
+	public function previous_prefix(): ?string {
+		$prefix = get_option( self::OPTION_CONNECTION_PREFIX, false );
+		return self::is_valid_prefix( $prefix ) ? (string) $prefix : null;
+	}
+
+	/**
+	 * Store the ping's `config.connection.prefix` when it differs from the
+	 * stored one (§2: the engine's operator may move a key to another prefix
+	 * before its first data, so the ping wins). A ping without the block
+	 * changes nothing; a value of the wrong shape is ignored and logged by
+	 * name only, never its value (CON-277).
+	 *
+	 * @param array<string, mixed> $answer The §2 ping response body.
+	 */
+	public function note_ping( array $answer ): void {
+		$config = $answer['config'] ?? null;
+		if ( ! is_array( $config ) || ! array_key_exists( 'connection', $config ) || ! $this->is_connected() ) {
+			return;
+		}
+		$prefix = self::config_prefix( $config );
+		if ( $prefix === null ) {
+			DebugLog::write( '[smaily-connect rec-engine] ping: config.connection.prefix is not a connection prefix; the stored prefix is kept' );
+			return;
+		}
+		update_option( self::OPTION_CONNECTION_PREFIX, $prefix, true );
+	}
+
+	/**
+	 * The `config.connection.prefix` of an exchange or ping `config` block:
+	 * '' when the block has no `connection` (an engine before v1.33.0), the
+	 * prefix when it is '' or `c<N>-`, null when it is anything else.
+	 *
+	 * @param array<string, mixed> $config
+	 */
+	public static function config_prefix( array $config ): ?string {
+		if ( ! isset( $config['connection'] ) ) {
+			return '';
+		}
+		$prefix = is_array( $config['connection'] ) ? ( $config['connection']['prefix'] ?? null ) : null;
+		return self::is_valid_prefix( $prefix ) ? (string) $prefix : null;
+	}
+
+	/**
+	 * @param mixed $prefix
+	 */
+	private static function is_valid_prefix( $prefix ): bool {
+		return is_string( $prefix ) && ( $prefix === '' || preg_match( self::CONNECTION_PREFIX_PATTERN, $prefix ) === 1 );
+	}
+
 	public function issued_at(): string {
 		return (string) get_option( self::OPTION_ISSUED_AT, '' );
 	}
@@ -204,6 +287,8 @@ class RecEngineSettings {
 		update_option( self::OPTION_ENDPOINTS, (string) wp_json_encode( $result->endpoints ), false );
 		update_option( self::OPTION_CONFIG, (string) wp_json_encode( $result->config ), false );
 		update_option( self::OPTION_ISSUED_AT, $result->issued_at, false );
+		// Overwrites the last connection's prefix (CON-323).
+		update_option( self::OPTION_CONNECTION_PREFIX, $result->connection_prefix, true );
 		// A successful exchange is the ONLY way back from a refused
 		// connection (PRO-1893): a new setup token means a live tenant,
 		// possibly a different one, so the stale refusal must not survive it.
@@ -263,7 +348,9 @@ class RecEngineSettings {
 	 * not-connected. Called by the "Disconnect" button in Step 4.
 	 *
 	 * First tells the engine the connection ends (end_engine_connection(),
-	 * §16, CON-219); whatever the engine answers, the options are deleted.
+	 * §16, CON-219); whatever the engine answers, the options are deleted —
+	 * all but OPTION_CONNECTION_PREFIX, which the next setup exchange sends
+	 * as `connection.previous_prefix` (CON-323).
 	 */
 	public function disconnect(): void {
 		$this->end_engine_connection();

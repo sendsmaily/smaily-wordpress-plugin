@@ -329,7 +329,7 @@ class CatalogHookHandler {
 	private function enqueue_upsert( \WC_Product $unit ): void {
 		// No SKU guard here (F3-36): SkuResolver keys SKU-less units
 		// synthetically in the builder, so every expanded unit is ingestable.
-		if ( $this->already_seen( self::EVENT_CATALOG_UPSERT, (int) $unit->get_id() ) ) {
+		if ( $this->already_seen( self::EVENT_CATALOG_UPSERT, (string) $unit->get_id() ) ) {
 			return;
 		}
 		// Empty payload — the flusher loads the product fresh by entity_id so
@@ -339,7 +339,7 @@ class CatalogHookHandler {
 
 	private function enqueue_delete( \WC_Product $unit ): void {
 		// No SKU guard here either (F3-36) — see enqueue_upsert().
-		if ( $this->already_seen( self::EVENT_CATALOG_DELETE, (int) $unit->get_id() ) ) {
+		if ( $this->already_seen( self::EVENT_CATALOG_DELETE, (string) $unit->get_id() ) ) {
 			return;
 		}
 		// Capture the full object now (still loadable); event_uuid is generated
@@ -370,7 +370,7 @@ class CatalogHookHandler {
 		if ( 'product' !== $post_type && 'product_variation' !== $post_type ) {
 			return;
 		}
-		if ( $this->already_seen( self::EVENT_CATALOG_DELETE, $post_id ) ) {
+		if ( $this->already_seen( self::EVENT_CATALOG_DELETE, (string) $post_id ) ) {
 			return;
 		}
 		$object = $this->builder->build_unresolvable( $post_id, '' );
@@ -380,8 +380,8 @@ class CatalogHookHandler {
 	/**
 	 * Enqueue the §3b product-level removal for a hard-deleted PARENT product.
 	 *
-	 * The payload's `product_id` is SkuResolver::product_group_id() — the RAW
-	 * (un-prefixed) canonical parent id, byte-identical to the `tags.product_id`
+	 * The payload's `product_id` is SkuResolver::product_group_id() — the
+	 * canonical parent id under the connection prefix, byte-identical to the `tags.product_id`
 	 * the catalog sync stamped on every row of this product; §3b matches on
 	 * exactly that string. NEVER the `woo-`-prefixed `sku`.
 	 *
@@ -397,11 +397,11 @@ class CatalogHookHandler {
 		if ( $group_id === '' ) {
 			return;
 		}
-		if ( $this->already_seen( self::EVENT_CATALOG_REMOVE, (int) $group_id ) ) {
+		if ( $this->already_seen( self::EVENT_CATALOG_REMOVE, $group_id ) ) {
 			return;
 		}
 		foreach ( $this->builder->expand( $product ) as $unit ) {
-			$this->already_seen( self::EVENT_CATALOG_DELETE, (int) $unit->get_id() );
+			$this->already_seen( self::EVENT_CATALOG_DELETE, (string) $unit->get_id() );
 		}
 		$this->queue->enqueue(
 			self::EVENT_CATALOG_REMOVE,
@@ -413,8 +413,8 @@ class CatalogHookHandler {
 		);
 	}
 
-	private function already_seen( string $event_type, int $product_id ): bool {
-		$key = $event_type . ':' . $product_id;
+	private function already_seen( string $event_type, string $id ): bool {
+		$key = $event_type . ':' . $id;
 		if ( isset( self::$seen[ $key ] ) ) {
 			return true;
 		}

@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Smaily\RecEngine;
 
+use Smaily\Connect\Settings\RecEngineSettings;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -26,6 +28,8 @@ defined( 'ABSPATH' ) || exit;
  *   - account_mismatch   the engine store's Smaily account (§1
  *                        `smaily_subdomain`) is none of this store's
  *                        Smaily accounts (CON-289) — never stored
+ *   - prefix_invalid     the engine's `config.connection.prefix` is
+ *                        neither '' nor `c<N>-` (CON-323) — never stored
  *
  * The class is intentionally a plain final value-object rather than
  * a hierarchy of subclasses — match-by-`kind` reads more linearly in
@@ -45,6 +49,7 @@ final class ExchangeResult {
 	public const KIND_ENGINE_UNREACHABLE = 'engine_unreachable';
 	public const KIND_HOST_NOT_ALLOWED   = 'host_not_allowed';
 	public const KIND_ACCOUNT_MISMATCH   = 'account_mismatch';
+	public const KIND_PREFIX_INVALID     = 'prefix_invalid';
 
 	public string $kind;
 
@@ -66,6 +71,13 @@ final class ExchangeResult {
 	 * Populated on success and account_mismatch.
 	 */
 	public string $smaily_subdomain = '';
+
+	/**
+	 * §1 `config.connection.prefix` (v1.33.0, CON-323): '' for a connection
+	 * without a prefix or an engine before v1.33.0. Populated on success;
+	 * SetupExchange refuses a reply whose value has the wrong shape.
+	 */
+	public string $connection_prefix = '';
 
 	/** Populated on token_expired only. */
 	public string $regenerate_url = '';
@@ -98,6 +110,7 @@ final class ExchangeResult {
 		if ( isset( $body['config'] ) && is_array( $body['config'] ) ) {
 			$r->config = $body['config'];
 		}
+		$r->connection_prefix = RecEngineSettings::config_prefix( $r->config ) ?? '';
 		if ( isset( $body['smaily_subdomain'] ) && is_string( $body['smaily_subdomain'] ) ) {
 			$r->smaily_subdomain = strtolower( trim( $body['smaily_subdomain'] ) );
 		}
@@ -124,6 +137,12 @@ final class ExchangeResult {
 	public static function host_not_allowed( string $reason ): self {
 		$r         = new self( self::KIND_HOST_NOT_ALLOWED );
 		$r->reason = $reason;
+		return $r;
+	}
+
+	public static function prefix_invalid(): self {
+		$r         = new self( self::KIND_PREFIX_INVALID );
+		$r->reason = 'Smaily Campaign Intelligence replied with a connection code this plugin cannot use, so the connection was not saved. Contact Smaily support.';
 		return $r;
 	}
 

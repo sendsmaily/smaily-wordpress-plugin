@@ -338,8 +338,7 @@ class StorefrontRecommendations {
 
 	/**
 	 * Keep only the slots with a valid recommendation id and a store product
-	 * id: the slot's `external_id`, else its `woo-` sku without the prefix
-	 * (§15: "render with external_id, identify with sku").
+	 * id: the slot's `external_id` (§15: "render with external_id").
 	 *
 	 * @param array<string, mixed> $answer The §15 response body.
 	 * @return array<int, array{rec_id: string, product_id: int}>
@@ -373,14 +372,22 @@ class StorefrontRecommendations {
 	}
 
 	/**
+	 * The slot's store product id: its `external_id` (§15 v1.33.0: "treat
+	 * `sku` as opaque; render with `external_id`" — the sku is never taken
+	 * apart). On a connection with a prefix (CON-323), a slot whose sku is
+	 * not under it names another shop's product of the same engine store:
+	 * its `external_id` is THAT shop's id, so it names no product here (0).
+	 *
 	 * @param array<string, mixed> $slot
 	 */
 	private function product_id( array $slot ): int {
-		$external_id = isset( $slot['external_id'] ) ? (string) $slot['external_id'] : '';
-		if ( ctype_digit( $external_id ) ) {
-			return (int) $external_id;
+		$prefix = SkuResolver::prefix();
+		$sku    = isset( $slot['sku'] ) ? (string) $slot['sku'] : '';
+		if ( $prefix !== '' && strpos( $sku, $prefix ) !== 0 ) {
+			return 0;
 		}
 
-		return SkuResolver::product_id_from_key( isset( $slot['sku'] ) ? (string) $slot['sku'] : '' );
+		$external_id = isset( $slot['external_id'] ) ? (string) $slot['external_id'] : '';
+		return ctype_digit( $external_id ) ? (int) $external_id : 0;
 	}
 }

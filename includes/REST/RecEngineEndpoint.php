@@ -271,6 +271,7 @@ class RecEngineEndpoint {
 					502
 				);
 
+			case ExchangeResult::KIND_PREFIX_INVALID:
 			case ExchangeResult::KIND_ENGINE_UNREACHABLE:
 			default:
 				return new WP_REST_Response(

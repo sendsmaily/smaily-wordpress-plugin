@@ -12,10 +12,12 @@ declare(strict_types=1);
 
 namespace Smaily\Connect\Tests\Unit\Integrations\WooCommerce;
 
+use Brain\Monkey;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Settings\RecEngineSettings;
+use Smaily\Connect\Tests\Unit\Support\StubsConnectionPrefix;
 
 /**
  * PRO-1390 was a browse surface (cart_add/cart_remove) reading WooCommerce's
@@ -27,13 +29,18 @@ use Smaily\Connect\Settings\RecEngineSettings;
  */
 final class StorefrontBeaconTest extends TestCase {
 
+	use StubsConnectionPrefix;
+
 	protected function setUp(): void {
 		parent::setUp();
+		Monkey\setUp();
+		$this->stub_connection_prefix( '' );
 		DetectorFactory::reset();
 	}
 
 	protected function tearDown(): void {
 		DetectorFactory::reset();
+		Monkey\tearDown();
 		parent::tearDown();
 	}
 
