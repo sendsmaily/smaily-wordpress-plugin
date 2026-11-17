@@ -268,6 +268,39 @@ final class CartHookHandlerTest extends TestCase {
 		self::assertSame( $no_email, $this->handler( 'guest-token', null )->on_checkout_fields( $no_email ) );
 	}
 
+	/**
+	 * CON-325: WooCommerce skips a text field's refresh while a required
+	 * address field is empty, so the checkout script gets one line that
+	 * refreshes the order review on a change of the billing email itself.
+	 */
+	public function test_the_billing_email_change_refreshes_the_order_review_before_the_address(): void {
+		$attached = array();
+		Functions\when( 'wp_add_inline_script' )->alias(
+			static function ( string $handle, string $data ) use ( &$attached ): bool {
+				$attached[] = array( $handle, $data );
+				return true;
+			}
+		);
+
+		$this->handler( 'guest-token', null )->on_enqueue_scripts();
+
+		self::assertCount( 1, $attached );
+		self::assertSame( 'wc-checkout', $attached[0][0], 'Printed only where WooCommerce\'s checkout script is.' );
+		self::assertStringStartsWith( '(function($){', $attached[0][1], 'One IIFE — no global of its own.' );
+		self::assertStringEndsWith( '})(jQuery);', $attached[0][1] );
+		self::assertStringContainsString( '.on("change","#billing_email"', $attached[0][1] );
+		self::assertStringContainsString( '.trigger("update_checkout")', $attached[0][1] );
+	}
+
+	public function test_the_billing_email_script_is_not_added_while_tracking_is_off(): void {
+		$this->stub_gates( true, false );
+		Functions\expect( 'wp_add_inline_script' )->never();
+
+		$this->handler( 'guest-token', null )->on_enqueue_scripts();
+
+		self::assertTrue( true );
+	}
+
 	public function test_invalid_posted_email_is_ignored(): void {
 		$handler = $this->handler( 'guest-token', null );
 		$handler->on_checkout_update_order_review( 'billing_email=not-an-email' );

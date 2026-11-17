@@ -206,6 +206,28 @@ class CartHookHandler {
 	}
 
 	/**
+	 * `wp_enqueue_scripts` (after WooCommerce registers `wc-checkout`) — a
+	 * change of the classic billing email posts an order review even while a
+	 * required address field is still empty (CON-325). The class above alone
+	 * does not: WooCommerce's checkout script skips a text field's refresh
+	 * until the address is complete, so a guest who typed only the email was
+	 * never identified. The box already triggers the refresh this way.
+	 *
+	 * Attached inline to `wc-checkout`, so it prints only where WooCommerce's
+	 * checkout script does; one IIFE, no global of its own.
+	 */
+	public function on_enqueue_scripts(): void {
+		if ( ! $this->tracking_enabled() ) {
+			return;
+		}
+
+		wp_add_inline_script(
+			'wc-checkout',
+			'(function($){$(document.body).on("change","#billing_email",function(){$(document.body).trigger("update_checkout");});})(jQuery);'
+		);
+	}
+
+	/**
 	 * Block checkout newsletter box — the Store API cart extension update
 	 * (`woocommerce_store_api_register_update_callback`, namespace
 	 * CHECKOUT_OPTIN_NAMESPACE) the block sends when the shopper ticks or

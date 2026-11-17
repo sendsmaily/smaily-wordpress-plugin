@@ -269,6 +269,39 @@ final class AbandonedCartConsentTest extends TestCase {
 		self::assertStringContainsString( 'type="email"', $html );
 	}
 
+	/**
+	 * CON-325: WooCommerce's checkout script gets the line that refreshes the
+	 * order review on a billing email change, through the plugin's real
+	 * `wp_enqueue_scripts` registration — attached to `wc-checkout` only.
+	 */
+	public function test_the_checkout_script_refreshes_the_order_review_on_an_email_change(): void {
+		$scripts    = wp_scripts();
+		$registered = isset( $scripts->registered['wc-checkout'] );
+		if ( ! $registered ) {
+			wp_register_script( 'wc-checkout', 'https://example.test/checkout.js', array( 'jquery' ), '1', true );
+		}
+		$before = (array) $scripts->get_data( 'wc-checkout', 'after' );
+
+		try {
+			foreach ( (array) ( $GLOBALS['wp_filter']['wp_enqueue_scripts']->callbacks[20] ?? array() ) as $callback ) {
+				if ( is_array( $callback['function'] ) && $callback['function'][0] instanceof CartHookHandler ) {
+					call_user_func( $callback['function'] );
+				}
+			}
+			$added = array_values( array_diff( (array) $scripts->get_data( 'wc-checkout', 'after' ), $before ) );
+		} finally {
+			if ( $registered ) {
+				$scripts->add_data( 'wc-checkout', 'after', $before );
+			} else {
+				wp_deregister_script( 'wc-checkout' );
+			}
+		}
+
+		self::assertCount( 1, $added, 'The plugin registers the email refresh on wp_enqueue_scripts.' );
+		self::assertStringContainsString( '.on("change","#billing_email"', $added[0] );
+		self::assertStringContainsString( '.trigger("update_checkout")', $added[0] );
+	}
+
 	public function test_a_tick_does_not_override_an_unsubscribe_in_smaily(): void {
 		$this->set_mode( ContactSyncMode::MODE_CONSENT );
 
