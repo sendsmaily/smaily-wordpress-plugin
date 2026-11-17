@@ -311,24 +311,24 @@ describe('wizardReducer — Step 3 WC automations', () => {
     expect(okay.abandonedCartCutoffMinutes).toBe(45);
   });
 
-  it('clamps abandoned-cart cutoff to one minute under the cart lifetime (CON-326)', () => {
+  it('clamps abandoned-cart cutoff to one sweep under the cart lifetime (CON-326)', () => {
     const fallback = wizardReducer(baseState, {
       type: 'SET_ABANDONED_CART_CUTOFF_MINUTES',
-      payload: 1440,
+      payload: 1426,
     });
-    expect(fallback.abandonedCartCutoffMinutes).toBe(1439);
+    expect(fallback.abandonedCartCutoffMinutes).toBe(1425);
 
     const longest = wizardReducer(baseState, {
       type: 'SET_ABANDONED_CART_CUTOFF_MINUTES',
-      payload: 1439,
+      payload: 1425,
     });
-    expect(longest.abandonedCartCutoffMinutes).toBe(1439);
+    expect(longest.abandonedCartCutoffMinutes).toBe(1425);
 
     const filtered = wizardReducer(
-      { ...baseState, env: { ...baseState.env, abandonedCartCutoffMaxMinutes: 119 } },
-      { type: 'SET_ABANDONED_CART_CUTOFF_MINUTES', payload: 120 },
+      { ...baseState, env: { ...baseState.env, abandonedCartCutoffMaxMinutes: 105 } },
+      { type: 'SET_ABANDONED_CART_CUTOFF_MINUTES', payload: 106 },
     );
-    expect(filtered.abandonedCartCutoffMinutes).toBe(119);
+    expect(filtered.abandonedCartCutoffMinutes).toBe(105);
   });
 
   it('upserts a mapping (insert + update by composite key)', () => {

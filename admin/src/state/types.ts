@@ -371,10 +371,10 @@ export const FALLBACK_FOLLOW_UP_DELAY_LIMITS: DayRangeLimits = { min: 1, max: 90
 
 /**
  * CartAbandonmentSweeper::max_cutoff_minutes() at its default 24-hour cart
- * lifetime — read only when the boot payload carries no
+ * lifetime and 15-minute sweep — read only when the boot payload carries no
  * abandonedCartCutoffMaxMinutes (no payload at all, or a test fixture).
  */
-export const FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES = 1439;
+export const FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES = 1425;
 
 export interface WizardState {
   /** True when rendering inside Settings tabs (sub-PR 2.F). */
@@ -431,7 +431,7 @@ export interface WizardState {
     followUpDelayLimits?: DayRangeLimits;
     /**
      * The longest abandoned-cart cutoff in minutes the save route accepts —
-     * one minute under the cart's lifetime (CartAbandonmentSweeper::
+     * one sweep interval under the cart's lifetime (CartAbandonmentSweeper::
      * max_cutoff_minutes(), CON-326). Optional so pre-existing env fixtures
      * stay valid; absent reads as FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES.
      */

@@ -115,22 +115,22 @@ describe('Step3WooCommerce — automation cards (CON-255)', () => {
     expect(within(card).queryByRole('switch', { name: 'Send a discount code' })).not.toBeInTheDocument();
   });
 
-  it('shows the cutoff range up to one minute under the cart lifetime (CON-326)', () => {
+  it('shows the cutoff range up to one sweep under the cart lifetime (CON-326)', () => {
     const base = baseState();
     render(
       <Harness
         initial={{
           ...base,
           abandonedCartEnabled: true,
-          env: { ...base.env, abandonedCartCutoffMaxMinutes: 1439 },
+          env: { ...base.env, abandonedCartCutoffMaxMinutes: 1425 },
         }}
       />,
     );
     const card = cardOf('Abandoned-cart reminder');
 
-    expect(within(card).getByLabelText('Cutoff time')).toHaveAttribute('max', '1439');
+    expect(within(card).getByLabelText('Cutoff time')).toHaveAttribute('max', '1425');
     expect(
-      within(card).getByText('From 10 to 1439 minutes. Abandoned carts older than the set period are checked.'),
+      within(card).getByText('From 10 to 1425 minutes. Abandoned carts older than the set period are checked.'),
     ).toBeInTheDocument();
   });
 

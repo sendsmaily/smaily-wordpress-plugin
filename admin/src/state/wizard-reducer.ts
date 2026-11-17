@@ -329,8 +329,8 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
     case 'SET_ABANDONED_CART_CUTOFF_MINUTES':
       return {
         ...state,
-        // PLUGIN.md §5: min 10, default 30; max one minute under the cart's
-        // lifetime (CON-326). Clamp into the valid range.
+        // PLUGIN.md §5: min 10, default 30; max one sweep interval under the
+        // cart's lifetime (CON-326). Clamp into the valid range.
         abandonedCartCutoffMinutes: Math.min(
           state.env.abandonedCartCutoffMaxMinutes ?? FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES,
           Math.max(10, Math.floor(action.payload)),

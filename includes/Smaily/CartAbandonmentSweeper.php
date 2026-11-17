@@ -50,6 +50,9 @@ class CartAbandonmentSweeper {
 	/** Same filter name as the legacy pass — merchant overrides carry over. */
 	public const FILTER_MAX_AGE = 'smaily_connect_abandoned_cart_max_age_seconds';
 
+	/** How often the recurring `smly_plus_abandoned_cart` action runs a sweep. */
+	public const SWEEP_INTERVAL_SECONDS = 15 * MINUTE_IN_SECONDS;
+
 	private const BATCH_SIZE = 200;
 
 	private CartSessionStore $store;
@@ -167,13 +170,14 @@ class CartAbandonmentSweeper {
 	}
 
 	/**
-	 * The longest cutoff a reminder can still go out with: a cutoff of the
-	 * cart's whole lifetime or more never sends (CON-326). 1439 minutes by
-	 * default. The Settings save refuses a longer one and the admin field
-	 * shows it as the field's maximum.
+	 * The longest cutoff a reminder can still go out with (CON-326): the
+	 * cart's lifetime minus one sweep interval, so at least one sweep runs
+	 * between the cutoff and the cart's deletion. 1425 minutes by default.
+	 * The Settings save refuses a longer one and the admin field shows it as
+	 * the field's maximum.
 	 */
 	public static function max_cutoff_minutes(): int {
-		return (int) ceil( self::max_age_seconds() / MINUTE_IN_SECONDS ) - 1;
+		return intdiv( self::max_age_seconds() - self::SWEEP_INTERVAL_SECONDS, MINUTE_IN_SECONDS );
 	}
 
 	/**

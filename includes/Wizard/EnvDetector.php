@@ -138,7 +138,7 @@ class EnvDetector {
 				'default' => TransactionalGate::FOLLOW_UP_DELAY_DEFAULT,
 			),
 			// CON-326 — the longest abandoned-cart cutoff the save route
-			// accepts (one minute under the cart's lifetime).
+			// accepts (one sweep interval under the cart's lifetime).
 			'abandonedCartCutoffMaxMinutes' => CartAbandonmentSweeper::max_cutoff_minutes(),
 			// CON-199 — the coupons an automation's discount code can be
 			// cloned from, the "Valid for (days)" bounds, and WooCommerce's

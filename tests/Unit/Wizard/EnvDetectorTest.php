@@ -395,9 +395,9 @@ final class EnvDetectorTest extends TestCase {
 	public function test_snapshot_carries_the_longest_abandoned_cart_cutoff(): void {
 		Functions\when( 'get_locale' )->justReturn( 'et_EE' );
 
-		// CON-326: one minute under the cart's 24-hour lifetime, the value
-		// the save route validates by.
-		self::assertSame( 1439, ( new EnvDetector() )->snapshot()['abandonedCartCutoffMaxMinutes'] );
+		// CON-326: the cart's 24-hour lifetime minus one 15-minute sweep, the
+		// value the save route validates by.
+		self::assertSame( 1425, ( new EnvDetector() )->snapshot()['abandonedCartCutoffMaxMinutes'] );
 	}
 
 	public function test_saved_settings_carries_transactional_defaults_when_options_absent(): void {

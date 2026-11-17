@@ -33,7 +33,7 @@ export interface Step3WooCommerceProps {
  * one place.
  *
  * The abandoned-cart section gets an extra Cutoff input (10-min minimum
- * per PLUGIN.md §5.3c; maximum one minute under the cart's lifetime,
+ * per PLUGIN.md §5.3c; maximum one sweep interval under the cart's lifetime,
  * CON-326), below its workflow. All three get the "Send a
  * discount code" setting (CON-199) as the card's last block. A card that is
  * switched off shows none of these (CON-255).
