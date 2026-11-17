@@ -21,7 +21,7 @@ class Extend_Store_Endpoint {
 	 *
 	 * @var string
 	 */
-	const IDENTIFIER = 'smaily-checkout-optin';
+	const IDENTIFIER = \Smaily\Connect\Constants::CHECKOUT_OPTIN_NAMESPACE;
 
 	/**
 	 * Initialize the class.

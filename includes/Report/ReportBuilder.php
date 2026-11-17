@@ -78,6 +78,11 @@ class ReportBuilder {
 	 * account is connected — then nothing is reported (guideline 7).
 	 */
 	public function main_credentials(): ?CredentialSet {
+		$default = $this->complete( Credentials::DEFAULT_ACCOUNT_KEY );
+		if ( null !== $default ) {
+			return $default;
+		}
+
 		$accounts = $this->marketing_accounts( array() );
 
 		return $accounts === array() ? null : $accounts[0]['set'];

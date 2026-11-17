@@ -363,7 +363,7 @@ final class NotificationManager {
 			printf(
 				'<div class="notice notice-error"><p>%1$s %2$s %3$s</p></div>',
 				esc_html( $this->message_for( $key, $notice ) ),
-				wp_kses_post( $this->event_log_link() ),
+				wp_kses_post( $this->settings_link( 'events', __( 'View Event Log', 'smaily-connect' ) ) ),
 				wp_kses_post( $this->dismiss_link( $key ) )
 			);
 		}
@@ -410,7 +410,7 @@ final class NotificationManager {
 				'Smaily Connect: no Smaily account is connected. Connect one to sync your customers to Smaily and send automated emails, whether you are new to Smaily or coming back to it.',
 				'smaily-connect'
 			),
-			wp_kses_post( $this->connect_link() ),
+			wp_kses_post( $this->settings_link( 'connection', __( 'Connect your Smaily account', 'smaily-connect' ) ) ),
 			wp_kses_post( $this->external_link( Constants::SIGNUP_URL, __( 'Create a Smaily account', 'smaily-connect' ) ) ),
 			wp_kses_post( $this->external_link( Constants::docs_url() . '#step1', __( 'User guide to create API credentials', 'smaily-connect' ) ) ),
 			wp_kses_post( $this->dismiss_link( self::INVITE_KEY ) )
@@ -425,12 +425,15 @@ final class NotificationManager {
 		);
 	}
 
-	/** Settings → Connection; Settings sends a store whose setup is unfinished to the wizard. */
-	private function connect_link(): string {
+	/**
+	 * A link to one Settings section. Settings → Connection sends a store
+	 * whose setup is unfinished to the wizard.
+	 */
+	private function settings_link( string $anchor, string $label ): string {
 		return sprintf(
 			'<a href="%s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=smaily-connect-settings#connection' ) ),
-			esc_html__( 'Connect your Smaily account', 'smaily-connect' )
+			esc_url( admin_url( 'admin.php?page=smaily-connect-settings#' . $anchor ) ),
+			esc_html( $label )
 		);
 	}
 
@@ -517,16 +520,8 @@ final class NotificationManager {
 				'Smaily Connect: your saved list of contact fields to sync could not be read, so every supported field is being synced. Open the Subscribers settings, tick the fields you want and save to fix it.',
 				'smaily-connect'
 			),
-			wp_kses_post( $this->subscriber_settings_link() ),
+			wp_kses_post( $this->settings_link( 'subscribers', __( 'Open Subscribers settings', 'smaily-connect' ) ) ),
 			wp_kses_post( $this->dismiss_link( $key ) )
-		);
-	}
-
-	private function subscriber_settings_link(): string {
-		return sprintf(
-			'<a href="%s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=smaily-connect-settings#subscribers' ) ),
-			esc_html__( 'Open Subscribers settings', 'smaily-connect' )
 		);
 	}
 
@@ -646,14 +641,6 @@ final class NotificationManager {
 		}
 
 		return __( 'Smaily Connect: a sync health check needs your attention.', 'smaily-connect' );
-	}
-
-	private function event_log_link(): string {
-		return sprintf(
-			'<a href="%s">%s</a>',
-			esc_url( admin_url( 'admin.php?page=smaily-connect-settings#events' ) ),
-			esc_html__( 'View Event Log', 'smaily-connect' )
-		);
 	}
 
 	private function dismiss_link( string $key ): string {
