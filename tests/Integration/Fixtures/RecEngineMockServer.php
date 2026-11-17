@@ -175,6 +175,53 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * The prefix the next setup exchange gives a plugin that declares the
+	 * `connection_prefix` capability (contract v1.33.0 §1, CON-323) — unless
+	 * its `previous_prefix` is one the store already has, which is reused.
+	 */
+	public function set_setup_connection_prefix( string $prefix ): void {
+		$this->write_state( array( 'setup_connection_prefix' => $prefix ) );
+	}
+
+	/**
+	 * Play the calling key's connection: its own prefix ('' = none), which
+	 * the ping answers and every write is checked against. Also how a test
+	 * plays an operator moving the key to another prefix, or a second shop's
+	 * key of the same store (the earlier prefixes stay assigned).
+	 */
+	public function set_connection_prefix( string $prefix ): void {
+		$assigned = (array) ( $this->state()['assigned_prefixes'] ?? array() );
+		if ( $prefix !== '' && ! in_array( $prefix, $assigned, true ) ) {
+			$assigned[] = $prefix;
+		}
+		$this->write_state(
+			array(
+				'connection_prefix' => $prefix,
+				'assigned_prefixes' => $assigned,
+			)
+		);
+	}
+
+	/**
+	 * Answer a raw `config.connection.prefix` value — any shape, a broken
+	 * engine's too — on the next setup exchange (`setup`) or every ping.
+	 *
+	 * @param mixed $value
+	 */
+	public function set_prefix_answer( string $route, $value ): void {
+		$this->write_state( array( $route . '_prefix_answer' => $value ) );
+	}
+
+	/**
+	 * The `capabilities` and `connection` of every setup exchange, in order.
+	 *
+	 * @return array<int, array{capabilities: mixed, connection: mixed}>
+	 */
+	public function setup_requests(): array {
+		return (array) ( $this->state()['setup_requests'] ?? array() );
+	}
+
+	/**
 	 * Flip the mock into (or out of) the contract §2 deactivated-tenant state:
 	 * every API-key-authenticated route then answers `403 tenant_inactive`.
 	 * The setup-exchange route stays open — that is how a merchant connects a
