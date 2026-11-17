@@ -952,7 +952,7 @@ final class Bootstrap {
 		// recurring row restores it without a re-activation (the other
 		// recurring jobs here follow the same pattern).
 		if ( ! as_has_scheduled_action( 'smly_plus_abandoned_cart', array(), EventQueue::AS_GROUP ) ) {
-			as_schedule_recurring_action( time(), 15 * MINUTE_IN_SECONDS, 'smly_plus_abandoned_cart', array(), EventQueue::AS_GROUP );
+			as_schedule_recurring_action( time(), CartAbandonmentSweeper::SWEEP_INTERVAL_SECONDS, 'smly_plus_abandoned_cart', array(), EventQueue::AS_GROUP );
 		}
 
 		// Rec-engine ingest flush — re-ticks every 60s so a row parked with a

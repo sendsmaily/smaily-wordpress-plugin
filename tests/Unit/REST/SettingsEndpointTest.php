@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Report\InstallationReport;
 use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\REST\SettingsEndpoint;
+use Smaily\Connect\Smaily\CartAbandonmentSweeper;
 use Smaily_Connect\Includes\Cypher;
 use WP_REST_Request;
 
@@ -258,6 +259,77 @@ final class SettingsEndpointTest extends TestCase {
 		self::assertFalse( $this->option_writes['smly_plus_first_order_enabled'] );
 		self::assertSame( 10, $this->option_writes['smaily_connect_abandoned_cart_cutoff'] );
 		self::assertFalse( $this->option_writes['smly_plus_transactional_personal_data_enabled'], 'PRO-3190: a payload without the switch saves it off.' );
+	}
+
+	/**
+	 * CON-326: a cart with no reminder is deleted after 24 hours and the sweep
+	 * runs every 15 minutes, so the longest cutoff sure to send is 1425 minutes.
+	 */
+	public function test_woocommerce_tab_accepts_a_cutoff_one_sweep_under_the_cart_lifetime(): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'abandonedCartEnabled'       => true,
+				'abandonedCartCutoffMinutes' => 1425,
+				'automationMappings'         => array(),
+			)
+		);
+
+		self::assertTrue( $endpoint->handle( $request )->get_data()['saved'] );
+		self::assertSame( 1425, $this->option_writes['smaily_connect_abandoned_cart_cutoff'] );
+	}
+
+	public function test_woocommerce_tab_refuses_a_cutoff_inside_the_last_sweep_before_the_cart_lifetime(): void {
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'welcomeEnabled'             => true,
+				'abandonedCartEnabled'       => true,
+				'abandonedCartCutoffMinutes' => 1426,
+				'automationMappings'         => array(),
+			)
+		);
+
+		$response = $endpoint->handle( $request );
+
+		self::assertSame( 400, $response->get_status() );
+		self::assertSame( 'abandonedCartCutoffMinutes', $response->get_data()['errors'][0]['field'] );
+		self::assertStringContainsString( 'from 10 to 1425 minutes', $response->get_data()['errors'][0]['message'] );
+		self::assertArrayNotHasKey( 'smaily_connect_abandoned_cart_cutoff', $this->option_writes );
+		self::assertArrayNotHasKey( 'smly_plus_welcome_enabled', $this->option_writes, 'Nothing on the tab is saved.' );
+	}
+
+	public function test_the_cutoff_limit_follows_the_filtered_cart_lifetime(): void {
+		Functions\when( 'apply_filters' )->alias(
+			static function ( string $hook, $value ) {
+				return $hook === CartAbandonmentSweeper::FILTER_MAX_AGE ? 2 * HOUR_IN_SECONDS : $value;
+			}
+		);
+		$endpoint        = new SettingsEndpoint();
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'woocommerce' );
+		$request->set_param(
+			'data',
+			array(
+				'abandonedCartCutoffMinutes' => 106,
+				'automationMappings'         => array(),
+			)
+		);
+
+		self::assertSame( 400, $endpoint->handle( $request )->get_status() );
+		self::assertSame( 105, CartAbandonmentSweeper::max_cutoff_minutes() );
 	}
 
 	public function test_connection_tab_persists_transactional_account_and_toggle(): void {

@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\Migration\WPCronAuditor;
+use Smaily\Connect\Smaily\CartAbandonmentSweeper;
 use Smaily\Connect\Smaily\EventQueue;
 
 /**
@@ -263,7 +264,7 @@ final class Activation {
 		if ( ! as_has_scheduled_action( 'smly_plus_abandoned_cart', array(), EventQueue::AS_GROUP ) ) {
 			as_schedule_recurring_action(
 				time(),
-				15 * MINUTE_IN_SECONDS,
+				CartAbandonmentSweeper::SWEEP_INTERVAL_SECONDS,
 				'smly_plus_abandoned_cart',
 				array(),
 				EventQueue::AS_GROUP

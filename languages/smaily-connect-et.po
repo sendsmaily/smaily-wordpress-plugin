@@ -2675,9 +2675,11 @@ msgstr "Saadetakse, kui klient sooritab oma esmase tellimuse/ostu."
 msgid "Sent when the cart has been abandoned for a set amount of time. Note! Abandoned cart check runs every 15 minutes."
 msgstr "Käivitub, kui ostukorv on olnud hüljatud kauem kui määratud ooteaeg. NB! Kontroll toimub iga 15 minuti järel."
 
-#: admin/src/components/steps/Step3WooCommerce.tsx:92
-msgid "Minimum 10 minutes. Abandoned carts older than the set period are checked."
-msgstr "Minimaalselt 10 minutit. Kontrollitakse määratud ooteajast vanemaid hüljatud ostukorve."
+#. translators: %d: the longest cutoff in minutes.
+#: admin/src/components/steps/Step3WooCommerce.tsx:160
+#, js-format
+msgid "From 10 to %d minutes. Abandoned carts older than the set period are checked."
+msgstr "10 kuni %d minutit. Kontrollitakse määratud ooteajast vanemaid hüljatud ostukorve."
 
 #: admin/src/components/steps/Step4Recommendations.tsx:59
 msgid "Campaign Intelligence uses your store’s product, customer and order data to create personalised product recommendations for Smaily campaigns and automations. This helps you send more relevant emails with less manual work."
@@ -3103,6 +3105,12 @@ msgstr "vahele jäetud"
 #, php-format
 msgid "The follow-up email delay must be a whole number of days from %1$d to %2$d."
 msgstr "Järelkirja ooteaeg peab olema täisarv päevi vahemikus %1$d kuni %2$d."
+
+#. translators: 1: the shortest cutoff in minutes, 2: the longest.
+#: includes/REST/SettingsEndpoint.php:463
+#, php-format
+msgid "The abandoned-cart cutoff time must be from %1$d to %2$d minutes. A longer cutoff would send no reminder."
+msgstr "Hüljatud ostukorvi ooteaeg peab olema %1$d kuni %2$d minutit. Pikema ooteajaga meeldetuletust ei saadeta."
 
 #: admin/src/components/settings/EventLog.tsx:245
 msgid "scheduled"

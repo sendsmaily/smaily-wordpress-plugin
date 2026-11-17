@@ -26,6 +26,7 @@ use Smaily\Connect\Multilingual\WPMLAdapter;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
+use Smaily\Connect\Smaily\CartAbandonmentSweeper;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CustomerBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
@@ -68,6 +69,7 @@ use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
  *     orderStatuses: array<{slug, name}>,
  *     consentApiPresent: bool,
  *     followUpDelayLimits: { min: int, max: int, default: int },
+ *     abandonedCartCutoffMaxMinutes: int,
  *     discountTemplates: array<{id, label}>,
  *     discountValidDays: { min: int, max: int, default: int },
  *     newCouponUrl: string,
@@ -100,6 +102,7 @@ class EnvDetector {
 	 *   orderStatuses: array<int, array{slug: string, name: string}>,
 	 *   consentApiPresent: bool,
 	 *   followUpDelayLimits: array{min: int, max: int, default: int},
+	 *   abandonedCartCutoffMaxMinutes: int,
 	 *   discountTemplates: array<int, array{id: int, label: string}>,
 	 *   discountValidDays: array{min: int, max: int, default: int},
 	 *   newCouponUrl: string,
@@ -107,43 +110,46 @@ class EnvDetector {
 	 */
 	public function snapshot(): array {
 		return array(
-			'detectedLanguages'   => $this->detected_languages(),
-			'multilingualPlugin'  => $this->multilingual_plugin(),
-			'elementorPresent'    => $this->elementor_present(),
-			'cf7Present'          => $this->cf7_present(),
-			'wcActive'            => $this->wc_active(),
-			'hposActive'          => $this->hpos_active(),
-			'storeTotals'         => $this->store_totals(),
-			'rss'                 => $this->rss_snapshot(),
+			'detectedLanguages'             => $this->detected_languages(),
+			'multilingualPlugin'            => $this->multilingual_plugin(),
+			'elementorPresent'              => $this->elementor_present(),
+			'cf7Present'                    => $this->cf7_present(),
+			'wcActive'                      => $this->wc_active(),
+			'hposActive'                    => $this->hpos_active(),
+			'storeTotals'                   => $this->store_totals(),
+			'rss'                           => $this->rss_snapshot(),
 			// Base merchant-docs URL (PRO-1430) — Constants::docs_url() is the
 			// single place this can move/be filtered; the React "How to add a
 			// Smaily signup form" section appends its own #anchor client-side.
-			'docsUrl'             => Constants::docs_url(),
+			'docsUrl'                       => Constants::docs_url(),
 			// PRO-1504 — registered WooCommerce order statuses (incl. custom
 			// ones), choices for the "counts as shipped" multi-select.
-			'orderStatuses'       => $this->order_statuses(),
+			'orderStatuses'                 => $this->order_statuses(),
 			// PRO-3673 — whether the WP Consent API is active, the same check
 			// NotificationManager's consent advisory makes: without it the
 			// browse tracker gets no consent signal and sends nothing, and the
 			// browse-tracking toggle says so.
-			'consentApiPresent'   => StorefrontBeacon::consent_api_present(),
+			'consentApiPresent'             => StorefrontBeacon::consent_api_present(),
 			// PRO-4095 — the follow-up delay's range and default, so the
 			// "Days to wait" field uses the values the save route validates by.
-			'followUpDelayLimits' => array(
+			'followUpDelayLimits'           => array(
 				'min'     => TransactionalGate::FOLLOW_UP_DELAY_MIN,
 				'max'     => TransactionalGate::FOLLOW_UP_DELAY_MAX,
 				'default' => TransactionalGate::FOLLOW_UP_DELAY_DEFAULT,
 			),
+			// CON-326 — the longest abandoned-cart cutoff the save route
+			// accepts (one sweep interval under the cart's lifetime).
+			'abandonedCartCutoffMaxMinutes' => CartAbandonmentSweeper::max_cutoff_minutes(),
 			// CON-199 — the coupons an automation's discount code can be
 			// cloned from, the "Valid for (days)" bounds, and WooCommerce's
 			// add-coupon screen for a store that has no usable coupon yet.
-			'discountTemplates'   => AutomationDiscount::templates(),
-			'discountValidDays'   => array(
+			'discountTemplates'             => AutomationDiscount::templates(),
+			'discountValidDays'             => array(
 				'min'     => AutomationDiscount::VALID_DAYS_MIN,
 				'max'     => AutomationDiscount::VALID_DAYS_MAX,
 				'default' => AutomationDiscount::VALID_DAYS_DEFAULT,
 			),
-			'newCouponUrl'        => class_exists( '\WC_Coupon' ) ? admin_url( 'post-new.php?post_type=shop_coupon' ) : '',
+			'newCouponUrl'                  => class_exists( '\WC_Coupon' ) ? admin_url( 'post-new.php?post_type=shop_coupon' ) : '',
 		);
 	}
 

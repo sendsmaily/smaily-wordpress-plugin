@@ -169,6 +169,40 @@ final class CartAbandonmentSweeperTest extends TestCase {
 		self::assertSame( array( 4, 5 ), $store->marked );
 	}
 
+	/**
+	 * CON-327: the log line for a throwing row names the error's type and
+	 * place, never its message (it can carry the shopper's address). Its own
+	 * process: DebugLog writes only under WP_DEBUG, a constant that would stay
+	 * on for the rest of the suite.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_a_throwing_row_logs_where_it_failed_but_never_the_message(): void {
+		define( 'WP_DEBUG', true );
+
+		$store   = $this->fake_store( array( $this->row( 4 ) ) );
+		$builder = new class extends CartPayloadBuilder {
+			public function build( array $row ): ?array {
+				throw new \RuntimeException( 'No contact buyer@example.test' );
+			}
+		};
+
+		$log      = (string) tempnam( sys_get_temp_dir(), 'smly-log' );
+		$previous = (string) ini_set( 'error_log', $log );
+		try {
+			( new CartAbandonmentSweeper( $store, $builder, $this->fake_queue() ) )->sweep();
+			$written = (string) file_get_contents( $log );
+		} finally {
+			ini_set( 'error_log', $previous );
+			unlink( $log );
+		}
+
+		self::assertStringContainsString( '[smaily-connect cart.sweep] Cart row 4 failed with RuntimeException at CartAbandonmentSweeperTest.php:', $written );
+		self::assertStringNotContainsString( 'buyer@example.test', $written );
+		self::assertSame( array( 4 ), $store->marked );
+	}
+
 	public function test_failed_enqueue_leaves_the_row_for_the_next_tick(): void {
 		$store = $this->fake_store( array( $this->row( 6 ) ) );
 		$queue = $this->fake_queue( false );

@@ -1,7 +1,11 @@
 import { type Dispatch } from 'react';
 
-import { __ } from '@admin/lib/i18n';
-import { type WizardAction, type WizardState } from '../../state/types';
+import { __, sprintf } from '@admin/lib/i18n';
+import {
+  FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES,
+  type WizardAction,
+  type WizardState,
+} from '../../state/types';
 import { Label, NumberInput } from '../primitives';
 import { AutomationSection } from './AutomationSection';
 import { DiscountCodeSetting } from './DiscountCodeSetting';
@@ -29,7 +33,8 @@ export interface Step3WooCommerceProps {
  * one place.
  *
  * The abandoned-cart section gets an extra Cutoff input (10-min minimum
- * per PLUGIN.md §5.3c), below its workflow. All three get the "Send a
+ * per PLUGIN.md §5.3c; maximum one sweep interval under the cart's lifetime,
+ * CON-326), below its workflow. All three get the "Send a
  * discount code" setting (CON-199) as the card's last block. A card that is
  * switched off shows none of these (CON-255).
  */
@@ -49,6 +54,8 @@ function Step3Cards({
   inSettings = false,
 }: Step3WooCommerceProps): React.JSX.Element {
   const docsUrl = state.env.docsUrl ?? '';
+  const maxCutoff =
+    state.env.abandonedCartCutoffMaxMinutes ?? FALLBACK_ABANDONED_CART_CUTOFF_MAX_MINUTES;
 
   return (
     <div className="space-y-6">
@@ -143,11 +150,16 @@ function Step3Cards({
                   })
                 }
                 min={10}
+                max={maxCutoff}
                 unit="min"
               />
             </div>
             <p className="mt-1 text-xs text-text-tertiary">
-              { __( 'Minimum 10 minutes. Abandoned carts older than the set period are checked.', 'smaily-connect' ) }
+              { sprintf(
+                /* translators: %d: the longest cutoff in minutes. */
+                __( 'From 10 to %d minutes. Abandoned carts older than the set period are checked.', 'smaily-connect' ),
+                maxCutoff,
+              ) }
             </p>
           </div>
         }

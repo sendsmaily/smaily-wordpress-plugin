@@ -343,6 +343,12 @@ msgstr ""
 msgid "The follow-up email delay must be a whole number of days from %1$d to %2$d."
 msgstr ""
 
+#. translators: 1: the shortest cutoff in minutes, 2: the longest.
+#: includes/REST/SettingsEndpoint.php:463
+#, php-format
+msgid "The abandoned-cart cutoff time must be from %1$d to %2$d minutes. A longer cutoff would send no reminder."
+msgstr ""
+
 #: includes/REST/TestConnectionEndpoint.php:93
 msgid "You do not have permission to test the Smaily connection."
 msgstr ""
@@ -2326,8 +2332,10 @@ msgstr ""
 msgid "Cutoff time"
 msgstr ""
 
-#: admin/src/components/steps/Step3WooCommerce.tsx:92
-msgid "Minimum 10 minutes. Abandoned carts older than the set period are checked."
+#. translators: %d: the longest cutoff in minutes.
+#: admin/src/components/steps/Step3WooCommerce.tsx:160
+#, js-format
+msgid "From 10 to %d minutes. Abandoned carts older than the set period are checked."
 msgstr ""
 
 #: admin/src/components/steps/Step4Recommendations.tsx:21
