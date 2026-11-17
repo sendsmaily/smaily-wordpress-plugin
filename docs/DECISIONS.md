@@ -11440,3 +11440,59 @@ queues such an order, and the skipped row is not counted in the import's
 `sent_count` (a terminal skip never reaches the accepted-row count, CON-248).
 `AbstractD6Flusher` gained `$skip_reason`, which a subclass sets before its
 `row_to_object()` returns null; the other skips record no reason, as before.
+
+### CON-335 — The queue janitor drains a backlog on a time budget, with one follow-up run (2026-11-18)
+
+**Context:** the pilot's Campaign Intelligence queue held about 2.1 million
+rows (2.6 GB): normal days add 30–200 `sent` rows, but the 3.21.0 import loop
+(CON-282) added about 3.3 million on 4–5 Nov. `QueueJanitor` deleted at most
+20 batches of 1000 rows per status per daily run — 20 000 rows a day, so the
+backlog would take more than 100 days to clear. The scheduler-history pass
+(PRO-2438) had the same ceiling.
+**Decision (Erkki, 2026-11-17: ships in 3.24.0):** one daily run keeps
+deleting in batches of 1000 (`BATCH_SIZE`, unchanged) until nothing past
+retention is left or its time budget ends — `RUN_BUDGET_SECONDS` = 20, one
+budget for both queues and the scheduler history, measured with
+`microtime(true)` through the `now()`/`pause()` seams. A 50 ms pause
+separates two batches, so replication and other queries get room. A run that
+stops with rows possibly left (its last batch was full, or a pass never got
+its turn) schedules ONE single action of the same hook, group and
+`FOLLOW_UP_ARGS` (`['follow_up']`) a minute later — unless one is already
+pending (`AbstractBackfillJob::action_pending()`, pending-only, CON-285). The
+daily recurring action is unchanged. `MAX_BATCHES_PER_RUN` stays as a safety
+cap, raised to 500 per status per run: the pause alone allows at most 400
+batches in the budget, so it binds only if the clock misbehaves, and it then
+also schedules a follow-up. A DELETE that fails stops that status (or the
+history pass) for this run without a follow-up — the next daily run tries
+again — and writes a debug line with the code `delete_failed`, the table and
+the status, never `$wpdb->last_error` (CON-277). The ages and statuses are
+unchanged but one; `pending` (and `in-progress` in the scheduler) is never
+deleted.
+**Import rows keep 7 days (Erkki, 2026-11-17, same release):** a `sent` row
+of the Campaign Intelligence queue that an import queued goes after
+`DEFAULT_IMPORT_SENT_RETENTION_DAYS` = 7 days (filter
+`smaily_connect_janitor_import_sent_retention_days`), through the same
+batches and budget; live `sent` rows keep 30 days, `failed` rows 90, and the
+Smaily queue has no import rows. The 3.21.0 loop's 3.3 million rows on the
+pilot were all import rows: with 7 days they clear right after the update,
+not in December. An import row is found in SQL, never by reading payloads
+into PHP. The ImportRows mark is appended to what the import queues
+(`array_merge( $payload, $mark )`), so it has two shapes, two `LIKE`
+patterns: `{"import":"…","run":"…"}` alone (customer, order and catalog
+upsert rows, which queue an empty payload) and `{"object":{…},"import":"…",
+"run":"…"}` (a catalog removal of a trashed product). No live row matches
+either: the live sync queues `[]`, `{"object":{…}}` (ending `}}`) or
+`{"product_id":"…"}`, and nothing rewrites a payload after the enqueue. A
+new import payload shape, or a live payload with an `import` key, must update
+`QueueJanitor::import_payload_patterns()`.
+**Rationale:** a time budget bounds the run the way the batch ceiling meant
+to (Action Scheduler gives a queue run 30 s), while a fast database clears a
+backlog many times faster; small batches keep each statement's lock short.
+The follow-up's own args keep it apart from the daily action in both checks:
+`action_pending()` with the follow-up args never mistakes the next daily run
+(always pending) for a follow-up, and Bootstrap's `as_has_scheduled_action(
+HOOK, [] )` never mistakes a follow-up for the daily run.
+**Alternatives:** a bigger fixed ceiling (still days for a large backlog,
+and no bound on run time on a slow database); bigger batches (longer locks);
+a self-rescheduling chain without the pending check (runs could pile up when
+the daily run and a follow-up overlap).

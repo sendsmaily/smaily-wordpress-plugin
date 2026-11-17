@@ -1003,8 +1003,9 @@ final class Bootstrap {
 
 		// Queue janitor — daily retention prune (sent 30d / failed 90d,
 		// filterable) of both durable queues. Daily cadence: retention is
-		// measured in days, and the LIMIT-batched DELETEs drain any backlog
-		// over consecutive runs.
+		// measured in days. A run that leaves a backlog schedules its own
+		// follow-up a minute later (CON-335), with args of its own, so this
+		// check (args `[]`) only ever sees the daily run.
 		if ( ! as_has_scheduled_action( QueueJanitor::HOOK, array(), QueueJanitor::AS_GROUP ) ) {
 			as_schedule_recurring_action( time(), DAY_IN_SECONDS, QueueJanitor::HOOK, array(), QueueJanitor::AS_GROUP );
 		}

@@ -14,6 +14,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Activation;
 use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\RecEngine\Backfill\ImportRows;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\QueueRowFixture;
@@ -40,14 +41,60 @@ final class QueueJanitorTest extends TestCase {
 		Activation::run();
 	}
 
+	protected function tearDown(): void {
+		as_unschedule_all_actions( QueueJanitor::HOOK, QueueJanitor::FOLLOW_UP_ARGS, QueueJanitor::AS_GROUP );
+		parent::tearDown();
+	}
+
+	/**
+	 * Insert $count rows of one status and age in multi-row INSERTs (CON-335:
+	 * a backlog bigger than one 1000-row batch).
+	 */
+	private function seed_rows( string $table_suffix, string $status, int $age_days, int $count ): void {
+		global $wpdb;
+
+		$table      = QueueRowFixture::table( $table_suffix );
+		$created_at = gmdate( 'Y-m-d H:i:s', time() - ( $age_days * DAY_IN_SECONDS ) );
+		$ingest     = IngestQueue::TABLE_SUFFIX === $table_suffix;
+		$columns    = $ingest ? '(event_type, entity_id, payload, created_at, status, event_uuid)' : '(event_type, entity_id, payload, created_at, status)';
+		$value      = $wpdb->prepare( $ingest ? "(%s, %s, '{}', %s, %s, UUID())" : "(%s, %s, '{}', %s, %s)", 'janitor.bulk', 'e-bulk', $created_at, $status );
+
+		for ( $left = $count; $left > 0; $left -= 500 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- every value is prepared above.
+			$wpdb->query( "INSERT INTO {$table} {$columns} VALUES " . implode( ',', array_fill( 0, min( 500, $left ), $value ) ) );
+		}
+	}
+
+	private function count_rows( string $table_suffix, string $status ): int {
+		global $wpdb;
+		$table = QueueRowFixture::table( $table_suffix );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE status = %s", $status ) );
+	}
+
+	/** @return array<int, int> The pending follow-up runs. */
+	private function pending_follow_ups(): array {
+		return (array) as_get_scheduled_actions(
+			array(
+				'hook'     => QueueJanitor::HOOK,
+				'group'    => QueueJanitor::AS_GROUP,
+				'status'   => 'pending',
+				'args'     => QueueJanitor::FOLLOW_UP_ARGS,
+				'per_page' => -1,
+			),
+			'ids'
+		);
+	}
+
 	/**
 	 * Insert a row with a controlled age into one of the two queue tables.
 	 */
-	private function seed_row( string $table_suffix, string $status, int $age_days ): int {
+	private function seed_row( string $table_suffix, string $status, int $age_days, string $payload = '{}' ): int {
 		$row = array(
 			'event_type' => 'janitor.test',
 			'entity_id'  => 'e-' . $status . '-' . $age_days,
-			'payload'    => '{}',
+			'payload'    => $payload,
 			'created_at' => gmdate( 'Y-m-d H:i:s', time() - ( $age_days * DAY_IN_SECONDS ) ),
 			'status'     => $status,
 		);
@@ -104,6 +151,81 @@ final class QueueJanitorTest extends TestCase {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$index = $wpdb->get_results( "SHOW INDEX FROM {$table} WHERE Key_name = 'idx_created_at'" );
 			self::assertNotEmpty( $index, "{$table} has the idx_created_at index" );
+		}
+	}
+
+	public function test_a_backlog_over_one_batch_drains_in_one_run_and_keeps_pending(): void {
+		$this->seed_rows( IngestQueue::TABLE_SUFFIX, 'sent', 40, 2500 );
+		$this->seed_rows( EventQueue::TABLE_SUFFIX, 'failed', 100, 1200 );
+		$pending = $this->seed_row( IngestQueue::TABLE_SUFFIX, 'pending', 400 );
+
+		$deleted = ( new QueueJanitor() )->run();
+
+		self::assertSame( 3700, $deleted, 'the whole backlog goes in one run, batch after batch' );
+		self::assertSame( 0, $this->count_rows( IngestQueue::TABLE_SUFFIX, 'sent' ) );
+		self::assertSame( 0, $this->count_rows( EventQueue::TABLE_SUFFIX, 'failed' ) );
+		self::assertTrue( $this->row_exists( IngestQueue::TABLE_SUFFIX, $pending ), 'pending NEVER pruned, any age' );
+	}
+
+	public function test_a_run_whose_budget_ends_schedules_one_follow_up(): void {
+		$this->seed_rows( EventQueue::TABLE_SUFFIX, 'sent', 40, 2500 );
+
+		// The pause between batches jumps the clock past the budget: each
+		// run deletes one batch, then stops with rows left.
+		$janitor = new class() extends QueueJanitor {
+			private float $clock = 0.0;
+
+			protected function now(): float {
+				return $this->clock;
+			}
+
+			protected function pause( float $seconds ): void {
+				$this->clock += 100;
+			}
+		};
+
+		$janitor->on_tick();
+		self::assertSame( 1500, $this->count_rows( EventQueue::TABLE_SUFFIX, 'sent' ) );
+		self::assertCount( 1, $this->pending_follow_ups(), 'one follow-up a minute later' );
+
+		$janitor->on_tick();
+		self::assertSame( 500, $this->count_rows( EventQueue::TABLE_SUFFIX, 'sent' ) );
+		self::assertCount( 1, $this->pending_follow_ups(), 'never a second while one is pending' );
+	}
+
+	/**
+	 * CON-335: a `sent` row an import queued goes after 7 days; a live row
+	 * keeps 30. The payloads are what the plugin writes: the mark alone
+	 * (customer, order and catalog upsert import rows), the mark after a
+	 * catalog removal's object, and the live shapes.
+	 */
+	public function test_sent_import_rows_go_after_seven_days_and_live_rows_keep_thirty(): void {
+		$mark    = (string) wp_json_encode( ImportRows::mark( 'orders', '2026-11-04 10:00:00' ) );
+		$removal = (string) wp_json_encode(
+			array_merge(
+				array( 'object' => array( 'sku' => 'woo-7', 'in_stock' => false ) ),
+				ImportRows::mark( 'products', '2026-11-04 10:00:00' )
+			)
+		);
+		$q       = IngestQueue::TABLE_SUFFIX;
+
+		$cases = array(
+			array( $this->seed_row( $q, 'sent', 8, $mark ), false, '8-day-old sent import row deleted' ),
+			array( $this->seed_row( $q, 'sent', 8, $removal ), false, '8-day-old sent import catalog removal deleted' ),
+			array( $this->seed_row( $q, 'sent', 6, $mark ), true, '6-day-old sent import row kept' ),
+			array( $this->seed_row( $q, 'sent', 8, '[]' ), true, '8-day-old sent live row kept' ),
+			array( $this->seed_row( $q, 'sent', 8, '{"object":{"sku":"woo-7","in_stock":false}}' ), true, '8-day-old sent live catalog removal kept' ),
+			array( $this->seed_row( $q, 'sent', 8, '{"product_id":"7"}' ), true, '8-day-old sent live product removal kept' ),
+			array( $this->seed_row( $q, 'sent', 31, '[]' ), false, '31-day-old sent live row deleted' ),
+			array( $this->seed_row( $q, 'failed', 40, $mark ), true, 'failed import row keeps 90 days' ),
+			array( $this->seed_row( $q, 'pending', 400, $mark ), true, 'pending import row NEVER pruned, any age' ),
+		);
+
+		$deleted = ( new QueueJanitor() )->run();
+
+		self::assertSame( 3, $deleted );
+		foreach ( $cases as [ $id, $should_survive, $why ] ) {
+			self::assertSame( $should_survive, $this->row_exists( $q, $id ), $why );
 		}
 	}
 }
