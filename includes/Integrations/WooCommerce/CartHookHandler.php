@@ -50,12 +50,6 @@ use Smaily\Connect\Smaily\CartSessionStore;
  */
 class CartHookHandler {
 
-	/**
-	 * The Store API namespace the block checkout's newsletter box sends its
-	 * value under — the checkout-optin block's own identifier.
-	 */
-	public const CHECKOUT_OPTIN_NAMESPACE = 'smaily-checkout-optin';
-
 	/** @var bool Per-request guard: woocommerce_cart_updated can fire several times per request. */
 	private static bool $tracked_this_request = false;
 
@@ -230,9 +224,10 @@ class CartHookHandler {
 	/**
 	 * Block checkout newsletter box — the Store API cart extension update
 	 * (`woocommerce_store_api_register_update_callback`, namespace
-	 * CHECKOUT_OPTIN_NAMESPACE) the block sends when the shopper ticks or
-	 * unticks the box (PRO-4263). Recorded on the cart like the classic tick
-	 * (CON-196): a tick counts for this cart's reminder, unticking clears it.
+	 * Constants::CHECKOUT_OPTIN_NAMESPACE) the block sends when the shopper
+	 * ticks or unticks the box (PRO-4263). Recorded on the cart like the
+	 * classic tick (CON-196): a tick counts for this cart's reminder,
+	 * unticking clears it.
 	 * Nothing else happens here — the subscription is still made with the
 	 * order.
 	 *

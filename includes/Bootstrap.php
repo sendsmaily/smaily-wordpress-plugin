@@ -727,7 +727,7 @@ final class Bootstrap {
 		if ( function_exists( 'woocommerce_store_api_register_update_callback' ) ) {
 			woocommerce_store_api_register_update_callback(
 				array(
-					'namespace' => CartHookHandler::CHECKOUT_OPTIN_NAMESPACE,
+					'namespace' => Constants::CHECKOUT_OPTIN_NAMESPACE,
 					'callback'  => array( $cart, 'on_store_api_newsletter_update' ),
 				)
 			);
