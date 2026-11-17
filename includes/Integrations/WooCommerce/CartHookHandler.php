@@ -33,7 +33,9 @@ use Smaily\Connect\Smaily\CartSessionStore;
  *     session-persisted billing email, or a checkout-entered email (classic
  *     `woocommerce_checkout_update_order_review` POST / the Store API
  *     update-customer route). A cart without an email is tracked but never
- *     synced (design rule: sync only once an identity is known).
+ *     synced (design rule: sync only once an identity is known);
+ *   - the checkout's newsletter box (CON-196): the classic order review,
+ *     or the block checkout's Store API cart extension update (PRO-4263).
  *
  * What clears a row: a completed order (classic + Store API + thank-you,
  * the legacy hook set) or emptying the cart. Clearing runs UNGATED — it is
@@ -47,6 +49,12 @@ use Smaily\Connect\Smaily\CartSessionStore;
  * Not final: tests inject a recording store double.
  */
 class CartHookHandler {
+
+	/**
+	 * The Store API namespace the block checkout's newsletter box sends its
+	 * value under — the checkout-optin block's own identifier.
+	 */
+	public const CHECKOUT_OPTIN_NAMESPACE = 'smaily-checkout-optin';
 
 	/** @var bool Per-request guard: woocommerce_cart_updated can fire several times per request. */
 	private static bool $tracked_this_request = false;
@@ -133,8 +141,8 @@ class CartHookHandler {
 	/**
 	 * Classic checkout AJAX (`woocommerce_checkout_update_order_review`) —
 	 * the moment a GUEST's typed billing email becomes visible server-side,
-	 * and the newsletter box with it. The block checkout reports the box only
-	 * with the placed order, so there a tick cannot count for the reminder.
+	 * and the newsletter box with it. The block checkout reports its box
+	 * through on_store_api_newsletter_update().
 	 *
 	 * @param string $posted_data The serialized checkout form data WC posts.
 	 */
@@ -172,6 +180,75 @@ class CartHookHandler {
 			: '';
 
 		$this->store->set_identity( $token, $email, $first, $last );
+	}
+
+	/**
+	 * `woocommerce_checkout_fields` — the classic checkout's billing email
+	 * refreshes the order review when it changes (CON-325), so the tracker
+	 * learns the address as it is typed or corrected, not only after the
+	 * next address or shipping change. The same WooCommerce class the
+	 * newsletter box carries (CON-202); classes already set are kept.
+	 *
+	 * @param mixed $fields The checkout fields.
+	 * @return mixed
+	 */
+	public function on_checkout_fields( $fields ) {
+		if ( ! is_array( $fields ) || ! isset( $fields['billing']['billing_email'] ) || ! is_array( $fields['billing']['billing_email'] ) || ! $this->tracking_enabled() ) {
+			return $fields;
+		}
+
+		$fields['billing']['billing_email']['class'] = array_merge(
+			(array) ( $fields['billing']['billing_email']['class'] ?? array() ),
+			array( 'update_totals_on_change' )
+		);
+
+		return $fields;
+	}
+
+	/**
+	 * `wp_enqueue_scripts` (after WooCommerce registers `wc-checkout`) — a
+	 * change of the classic billing email posts an order review even while a
+	 * required address field is still empty (CON-325). The class above alone
+	 * does not: WooCommerce's checkout script skips a text field's refresh
+	 * until the address is complete, so a guest who typed only the email was
+	 * never identified. The box already triggers the refresh this way.
+	 *
+	 * Attached inline to `wc-checkout`, so it prints only where WooCommerce's
+	 * checkout script does; one IIFE, no global of its own.
+	 */
+	public function on_enqueue_scripts(): void {
+		if ( ! $this->tracking_enabled() ) {
+			return;
+		}
+
+		wp_add_inline_script(
+			'wc-checkout',
+			'(function($){$(document.body).on("change","#billing_email",function(){$(document.body).trigger("update_checkout");});})(jQuery);'
+		);
+	}
+
+	/**
+	 * Block checkout newsletter box — the Store API cart extension update
+	 * (`woocommerce_store_api_register_update_callback`, namespace
+	 * CHECKOUT_OPTIN_NAMESPACE) the block sends when the shopper ticks or
+	 * unticks the box (PRO-4263). Recorded on the cart like the classic tick
+	 * (CON-196): a tick counts for this cart's reminder, unticking clears it.
+	 * Nothing else happens here — the subscription is still made with the
+	 * order.
+	 *
+	 * @param mixed $data The `data` object the block sent.
+	 */
+	public function on_store_api_newsletter_update( $data ): void {
+		if ( ! is_array( $data ) || ! $this->tracking_enabled() ) {
+			return;
+		}
+
+		$token = $this->session_token();
+		if ( $token === '' ) {
+			return;
+		}
+
+		$this->store->set_newsletter_optin( $token, ( $data['user_newsletter'] ?? false ) === true );
 	}
 
 	/**

@@ -186,6 +186,121 @@ final class CartHookHandlerTest extends TestCase {
 		self::assertSame( array(), $this->store->optins );
 	}
 
+	/**
+	 * PRO-4263: the block checkout sends its newsletter box to the store as
+	 * the shopper changes it (a Store API cart extension update); the cart
+	 * records it like the classic tick, and unticking clears it. Nothing else
+	 * is written and nothing is sent.
+	 */
+	public function test_block_checkout_newsletter_box_is_recorded_on_the_cart(): void {
+		Functions\expect( 'update_user_meta' )->never();
+		Functions\expect( 'wp_remote_post' )->never();
+		Functions\expect( 'wp_remote_request' )->never();
+		$handler = $this->handler( 'guest-token', null );
+
+		$handler->on_store_api_newsletter_update( array( 'user_newsletter' => true ) );
+		$handler->on_store_api_newsletter_update( array( 'user_newsletter' => false ) );
+
+		self::assertSame(
+			array(
+				array( 'guest-token', true ),
+				array( 'guest-token', false ),
+			),
+			$this->store->optins
+		);
+		self::assertSame( array(), $this->store->upserts );
+		self::assertSame( array(), $this->store->identities );
+	}
+
+	public function test_block_checkout_box_counts_as_ticked_only_for_true(): void {
+		$handler = $this->handler( 'guest-token', null );
+
+		$handler->on_store_api_newsletter_update( array( 'user_newsletter' => '1' ) );
+		$handler->on_store_api_newsletter_update( array() );
+
+		self::assertSame(
+			array(
+				array( 'guest-token', false ),
+				array( 'guest-token', false ),
+			),
+			$this->store->optins
+		);
+	}
+
+	public function test_block_checkout_box_is_not_recorded_while_tracking_is_off_or_without_a_session(): void {
+		$this->stub_gates( true, false );
+		$this->handler( 'guest-token', null )->on_store_api_newsletter_update( array( 'user_newsletter' => true ) );
+
+		$this->stub_gates( true, true );
+		$this->handler( '', null )->on_store_api_newsletter_update( array( 'user_newsletter' => true ) );
+		$this->handler( 'guest-token', null )->on_store_api_newsletter_update( 'user_newsletter' );
+
+		self::assertSame( array(), $this->store->optins );
+	}
+
+	/**
+	 * CON-325: a change of the classic checkout's billing email posts an
+	 * order review, so the tracker holds the address as last typed.
+	 */
+	public function test_the_classic_billing_email_refreshes_the_order_review(): void {
+		$fields = $this->handler( 'guest-token', null )->on_checkout_fields( $this->classic_fields( array( 'form-row-wide' ) ) );
+
+		self::assertSame( array( 'form-row-wide', 'update_totals_on_change' ), $fields['billing']['billing_email']['class'] );
+		self::assertSame( array( 'form-row-first' ), $fields['billing']['billing_first_name']['class'], 'Only the email field changes.' );
+	}
+
+	public function test_the_billing_email_class_is_added_when_no_class_is_set(): void {
+		$fields = $this->classic_fields( array() );
+		unset( $fields['billing']['billing_email']['class'] );
+
+		$fields = $this->handler( 'guest-token', null )->on_checkout_fields( $fields );
+
+		self::assertSame( array( 'update_totals_on_change' ), $fields['billing']['billing_email']['class'] );
+	}
+
+	public function test_the_billing_email_is_unchanged_while_tracking_is_off_or_absent(): void {
+		$this->stub_gates( true, false );
+		$fields = $this->classic_fields( array( 'form-row-wide' ) );
+		self::assertSame( $fields, $this->handler( 'guest-token', null )->on_checkout_fields( $fields ) );
+
+		$this->stub_gates( true, true );
+		$no_email = array( 'billing' => array( 'billing_first_name' => array( 'class' => array( 'form-row-first' ) ) ) );
+		self::assertSame( $no_email, $this->handler( 'guest-token', null )->on_checkout_fields( $no_email ) );
+	}
+
+	/**
+	 * CON-325: WooCommerce skips a text field's refresh while a required
+	 * address field is empty, so the checkout script gets one line that
+	 * refreshes the order review on a change of the billing email itself.
+	 */
+	public function test_the_billing_email_change_refreshes_the_order_review_before_the_address(): void {
+		$attached = array();
+		Functions\when( 'wp_add_inline_script' )->alias(
+			static function ( string $handle, string $data ) use ( &$attached ): bool {
+				$attached[] = array( $handle, $data );
+				return true;
+			}
+		);
+
+		$this->handler( 'guest-token', null )->on_enqueue_scripts();
+
+		self::assertCount( 1, $attached );
+		self::assertSame( 'wc-checkout', $attached[0][0], 'Printed only where WooCommerce\'s checkout script is.' );
+		self::assertStringStartsWith( '(function($){', $attached[0][1], 'One IIFE — no global of its own.' );
+		self::assertStringEndsWith( '})(jQuery);', $attached[0][1] );
+		self::assertStringContainsString( '.on("change","#billing_email"', $attached[0][1] );
+		self::assertStringContainsString( '.trigger("update_checkout")', $attached[0][1] );
+	}
+
+	public function test_the_billing_email_script_is_not_added_while_tracking_is_off(): void {
+		$this->stub_gates( true, false );
+		Functions\expect( 'wp_add_inline_script' )->never();
+
+		$this->handler( 'guest-token', null )->on_enqueue_scripts();
+
+		self::assertTrue( true );
+	}
+
 	public function test_invalid_posted_email_is_ignored(): void {
 		$handler = $this->handler( 'guest-token', null );
 		$handler->on_checkout_update_order_review( 'billing_email=not-an-email' );
@@ -376,6 +491,25 @@ final class CartHookHandlerTest extends TestCase {
 				return false;
 			}
 		};
+	}
+
+	/**
+	 * Classic checkout fields as WooCommerce passes them.
+	 *
+	 * @param array<int, string> $email_class
+	 * @return array<string, array<string, array<string, mixed>>>
+	 */
+	private function classic_fields( array $email_class ): array {
+		return array(
+			'billing' => array(
+				'billing_first_name' => array( 'class' => array( 'form-row-first' ) ),
+				'billing_email'      => array(
+					'type'  => 'email',
+					'class' => $email_class,
+				),
+			),
+			'order'   => array(),
+		);
 	}
 
 	/**
