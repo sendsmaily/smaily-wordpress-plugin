@@ -381,9 +381,8 @@ class StorefrontRecommendations {
 	 * @param array<string, mixed> $slot
 	 */
 	private function product_id( array $slot ): int {
-		$prefix = SkuResolver::prefix();
-		$sku    = isset( $slot['sku'] ) ? (string) $slot['sku'] : '';
-		if ( $prefix !== '' && strpos( $sku, $prefix ) !== 0 ) {
+		$sku = isset( $slot['sku'] ) ? (string) $slot['sku'] : '';
+		if ( ! SkuResolver::is_own_key( $sku ) ) {
 			return 0;
 		}
 

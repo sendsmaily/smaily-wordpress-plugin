@@ -90,8 +90,11 @@ class RecEngineSettings {
 	 */
 	public const OPTION_CONNECTION_PREFIX = 'smly_rec_connection_prefix';
 
-	/** The prefix shape the engine assigns (contract §1, the engine's own CHECK). */
-	public const CONNECTION_PREFIX_PATTERN = '/^c[1-9][0-9]{0,3}-$/';
+	/** The prefix shape the engine assigns (contract §1, the engine's own CHECK), unanchored. */
+	public const CONNECTION_PREFIX_SHAPE = 'c[1-9][0-9]{0,3}-';
+
+	/** The whole-value match of CONNECTION_PREFIX_SHAPE. */
+	public const CONNECTION_PREFIX_PATTERN = '/^' . self::CONNECTION_PREFIX_SHAPE . '$/';
 
 	public function is_connected(): bool {
 		return (bool) get_option( self::OPTION_CONNECTED, false );
@@ -204,11 +207,7 @@ class RecEngineSettings {
 	 * and for a stored value of the wrong shape.
 	 */
 	public function connection_prefix(): string {
-		if ( ! $this->is_connected() ) {
-			return '';
-		}
-		$prefix = get_option( self::OPTION_CONNECTION_PREFIX, '' );
-		return self::is_valid_prefix( $prefix ) ? (string) $prefix : '';
+		return $this->is_connected() ? ( $this->previous_prefix() ?? '' ) : '';
 	}
 
 	/**
