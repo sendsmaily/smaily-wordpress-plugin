@@ -133,6 +133,10 @@ msgstr "Liitu"
 msgid "Smaily credentials not validated. Subscription form will not work!"
 msgstr "Puudub Smaily API ühendus. Liitumisvorm ei tööta!"
 
+#: includes/Notifications/NotificationManager.php:411
+msgid "Smaily Connect: no Smaily account is connected. Connect one to sync your customers to Smaily and send automated emails, whether you are new to Smaily or coming back to it."
+msgstr "Smaily Connect: Smaily kontot pole ühendatud. Ühenda konto, et sünkroonida oma kliendid Smailysse ja saata automaatseid e-kirju — olgu Smaily sulle uus või tuled selle juurde tagasi."
+
 #: includes/Notifications/NotificationManager.php:516
 msgid "Invalid request."
 msgstr "Vigane päring."
@@ -1624,6 +1628,7 @@ msgstr "Kopeeri"
 msgid "Step 1 of 6"
 msgstr "1. samm 6-st"
 
+#: includes/Notifications/NotificationManager.php:432
 #: admin/src/components/steps/Step1Connect.tsx:40
 msgid "Connect your Smaily account"
 msgstr "Loo ühendus oma Smaily kontoga"

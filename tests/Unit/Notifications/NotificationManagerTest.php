@@ -13,6 +13,8 @@ use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Notifications\NotificationManager;
+use Smaily\Connect\Report\ReportBuilder;
+use Smaily\Connect\Settings\CredentialSet;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
 use Smaily\Connect\Smaily\RefusalReason;
@@ -160,5 +162,90 @@ final class NotificationManagerTest extends TestCase {
 		self::assertIsArray( $captured );
 		self::assertArrayHasKey( 'failed_events', $captured );
 		self::assertIsInt( $captured['failed_events'] );
+	}
+
+	// --- the invitation to a store with no Smaily account (CON-321) ----------
+
+	private const INVITE_TEXT = 'Smaily Connect: no Smaily account is connected.';
+
+	/**
+	 * What render() prints for an admin, with the given main account, dismissal
+	 * stamp and current screen.
+	 */
+	private function render_invite( ?CredentialSet $main, ?int $dismissed_at = null, ?object $screen = null, bool $can = true ): string {
+		$builder = $this->createMock( ReportBuilder::class );
+		$builder->method( 'main_credentials' )->willReturn( $main );
+
+		$client  = $this->createMock( RecEngineClient::class );
+		$manager = new NotificationManager(
+			$this->createMock( RecEngineSettings::class ),
+			static fn (): RecEngineClient => $client,
+			static fn (): ?SmailyClient => null,
+			$builder
+		);
+
+		$dismissed = $dismissed_at === null ? array() : array( NotificationManager::INVITE_KEY => $dismissed_at );
+
+		Functions\stubTranslationFunctions();
+		Functions\stubEscapeFunctions();
+		Functions\when( 'current_user_can' )->justReturn( $can );
+		Functions\when( 'get_current_screen' )->justReturn( $screen );
+		Functions\when( 'get_option' )->alias(
+			static function ( string $name, $fallback = false ) use ( $dismissed ) {
+				return $name === NotificationManager::OPTION_DISMISSED ? $dismissed : $fallback;
+			}
+		);
+		Functions\when( 'admin_url' )->alias( static fn ( string $path = '' ): string => 'https://shop.test/wp-admin/' . $path );
+		Functions\when( 'add_query_arg' )->alias( static fn ( array $args, string $url ): string => $url . '?' . http_build_query( $args ) );
+		Functions\when( 'wp_nonce_url' )->returnArg();
+		Functions\when( 'wp_kses_post' )->returnArg();
+
+		ob_start();
+		$manager->render();
+
+		return (string) ob_get_clean();
+	}
+
+	public function test_a_store_with_no_smaily_account_is_invited_to_connect_one(): void {
+		$html = $this->render_invite( null );
+
+		self::assertStringContainsString( self::INVITE_TEXT, $html );
+		self::assertStringContainsString( 'notice-info', $html );
+		self::assertStringContainsString( 'admin.php?page=smaily-connect-settings#connection', $html );
+		self::assertStringContainsString( 'key=' . NotificationManager::INVITE_KEY, $html, 'The invitation can be dismissed.' );
+	}
+
+	public function test_a_store_with_a_connected_smaily_account_is_not_invited(): void {
+		$html = $this->render_invite( new CredentialSet( 'demo', 'alice', 's3cret' ) );
+
+		self::assertStringNotContainsString( self::INVITE_TEXT, $html );
+	}
+
+	public function test_a_user_who_cannot_manage_the_plugin_sees_nothing(): void {
+		self::assertSame( '', $this->render_invite( null, null, null, false ) );
+	}
+
+	public function test_a_dismissed_invitation_stays_away_for_ninety_days(): void {
+		$html = $this->render_invite( null, time() - 89 * DAY_IN_SECONDS );
+
+		self::assertStringNotContainsString( self::INVITE_TEXT, $html );
+	}
+
+	public function test_a_dismissed_invitation_comes_back_after_ninety_days(): void {
+		$html = $this->render_invite( null, time() - 90 * DAY_IN_SECONDS - 1 );
+
+		self::assertStringContainsString( self::INVITE_TEXT, $html );
+	}
+
+	public function test_the_setup_wizard_shows_no_invitation_above_its_own_connect_form(): void {
+		$html = $this->render_invite( null, null, (object) array( 'id' => 'toplevel_page_smaily-connect-wizard' ) );
+
+		self::assertStringNotContainsString( self::INVITE_TEXT, $html );
+	}
+
+	public function test_the_settings_screen_shows_the_invitation(): void {
+		$html = $this->render_invite( null, null, (object) array( 'id' => 'toplevel_page_smaily-connect-settings' ) );
+
+		self::assertStringContainsString( self::INVITE_TEXT, $html );
 	}
 }
