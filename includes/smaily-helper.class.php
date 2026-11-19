@@ -383,6 +383,11 @@ class Helper {
 	 * return address of the newsletter forms, and a forged Host would send
 	 * the shopper to another site.
 	 *
+	 * The request target is cleaned as a URL, not as text (CON-348): a text
+	 * sanitizer strips percent-encoded octets, so a path with spaces or
+	 * non-ASCII letters (`/%C3%BC…`) would send the shopper elsewhere.
+	 * Every caller escapes the result with esc_url() at output.
+	 *
 	 * @return string
 	 */
 	public static function get_current_url() {
@@ -390,7 +395,7 @@ class Helper {
 			return get_site_url();
 		}
 
-		$uri   = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+		$uri   = esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 		$parts = wp_parse_url( $uri );
 		$home  = wp_parse_url( home_url() );
 		if ( ! is_array( $parts ) || ! is_array( $home ) || ! isset( $home['scheme'], $home['host'] ) ) {

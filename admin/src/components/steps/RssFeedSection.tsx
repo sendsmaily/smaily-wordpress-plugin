@@ -21,13 +21,20 @@ export interface RssFeedSectionProps {
  * via the boot payload, so a migrated store sees its old setup.
  *
  * Field set, ranges and defaults mirror the legacy RSS settings tab
- * (admin/smaily-admin-settings.class.php register_rss_tab_settings),
+ * (its options are the boot payload's prefill, EnvDetector::rss_snapshot()),
  * except the limit's maximum: the feed lists at most 100 products
- * (Rss::MAX_FEED_ITEMS, CON-345).
+ * (Rss::MAX_FEED_ITEMS, CON-345), so the Limit field never shows more —
+ * a saved or typed larger limit shows as 100 (CON-348).
  */
+const MAX_LIMIT = 100;
+
+function capLimit(value: string): string {
+  return Number(value) > MAX_LIMIT ? String(MAX_LIMIT) : value;
+}
+
 export function RssFeedSection({ rss }: RssFeedSectionProps): React.JSX.Element {
   const [category, setCategory] = useState(rss.defaults.category);
-  const [limit, setLimit] = useState(String(rss.defaults.limit));
+  const [limit, setLimit] = useState(capLimit(String(rss.defaults.limit)));
   const [sortBy, setSortBy] = useState(rss.defaults.sortBy);
   const [order, setOrder] = useState(rss.defaults.order);
   const [taxRate, setTaxRate] = useState(String(rss.defaults.taxRate));
@@ -82,9 +89,9 @@ export function RssFeedSection({ rss }: RssFeedSectionProps): React.JSX.Element 
           <NumberInput
             id="smaily-rss-limit"
             min={1}
-            max={100}
+            max={MAX_LIMIT}
             value={limit}
-            onChange={(e) => setLimit(e.target.value)}
+            onChange={(e) => setLimit(capLimit(e.target.value))}
           />
         </div>
 
