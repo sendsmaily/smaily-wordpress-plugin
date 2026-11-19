@@ -11528,3 +11528,26 @@ second source; WordPress reads `$_REQUEST`, so the two could still differ).
 **Relationships:** PRO-4252 (which fields reach a storefront form);
 LESSONS 2.34; `ProfileFieldsOwnerTest` (integration) and
 `ProfileSettingsStorefrontFieldsTest` (unit).
+
+### CON-345 — The public product RSS feed lists at most 100 products and no password-protected one (2026-11-19)
+
+**Context:** the pre-3.24.1 security review found that the product RSS feed
+(`/smaily-rss-feed`, or `?smaily-rss-feed=true`), which anyone can open, took
+its `limit` from the address with no ceiling — `-1` loaded every published
+product, descriptions run through `do_shortcode` — and listed
+password-protected products with their descriptions.
+**Decision:** (1) the feed query asks for `has_password => false`
+(`Data_Handler::get_products()`; WooCommerce passes the key to `WP_Query`).
+(2) `Rss::feed_limit()`, called by `Rss::list_rss_feed_items()`, is the one
+place the limit is decided: 1–100 as asked, a missing or 0 limit keeps the
+default 50, a negative or larger number gives 100 (`Rss::MAX_FEED_ITEMS`) —
+the maximum is Erkki's decision (2026-11-19). The Integrations step's Limit
+field now goes up to 100 instead of 250, and the docs site says so.
+**Rationale:** 100 products is more than a newsletter shows; a public address
+must not make the store load and render its whole catalog. An existing
+newsletter address keeps working — category, order_by, order and tax_rate
+are unchanged, and a limit over 100 gives 100 products instead of an error.
+**Alternatives:** filter password-protected products out after the query
+(`post_password_required()`): rejected, a filtered page then lists fewer
+products than asked.
+**Relationships:** `RssFeedItemsTest` (integration).
