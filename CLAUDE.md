@@ -823,6 +823,22 @@ slow"):
   runs `on_tick()` with rows left schedules a follow-up — unschedule it in
   tearDown (`as_unschedule_all_actions( HOOK, FOLLOW_UP_ARGS, AS_GROUP )`).
 
+### The invitation banners have two copies — the React one and the Dashboard's PHP one (CON-350, CON-351)
+`admin/src/components/banners/PromoBanner.tsx` draws the banner in the admin
+bundle; the Smaily invitation on the WordPress Dashboard is printed by
+`NotificationManager::render_invite_banner()` with
+`admin/css/smaily-connect-banner.css` (no React there). Change the look in
+both. The Dashboard copy is classed `notice` so core moves it under the page
+heading — and core's `.notice a` styles then win over a plain class: every
+link rule in that stylesheet is written `.notice.smaily-connect-banner a.…`.
+Which banner shows comes from the boot payload's `banners`
+(`NotificationManager::banner_boot()`, read through `bannerBoot()`); with no
+boot (vitest) the Smaily invitation stays hidden. The Campaign Intelligence
+start button is behind `ciStartOpen()` (false until INT-298; CON-175).
+To screenshot a state the dev site is not in, patch `window.smailyConnectBoot`
+in the browser (Playwright `addInitScript` with a setter) and stop or answer
+the plugin's REST calls there — no option change needed.
+
 ### Build / test / walk commands
 - `npm run ci:strict` — PHPCS + PHPStan + PHPUnit unit + JS (eslint/tsc/vitest).
   Must be `exit=0`.
