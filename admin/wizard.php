@@ -209,7 +209,8 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 	}
 
 	// React comes from WordPress core (CON-314): the bundle reads the globals
-	// the `react`, `react-dom` and `react-jsx-runtime` handles set.
+	// the `react`, `react-dom` and `react-jsx-runtime` handles set. It is an
+	// IIFE, loaded as a classic script in the footer, after its mount node.
 	wp_enqueue_script(
 		'smaily-connect-admin',
 		$dist_url . '/admin.js',
@@ -225,21 +226,6 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 		'smaily-connect-admin',
 		'smaily-connect',
 		SMAILY_CONNECT_PLUGIN_PATH . 'languages'
-	);
-
-	// ESM bundle — Vite emits `type="module"` markup. WordPress' enqueue
-	// API doesn't set the attribute directly; we tag it via the
-	// script_loader_tag filter just for this handle.
-	add_filter(
-		'script_loader_tag',
-		static function ( string $tag, string $handle ): string {
-			if ( $handle === 'smaily-connect-admin' ) {
-				return str_replace( ' src=', ' type="module" src=', $tag );
-			}
-			return $tag;
-		},
-		10,
-		2
 	);
 
 	if ( file_exists( $css_path ) ) {

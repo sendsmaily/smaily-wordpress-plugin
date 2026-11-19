@@ -57,4 +57,13 @@ final class AdminBundleReactTest extends TestCase {
 		}
 		self::assertContains( 'wp-i18n', $deps );
 	}
+
+	public function test_the_admin_bundle_is_a_classic_footer_script(): void {
+		smaily_connect_enqueue_admin_bundle( 'toplevel_page_smaily-connect-wizard' );
+
+		self::assertSame( 1, wp_scripts()->get_data( self::HANDLE, 'group' ), 'The admin bundle must print in the footer, after its mount node.' );
+
+		$tag = '<script src="https://example.test/admin.js" id="smaily-connect-admin-js"></script>';
+		self::assertStringNotContainsString( 'type="module"', apply_filters( 'script_loader_tag', $tag, self::HANDLE, 'https://example.test/admin.js' ), 'The IIFE bundle must not be tagged type="module".' );
+	}
 }
