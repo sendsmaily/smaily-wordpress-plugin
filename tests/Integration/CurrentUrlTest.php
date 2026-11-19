@@ -1,7 +1,8 @@
 <?php
 /**
  * Integration: the newsletter forms' default return address is the store's
- * own address, never the client's Host header (CON-346).
+ * own address, never the client's Host header (CON-346), with the request's
+ * percent-encoded path kept as it came (CON-348).
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -44,6 +45,13 @@ final class CurrentUrlTest extends TestCase {
 		$_SERVER['REQUEST_URI'] = '//attacker.example/landing';
 
 		self::assertSame( $this->origin() . '/landing', Helper::get_current_url() );
+	}
+
+	public function test_a_percent_encoded_path_comes_back_unchanged(): void {
+		$_SERVER['HTTP_HOST']   = 'attacker.example';
+		$_SERVER['REQUEST_URI'] = '/tooted/m%C3%BCts%20ja%20sall/?lang=et&code=101';
+
+		self::assertSame( $this->origin() . '/tooted/m%C3%BCts%20ja%20sall/?lang=et&code=101', Helper::get_current_url() );
 	}
 
 	private function origin(): string {
