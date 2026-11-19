@@ -24,6 +24,15 @@
 #   3. the same vm run must not have thrown while instantiating the script (a
 #                syntax error would be a different way of shipping nothing).
 #
+# The admin bundle (a file ending in dist/admin/admin.js) reads React from the
+# globals WordPress core's `react`, `react-dom` and `react-jsx-runtime` handles
+# set (CON-314). For it only, the real npm React modules are put on the window
+# as window.React / window.ReactDOM / window.ReactJSXRuntime BEFORE the
+# snapshot, so the run proves it loads against them and writes no global of
+# its own; the storefront bundles still get nothing. A static check also fails
+# the admin bundle if React itself is inlined again (Plugin Check 2.2.0 reports
+# that as an ERROR).
+#
 # Usage: bash bin/check-bundle-scope.sh <bundle.js> [<bundle.js> …]
 # Runs after every `npm run build:admin` and inside bin/verify-release-zip.sh.
 set -uo pipefail
@@ -57,6 +66,14 @@ for file in "$@"; do
 	else
 		pass "no top-level import/export: $file"
 	fi
+	case "$file" in
+		*dist/admin/admin.js)
+			if grep -q '__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED' "$file"; then
+				fail "React is inlined — the admin bundle must read WordPress core's React ($file)"
+			else
+				pass "no inlined React: $file"
+			fi ;;
+	esac
 
 	# 2 + 3. Dynamic: run it, then ask the same context what leaked.
 	if node - "$file" <<'NODE'
@@ -74,6 +91,12 @@ const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', 
   runScripts: 'outside-only',
 });
 const ctx = dom.getInternalVMContext();
+// The admin bundle's externals, as WordPress core provides them (CON-314).
+if (file.endsWith('dist/admin/admin.js')) {
+  dom.window.React = require('react');
+  dom.window.ReactDOM = { ...require('react-dom'), ...require('react-dom/client') };
+  dom.window.ReactJSXRuntime = require('react/jsx-runtime');
+}
 const before = new Set(Object.getOwnPropertyNames(dom.window));
 
 let threw = null;
