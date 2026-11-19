@@ -217,6 +217,102 @@ final class SubscriberFieldFormsTest extends TestCase {
 		}
 	}
 
+	/**
+	 * CON-68: a field the filter shows on the registration form is saved on
+	 * the new account, and the account details form edits it later.
+	 */
+	public function test_fields_shown_at_registration_are_saved_on_the_new_account(): void {
+		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+		update_option( Options::CHECKOUT_SUBSCRIPTION_ENABLED_OPTION, true );
+
+		$show = static function ( array $fields ): array {
+			foreach ( array( 'user_gender', 'user_phone', 'user_dob' ) as $key ) {
+				$fields[ $key ]['hide_in_account']      = false;
+				$fields[ $key ]['hide_in_registration'] = false;
+			}
+			return $fields;
+		};
+		add_filter( 'smaily_connect_account_fields', $show );
+
+		try {
+			$user_id = $this->register_customer(
+				array(
+					'user_gender' => '2',
+					'user_phone'  => '+372 5555 4321',
+					'user_dob'    => '1992-07-15',
+				)
+			);
+			self::assertSame( '2', get_user_meta( $user_id, 'user_gender', true ) );
+			self::assertSame( '+372 5555 4321', get_user_meta( $user_id, 'user_phone', true ) );
+			self::assertSame( '1992-07-15', get_user_meta( $user_id, 'user_dob', true ) );
+			self::assertFalse( metadata_exists( 'user', $user_id, 'user_newsletter' ), 'An unticked box writes nothing — the newsletter keeps its own path.' );
+
+			$this->save_account_details(
+				$user_id,
+				array(
+					'user_gender' => '1',
+					'user_phone'  => '+372 5555 8765',
+					'user_dob'    => '1992-07-16',
+				)
+			);
+			self::assertSame( '1', get_user_meta( $user_id, 'user_gender', true ) );
+			self::assertSame( '+372 5555 8765', get_user_meta( $user_id, 'user_phone', true ) );
+			self::assertSame( '1992-07-16', get_user_meta( $user_id, 'user_dob', true ) );
+		} finally {
+			remove_filter( 'smaily_connect_account_fields', $show );
+		}
+	}
+
+	/**
+	 * CON-68: an empty field writes nothing, and a field hidden at
+	 * registration is never written from a registration post.
+	 */
+	public function test_registration_saves_only_filled_fields_shown_there(): void {
+		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+
+		$show = static function ( array $fields ): array {
+			$fields['user_phone']['hide_in_registration'] = false;
+			$fields['user_dob']['hide_in_registration']   = false;
+			$fields['user_gender']['hide_in_account']     = false;
+			return $fields;
+		};
+		add_filter( 'smaily_connect_account_fields', $show );
+
+		try {
+			$user_id = $this->register_customer(
+				array(
+					'user_gender' => '2',
+					'user_phone'  => '+372 5555 4321',
+					'user_dob'    => '',
+				)
+			);
+			self::assertSame( '+372 5555 4321', get_user_meta( $user_id, 'user_phone', true ) );
+			self::assertFalse( metadata_exists( 'user', $user_id, 'user_dob' ), 'An empty field writes nothing.' );
+			self::assertFalse( metadata_exists( 'user', $user_id, 'user_gender' ), 'A field hidden at registration is not read from the post.' );
+		} finally {
+			remove_filter( 'smaily_connect_account_fields', $show );
+		}
+	}
+
+	/**
+	 * CON-68: by default the registration form shows no profile field, so a
+	 * registration post saves none, whatever it carries.
+	 */
+	public function test_by_default_registration_saves_no_profile_field(): void {
+		$this->save_wizard_selection( array( 'first_name', 'user_phone', 'user_gender', 'birthday' ) );
+
+		$user_id = $this->register_customer(
+			array(
+				'user_gender' => '2',
+				'user_phone'  => '+372 5555 4321',
+				'user_dob'    => '1992-07-15',
+			)
+		);
+		self::assertFalse( metadata_exists( 'user', $user_id, 'user_gender' ) );
+		self::assertFalse( metadata_exists( 'user', $user_id, 'user_phone' ) );
+		self::assertFalse( metadata_exists( 'user', $user_id, 'user_dob' ) );
+	}
+
 	public function test_a_field_the_merchant_left_unticked_is_not_asked_for(): void {
 		$this->save_wizard_selection( array( 'first_name', 'last_name' ) );
 
@@ -421,6 +517,37 @@ final class SubscriberFieldFormsTest extends TestCase {
 		} finally {
 			$_REQUEST = array();
 			$_POST    = array();
+			$this->forget_hooks( $settings );
+			RestRequestHelper::login_as_admin();
+		}
+	}
+
+	/**
+	 * A shopper registers on My Account: WC_Form_Handler::process_registration()
+	 * checks the register nonce and calls wc_create_new_customer(), which fires
+	 * woocommerce_created_customer with ( id, data, password_generated ).
+	 *
+	 * @param array<string, string> $posted
+	 */
+	private function register_customer( array $posted ): int {
+		$settings = new Profile_Settings();
+		$settings->register_hooks();
+		wp_set_current_user( 0 );
+		$email = 'register-' . wp_generate_password( 6, false ) . '@example.test';
+		$_POST = array(
+			'woocommerce-register-nonce' => wp_create_nonce( 'woocommerce-register' ),
+			'register'                   => 'Register',
+			'email'                      => $email,
+		) + $posted;
+
+		try {
+			$user_id = wc_create_new_customer( $email, '', wp_generate_password( 20 ) );
+			self::assertIsInt( $user_id );
+			$this->created_users[] = $user_id;
+
+			return $user_id;
+		} finally {
+			$_POST = array();
 			$this->forget_hooks( $settings );
 			RestRequestHelper::login_as_admin();
 		}
