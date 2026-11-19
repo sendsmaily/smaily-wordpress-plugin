@@ -1138,6 +1138,20 @@ none could see it. Rules:
 2. **A test of per-user output puts someone else's id in the request** and
    asserts that user's values are absent.
 
+### 2.35 Three braces print raw HTML (CON-344, Elementor form, 2026-11-19)
+
+The Elementor Pro form action's "Other fields" repeater titled each row with
+`{{{ smaily_field }}}`. In Elementor's (Underscore) template syntax `{{ }}`
+escapes and `{{{ }}}` prints raw HTML, so a field name typed by anyone who
+may edit the form ran as markup in the browser of every editor who opened it.
+The unit test pinned the string as it was, so it proved the bug stayed.
+Rules:
+1. **A template prints anything a user typed with the escaping form** — `{{ }}`
+   in Elementor/Underscore templates; `{{{ }}}` only for markup the plugin
+   built and escaped itself.
+2. **A test that pins a template string says why that form is safe**, not
+   only that it is unchanged.
+
 ---
 
 ## 4. Concrete checklist for the start of a new project

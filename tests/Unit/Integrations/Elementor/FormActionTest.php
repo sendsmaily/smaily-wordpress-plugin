@@ -171,7 +171,7 @@ final class FormActionTest extends TestCase {
 		self::assertStringNotContainsString( 'secret-password', (string) json_encode( $widget->calls ) );
 
 		// The editor drops a row key whose default is undefined before it
-		// renders the row title, and `{{{ smaily_field }}}` then throws a
+		// renders the row title, and `{{ smaily_field }}` then throws a
 		// ReferenceError that blanks the whole section. Each row field must
 		// have a string default.
 		$repeater = array_values(
@@ -182,7 +182,11 @@ final class FormActionTest extends TestCase {
 			self::assertArrayHasKey( 'default', $field, $field['name'] );
 			self::assertSame( '', $field['default'], $field['name'] );
 		}
-		self::assertSame( '{{{ smaily_field }}}', $repeater['title_field'] );
+		// The row title prints the field name escaped (`{{ }}`), never as
+		// raw HTML (`{{{ }}}`): the name is typed by whoever edits the form
+		// and is rendered in every editor's browser (CON-344).
+		self::assertSame( '{{ smaily_field }}', $repeater['title_field'] );
+		self::assertStringNotContainsString( '{{{', $repeater['title_field'] );
 	}
 
 	public function test_the_workflow_dropdown_lists_the_workflows_for_a_site_editor(): void {

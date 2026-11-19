@@ -137,8 +137,11 @@ class Form_Action extends Action_Base {
 		// the control-type default that Elementor\Repeater::add_control() adds,
 		// so a new row's value is undefined. The editor JSON-clones the row
 		// before it renders the title template, which drops the key, and
-		// `{{{ smaily_field }}}` then throws a ReferenceError. The row is not
+		// `{{ smaily_field }}` then throws a ReferenceError. The row is not
 		// added, and the whole Smaily section renders blank after that.
+		// The title uses the escaping `{{ }}`, never the raw-HTML `{{{ }}}`:
+		// the field name is typed by whoever edits the form, and the title
+		// is rendered in every editor's browser.
 		$widget->add_control(
 			'smaily_fields',
 			array(
@@ -160,7 +163,7 @@ class Form_Action extends Action_Base {
 					),
 				),
 				'prevent_empty' => false,
-				'title_field'   => '{{{ smaily_field }}}',
+				'title_field'   => '{{ smaily_field }}',
 			)
 		);
 
