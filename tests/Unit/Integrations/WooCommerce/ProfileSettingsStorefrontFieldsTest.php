@@ -129,13 +129,58 @@ final class ProfileSettingsStorefrontFieldsTest extends TestCase {
 	}
 
 	public function test_the_wp_admin_user_profile_keeps_the_selected_fields(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+
 		ob_start();
-		( new Profile_Settings() )->smaily_print_user_admin_fields();
+		( new Profile_Settings() )->smaily_print_user_admin_fields( $this->user( 7 ) );
 		ob_end_clean();
 
 		foreach ( self::PROFILE_FIELDS as $key ) {
 			self::assertArrayHasKey( $key, $this->printed, 'Staff still see and edit ' . $key . ' on the user profile.' );
 		}
+	}
+
+	/**
+	 * CON-343: the account details form shows the shopper's own values,
+	 * whatever user id the page address carries.
+	 */
+	public function test_the_account_details_form_reads_only_the_current_users_values(): void {
+		Functions\when( 'is_user_logged_in' )->justReturn( true );
+		$read_for = array();
+		Functions\when( 'get_user_meta' )->alias(
+			static function ( int $user_id ) use ( &$read_for ): string {
+				$read_for[] = $user_id;
+				return '';
+			}
+		);
+		$_GET['user_id'] = '1';
+
+		try {
+			( new Profile_Settings() )->smaily_print_user_frontend_fields();
+		} finally {
+			unset( $_GET['user_id'] );
+		}
+
+		self::assertSame( array( 7 ), array_values( array_unique( $read_for ) ) );
+	}
+
+	/**
+	 * CON-343: the wp-admin profile prints the user WordPress passed, and
+	 * nothing for a viewer who may not edit that user.
+	 */
+	public function test_the_wp_admin_user_profile_prints_nothing_for_a_viewer_who_may_not_edit_the_user(): void {
+		Functions\when( 'current_user_can' )->alias(
+			static function ( string $capability, int $user_id ): bool {
+				return $capability === 'edit_user' && $user_id === 7;
+			}
+		);
+
+		ob_start();
+		( new Profile_Settings() )->smaily_print_user_admin_fields( $this->user( 1 ) );
+		$html = (string) ob_get_clean();
+
+		self::assertSame( '', $html );
+		self::assertSame( array(), $this->printed );
 	}
 
 	public function test_an_account_details_save_leaves_the_stored_values_alone(): void {
@@ -211,6 +256,13 @@ final class ProfileSettingsStorefrontFieldsTest extends TestCase {
 		( new Profile_Settings() )->smaily_save_wc_account_fields( 7 );
 	}
 
+	private function user( int $id ): \WP_User {
+		$user     = new \WP_User();
+		$user->ID = $id;
+
+		return $user;
+	}
+
 	/**
 	 * @return array<string, array<string, mixed>>
 	 */
@@ -222,4 +274,18 @@ final class ProfileSettingsStorefrontFieldsTest extends TestCase {
 			'order'    => array( 'order_comments' => array( 'type' => 'textarea' ) ),
 		);
 	}
+}
+
+if ( ! class_exists( \WP_User::class ) ) {
+	// phpcs:ignore Squiz.Commenting.ClassComment.Missing -- test shim.
+	eval(
+		<<<'PHP'
+class WP_User {
+	public int $ID = 0;
+	public string $user_email = '';
+	public string $first_name = '';
+	public string $last_name = '';
+}
+PHP
+	);
 }
