@@ -63,8 +63,8 @@
 	margin-top: 20px;
 }
 
-.smaily-connect-banner__cta,
-.smaily-connect-banner__cta:visited {
+.notice.smaily-connect-banner a.smaily-connect-banner__cta,
+.notice.smaily-connect-banner a.smaily-connect-banner__cta:visited {
 	display: inline-block;
 	padding: 10px 18px;
 	border-radius: 8px;
@@ -75,14 +75,14 @@
 	text-decoration: none;
 }
 
-.smaily-connect-banner__cta:hover,
-.smaily-connect-banner__cta:focus {
+.notice.smaily-connect-banner a.smaily-connect-banner__cta:hover,
+.notice.smaily-connect-banner a.smaily-connect-banner__cta:focus {
 	color: #fff;
 	background: linear-gradient(90deg, #3a1738 0%, #6e4885 100%);
 }
 
-.smaily-connect-banner__link,
-.smaily-connect-banner__link:visited {
+.notice.smaily-connect-banner a.smaily-connect-banner__link,
+.notice.smaily-connect-banner a.smaily-connect-banner__link:visited {
 	color: #6b3f8c;
 	font-size: 14px;
 	font-weight: 500;
@@ -94,8 +94,8 @@
 	color: #6b6577;
 }
 
-.smaily-connect-banner__dismiss,
-.smaily-connect-banner__dismiss:visited {
+.notice.smaily-connect-banner a.smaily-connect-banner__dismiss,
+.notice.smaily-connect-banner a.smaily-connect-banner__dismiss:visited {
 	position: absolute;
 	top: 12px;
 	right: 16px;
@@ -129,6 +129,10 @@
 
 .smaily-connect-banner__row {
 	display: flex;
+	width: max-content;
+	min-width: 100%;
+	box-sizing: border-box;
+	white-space: nowrap;
 	align-items: center;
 	gap: 12px;
 	margin-top: 12px;
@@ -176,7 +180,6 @@
 
 .smaily-connect-banner__row-text {
 	flex: 1 1 auto;
-	min-width: 0;
 }
 
 .smaily-connect-banner__chip {

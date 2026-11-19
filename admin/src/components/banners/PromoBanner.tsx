@@ -97,13 +97,13 @@ export function PromoBanner({
           <div
             key={row.text}
             className={cn(
-              'mt-3 flex items-center gap-3 rounded-l-[10px] border border-r-0 border-[#ece8f1] bg-white px-3.5 py-3 text-[14px] font-medium',
+              'mt-3 flex w-max min-w-full items-center gap-3 whitespace-nowrap rounded-l-[10px] border border-r-0 border-[#ece8f1] bg-white px-3.5 py-3 text-[14px] font-medium',
               index === 1 && 'opacity-60',
               index >= 2 && 'opacity-30',
             )}
           >
             <RowIcon icon={row.icon} />
-            <span className="min-w-0 flex-1">{row.text}</span>
+            <span className="flex-1">{row.text}</span>
             <span className="shrink-0 rounded-md bg-[#f1eef5] px-2.5 py-1 text-[12px] text-[#8a8494]">
               {panel.chip}
             </span>
