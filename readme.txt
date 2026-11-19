@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.24.0
+Stable tag: 3.24.1
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -191,6 +191,15 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.24.1 =
+* Security fix: the My Account → Account details form and the user profile in wp-admin show only the profile values of the user being edited. This fixes a reported information-disclosure issue, where a logged-in user could see another user's values.
+* Security fix: the Elementor Pro form action's "Other fields" list shows field names as plain text.
+* Security fix: the product RSS feed never lists password-protected products.
+* Changed: the product RSS feed lists at most 100 products. A feed address that asks for more lists 100. The Limit field in the Integrations step now goes from 1 to 100 (it went to 250).
+* Security fix: the newsletter block's button accepts only real colours, widths and corner sizes.
+* Security fix: an admin notice can be dismissed only by a user who can see it.
+* Security fix: the newsletter forms' default return address always uses the store's own address.
+
 = 3.24.0 =
 * New: several shops can share one Campaign Intelligence store. Each shop's connection puts its own code prefix in front of the product and order codes it sends, so shops that number them alike do not overwrite each other. A shop that joins a store with several shops must run 3.24.0 before its setup link is used. Existing stores send what they sent before.
 * New: the payment reminder, a transactional email to a shopper who placed an order at the checkout and left it unpaid at the payment step, with a link to pay, after the delay you set.
@@ -230,6 +239,9 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Updated to the Smaily Campaign Intelligence API contract v1.29.0.
 
 == Upgrade Notice ==
+
+= 3.24.1 =
+Security release: fixes a reported issue where a logged-in user could see another user's profile values, and hardens the product RSS feed and the newsletter forms. Update now.
 
 = 3.24.0 =
 Several shops can share one Campaign Intelligence store: a shop that joins a store with several shops must run 3.24.0 before its setup link is used. Adds a payment reminder for orders left unpaid at the payment step. Existing connections send what they sent before.
