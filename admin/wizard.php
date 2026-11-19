@@ -208,10 +208,12 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 		return;
 	}
 
+	// React comes from WordPress core (CON-314): the bundle reads the globals
+	// the `react`, `react-dom` and `react-jsx-runtime` handles set.
 	wp_enqueue_script(
 		'smaily-connect-admin',
 		$dist_url . '/admin.js',
-		array( 'wp-i18n' ),
+		array( 'react', 'react-dom', 'react-jsx-runtime', 'wp-i18n' ),
 		(string) filemtime( $js_path ),
 		true
 	);
