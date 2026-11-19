@@ -49,7 +49,9 @@ use Smaily\Connect\Support\DebugLog;
  *     LOCK_WAIT_SECONDS, so an open long transaction makes the attempt fail
  *     instead of queueing every query on the table behind it.
  *   - Bounded failure: a failed attempt is a debug-log line and a stored
- *     state (OPTION). It is tried again after RETRY_AFTER_SECONDS, at most
+ *     state (OPTION), both naming an error code (ERROR_*), never the
+ *     database's error text, which can quote the database user and host
+ *     (CON-349, the CON-277 / CON-301 rule). It is tried again after RETRY_AFTER_SECONDS, at most
  *     MAX_ATTEMPTS times in all; then never again. A refused online clause
  *     is never tried again (`permanent` in the state). An attempt is counted
  *     before the ALTER, so a run the host kills counts too. The import works
@@ -76,6 +78,15 @@ class LegacyOrderDateIndex {
 	public const STATUS_PRESENT = 'present';
 
 	public const STATUS_FAILED = 'failed';
+
+	/** The server refused the online-DDL clause: a permanent failure. */
+	public const ERROR_CLAUSE_REFUSED = 'clause_refused';
+
+	/** The metadata-lock wait ran out (LOCK_WAIT_SECONDS). */
+	public const ERROR_LOCK_WAIT_TIMEOUT = 'lock_wait_timeout';
+
+	/** Any other failed ALTER. */
+	public const ERROR_ALTER_FAILED = 'alter_failed';
 
 	public const MAX_ATTEMPTS = 3;
 
@@ -170,10 +181,11 @@ class LegacyOrderDateIndex {
 			return self::STATUS_ADDED;
 		}
 
+		// Classified here; the database's text is never logged or stored (CON-349).
+		$code = self::error_code( $error );
 		// A server that cannot build the index online today cannot tomorrow.
-		$permanent = self::is_clause_refused( $error );
-		$error     = self::redact( $error );
-		self::write_state( self::STATUS_FAILED, $attempts, time(), $error, $permanent );
+		$permanent = $code === self::ERROR_CLAUSE_REFUSED;
+		self::write_state( self::STATUS_FAILED, $attempts, time(), $code, $permanent );
 		if ( $permanent ) {
 			$next = ', not tried again: the server cannot add it without blocking writes';
 		} else {
@@ -181,12 +193,12 @@ class LegacyOrderDateIndex {
 		}
 		DebugLog::write(
 			sprintf(
-				'[smaily-connect] Could not add the orders-import index %s to the posts table (attempt %d of %d%s): %s',
+				'[smaily-connect] Could not add the orders-import index %s to the posts table (attempt %d of %d%s): error=%s',
 				self::INDEX,
 				$attempts,
 				self::MAX_ATTEMPTS,
 				$next,
-				$error
+				$code
 			)
 		);
 		return self::STATUS_FAILED;
@@ -262,12 +274,18 @@ class LegacyOrderDateIndex {
 	}
 
 	/**
-	 * A database error without its quoted parts: a denied ALTER names the
-	 * database user and host there.
+	 * The error code a failed ALTER is logged and stored under (ERROR_*).
+	 * The database's text itself is never kept: a denied ALTER quotes the
+	 * database user and host (CON-349).
 	 */
-	public static function redact( string $error ): string {
-		$error = (string) preg_replace( "/'[^']*'/", "'?'", $error );
-		return function_exists( 'mb_substr' ) ? mb_substr( $error, 0, 200 ) : substr( $error, 0, 200 );
+	public static function error_code( string $error ): string {
+		if ( self::is_clause_refused( $error ) ) {
+			return self::ERROR_CLAUSE_REFUSED;
+		}
+		if ( stripos( $error, 'Lock wait timeout' ) !== false ) {
+			return self::ERROR_LOCK_WAIT_TIMEOUT;
+		}
+		return self::ERROR_ALTER_FAILED;
 	}
 
 	/**
@@ -331,7 +349,7 @@ class LegacyOrderDateIndex {
 	 * Add the index online. There is no plain ADD INDEX when the server
 	 * refuses the clause (CON-267): it could block writes to the posts table.
 	 *
-	 * @return string '' on success, else the database error (not yet redacted).
+	 * @return string '' on success, else the database error, for error_code() only.
 	 */
 	private static function add(): string {
 		global $wpdb;
@@ -375,7 +393,8 @@ class LegacyOrderDateIndex {
 	}
 
 	/**
-	 * @param bool $permanent A failure that is never tried again (the server refused online DDL).
+	 * @param string $error     '' or an ERROR_* code, never the database's text.
+	 * @param bool   $permanent A failure that is never tried again (the server refused online DDL).
 	 */
 	private static function write_state( string $status, int $attempts, int $at, string $error, bool $permanent = false ): void {
 		$state = array(

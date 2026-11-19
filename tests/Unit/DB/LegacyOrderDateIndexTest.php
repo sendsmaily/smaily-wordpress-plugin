@@ -190,11 +190,11 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		self::assertFalse( LegacyOrderDateIndex::is_clause_refused( "Duplicate key name 'smaily_connect_order_date'" ) );
 	}
 
-	public function test_a_stored_error_has_no_quoted_user_or_host(): void {
-		self::assertSame(
-			"ALTER command denied to user '?'@'?' for table '?'",
-			LegacyOrderDateIndex::redact( "ALTER command denied to user 'shop'@'db.example' for table 'wp_posts'" )
-		);
+	public function test_a_failure_is_named_by_a_code_never_by_its_text(): void {
+		self::assertSame( LegacyOrderDateIndex::ERROR_CLAUSE_REFUSED, LegacyOrderDateIndex::error_code( 'LOCK=NONE is not supported. Try LOCK=SHARED' ) );
+		self::assertSame( LegacyOrderDateIndex::ERROR_LOCK_WAIT_TIMEOUT, LegacyOrderDateIndex::error_code( 'Lock wait timeout exceeded; try restarting transaction' ) );
+		self::assertSame( LegacyOrderDateIndex::ERROR_ALTER_FAILED, LegacyOrderDateIndex::error_code( "ALTER command denied to user 'shop'@'db.example' for table 'wp_posts'" ) );
+		self::assertSame( LegacyOrderDateIndex::ERROR_ALTER_FAILED, LegacyOrderDateIndex::error_code( 'unknown database error' ) );
 	}
 
 	// --- Scheduling ---------------------------------------------------------
@@ -315,6 +315,7 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		self::assertSame( LegacyOrderDateIndex::STATUS_FAILED, $state['status'] );
 		self::assertSame( 1, $state['attempts'] );
 		self::assertTrue( $state['permanent'] );
+		self::assertSame( LegacyOrderDateIndex::ERROR_CLAUSE_REFUSED, $state['error'] );
 		self::assertNull( LegacyOrderDateIndex::due_at( $state, (int) $state['at'] + 10 * LegacyOrderDateIndex::RETRY_AFTER_SECONDS ) );
 
 		$this->wpdb->queries = array();
@@ -332,8 +333,41 @@ final class LegacyOrderDateIndexTest extends TestCase {
 		self::assertArrayNotHasKey( 'permanent', $state, 'A denied ALTER is tried again.' );
 		self::assertSame( LegacyOrderDateIndex::STATUS_FAILED, $state['status'] );
 		self::assertSame( 1, $state['attempts'] );
-		self::assertSame( "ALTER command denied to user '?'@'?' for table '?'", $state['error'] );
+		self::assertSame( LegacyOrderDateIndex::ERROR_ALTER_FAILED, $state['error'] );
 		self::assertSame( (int) $state['at'] + LegacyOrderDateIndex::RETRY_AFTER_SECONDS, LegacyOrderDateIndex::due_at( $state, (int) $state['at'] ) );
+	}
+
+	/**
+	 * CON-349: the database's error text can quote the database user and
+	 * host (or any value); the debug line and the stored state carry only
+	 * the code. Its own process: DebugLog writes only under WP_DEBUG, a
+	 * constant that would stay on for the rest of the suite.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_a_failure_logs_and_stores_the_code_without_the_database_text(): void {
+		define( 'WP_DEBUG', true );
+		$this->wpdb->fail = array( 'ADD INDEX' => "ALTER command denied to user 'buyer@example.test'@'db.example' for table 'wp_posts'" );
+
+		$log      = (string) tempnam( sys_get_temp_dir(), 'smly-log' );
+		$previous = (string) ini_set( 'error_log', $log );
+		try {
+			self::assertSame( LegacyOrderDateIndex::STATUS_FAILED, self::on( LegacyOrderDateIndex::STORAGE_LEGACY )->run() );
+			$written = (string) file_get_contents( $log );
+		} finally {
+			ini_set( 'error_log', $previous );
+			unlink( $log );
+		}
+
+		self::assertStringContainsString( 'Could not add the orders-import index smaily_connect_order_date to the posts table (attempt 1 of 3, tried again in a day): error=alter_failed', $written );
+		$stored = (string) json_encode( $this->state() );
+		foreach ( array( $written, $stored ) as $text ) {
+			self::assertStringNotContainsString( 'buyer@example.test', $text );
+			self::assertStringNotContainsString( 'db.example', $text );
+			self::assertStringNotContainsString( 'denied', $text );
+		}
+		self::assertSame( LegacyOrderDateIndex::ERROR_ALTER_FAILED, $this->state()['error'] );
 	}
 
 	public function test_after_the_last_attempt_fails_nothing_runs_again(): void {
@@ -347,6 +381,8 @@ final class LegacyOrderDateIndexTest extends TestCase {
 
 		self::assertSame( LegacyOrderDateIndex::STATUS_FAILED, $index->run() );
 		self::assertSame( LegacyOrderDateIndex::MAX_ATTEMPTS, $this->state()['attempts'] );
+		self::assertSame( LegacyOrderDateIndex::ERROR_LOCK_WAIT_TIMEOUT, $this->state()['error'] );
+		self::assertArrayNotHasKey( 'permanent', $this->state() );
 		self::assertNull( LegacyOrderDateIndex::due_at( $this->state(), time() + 10 * LegacyOrderDateIndex::RETRY_AFTER_SECONDS ) );
 
 		$this->wpdb->queries = array();
