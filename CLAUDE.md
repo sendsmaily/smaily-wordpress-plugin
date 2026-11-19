@@ -1151,7 +1151,9 @@ workflow, not a signal about those releases).
   runner with no WordPress; that is what kept these jobs red from before the
   catalog-correctness work (e.g. e22a26b, 2026-06-12) until 2026-09-29.
 - **Admin bundle**: typecheck, ESLint, vitest + coverage, Vite build, dist
-  artefacts, the 250 KB gzip budget.
+  artefacts, the 75 KB gzip budget for `admin.js` (since the after-CON-314
+  tidy-up; it was 250 KB while the bundle carried React — ~49 KB without it,
+  so a bundled React coming back fails the job).
 - **Integration suite (wp-env, legacy|hpos order storage)** — two legs since
   PRO-3435: builds the admin bundle + build-hash, installs
   and builds the Gutenberg block workspaces (PRO-3428, PR #142 — without the
