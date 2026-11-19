@@ -27,6 +27,7 @@ class Integration {
 			'subscribeButtonBackgroundColor' => '#000',
 			'subscribeButtonTextColor'       => '#fff',
 			'subscribeButtonWidth'           => 'auto',
+			'subscribeButtonBorderRadius'    => 0,
 			'successMessage'                 => '',
 			'errorMessage'                   => '',
 			'subdomain'                      => '',
@@ -50,10 +51,10 @@ class Integration {
 					--smaily-subscribe-button-width: %s;
 					--smaily-subscribe-button-border-radius: %spx;
 					',
-					esc_attr( $attributes['subscribeButtonBackgroundColor'] ),
-					esc_attr( $attributes['subscribeButtonTextColor'] ),
-					esc_attr( $attributes['subscribeButtonWidth'] ),
-					esc_attr( $attributes['subscribeButtonBorderRadius'] )
+					esc_attr( self::css_color( $attributes['subscribeButtonBackgroundColor'], $defaults['subscribeButtonBackgroundColor'] ) ),
+					esc_attr( self::css_color( $attributes['subscribeButtonTextColor'], $defaults['subscribeButtonTextColor'] ) ),
+					esc_attr( self::css_width( $attributes['subscribeButtonWidth'] ) ),
+					esc_attr( self::css_radius( $attributes['subscribeButtonBorderRadius'] ) )
 				),
 			)
 		);
@@ -128,5 +129,55 @@ class Integration {
 		<?php
 
 		return ob_get_clean();
+	}
+
+	/**
+	 * A button colour as the block's editor saves it, else the default. The
+	 * value goes into the wrapper's `style` attribute, and esc_attr() does not
+	 * stop CSS: anything but a colour could add declarations (CON-346).
+	 * Accepted: what the editor saves — a hex colour (3, 4, 6 or 8 digits,
+	 * the custom colour picker) and var(--name) with an optional hex
+	 * fallback (the editor's defaults and the theme presets,
+	 * `var(--wp--preset--color--slug)`).
+	 *
+	 * @param mixed  $value    The saved attribute.
+	 * @param string $fallback The colour used when the value is not one.
+	 * @return string
+	 */
+	private static function css_color( $value, $fallback ) {
+		$value = is_string( $value ) ? trim( $value ) : '';
+		$hex   = '#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})';
+		$color = '/^(?:' . $hex . '|var\(\s*--[a-z0-9_-]+\s*(?:,\s*' . $hex . '\s*)?\))$/i';
+
+		return preg_match( $color, $value ) === 1 ? $value : $fallback;
+	}
+
+	/**
+	 * The button width: `auto` or a number with an optional unit, else `auto`.
+	 *
+	 * @param mixed $value The saved attribute.
+	 * @return string
+	 */
+	private static function css_width( $value ) {
+		$value = is_string( $value ) ? trim( $value ) : '';
+
+		return preg_match( '/^(?:auto|\d+(?:\.\d+)?(?:px|%|em|rem|vw|vh|ch)?)$/', $value ) === 1 ? $value : 'auto';
+	}
+
+	/**
+	 * The button corner radius in pixels: a non-negative number, else 0.
+	 *
+	 * @param mixed $value The saved attribute.
+	 * @return string
+	 */
+	private static function css_radius( $value ) {
+		if ( ( is_int( $value ) || is_float( $value ) ) && $value >= 0 ) {
+			return (string) $value;
+		}
+		if ( is_string( $value ) && preg_match( '/^\d+(?:\.\d+)?$/', $value ) === 1 ) {
+			return $value;
+		}
+
+		return '0';
 	}
 }

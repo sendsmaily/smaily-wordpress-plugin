@@ -19,11 +19,14 @@ class Data_Handler {
 	 */
 	public static function get_products( $category, $limit, $order_by, $order ) {
 		// Initial query.
+		// The feed is public: a password-protected product is never listed
+		// (CON-345). `has_password` passes through to WP_Query.
 		$product = array(
-			'status'  => 'publish',
-			'limit'   => $limit,
-			'orderby' => 'none',
-			'order'   => 'DESC',
+			'status'       => 'publish',
+			'has_password' => false,
+			'limit'        => $limit,
+			'orderby'      => 'none',
+			'order'        => 'DESC',
 		);
 
 		if ( ! empty( $order_by ) ) {

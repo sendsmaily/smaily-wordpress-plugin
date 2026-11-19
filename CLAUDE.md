@@ -1463,11 +1463,14 @@ again). A new AS job that carries a user must be cancelled by the eraser too.
 A repeater whose `fields` are raw arrays (not `Elementor\Repeater::add_control()`)
 skips the control-type default, so a new row's value is `undefined`. The editor
 JSON-clones the row before it renders `title_field`, which drops the key, and a
-`{{{ name }}}` title throws `ReferenceError: name is not defined`: "Add Item" adds
+`{{ name }}` title throws `ReferenceError: name is not defined`: "Add Item" adds
 nothing, and once a broken row is saved the whole section renders blank. Give
 every raw row field `'default' => ''` (or the type's empty value). A unit test
 with a fake widget cannot see this; only a real editor can, and Elementor Pro is
 not in wp-env.
+**A title (or any template) prints a typed value with `{{ }}`, never `{{{ }}}`
+(CON-344):** three braces print raw HTML, so a field name an editor typed runs
+as markup in every editor's browser. `FormActionTest` pins the escaped form.
 
 ### A new Gutenberg block is a new `blocks/` workspace — touch four places
 Adding `blocks/<name>/` (PRO-3788 added `recommendations`): (1) list it in

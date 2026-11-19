@@ -17,8 +17,7 @@ $tax_rate       = sanitize_text_field( get_query_var( 'tax_rate' ) );
 $tax_rate       = $tax_rate !== '' ? (float) $tax_rate : null;
 $currencysymbol = get_woocommerce_currency_symbol();
 
-// Default to 50 products.
-$limit = $limit === 0 ? 50 : $limit;
+// The default (50) and the maximum (100) are applied in Rss::feed_limit().
 $items = Rss::list_rss_feed_items( $category, $limit, $order_by, $rss_order, $tax_rate );
 
 header( 'Content-Type: application/xml' );

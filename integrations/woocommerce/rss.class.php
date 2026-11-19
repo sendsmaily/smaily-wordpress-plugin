@@ -8,6 +8,18 @@ use WC_Product;
 
 class Rss {
 	/**
+	 * The most products one feed request lists, whatever the address asks
+	 * for (CON-345). The feed is public, so an address must not make the
+	 * store load its whole catalog.
+	 */
+	const MAX_FEED_ITEMS = 100;
+
+	/**
+	 * Products listed when the address names no limit (or 0).
+	 */
+	const DEFAULT_FEED_ITEMS = 50;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {}
@@ -142,7 +154,7 @@ class Rss {
 	 * @return list<array{created_at: string, current_price: float, description: string, discount: float, enclosure_url: string, regular_price: float, title: string, url: string}>
 	 */
 	public static function list_rss_feed_items( $category, $limit, $order_by, $order, $tax_rate ) {
-		$products = Data_Handler::get_products( $category, $limit, $order_by, $order );
+		$products = Data_Handler::get_products( $category, self::feed_limit( (int) $limit ), $order_by, $order );
 		$items    = array();
 		foreach ( $products as $prod ) {
 			$product = function_exists( 'wc_get_product' ) ? wc_get_product( $prod->get_id() ) : new WC_Product( $prod->get_id() );
@@ -174,6 +186,23 @@ class Rss {
 		}
 
 		return $items;
+	}
+
+	/**
+	 * How many products a feed request lists: 1–100 as asked, none (0)
+	 * gives the default 50, and a negative or larger number gives 100.
+	 *
+	 * @param int $limit The limit the feed address asks for.
+	 * @return int
+	 */
+	public static function feed_limit( int $limit ): int {
+		if ( $limit === 0 ) {
+			return self::DEFAULT_FEED_ITEMS;
+		}
+		if ( $limit < 0 || $limit > self::MAX_FEED_ITEMS ) {
+			return self::MAX_FEED_ITEMS;
+		}
+		return $limit;
 	}
 
 	/**

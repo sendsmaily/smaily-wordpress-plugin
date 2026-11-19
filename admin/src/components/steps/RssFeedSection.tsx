@@ -21,7 +21,9 @@ export interface RssFeedSectionProps {
  * via the boot payload, so a migrated store sees its old setup.
  *
  * Field set, ranges and defaults mirror the legacy RSS settings tab
- * (admin/smaily-admin-settings.class.php register_rss_tab_settings).
+ * (admin/smaily-admin-settings.class.php register_rss_tab_settings),
+ * except the limit's maximum: the feed lists at most 100 products
+ * (Rss::MAX_FEED_ITEMS, CON-345).
  */
 export function RssFeedSection({ rss }: RssFeedSectionProps): React.JSX.Element {
   const [category, setCategory] = useState(rss.defaults.category);
@@ -80,7 +82,7 @@ export function RssFeedSection({ rss }: RssFeedSectionProps): React.JSX.Element 
           <NumberInput
             id="smaily-rss-limit"
             min={1}
-            max={250}
+            max={100}
             value={limit}
             onChange={(e) => setLimit(e.target.value)}
           />
