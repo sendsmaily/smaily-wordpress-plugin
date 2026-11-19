@@ -55,6 +55,8 @@ class Profile_Settings {
 	public function smaily_print_user_frontend_fields() {
 		$fields            = $this->get_fields();
 		$is_user_logged_in = is_user_logged_in();
+		// Always the shopper's own values: never pick the user from the request (CON-343).
+		$user_id = get_current_user_id();
 
 		foreach ( $fields as $key => $field_args ) {
 			$value = null;
@@ -70,8 +72,7 @@ class Profile_Settings {
 
 			// Get user information and save in value.
 			if ( $is_user_logged_in ) {
-				$user_id = $this->smaily_get_edit_user_id();
-				$value   = $this->smaily_get_userdata( $user_id, $key );
+				$value = $this->smaily_get_userdata( $user_id, $key );
 			}
 
 			$value = isset( $field_args['value'] ) ? $field_args['value'] : $value;
@@ -110,11 +111,18 @@ class Profile_Settings {
 	}
 
 	/**
-	 * Add fields to admin area
+	 * Add fields to admin area, with the values of the user WordPress opened
+	 * the profile screen for (CON-343).
 	 *
+	 * @param \WP_User $user The user being edited, as `show_user_profile` /
+	 *                       `edit_user_profile` pass it.
 	 * @return void
 	 */
-	public function smaily_print_user_admin_fields() {
+	public function smaily_print_user_admin_fields( $user ) {
+		if ( ! $user instanceof \WP_User || ! current_user_can( 'edit_user', $user->ID ) ) {
+			return;
+		}
+
 		$fields = $this->get_fields();
 		?>
 		<h2><?php esc_html_e( 'Additional Information', 'smaily-connect' ); ?></h2>
@@ -125,8 +133,7 @@ class Profile_Settings {
 					continue;
 				}
 
-				$user_id = $this->smaily_get_edit_user_id();
-				$value   = $this->smaily_get_userdata( $user_id, $key );
+				$value = $this->smaily_get_userdata( $user->ID, $key );
 				?>
 				<tr>
 					<th>
@@ -240,17 +247,6 @@ class Profile_Settings {
 		}
 
 		return $fields;
-	}
-
-	/**
-	 * Get currently editing user ID (frontend account/edit profile/edit other user).
-	 * Nonce field should be verified prior to calling this function.
-	 *
-	 * @return int $user_id Current user ID
-	 */
-	public function smaily_get_edit_user_id() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- int-cast read used only to scope a profile lookup; the form-save path verifies the nonce (see docblock).
-		return isset( $_GET['user_id'] ) ? (int) $_GET['user_id'] : get_current_user_id();
 	}
 
 	/**

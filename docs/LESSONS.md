@@ -1121,6 +1121,23 @@ pending copy at once. Rules:
    side** — with real Action Scheduler, `ActionScheduler::store()->
    log_execution( $id )` marks one running.
 
+### 2.34 The request does not choose whose data a page shows (CON-343, profile fields, 2026-11-19)
+
+The plugin's profile fields read the user to show from `$_GET['user_id']`,
+"to know who is being edited". On the account details form that let any
+shopper load another user's values; on the wp-admin profile WordPress read
+`$_REQUEST['user_id']` for its own check while the plugin read `$_GET`, so a
+POST body and a query string could name two different users. Every test
+rendered the forms for the current user with no `user_id` in the request, so
+none could see it. Rules:
+1. **Take the user from the hook or from the session, never from a request
+   parameter** — `show_user_profile` / `edit_user_profile` pass the `WP_User`
+   WordPress authorized; a storefront page shows `get_current_user_id()`.
+   Where a caller can reach the code without that authorization, check
+   `current_user_can( 'edit_user', $id )` too.
+2. **A test of per-user output puts someone else's id in the request** and
+   asserts that user's values are absent.
+
 ---
 
 ## 4. Concrete checklist for the start of a new project
