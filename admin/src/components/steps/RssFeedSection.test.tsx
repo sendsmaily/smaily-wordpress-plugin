@@ -36,6 +36,22 @@ describe('RssFeedSection', () => {
     );
   });
 
+  it('shows a saved limit above the feed maximum as 100', () => {
+    render(<RssFeedSection rss={{ ...rss, defaults: { ...rss.defaults, limit: 150 } }} />);
+
+    expect(screen.getByLabelText('Limit')).toHaveValue(100);
+    expect(feedUrlInput().value).toContain('limit=100');
+  });
+
+  it('shows a typed limit above the feed maximum as 100', () => {
+    render(<RssFeedSection rss={rss} />);
+
+    fireEvent.change(screen.getByLabelText('Limit'), { target: { value: '250' } });
+
+    expect(screen.getByLabelText('Limit')).toHaveValue(100);
+    expect(feedUrlInput().value).toContain('limit=100');
+  });
+
   it('updates the URL live when a field changes', () => {
     render(<RssFeedSection rss={rss} />);
 
