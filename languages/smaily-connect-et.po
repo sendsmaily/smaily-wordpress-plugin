@@ -3372,3 +3372,15 @@ msgstr "Ooteaja lõppedes ei oodanud tellimus enam makset — see oli makstud, o
 #, php-format
 msgid "The payment reminder delay must be a whole number of minutes from %1$d to %2$d."
 msgstr "Maksemeeldetuletuse ooteaeg peab olema täisarv minuteid vahemikus %1$d kuni %2$d."
+
+#: admin/src/components/steps/Step4Recommendations.tsx:511
+msgid "Add the Smaily Recommendations block to a page or post (in the block editor, search for \"Smaily\"), or put the shortcode [smaily_recommendations] where your page builder accepts shortcodes. Shoppers who accept marketing cookies see the products Smaily recommends to them."
+msgstr "Lisa lehele või postitusele plokk Smaily Recommendations (blokiredaktoris otsi „Smaily“) või pane lühikood [smaily_recommendations] lehekoostajas kohta, mis lühikoode lubab. Turundusküpsistega nõustunud ostjad näevad tooteid, mida Smaily neile soovitab."
+
+#: admin/src/components/steps/Step4Recommendations.tsx:517
+msgid "Show recommendations in your store"
+msgstr "Näita soovitusi oma poes"
+
+#: admin/src/components/steps/Step4Recommendations.tsx:534
+msgid "How to add it →"
+msgstr "Kuidas lisada →"

@@ -384,6 +384,8 @@ function ConnectedView({
         />
       )}
 
+      {inSettings && <StorefrontRecommendationsHint docsUrl={state.env.docsUrl ?? ''} />}
+
       <Card
         title={__('Data synchronisation', 'smaily-connect')}
         description={__(
@@ -494,6 +496,47 @@ function ConnectedView({
         )}
       </Card>
     </>
+  );
+}
+
+const RECOMMENDATIONS_SHORTCODE = '[smaily_recommendations]';
+
+/**
+ * Where the storefront recommendations come from (CON-347): the Smaily
+ * Recommendations block and its shortcode are otherwise mentioned only in the
+ * online guide. The shortcode stays inside the one translatable sentence and is
+ * shown as code wherever it appears in the translation.
+ */
+function StorefrontRecommendationsHint({ docsUrl }: { docsUrl: string }): React.JSX.Element {
+  const parts = __(
+    'Add the Smaily Recommendations block to a page or post (in the block editor, search for "Smaily"), or put the shortcode [smaily_recommendations] where your page builder accepts shortcodes. Shoppers who accept marketing cookies see the products Smaily recommends to them.',
+    'smaily-connect',
+  ).split(RECOMMENDATIONS_SHORTCODE);
+
+  return (
+    <Card title={__('Show recommendations in your store', 'smaily-connect')}>
+      <p className="text-sm text-text-secondary">
+        {parts.map((part, index) => (
+          <span key={index}>
+            {index > 0 && <code className="font-mono">{RECOMMENDATIONS_SHORTCODE}</code>}
+            {part}
+          </span>
+        ))}
+        {docsUrl !== '' && (
+          <>
+            {' '}
+            <a
+              href={`${docsUrl}#set-recommendations`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              {__('How to add it →', 'smaily-connect')}
+            </a>
+          </>
+        )}
+      </p>
+    </Card>
   );
 }
 
