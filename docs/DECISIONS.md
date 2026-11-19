@@ -11496,3 +11496,35 @@ HOOK, [] )` never mistakes a follow-up for the daily run.
 and no bound on run time on a slow database); bigger batches (longer locks);
 a self-rescheduling chain without the pending check (runs could pile up when
 the daily run and a follow-up overlap).
+
+### CON-343 — A profile field shows the values of the user being edited, never a user named in the request (2026-11-19)
+
+**Context:** a reported information-disclosure issue. `Profile_Settings` chose
+whose Gender / Phone / Birthday / newsletter status to print from
+`$_GET['user_id']` (`smaily_get_edit_user_id()`), with no ownership or
+capability check. On My Account → Account details a logged-in shopper who put
+another user's id in the address got that user's values in their own form —
+in 3.22.0–3.24.0 the newsletter box only (where the checkout opt-in is on;
+PRO-4252 took the other three off storefront forms), all four before that or
+where a developer brings them back through `smaily_connect_account_fields`.
+On the wp-admin profile, WordPress itself refuses `profile.php?user_id=<other>`
+(it reads `$_REQUEST['user_id']` and checks `edit_user`), and WooCommerce
+keeps customers out of wp-admin; but a POST to `profile.php?user_id=<other>`
+with the user's own id in the body passed WordPress's check (the body wins in
+`$_REQUEST`) while the plugin still read the query, so any wp-admin user who
+cannot edit others (a contributor, an author) got the other user's values.
+**Decision:** the request is never asked whose data to show. The account
+details form always reads `get_current_user_id()`. The `show_user_profile` /
+`edit_user_profile` callback takes the `WP_User` WordPress passes (the user
+the screen was authorized for) and prints nothing unless the viewer
+`current_user_can( 'edit_user', $user->ID )` — defence in depth for a plugin
+that fires those hooks elsewhere. `smaily_get_edit_user_id()` is removed;
+nothing else read it. The save paths were already safe: they take the user
+from the WordPress / WooCommerce hook argument and verify the matching nonce.
+**Rationale:** the hook already carries the authorized user; a second,
+unchecked source for the same fact can only disagree with it.
+**Alternatives:** keep `$_GET['user_id']` behind a capability check (still a
+second source; WordPress reads `$_REQUEST`, so the two could still differ).
+**Relationships:** PRO-4252 (which fields reach a storefront form);
+LESSONS 2.34; `ProfileFieldsOwnerTest` (integration) and
+`ProfileSettingsStorefrontFieldsTest` (unit).
