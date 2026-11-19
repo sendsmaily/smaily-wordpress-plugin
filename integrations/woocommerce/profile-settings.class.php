@@ -41,6 +41,7 @@ class Profile_Settings {
 		// Save registration fields.
 		add_action( 'woocommerce_created_customer', array( $this, 'smaily_save_wc_account_fields' ), 10 ); // register/checkout.
 		add_action( 'woocommerce_save_account_details', array( $this, 'smaily_save_wc_account_fields' ), 10 ); // edit WC account.
+		add_action( 'woocommerce_created_customer', array( $this, 'smaily_save_registration_fields' ), 10 ); // My Account registration.
 
 		// Save a ticked newsletter box as the customer's consent (PRO-3406).
 		add_action( 'woocommerce_checkout_update_user_meta', array( $this, 'smaily_save_checkout_newsletter_optin' ), 10, 2 ); // classic checkout.
@@ -211,6 +212,38 @@ class Profile_Settings {
 		}
 
 		HookHandler::record_newsletter_optin( (int) $customer_id, HookHandler::SOURCE_REGISTRATION );
+	}
+
+	/**
+	 * Save the fields the My Account registration form shows — only those a
+	 * developer brought back there through `smaily_connect_account_fields`
+	 * (CON-68). The form carries the registration nonce, not the
+	 * account-details one smaily_save_wc_account_fields() checks, so that path
+	 * never saved them. The newsletter box keeps its own path above, and an
+	 * empty field writes nothing.
+	 *
+	 * @param int $customer_id New customer ID.
+	 * @return void
+	 */
+	public function smaily_save_registration_fields( $customer_id ) {
+		$nonce_val = isset( $_POST['woocommerce-register-nonce'] ) ? sanitize_key( wp_unslash( $_POST['woocommerce-register-nonce'] ) ) : '';
+		if ( ! wp_verify_nonce( $nonce_val, 'woocommerce-register' ) ) {
+			return;
+		}
+
+		$fields = array();
+		foreach ( $this->get_fields() as $key => $field_args ) {
+			if ( $key === 'user_newsletter' || ! empty( $field_args['hide_in_registration'] ) ) {
+				continue;
+			}
+
+			$value = isset( $_POST[ $key ] ) ? sanitize_text_field( wp_unslash( $_POST[ $key ] ) ) : '';
+			if ( $value !== '' ) {
+				$fields[ $key ] = $value;
+			}
+		}
+
+		$this->save_account_fields( (int) $customer_id, $fields );
 	}
 
 	/**
