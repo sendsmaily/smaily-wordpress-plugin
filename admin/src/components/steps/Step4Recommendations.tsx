@@ -10,6 +10,7 @@ import { cancelBackfill } from '../../api/backfill';
 import { type WizardAction, type WizardState } from '../../state/types';
 import { Banner, Button, Card, Input, Label, Toggle } from '../primitives';
 import { BackfillPanel } from '../BackfillPanel';
+import { bannerBoot, CampaignIntelligenceBanner, campaignIntelligenceBannerVariant } from '../banners';
 import { OpenConsoleButton } from './OpenConsoleButton';
 import { __, sprintf } from '@admin/lib/i18n';
 
@@ -50,6 +51,10 @@ export function Step4Recommendations({
   // one after another — and only then is the hold-back notice shown, with the
   // import's start delay; null while no import was started.
   const [catalogImportDelay, setCatalogImportDelay] = useState<number | null>(null);
+  // The invitation or upsell banner (CON-350) — on the wizard step and the
+  // Settings tab alike, and never closable here.
+  const [banners] = useState(bannerBoot);
+  const bannerVariant = campaignIntelligenceBannerVariant(state, banners);
 
   return (
     <div className="space-y-6">
@@ -61,16 +66,12 @@ export function Step4Recommendations({
           <h2 className="mt-1 text-2xl font-semibold text-text-primary">
             {__('Campaign Intelligence', 'smaily-connect')}
           </h2>
-          <div className="mt-2">
-            <IntroCopy />
-          </div>
         </div>
       )}
 
-      {/* Settings tab (PRO-1725): the same introduction the wizard step
-          carries, shown only while the engine is not connected — once it
-          is, the tab is a management screen, not a pitch. */}
-      {inSettings && !isConnected && <IntroCopy />}
+      {bannerVariant !== null && (
+        <CampaignIntelligenceBanner variant={bannerVariant} smailyLoginUrl={banners.smailyLoginUrl} />
+      )}
 
       {/* Wizard-only pointer back to Step 3 (T2.2): the engine-run
           automations section lives under the WooCommerce automations,
@@ -109,32 +110,6 @@ export function Step4Recommendations({
       ) : (
         <SetupCard dispatch={dispatch} onConnected={setCatalogImportDelay} />
       )}
-    </div>
-  );
-}
-
-/**
- * The Campaign Intelligence introduction (PRO-2298 marketing copy).
- *
- * One source for both surfaces that show it — the wizard step header and
- * the Settings tab (PRO-1725) — so the text and its translation cannot
- * drift apart.
- */
-function IntroCopy(): React.JSX.Element {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm text-text-secondary">
-        {__(
-          'Campaign Intelligence uses your store’s product, customer and order data to create personalised product recommendations for Smaily campaigns and automations. This helps you send more relevant emails with less manual work.',
-          'smaily-connect',
-        )}
-      </p>
-      <p className="text-sm text-text-secondary">
-        {__(
-          'Campaign Intelligence is an optional paid add-on (€250/month), added to your regular Smaily monthly payment. Contact Smaily to activate it, or set it up later.',
-          'smaily-connect',
-        )}
-      </p>
     </div>
   );
 }

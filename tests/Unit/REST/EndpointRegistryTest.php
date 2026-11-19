@@ -70,10 +70,13 @@ final class EndpointRegistryTest extends TestCase {
 		// Public campaign-click landing (CON-250).
 		self::assertContains( 'POST /land', $paths );
 
+		// Closing the Campaign Intelligence banner on top of Settings (CON-350).
+		self::assertContains( 'POST /notices/dismiss', $paths );
+
 		// Pin the TOTAL so a route can't silently drop out of the list
 		// (PRO-1258: the /events triple was missing for months and nothing
 		// failed). A new endpoint bumps this number on purpose.
-		self::assertCount( 22, $paths );
+		self::assertCount( 23, $paths );
 		self::assertSame( $paths, array_unique( $paths ), 'Duplicate method+path pair in expected_routes()' );
 	}
 

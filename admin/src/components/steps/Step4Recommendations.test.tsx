@@ -1,50 +1,80 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { wizardInitialState } from '../../state/wizard-reducer';
 import { Step4Recommendations } from './Step4Recommendations';
 
-const INTRO =
-  'Campaign Intelligence uses your store’s product, customer and order data to create personalised product recommendations for Smaily campaigns and automations. This helps you send more relevant emails with less manual work.';
-const PRICING =
-  'Campaign Intelligence is an optional paid add-on (€250/month), added to your regular Smaily monthly payment. Contact Smaily to activate it, or set it up later.';
+const BODY =
+  'Connect your store with Smaily, and add personalized product recommendations to your campaigns, tailored to each customer’s interests.';
 
-describe('Step4Recommendations — the wizard header introduces Campaign Intelligence (PRO-2298)', () => {
-  it('shows both introduction paragraphs in the wizard', () => {
-    render(<Step4Recommendations state={wizardInitialState} dispatch={vi.fn()} />);
+const smailyConnected = {
+  ...wizardInitialState,
+  smailyConnection: { kind: 'success' },
+} as typeof wizardInitialState;
 
-    expect(screen.getByText(INTRO)).toBeInTheDocument();
-    expect(screen.getByText(PRICING)).toBeInTheDocument();
+describe('Step4Recommendations — the Campaign Intelligence banner replaces the introduction (CON-350)', () => {
+  afterEach(() => {
+    delete (window as unknown as { smailyConnectBoot?: unknown }).smailyConnectBoot;
   });
 
-  it('no longer shows the earlier introduction sentence', () => {
-    render(<Step4Recommendations state={wizardInitialState} dispatch={vi.fn()} />);
+  it('shows the invitation with Contact Smaily above the setup link field in the wizard', () => {
+    render(<Step4Recommendations state={smailyConnected} dispatch={vi.fn()} />);
 
-    expect(screen.queryByText(/Sync product, customer and order data/)).not.toBeInTheDocument();
+    const banner = screen.getByRole('region', { name: 'Campaign Intelligence' });
+    expect(banner).toHaveTextContent(BODY);
+    expect(screen.getByRole('link', { name: 'Contact Smaily' })).toHaveAttribute(
+      'href',
+      'https://smaily.com/help/',
+    );
+    expect(screen.getByLabelText(/Setup URL/)).toBeInTheDocument();
+    expect(
+      banner.compareDocumentPosition(screen.getByLabelText(/Setup URL/)) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
-  it('omits the wizard step heading in Settings but keeps the introduction (PRO-1725)', () => {
-    render(<Step4Recommendations state={wizardInitialState} dispatch={vi.fn()} inSettings />);
+  it('no longer states the price', () => {
+    render(<Step4Recommendations state={smailyConnected} dispatch={vi.fn()} />);
+
+    expect(screen.queryByText(/€250/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the banner on the Settings tab, where it cannot be closed', () => {
+    render(<Step4Recommendations state={smailyConnected} dispatch={vi.fn()} inSettings />);
 
     expect(screen.queryByText('Step 4 of 6')).not.toBeInTheDocument();
-    expect(screen.getByText(INTRO)).toBeInTheDocument();
-    expect(screen.getByText(PRICING)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Campaign Intelligence' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument();
   });
 
-  it('renders the very same paragraphs in the wizard and in Settings (PRO-1725)', () => {
-    const wizard = render(
-      <Step4Recommendations state={wizardInitialState} dispatch={vi.fn()} />,
-    );
-    const wizardText = [screen.getByText(INTRO), screen.getByText(PRICING)].map(
-      (node) => node.textContent,
-    );
-    wizard.unmount();
+  it('shows the upsell when the Smaily plan has no API access', () => {
+    (window as unknown as { smailyConnectBoot: unknown }).smailyConnectBoot = {
+      banners: {
+        smailyAccountConnected: true,
+        smailyPlanBlocked: true,
+        smailyLoginUrl: 'https://demo.sendsmaily.net/',
+        ciBannerDismissed: false,
+      },
+    };
 
-    render(<Step4Recommendations state={wizardInitialState} dispatch={vi.fn()} inSettings />);
+    render(<Step4Recommendations state={smailyConnected} dispatch={vi.fn()} />);
 
-    expect([screen.getByText(INTRO), screen.getByText(PRICING)].map((n) => n.textContent)).toEqual(
-      wizardText,
+    expect(screen.getByText('Requires a paid Smaily plan')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Log in to Smaily' })).toHaveAttribute(
+      'href',
+      'https://demo.sendsmaily.net/',
     );
+    expect(screen.queryByRole('link', { name: 'Contact Smaily' })).not.toBeInTheDocument();
+  });
+
+  it('shows no banner once Campaign Intelligence is connected', () => {
+    render(
+      <Step4Recommendations
+        state={{ ...smailyConnected, recEngineConnection: { kind: 'success', message: 'Acme' } }}
+        dispatch={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('region', { name: 'Campaign Intelligence' })).not.toBeInTheDocument();
   });
 });
 

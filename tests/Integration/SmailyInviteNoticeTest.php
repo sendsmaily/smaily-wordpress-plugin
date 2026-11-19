@@ -26,7 +26,7 @@ use Smaily\Connect\Tests\Integration\Support\RestRequestHelper;
 
 final class SmailyInviteNoticeTest extends TestCase {
 
-	private const INVITE_TEXT = 'Smaily Connect: no Smaily account is connected.';
+	private const INVITE_TEXT = 'Connect your store to Smaily to sync contacts and set up automated emails.';
 
 	protected function setUp(): void {
 		parent::setUp();

@@ -18,6 +18,7 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontBeacon;
 use Smaily\Connect\REST\BeaconEndpoint;
+use Smaily\Connect\Report\ConnectionHealth;
 use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
@@ -84,6 +85,20 @@ final class NotificationManager {
 	/** A dismissed invitation stays away this long (CON-321, Erkki 2026-11-17). */
 	public const INVITE_DISMISS_COOLDOWN = 90 * DAY_IN_SECONDS;
 
+	/**
+	 * Banner key: the Campaign Intelligence invitation on top of Settings
+	 * (CON-350). The admin closes it through the REST route
+	 * `NoticesEndpoint`; the wizard step and the Settings tab keep their
+	 * own copy of the banner, which cannot be closed.
+	 */
+	public const CI_BANNER_KEY = 'ci_invitation';
+
+	/** A closed Campaign Intelligence banner returns after this (CON-350). */
+	public const CI_BANNER_DISMISS_COOLDOWN = 30 * DAY_IN_SECONDS;
+
+	/** The stylesheet of the Smaily invitation banner on the Dashboard (CON-351). */
+	public const BANNER_STYLE_HANDLE = 'smaily-connect-banner';
+
 	private RecEngineSettings $settings;
 
 	/** @var callable():RecEngineClient */
@@ -118,6 +133,7 @@ final class NotificationManager {
 	public function register(): void {
 		add_action( self::HEALTH_HOOK, array( $this, 'run_health_check' ) );
 		add_action( 'admin_notices', array( $this, 'render' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_banner_style' ) );
 		add_action( 'admin_post_' . self::DISMISS_ACTION, array( $this, 'handle_dismiss' ) );
 	}
 
@@ -388,32 +404,172 @@ final class NotificationManager {
 	 * marketing account, a Transactional account alone does not count — read
 	 * through `ReportBuilder::main_credentials()`, never a copy of it.
 	 *
-	 * Shown on every admin screen, the setup wizard included (Erkki,
-	 * 2026-11-17). A dismissal hides it for 90 days; connecting an account
-	 * removes it at once.
+	 * Where it shows (CON-351): on the Dashboard as the full banner, on the
+	 * plugin's own screens not at all — the setup wizard's step 1 carries the
+	 * React copy of the banner there — and on every other admin screen as
+	 * the one-line notice. The banner and the notice share one dismissal:
+	 * closing either hides both for 90 days; connecting an account removes
+	 * them at once.
 	 *
 	 * @param array<string, int> $dismissed
 	 */
 	private function render_invite_notice( array $dismissed, int $now ): void {
-		if ( $this->is_dismissed( self::INVITE_KEY, $dismissed, $now, self::INVITE_DISMISS_COOLDOWN ) ) {
+		if ( ! $this->invitation_due( $dismissed, $now ) ) {
 			return;
 		}
 
-		$this->report_builder = $this->report_builder ?? new ReportBuilder();
-		if ( $this->report_builder->main_credentials() !== null ) {
+		$screen = self::screen_id();
+		if ( $screen === 'dashboard' ) {
+			$this->render_invite_banner();
+			return;
+		}
+		if ( strpos( $screen, 'smaily-connect' ) !== false ) {
 			return;
 		}
 
 		printf(
 			'<div class="notice notice-info"><p>%1$s %2$s | %3$s | %4$s %5$s</p></div>',
-			esc_html__(
-				'Smaily Connect: no Smaily account is connected. Connect one to sync your customers to Smaily and send automated emails, whether you are new to Smaily or coming back to it.',
-				'smaily-connect'
-			),
+			esc_html__( 'Connect your store to Smaily to sync contacts and set up automated emails.', 'smaily-connect' ),
 			wp_kses_post( $this->settings_link( 'connection', __( 'Connect your Smaily account', 'smaily-connect' ) ) ),
 			wp_kses_post( $this->external_link( Constants::SIGNUP_URL, __( 'Create a Smaily account', 'smaily-connect' ) ) ),
 			wp_kses_post( $this->external_link( Constants::docs_url() . '#step1', __( 'User guide to create API credentials', 'smaily-connect' ) ) ),
 			wp_kses_post( $this->dismiss_link( self::INVITE_KEY ) )
+		);
+	}
+
+	/**
+	 * Whether the invitation is shown at all: not dismissed in the last 90
+	 * days, and no Smaily marketing account connected.
+	 *
+	 * @param array<string, int> $dismissed
+	 */
+	private function invitation_due( array $dismissed, int $now ): bool {
+		if ( $this->is_dismissed( self::INVITE_KEY, $dismissed, $now, self::INVITE_DISMISS_COOLDOWN ) ) {
+			return false;
+		}
+
+		$this->report_builder = $this->report_builder ?? new ReportBuilder();
+
+		return $this->report_builder->main_credentials() === null;
+	}
+
+	/**
+	 * The Smaily invitation banner on the Dashboard (CON-351). Printed on
+	 * `admin_notices` and classed `notice`, so core's script moves it under
+	 * the page heading like any notice. Its look is the stylesheet
+	 * enqueue_banner_style() loads; the right-hand panel is decoration only.
+	 */
+	private function render_invite_banner(): void {
+		$rows = array(
+			array( 'mail', __( 'Welcome email', 'smaily-connect' ) ),
+			array( 'cart', __( 'Abandoned cart reminder', 'smaily-connect' ) ),
+			array( 'card', __( 'Payment reminder', 'smaily-connect' ) ),
+		);
+		?>
+		<div class="notice smaily-connect-banner" role="region" aria-label="Smaily">
+			<div class="smaily-connect-banner__main">
+				<div class="smaily-connect-banner__head">
+					<span class="smaily-connect-banner__logo" aria-hidden="true"><?php echo self::smaily_logo_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static markup. ?></span>
+					<h2 class="smaily-connect-banner__title">Smaily</h2>
+				</div>
+				<p class="smaily-connect-banner__body"><?php echo esc_html__( 'Connect your store to Smaily to sync contacts and set up automated emails.', 'smaily-connect' ); ?></p>
+				<p class="smaily-connect-banner__actions">
+					<a class="smaily-connect-banner__cta" href="<?php echo esc_url( admin_url( 'admin.php?page=smaily-connect-settings#connection' ) ); ?>"><?php echo esc_html__( 'Connect your Smaily account', 'smaily-connect' ); ?></a>
+					<a class="smaily-connect-banner__link" href="<?php echo esc_url( Constants::SIGNUP_URL ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Create a Smaily account', 'smaily-connect' ); ?></a>
+				</p>
+				<p class="smaily-connect-banner__note"><?php echo esc_html__( 'Log in to Smaily: gear icon → Integrations → Create a new user (API username and password).', 'smaily-connect' ); ?></p>
+			</div>
+			<div class="smaily-connect-banner__panel" aria-hidden="true">
+				<p class="smaily-connect-banner__panel-label"><?php echo esc_html__( 'Smaily in action', 'smaily-connect' ); ?></p>
+				<?php foreach ( $rows as $index => $row ) : ?>
+					<div class="smaily-connect-banner__row smaily-connect-banner__row--<?php echo (int) $index; ?>">
+						<span class="smaily-connect-banner__icon smaily-connect-banner__icon--<?php echo esc_attr( $row[0] ); ?>"><?php echo self::icon_svg( $row[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static markup. ?></span>
+						<span class="smaily-connect-banner__row-text"><?php echo esc_html( $row[1] ); ?></span>
+						<span class="smaily-connect-banner__chip"><?php echo esc_html__( 'Automated', 'smaily-connect' ); ?></span>
+					</div>
+				<?php endforeach; ?>
+			</div>
+			<a class="smaily-connect-banner__dismiss" href="<?php echo esc_url( $this->dismiss_url( self::INVITE_KEY ) ); ?>"><?php echo esc_html__( 'Dismiss', 'smaily-connect' ); ?></a>
+		</div>
+		<?php
+	}
+
+	/**
+	 * admin_enqueue_scripts: the banner's stylesheet, on the Dashboard and
+	 * only while the banner shows there.
+	 */
+	public function enqueue_banner_style( string $hook_suffix ): void {
+		if ( $hook_suffix !== 'index.php' || ! current_user_can( Constants::CAPABILITY ) ) {
+			return;
+		}
+		if ( ! $this->invitation_due( (array) get_option( self::OPTION_DISMISSED, array() ), time() ) ) {
+			return;
+		}
+
+		$relative = 'admin/css/smaily-connect-banner.css';
+		$path     = SMAILY_CONNECT_PLUGIN_PATH . $relative;
+		wp_enqueue_style(
+			self::BANNER_STYLE_HANDLE,
+			plugins_url( $relative, SMAILY_CONNECT_PLUGIN_FILE ),
+			array(),
+			file_exists( $path ) ? (string) filemtime( $path ) : SMAILY_CONNECT_VERSION
+		);
+	}
+
+	/** The current admin screen's id, '' when WordPress has none (yet). */
+	private static function screen_id(): string {
+		if ( ! function_exists( 'get_current_screen' ) ) {
+			return '';
+		}
+		$screen = get_current_screen();
+
+		return $screen instanceof \WP_Screen ? $screen->id : '';
+	}
+
+	/** A row icon of the banner's decorative panel (static markup). */
+	private static function icon_svg( string $name ): string {
+		$paths = array(
+			'mail' => '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+			'cart' => '<path d="M3 4h2l2.4 10h10.2L20 7H6.2"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>',
+			'card' => '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
+		);
+
+		return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">' . ( $paths[ $name ] ?? '' ) . '</svg>';
+	}
+
+	/** The Smaily mark — the admin menu's `gfx/icon.svg` — as the banner's logo tile. */
+	private static function smaily_logo_svg(): string {
+		return '<svg viewBox="0 0 30 29" width="40" height="40" focusable="false"><path fill="currentColor" d="M24.2563 0H4.8576C2.17536 0 0 2.16606 0 4.83684V24.1632C0 26.8339 2.17536 29 4.8576 29H4.88928C7.13856 28.9895 9.0288 27.4543 9.56736 25.3724C9.98976 25.7614 10.465 26.0874 10.993 26.3503C11.8589 26.7709 12.7565 26.9811 13.6858 26.9811C14.1398 26.9811 14.5939 26.9286 15.0586 26.8129C15.5232 26.7078 15.935 26.5395 16.3046 26.3187C16.6742 26.0979 16.9699 25.8245 17.2022 25.488C17.424 25.1516 17.5402 24.752 17.5402 24.2893C17.5402 23.5112 17.2445 22.9014 16.6637 22.4598C16.0829 22.0076 15.3437 21.6291 14.4672 21.3136C13.5907 20.9982 12.6298 20.6827 11.6054 20.3673C10.5811 20.0519 9.63072 19.6313 8.74368 19.095C7.8672 18.5587 7.128 17.8648 6.5472 16.992C5.9664 16.1193 5.67072 14.9732 5.67072 13.5431C5.67072 12.1657 5.93472 10.9565 6.47328 9.91552C7.01184 8.87455 7.71936 8.00181 8.61696 7.30783C9.51456 6.60334 10.5389 6.07759 11.711 5.7306C12.8726 5.38361 14.0765 5.20486 15.3226 5.20486C16.7482 5.20486 18.1315 5.41516 19.4621 5.82524C20.3914 6.10914 21.2573 6.54025 22.0704 7.09753L22.081 7.10805C22.4189 7.34989 22.7568 7.61276 23.0736 7.89666L19.2826 13.2698C19.2826 13.2698 18.2688 9.78934 13.9603 10.578C13.5274 10.6726 13.1261 10.8303 12.7459 11.0301C12.3658 11.2404 12.0595 11.5033 11.8166 11.8503C11.5738 12.1867 11.4576 12.5968 11.4576 13.0805C11.4576 13.8586 11.7427 14.4474 12.313 14.8575C12.8832 15.2676 13.6013 15.6146 14.4778 15.909C15.3437 16.2034 16.2835 16.4873 17.2867 16.7817C18.2899 17.0761 19.2192 17.4862 20.0957 18.012C20.9616 18.5482 21.6902 19.2527 22.2605 20.157C22.8307 21.0508 23.1158 22.2495 23.1158 23.7531C23.1158 25.1831 22.8518 26.4239 22.3344 27.4859C22.0598 28.0326 21.743 28.5373 21.3734 28.9895H24.2669C26.9491 28.9895 29.1245 26.8234 29.1245 24.1526V4.83684C29.1139 2.16606 26.9386 0 24.2563 0Z"/></svg>';
+	}
+
+	/**
+	 * What the admin bundle needs to choose its banners (CON-350, CON-351),
+	 * emitted into the boot payload as `banners`:
+	 *
+	 *   - smailyAccountConnected: a Smaily marketing account is connected
+	 *     (the invitation's own rule, ReportBuilder::main_credentials());
+	 *   - smailyPlanBlocked: that account's last Smaily answer was 227 —
+	 *     its package has no API access (ConnectionHealth's stored code);
+	 *   - smailyLoginUrl: the account's own Smaily address, '' without one;
+	 *   - ciBannerDismissed: the Settings-top Campaign Intelligence banner
+	 *     was closed in the last 30 days.
+	 *
+	 * @return array{smailyAccountConnected: bool, smailyPlanBlocked: bool, smailyLoginUrl: string, ciBannerDismissed: bool}
+	 */
+	public static function banner_boot( ?ReportBuilder $report_builder = null, ?ConnectionHealth $health = null ): array {
+		$main      = ( $report_builder ?? new ReportBuilder() )->main_credentials();
+		$subdomain = $main !== null ? strtolower( trim( $main->subdomain ) ) : '';
+		if ( ! preg_match( '/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $subdomain ) ) {
+			$subdomain = '';
+		}
+		$code      = $subdomain !== '' ? ( $health ?? new ConnectionHealth() )->smaily( $subdomain )['last_error_code'] : null;
+		$dismissed = (array) get_option( self::OPTION_DISMISSED, array() );
+
+		return array(
+			'smailyAccountConnected' => $main !== null,
+			'smailyPlanBlocked'      => $code === RefusalReason::PLAN_BLOCKED,
+			'smailyLoginUrl'         => $subdomain !== '' ? 'https://' . $subdomain . '.sendsmaily.net/' : '',
+			'ciBannerDismissed'      => self::was_dismissed( self::CI_BANNER_KEY, $dismissed, time(), self::CI_BANNER_DISMISS_COOLDOWN ),
 		);
 	}
 
@@ -539,6 +695,13 @@ final class NotificationManager {
 	 * @param array<string, int> $dismissed
 	 */
 	private function is_dismissed( string $key, array $dismissed, int $now, int $cooldown = self::DISMISS_COOLDOWN ): bool {
+		return self::was_dismissed( $key, $dismissed, $now, $cooldown );
+	}
+
+	/**
+	 * @param array<string, int> $dismissed
+	 */
+	private static function was_dismissed( string $key, array $dismissed, int $now, int $cooldown ): bool {
 		$dismissed_at = isset( $dismissed[ $key ] ) ? (int) $dismissed[ $key ] : 0;
 		return $dismissed_at > 0 && ( $now - $dismissed_at ) < $cooldown;
 	}
@@ -588,6 +751,11 @@ final class NotificationManager {
 	}
 
 	public function dismiss( string $key ): void {
+		self::record_dismissal( $key );
+	}
+
+	/** Stamp a dismissal now — the admin-post link and the REST route both land here. */
+	public static function record_dismissal( string $key ): void {
 		if ( $key === '' ) {
 			return;
 		}
@@ -644,7 +812,15 @@ final class NotificationManager {
 	}
 
 	private function dismiss_link( string $key ): string {
-		$url = wp_nonce_url(
+		return sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( $this->dismiss_url( $key ) ),
+			esc_html__( 'Dismiss', 'smaily-connect' )
+		);
+	}
+
+	private function dismiss_url( string $key ): string {
+		return wp_nonce_url(
 			add_query_arg(
 				array(
 					'action' => self::DISMISS_ACTION,
@@ -653,12 +829,6 @@ final class NotificationManager {
 				admin_url( 'admin-post.php' )
 			),
 			self::DISMISS_ACTION . '_' . $key
-		);
-
-		return sprintf(
-			'<a href="%s">%s</a>',
-			esc_url( $url ),
-			esc_html__( 'Dismiss', 'smaily-connect' )
 		);
 	}
 }
