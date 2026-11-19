@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -189,5 +190,33 @@ describe('useBackfillProgress', () => {
       },
       { timeout: 1000 },
     );
+  });
+  /**
+   * CON-314: WordPress serves its development React build where SCRIPT_DEBUG
+   * is on, and the admin renders in <StrictMode>, which mounts, unmounts and
+   * mounts every component once. The stored run must still show.
+   */
+  it('shows the stored run under StrictMode', async () => {
+    vi.spyOn(api, 'getBackfillStatus').mockResolvedValue({
+      status: 'completed',
+      processed: 3,
+      synced: 3,
+      sent: 3,
+      failed: 0,
+      total: 3,
+      percent: 100,
+      eta_seconds: null,
+      error: null,
+      started_at: '2026-08-04 09:00:00',
+      completed_at: '2026-08-04 09:00:05',
+      audience_estimate: 3,
+    });
+
+    const { result } = renderHook(() => useBackfillProgress({ intervalMs: 60_000 }), { wrapper: StrictMode });
+
+    await waitFor(() => {
+      expect(result.current.progress.status).toBe('completed');
+    });
+    expect(result.current.progress.completedAt).toBe('2026-08-04 09:00:05');
   });
 });

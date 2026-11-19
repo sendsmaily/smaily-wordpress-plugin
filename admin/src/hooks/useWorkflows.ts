@@ -41,8 +41,12 @@ export function useWorkflows(accountKey: string = 'default'): UseWorkflowsResult
   const [error, setError] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
-  useEffect(() => () => {
-    mountedRef.current = false;
+  useEffect(() => {
+    // Set again on every mount: <StrictMode> unmounts and remounts once.
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   const fetchList = useCallback(
@@ -63,9 +67,11 @@ export function useWorkflows(accountKey: string = 'default'): UseWorkflowsResult
         if (pending !== undefined) {
           await pending;
         }
-        if (mountedRef.current) {
+        // Nothing cached means the fetch failed; the fetch's own outcome
+        // stands (<StrictMode> remounts while it is still in flight).
+        if (mountedRef.current && cache.has(accountKey)) {
           setWorkflows(cache.get(accountKey) ?? []);
-          setStatus(cache.has(accountKey) ? 'success' : 'idle');
+          setStatus('success');
         }
         return;
       }
