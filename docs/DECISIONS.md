@@ -11059,6 +11059,11 @@ CON-173 (the tab). Pinned by
 
 ### Plugin Check 2.2.0 inlined-React errors accepted for 3.23.0 (Erkki, 2026-11-13)
 
+**SUPERSEDED by "CON-314 — The admin bundle uses WordPress core's React"
+(2026-11-19):** the admin bundle no longer carries React, so the three ERRORs
+are gone and the gate expects 0 ERRORS again. Kept as the record of why
+3.23.0–3.24.1 shipped with them.
+
 **Context:** Plugin Check 2.2.0 adds a check that reports 3 ERRORs on
 `dist/admin/admin.js`: `inlined_react`, `inlined_react_dom` and
 `inlined_react_jsx_runtime` ("the bundled copy predates React 19 and will
@@ -11582,3 +11587,46 @@ only its path and query).
 from what a client or a stored attribute claims.
 **Relationships:** `NewsletterBlockButtonStyleTest`, `NoticeDismissTest`,
 `CurrentUrlTest` (integration).
+
+### CON-314 — The admin bundle uses WordPress core's React (Erkki, 2026-11-19)
+
+**Context:** `dist/admin/admin.js` carried its own React 18.3, and Plugin
+Check 2.2.0 reports that as three ERRORs (`inlined_react`,
+`inlined_react_dom`, `inlined_react_jsx_runtime`), accepted for 3.23.0 only
+(the entry above). Every supported WordPress (6.6–7.1) ships React 18.3 as the
+core script handles `react`, `react-dom` and `react-jsx-runtime`.
+**Decision:** the admin Vite pass marks `react`, `react-dom`,
+`react-dom/client` and `react/jsx-runtime` as externals read from the globals
+those handles set (`window.React`, `window.ReactDOM` — core maps
+`react-dom/client` onto it too — and `window.ReactJSXRuntime`), and
+`admin/wizard.php` enqueues the bundle with those three handles as
+dependencies (beside `wp-i18n`). The output stays one IIFE. `react` and
+`react-dom` move to `devDependencies` (`~18.3.1`, for the tests and types).
+`bin/check-bundle-scope.sh` gives the admin bundle the real React modules as
+those globals before it loads it, and fails it if React is inlined again.
+**Rationale:** the ERRORs go, the admin download shrinks (admin.js
+329 958 → 186 224 B raw, 94 998 → 48 959 B gzip), and the admin runs on the
+React WordPress loads for its own screens. The handle `react-jsx-runtime`
+exists from WordPress 6.6 on (`AdminBundleReactTest` runs on CI's oldest-stack
+leg).
+**Consequence found on the way:** where `SCRIPT_DEBUG` is on, WordPress serves
+React's development build, so `<StrictMode>` (the admin's root) now mounts,
+unmounts and mounts each component once — the bundled React was always the
+production build. Two hooks then dropped their answer (`useWorkflows`: the
+workflow list stayed "Loading workflows…" or lost its error;
+`useBackfillProgress`: the stored import run did not show). Both now set their
+mounted flag on every mount, and a fetch already in flight keeps its own
+outcome; vitest pins both under `StrictMode`. Also with `SCRIPT_DEBUG` on
+WordPress 6.6, React's development build logs "You are importing createRoot
+from "react-dom"…" once per page (core's 6.6 `react-dom` has no client entry
+point to import; 7.1 logs nothing) — a console warning only, accepted. Without
+`SCRIPT_DEBUG` (every merchant site) the screens render exactly as before —
+compared screen by screen on WordPress 7.1 and 6.6.11.
+**Alternatives:** build with `@wordpress/scripts` and its dependency
+extraction — rejected: the Vite build, its IIFE rule (PRO-2391) and the scope
+check stay as they are; four externals give the same result. Importing
+`@wordpress/element` — rejected: a source change in every component for the
+same React.
+**Relationships:** supersedes "Plugin Check 2.2.0 inlined-React errors
+accepted for 3.23.0"; CLAUDE.md "Running PCP" and release step 6 expect
+0 ERRORS / 17 WARNINGS; `docs/audits/INDEX.md` records the PCP run.
