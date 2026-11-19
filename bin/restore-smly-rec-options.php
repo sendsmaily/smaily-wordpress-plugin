@@ -24,6 +24,11 @@
  * connected flag, row count). Never the API key. `bin/run-integration-tests.sh`
  * parses the tenant_name line to verify the restored connection.
  *
+ * With the argument `settings` (`wp eval-file … settings`) it restores the
+ * dev site's Smaily settings instead — the options EnvScrub::reset() deletes
+ * outside `smly_rec_*` — from the snapshot bin/lib-smly-snapshot.sh writes,
+ * the same way, and prints only counts (never the API credentials).
+ *
  * @package Smaily\Connect
  */
 
@@ -42,6 +47,31 @@ if ( ! is_array( $rows ) || array() === $rows ) {
 	exit( 1 );
 }
 
+// Which set this run restores (see the docblock). A row outside it is
+// never written, and an option inside it that the snapshot lacks is deleted.
+$restore_settings = isset( $args[0] ) && 'settings' === $args[0];
+// EnvScrub::reset()'s list of smaily_connect_* keys — keep the two in step.
+$scrubbed_legacy = array(
+	'smaily_connect_api_credentials',
+	'smaily_connect_subscriber_sync_enabled',
+	'smaily_connect_subscriber_sync_fields',
+	'smaily_connect_checkout_subscription_enabled',
+	'smaily_connect_wp_subscription_enabled',
+	'smaily_connect_abandoned_cart_cutoff',
+	'smaily_connect_abandoned_cart_status',
+	'smaily_connect_abandoned_cart_fields',
+);
+$in_set = static function ( string $name ) use ( $restore_settings, $scrubbed_legacy ): bool {
+	if ( ! $restore_settings ) {
+		return 0 === strpos( $name, 'smly_rec_' );
+	}
+	if ( in_array( $name, $scrubbed_legacy, true ) ) {
+		return true;
+	}
+	// EnvScrub keeps the schema version; so does this restore.
+	return 0 === strpos( $name, 'smly_' ) && 0 !== strpos( $name, 'smly_rec_' ) && 'smly_plus_schema_version' !== $name;
+};
+
 $snapshot_names = array();
 $restored       = 0;
 
@@ -50,9 +80,9 @@ foreach ( $rows as $row ) {
 		continue;
 	}
 	$name = (string) $row['option_name'];
-	if ( 0 !== strpos( $name, 'smly_rec_' ) ) {
-		// Never write anything outside the smly_rec_* namespace, whatever
-		// the piped file claims.
+	if ( ! $in_set( $name ) ) {
+		// Never write anything outside the set, whatever the piped file
+		// claims.
 		continue;
 	}
 	$snapshot_names[] = $name;
@@ -62,9 +92,11 @@ foreach ( $rows as $row ) {
 	// against re-serializing), so round-trip through maybe_unserialize.
 	$value = maybe_unserialize( (string) $row['option_value'] );
 
-	// WP >= 6.6 reports autoload as on/off/auto-on/auto-off; older as yes/no.
+	// WP >= 6.6 reports autoload as on/off/auto/auto-on/auto-off; older as
+	// yes/no. An auto* value goes back as null, so WordPress decides it
+	// again the way it did when the option was first saved.
 	$autoload_raw = isset( $row['autoload'] ) ? (string) $row['autoload'] : 'no';
-	$autoload     = in_array( $autoload_raw, array( 'yes', 'on', 'auto-on', '1', 'true' ), true );
+	$autoload     = 0 === strpos( $autoload_raw, 'auto' ) ? null : in_array( $autoload_raw, array( 'yes', 'on', '1', 'true' ), true );
 
 	// delete + add (not update_option) so the autoload flag is restored too.
 	delete_option( $name );
@@ -72,19 +104,26 @@ foreach ( $rows as $row ) {
 	++$restored;
 }
 
-// Delete smly_rec_* options the suite (or a fixture) created that were NOT
+// Delete options of the set the suite (or a fixture) created that were NOT
 // in the snapshot — restore means the exact pre-suite option set.
 global $wpdb;
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off dev-tooling sweep of the options table.
-$current = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'smly\\_rec\\_%'" );
+$current = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE 'smly\\_%' OR option_name LIKE 'smaily\\_connect\\_%'" );
 $deleted = 0;
 foreach ( (array) $current as $name ) {
-	if ( ! in_array( (string) $name, $snapshot_names, true ) ) {
+	if ( $in_set( (string) $name ) && ! in_array( (string) $name, $snapshot_names, true ) ) {
 		delete_option( (string) $name );
 		++$deleted;
 	}
 }
 wp_cache_flush();
+
+if ( $restore_settings ) {
+	// Counts only — never a credential.
+	echo 'restored_settings=' . (int) $restored . "\n";
+	echo 'deleted_extras=' . (int) $deleted . "\n";
+	return;
+}
 
 // Non-secret verification output only — NEVER the API key. CLI stdout for
 // the wrapper to parse, not a browser context, so HTML-escaping does not

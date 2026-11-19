@@ -654,7 +654,13 @@ truncate the queue table), and
 `bash bin/run-integration-tests.sh --restore-only` recovers the dev
 connection from the durable snapshot after any run that bypassed the guard.
 The manual snapshot/restore rule survives only for hand-rolled runs that use
-neither. The ENGINE-side half (tenant-scoped walk residue) remains
+neither. **The guard covered only what had bitten (2026-11-19):** it saved
+`smly_rec_*` while `EnvScrub::reset()` deletes far more — the Smaily account
+and settings — and the dev site lost those silently on every run, twice in
+one day before anyone named the cause. A guard around a scrub must cover
+everything the scrub deletes: read the scrub's own list, not the incident
+that prompted the guard. The settings set is now guarded the same way.
+The ENGINE-side half (tenant-scoped walk residue) remains
 discipline: a walk's report must still name the residue it leaves.
 
 ### 2.18 An "orphaned" legacy callback isn't dead while a legacy scheduler can still fire it — and one poison row must never own the whole pass (Prike, 2026-07-08)

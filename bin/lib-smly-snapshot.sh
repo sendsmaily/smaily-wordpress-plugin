@@ -39,9 +39,18 @@
 #   `restore-only` restores the dev connection straight from the durable
 #   snapshot (ignoring any pending decision) — for recovering after a
 #   hand-rolled phpunit run or a walk that scrubbed the connection. It is
-#   the one STRICT mode: exit 3 when no usable (GOOD) snapshot exists,
-#   exit 1 when the restore itself fails. Also reachable as
+#   the one STRICT mode: exit 3 when no usable (GOOD) snapshot exists for
+#   either set, exit 1 when a restore itself fails. Also reachable as
 #   `bash bin/run-integration-tests.sh --restore-only`.
+#
+# The same steps guard the dev site's Smaily SETTINGS too: every option
+# EnvScrub::reset() deletes outside `smly_rec_*` — the other `smly_*` rows
+# (setup flag, contact-sync mode, Mode A credentials, …) and its list of
+# `smaily_connect_*` keys (API credentials, sync fields, checkout and
+# abandoned-cart options). They go to a second file beside the first
+# (smaily_settings_snapshot.json, mode 600 — it holds the encrypted API
+# password), and bin/restore-smly-rec-options.php restores them with its
+# `settings` argument. Counts only are printed, never a value.
 #
 
 SMLY_STATE_DIR="${HOME}/.local/state/smaily-connect"
@@ -52,6 +61,10 @@ SMLY_SNAPSHOT_PREV="${SMLY_SNAPSHOT_FILE%.json}.prev.json"
 # disconnected/empty). Written by smly_snapshot_options, consumed (deleted)
 # by smly_restore_options.
 SMLY_RESTORE_PENDING="${SMLY_STATE_DIR}/smly_rec_restore_pending"
+# The Smaily settings set (see the header) — its own snapshot and decision.
+SMLY_SETTINGS_SNAPSHOT_FILE="${SMLY_STATE_DIR}/smaily_settings_snapshot.json"
+SMLY_SETTINGS_SNAPSHOT_PREV="${SMLY_SETTINGS_SNAPSHOT_FILE%.json}.prev.json"
+SMLY_SETTINGS_RESTORE_PENDING="${SMLY_STATE_DIR}/smaily_settings_restore_pending"
 SMLY_PLUGIN_PATH_IN_CONTAINER="/var/www/html/wp-content/plugins/smaily-connect"
 SMLY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -132,6 +145,36 @@ smly_classify_snapshot() {
   ' "$1"
 }
 
+# Classify a Smaily settings snapshot by its credential rows. Prints one line:
+#   GOOD|FIXTURE|EMPTY accounts=<n>
+# EMPTY: no Smaily account holds a subdomain (the site is not connected to
+# Smaily). FIXTURE: an account's subdomain is a quoted literal in
+# tests/Integration — what the suite's tests store ('testsub', 'demostore',
+# …). Reads only the subdomain — never the username or password.
+smly_classify_settings_snapshot() {
+  php -r '
+    $rows = json_decode( (string) @file_get_contents( $argv[1] ), true );
+    $subs = array();
+    foreach ( is_array( $rows ) ? $rows : array() as $r ) {
+      $name = is_array( $r ) ? (string) ( $r["option_name"] ?? "" ) : "";
+      if ( $name !== "smaily_connect_api_credentials" && strpos( $name, "smly_plus_credentials_" ) !== 0 ) { continue; }
+      $v   = @unserialize( (string) ( $r["option_value"] ?? "" ), array( "allowed_classes" => false ) );
+      $sub = is_array( $v ) ? strtolower( trim( (string) ( $v["subdomain"] ?? "" ) ) ) : "";
+      if ( $sub !== "" ) { $subs[] = $sub; }
+    }
+    $tail = " accounts=" . count( $subs );
+    if ( $subs === array() ) { echo "EMPTY" . $tail; exit; }
+    $files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $argv[2], FilesystemIterator::SKIP_DOTS ) );
+    foreach ( $files as $f ) {
+      $text = strtolower( (string) @file_get_contents( $f->getPathname() ) );
+      foreach ( $subs as $sub ) {
+        if ( strpos( $text, "\x27" . $sub . "\x27" ) !== false ) { echo "FIXTURE" . $tail; exit; }
+      }
+    }
+    echo "GOOD" . $tail;
+  ' "$1" "$SMLY_LIB_DIR/../tests/Integration"
+}
+
 # Ask the engine whether it still accepts the dev site's connection: one
 # ping through the plugin's own Client. The helper travels over STDIN, so
 # the host copy runs (a worktree's too). Prints the helper's one line —
@@ -143,9 +186,18 @@ smly_probe_connection() {
   printf '%s\n' "${out:-probe=unknown}"
 }
 
-# Snapshot the dev site's smly_rec_* options and decide the restore source.
-# Requires SMLY_CLI_CONTAINER. Never fails the caller (always returns 0).
+# Snapshot the dev site's smly_rec_* options and its Smaily settings, and
+# decide the restore source of each. Requires SMLY_CLI_CONTAINER. Never
+# fails the caller (always returns 0).
 smly_snapshot_options() {
+  # Settings first: the smly_rec_* step's engine ping records its answer in
+  # smly_plus_connection_health, one of the settings.
+  smly_snapshot_settings
+  smly_snapshot_rec_options
+  return 0
+}
+
+smly_snapshot_rec_options() {
   umask 077
   mkdir -p "$SMLY_STATE_DIR"
   # Fresh decision every run — a stale pending file from a crashed earlier
@@ -230,6 +282,86 @@ smly_snapshot_options() {
   return 0
 }
 
+# Snapshot the dev site's Smaily settings (the header's second set): GOOD
+# replaces the durable file; FIXTURE never does and restores from the last
+# GOOD one; EMPTY (no Smaily account) saves nothing and restores nothing.
+smly_snapshot_settings() {
+  umask 077
+  mkdir -p "$SMLY_STATE_DIR"
+  rm -f "$SMLY_SETTINGS_RESTORE_PENDING"
+  if ! command -v php >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local tmp="${SMLY_STATE_DIR}/smaily_settings_snapshot.tmp.json" pattern
+  rm -f "$tmp.smly" "$tmp.smaily_connect"
+  for pattern in smly smaily_connect; do
+    if ! smly_run_docker "docker exec $SMLY_CLI_CONTAINER wp option list --search='${pattern}_*' --fields=option_name,option_value,autoload --format=json --allow-root" > "$tmp.$pattern" 2>/dev/null; then
+      echo "WARNING: could not read the dev site's Smaily settings — no snapshot taken." >&2
+      rm -f "$tmp.smly" "$tmp.smaily_connect"
+      return 0
+    fi
+  done
+  # One file of both lists, without the smly_rec_* rows (the first snapshot
+  # holds those); the restore script picks the scrubbed names out of it.
+  php -r '
+    $rows = array();
+    foreach ( array( $argv[1], $argv[2] ) as $file ) {
+      foreach ( (array) json_decode( (string) file_get_contents( $file ), true ) as $r ) {
+        if ( is_array( $r ) && strpos( (string) ( $r["option_name"] ?? "" ), "smly_rec_" ) !== 0 ) { $rows[] = $r; }
+      }
+    }
+    file_put_contents( $argv[3], json_encode( $rows ) );
+  ' "$tmp.smly" "$tmp.smaily_connect" "$tmp"
+  rm -f "$tmp.smly" "$tmp.smaily_connect"
+  chmod 600 "$tmp"
+
+  local state
+  state=$(smly_classify_settings_snapshot "$tmp")
+  echo "Smaily settings pre-run state: $state"
+  case "$state" in
+    GOOD*)
+      if [[ -f "$SMLY_SETTINGS_SNAPSHOT_FILE" ]]; then
+        mv -f "$SMLY_SETTINGS_SNAPSHOT_FILE" "$SMLY_SETTINGS_SNAPSHOT_PREV"
+      fi
+      mv -f "$tmp" "$SMLY_SETTINGS_SNAPSHOT_FILE"
+      chmod 600 "$SMLY_SETTINGS_SNAPSHOT_FILE"
+      printf '%s\n' "$SMLY_SETTINGS_SNAPSHOT_FILE" > "$SMLY_SETTINGS_RESTORE_PENDING"
+      echo "Snapshotted dev-site Smaily settings to $SMLY_SETTINGS_SNAPSHOT_FILE (mode 600)."
+      ;;
+    FIXTURE*)
+      rm -f "$tmp"
+      echo "WARNING: dev site currently holds the suite's fixture Smaily credentials — NOT saved as snapshot." >&2
+      if [[ -f "$SMLY_SETTINGS_SNAPSHOT_FILE" ]] && [[ "$(smly_classify_settings_snapshot "$SMLY_SETTINGS_SNAPSHOT_FILE")" == GOOD* ]]; then
+        printf '%s\n' "$SMLY_SETTINGS_SNAPSHOT_FILE" > "$SMLY_SETTINGS_RESTORE_PENDING"
+        echo "A good previous Smaily settings snapshot exists — the dev site will be restored from it afterwards."
+      else
+        echo "WARNING: no good previous Smaily settings snapshot — nothing to restore afterwards." >&2
+      fi
+      ;;
+    *)
+      rm -f "$tmp"
+      echo "Dev site has no Smaily account — no Smaily settings snapshot; no restore afterwards."
+      ;;
+  esac
+  return 0
+}
+
+# Restore the Smaily settings from an explicit snapshot file (STDIN, like
+# smly_do_restore). Returns 1 when the in-container restore fails.
+smly_do_restore_settings() {
+  local src="$1" out
+  echo ""
+  echo "Restoring dev-site Smaily settings from $src ..."
+  if ! out=$(smly_run_docker "docker exec -i $SMLY_CLI_CONTAINER wp eval-file $SMLY_PLUGIN_PATH_IN_CONTAINER/bin/restore-smly-rec-options.php settings --allow-root" < "$src" 2>&1); then
+    echo "WARNING: Smaily settings restore FAILED — the dev site may be left with fixture values:" >&2
+    echo "$out" >&2
+    return 1
+  fi
+  echo "$out"
+  return 0
+}
+
 # Low-level restore from an explicit snapshot file. Requires
 # SMLY_CLI_CONTAINER. Returns 1 when the in-container restore fails.
 smly_do_restore() {
@@ -270,18 +402,43 @@ smly_restore_options() {
     src=$(cat "$SMLY_RESTORE_PENDING" 2>/dev/null || true)
     rm -f "$SMLY_RESTORE_PENDING"
   fi
-  if [[ -z "$src" || ! -f "$src" ]]; then
-    return 0
+  if [[ -n "$src" && -f "$src" ]]; then
+    smly_do_restore "$src" || true
   fi
-  smly_do_restore "$src" || true
+  src=""
+  if [[ -f "$SMLY_SETTINGS_RESTORE_PENDING" ]]; then
+    src=$(cat "$SMLY_SETTINGS_RESTORE_PENDING" 2>/dev/null || true)
+    rm -f "$SMLY_SETTINGS_RESTORE_PENDING"
+  fi
+  if [[ -n "$src" && -f "$src" ]]; then
+    smly_do_restore_settings "$src" || true
+  fi
   return 0
 }
 
-# STRICT restore straight from the durable snapshot (--restore-only): for
-# recovering the dev connection after a hand-rolled run or a walk that
-# scrubbed it. Exit 3 when no usable snapshot exists; the restore result
-# code otherwise.
+# STRICT restore straight from the durable snapshots (--restore-only): for
+# recovering the dev connection and Smaily settings after a hand-rolled run
+# or a walk that scrubbed them. Each set with a GOOD snapshot is restored.
+# Exit 3 when neither has one, 1 when a restore failed, 0 otherwise.
 smly_restore_from_durable_snapshot() {
+  local rc=0 settings_rc=3
+  smly_restore_rec_from_durable_snapshot || rc=$?
+  if [[ -f "$SMLY_SETTINGS_SNAPSHOT_FILE" ]] && [[ "$(smly_classify_settings_snapshot "$SMLY_SETTINGS_SNAPSHOT_FILE")" == GOOD* ]]; then
+    settings_rc=0
+    smly_do_restore_settings "$SMLY_SETTINGS_SNAPSHOT_FILE" || settings_rc=1
+  else
+    echo "NOTE: no usable Smaily settings snapshot at $SMLY_SETTINGS_SNAPSHOT_FILE — Smaily settings not restored." >&2
+  fi
+  if [[ "$rc" == 1 || "$settings_rc" == 1 ]]; then
+    return 1
+  fi
+  if [[ "$rc" == 3 && "$settings_rc" == 3 ]]; then
+    return 3
+  fi
+  return 0
+}
+
+smly_restore_rec_from_durable_snapshot() {
   if [[ ! -f "$SMLY_SNAPSHOT_FILE" ]]; then
     echo "ERROR: no snapshot at $SMLY_SNAPSHOT_FILE — nothing to restore." >&2
     echo "Run the integration wrapper once while the dev site is connected to create one," >&2

@@ -21,6 +21,8 @@
 #      `docker exec -i … wp eval-file bin/restore-smly-rec-options.php`,
 #      never on a command line) and prints the restored tenant_name,
 #      warning loudly on "MiuMjau" (production) or a fixture value.
+#   The same two steps guard the dev site's Smaily settings, which
+#   EnvScrub::reset() deletes too (see bin/lib-smly-snapshot.sh).
 #
 # Usage:
 #   bash bin/run-integration-tests.sh [--filter Pattern]
@@ -36,7 +38,7 @@
 #   0 — all tests passed (or --restore-only restored successfully)
 #   1 — at least one test failed (or the --restore-only restore failed)
 #   2 — wp-env not running (start it with `npx @wordpress/env start`)
-#   3 — --restore-only found no usable snapshot
+#   3 — --restore-only found no usable snapshot (of either set)
 #   4 — SMAILY_CONNECT_TEST_ORDER_STORAGE is set to something other than
 #       legacy or hpos
 #
