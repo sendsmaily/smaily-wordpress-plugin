@@ -11551,3 +11551,34 @@ are unchanged, and a limit over 100 gives 100 products instead of an error.
 (`post_password_required()`): rejected, a filtered page then lists fewer
 products than asked.
 **Relationships:** `RssFeedItemsTest` (integration).
+
+### CON-346 — The newsletter block's button style, the notice dismissal and the forms' return address (2026-11-19)
+
+**Context:** three Low findings of the pre-3.24.1 security review. (1) The
+newsletter-signup block put its `subscribeButton*` attributes into the
+wrapper's `style` with `esc_attr()`, which does not filter CSS, so a stored
+value could add declarations (an overlay over the page); and a block saved
+without a corner radius read a missing key. (2) The admin-notice dismiss AJAX
+action checked the nonce only, and stored any id string in the caller's user
+meta. (3) `Helper::get_current_url()` — the default success/failure address of
+the newsletter shortcode, widget, block and Elementor widget — was built from
+the client's `Host` header.
+**Decision:** (1) a colour attribute takes only what the block's editor saves:
+a hex colour (3, 4, 6 or 8 digits — the custom colour picker) or
+`var(--name)` with an optional hex fallback (the editor's own defaults and the
+theme presets, `var(--wp--preset--color--slug)`); the width takes `auto` or a
+number with an optional unit (`px`, `%`, `em`, `rem`, `vw`, `vh`, `ch`; the
+editor saves `auto` or `100%`); the radius takes a non-negative number. Any
+other value falls back to the default (`#000` / `#fff` / `auto` / `0`), and the
+radius has a default of 0 in the render's defaults. `rgb()` / `hsl()` are not
+accepted: the editor does not save them, and WordPress drops such a
+declaration from the wrapper style anyway. (2) The action dismisses only an
+id in the notice registry, and only for a user with that notice's capability
+(the one `display_notices()` checks before showing it); otherwise it answers
+an error and stores nothing. (3) The address is the origin of `home_url()`
+plus the path and query of `REQUEST_URI` (an absolute request target keeps
+only its path and query).
+**Rationale:** each value now comes from the plugin or from a fixed shape, not
+from what a client or a stored attribute claims.
+**Relationships:** `NewsletterBlockButtonStyleTest`, `NoticeDismissTest`,
+`CurrentUrlTest` (integration).

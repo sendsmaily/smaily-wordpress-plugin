@@ -97,7 +97,9 @@ class Notices {
 	}
 
 	/**
-	 * Dismiss an admin notice.
+	 * Dismiss an admin notice. Only a notice the plugin registered, and only
+	 * by a user who may see it (CON-346): any other id is not stored in the
+	 * caller's user meta.
 	 */
 	public function dismiss_notice() {
 		check_ajax_referer( 'smaily_connect_dismiss_notice', 'nonce' );
@@ -108,6 +110,14 @@ class Notices {
 		}
 
 		$notice_id = sanitize_text_field( wp_unslash( $_POST['id'] ) );
+		$notices   = Notice_Registry::get_notices();
+		if ( ! is_array( $notices ) || ! isset( $notices[ $notice_id ] ) ) {
+			wp_send_json_error( new \WP_Error( 'unknown_notice', 'The notice is not registered.' ), 400 );
+		}
+		if ( ! current_user_can( $notices[ $notice_id ]['capability'] ) ) {
+			wp_send_json_error( new \WP_Error( 'forbidden', 'You cannot dismiss this notice.' ), 403 );
+		}
+
 		Notice_Registry::dismiss_notice( $notice_id );
 
 		wp_send_json_success();

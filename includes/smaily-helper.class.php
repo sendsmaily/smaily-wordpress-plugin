@@ -375,20 +375,33 @@ class Helper {
 	}
 
 	/**
-	 * Get the current URL of the webpage. Defaults to site URL when request URL couldn't be determined.
+	 * Get the current URL of the webpage: the store's own address (home_url())
+	 * with the request's path and query. Defaults to site URL when the request
+	 * URL couldn't be determined.
+	 *
+	 * The client's Host header is never used (CON-346): this is the default
+	 * return address of the newsletter forms, and a forged Host would send
+	 * the shopper to another site.
 	 *
 	 * @return string
 	 */
 	public static function get_current_url() {
-		if ( ! isset( $_SERVER['HTTP_HOST'] ) || ! isset( $_SERVER['REQUEST_URI'] ) ) {
+		if ( ! isset( $_SERVER['REQUEST_URI'] ) ) {
 			return get_site_url();
 		}
 
-		$protocol = is_ssl() ? 'https://' : 'http://';
-		$host     = sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) );
-		$uri      = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+		$uri   = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
+		$parts = wp_parse_url( $uri );
+		$home  = wp_parse_url( home_url() );
+		if ( ! is_array( $parts ) || ! is_array( $home ) || ! isset( $home['scheme'], $home['host'] ) ) {
+			return get_site_url();
+		}
 
-		return $protocol . $host . $uri;
+		$origin = $home['scheme'] . '://' . $home['host'] . ( isset( $home['port'] ) ? ':' . $home['port'] : '' );
+		$path   = isset( $parts['path'] ) ? '/' . ltrim( $parts['path'], '/' ) : '/';
+		$query  = isset( $parts['query'] ) ? '?' . $parts['query'] : '';
+
+		return $origin . $path . $query;
 	}
 
 	/**
