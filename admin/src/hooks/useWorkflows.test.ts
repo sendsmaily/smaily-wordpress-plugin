@@ -100,6 +100,7 @@ describe('useWorkflows', () => {
     });
     expect(result.current.error).toBe('500 Gateway');
   });
+
   /**
    * CON-314: WordPress serves its development React build where SCRIPT_DEBUG
    * is on, and the admin renders in <StrictMode>, which mounts, unmounts and
@@ -117,6 +118,7 @@ describe('useWorkflows', () => {
     });
     expect(result.current.workflows).toHaveLength(1);
   });
+
   it('surfaces a server-side error string under StrictMode', async () => {
     vi.spyOn(api, 'listWorkflows').mockResolvedValue({
       workflows: [],

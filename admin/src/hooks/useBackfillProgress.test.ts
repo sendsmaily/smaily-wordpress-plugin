@@ -191,6 +191,7 @@ describe('useBackfillProgress', () => {
       { timeout: 1000 },
     );
   });
+
   /**
    * CON-314: WordPress serves its development React build where SCRIPT_DEBUG
    * is on, and the admin renders in <StrictMode>, which mounts, unmounts and
