@@ -85,10 +85,13 @@ run`/`stop`. The suite does not depend on the dev port.
 Colima shares only the home directory with its VM: a wp-env started from a
 checkout outside `/Users/…` (e.g. a worktree under `/private/tmp`) starts,
 but its plugin mount is EMPTY ("plugin could not be found") — put a throwaway
-worktree under the home directory (CON-314, 2026-11-19). While a second
-wp-env runs, `bin/build-i18n.sh` may pick ITS cli container (it takes the
-first `wp-env*-cli-1` it finds) and fail with "Could not create destination
-directory" — run it with only the dev env up.
+worktree under the home directory (CON-314, 2026-11-19). `bin/build-i18n.sh`
+runs in the `wp-env*-cli-1` container whose plugin mount is THIS checkout
+(`docker inspect`, the mount at `wp-content/plugins/smaily-connect`), so a
+second running wp-env no longer matters; `WP_ENV_CLI_CONTAINER=<name>` picks
+one explicitly. When none mounts the checkout it stops and lists the running
+cli containers (it used to take the first one it found and fail with "Could
+not create destination directory").
 **Check which checkout the running wp-env mounts** (updated 2026-11-13):
 since 2026-11-13 the Mac's dev wp-env runs from `connect-woo` — containers
 `wp-env-connect-woo-5fca6546-*`, dev site on 8888, tests site on 8889, the
@@ -1151,7 +1154,9 @@ workflow, not a signal about those releases).
   runner with no WordPress; that is what kept these jobs red from before the
   catalog-correctness work (e.g. e22a26b, 2026-06-12) until 2026-09-29.
 - **Admin bundle**: typecheck, ESLint, vitest + coverage, Vite build, dist
-  artefacts, the 250 KB gzip budget.
+  artefacts, the 75 KB gzip budget for `admin.js` (since the after-CON-314
+  tidy-up; it was 250 KB while the bundle carried React — ~49 KB without it,
+  so a bundled React coming back fails the job).
 - **Integration suite (wp-env, legacy|hpos order storage)** — two legs since
   PRO-3435: builds the admin bundle + build-hash, installs
   and builds the Gutenberg block workspaces (PRO-3428, PR #142 — without the

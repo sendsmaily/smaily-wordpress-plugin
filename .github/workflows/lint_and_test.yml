@@ -101,11 +101,11 @@ jobs:
           test -f dist/public/js/sc-landing.js
           test -f dist/public/js/sc-recs.js
 
-      - name: Bundle size budget (admin.js must stay under 250KB gzipped)
+      - name: Bundle size budget (admin.js must stay under 75KB gzipped)
         run: |
           size=$(gzip -c dist/admin/admin.js | wc -c)
           echo "admin.js gzipped size = $size bytes"
-          test "$size" -lt 256000 || (echo "Bundle exceeded 250KB gzipped budget" && exit 1)
+          test "$size" -lt 76800 || (echo "Bundle exceeded 75KB gzipped budget" && exit 1)
 
   integration:
     name: Integration suite (wp-env, ${{ matrix.order-storage }} order storage${{ matrix.stack == 'oldest' && ', oldest WordPress + WooCommerce' || '' }})

@@ -13,7 +13,8 @@
 # Outputs (gitignored, shipped in the ZIP): languages/*.mo, languages/*.json
 #
 # Requires wp-cli. By default the wp-cli steps run inside the wp-env CLI container
-# (the local dev setup); set WP_CLI_BIN to a wp-cli binary — e.g. the dev-vendor
+# that mounts this checkout as the plugin (the local dev setup; WP_ENV_CLI_CONTAINER
+# names another one); set WP_CLI_BIN to a wp-cli binary — e.g. the dev-vendor
 # one, WP_CLI_BIN=vendor/bin/wp — to run them on the host instead, which is what
 # CI does (no Docker there). Run from the plugin root:  bash bin/build-i18n.sh
 set -euo pipefail
@@ -28,14 +29,30 @@ WP_CLI_BIN="${WP_CLI_BIN:-}"
 if [ -n "$WP_CLI_BIN" ]; then
 	wpc() { "$WP_CLI_BIN" i18n "$@" --allow-root; }
 else
-	# Locate the wp-env dev CLI container (not the -tests- one).
-	CONTAINER="$( docker ps --format '{{.Names}}' 2>/dev/null | grep -E 'wp-env.*-cli-1$' | grep -v tests | head -1 )"
+	P=/var/www/html/wp-content/plugins/smaily-connect
+	# The wp-env dev CLI container (not the -tests- one) that mounts THIS checkout
+	# as the plugin: with a second wp-env running, the first `*-cli-1` found can be
+	# another checkout's. WP_ENV_CLI_CONTAINER names it explicitly.
+	CONTAINER="${WP_ENV_CLI_CONTAINER:-}"
+	CANDIDATES=""
 	if [ -z "$CONTAINER" ]; then
-		echo "!! wp-env CLI container not found. Start it with: npx @wordpress/env start" >&2
-		echo "   (or point WP_CLI_BIN at a wp-cli binary, e.g. WP_CLI_BIN=vendor/bin/wp)" >&2
+		ROOT="$( pwd -P )"
+		CANDIDATES="$( docker ps --format '{{.Names}}' 2>/dev/null | grep -E 'wp-env.*-cli-1$' | grep -v tests || true )"
+		for c in $CANDIDATES; do
+			src="$( docker inspect "$c" --format "{{range .Mounts}}{{if eq .Destination \"$P\"}}{{.Source}}{{end}}{{end}}" 2>/dev/null || true )"
+			if [ "$src" = "$ROOT" ]; then
+				CONTAINER="$c"
+				break
+			fi
+		done
+	fi
+	if [ -z "$CONTAINER" ]; then
+		echo "!! No running wp-env CLI container mounts this checkout ($( pwd -P )) as the plugin." >&2
+		echo "   Running wp-env CLI containers: $( printf '%s ' ${CANDIDATES:-none} )" >&2
+		echo "   Start this checkout's env (npx @wordpress/env start), name the container in" >&2
+		echo "   WP_ENV_CLI_CONTAINER, or point WP_CLI_BIN at a wp-cli binary (e.g. vendor/bin/wp)." >&2
 		exit 1
 	fi
-	P=/var/www/html/wp-content/plugins/smaily-connect
 	wpc() { docker exec "$CONTAINER" sh -c "cd $P && wp i18n $* --allow-root"; }
 fi
 
