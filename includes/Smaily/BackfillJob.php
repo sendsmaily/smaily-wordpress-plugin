@@ -222,14 +222,14 @@ class BackfillJob implements BackfillJobInterface {
 		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared
 
-		$last_error = isset( $wpdb->last_error ) && (string) $wpdb->last_error !== ''
-			? (string) $wpdb->last_error
-			: '(none)';
+		// Whether the row-id read failed, never the database's own text: it
+		// can quote data, and debug logs are shared with support (CON-337).
+		$database_error = isset( $wpdb->last_error ) && (string) $wpdb->last_error !== '';
 		\Smaily\Connect\Support\DebugLog::write(
 			sprintf(
-				'[smaily-connect backfill.start] row_id=%d wpdb_last_error=%s nothing_to_sync=%s',
+				'[smaily-connect backfill.start] row_id=%d database_error=%s nothing_to_sync=%s',
 				$id,
-				$last_error,
+				$database_error ? 'yes' : 'no',
 				$nothing_to_sync ? 'yes' : 'no'
 			)
 		);
