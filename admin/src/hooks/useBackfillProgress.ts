@@ -73,6 +73,8 @@ export function useBackfillProgress(options: UseBackfillProgressOptions = {}): U
   const loopActiveRef = useRef(false);
 
   useEffect(() => {
+    // Set again on every mount: <StrictMode> unmounts and remounts once.
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       if (timerRef.current !== null) {

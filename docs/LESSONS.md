@@ -1158,6 +1158,24 @@ Rules:
 2. **A test that pins a template string says why that form is safe**, not
    only that it is unchanged.
 
+### 2.36 A shared library can arrive as a different build (CON-314, admin React, 2026-11-19)
+
+The admin bundle moved from its own React copy to the React WordPress core
+loads. The bundled copy was always React's production build; core serves the
+DEVELOPMENT build wherever `SCRIPT_DEBUG` is on — the dev wp-env among them.
+There `<StrictMode>` mounts, unmounts and mounts each component once, and two
+hooks that set a "mounted" ref to `false` on cleanup and never back to `true`
+ignored every answer: the workflow picker stayed "Loading workflows…" and the
+stored import run never showed. All unit tests and both gates were green; a
+screen-by-screen text comparison against the old bundle found it.
+Rules:
+1. **When code starts to use a library the host provides, check every build
+   of it the host can serve** (development and production), not only the one
+   on a merchant site.
+2. **A "no visible change" refactor is proved by comparing the screens, old
+   build against new**, after the network settles — not by "it mounts and
+   nothing threw".
+
 ---
 
 ## 4. Concrete checklist for the start of a new project

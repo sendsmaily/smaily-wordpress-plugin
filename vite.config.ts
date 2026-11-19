@@ -35,9 +35,15 @@ import { resolve } from 'node:path';
  * release-ZIP gate.
  *
  * The admin bundle is consumed by the WordPress admin (loaded with
- * wp_enqueue_script in admin/settings.php and admin/wizard.php in
- * sub-PR 2.H). It imports React, ReactDOM, the admin/src/* TypeScript
- * tree, and Tailwind via the index.css side-effect import.
+ * wp_enqueue_script in admin/wizard.php). It bundles the admin/src/*
+ * TypeScript tree and Tailwind via the index.css side-effect import. React
+ * is NOT in it (CON-314): `react`, `react-dom`, `react-dom/client` and
+ * `react/jsx-runtime` are externals read from the globals WordPress core's
+ * own script handles set — `react` → window.React, `react-dom` →
+ * window.ReactDOM, `react-jsx-runtime` → window.ReactJSXRuntime (core maps
+ * `react-dom/client` onto window.ReactDOM the same way). admin/wizard.php
+ * declares those handles as dependencies, so they load first. Plugin Check
+ * 2.2.0 reports a bundled React as an ERROR (`inlined_react*`).
  *
  * The WordPress-free RecEngineClient (public/js/lib/rec-engine-client.ts) is
  * NOT an entry of its own — beacon.ts inlines it, and it stays as source for
@@ -54,6 +60,14 @@ import { resolve } from 'node:path';
  * dist/public/js/sc-recs.js, PRO-3835) fills the recommendations block's
  * empty container after the page has loaded.
  */
+/** The admin pass's externals → the WordPress core global each one reads. */
+const ADMIN_REACT_GLOBALS: Record<string, string> = {
+  react: 'React',
+  'react-dom': 'ReactDOM',
+  'react-dom/client': 'ReactDOM',
+  'react/jsx-runtime': 'ReactJSXRuntime',
+};
+
 export default defineConfig(({ mode }) => {
   const input: Record<string, string> = mode === 'recs'
     ? {
@@ -114,7 +128,13 @@ export default defineConfig(({ mode }) => {
       preserveEntrySignatures: false,
 
       input,
+      // The admin pass reads React from WordPress core (see the header
+      // comment, CON-314); the storefront passes import no React at all.
+      external: mode === 'landing' || mode === 'runtime' || mode === 'recs'
+        ? []
+        : Object.keys(ADMIN_REACT_GLOBALS),
       output: {
+        globals: ADMIN_REACT_GLOBALS,
         // Wrapped in `(function(){…})()` — see the header comment (PRO-2391).
         format: 'iife',
         entryFileNames: '[name].js',

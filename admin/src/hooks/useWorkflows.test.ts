@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -98,5 +99,40 @@ describe('useWorkflows', () => {
       expect(result.current.status).toBe('error');
     });
     expect(result.current.error).toBe('500 Gateway');
+  });
+
+  /**
+   * CON-314: WordPress serves its development React build where SCRIPT_DEBUG
+   * is on, and the admin renders in <StrictMode>, which mounts, unmounts and
+   * mounts every component once. The list must still arrive.
+   */
+  it('ends in status="success" under StrictMode', async () => {
+    vi.spyOn(api, 'listWorkflows').mockResolvedValue({
+      workflows: [{ id: '42', name: 'Welcome', status: 'ACTIVE' }],
+    });
+
+    const { result } = renderHook(() => useWorkflows('default'), { wrapper: StrictMode });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('success');
+    });
+    expect(result.current.workflows).toHaveLength(1);
+  });
+
+  it('surfaces a server-side error string under StrictMode', async () => {
+    vi.spyOn(api, 'listWorkflows').mockResolvedValue({
+      workflows: [],
+      error: 'Credentials missing',
+    });
+
+    const { result } = renderHook(() => useWorkflows('default'), { wrapper: StrictMode });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('error');
+    });
+    // Nothing that finishes later may put the hook back to idle.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.status).toBe('error');
+    expect(result.current.error).toBe('Credentials missing');
   });
 });
