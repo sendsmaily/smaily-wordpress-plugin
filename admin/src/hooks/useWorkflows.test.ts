@@ -135,4 +135,69 @@ describe('useWorkflows', () => {
     expect(result.current.status).toBe('error');
     expect(result.current.error).toBe('Credentials missing');
   });
+
+  /**
+   * A second hook instance mounted while the first one's fetch is in flight
+   * shares that fetch; when it fails, both must show the failure.
+   */
+  it.each([
+    ['a thrown network error', () => Promise.reject(new Error('500 Gateway')), '500 Gateway'],
+    [
+      'a server-side error string',
+      () => Promise.resolve({ workflows: [], error: 'Credentials missing' }),
+      'Credentials missing',
+    ],
+  ])('shows %s on every instance that shares the fetch', async (_label, outcome, message) => {
+    let settle: () => void = () => undefined;
+    const spy = vi.spyOn(api, 'listWorkflows').mockImplementation(
+      () =>
+        new Promise((resolve, reject) => {
+          settle = () => {
+            outcome().then(resolve, reject);
+          };
+        }),
+    );
+
+    const first = renderHook(() => useWorkflows('default'));
+    const second = renderHook(() => useWorkflows('default'));
+    expect(spy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      settle();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    for (const instance of [first, second]) {
+      await waitFor(() => {
+        expect(instance.result.current.status).toBe('error');
+      });
+      expect(instance.result.current.error).toBe(message);
+      expect(instance.result.current.workflows).toEqual([]);
+    }
+  });
+
+  it('gives every instance that shares the fetch the same list', async () => {
+    let settle: () => void = () => undefined;
+    vi.spyOn(api, 'listWorkflows').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          settle = () => resolve({ workflows: [{ id: '42', name: 'Welcome', status: 'ACTIVE' }] });
+        }),
+    );
+
+    const first = renderHook(() => useWorkflows('default'));
+    const second = renderHook(() => useWorkflows('default'));
+
+    await act(async () => {
+      settle();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    for (const instance of [first, second]) {
+      await waitFor(() => {
+        expect(instance.result.current.status).toBe('success');
+      });
+      expect(instance.result.current.workflows).toHaveLength(1);
+    }
+  });
 });
