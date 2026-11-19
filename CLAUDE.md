@@ -98,9 +98,10 @@ first (see the setup-token note below). **Plugin Check 2.2.0 is installed
 
 **Filtered/single-test integration runs:** prefer the wrapper — it passes
 extra args through to phpunit AND keeps the PRO-1240 smly_rec_* snapshot/
-restore guard (the suite boots the DEV site's WordPress in the `…-cli-1`
-container, so even a filtered run can clobber the dev site's engine
-connection):
+restore guard, which also guards the dev site's Smaily settings (the suite
+boots the DEV site's WordPress in the `…-cli-1` container, so even a
+filtered run can clobber the dev site's engine connection, and
+`EnvScrub::reset()` deletes its Smaily account and settings):
 
 ```
 sg docker -c "bash bin/run-integration-tests.sh --filter <TestName>"
@@ -114,7 +115,8 @@ A hand-rolled run also bypasses the snapshot guard — wrap it in the shared
 guard yourself (`bash bin/lib-smly-snapshot.sh snapshot` before, `… restore`
 after — PRO-1256), or recover afterwards with
 `bash bin/run-integration-tests.sh --restore-only` (restores the dev
-connection from the durable snapshot without running the suite).
+connection and Smaily settings from the durable snapshots without running
+the suite).
 
 ### A WP global assigned at file scope is EMPTY in the integration suite unless the bootstrap binds it
 Symptom: shortcodes are silently absent in the integration suite — ours,
@@ -1870,6 +1872,26 @@ the connection (hand-rolled phpunit, an unguarded walk):
 snapshot without running the suite (non-secret output only; exit 3 when no
 usable snapshot exists — then a fresh SANDBOX setup token is the fix).
 (LESSONS §2.17.)
+**The same guard covers the dev site's Smaily settings (2026-11-19):**
+`EnvScrub::reset()` also deletes every other `smly_*` row (except
+`smly_plus_schema_version`) and its list of `smaily_connect_*` keys — the
+Smaily API credentials, setup flag, contact-sync mode, sync fields, checkout
+and abandoned-cart options — so every run used to leave the dev site with
+no Smaily account. The snapshot step saves that set to
+`~/.local/state/smaily-connect/smaily_settings_snapshot.json` (mode 600 —
+it holds the encrypted API password) BEFORE the `smly_rec_*` step, whose
+engine ping writes `smly_plus_connection_health`; the restore (post-run and
+`--restore-only`) runs `bin/restore-smly-rec-options.php` with the argument
+`settings` and prints counts only. The "good" test: a Smaily account
+(`smaily_connect_api_credentials` or `smly_plus_credentials_*`) has a
+subdomain, and no subdomain is a quoted literal in `tests/Integration` (the
+fixtures write `'testsub'`, `'demostore'`, …) — FIXTURE is never saved and
+restores the last good file; no account at all is EMPTY: nothing saved,
+nothing restored. `--restore-only` now exits 3 only when neither set has a
+usable snapshot. A new `smaily_connect_*` key added to `EnvScrub`'s list
+goes into the restore script's list too. The restore script runs from the
+MAIN checkout's mount, so a worktree's change to it is live only after it
+is on the main checkout.
 
 ### Integration baseline is WP 7.1; the pilot stack needs an override to reproduce
 Since 2026-09-07 `.wp-env.json` pins `core:
