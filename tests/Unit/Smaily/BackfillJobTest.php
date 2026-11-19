@@ -109,6 +109,37 @@ final class BackfillJobTest extends TestCase {
 	}
 
 	/**
+	 * CON-337: a failed row-id read is logged as a database error at
+	 * backfill.start, never with the database's own text — it can quote data,
+	 * and debug logs are shared with support. Its own process: DebugLog writes
+	 * only under WP_DEBUG, a constant that would stay on for the rest of the
+	 * suite.
+	 *
+	 * @runInSeparateProcess
+	 * @preserveGlobalState disabled
+	 */
+	public function test_start_logs_a_failed_query_without_the_database_text(): void {
+		define( 'WP_DEBUG', true );
+
+		$GLOBALS['wpdb'] = $this->fake_wpdb_for_start( 77, 1, true, "Duplicate entry 'buyer@example.test' for key 'email'" );
+		Functions\when( 'count_users' )->justReturn( array( 'total_users' => 5000 ) );
+
+		$log      = (string) tempnam( sys_get_temp_dir(), 'smly-log' );
+		$previous = (string) ini_set( 'error_log', $log );
+		try {
+			( new BackfillJob( $this->createMock( Client::class ) ) )->start();
+			$written = (string) file_get_contents( $log );
+		} finally {
+			ini_set( 'error_log', $previous );
+			unlink( $log );
+		}
+
+		self::assertStringContainsString( '[smaily-connect backfill.start] row_id=0 database_error=yes', $written );
+		self::assertStringNotContainsString( 'buyer@example.test', $written );
+		self::assertStringNotContainsString( 'Duplicate entry', $written );
+	}
+
+	/**
 	 * PRO-1715: on a store where nobody is in the sync audience the walk cannot
 	 * produce a contact, so start() closes the run itself instead of leaving a
 	 * 'running' row whose only exit is an Action Scheduler tick — the merchant
@@ -743,21 +774,28 @@ final class BackfillJobTest extends TestCase {
 	 * @param int $audience Rows ContactAudience::count_audience() finds — the
 	 *                      COUNT() query start() runs before seeding the row.
 	 */
-	private function fake_wpdb_for_start( int $stamped_id, int $audience = 1, bool $writes = true ): object {
-		return new class( $stamped_id, $audience, $writes ) {
+	/**
+	 * @param string $select_error When set, the row-id read fails with this
+	 *                             database error text.
+	 */
+	private function fake_wpdb_for_start( int $stamped_id, int $audience = 1, bool $writes = true, string $select_error = '' ): object {
+		return new class( $stamped_id, $audience, $writes, $select_error ) {
 			public string $prefix   = 'wp_';
 			public string $usermeta = 'wp_usermeta';
+			public string $last_error   = '';
 			public array $prepare_calls = array();
 			public array $queries       = array();
 			public array $updates       = array();
 			private int $stamp;
 			private int $audience;
 			private bool $writes;
+			private string $select_error;
 
-			public function __construct( int $id, int $audience, bool $writes ) {
-				$this->stamp    = $id;
-				$this->audience = $audience;
-				$this->writes   = $writes;
+			public function __construct( int $id, int $audience, bool $writes, string $select_error ) {
+				$this->stamp        = $id;
+				$this->audience     = $audience;
+				$this->writes       = $writes;
+				$this->select_error = $select_error;
 			}
 
 			public function prepare( string $sql, ...$args ): string {
@@ -772,9 +810,14 @@ final class BackfillJobTest extends TestCase {
 			}
 
 			public function get_var( string $sql ) {
-				return strpos( $sql, 'COUNT(' ) !== false
-					? (string) $this->audience
-					: (string) $this->stamp;
+				if ( strpos( $sql, 'COUNT(' ) !== false ) {
+					return (string) $this->audience;
+				}
+				if ( $this->select_error !== '' ) {
+					$this->last_error = $this->select_error;
+					return null;
+				}
+				return (string) $this->stamp;
 			}
 
 			public function update( string $table, array $data, array $where, $format = null, $where_format = null ): int {
