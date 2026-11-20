@@ -24,7 +24,7 @@ describe('Step4Recommendations — the Campaign Intelligence banner replaces the
     expect(banner).toHaveTextContent(BODY);
     expect(screen.getByRole('link', { name: 'Contact Smaily' })).toHaveAttribute(
       'href',
-      'https://smaily.com/help/',
+      'https://smaily.com/consultation/',
     );
     expect(screen.getByLabelText(/Setup URL/)).toBeInTheDocument();
     expect(

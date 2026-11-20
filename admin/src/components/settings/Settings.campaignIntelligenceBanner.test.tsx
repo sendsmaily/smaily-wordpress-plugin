@@ -86,7 +86,7 @@ describe('Settings — the Campaign Intelligence banner (CON-350)', () => {
     expect(banner).toHaveTextContent(BODY);
     expect(within(banner).getByRole('link', { name: 'Contact Smaily' })).toHaveAttribute(
       'href',
-      'https://smaily.com/help/',
+      'https://smaily.com/consultation/',
     );
     expect(within(banner).queryByRole('button', { name: 'Try Intelligence free' })).not.toBeInTheDocument();
   });

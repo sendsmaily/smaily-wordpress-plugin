@@ -1,5 +1,5 @@
 import { __ } from '@admin/lib/i18n';
-import { SMAILY_SUPPORT_URL } from '@admin/lib/links';
+import { SMAILY_CONSULTATION_URL } from '@admin/lib/links';
 import { type BannerBoot } from '../../state/hydrate';
 import { type WizardState } from '../../state/types';
 import { PromoBanner, promoCtaClass } from './PromoBanner';
@@ -78,7 +78,7 @@ export function CampaignIntelligenceBanner({
     );
   } else {
     action = (
-      <a href={SMAILY_SUPPORT_URL} target="_blank" rel="noopener noreferrer" className={promoCtaClass}>
+      <a href={SMAILY_CONSULTATION_URL} target="_blank" rel="noopener noreferrer" className={promoCtaClass}>
         {__('Contact Smaily', 'smaily-connect')}
       </a>
     );
