@@ -11674,3 +11674,4 @@ setting. Showing the one-line notice beside the banner on the plugin's
 screens — rejected: the same invitation twice on one screen.
 **Relationships:** CON-321 (the invitation notice), CON-324 (Tanel's text),
 INT-298 / CON-175 (the start window), GMS-52 (the design).
+**Update (Erkki, 20 Nov):** the Campaign Intelligence banner's **Contact Smaily** button opens Smaily's consultation page, `https://smaily.com/consultation/` (`SMAILY_CONSULTATION_URL`), instead of the support link; every other support link keeps `https://smaily.com/help/`.
