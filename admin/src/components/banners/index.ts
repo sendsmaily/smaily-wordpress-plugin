@@ -4,7 +4,8 @@ export { PromoBanner } from './PromoBanner';
 export {
   CampaignIntelligenceBanner,
   campaignIntelligenceBannerVariant,
-  ciStartOpen,
+  ciStartStatus,
+  _resetCiStartStatus,
   type CampaignIntelligenceBannerVariant,
 } from './CampaignIntelligenceBanner';
 export { SmailyInvitationBanner } from './SmailyInvitationBanner';

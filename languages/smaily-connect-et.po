@@ -184,7 +184,7 @@ msgid "Your recommendation preferences have been saved."
 msgstr "Sinu soovituste eelistused on salvestatud."
 
 #: includes/Privacy/ProfilingConsentAccount.php:136
-#: admin/src/components/steps/Step4Recommendations.tsx:154
+#: admin/src/components/steps/Step4Recommendations.tsx:165
 msgid "Smaily Campaign Intelligence"
 msgstr "Smaily Campaign Intelligence"
 
@@ -252,6 +252,7 @@ msgstr "Teist kinnitust ei õnnestunud järjekorda panna. Palun proovi uuesti."
 msgid "This confirmation can no longer be sent again. Refresh the event log to see the row as it is now."
 msgstr "Seda kinnitust ei saa enam uuesti saata. Värskenda sündmuste logi, et näha rea praegust seisu."
 
+#: includes/REST/OnboardingEndpoint.php:153
 #: includes/REST/RecEngineEndpoint.php:149
 #: includes/REST/RecEngineProxy.php:40
 msgid "You do not have permission to manage Campaign Intelligence."
@@ -1053,7 +1054,7 @@ msgstr "Suuna tellijad otse Smailysse sujuvaks e-turunduseks."
 
 #: admin/src/api/recEngine.ts:17
 #: admin/src/api/recEngine.ts:35
-#: admin/src/components/steps/Step4Recommendations.tsx:418
+#: admin/src/components/steps/Step4Recommendations.tsx:429
 #: admin/src/components/wizard/Wizard.tsx:80
 msgid "Network error"
 msgstr "Võrguviga"
@@ -1348,6 +1349,7 @@ msgstr "Järgmine"
 msgid "Close details"
 msgstr "Sulge üksikasjad"
 
+#: admin/src/components/banners/IntelligenceStart.tsx:209
 #: admin/src/components/settings/EventLog.tsx:378
 #: admin/src/components/steps/EmailDesigns.tsx:296
 msgid "Close"
@@ -1381,6 +1383,7 @@ msgstr "Ühendus"
 msgid "WooCommerce"
 msgstr "WooCommerce"
 
+#: admin/src/components/banners/IntelligenceStart.tsx:185
 #: admin/src/components/settings/Settings.tsx:34
 #: admin/src/components/steps/Step4Recommendations.tsx:26
 #: admin/src/components/steps/Step6Done.tsx:112
@@ -1422,28 +1425,28 @@ msgstr "Ühenda esmalt Smailyga, et see vahekaart avada."
 msgid "Settings tabs"
 msgstr "Sätete vahekaardid"
 
-#: admin/src/components/settings/Settings.tsx:155
+#: admin/src/components/settings/Settings.tsx:160
 msgid "Smaily connection required"
 msgstr "Vajalik on Smaily ühendus"
 
-#: admin/src/components/settings/Settings.tsx:159
+#: admin/src/components/settings/Settings.tsx:164
 msgid "Save failed"
 msgstr "Salvestamine ebaõnnestus"
 
-#: admin/src/components/settings/Settings.tsx:160
+#: admin/src/components/settings/Settings.tsx:165
 msgid "Settings saved."
 msgstr "Sätted salvestatud."
 
-#: admin/src/components/settings/Settings.tsx:185
+#: admin/src/components/settings/Settings.tsx:190
 msgid "Discard changes"
 msgstr "Loobu muudatustest"
 
-#: admin/src/components/settings/Settings.tsx:196
+#: admin/src/components/settings/Settings.tsx:201
 msgid "Save changes"
 msgstr "Salvesta muudatused"
 
 #. translators: %s is the installed plugin version, e.g. 3.21.1.
-#: admin/src/components/settings/Settings.tsx:202
+#: admin/src/components/settings/Settings.tsx:207
 #, js-format
 msgid "Smaily Connect %s"
 msgstr "Smaily Connect %s"
@@ -1527,7 +1530,7 @@ msgid "✓ Connected"
 msgstr "✓ Ühendatud"
 
 #: admin/src/components/steps/CredentialBlock.tsx:53
-#: admin/src/components/steps/Step4Recommendations.tsx:222
+#: admin/src/components/steps/Step4Recommendations.tsx:233
 msgid "as"
 msgstr "kasutajaga"
 
@@ -1552,7 +1555,7 @@ msgid "API password"
 msgstr "API parool"
 
 #: admin/src/components/steps/CredentialBlock.tsx:120
-#: admin/src/components/steps/Step4Recommendations.tsx:234
+#: admin/src/components/steps/Step4Recommendations.tsx:245
 msgid "Test connection"
 msgstr "Testi ühendust"
 
@@ -1756,172 +1759,172 @@ msgstr "Ooteaeg"
 msgid "Step 4 of 6"
 msgstr "4. samm 6-st"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:93
+#: admin/src/components/steps/Step4Recommendations.tsx:104
 msgid "Connect Smaily Campaign Intelligence"
 msgstr "Ühenda Smaily Campaign Intelligence"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:99
+#: admin/src/components/steps/Step4Recommendations.tsx:110
 msgid "Setup URL"
 msgstr "Seadistus-URL"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:125
+#: admin/src/components/steps/Step4Recommendations.tsx:136
 msgid "Connect"
 msgstr "Ühenda"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:139
+#: admin/src/components/steps/Step4Recommendations.tsx:150
 msgid "Regenerate the link"
 msgstr "Loo link uuesti"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:431
+#: admin/src/components/steps/Step4Recommendations.tsx:442
 msgid "Imports started"
 msgstr "Impordid käivitusid"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:440
+#: admin/src/components/steps/Step4Recommendations.tsx:451
 msgid "Hold back"
 msgstr "Peata import"
 
 #. translators: %d: minutes until the catalog import starts.
-#: admin/src/components/steps/Step4Recommendations.tsx:446
+#: admin/src/components/steps/Step4Recommendations.tsx:457
 #, js-format
 msgid "Your product catalog, then your customers, then your orders go to Campaign Intelligence once, one after another, in the background. The first products go out in about %d minutes. To hold the imports back, press Hold back before then: nothing is sent, and you can start each import later with its Import now below."
 msgstr "Sinu tootekataloog, seejärel kliendid ja siis tellimused saadetakse Campaign Intelligence'i üks kord, üksteise järel, taustal. Esimesed tooted lähevad teele umbes %d minuti pärast. Impordide peatamiseks vajuta enne seda „Peata import“: midagi ei saadeta ja iga impordi saad hiljem käivitada allpool selle nupuga „Impordi kohe“."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:422
+#: admin/src/components/steps/Step4Recommendations.tsx:433
 msgid "Imports held back"
 msgstr "Impordid peatatud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:422
+#: admin/src/components/steps/Step4Recommendations.tsx:433
 msgid "The imports are cancelled. Start each one any time with its Import now below."
 msgstr "Impordid on katkestatud. Igaühe saad igal ajal käivitada allpool selle nupuga „Impordi kohe“."
 
 #. translators: %s: error message.
-#: admin/src/components/steps/Step4Recommendations.tsx:454
+#: admin/src/components/steps/Step4Recommendations.tsx:465
 #, js-format
 msgid "Couldn't hold back the import: %s"
 msgstr "Importi ei õnnestunud peatada: %s"
 
 #. translators: 1: engine version, 2: tenant status.
-#: admin/src/components/steps/Step4Recommendations.tsx:166
+#: admin/src/components/steps/Step4Recommendations.tsx:177
 #, js-format
 msgid "Engine v%1$s responded — tenant status: %2$s."
 msgstr "Mootor v%1$s vastas — rentniku olek: %2$s."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:168
+#: admin/src/components/steps/Step4Recommendations.tsx:179
 msgid "active"
 msgstr "aktiivne"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:178
+#: admin/src/components/steps/Step4Recommendations.tsx:189
 msgid "Disconnect Smaily Campaign Intelligence? The plugin stops syncing data and tells Campaign Intelligence that this connection ends. If your store has no other connection, Campaign Intelligence pauses it: no recommendations and none of its automated emails until you connect again. Your data is kept."
 msgstr "Kas katkestada Smaily Campaign Intelligence'i ühendus? Plugin lõpetab andmete sünkroonimise ja annab Campaign Intelligence'ile teada, et see ühendus lõpeb. Kui su poel teist ühendust ei ole, paneb Campaign Intelligence poe pausile: soovitusi ei anta ja selle automaatseid e-kirju ei saadeta, kuni ühendad uuesti. Sinu andmed jäävad alles."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:189
+#: admin/src/components/steps/Step4Recommendations.tsx:200
 msgid "Disconnected."
 msgstr "Ühendus katkestatud."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:199
+#: admin/src/components/steps/Step4Recommendations.tsx:210
 msgid "Engine connection"
 msgstr "Mootori ühendus"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:219
+#: admin/src/components/steps/Step4Recommendations.tsx:230
 msgid "Connected"
 msgstr "Ühendatud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:237
+#: admin/src/components/steps/Step4Recommendations.tsx:248
 msgid "Disconnect"
 msgstr "Katkesta ühendus"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:261
+#: admin/src/components/steps/Step4Recommendations.tsx:272
 msgid "Data synchronisation"
 msgstr "Andmete sünkroonimine"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:262
+#: admin/src/components/steps/Step4Recommendations.tsx:273
 msgid "While connected, the engine learns from your joined order, customer, and product data — all three sync automatically."
 msgstr "Ühenduse ajal õpib mootor sinu seotud tellimus-, kliendi- ja tooteandmetest — kõik kolm sünkroonitakse automaatselt."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:267
+#: admin/src/components/steps/Step4Recommendations.tsx:278
 msgid "Syncing starts as soon as you connect and runs in the background — there's nothing to switch on per data type. Use"
 msgstr "Sünkroonimine algab kohe pärast ühendamist ja töötab taustal — andmetüübi kaupa pole midagi sisse lülitada. Kasuta"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:272
-#: admin/src/components/steps/Step4Recommendations.tsx:284
+#: admin/src/components/steps/Step4Recommendations.tsx:283
+#: admin/src/components/steps/Step4Recommendations.tsx:295
 msgid "Import existing data"
 msgstr "Impordi olemasolevad andmed"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:274
+#: admin/src/components/steps/Step4Recommendations.tsx:285
 msgid "below to seed history into the engine; future changes sync on their own. Browsing telemetry is the one exception — it's opt-in and configured separately below."
 msgstr "allpool, et täita mootor ajalooga; tulevased muudatused sünkroonitakse ise. Sirvimistelemeetria on ainus erand — see on valitav ja seadistatakse eraldi allpool."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:285
+#: admin/src/components/steps/Step4Recommendations.tsx:296
 msgid "When you connect Campaign Intelligence, the imports start on their own, one after another: products, then customers, then orders, so recommendations have history to learn from. Import now runs one import again, and only that one. Imports run in the background in batches, and future changes sync on their own."
 msgstr "Kui ühendad Campaign Intelligence'i, käivituvad impordid iseenesest, üksteise järel: tooted, seejärel kliendid ja siis tellimused, et soovitustel oleks ajalugu, millest õppida. „Impordi kohe“ käivitab ühe impordi uuesti, ja ainult selle. Impordid töötavad taustal pakkidena ja tulevased muudatused sünkroonitakse ise."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:294
+#: admin/src/components/steps/Step4Recommendations.tsx:305
 msgid "Products"
 msgstr "Tooted"
 
 #. translators: %d: number of detected languages.
-#: admin/src/components/steps/Step4Recommendations.tsx:298
+#: admin/src/components/steps/Step4Recommendations.tsx:309
 #, js-format
 msgid "Counts one entry per language (%d detected). Translations are merged into a single product during import, so the synced total will be lower."
 msgstr "Loendab ühe kirje keele kohta (%d tuvastatud). Tõlked liidetakse importimisel üheks tooteks, seega sünkroonitud koguarv on väiksem."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:311
+#: admin/src/components/steps/Step4Recommendations.tsx:322
 msgid "Customers"
 msgstr "Kliendid"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:319
+#: admin/src/components/steps/Step4Recommendations.tsx:330
 msgid "Orders"
 msgstr "Tellimused"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:329
+#: admin/src/components/steps/Step4Recommendations.tsx:340
 msgid "Browsing telemetry"
 msgstr "Sirvimistelemeetria"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:330
+#: admin/src/components/steps/Step4Recommendations.tsx:341
 msgid "Tracks product / category views to power 'similar products' recommendations."
 msgstr "Jälgib toote- ja kategooriavaatamisi, et toita 'sarnaste toodete' soovitusi."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:341
+#: admin/src/components/steps/Step4Recommendations.tsx:352
 msgid "Track browsing behaviour"
 msgstr "Jälgi sirvimiskäitumist"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:342
+#: admin/src/components/steps/Step4Recommendations.tsx:353
 msgid "Requires marketing consent (WP Consent API / Cookiebot / Complianz / CookieYes)."
 msgstr "Nõuab turundusnõusolekut (WP Consent API / Cookiebot / Complianz / CookieYes)."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:348
+#: admin/src/components/steps/Step4Recommendations.tsx:359
 msgid "Consent comes from your consent banner through the WP Consent API: browse events are sent only for visitors who said yes to marketing in that banner."
 msgstr "Nõusolek tuleb sinu nõusolekubännerist WP Consent API kaudu: sirvimissündmused saadetakse ainult nende külastajate kohta, kes ütlesid selles bänneris turundusele jah."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:352
+#: admin/src/components/steps/Step4Recommendations.tsx:363
 msgid "Browse tracking sends nothing until a consent banner is connected to the WP Consent API."
 msgstr "Sirvimise jälgimine ei saada midagi enne, kui nõusolekubänner on WP Consent API-ga ühendatud."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:364
+#: admin/src/components/steps/Step4Recommendations.tsx:375
 msgid "Get the WP Consent API plugin"
 msgstr "Hangi WP Consent API plugin"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:368
+#: admin/src/components/steps/Step4Recommendations.tsx:379
 msgid "Browsing telemetry only fires when the visitor has granted marketing consent. If your site doesn't have a consent banner installed, the beacon won't collect events."
 msgstr "Sirvimistelemeetria käivitub ainult siis, kui külastaja on andnud turundusnõusoleku. Kui sinu saidil pole nõusolekuriba paigaldatud, ei kogu majakas sündmusi."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:464
+#: admin/src/components/steps/Step4Recommendations.tsx:475
 msgid "Setup URL not recognised"
 msgstr "Seadistus-URL-i ei tuvastatud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:466
+#: admin/src/components/steps/Step4Recommendations.tsx:477
 msgid "Setup link already used"
 msgstr "Seadistuslink on juba kasutatud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:468
+#: admin/src/components/steps/Step4Recommendations.tsx:479
 msgid "Setup link not found"
 msgstr "Seadistuslinki ei leitud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:470
+#: admin/src/components/steps/Step4Recommendations.tsx:481
 msgid "Setup link for another Smaily account"
 msgstr "Seadistuslink teise Smaily konto jaoks"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:473
+#: admin/src/components/steps/Step4Recommendations.tsx:484
 msgid "Engine unreachable"
 msgstr "Mootor pole kättesaadav"
 
@@ -2388,7 +2391,7 @@ msgstr "Komadega eraldatult, kuni 50 aadressi."
 msgid "Activate for real…"
 msgstr "Aktiveeri päriselt…"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:41
+#: admin/src/components/steps/Step4Recommendations.tsx:52
 msgid "Back to Step 3"
 msgstr "Tagasi sammu 3"
 
@@ -2534,7 +2537,7 @@ msgstr "Ava kontaktide seaded"
 msgid "Contacts"
 msgstr "Kontaktid"
 
-#: admin/src/components/settings/Settings.tsx:155
+#: admin/src/components/settings/Settings.tsx:160
 msgid "Contacts, WooCommerce, and Campaign Intelligence are locked until your Smaily credentials authenticate. Fix the connection on the Connection tab to unlock them."
 msgstr "Kontaktid, WooCommerce ja Campaign Intelligence on lukus, kuni sinu Smaily mandaadid autendivad. Ühenduse parandamiseks mine vahekaardile Ühendus."
 
@@ -2689,15 +2692,15 @@ msgstr "Käivitub, kui ostukorv on olnud hüljatud kauem kui määratud ooteaeg.
 msgid "From 10 to %d minutes. Abandoned carts older than the set period are checked."
 msgstr "10 kuni %d minutit. Kontrollitakse määratud ooteajast vanemaid hüljatud ostukorve."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:33
+#: admin/src/components/steps/Step4Recommendations.tsx:44
 msgid "Engine connected — now wire up the Campaign Intelligence automation workflows"
 msgstr "Mootor ühendatud — nüüd seo Campaign Intelligence’i automaatikad"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:44
+#: admin/src/components/steps/Step4Recommendations.tsx:55
 msgid "Replenishment and win-back automations are configured in Step 3 (Automated letters), below the store-run triggers."
 msgstr "Taastäite- ja tagasivõitmise automaatikad seadistatakse 3. sammus („Automaatikad“), poe-poolsete päästikute all."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:94
+#: admin/src/components/steps/Step4Recommendations.tsx:105
 msgid "Copy the Campaign Intelligence connection URL in the following field and click on Connect to activate the connection."
 msgstr "Kleebi Smaily Campaign Intelligence’i ühenduse URL allolevasse lahtrisse ja kliki Ühenda nupule."
 
@@ -2814,11 +2817,11 @@ msgstr "Smaily Connect: sinu Smaily Campaign Intelligence'i konto on deaktiveeri
 msgid "Your Smaily Campaign Intelligence account has been deactivated, so its automations cannot be read or saved. Contact Smaily to reactivate it."
 msgstr "Sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega selle automatsioone ei saa lugeda ega salvestada. Konto taasaktiveerimiseks võta ühendust Smailyga."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:209
+#: admin/src/components/steps/Step4Recommendations.tsx:220
 msgid "Account deactivated"
 msgstr "Konto on deaktiveeritud"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:211
+#: admin/src/components/steps/Step4Recommendations.tsx:222
 msgid "Your Smaily Campaign Intelligence account has been deactivated, so syncing has stopped. Contact Smaily to reactivate it. Once it is active again, disconnect here and connect it with a new setup link."
 msgstr "Sinu Smaily Campaign Intelligence'i konto on deaktiveeritud, seega sünkroonimine on peatunud. Konto taasaktiveerimiseks võta ühendust Smailyga. Kui konto on jälle aktiivne, katkesta siin ühendus ja ühenda konto uue seadistuslingiga."
 
@@ -3180,6 +3183,7 @@ msgstr "Ostleja ei ole turunduskirjadega liitunud, ei poes ega Smailys."
 msgid "The shopper has unsubscribed from marketing emails in Smaily."
 msgstr "Ostleja on Smailys turunduskirjadest loobunud."
 
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:141
 #: admin/src/components/steps/EmailDesigns.tsx:86
 #: admin/src/components/steps/OpenConsoleButton.tsx:17
 msgid "Your browser blocked the new tab. Allow pop-ups for this page and try again."
@@ -3296,6 +3300,7 @@ msgstr "%1$d kuni %2$d päeva. Kood kehtib selle päeva lõpuni poe ajavööndis
 
 #: includes/REST/ConsoleEntryEndpoint.php:94
 #: includes/REST/NoticesEndpoint.php:61
+#: includes/REST/OnboardingEndpoint.php:146
 msgid "Your session has expired. Reload the page and try again."
 msgstr "Seanss on aegunud. Laadi leht uuesti ja proovi siis uuesti."
 
@@ -3373,15 +3378,15 @@ msgstr "Ooteaja lõppedes ei oodanud tellimus enam makset — see oli makstud, o
 msgid "The payment reminder delay must be a whole number of minutes from %1$d to %2$d."
 msgstr "Maksemeeldetuletuse ooteaeg peab olema täisarv minuteid vahemikus %1$d kuni %2$d."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:379
+#: admin/src/components/steps/Step4Recommendations.tsx:390
 msgid "Add the Smaily Recommendations block to a page or post (in the block editor, search for \"Smaily\"), or put the shortcode [smaily_recommendations] where your page builder accepts shortcodes. Shoppers who accept marketing cookies see the products Smaily recommends to them."
 msgstr "Lisa lehele või postitusele plokk Smaily Recommendations (blokiredaktoris otsi „Smaily“) või pane lühikood [smaily_recommendations] lehekoostajas kohta, mis lühikoode lubab. Turundusküpsistega nõustunud ostjad näevad tooteid, mida Smaily neile soovitab."
 
-#: admin/src/components/steps/Step4Recommendations.tsx:383
+#: admin/src/components/steps/Step4Recommendations.tsx:394
 msgid "Show recommendations in your store"
 msgstr "Näita soovitusi oma poes"
 
-#: admin/src/components/steps/Step4Recommendations.tsx:397
+#: admin/src/components/steps/Step4Recommendations.tsx:408
 msgid "How to add it →"
 msgstr "Kuidas lisada →"
 
@@ -3411,46 +3416,102 @@ msgstr "Smaily töös"
 msgid "Automated"
 msgstr "Automaatne"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:28
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:58
 msgid "Log in to Smaily"
 msgstr "Logi Smailysse sisse"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:30
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:69
 msgid "Try Intelligence free"
 msgstr "Proovi Intelligence'i tasuta"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:32
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:73
 msgid "Contact Smaily"
 msgstr "Võta Smailyga ühendust"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:43
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:99
 msgid "Connect your store with Smaily, and add personalized product recommendations to your campaigns, tailored to each customer’s interests."
 msgstr "Ühenda oma pood Smailyga ja lisa oma kampaaniatesse isikupärastatud tootesoovitused, mis on valitud iga kliendi huvide järgi."
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:48
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:82
 msgid "Campaign Intelligence requires a paid Smaily plan. Log in to Smaily to review your plan options."
 msgstr "Campaign Intelligence vajab tasulist Smaily paketti. Logi Smailysse sisse, et vaadata paketivalikuid."
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:52
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:105
 msgid "Requires a paid Smaily plan"
 msgstr "Vajab tasulist Smaily paketti"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:55
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:108
 msgid "Engine in action"
 msgstr "Mootor töös"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:56
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:109
 msgid "What the engine recommends you do next"
 msgstr "Mida mootor soovitab järgmisena teha"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:58
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:111
 msgid "56 customers are due to reorder"
 msgstr "56 klienti on uuesti ostmas"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:59
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:112
 msgid "12 customers are slipping away"
 msgstr "12 klienti on eemaldumas"
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:61
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:114
 msgid "Create segment in Smaily"
 msgstr "Loo Smailys segment"
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:69
+msgid "Open in a new window"
+msgstr "Ava uues aknas"
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:77
+msgid "Intelligence needs a paid Smaily package. Your Smaily account is on the free package. Trying Intelligence is free, but it works only with a paid Smaily package. No store was created and nothing was sent."
+msgstr "Intelligence vajab Smaily tasulist paketti. Sinu Smaily konto on praegu tasuta paketil. Intelligence'i proovimine on tasuta, aga see töötab ainult tasulise Smaily paketiga. Poodi ei loodud ja midagi ei saadetud."
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:124
+msgid "Connecting the plugin…"
+msgstr "Ühendame pluginat…"
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:132
+msgid "Connecting your shop · Sending your shop address · Checking your Smaily account"
+msgstr "Ühendame sinu poe · Saadame poe aadressi · Kontrollime sinu Smaily kontot"
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:134
+msgid "Finish the setup in the window that opened. If the plugin does not connect by itself, copy the setup link that window shows into Setup URL under Connect Smaily Campaign Intelligence."
+msgstr "Lõpeta seadistus avanenud aknas. Kui plugin ise ühendust ei loo, kopeeri aknas näidatud seadistuslink välja „Seadistus-URL“ jaotises „Ühenda Smaily Campaign Intelligence“."
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:139
+msgid "The setup window did not open here."
+msgstr "Seadistusaken siin ei avanenud."
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:154
+msgid "Smaily refused the API login stored in this plugin. Check it in the plugin settings and try again. No store was created."
+msgstr "Smaily ei võtnud pluginas salvestatud API sisselogimist vastu. Kontrolli seda plugina seadetes ja proovi uuesti. Poodi ei loodud."
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:160
+msgid "Open the Smaily connection settings"
+msgstr "Ava Smaily ühenduse seaded"
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:165
+msgid "This Smaily account already has a store in Intelligence."
+msgstr "Sellel Smaily kontol on Intelligence'is juba pood."
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:168
+msgid "To connect this plugin, create a setup link in the console (Settings → Connections) and paste it here."
+msgstr "Plugina ühendamiseks loo konsoolis seadistuslink (Seaded → Ühendused) ja kleebi see siia."
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:176
+msgid "Smaily did not answer. Try again shortly."
+msgstr "Smaily ei vastanud. Proovi varsti uuesti."
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:178
+msgid "Campaign Intelligence could not be started. Try again later, or contact Smaily."
+msgstr "Campaign Intelligence'i ei õnnestunud käivitada. Proovi hiljem uuesti või võta Smailyga ühendust."
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:186
+msgid "Open console"
+msgstr "Ava konsool"
+
+#: admin/src/components/banners/IntelligenceStart.tsx:214
+msgid "Opening the setup window…"
+msgstr "Avame seadistusakent…"

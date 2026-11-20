@@ -70,7 +70,22 @@ export function Step4Recommendations({
       )}
 
       {bannerVariant !== null && (
-        <CampaignIntelligenceBanner variant={bannerVariant} smailyLoginUrl={banners.smailyLoginUrl} />
+        <CampaignIntelligenceBanner
+          variant={bannerVariant}
+          smailyLoginUrl={banners.smailyLoginUrl}
+          // "Try Intelligence free" (CON-175) connects through the same
+          // setup exchange as the field below, so the connected view follows
+          // the same way, with the imports notice.
+          onConnected={(response) => {
+            setCatalogImportDelay(response.catalogImport === 'started' ? response.catalogImportDelaySeconds : null);
+            dispatch({ type: 'TEST_REC_ENGINE_CONNECTION_SUCCESS', payload: { message: response.tenantName } });
+          }}
+          onShowSmailyConnection={() =>
+            inSettings
+              ? (window.location.hash = 'connection')
+              : dispatch({ type: 'WIZARD_GO_TO_STEP', payload: { step: 1 } })
+          }
+        />
       )}
 
       {/* Wizard-only pointer back to Step 3 (T2.2): the engine-run
