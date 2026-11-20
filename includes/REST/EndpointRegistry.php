@@ -16,6 +16,8 @@ use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\Report\InstallationReport;
+use Smaily\Connect\Report\ReportBuilder;
+use Smaily\Connect\Settings\CredentialSet;
 use Smaily\Connect\Settings\EmailDesignWorkflows;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\BackfillJobInterface;
@@ -173,6 +175,19 @@ final class EndpointRegistry {
 					return new RecEngineClient( $api_key, $base_url, $endpoints, 1 );
 				}
 			),
+			// "Try Intelligence free" (CON-175, contract §21): the start with
+			// the main Smaily account's login, from the server only. One
+			// key-less attempt on the engine host; the token it leads to goes
+			// through the setup-exchange route above.
+			new OnboardingEndpoint(
+				new RecEngineSettings(),
+				static function (): ?CredentialSet {
+					return ( new ReportBuilder() )->main_credentials();
+				},
+				static function (): RecEngineClient {
+					return new RecEngineClient( '', OnboardingEndpoint::ENGINE_BASE_URL, array(), 1, new RecEngineSettings(), OnboardingEndpoint::START_TIMEOUT_SECONDS );
+				}
+			),
 			new BeaconEndpoint(
 				new RecEngineSettings(),
 				static function ( string $api_key, string $base_url ): RecEngineClient {
@@ -293,6 +308,14 @@ final class EndpointRegistry {
 			array(
 				'method' => 'POST',
 				'path'   => '/rec-engine/console-entry',
+			),
+			array(
+				'method' => 'GET',
+				'path'   => '/rec-engine/onboarding/status',
+			),
+			array(
+				'method' => 'POST',
+				'path'   => '/rec-engine/onboarding/start',
 			),
 			// The public browse-beacon proxy. Registered unconditionally; the
 			// gate (connected + browse-tracking on) lives in the handler, which
