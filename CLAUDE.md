@@ -2000,6 +2000,32 @@ transactional account included). The mock answers `smaily_subdomain: null`
 unless a test calls `RecEngineMockServer::set_setup_smaily_subdomain()`, so a
 test that seeds Smaily credentials and connects is never refused by chance.
 
+### "Try Intelligence free" — the Smaily password stays on the server; tests build the endpoint on the mock (CON-175)
+`REST\OnboardingEndpoint` calls contract §21 (`/api/v1/onboarding/status`,
+`/api/v1/onboarding/start`) with a KEY-LESS `RecEngine\Client` (no
+`Authorization` header when the key is `''`) on the fixed
+`OnboardingEndpoint::ENGINE_BASE_URL` — there is no connection yet, so no
+stored base URL. Rules:
+- **The start body carries the main Smaily account's API password.** It is
+  built and sent in the PHP request only — never put it (or the whole body)
+  into a REST answer, an option, a queue row, a debug line or the boot
+  payload. The browser gets only `{start_url, display, engine_origin}`.
+- **The token handoff has no route of its own.** The start window's
+  `smaily_intelligence_setup` message (engine origin only) goes to the
+  existing `/rec-engine/setup-exchange`; never add a second exchange path.
+- **Integration-test trap:** the REGISTERED routes point at the real
+  engine. Build `OnboardingEndpoint` yourself with a client factory on
+  `RecEngineMockServer::base_url()` and call `status()` / `start()`
+  (`OnboardingTest::endpoint()`); dispatch through the route only for
+  refusals that happen before any engine call (no nonce, no session). The
+  mock plays §21 with `set_onboarding_open( true|false|'error' )`,
+  `set_onboarding_start_status( 400|401|403|404|409|429|502|0 )`,
+  `set_onboarding_console_url()` and `set_onboarding_frame( false )`, and
+  records each start (`onboarding_start_requests()`). The status answer and
+  the plugin's 10-per-minute counter are transients
+  (`OnboardingEndpoint::STATUS_TRANSIENT` / `THROTTLE_TRANSIENT`), which
+  `EnvScrub` does not sweep — delete them in setUp and tearDown.
+
 ### Merging `upstream/main` (sendsmaily) — MERGE, ours wins, and audit the CLEAN hunks
 **HISTORY once PR #135 has landed** (PRO-2281): after the merge there is ONE
 working repository and no upstream/fork split, so nothing routine merges
