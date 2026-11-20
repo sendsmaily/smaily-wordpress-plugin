@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.24.1
+Stable tag: 3.25.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -196,6 +196,20 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.25.0 =
+* New: Try Intelligence free. A store with a connected Smaily account can start Campaign Intelligence from the plugin, without asking Smaily for a setup link. The button appears when Smaily opens the self-service start; until then the banner offers Contact Smaily.
+* New: a Campaign Intelligence banner on the Campaign Intelligence tab, the setup wizard's step 4 and on top of Settings, where it can be dismissed for 30 days. When the Smaily package has no API access, it says so and links to your Smaily account.
+* New: a store with no connected Smaily account sees a Smaily invitation banner on the Dashboard and on the setup wizard's first step. Dismissing it hides it, and the one-line notice on other screens, for 90 days.
+* New: while Campaign Intelligence is connected, its tab tells you how to show recommended products in the store: the Smaily Recommendations block or the `[smaily_recommendations]` shortcode.
+* Fixed: product descriptions in the product RSS feed show their formatting in the email instead of HTML code, and product titles show quotes and ampersands as characters.
+* Fixed: profile fields that a developer adds to the My Account registration form are saved for the new customer.
+* Fixed: a newsletter form on a page whose address holds spaces or special characters, such as Estonian letters, returns the subscriber to that page.
+* Fixed: the RSS feed Limit field in the Integrations step never shows more than 100, the most the feed lists.
+* Fixed: the debug log and a stored error no longer include the database's own error text.
+* Changed: the admin screens use the React that WordPress already loads, so the plugin's admin download is smaller.
+* Changed: the product RSS feed's dates use the standard RSS format with a four-digit year and a time zone.
+* Updated to the Smaily Campaign Intelligence API contract v1.34.0.
+
 = 3.24.1 =
 * Security fix: the My Account → Account details form and the user profile in wp-admin show only the profile values of the user being edited. This fixes a reported information-disclosure issue, where a logged-in user could see another user's values.
 * Security fix: the Elementor Pro form action's "Other fields" list shows field names as plain text.
@@ -244,6 +258,9 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Updated to the Smaily Campaign Intelligence API contract v1.29.0.
 
 == Upgrade Notice ==
+
+= 3.25.0 =
+Adds Try Intelligence free and new Smaily and Campaign Intelligence banners, and the product RSS feed shows description formatting instead of HTML code.
 
 = 3.24.1 =
 Security release: fixes a reported issue where a logged-in user could see another user's profile values, and hardens the product RSS feed and the newsletter forms. Update now.
