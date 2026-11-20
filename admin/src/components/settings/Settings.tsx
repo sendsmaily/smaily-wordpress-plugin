@@ -215,7 +215,7 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
   // The Campaign Intelligence banner on top of Settings (CON-350). It can be
   // closed (back in 30 days), and it steps aside on the Campaign Intelligence
   // tab, which carries its own copy of the banner.
-  const [banners] = useState(bannerBoot);
+  const banners = bannerBoot();
   const [ciBannerClosed, setCiBannerClosed] = useState(banners.ciBannerDismissed);
   const ciBannerVariant = campaignIntelligenceBannerVariant(rawState, banners);
   const handleCloseCiBanner = useCallback((): void => {
@@ -308,7 +308,12 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
             <Step3WooCommerce state={rawState} dispatch={dispatch} inSettings />
           </TabPanel>
           <TabPanel active={activeTab === 'recommendations'}>
-            <Step4Recommendations state={rawState} dispatch={dispatch} inSettings />
+            <Step4Recommendations
+              state={rawState}
+              dispatch={dispatch}
+              inSettings
+              onShowSmailyConnection={() => setActiveTab('connection')}
+            />
           </TabPanel>
           <TabPanel active={activeTab === 'integrations'}>
             <Step5Integrations state={rawState} inSettings />

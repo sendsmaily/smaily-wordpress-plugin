@@ -1,4 +1,4 @@
-import { useCallback, useState, type Dispatch } from 'react';
+import { useCallback, type Dispatch } from 'react';
 
 import { __, sprintf } from '@admin/lib/i18n';
 import {
@@ -68,7 +68,7 @@ export function Step1Connect({
   const docsUrl = state.env.docsUrl ?? '';
   // The Smaily invitation (CON-351): while no Smaily account is connected —
   // the server's rule — and none has passed its test on this page yet.
-  const [banners] = useState(bannerBoot);
+  const banners = bannerBoot();
   const showInvitation = !banners.smailyAccountConnected && state.smailyConnection.kind !== 'success';
 
   return (

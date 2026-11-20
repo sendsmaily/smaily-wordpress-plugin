@@ -5,6 +5,7 @@ import {
   pingEngine,
   setupExchange,
   type SetupExchangeFailure,
+  type SetupExchangeSuccess,
 } from '../../api/recEngine';
 import { cancelBackfill } from '../../api/backfill';
 import { type WizardAction, type WizardState } from '../../state/types';
@@ -18,6 +19,8 @@ export interface Step4RecommendationsProps {
   state: WizardState;
   dispatch: Dispatch<WizardAction>;
   inSettings?: boolean;
+  /** Settings only: shows the Smaily connection tab (the wizard goes to step 1). */
+  onShowSmailyConnection?: () => void;
 }
 
 /**
@@ -44,6 +47,7 @@ export function Step4Recommendations({
   state,
   dispatch,
   inSettings = false,
+  onShowSmailyConnection,
 }: Step4RecommendationsProps): React.JSX.Element {
   const isConnected = state.recEngineConnection.kind === 'success';
   // Set by this page's own Connect (PRO-3743, CON-247): the exchange answers
@@ -53,8 +57,15 @@ export function Step4Recommendations({
   const [catalogImportDelay, setCatalogImportDelay] = useState<number | null>(null);
   // The invitation or upsell banner (CON-350) — on the wizard step and the
   // Settings tab alike, and never closable here.
-  const [banners] = useState(bannerBoot);
+  const banners = bannerBoot();
   const bannerVariant = campaignIntelligenceBannerVariant(state, banners);
+  // A setup exchange connected the store — from the field below or from
+  // "Try Intelligence free" (CON-175): the connected view follows, with the
+  // imports notice when the exchange started the catalog import.
+  const handleExchangeSuccess = (response: SetupExchangeSuccess): void => {
+    setCatalogImportDelay(response.catalogImport === 'started' ? response.catalogImportDelaySeconds : null);
+    dispatch({ type: 'TEST_REC_ENGINE_CONNECTION_SUCCESS', payload: { message: response.tenantName } });
+  };
 
   return (
     <div className="space-y-6">
@@ -73,17 +84,11 @@ export function Step4Recommendations({
         <CampaignIntelligenceBanner
           variant={bannerVariant}
           smailyLoginUrl={banners.smailyLoginUrl}
-          // "Try Intelligence free" (CON-175) connects through the same
-          // setup exchange as the field below, so the connected view follows
-          // the same way, with the imports notice.
-          onConnected={(response) => {
-            setCatalogImportDelay(response.catalogImport === 'started' ? response.catalogImportDelaySeconds : null);
-            dispatch({ type: 'TEST_REC_ENGINE_CONNECTION_SUCCESS', payload: { message: response.tenantName } });
-          }}
-          onShowSmailyConnection={() =>
+          onConnected={handleExchangeSuccess}
+          onShowSmailyConnection={
             inSettings
-              ? (window.location.hash = 'connection')
-              : dispatch({ type: 'WIZARD_GO_TO_STEP', payload: { step: 1 } })
+              ? onShowSmailyConnection
+              : () => dispatch({ type: 'WIZARD_GO_TO_STEP', payload: { step: 1 } })
           }
         />
       )}
@@ -123,7 +128,7 @@ export function Step4Recommendations({
           inSettings={inSettings}
         />
       ) : (
-        <SetupCard dispatch={dispatch} onConnected={setCatalogImportDelay} />
+        <SetupCard dispatch={dispatch} onConnected={handleExchangeSuccess} />
       )}
     </div>
   );
@@ -134,8 +139,8 @@ function SetupCard({
   onConnected,
 }: {
   dispatch: Dispatch<WizardAction>;
-  /** Told the started catalog import's delay in seconds, or null when none was started. */
-  onConnected: (catalogImportDelay: number | null) => void;
+  /** The exchange connected the store. */
+  onConnected: (response: SetupExchangeSuccess) => void;
 }): React.JSX.Element {
   const [setupUrl, setSetupUrl] = useState('');
   const [status, setStatus] = useState<'idle' | 'pending' | 'error'>('idle');
@@ -152,11 +157,7 @@ function SetupCard({
     const response = await setupExchange({ setupUrl: setupUrl.trim() });
 
     if (response.connected) {
-      onConnected(response.catalogImport === 'started' ? response.catalogImportDelaySeconds : null);
-      dispatch({
-        type: 'TEST_REC_ENGINE_CONNECTION_SUCCESS',
-        payload: { message: response.tenantName },
-      });
+      onConnected(response);
       setStatus('idle');
       // Wipe the local input so the (one-time-used) token doesn't
       // sit in the DOM after success.

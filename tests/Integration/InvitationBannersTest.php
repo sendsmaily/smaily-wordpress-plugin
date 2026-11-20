@@ -171,7 +171,8 @@ final class InvitationBannersTest extends TestCase {
 
 		wp_dequeue_style( NotificationManager::BANNER_STYLE_HANDLE );
 		$this->store_account();
-		$manager->enqueue_banner_style( 'index.php' );
+		// A new request: the manager decides the invitation once per request.
+		$this->manager()->enqueue_banner_style( 'index.php' );
 		self::assertFalse( wp_style_is( NotificationManager::BANNER_STYLE_HANDLE, 'enqueued' ) );
 	}
 

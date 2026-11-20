@@ -144,6 +144,9 @@ final class NotificationManager {
 
 	private ?ReportBuilder $report_builder;
 
+	/** invitation_due()'s answer for this request: the enqueue and the render both ask (null = not asked yet). */
+	private ?bool $invitation_due = null;
+
 	/**
 	 * @param callable():RecEngineClient $client_factory Lazily builds a connected
 	 *        rec-engine client (so we don't construct one when disconnected).
@@ -449,16 +452,16 @@ final class NotificationManager {
 	 * @param array<string, int> $dismissed
 	 */
 	private function render_invite_notice( array $dismissed, int $now ): void {
+		$screen = self::screen_id();
+		if ( strpos( $screen, 'smaily-connect' ) !== false ) {
+			return;
+		}
 		if ( ! $this->invitation_due( $dismissed, $now ) ) {
 			return;
 		}
 
-		$screen = self::screen_id();
 		if ( $screen === 'dashboard' ) {
 			$this->render_invite_banner();
-			return;
-		}
-		if ( strpos( $screen, 'smaily-connect' ) !== false ) {
 			return;
 		}
 
@@ -474,18 +477,25 @@ final class NotificationManager {
 
 	/**
 	 * Whether the invitation is shown at all: not dismissed in the last 90
-	 * days, and no Smaily marketing account connected.
+	 * days, and no Smaily marketing account connected. Decided once per
+	 * request — the Dashboard's enqueue and render both ask; dismiss()
+	 * forgets the answer.
 	 *
 	 * @param array<string, int> $dismissed
 	 */
 	private function invitation_due( array $dismissed, int $now ): bool {
+		if ( $this->invitation_due !== null ) {
+			return $this->invitation_due;
+		}
 		if ( $this->is_dismissed( self::INVITE_KEY, $dismissed, $now, self::INVITE_DISMISS_COOLDOWN ) ) {
+			$this->invitation_due = false;
 			return false;
 		}
 
 		$this->report_builder = $this->report_builder ?? new ReportBuilder();
+		$this->invitation_due = $this->report_builder->main_credentials() === null;
 
-		return $this->report_builder->main_credentials() === null;
+		return $this->invitation_due;
 	}
 
 	/**
@@ -593,10 +603,9 @@ final class NotificationManager {
 	 */
 	public static function banner_boot( ?ReportBuilder $report_builder = null, ?ConnectionHealth $health = null ): array {
 		$main      = ( $report_builder ?? new ReportBuilder() )->main_credentials();
+		// main_credentials() returns only a set whose lower-cased, trimmed
+		// subdomain matches ReportBuilder's subdomain pattern.
 		$subdomain = $main !== null ? strtolower( trim( $main->subdomain ) ) : '';
-		if ( ! preg_match( '/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $subdomain ) ) {
-			$subdomain = '';
-		}
 		$code      = $subdomain !== '' ? ( $health ?? new ConnectionHealth() )->smaily( $subdomain )['last_error_code'] : null;
 		$dismissed = (array) get_option( self::OPTION_DISMISSED, array() );
 
@@ -787,6 +796,7 @@ final class NotificationManager {
 
 	public function dismiss( string $key ): void {
 		self::record_dismissal( $key );
+		$this->invitation_due = null;
 	}
 
 	/** Stamp a dismissal now — the admin-post link and the REST route both land here. */

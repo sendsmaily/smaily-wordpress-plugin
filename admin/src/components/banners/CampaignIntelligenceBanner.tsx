@@ -57,8 +57,6 @@ export interface CampaignIntelligenceBannerProps {
   smailyLoginUrl: string;
   /** Given only on top of Settings: the banner there can be closed. */
   onDismiss?: () => void;
-  /** Overrides ciStartStatus()'s `start_open` — tests only. */
-  startOpen?: boolean;
   /** "Try Intelligence free" connected the store (CON-175): show the connected view. */
   onConnected?: (response: SetupExchangeSuccess) => void;
   /** Shows the Smaily connection settings — offered when Smaily refused the login. */
@@ -70,13 +68,12 @@ export function CampaignIntelligenceBanner({
   variant,
   smailyLoginUrl,
   onDismiss,
-  startOpen: startOpenOverride,
   onConnected,
   onShowSmailyConnection,
   className,
 }: CampaignIntelligenceBannerProps): React.JSX.Element {
   const [status, setStatus] = useState<OnboardingStatus>({ start_open: false, frame: false });
-  const asks = variant === 'invite' && startOpenOverride === undefined;
+  const asks = variant === 'invite';
   useEffect(() => {
     if (!asks) {
       return undefined;
@@ -98,7 +95,7 @@ export function CampaignIntelligenceBanner({
 
   // §21: a 403 is Smaily's code 227 — the upsell; a 404 closes the start.
   const upsell = variant === 'upsell' || refusal === 'smaily_paid_package_required';
-  const startOpen = (startOpenOverride ?? status.start_open) && refusal !== 'not_found';
+  const startOpen = status.start_open && refusal !== 'not_found';
   const busy = phase.kind === 'connecting' || start.exchange.status === 'pending';
 
   let action: React.ReactNode;

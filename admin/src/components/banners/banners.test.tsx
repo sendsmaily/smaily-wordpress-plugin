@@ -4,9 +4,15 @@ import { resolve } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { getOnboardingStatus } from '../../api/onboarding';
 import { wizardInitialState } from '../../state/wizard-reducer';
 import { Step1Connect } from '../steps/Step1Connect';
-import { bannerBoot, CampaignIntelligenceBanner } from '.';
+import { _resetBannerBoot, _resetCiStartStatus, bannerBoot, CampaignIntelligenceBanner } from '.';
+
+vi.mock('../../api/onboarding', () => ({
+  getOnboardingStatus: vi.fn(),
+  startOnboarding: vi.fn(),
+}));
 
 /** The Estonian msgstr the shipped catalog holds for a source string. */
 function estonianFor(msgid: string): string {
@@ -30,13 +36,16 @@ function setBanners(smailyAccountConnected: boolean): void {
 afterEach(() => {
   delete (window as unknown as { smailyConnectBoot?: unknown }).smailyConnectBoot;
   delete (window as unknown as { wp?: unknown }).wp;
+  _resetBannerBoot();
+  _resetCiStartStatus();
 });
 
 describe('Campaign Intelligence banner — the start button (CON-350)', () => {
-  it('offers Try Intelligence free once the start is open', () => {
-    render(<CampaignIntelligenceBanner variant="invite" smailyLoginUrl="" startOpen />);
+  it('offers Try Intelligence free once the start is open', async () => {
+    vi.mocked(getOnboardingStatus).mockResolvedValue({ start_open: true, frame: true });
+    render(<CampaignIntelligenceBanner variant="invite" smailyLoginUrl="" />);
 
-    expect(screen.getByRole('button', { name: 'Try Intelligence free' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Try Intelligence free' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Contact Smaily' })).not.toBeInTheDocument();
   });
 

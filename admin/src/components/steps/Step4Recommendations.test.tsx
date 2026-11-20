@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { wizardInitialState } from '../../state/wizard-reducer';
+import { _resetBannerBoot } from '../banners';
 import { Step4Recommendations } from './Step4Recommendations';
 
 const BODY =
@@ -15,6 +16,7 @@ const smailyConnected = {
 describe('Step4Recommendations — the Campaign Intelligence banner replaces the introduction (CON-350)', () => {
   afterEach(() => {
     delete (window as unknown as { smailyConnectBoot?: unknown }).smailyConnectBoot;
+    _resetBannerBoot();
   });
 
   it('shows the invitation with Contact Smaily above the setup link field in the wizard', () => {
