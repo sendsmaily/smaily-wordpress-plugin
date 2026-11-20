@@ -40,9 +40,7 @@ import {
   Toggle,
 } from '../primitives';
 import { EditDesign } from './EmailDesigns';
-
-/** Smaily's support page — where the merchant confirms real sends. */
-const SMAILY_SUPPORT_URL = 'https://smaily.com/help/';
+import { SMAILY_SUPPORT_URL } from '@admin/lib/links';
 
 export interface EngineAutomationsSectionProps {
   state: WizardState;

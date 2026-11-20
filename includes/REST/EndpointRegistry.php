@@ -192,6 +192,8 @@ final class EndpointRegistry {
 				new RecEngineSettings(),
 				new LandingCapture( new RecEngineSettings() )
 			),
+			// Closing the Campaign Intelligence banner on top of Settings (CON-350).
+			new NoticesEndpoint(),
 		);
 	}
 
@@ -312,6 +314,11 @@ final class EndpointRegistry {
 			array(
 				'method' => 'POST',
 				'path'   => '/land',
+			),
+			// Closing the Campaign Intelligence banner on top of Settings (CON-350).
+			array(
+				'method' => 'POST',
+				'path'   => '/notices/dismiss',
 			),
 		);
 	}

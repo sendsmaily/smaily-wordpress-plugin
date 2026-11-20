@@ -20,6 +20,18 @@ import {
   type WizardState,
 } from './types';
 
+/** See BootPayload.banners. */
+export interface BannerBoot {
+  /** A Smaily marketing account is connected (ReportBuilder::main_credentials()). */
+  smailyAccountConnected: boolean;
+  /** The account's last Smaily answer was 227: its package has no API access. */
+  smailyPlanBlocked: boolean;
+  /** The account's own Smaily address (`https://<subdomain>.sendsmaily.net/`), '' without one. */
+  smailyLoginUrl: string;
+  /** The Campaign Intelligence banner on top of Settings was closed in the last 30 days. */
+  ciBannerDismissed: boolean;
+}
+
 /**
  * Server-emitted boot payload — admin/wizard.php + admin/settings.php
  * call `wp_localize_script('smaily-connect-admin', 'smailyConnectBoot',
@@ -96,6 +108,12 @@ export interface BootPayload {
    * is https and on the admin's origin. Absent or false: a new tab.
    */
   designFrameable?: boolean;
+  /**
+   * Which invitation banners the screens show (CON-350, CON-351), from
+   * NotificationManager::banner_boot(). Absent from a boot blob written
+   * before it; read through `bannerBoot()`.
+   */
+  banners?: BannerBoot;
   savedSettings: {
     smailyCredentials: { subdomain: string; username: string; password: string };
     /**

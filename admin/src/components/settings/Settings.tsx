@@ -23,6 +23,8 @@ import {
 } from '../../state/types';
 import { wizardReducer } from '../../state/wizard-reducer';
 import { __, sprintf } from '@admin/lib/i18n';
+import { dismissNotice } from '../../api/notices';
+import { bannerBoot, CampaignIntelligenceBanner, campaignIntelligenceBannerVariant } from '../banners';
 import { Banner, Button, PillTabs } from '../primitives';
 import {
   Step1Connect,
@@ -210,6 +212,18 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
   const canSaveOrDiscard = tabIsDirty || engineDirty;
   const version = readBoot()?.version ?? '';
 
+  // The Campaign Intelligence banner on top of Settings (CON-350). It can be
+  // closed (back in 30 days), and it steps aside on the Campaign Intelligence
+  // tab, which carries its own copy of the banner.
+  const [banners] = useState(bannerBoot);
+  const [ciBannerClosed, setCiBannerClosed] = useState(banners.ciBannerDismissed);
+  const ciBannerVariant = campaignIntelligenceBannerVariant(rawState, banners);
+  const handleCloseCiBanner = useCallback((): void => {
+    setCiBannerClosed(true);
+    // A failed request only means the banner returns on the next load.
+    dismissNotice('ci_invitation').catch(() => undefined);
+  }, []);
+
   return (
     <div className="min-h-screen bg-page-bg font-sans text-text-primary">
       <div className="mx-auto max-w-5xl space-y-6 p-6">
@@ -247,6 +261,13 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
           />
         </header>
 
+        {ciBannerVariant !== null && !ciBannerClosed && activeTab !== 'recommendations' && (
+          <CampaignIntelligenceBanner
+            variant={ciBannerVariant}
+            smailyLoginUrl={banners.smailyLoginUrl}
+            onDismiss={handleCloseCiBanner}
+          />
+        )}
         {!isConnected && (
           <Banner tone="warning" title={__('Smaily connection required', 'smaily-connect')}>
             {__(

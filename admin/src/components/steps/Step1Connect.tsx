@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch } from 'react';
+import { useCallback, useState, type Dispatch } from 'react';
 
 import { __, sprintf } from '@admin/lib/i18n';
 import {
@@ -8,6 +8,7 @@ import {
   type WizardAction,
   type WizardState,
 } from '../../state/types';
+import { bannerBoot, SmailyInvitationBanner } from '../banners';
 import { Button, Card, Radio } from '../primitives';
 import { MultilingualModePicker } from '../wizard';
 import { CredentialBlock } from './CredentialBlock';
@@ -65,9 +66,15 @@ export function Step1Connect({
 
   const isModeA = state.multilingualMode === 'A' && state.env.detectedLanguages.length > 1;
   const docsUrl = state.env.docsUrl ?? '';
+  // The Smaily invitation (CON-351): while no Smaily account is connected —
+  // the server's rule — and none has passed its test on this page yet.
+  const [banners] = useState(bannerBoot);
+  const showInvitation = !banners.smailyAccountConnected && state.smailyConnection.kind !== 'success';
 
   return (
     <div className="space-y-6">
+      {showInvitation && <SmailyInvitationBanner />}
+
       {!inSettings && (
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-text-tertiary">

@@ -11630,3 +11630,47 @@ same React.
 **Relationships:** supersedes "Plugin Check 2.2.0 inlined-React errors
 accepted for 3.23.0"; CLAUDE.md "Running PCP" and release step 6 expect
 0 ERRORS / 17 WARNINGS; `docs/audits/INDEX.md` records the PCP run.
+
+### CON-350 / CON-351 — The invitation banners: HTML, a Dashboard banner, and a start button behind INT-298 (Erkki, 2026-11-19)
+
+**Context:** marketing designed two invitation banners (Linear GMS-52): one
+for Campaign Intelligence (with an upsell variant for a Smaily plan without
+API access) and one for a store with no Smaily account. The wizard's step 4
+introduction named a price (€250 a month) and told the merchant to contact
+Smaily; the no-account invitation was a one-line notice on every admin screen.
+**Decision (Erkki, 19 Nov):**
+- The banners are HTML and CSS, not the design's PNGs: every visible word is
+  a translatable string (EN + ET), the decorative right-hand panel is hidden
+  from assistive technology and from narrow screens. One React component
+  serves both banners; the Dashboard copy is printed by PHP with a small
+  stylesheet loaded only there and only while it shows.
+- Campaign Intelligence banner: wizard step 4 and the Campaign Intelligence
+  tab always (above the setup link field, which stays); on top of the other
+  Settings tabs, closable for 30 days. It replaces the price text. Its button
+  is **Contact Smaily**, opening the plugin's existing support link
+  (`https://smaily.com/help/` — the old text had no link of its own), until
+  the engine can say the self-service start is open (INT-298). That choice
+  sits behind one function, `ciStartOpen()`, returning false; CON-175 wires
+  the signal and the start window. "Try Intelligence free" is translated now
+  and shown by nothing yet.
+- The upsell shows when the Smaily account's last answer was 227 (the code
+  `ConnectionHealth` stores for the main account); its button opens the
+  account's own Smaily address.
+- Smaily invitation: a full banner on the WordPress Dashboard, accepted
+  despite the WordPress.org guideline 11 risk (admin nags and dashboard
+  advertising draw review attention); it is printed on `admin_notices` for
+  the `dashboard` screen only, to administrators, until an account is
+  connected, and shares the one-line notice's 90-day dismissal — closing
+  either hides both. On the plugin's own screens the one-line notice is not
+  printed: wizard step 1 carries the (unclosable) React banner. Every other
+  admin screen keeps the one-line notice, with Tanel's text (CON-324).
+**Rationale:** real text keeps the banners translatable and readable by
+assistive technology; one dismissal per invitation means a merchant who
+closed it once is not asked again elsewhere; a single start-button switch
+keeps CON-175 to wiring.
+**Alternatives:** the `welcome_panel` hook for the Dashboard — rejected: it
+replaces WordPress's own welcome panel and follows each user's "show welcome"
+setting. Showing the one-line notice beside the banner on the plugin's
+screens — rejected: the same invitation twice on one screen.
+**Relationships:** CON-321 (the invitation notice), CON-324 (Tanel's text),
+INT-298 / CON-175 (the start window), GMS-52 (the design).

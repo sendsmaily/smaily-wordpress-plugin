@@ -272,6 +272,8 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 		// "Edit design" opens the engine's design page in a frame over the
 		// admin only where the engine allows it (CON-288), else in a new tab.
 		'designFrameable' => \Smaily\Connect\REST\EmailDesignsEndpoint::frameable( (string) get_site_url(), (string) admin_url() ),
+		// Which invitation banners the screens show (CON-350, CON-351).
+		'banners'         => \Smaily\Connect\Notifications\NotificationManager::banner_boot(),
 	);
 
 	wp_add_inline_script(

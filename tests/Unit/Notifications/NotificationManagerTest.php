@@ -167,7 +167,7 @@ final class NotificationManagerTest extends TestCase {
 
 	// --- the invitation to a store with no Smaily account (CON-321) ----------
 
-	private const INVITE_TEXT = 'Smaily Connect: no Smaily account is connected.';
+	private const INVITE_TEXT = 'Connect your store to Smaily to sync contacts and set up automated emails.';
 
 	/**
 	 * What render() prints for a user, with the given main account and
