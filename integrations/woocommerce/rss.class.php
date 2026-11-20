@@ -176,10 +176,10 @@ class Rss {
 				'regular_price' => $regular_price,
 				'discount'      => Helper::calculate_discount( floatval( $current_price ), floatval( $regular_price ) ),
 				'url'           => $url,
-				'title'         => $product->get_title(),
-				'created_at'    => $product->get_date_created()->format( DATE_RFC822 ),
+				'title'         => self::plain_text( $product->get_title() ),
+				'created_at'    => $product->get_date_created()->format( DATE_RSS ),
 				'enclosure_url' => self::get_product_image_url( $product->get_id() ),
-				'description'   => do_shortcode( $product->get_description() ),
+				'description'   => wp_kses_post( do_shortcode( $product->get_description() ) ),
 			);
 
 			$items[] = $rss_feed_item;
@@ -203,6 +203,36 @@ class Rss {
 			return self::MAX_FEED_ITEMS;
 		}
 		return $limit;
+	}
+
+	/**
+	 * A product title as the plain text the feed carries.
+	 *
+	 * Smaily shows the title as text, so an entity in it (WordPress stores
+	 * `&` as `&amp;`) or a tag reached the email as visible text. The tags
+	 * go, entities become their characters and every run of whitespace
+	 * becomes one space.
+	 *
+	 * @param string $html The stored title.
+	 * @return string
+	 */
+	public static function plain_text( string $html ): string {
+		$text = html_entity_decode( wp_strip_all_tags( $html ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		// With /u, \s also matches the no-break space `&nbsp;` decodes to.
+		$collapsed = preg_replace( '/\s+/u', ' ', $text );
+
+		return trim( $collapsed ?? $text );
+	}
+
+	/**
+	 * A value for the inside of a feed CDATA section: a `]]>` in it would
+	 * end the section, so it is split across two sections.
+	 *
+	 * @param string $text
+	 * @return string
+	 */
+	public static function cdata( string $text ): string {
+		return str_replace( ']]>', ']]]]><![CDATA[>', $text );
 	}
 
 	/**

@@ -25,16 +25,16 @@ header( 'Content-Type: application/xml' );
 <rss xmlns:smly="https://sendsmaily.net/schema/editor/rss.xsd" version="2.0">
 	<channel>
 		<title><![CDATA[Store]]></title>
-		<link><![CDATA[<?php echo esc_url( get_site_url() ); ?>]]></link>
+		<link><![CDATA[<?php echo esc_url_raw( get_site_url() ); ?>]]></link>
 		<description><![CDATA[Product Feed]]></description>
-		<lastBuildDate><![CDATA[<?php echo esc_html( wp_date( 'D, d M Y H:i:s' ) ); ?>]]></lastBuildDate>
+		<lastBuildDate><![CDATA[<?php echo esc_html( gmdate( DATE_RSS ) ); ?>]]></lastBuildDate>
 		<?php foreach ( $items as $item ) : ?>
 			<item>
-				<title><![CDATA[<?php echo esc_html( $item['title'] ); ?>]]></title>
-				<link><![CDATA[<?php echo esc_url( $item['url'] ); ?>]]></link>
-				<guid isPermaLink="True"><![CDATA[<?php echo esc_url( $item['url'] ); ?>]]></guid>
+				<title><![CDATA[<?php echo Rss::cdata( $item['title'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- plain text (Rss::plain_text) inside CDATA; Rss::cdata splits a `]]>`. ?>]]></title>
+				<link><![CDATA[<?php echo esc_url_raw( $item['url'] ); ?>]]></link>
+				<guid isPermaLink="True"><![CDATA[<?php echo esc_url_raw( $item['url'] ); ?>]]></guid>
 				<pubDate><![CDATA[<?php echo esc_html( $item['created_at'] ); ?>]]></pubDate>
-				<description><![CDATA[<?php echo esc_html( $item['description'] ); ?>]]></description>
+				<description><![CDATA[<?php echo Rss::cdata( $item['description'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the store's description HTML (wp_kses_post) inside CDATA; Rss::cdata splits a `]]>`. ?>]]></description>
 				<enclosure url="<?php echo esc_html( $item['enclosure_url'] ); ?>"/>
 				<smly:price><![CDATA[<?php echo esc_html( number_format( floatval( $item['current_price'] ), 2, '.', ',' ) . html_entity_decode( $currencysymbol, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) ); ?>]]></smly:price>
 				<?php if ( $item['discount'] > 0 ) : ?>
