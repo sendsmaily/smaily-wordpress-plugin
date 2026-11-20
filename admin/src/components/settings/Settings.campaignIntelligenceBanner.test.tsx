@@ -10,6 +10,7 @@ import { _resetUseWorkflowsCache } from '../../hooks/useWorkflows';
 import { type BannerBoot } from '../../state/hydrate';
 import { buildSettingsInitialState } from '../../state/settings-reducer';
 import { type WizardState } from '../../state/types';
+import { _resetBannerBoot } from '../banners';
 import { Settings } from './Settings';
 
 /**
@@ -77,6 +78,7 @@ describe('Settings — the Campaign Intelligence banner (CON-350)', () => {
     window.location.hash = '';
     delete (window as unknown as { wp?: unknown }).wp;
     delete (window as unknown as { smailyConnectBoot?: unknown }).smailyConnectBoot;
+    _resetBannerBoot();
   });
 
   it('invites the store on top of Settings, with Contact Smaily', () => {

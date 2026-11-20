@@ -18,7 +18,6 @@ use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\SetupExchange;
 use Smaily\Connect\Support\Url;
-use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -57,6 +56,8 @@ use WP_REST_Response;
  */
 class OnboardingEndpoint {
 
+	use AdminSession;
+
 	public const ROUTE_STATUS = '/rec-engine/onboarding/status';
 
 	public const ROUTE_START = '/rec-engine/onboarding/start';
@@ -82,9 +83,6 @@ class OnboardingEndpoint {
 
 	/** No cache, shared or private, may keep a one-time link. */
 	private const CACHE_CONTROL = 'no-store, private';
-
-	/** §21 `admin_email` limit. */
-	private const EMAIL_MAX = 254;
 
 	private RecEngineSettings $settings;
 
@@ -131,30 +129,6 @@ class OnboardingEndpoint {
 				),
 			)
 		);
-	}
-
-	/**
-	 * The admin's own session, the CSRF nonce and the capability.
-	 *
-	 * @return bool|WP_Error
-	 */
-	public function admin_check( WP_REST_Request $request ) {
-		$nonce = (string) $request->get_header( 'X-WP-Nonce' );
-		if ( ! is_user_logged_in() || $nonce === '' || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-			return new WP_Error(
-				'smaily_connect_forbidden',
-				__( 'Your session has expired. Reload the page and try again.', 'smaily-connect' ),
-				array( 'status' => 403 )
-			);
-		}
-		if ( ! current_user_can( Constants::CAPABILITY ) ) {
-			return new WP_Error(
-				'smaily_connect_forbidden',
-				__( 'You do not have permission to manage Campaign Intelligence.', 'smaily-connect' ),
-				array( 'status' => 403 )
-			);
-		}
-		return true;
 	}
 
 	public function status( WP_REST_Request $request ): WP_REST_Response {
@@ -289,12 +263,6 @@ class OnboardingEndpoint {
 	/** §21 `language`: the start window in Estonian for an Estonian admin, else English. */
 	private static function admin_language(): string {
 		return strtolower( substr( (string) get_user_locale(), 0, 2 ) ) === 'et' ? 'et' : 'en';
-	}
-
-	/** The signed-in admin's own email — never a customer's — or ''. */
-	private static function admin_email(): string {
-		$email = trim( (string) wp_get_current_user()->user_email );
-		return ( $email !== '' && strlen( $email ) <= self::EMAIL_MAX && is_email( $email ) !== false ) ? $email : '';
 	}
 
 	/**

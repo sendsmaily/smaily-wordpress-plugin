@@ -2199,6 +2199,14 @@ repo: a red staleness run is the signal to sync.
   version may have written (the legacy-cart drain, tracker `cart_content`,
   queue payloads) treats them as wire input: shape guards + per-row Throwable
   backstop, terminal-mark, never an eternal retry loop.
+- **Don't let a request whose body carries a secret follow a redirect.** The
+  §21 "Try Intelligence free" start POSTs the Smaily API password, so
+  `RecEngine\Client::request_url()` sends it with `redirection` 0 — a
+  301/307/308 would resend the body to wherever the answer points. A new
+  call that sends a password or a key in its body does the same. The two
+  key-less §21 calls also announce no `RESULT_HOOK` result: they run before
+  any connection exists, so ConnectionHealth must not record them as the
+  engine connection's health.
 
 ---
 

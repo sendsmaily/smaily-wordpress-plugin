@@ -16,7 +16,6 @@ use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
 use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Support\Url;
-use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -52,14 +51,12 @@ use WP_REST_Response;
 class ConsoleEntryEndpoint {
 
 	use RecEngineProxy;
+	use AdminSession;
 
 	public const ROUTE = '/rec-engine/console-entry';
 
 	/** No cache, shared or private, may keep a one-time link. */
 	private const CACHE_CONTROL = 'no-store, private';
-
-	/** §24 `email` limit. */
-	private const EMAIL_MAX = 254;
 
 	/**
 	 * @param callable(string $api_key, string $base_url, array<string, string> $endpoints): Client $client_factory
@@ -81,23 +78,6 @@ class ConsoleEntryEndpoint {
 		);
 	}
 
-	/**
-	 * The admin's own session, the CSRF nonce and the capability.
-	 *
-	 * @return bool|WP_Error
-	 */
-	public function admin_check( WP_REST_Request $request ) {
-		$nonce = (string) $request->get_header( 'X-WP-Nonce' );
-		if ( ! is_user_logged_in() || $nonce === '' || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-			return new WP_Error(
-				'smaily_connect_forbidden',
-				__( 'Your session has expired. Reload the page and try again.', 'smaily-connect' ),
-				array( 'status' => 403 )
-			);
-		}
-		return $this->permission_check( $request );
-	}
-
 	public function open( WP_REST_Request $request ): WP_REST_Response {
 		if ( $this->settings->is_refused() ) {
 			return self::answer( array( 'error' => 'tenant_inactive' ), 403 );
@@ -108,7 +88,7 @@ class ConsoleEntryEndpoint {
 			return self::answer( array( 'error' => 'not_available' ), 503 );
 		}
 
-		$email = $this->admin_email();
+		$email = self::admin_email();
 		if ( $email === '' ) {
 			return self::answer( array( 'error' => 'no_admin_email' ), 400 );
 		}
@@ -145,13 +125,6 @@ class ConsoleEntryEndpoint {
 			return '';
 		}
 		return $origin . '/login';
-	}
-
-	/** The signed-in admin's own email — never a customer's — or ''. */
-	private function admin_email(): string {
-		$user  = wp_get_current_user();
-		$email = trim( (string) $user->user_email );
-		return ( $email !== '' && strlen( $email ) <= self::EMAIL_MAX && is_email( $email ) !== false ) ? $email : '';
 	}
 
 	/** A web link the admin may open: https, or on the engine's own origin. */

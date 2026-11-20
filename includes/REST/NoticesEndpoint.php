@@ -13,7 +13,6 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
 use Smaily\Connect\Notifications\NotificationManager;
-use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -33,6 +32,8 @@ use WP_REST_Response;
  */
 class NoticesEndpoint {
 
+	use AdminSession;
+
 	public const ROUTE = '/notices/dismiss';
 
 	/** The keys this route may stamp. */
@@ -50,26 +51,9 @@ class NoticesEndpoint {
 		);
 	}
 
-	/**
-	 * @return bool|WP_Error
-	 */
-	public function admin_check( WP_REST_Request $request ) {
-		$nonce = (string) $request->get_header( 'X-WP-Nonce' );
-		if ( ! is_user_logged_in() || $nonce === '' || ! wp_verify_nonce( $nonce, 'wp_rest' ) ) {
-			return new WP_Error(
-				'smaily_connect_forbidden',
-				__( 'Your session has expired. Reload the page and try again.', 'smaily-connect' ),
-				array( 'status' => 403 )
-			);
-		}
-		if ( ! current_user_can( Constants::CAPABILITY ) ) {
-			return new WP_Error(
-				'smaily_connect_forbidden',
-				__( 'You do not have permission to view this page.', 'smaily-connect' ),
-				array( 'status' => 403 )
-			);
-		}
-		return true;
+	/** This route closes a banner; it manages no Campaign Intelligence. */
+	protected function capability_error(): string {
+		return __( 'You do not have permission to view this page.', 'smaily-connect' );
 	}
 
 	public function dismiss( WP_REST_Request $request ): WP_REST_Response {
