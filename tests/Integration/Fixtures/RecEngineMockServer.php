@@ -365,6 +365,48 @@ final class RecEngineMockServer {
 		$this->write_state( array( 'history_progress_status' => $status ) );
 	}
 
+	/**
+	 * Play §21 "Is the start open?" (CON-175): true, false (the default, as
+	 * in production today) or 'error' (a 500 the plugin reads as false).
+	 *
+	 * @param bool|string $open
+	 */
+	public function set_onboarding_open( $open ): void {
+		$this->write_state( array( 'onboarding_open' => $open ) );
+	}
+
+	/** How many §21 status calls reached the engine. */
+	public function onboarding_status_count(): int {
+		return (int) ( $this->state()['onboarding_status_count'] ?? 0 );
+	}
+
+	/**
+	 * Play a §21 start refusal: 400 (frame_origin_not_allowed), 401, 403,
+	 * 404, 409 (+ console_url), 429 or 502; 0 answers the start link again.
+	 */
+	public function set_onboarding_start_status( int $status ): void {
+		$this->write_state( array( 'onboarding_start_status' => $status ) );
+	}
+
+	/** The `console_url` a 409 names (default: a console on the mock's origin). */
+	public function set_onboarding_console_url( string $url ): void {
+		$this->write_state( array( 'onboarding_console_url' => $url ) );
+	}
+
+	/** Play an engine without the frame mode: no `display` in the answer. */
+	public function set_onboarding_frame( bool $frame ): void {
+		$this->write_state( array( 'onboarding_frame' => $frame ) );
+	}
+
+	/**
+	 * Every §21 start the engine received, each `{body, authorization}`.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function onboarding_start_requests(): array {
+		return (array) ( $this->state()['onboarding_start_requests'] ?? array() );
+	}
+
 	public function reset_request_count(): void {
 		$this->write_state(
 			array(
