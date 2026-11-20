@@ -113,6 +113,9 @@ final class InvitationBannersTest extends TestCase {
 		self::assertStringContainsString( 'Log in to Smaily: gear icon', $html );
 		self::assertStringContainsString( 'key=' . NotificationManager::INVITE_KEY, $html, 'The banner closes through the invitation\'s own dismissal.' );
 		self::assertStringNotContainsString( 'notice-info', $html, 'No one-line notice beside the banner.' );
+		self::assertStringContainsString( '<path fill="currentColor" d="M24.2563 0H4.8576', $html, 'The logo passes wp_kses() whole.' );
+		self::assertStringContainsString( '<circle cx="17" cy="19" r="1.5"', $html, 'The panel icons pass wp_kses() whole.' );
+		self::assertStringContainsString( 'stroke-linejoin="round" focusable="false">', $html );
 	}
 
 	public function test_other_admin_screens_keep_the_one_line_notice(): void {

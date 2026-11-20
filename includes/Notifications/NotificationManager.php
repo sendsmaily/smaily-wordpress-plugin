@@ -99,6 +99,41 @@ final class NotificationManager {
 	/** The stylesheet of the Smaily invitation banner on the Dashboard (CON-351). */
 	public const BANNER_STYLE_HANDLE = 'smaily-connect-banner';
 
+	/**
+	 * What the banner's static SVG markup may carry through wp_kses() — the
+	 * elements and attributes icon_svg() and smaily_logo_svg() use, nothing
+	 * more (attribute names lower case: kses compares them that way).
+	 */
+	private const SVG_ALLOWED = array(
+		'svg'    => array(
+			'viewbox'         => true,
+			'width'           => true,
+			'height'          => true,
+			'fill'            => true,
+			'stroke'          => true,
+			'stroke-width'    => true,
+			'stroke-linecap'  => true,
+			'stroke-linejoin' => true,
+			'focusable'       => true,
+		),
+		'path'   => array(
+			'd'    => true,
+			'fill' => true,
+		),
+		'rect'   => array(
+			'x'      => true,
+			'y'      => true,
+			'width'  => true,
+			'height' => true,
+			'rx'     => true,
+		),
+		'circle' => array(
+			'cx' => true,
+			'cy' => true,
+			'r'  => true,
+		),
+	);
+
 	private RecEngineSettings $settings;
 
 	/** @var callable():RecEngineClient */
@@ -469,7 +504,7 @@ final class NotificationManager {
 		<div class="notice smaily-connect-banner" role="region" aria-label="Smaily">
 			<div class="smaily-connect-banner__main">
 				<div class="smaily-connect-banner__head">
-					<span class="smaily-connect-banner__logo" aria-hidden="true"><?php echo self::smaily_logo_svg(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static markup. ?></span>
+					<span class="smaily-connect-banner__logo" aria-hidden="true"><?php echo wp_kses( self::smaily_logo_svg(), self::SVG_ALLOWED ); ?></span>
 					<h2 class="smaily-connect-banner__title">Smaily</h2>
 				</div>
 				<p class="smaily-connect-banner__body"><?php echo esc_html__( 'Connect your store to Smaily to sync contacts and set up automated emails.', 'smaily-connect' ); ?></p>
@@ -483,7 +518,7 @@ final class NotificationManager {
 				<p class="smaily-connect-banner__panel-label"><?php echo esc_html__( 'Smaily in action', 'smaily-connect' ); ?></p>
 				<?php foreach ( $rows as $index => $row ) : ?>
 					<div class="smaily-connect-banner__row smaily-connect-banner__row--<?php echo (int) $index; ?>">
-						<span class="smaily-connect-banner__icon smaily-connect-banner__icon--<?php echo esc_attr( $row[0] ); ?>"><?php echo self::icon_svg( $row[0] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static markup. ?></span>
+						<span class="smaily-connect-banner__icon smaily-connect-banner__icon--<?php echo esc_attr( $row[0] ); ?>"><?php echo wp_kses( self::icon_svg( $row[0] ), self::SVG_ALLOWED ); ?></span>
 						<span class="smaily-connect-banner__row-text"><?php echo esc_html( $row[1] ); ?></span>
 						<span class="smaily-connect-banner__chip"><?php echo esc_html__( 'Automated', 'smaily-connect' ); ?></span>
 					</div>

@@ -30,7 +30,8 @@ use Smaily\Connect\Smaily\RecEngine\Client as EngineClient;
  *   - `RecEngine\Client::request_url()` fires its RESULT_HOOK with '' or
  *     the engine's error code (`network_error` when no answer came), the
  *     method and the `/ingest/` path ('' for any other path); a 2xx POST
- *     to an `/ingest/` path is a sync.
+ *     to an `/ingest/` path is a sync. The key-less §21 onboarding calls
+ *     announce nothing: they run before any connection exists.
  *
  * This class decides what counts as a sync and records them in one option.
  * It stores codes only, never a message text (CON-301). A shopper's `/relay`

@@ -3,7 +3,9 @@
  * RecEngine Client §21 onboarding (CON-175): the status read and the start
  * go to their path constants with no key — the store has none yet — the
  * status in the one short attempt, the start in the attempt and timeout the
- * client was built with.
+ * client was built with. Neither follows a redirect (the start's body
+ * carries the Smaily password) nor announces a result to ConnectionHealth
+ * (no connection exists yet).
  *
  * @package Smaily\Connect\Tests
  */
@@ -13,6 +15,7 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 
 use Brain\Monkey;
+use Brain\Monkey\Actions;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
@@ -69,6 +72,49 @@ final class ClientOnboardingTest extends TestCase {
 		self::assertSame( '{"platform":"woocommerce"}', $this->requests[0]['args']['body'] );
 		self::assertSame( 10, $this->requests[0]['args']['timeout'] );
 		self::assertArrayNotHasKey( 'Authorization', $this->requests[0]['args']['headers'] );
+	}
+
+	public function test_the_start_never_follows_a_redirect(): void {
+		$this->engine_answers( 200, '{"start_url":"https://intelligence.smaily.com/start/abc"}' );
+
+		$this->client()->onboarding_start( array( 'smaily_password' => 'secret' ) );
+
+		self::assertCount( 1, $this->requests );
+		self::assertSame( 0, $this->requests[0]['args']['redirection'], 'A 301/307/308 must never resend the password elsewhere.' );
+	}
+
+	public function test_the_onboarding_calls_leave_connection_health_untouched(): void {
+		// ConnectionHealth records an engine answer only from this hook.
+		Actions\expectDone( Client::RESULT_HOOK )->never();
+
+		$this->engine_answers( 200, '{"start_open":true}' );
+		$this->client()->onboarding_status();
+		$this->client()->onboarding_start( array() );
+
+		$this->engine_answers( 401, '{"error":"invalid_credentials"}' );
+		try {
+			$this->client()->onboarding_start( array() );
+			self::fail( 'A 401 must throw.' );
+		} catch ( ApiException $e ) {
+			self::assertSame( 'invalid_credentials', $e->error_code() );
+		}
+
+		Functions\when( 'wp_remote_request' )->justReturn( new \WP_Error( 'http_request_failed', 'down' ) );
+		Functions\when( 'is_wp_error' )->justReturn( true );
+		try {
+			$this->client()->onboarding_status();
+			self::fail( 'No answer must throw.' );
+		} catch ( ApiException $e ) {
+			self::assertSame( 'network_error', $e->error_code() );
+		}
+	}
+
+	public function test_a_keyed_call_still_announces_its_result(): void {
+		Actions\expectDone( Client::RESULT_HOOK )->once()->with( '', 'POST', '/api/v1/ingest/browse' );
+
+		$this->engine_answers( 200, '{"ok":true}' );
+		$client = new Client( 'key', 'https://intelligence.smaily.com', array(), 1 );
+		self::assertSame( array( 'ok' => true ), $client->ingest_browse( array() ) );
 	}
 
 	public function test_a_store_that_exists_carries_its_console_address(): void {

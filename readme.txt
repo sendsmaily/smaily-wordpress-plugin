@@ -104,7 +104,12 @@ When a Smaily account is connected, Smaily Connect sends Smaily (https://subscri
 
 **Smaily Campaign Intelligence — optional**
 
-If the site administrator connects Campaign Intelligence using a one-time setup link issued by Smaily, the plugin sends the following WooCommerce data to that service:
+Campaign Intelligence (https://intelligence.smaily.com) is connected by the site administrator, either with a one-time setup link issued by Smaily or by starting it from the plugin with "Try Intelligence free". Before a connection exists, the plugin contacts the service only in these two cases:
+
+* when the site administrator opens Settings or setup step 4 while a Smaily account is connected and Campaign Intelligence is not, a request that asks whether the store can start Campaign Intelligence from the plugin (at most once per 5 minutes per site). It carries no personal data: the service sees only the site's IP address and the plugin's User-Agent; and
+* when the site administrator presses "Try Intelligence free", the shop address, the main Smaily account's subdomain, API username and password, the signed-in administrator's email address and the administrator's language, to start Campaign Intelligence for the store.
+
+Once Campaign Intelligence is connected, the plugin sends the following WooCommerce data to that service:
 
 * product catalog data, including titles, prices, categories, stock status and product URLs;
 * once a night, the store's complete list of product identifiers and the stock status of each, so Campaign Intelligence can remove products the store no longer offers;

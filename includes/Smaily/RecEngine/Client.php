@@ -711,7 +711,7 @@ class Client {
 	 * the server only and never logged; the client is built without a key.
 	 * The engine checks the login with one Smaily call before it answers, so
 	 * the caller builds this client with one attempt and a longer timeout
-	 * than BROWSE_TIMEOUT_SECONDS.
+	 * than BROWSE_TIMEOUT_SECONDS. No redirect is followed (request_url()).
 	 *
 	 * @param array<string, string> $body
 	 *
@@ -807,6 +807,16 @@ class Client {
 		// Encoded once: every attempt sends the same bytes. An empty body is
 		// the JSON object `{}` (§22), not the list `[]` wp_json_encode() makes.
 		$json = $body !== null ? ( $body === array() ? '{}' : (string) wp_json_encode( $body ) ) : null;
+		// The key-less §21 onboarding calls (CON-175) run before any
+		// connection exists: they never follow a redirect (the start's body
+		// carries the Smaily password, which a 301/307/308 must never resend
+		// elsewhere) and never announce a result (there is no engine
+		// connection whose health they could describe).
+		$onboarding = in_array(
+			$url,
+			array( $this->base_url . self::PATH_ONBOARDING_START, $this->base_url . self::PATH_ONBOARDING_STATUS ),
+			true
+		);
 
 		while ( true ) {
 			++$attempts;
@@ -829,7 +839,7 @@ class Client {
 				$args['headers']['Content-Type'] = 'application/json';
 				$args['body']                    = $json;
 			}
-			if ( $single_attempt ) {
+			if ( $single_attempt || $onboarding ) {
 				// Each redirect hop would get its own timeout.
 				$args['redirection'] = 0;
 			}
@@ -837,7 +847,9 @@ class Client {
 			$response = wp_remote_request( $url, $args );
 			if ( is_wp_error( $response ) ) {
 				if ( $attempts >= $max_attempts ) {
-					$this->announce_result( 'network_error', $method, $url );
+					if ( ! $onboarding ) {
+						$this->announce_result( 'network_error', $method, $url );
+					}
 					// The WP_Error's code, never its text (CON-301).
 					throw new ApiException(
 						0,
@@ -858,7 +870,9 @@ class Client {
 			$this->check_engine_version( wp_remote_retrieve_header( $response, 'x-engine-version' ) );
 
 			if ( $status >= 200 && $status < 300 ) {
-				$this->announce_result( '', $method, $url );
+				if ( ! $onboarding ) {
+					$this->announce_result( '', $method, $url );
+				}
 				return $decoded;
 			}
 
@@ -880,7 +894,9 @@ class Client {
 
 			$retry_after = $status === 429 ? self::retry_after_of( $decoded, $response ) : 0;
 
-			$this->announce_result( $error_code, $method, $url );
+			if ( ! $onboarding ) {
+				$this->announce_result( $error_code, $method, $url );
+			}
 
 			throw new ApiException( $status, $error_code, $message, $decoded, $retry_after > 0 ? $retry_after : null );
 		}
@@ -890,7 +906,7 @@ class Client {
 	 * Tell the installation report how this request went (CON-290,
 	 * RESULT_HOOK): '' or the error code, the method, and the URL path only
 	 * when it is an `/ingest/` path. A code only, never a message text or a
-	 * customer identifier.
+	 * customer identifier. Not called for the §21 onboarding calls.
 	 */
 	private function announce_result( string $error_code, string $method, string $url ): void {
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- wp_parse_url() only adds a PHP < 5.4.7 fallback; the plugin needs PHP 8.0, and this runs on every engine call, unit tests included.
