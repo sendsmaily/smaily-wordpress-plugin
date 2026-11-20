@@ -11735,3 +11735,38 @@ acceptance once Smaily switches it on. The live status read answered
 **Relationships:** CON-350 (the banner and its `ciStartOpen()` stub, now
 `ciStartStatus()`), CON-288 / CON-311 (the design window this copies),
 CON-247 (imports on connect), INT-298 (the status signal).
+
+### CON-353 — The product RSS feed sends the description as HTML and the title as plain text (Erkki, 2026-11-20)
+
+**Context:** a customer's Smaily newsletter showed product descriptions as
+markup (`<strong> Üldinfo</strong> <ul> …`). The feed template put every
+value inside CDATA through `esc_html()`, so the description's own HTML went
+out as `&lt;strong&gt;…` text and titles as `Pojeng &quot;…&quot;`. The
+`esc_html()` came from the January 2025 late-escaping refactor (2a7210b,
+upstream PR #27), with no functional reason; up to then (v1.0.0) the feed
+sent the rendered description raw inside CDATA, as the legacy Magento
+extension did. Smaily's help page "Adding RSS feed to template" shows an
+example feed whose descriptions are HTML inside CDATA, and Smaily renders
+a whole description as HTML in the email.
+**Decision (Erkki, option A):** (1) the description is
+`wp_kses_post( do_shortcode( description ) )`, echoed unescaped inside
+CDATA through `Rss::cdata()`, which splits a `]]>`; kses drops scripts and
+other tags a post may not carry and keeps valid entities such as `&nbsp;`.
+(2) The title is plain text (`Rss::plain_text()`: tags stripped, entities
+decoded, whitespace collapsed), also through `Rss::cdata()`. (3) Link and
+guid use `esc_url_raw()` — `esc_url()` writes `&` as `&#038;`, which a
+CDATA section keeps literally. (4) `lastBuildDate` is `gmdate( DATE_RSS )`
+and `pubDate` `DATE_RSS`: RFC 822 with English names, a zone and a
+4-digit year (the build date was a localized `wp_date()` with no zone).
+**Open:** Smaily's RSS tool can also load the first 100 or 500 characters
+of the description. Whether it strips tags before cutting is not
+documented; that is Smaily's to handle and is to be confirmed in Smaily's
+RSS tool after the release.
+**Alternatives:** plain text for the description too — rejected, the whole
+description is rendered as HTML and would lose its formatting; HTML plus a
+plain-text short field — the Smaily RSS schema has no such field
+(only `smly:price`, `old_price`, `discount`, `metadata`).
+**Relationships:** CON-345 (the same feed's limit); `RssFeedItemsTest`
+(integration, parses the rendered feed). Magento v3 (`strip_tags`) and
+Shopify (`description(truncateAt: 500)`) send plain text — making the
+connectors consistent is a follow-up.
