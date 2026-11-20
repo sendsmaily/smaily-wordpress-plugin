@@ -11675,3 +11675,63 @@ screens — rejected: the same invitation twice on one screen.
 **Relationships:** CON-321 (the invitation notice), CON-324 (Tanel's text),
 INT-298 / CON-175 (the start window), GMS-52 (the design).
 **Update (Erkki, 20 Nov):** the Campaign Intelligence banner's **Contact Smaily** button opens Smaily's consultation page, `https://smaily.com/consultation/` (`SMAILY_CONSULTATION_URL`), instead of the support link; every other support link keeps `https://smaily.com/help/`.
+
+### CON-175 — "Try Intelligence free" starts Campaign Intelligence from the plugin (Erkki, 2026-10-26 / 2026-11-20)
+
+**Context:** a store that wanted Campaign Intelligence had to ask Smaily for a
+one-time setup link and paste it. Contract §21 (v1.16.0, frame mode v1.29.0)
+lets the plugin start the store itself with the Smaily API login it already
+holds, and v1.34.0 adds `GET /api/v1/onboarding/status`, which says whether
+the start is switched on. In production the start is switched off until the
+terms are published, so it answers `404` and the status `start_open: false`.
+**Decision:**
+- The start is called from the plugin's server only (`OnboardingEndpoint`,
+  `POST /rec-engine/onboarding/start`): the body carries the Smaily API
+  password, which never reaches the browser, an option, a queue row or a log
+  line. A store with several Smaily accounts (Mode A languages) sends its
+  MAIN account's login — `ReportBuilder::main_credentials()`, the account the
+  installation report uses (Erkki, 20 Nov). `language` is `et` for an
+  Estonian admin locale, else `en`; `admin_email` is the signed-in admin's.
+  One key-less attempt of at most 10 s on `https://intelligence.smaily.com`
+  (the start makes one Smaily call before it answers), plus the plugin's own
+  10-per-minute ceiling.
+- Whether the button shows is read on the server
+  (`GET /rec-engine/onboarding/status`, the engine sends no CORS headers),
+  with a 3 s single attempt, kept 5 minutes (the engine's `max-age`) in a
+  transient with a TTL. Anything but `200 {"start_open": true}` is false.
+  The banner asks this route after the page loads — not the boot payload —
+  so an admin page never waits on the engine; one request serves every
+  banner on the page. A `404` from the start also writes false.
+- A frame over the admin only where the admin is on the shop's https origin
+  (the design window's rule); otherwise, and when the engine answers without
+  `display`, refuses the frame origin or the frame says no `ready` in 10 s,
+  the banner offers **Open in a new window** (a new click, so no pop-up
+  blocker stops it). Messages count only from the engine's origin; the setup
+  link goes to the existing setup-exchange route — the host allow-list,
+  `account_mismatch`, the connection prefix and the imports on connect all
+  apply unchanged. A frame's connection is shown when the frame closes, so
+  the engine's welcome step stays on screen.
+- Every answer is shown in the banner itself, with §21's texts (Erkki,
+  26 Oct: no extra dialog): 401 → check the login, with a link to the Smaily
+  connection settings; 403 (Smaily code 227) → the existing upsell view, with
+  §21's sentence as its note; 404 → the button goes, **Contact Smaily**
+  returns; 409 → **Open console** (only a console address on the engine
+  host); 502/429/no answer → try again shortly, same button; anything else →
+  a generic line. Codes only, never the engine's message (CON-301).
+**Rationale:** the password stays on the server; the existing exchange keeps
+one path to a connection; reading the status after load keeps admin pages
+fast.
+**Deviations from §21:** §21's WooCommerce sequence opens the modal first
+with "Connecting your shop" and shows refusals in it; the plugin shows
+"Connecting your shop" and the refusals in the banner and opens the modal
+only for the start window (Erkki's same-block rule). The 403 keeps the
+upsell's **Log in to Smaily** button instead of §21's "Sign in to Smaily and
+see the packages".
+**Not live-accepted:** the start is switched off in production, so the mock
+engine is the only automated proof; the first real start is human
+acceptance once Smaily switches it on. The live status read answered
+`200 {"start_open": false}` with `Cache-Control: public, max-age=300` on
+2026-11-20.
+**Relationships:** CON-350 (the banner and its `ciStartOpen()` stub, now
+`ciStartStatus()`), CON-288 / CON-311 (the design window this copies),
+CON-247 (imports on connect), INT-298 (the status signal).

@@ -266,6 +266,13 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
             variant={ciBannerVariant}
             smailyLoginUrl={banners.smailyLoginUrl}
             onDismiss={handleCloseCiBanner}
+            // "Try Intelligence free" connected the store (CON-175): the
+            // Campaign Intelligence tab shows the connected view.
+            onConnected={(response) => {
+              rawDispatch({ type: 'TEST_REC_ENGINE_CONNECTION_SUCCESS', payload: { message: response.tenantName } });
+              setActiveTab('recommendations');
+            }}
+            onShowSmailyConnection={() => setActiveTab('connection')}
           />
         )}
         {!isConnected && (

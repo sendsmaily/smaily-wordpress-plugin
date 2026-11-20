@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { wizardInitialState } from '../../state/wizard-reducer';
 import { Step1Connect } from '../steps/Step1Connect';
-import { bannerBoot, CampaignIntelligenceBanner, ciStartOpen } from '.';
+import { bannerBoot, CampaignIntelligenceBanner } from '.';
 
 /** The Estonian msgstr the shipped catalog holds for a source string. */
 function estonianFor(msgid: string): string {
@@ -33,17 +33,10 @@ afterEach(() => {
 });
 
 describe('Campaign Intelligence banner — the start button (CON-350)', () => {
-  it('waits for the engine: the start is closed until INT-298', () => {
-    expect(ciStartOpen()).toBe(false);
-  });
-
   it('offers Try Intelligence free once the start is open', () => {
-    const onStart = vi.fn();
-    render(<CampaignIntelligenceBanner variant="invite" smailyLoginUrl="" startOpen onStart={onStart} />);
+    render(<CampaignIntelligenceBanner variant="invite" smailyLoginUrl="" startOpen />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Try Intelligence free' }));
-
-    expect(onStart).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Try Intelligence free' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Contact Smaily' })).not.toBeInTheDocument();
   });
 

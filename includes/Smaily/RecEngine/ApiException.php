@@ -43,6 +43,7 @@ final class ApiException extends Exception {
 	/** @var array<int, mixed> */
 	private array $errors;
 	private ?int $retry_after;
+	private string $console_url;
 
 	/**
 	 * @param array<string, mixed> $body        Parsed JSON body from the engine response, if any.
@@ -61,6 +62,16 @@ final class ApiException extends Exception {
 		$this->details     = ( isset( $body['details'] ) && is_array( $body['details'] ) ) ? $body['details'] : array();
 		$this->errors      = ( isset( $body['errors'] ) && is_array( $body['errors'] ) ) ? $body['errors'] : array();
 		$this->retry_after = ( $retry_after !== null && $retry_after > 0 ) ? $retry_after : null;
+		$this->console_url = isset( $body['console_url'] ) && is_string( $body['console_url'] ) ? $body['console_url'] : '';
+	}
+
+	/**
+	 * The store's console address a §21 `409 store_exists` names (CON-175),
+	 * '' when the answer carries none. The caller checks its host before
+	 * showing it.
+	 */
+	public function console_url(): string {
+		return $this->console_url;
 	}
 
 	/**

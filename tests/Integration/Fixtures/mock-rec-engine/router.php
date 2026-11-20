@@ -111,8 +111,9 @@ save_state( $state_file, $state );
 // included, which is a FIXED string senders must not branch on. The
 // unauthenticated setup-exchange route is deliberately exempt: that is how a
 // new connection is established after a deactivation. §16 disconnect is
-// exempt too: the contract says a suspended store may still disconnect.
-if ( ! empty( $state['tenant_inactive'] ) && $path !== '/api/setup/exchange' && $path !== '/api/v1/store/uninstall' ) {
+// exempt too: the contract says a suspended store may still disconnect. The
+// §21 onboarding routes take no key, so no tenant either.
+if ( ! empty( $state['tenant_inactive'] ) && $path !== '/api/setup/exchange' && $path !== '/api/v1/store/uninstall' && strpos( $path, '/api/v1/onboarding/' ) !== 0 ) {
 	reply(
 		403,
 		array(
@@ -2406,6 +2407,113 @@ if ( $method === 'POST' && $path === '/api/v1/ingest/history/progress' ) {
 			'history'                => MOCK_HISTORY_CONFIG,
 		)
 	);
+}
+
+// §21 "Is the start open?" (contract v1.34.0, CON-175). No key, no body;
+// always `200 {start_open}` on the engine. A test plays the engine with
+// `onboarding_open`: true / false (the default — production today) / 'error'
+// (a 500 the plugin must read as false). Every call is counted.
+if ( $method === 'GET' && $path === '/api/v1/onboarding/status' ) {
+	$state['onboarding_status_count'] = (int) ( $state['onboarding_status_count'] ?? 0 ) + 1;
+	save_state( $state_file, $state );
+
+	$open = $state['onboarding_open'] ?? false;
+	if ( $open === 'error' ) {
+		reply( 500, array( 'error' => 'internal_error', 'message' => 'Mock failure.' ) );
+	}
+	header( 'Cache-Control: public, max-age=300' );
+	reply( 200, array( 'start_open' => $open === true ) );
+}
+
+// §21 onboarding start (contract v1.16.0 / v1.29.0, CON-175). No key. The
+// body is validated as the engine's schema does — `shop_url` an http(s) URL
+// ≤ 2048, `platform` one of three, `smaily_subdomain` ≤ 64 of letters,
+// digits and `-`, username and password 1–255, `display` window|frame,
+// `frame_origin` only with frame, `language` two letters; a malformed
+// `admin_email` is ignored — else `400 validation_failed`. Every call is
+// recorded as received (password included: this file is the engine's side).
+// A test plays the refusals with `onboarding_start_status`: 400
+// (frame_origin_not_allowed), 401, 403, 404, 409 (+ console_url, overridable
+// with `onboarding_console_url`), 429, 502; 0 answers the start link — with
+// `display: "frame"` when asked for it, unless `onboarding_frame` is false
+// (an engine without the frame mode).
+if ( $method === 'POST' && $path === '/api/v1/onboarding/start' ) {
+	$body     = json_decode( (string) file_get_contents( 'php://input' ), true );
+	$requests = ( isset( $state['onboarding_start_requests'] ) && is_array( $state['onboarding_start_requests'] ) )
+		? $state['onboarding_start_requests']
+		: array();
+	$requests[] = array(
+		'body'          => $body,
+		'authorization' => $_SERVER['HTTP_AUTHORIZATION'] ?? null,
+	);
+	$state['onboarding_start_requests'] = $requests;
+	save_state( $state_file, $state );
+
+	$engine_base = sprintf( 'http://%s', $_SERVER['HTTP_HOST'] ?? 'localhost:9876' );
+	$forced      = (int) ( $state['onboarding_start_status'] ?? 0 );
+	$refusals    = array(
+		400 => array( 'frame_origin_not_allowed', 'frame_origin must be an https origin.' ),
+		401 => array( 'smaily_login_refused', 'Smaily refused the API login for api-user@myshop.' ),
+		403 => array( 'smaily_paid_package_required', 'Smaily answered code 227.' ),
+		404 => array( 'not_found', 'Not found.' ),
+		409 => array( 'store_exists', 'This Smaily account already has a store.' ),
+		429 => array( 'rate_limit_exceeded', 'Too many requests.' ),
+		502 => array( 'smaily_unavailable', 'Smaily did not answer.' ),
+	);
+	if ( isset( $refusals[ $forced ] ) ) {
+		$refusal = array(
+			'error'   => $refusals[ $forced ][0],
+			'message' => $refusals[ $forced ][1],
+		);
+		if ( $forced === 409 ) {
+			$refusal['console_url'] = $state['onboarding_console_url'] ?? ( $engine_base . '/console/t_mock/home' );
+		}
+		reply( $forced, $refusal );
+	}
+
+	$field = null;
+	if ( ! is_array( $body ) ) {
+		reply( 400, array( 'error' => 'invalid_json', 'message' => 'The body is not JSON.' ) );
+	}
+	$shop_url = $body['shop_url'] ?? null;
+	if ( ! is_string( $shop_url ) || strlen( $shop_url ) > 2048 || preg_match( '#^https?://[^/\s]+#i', $shop_url ) !== 1 ) {
+		$field = 'shop_url';
+	} elseif ( ! in_array( $body['platform'] ?? null, array( 'woocommerce', 'shopify', 'magento' ), true ) ) {
+		$field = 'platform';
+	} elseif ( ! is_string( $body['smaily_subdomain'] ?? null ) || preg_match( '/^[A-Za-z0-9-]{1,64}$/', trim( $body['smaily_subdomain'] ) ) !== 1 ) {
+		$field = 'smaily_subdomain';
+	} elseif ( ! is_string( $body['smaily_username'] ?? null ) || $body['smaily_username'] === '' || strlen( $body['smaily_username'] ) > 255 ) {
+		$field = 'smaily_username';
+	} elseif ( ! is_string( $body['smaily_password'] ?? null ) || $body['smaily_password'] === '' || strlen( $body['smaily_password'] ) > 255 ) {
+		$field = 'smaily_password';
+	} elseif ( isset( $body['display'] ) && ! in_array( $body['display'], array( 'window', 'frame' ), true ) ) {
+		$field = 'display';
+	} elseif ( isset( $body['frame_origin'] ) && ( $body['display'] ?? 'window' ) !== 'frame' ) {
+		$field = 'frame_origin';
+	} elseif ( isset( $body['opener_origin'] ) && ( $body['display'] ?? 'window' ) === 'frame' ) {
+		$field = 'opener_origin';
+	} elseif ( isset( $body['language'] ) && ( ! is_string( $body['language'] ) || preg_match( '/^[a-z]{2}$/', $body['language'] ) !== 1 ) ) {
+		$field = 'language';
+	}
+	if ( $field !== null ) {
+		reply(
+			400,
+			array(
+				'error'   => 'validation_failed',
+				'details' => array( array( 'field' => $field, 'message' => 'Invalid value.' ) ),
+			)
+		);
+	}
+
+	$frame  = ( $body['display'] ?? 'window' ) === 'frame' && ( $state['onboarding_frame'] ?? true ) !== false;
+	$answer = array(
+		'start_url'  => $engine_base . '/onboarding/start' . ( $frame ? '/f/AQmock' : '' ) . '#t=AQ' . bin2hex( random_bytes( 8 ) ),
+		'expires_at' => gmdate( 'Y-m-d\\TH:i:s.000\\Z', time() + 300 ),
+	);
+	if ( $frame ) {
+		$answer['display'] = 'frame';
+	}
+	reply( 200, $answer );
 }
 
 // Fallback.

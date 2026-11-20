@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-19T10:48:04+00:00\n"
+"POT-Creation-Date: 2026-11-20T07:05:10+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: smaily-connect\n"
@@ -262,7 +262,7 @@ msgid "Your recommendation preferences have been saved."
 msgstr ""
 
 #: includes/Privacy/ProfilingConsentAccount.php:136
-#: admin/src/components/steps/Step4Recommendations.tsx:154
+#: admin/src/components/steps/Step4Recommendations.tsx:165
 msgid "Smaily Campaign Intelligence"
 msgstr ""
 
@@ -338,6 +338,7 @@ msgstr ""
 
 #: includes/REST/ConsoleEntryEndpoint.php:94
 #: includes/REST/NoticesEndpoint.php:61
+#: includes/REST/OnboardingEndpoint.php:146
 msgid "Your session has expired. Reload the page and try again."
 msgstr ""
 
@@ -345,6 +346,7 @@ msgstr ""
 msgid "You do not have permission to view the event log."
 msgstr ""
 
+#: includes/REST/OnboardingEndpoint.php:153
 #: includes/REST/RecEngineEndpoint.php:149
 #: includes/REST/RecEngineProxy.php:40
 msgid "You do not have permission to manage Campaign Intelligence."
@@ -1354,7 +1356,7 @@ msgstr ""
 
 #: admin/src/api/recEngine.ts:17
 #: admin/src/api/recEngine.ts:35
-#: admin/src/components/steps/Step4Recommendations.tsx:418
+#: admin/src/components/steps/Step4Recommendations.tsx:429
 #: admin/src/components/wizard/Wizard.tsx:80
 msgid "Network error"
 msgstr ""
@@ -1456,48 +1458,124 @@ msgstr ""
 msgid "Couldn't check status: %s"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:28
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:58
 msgid "Log in to Smaily"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:30
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:69
+msgid "Open in a new window"
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:69
 msgid "Try Intelligence free"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:32
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:73
 msgid "Contact Smaily"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:43
-msgid "Connect your store with Smaily, and add personalized product recommendations to your campaigns, tailored to each customer’s interests."
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:77
+msgid "Intelligence needs a paid Smaily package. Your Smaily account is on the free package. Trying Intelligence is free, but it works only with a paid Smaily package. No store was created and nothing was sent."
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:48
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:82
 msgid "Campaign Intelligence requires a paid Smaily plan. Log in to Smaily to review your plan options."
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:52
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:99
+msgid "Connect your store with Smaily, and add personalized product recommendations to your campaigns, tailored to each customer’s interests."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:105
 msgid "Requires a paid Smaily plan"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:55
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:108
 msgid "Engine in action"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:56
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:109
 msgid "What the engine recommends you do next"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:58
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:111
 msgid "56 customers are due to reorder"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:59
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:112
 msgid "12 customers are slipping away"
 msgstr ""
 
-#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:61
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:114
 msgid "Create segment in Smaily"
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:124
+msgid "Connecting the plugin…"
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:132
+msgid "Connecting your shop · Sending your shop address · Checking your Smaily account"
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:134
+msgid "Finish the setup in the window that opened. If the plugin does not connect by itself, copy the setup link that window shows into Setup URL under Connect Smaily Campaign Intelligence."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:139
+msgid "The setup window did not open here."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:141
+#: admin/src/components/steps/EmailDesigns.tsx:86
+#: admin/src/components/steps/OpenConsoleButton.tsx:17
+msgid "Your browser blocked the new tab. Allow pop-ups for this page and try again."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:154
+msgid "Smaily refused the API login stored in this plugin. Check it in the plugin settings and try again. No store was created."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:160
+msgid "Open the Smaily connection settings"
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:165
+msgid "This Smaily account already has a store in Intelligence."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:168
+msgid "To connect this plugin, create a setup link in the console (Settings → Connections) and paste it here."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:176
+msgid "Smaily did not answer. Try again shortly."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:178
+msgid "Campaign Intelligence could not be started. Try again later, or contact Smaily."
+msgstr ""
+
+#: admin/src/components/banners/CampaignIntelligenceBanner.tsx:186
+msgid "Open console"
+msgstr ""
+
+#: admin/src/components/banners/IntelligenceStart.tsx:185
+#: admin/src/components/settings/Settings.tsx:34
+#: admin/src/components/steps/Step4Recommendations.tsx:26
+#: admin/src/components/steps/Step6Done.tsx:112
+#: admin/src/components/wizard/Wizard.tsx:33
+msgid "Campaign Intelligence"
+msgstr ""
+
+#: admin/src/components/banners/IntelligenceStart.tsx:209
+#: admin/src/components/settings/EventLog.tsx:378
+#: admin/src/components/steps/EmailDesigns.tsx:296
+msgid "Close"
+msgstr ""
+
+#: admin/src/components/banners/IntelligenceStart.tsx:214
+msgid "Opening the setup window…"
 msgstr ""
 
 #: admin/src/components/primitives/Label.tsx:22
@@ -1703,11 +1781,6 @@ msgstr ""
 msgid "Close details"
 msgstr ""
 
-#: admin/src/components/settings/EventLog.tsx:378
-#: admin/src/components/steps/EmailDesigns.tsx:296
-msgid "Close"
-msgstr ""
-
 #: admin/src/components/settings/EventLog.tsx:401
 msgid "Created (UTC)"
 msgstr ""
@@ -1739,13 +1812,6 @@ msgstr ""
 
 #: admin/src/components/settings/Settings.tsx:33
 msgid "WooCommerce"
-msgstr ""
-
-#: admin/src/components/settings/Settings.tsx:34
-#: admin/src/components/steps/Step4Recommendations.tsx:26
-#: admin/src/components/steps/Step6Done.tsx:112
-#: admin/src/components/wizard/Wizard.tsx:33
-msgid "Campaign Intelligence"
 msgstr ""
 
 #: admin/src/components/settings/Settings.tsx:35
@@ -1782,32 +1848,32 @@ msgstr ""
 msgid "Settings tabs"
 msgstr ""
 
-#: admin/src/components/settings/Settings.tsx:155
+#: admin/src/components/settings/Settings.tsx:160
 msgid "Smaily connection required"
 msgstr ""
 
-#: admin/src/components/settings/Settings.tsx:155
+#: admin/src/components/settings/Settings.tsx:160
 msgid "Contacts, WooCommerce, and Campaign Intelligence are locked until your Smaily credentials authenticate. Fix the connection on the Connection tab to unlock them."
 msgstr ""
 
-#: admin/src/components/settings/Settings.tsx:159
+#: admin/src/components/settings/Settings.tsx:164
 msgid "Save failed"
 msgstr ""
 
-#: admin/src/components/settings/Settings.tsx:160
+#: admin/src/components/settings/Settings.tsx:165
 msgid "Settings saved."
 msgstr ""
 
-#: admin/src/components/settings/Settings.tsx:185
+#: admin/src/components/settings/Settings.tsx:190
 msgid "Discard changes"
 msgstr ""
 
-#: admin/src/components/settings/Settings.tsx:196
+#: admin/src/components/settings/Settings.tsx:201
 msgid "Save changes"
 msgstr ""
 
 #. translators: %s is the installed plugin version, e.g. 3.21.1.
-#: admin/src/components/settings/Settings.tsx:202
+#: admin/src/components/settings/Settings.tsx:207
 #, js-format
 msgid "Smaily Connect %s"
 msgstr ""
@@ -1885,7 +1951,7 @@ msgid "✓ Connected"
 msgstr ""
 
 #: admin/src/components/steps/CredentialBlock.tsx:53
-#: admin/src/components/steps/Step4Recommendations.tsx:222
+#: admin/src/components/steps/Step4Recommendations.tsx:233
 msgid "as"
 msgstr ""
 
@@ -1914,7 +1980,7 @@ msgid "Leave empty to keep using the stored password."
 msgstr ""
 
 #: admin/src/components/steps/CredentialBlock.tsx:120
-#: admin/src/components/steps/Step4Recommendations.tsx:234
+#: admin/src/components/steps/Step4Recommendations.tsx:245
 msgid "Test connection"
 msgstr ""
 
@@ -1980,11 +2046,6 @@ msgstr ""
 
 #: admin/src/components/steps/EmailDesigns.tsx:81
 msgid "The design page could not be opened. Try again in a minute."
-msgstr ""
-
-#: admin/src/components/steps/EmailDesigns.tsx:86
-#: admin/src/components/steps/OpenConsoleButton.tsx:17
-msgid "Your browser blocked the new tab. Allow pop-ups for this page and try again."
 msgstr ""
 
 #: admin/src/components/steps/EmailDesigns.tsx:137
@@ -2591,208 +2652,208 @@ msgstr ""
 msgid "Step 4 of 6"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:33
+#: admin/src/components/steps/Step4Recommendations.tsx:44
 msgid "Engine connected — now wire up the Campaign Intelligence automation workflows"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:41
+#: admin/src/components/steps/Step4Recommendations.tsx:52
 msgid "Back to Step 3"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:44
+#: admin/src/components/steps/Step4Recommendations.tsx:55
 msgid "Replenishment and win-back automations are configured in Step 3 (Automated letters), below the store-run triggers."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:93
+#: admin/src/components/steps/Step4Recommendations.tsx:104
 msgid "Connect Smaily Campaign Intelligence"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:94
+#: admin/src/components/steps/Step4Recommendations.tsx:105
 msgid "Copy the Campaign Intelligence connection URL in the following field and click on Connect to activate the connection."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:99
+#: admin/src/components/steps/Step4Recommendations.tsx:110
 msgid "Setup URL"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:125
+#: admin/src/components/steps/Step4Recommendations.tsx:136
 msgid "Connect"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:139
+#: admin/src/components/steps/Step4Recommendations.tsx:150
 msgid "Regenerate the link"
 msgstr ""
 
 #. translators: 1: engine version, 2: tenant status.
-#: admin/src/components/steps/Step4Recommendations.tsx:166
+#: admin/src/components/steps/Step4Recommendations.tsx:177
 #, js-format
 msgid "Engine v%1$s responded — tenant status: %2$s."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:168
+#: admin/src/components/steps/Step4Recommendations.tsx:179
 msgid "active"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:178
+#: admin/src/components/steps/Step4Recommendations.tsx:189
 msgid "Disconnect Smaily Campaign Intelligence? The plugin stops syncing data and tells Campaign Intelligence that this connection ends. If your store has no other connection, Campaign Intelligence pauses it: no recommendations and none of its automated emails until you connect again. Your data is kept."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:189
+#: admin/src/components/steps/Step4Recommendations.tsx:200
 msgid "Disconnected."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:199
+#: admin/src/components/steps/Step4Recommendations.tsx:210
 msgid "Engine connection"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:209
+#: admin/src/components/steps/Step4Recommendations.tsx:220
 msgid "Account deactivated"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:211
+#: admin/src/components/steps/Step4Recommendations.tsx:222
 msgid "Your Smaily Campaign Intelligence account has been deactivated, so syncing has stopped. Contact Smaily to reactivate it. Once it is active again, disconnect here and connect it with a new setup link."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:219
+#: admin/src/components/steps/Step4Recommendations.tsx:230
 msgid "Connected"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:237
+#: admin/src/components/steps/Step4Recommendations.tsx:248
 msgid "Disconnect"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:261
+#: admin/src/components/steps/Step4Recommendations.tsx:272
 msgid "Data synchronisation"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:262
+#: admin/src/components/steps/Step4Recommendations.tsx:273
 msgid "While connected, the engine learns from your joined order, customer, and product data — all three sync automatically."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:267
+#: admin/src/components/steps/Step4Recommendations.tsx:278
 msgid "Syncing starts as soon as you connect and runs in the background — there's nothing to switch on per data type. Use"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:272
-#: admin/src/components/steps/Step4Recommendations.tsx:284
+#: admin/src/components/steps/Step4Recommendations.tsx:283
+#: admin/src/components/steps/Step4Recommendations.tsx:295
 msgid "Import existing data"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:274
+#: admin/src/components/steps/Step4Recommendations.tsx:285
 msgid "below to seed history into the engine; future changes sync on their own. Browsing telemetry is the one exception — it's opt-in and configured separately below."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:285
+#: admin/src/components/steps/Step4Recommendations.tsx:296
 msgid "When you connect Campaign Intelligence, the imports start on their own, one after another: products, then customers, then orders, so recommendations have history to learn from. Import now runs one import again, and only that one. Imports run in the background in batches, and future changes sync on their own."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:294
+#: admin/src/components/steps/Step4Recommendations.tsx:305
 msgid "Products"
 msgstr ""
 
 #. translators: %d: number of detected languages.
-#: admin/src/components/steps/Step4Recommendations.tsx:298
+#: admin/src/components/steps/Step4Recommendations.tsx:309
 #, js-format
 msgid "Counts one entry per language (%d detected). Translations are merged into a single product during import, so the synced total will be lower."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:311
+#: admin/src/components/steps/Step4Recommendations.tsx:322
 msgid "Customers"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:319
+#: admin/src/components/steps/Step4Recommendations.tsx:330
 msgid "Orders"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:329
+#: admin/src/components/steps/Step4Recommendations.tsx:340
 msgid "Browsing telemetry"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:330
+#: admin/src/components/steps/Step4Recommendations.tsx:341
 msgid "Tracks product / category views to power 'similar products' recommendations."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:341
+#: admin/src/components/steps/Step4Recommendations.tsx:352
 msgid "Track browsing behaviour"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:342
+#: admin/src/components/steps/Step4Recommendations.tsx:353
 msgid "Requires marketing consent (WP Consent API / Cookiebot / Complianz / CookieYes)."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:348
+#: admin/src/components/steps/Step4Recommendations.tsx:359
 msgid "Consent comes from your consent banner through the WP Consent API: browse events are sent only for visitors who said yes to marketing in that banner."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:352
+#: admin/src/components/steps/Step4Recommendations.tsx:363
 msgid "Browse tracking sends nothing until a consent banner is connected to the WP Consent API."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:364
+#: admin/src/components/steps/Step4Recommendations.tsx:375
 msgid "Get the WP Consent API plugin"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:368
+#: admin/src/components/steps/Step4Recommendations.tsx:379
 msgid "Browsing telemetry only fires when the visitor has granted marketing consent. If your site doesn't have a consent banner installed, the beacon won't collect events."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:379
+#: admin/src/components/steps/Step4Recommendations.tsx:390
 msgid "Add the Smaily Recommendations block to a page or post (in the block editor, search for \"Smaily\"), or put the shortcode [smaily_recommendations] where your page builder accepts shortcodes. Shoppers who accept marketing cookies see the products Smaily recommends to them."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:383
+#: admin/src/components/steps/Step4Recommendations.tsx:394
 msgid "Show recommendations in your store"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:397
+#: admin/src/components/steps/Step4Recommendations.tsx:408
 msgid "How to add it →"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:422
+#: admin/src/components/steps/Step4Recommendations.tsx:433
 msgid "Imports held back"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:422
+#: admin/src/components/steps/Step4Recommendations.tsx:433
 msgid "The imports are cancelled. Start each one any time with its Import now below."
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:431
+#: admin/src/components/steps/Step4Recommendations.tsx:442
 msgid "Imports started"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:440
+#: admin/src/components/steps/Step4Recommendations.tsx:451
 msgid "Hold back"
 msgstr ""
 
 #. translators: %d: minutes until the catalog import starts.
-#: admin/src/components/steps/Step4Recommendations.tsx:446
+#: admin/src/components/steps/Step4Recommendations.tsx:457
 #, js-format
 msgid "Your product catalog, then your customers, then your orders go to Campaign Intelligence once, one after another, in the background. The first products go out in about %d minutes. To hold the imports back, press Hold back before then: nothing is sent, and you can start each import later with its Import now below."
 msgstr ""
 
 #. translators: %s: error message.
-#: admin/src/components/steps/Step4Recommendations.tsx:454
+#: admin/src/components/steps/Step4Recommendations.tsx:465
 #, js-format
 msgid "Couldn't hold back the import: %s"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:464
+#: admin/src/components/steps/Step4Recommendations.tsx:475
 msgid "Setup URL not recognised"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:466
+#: admin/src/components/steps/Step4Recommendations.tsx:477
 msgid "Setup link already used"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:468
+#: admin/src/components/steps/Step4Recommendations.tsx:479
 msgid "Setup link not found"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:470
+#: admin/src/components/steps/Step4Recommendations.tsx:481
 msgid "Setup link for another Smaily account"
 msgstr ""
 
-#: admin/src/components/steps/Step4Recommendations.tsx:473
+#: admin/src/components/steps/Step4Recommendations.tsx:484
 msgid "Engine unreachable"
 msgstr ""
 

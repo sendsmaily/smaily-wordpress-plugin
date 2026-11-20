@@ -149,6 +149,10 @@ class Client {
 	// `ingest_history_progress`; a connection set up before v1.20.0 has no
 	// such key, so this fallback serves it.
 	public const PATH_INGEST_HISTORY_PROGRESS = '/api/v1/ingest/history/progress';
+	// §21 onboarding (v1.16.0; status v1.34.0, CON-175). No endpoints-map key:
+	// the plugin calls both before it has a connection, so they use these.
+	public const PATH_ONBOARDING_START  = '/api/v1/onboarding/start';
+	public const PATH_ONBOARDING_STATUS = '/api/v1/onboarding/status';
 
 	/** Default in-request retry ceiling — generous for one-shot calls (ping, setup). */
 	public const DEFAULT_MAX_ATTEMPTS = 5;
@@ -687,6 +691,38 @@ class Client {
 		return $this->request_url( 'POST', $this->resolve_url( 'ingest_history_progress', self::PATH_INGEST_HISTORY_PROGRESS ), $body, true );
 	}
 
+	/**
+	 * Is the self-service start open? (§21 "Is the start open?", CON-175.)
+	 * No key and no body: the answer is the same for every store. An admin
+	 * page waits on it, so it is ONE attempt bounded by
+	 * BROWSE_TIMEOUT_SECONDS, no redirect, no retry.
+	 *
+	 * @return array<string, mixed> `{start_open}`.
+	 *
+	 * @throws ApiException On a non-2xx answer or a network failure.
+	 */
+	public function onboarding_status(): array {
+		return $this->request_url( 'GET', $this->base_url . self::PATH_ONBOARDING_STATUS, null, true );
+	}
+
+	/**
+	 * Start Campaign Intelligence for a store with no engine store (§21,
+	 * CON-175). The body carries the Smaily API password, so it is sent from
+	 * the server only and never logged; the client is built without a key.
+	 * The engine checks the login with one Smaily call before it answers, so
+	 * the caller builds this client with one attempt and a longer timeout
+	 * than BROWSE_TIMEOUT_SECONDS.
+	 *
+	 * @param array<string, string> $body
+	 *
+	 * @return array<string, mixed> `{start_url, expires_at, display?}`.
+	 *
+	 * @throws ApiException On 4xx/5xx (401/403/404/409/429/502 per §21) or a network failure.
+	 */
+	public function onboarding_start( array $body ): array {
+		return $this->request_url( 'POST', $this->base_url . self::PATH_ONBOARDING_START, $body );
+	}
+
 	// ---------------------------------------------------------------
 	// Private request engine.
 	// ---------------------------------------------------------------
@@ -757,7 +793,8 @@ class Client {
 	 *                                                  no redirect, no retry and no Retry-After wait
 	 *                                                  (ingest_browse(), PRO-3620; store_uninstall(),
 	 *                                                  CON-219; console_entry(), CON-228;
-	 *                                                  history_progress(), CON-248).
+	 *                                                  history_progress(), CON-248;
+	 *                                                  onboarding_status(), CON-175).
 	 *
 	 * @return array<string, mixed>
 	 *
@@ -778,13 +815,16 @@ class Client {
 				'method'  => $method,
 				'timeout' => $single_attempt ? self::BROWSE_TIMEOUT_SECONDS : $this->timeout_seconds,
 				'headers' => array(
-					'Authorization' => 'Bearer ' . $this->api_key,
-					'User-Agent'    => sprintf(
+					'User-Agent' => sprintf(
 						'SmailyConnect-WooPlugin/%s',
 						defined( 'SMAILY_CONNECT_VERSION' ) ? (string) SMAILY_CONNECT_VERSION : '0.0.0'
 					),
 				),
 			);
+			// The §21 onboarding calls have no key (CON-175).
+			if ( $this->api_key !== '' ) {
+				$args['headers']['Authorization'] = 'Bearer ' . $this->api_key;
+			}
 			if ( $json !== null ) {
 				$args['headers']['Content-Type'] = 'application/json';
 				$args['body']                    = $json;
