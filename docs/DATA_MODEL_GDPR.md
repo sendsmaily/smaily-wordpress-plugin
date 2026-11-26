@@ -50,6 +50,8 @@ Art 21 (profiling objection).
 | recommendations | Computed product recs surfaced to the customer | Yes — personal data | Deleted (CASCADE) |
 | email_events | Engine-tracked email interaction signals | Yes — personal data | Deleted (CASCADE) |
 | outcome_events | Bookings and visits (`booked`, `cancelled`, `no_show`, `attended`) a booking system sent to the same engine store (contract v1.32.0 §6b); this plugin sends none | Yes — personal data | Deleted (records_removed counts it) |
+| stock_alert_requests | Back-in-stock requests a connector of the same engine store sent for the shopper (contract v1.35.0 §6c); this plugin sends none | Yes — personal data | Deleted (records_removed counts it) |
+| identifiers | The customer's store customer ids, loyalty numbers and phone number (international form) that the engine keeps as lookup keys (contract v1.37.0) | Yes — personal data | Deleted (records_removed counts it) |
 | customer (engine record) | Engine's customer row (email natural-key) | Yes — personal data | Deleted (CASCADE) |
 | rec_attribution | Which rec drove which order — decision-logic credit | **No — omitted** (trade secret / decision logic; legal-review pending) | Deleted (records_removed counts it) |
 | gdpr_audit_log row | Proof a delete happened | n/a | **Retained** (compliance proof) |
@@ -316,7 +318,8 @@ Profiling consent OFF therefore produces **two actions**:
 Returns the shopper's **rec-engine personal data**, and nothing more:
 
 - Included: engine browse_events, visitor_tokens, recommendations, email_events,
-  outcome_events (contract v1.32.0), engine customer record; plugin rec-meta (the `_smaily_*` markers); the
+  outcome_events (contract v1.32.0), stock_alert_requests (v1.35.0), identifiers
+  (v1.37.0), engine customer record; plugin rec-meta (the `_smaily_*` markers); the
   block-checkout newsletter consent marker, one item per marked order
   (PRO-3426); the local abandoned-cart tracker rows (PRO-1343) and, narrowly,
   the Smaily event queue's rows — `event_type` + `created_at` only (PRO-2383);
@@ -334,7 +337,8 @@ Returns the shopper's **rec-engine personal data**, and nothing more:
 Full deletion, asymmetric to export (export is conservative, erase is complete):
 
 - Engine §9 DELETE: customer + browse_events + recommendations + email_events +
-  outcome_events + visitor_tokens + **rec_attribution** all deleted (CASCADE). Idempotent (a
+  outcome_events + stock_alert_requests + identifiers + visitor_tokens +
+  **rec_attribution** all deleted (CASCADE). Idempotent (a
   second call returns 404 → treat as success).
 - Retained after erase: a `gdpr_audit_log` row (proof the deletion happened) and
   `lift_metrics_daily` in anonymised form (aggregate, no PII).
