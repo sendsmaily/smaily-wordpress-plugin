@@ -50,9 +50,12 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  * Error model — three terminal states:
  *
  *   - mark_sent on success
- *   - mark_sent on skip (missing email, no workflow mapped, or an
- *     abandoned-cart purchase marker for an address Smaily does not have —
- *     a retry can't recover any of them, so we don't waste retry attempts)
+ *   - mark_sent on skip (missing email, no workflow mapped, an
+ *     abandoned-cart purchase marker for an address Smaily does not have,
+ *     or a contact sync that would put a stale subscription into Smaily —
+ *     StaleSubscription, asked at every attempt so an automatic retry never
+ *     undoes a later delivered change, CON-395; a retry can't recover any of
+ *     them, so we don't waste retry attempts)
  *   - mark_failed on TerminalDispatchException (unknown event_type,
  *     payload decode failure, an HTTP 200 reply whose Smaily body code
  *     refuses the request for good, as `permanent_envelope_<code>` with
@@ -79,6 +82,9 @@ final class Flusher {
 	/** The Event Log note on a purchase-marker row closed without sending (PRO-3627). */
 	public const NOTE_NOT_A_CONTACT = 'Smaily does not have this contact, and the abandoned-cart purchase marker would create it as a subscriber — nothing was sent';
 
+	/** The Event Log note on a contact sync closed as a stale subscription (CON-395). */
+	public const NOTE_STALE_SUBSCRIPTION = 'a newer subscription change of this contact already reached Smaily — nothing was sent';
+
 	private EventQueue $queue;
 	private AutomationRouter $router;
 
@@ -99,6 +105,12 @@ final class Flusher {
 	 * when the generic skip note does not say it. Null otherwise.
 	 */
 	private ?string $skip_note = null;
+
+	/**
+	 * The reason code of that skip, when it has one the Event Log words
+	 * (EventQueue::skip_reason()). Null otherwise.
+	 */
+	private ?string $skip_reason = null;
 
 	/** The automations' discount codes (CON-199). */
 	private DiscountCodeIssuer $discount_codes;
@@ -139,6 +151,7 @@ final class Flusher {
 			// Reset so the stored exchange reflects THIS event (F3-44).
 			$this->current_exchange = null;
 			$this->skip_note        = null;
+			$this->skip_reason      = null;
 
 			try {
 				$payload = $this->decode_payload( (string) ( $event['payload'] ?? '' ) );
@@ -187,6 +200,11 @@ final class Flusher {
 
 		switch ( $event_type ) {
 			case HookHandler::EVENT_CONTACT_SYNC:
+				if ( StaleSubscription::is_stale( $this->queue, $id, $event_type, $payload ) ) {
+					$this->skip_note   = self::NOTE_STALE_SUBSCRIPTION;
+					$this->skip_reason = StaleSubscription::REASON;
+					return;
+				}
 				$this->dispatch_contact_sync( $email, $payload, $fields );
 				return;
 
@@ -320,16 +338,14 @@ final class Flusher {
 		$response = $this->discount_codes->noted( $this->current_exchange['response'] ?? null );
 
 		if ( $this->current_exchange === null ) {
-			$this->queue->store_exchange(
-				$id,
-				null,
-				(string) wp_json_encode(
-					array(
-						'outcome' => EventQueue::OUTCOME_SKIPPED,
-						'note'    => $this->skip_note ?? 'no API call (missing email, no workflow mapped, or payload decode failure) — nothing was sent',
-					)
-				)
+			$skipped = array(
+				'outcome' => EventQueue::OUTCOME_SKIPPED,
+				'note'    => $this->skip_note ?? 'no API call (missing email, no workflow mapped, or payload decode failure) — nothing was sent',
 			);
+			if ( $this->skip_reason !== null ) {
+				$skipped['reason'] = $this->skip_reason;
+			}
+			$this->queue->store_exchange( $id, null, (string) wp_json_encode( $skipped ) );
 			return;
 		}
 

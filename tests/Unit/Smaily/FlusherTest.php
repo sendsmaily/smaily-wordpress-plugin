@@ -19,6 +19,7 @@ use Smaily\Connect\Smaily\AutomationRouter;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\Flusher;
+use Smaily\Connect\Smaily\StaleSubscription;
 use Smaily\Connect\Smaily\WorkflowMatch;
 use Smaily\Connect\Smaily\WorkflowResolverInterface;
 
@@ -736,6 +737,66 @@ final class FlusherTest extends TestCase {
 		);
 	}
 
+	public function test_a_subscribe_is_skipped_when_a_later_change_of_the_contact_was_delivered(): void {
+		// CON-395: the retry of an old subscribe must not undo the shopper's
+		// newer choice, which already reached Smaily.
+		$queue        = $this->fake_queue( array( $this->consent_event( 3, 0 ) ) );
+		$queue->later = array( (string) json_encode( array( 'email' => 'a@b.c', 'is_unsubscribed' => 1 ) ) );
+
+		$client = $this->createMock( Client::class );
+		$client->expects( $this->never() )->method( 'upsert_subscribers' );
+
+		$stats = ( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
+
+		self::assertSame( 1, $stats['sent'] );
+		self::assertSame( array( 3 ), $queue->marked_sent );
+		self::assertNull( $queue->exchanges[3]['sent'] );
+		self::assertSame( StaleSubscription::REASON, EventQueue::skip_reason( (string) $queue->exchanges[3]['response'] ) );
+	}
+
+	public function test_an_unsubscribe_is_sent_whatever_was_delivered_later(): void {
+		$queue        = $this->fake_queue( array( $this->consent_event( 3, 1 ) ) );
+		$queue->later = array( (string) json_encode( array( 'email' => 'a@b.c', 'is_unsubscribed' => 0 ) ) );
+
+		$client = $this->createMock( Client::class );
+		$client->expects( $this->once() )->method( 'upsert_subscribers' );
+
+		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
+
+		self::assertSame( array( 3 ), $queue->marked_sent );
+	}
+
+	public function test_a_later_sync_without_a_status_makes_no_subscribe_stale(): void {
+		$queue        = $this->fake_queue( array( $this->consent_event( 3, 0 ) ) );
+		$queue->later = array( (string) json_encode( array( 'email' => 'a@b.c', 'fields' => array( 'first_name' => 'Alice' ) ) ) );
+
+		$client = $this->createMock( Client::class );
+		$client->expects( $this->once() )->method( 'upsert_subscribers' );
+
+		( new Flusher( $queue, $this->automation_router_returning_true(), static fn () => $client, $this->no_discounts() ) )->flush();
+
+		self::assertSame( array( 3 ), $queue->marked_sent );
+	}
+
+	/**
+	 * A contact sync carrying a subscription status, as a consent change queues it.
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function consent_event( int $id, int $is_unsubscribed ): array {
+		return array(
+			'id'         => $id,
+			'event_type' => HookHandler::EVENT_CONTACT_SYNC,
+			'payload'    => json_encode(
+				array(
+					'email'           => 'a@b.c',
+					'is_unsubscribed' => $is_unsubscribed,
+					'fields'          => array(),
+				)
+			),
+		);
+	}
+
 	/**
 	 * @param array<int, array<string, mixed>> $events
 	 */
@@ -782,6 +843,13 @@ final class FlusherTest extends TestCase {
 
 			public function update_payload( int $id, array $payload ): void {
 				$this->payloads[ $id ] = $payload;
+			}
+
+			/** @var array<int, string> What later_delivered_payloads() answers (CON-395). */
+			public array $later = array();
+
+			public function later_delivered_payloads( string $event_type, string $email, int $after_id ): array {
+				return $this->later;
 			}
 		};
 	}
