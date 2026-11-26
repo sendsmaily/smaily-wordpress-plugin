@@ -413,6 +413,8 @@ class HookHandler {
 	/**
 	 * Block-checkout opt-in (F3-48 F1). The WC Blocks Store API carries the
 	 * subscription checkbox in the request extensions, not in classic POST data.
+	 * This hook only records the tick on the order; the processed hook syncs
+	 * the contact (CON-439).
 	 *
 	 * @param mixed $request The store-API request (array-accessible extensions bag).
 	 */
@@ -428,8 +430,6 @@ class HookHandler {
 		} else {
 			$order->delete_meta_data( self::ORDER_META_NEWSLETTER_OPTIN );
 		}
-
-		$this->sync_order_contact( $order, $opted_in );
 	}
 
 	/**
@@ -445,21 +445,24 @@ class HookHandler {
 	 * The first-order automation rides the same twin (PRO-1679): it was left on
 	 * the classic hook when F3-46 carried attribution across, so on a
 	 * block-checkout store — the WooCommerce default — it never fired for
-	 * anyone. Contact sync is NOT repeated here; block checkout syncs the
-	 * contact from `on_checkout_block_optin`, which is the only place the
-	 * Store-API opt-in flag is readable.
+	 * anyone.
 	 *
-	 * A registered buyer's tick is recorded here (PRO-3406), not in the
-	 * request hook: an account created at this checkout gets its customer id
-	 * only after that hook has run. The welcome for the tick starts here too
-	 * (PRO-4093), for the same reason.
+	 * The order contact sync (F3-48 F1), a registered buyer's tick (PRO-3406)
+	 * and the welcome for the tick (PRO-4093) run here, not in the request
+	 * hook that reads the Store-API box (on_checkout_block_optin): an account
+	 * created at this checkout gets its customer id only after that hook has
+	 * run. Synced there, such a buyer went out as a guest too — once a guest's
+	 * tick always syncs (CON-439), a second subscribe beside the account's.
 	 */
 	public function on_block_checkout_order_processed( \WC_Order $order ): void {
 		$this->save_attribution_cookies_to_order( $order );
 		$this->maybe_enqueue_first_order( $order );
 		$this->maybe_mark_abandoned_cart_purchase( $order );
 
-		if ( $order->get_meta( self::ORDER_META_NEWSLETTER_OPTIN ) === '1' ) {
+		$opted_in = $order->get_meta( self::ORDER_META_NEWSLETTER_OPTIN ) === '1';
+		$this->sync_order_contact( $order, $opted_in );
+
+		if ( $opted_in ) {
 			self::record_newsletter_optin( (int) $order->get_customer_id(), self::SOURCE_BLOCK_CHECKOUT );
 			$this->maybe_welcome_checkout_optin( $order, self::SOURCE_BLOCK_CHECKOUT );
 		}

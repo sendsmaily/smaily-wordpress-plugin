@@ -65,8 +65,11 @@ final class ContactAudience {
 	 *
 	 *   - checkout_optin      → the checkbox is the only source: sync (guest OR
 	 *                           account) iff opted in;
-	 *   - legitimate_interest → guests synced iff include_guests (no opt-in needed);
-	 *   - consent             → guests synced iff include_guests AND opted in.
+	 *   - a guest who ticked  → synced in every mode (CON-439: a box the store
+	 *                           shows must work, whatever the guest switch says);
+	 *   - legitimate_interest → a guest who did not tick is synced iff
+	 *                           include_guests;
+	 *   - consent             → a guest who did not tick is never synced.
 	 *
 	 * @param int  $customer_id Order's WP customer id (0 = guest).
 	 * @param bool $opted_in    Whether the checkout subscription checkbox was ticked.
@@ -84,11 +87,7 @@ final class ContactAudience {
 			return false;
 		}
 
-		if ( ! $this->mode->include_guests() ) {
-			return false;
-		}
-
-		return $this->mode->requires_optin() ? $opted_in : true;
+		return $opted_in || $this->mode->include_guests();
 	}
 
 	/**

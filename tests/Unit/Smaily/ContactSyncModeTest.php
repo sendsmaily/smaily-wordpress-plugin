@@ -97,6 +97,13 @@ final class ContactSyncModeTest extends TestCase {
 		self::assertFalse( ( new ContactSyncMode() )->include_guests() );
 	}
 
+	public function test_consent_ignores_a_stored_include_guests(): void {
+		$this->options[ ContactSyncMode::OPTION_MODE ]           = ContactSyncMode::MODE_CONSENT;
+		$this->options[ ContactSyncMode::OPTION_INCLUDE_GUESTS ] = '1';
+
+		self::assertFalse( ( new ContactSyncMode() )->include_guests(), 'Consent never sends a guest who did not tick (CON-439).' );
+	}
+
 	public function test_include_guests_toggle(): void {
 		$this->options[ ContactSyncMode::OPTION_MODE ]           = ContactSyncMode::MODE_LEGITIMATE_INTEREST;
 		$this->options[ ContactSyncMode::OPTION_INCLUDE_GUESTS ] = '1';

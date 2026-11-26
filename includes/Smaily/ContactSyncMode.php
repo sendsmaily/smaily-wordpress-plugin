@@ -109,10 +109,21 @@ final class ContactSyncMode {
 		return $this->mode() !== self::MODE_LEGITIMATE_INTEREST;
 	}
 
-	/** Guest-order emails are synced — intrinsic to checkout-only, a toggle (default off) otherwise. */
+	/**
+	 * Guest buyers who did NOT tick the newsletter box are synced too — a
+	 * toggle (default off) under legitimate interest only. A guest who ticks
+	 * the box is synced in every mode whatever this says (CON-439); consent
+	 * never sends a guest who did not tick, so the stored toggle is ignored
+	 * there (kept, not deleted, for a later switch back). Checkout-only keeps
+	 * answering true: it is intrinsically guest-driven, and its audience is the
+	 * tick alone.
+	 */
 	public function include_guests(): bool {
 		if ( $this->mode() === self::MODE_CHECKOUT_OPTIN ) {
 			return true;
+		}
+		if ( $this->mode() === self::MODE_CONSENT ) {
+			return false;
 		}
 		return $this->bool_option( self::OPTION_INCLUDE_GUESTS );
 	}
