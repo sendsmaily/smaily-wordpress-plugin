@@ -563,11 +563,12 @@ class EventQueue {
 	 * written straight as the established terminal-skip pair (`sent`, no
 	 * sent_payload, a `skipped` exchange), so no flusher ever drains it and
 	 * nothing is scheduled. It carries the entity id and the reason code
-	 * only — no payload, so no recipient or other personal data.
+	 * only — no payload, so no recipient or other personal data — and,
+	 * when given, a note the plugin worded (never a remote text, CON-301).
 	 *
 	 * @return int|null Inserted row id, or null if the insert failed (silent, like enqueue()).
 	 */
-	public function record_skipped( string $event_type, string $entity_id, string $reason ): ?int {
+	public function record_skipped( string $event_type, string $entity_id, string $reason, string $note = '' ): ?int {
 		global $wpdb;
 
 		$inserted = $wpdb->insert(
@@ -581,7 +582,7 @@ class EventQueue {
 				'attempts'      => 0,
 				'status'        => self::STATUS_SENT,
 				'sent_payload'  => null,
-				'last_response' => self::skipped_response( $reason ),
+				'last_response' => self::skipped_response( $reason, $note ),
 			),
 			array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
 		);
@@ -614,13 +615,16 @@ class EventQueue {
 	 * The `last_response` a skipped row stores — record_skipped() and
 	 * mark_skipped() write the same shape, which skip_reason() reads.
 	 */
-	private static function skipped_response( string $reason ): string {
-		return (string) wp_json_encode(
-			array(
-				'outcome' => self::OUTCOME_SKIPPED,
-				'reason'  => $reason,
-			)
+	private static function skipped_response( string $reason, string $note = '' ): string {
+		$response = array(
+			'outcome' => self::OUTCOME_SKIPPED,
+			'reason'  => $reason,
 		);
+		if ( $note !== '' ) {
+			$response['note'] = $note;
+		}
+
+		return (string) wp_json_encode( $response );
 	}
 
 	/**

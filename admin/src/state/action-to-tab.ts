@@ -85,6 +85,7 @@ export function actionToTab(action: WizardAction): SettingsTabKey | null {
     case 'BACKFILL_PROGRESS':
     case 'BACKFILL_CANCEL':
     case 'SET_TRANSACTIONAL_STATUS':
+    case 'REMOVE_ACCOUNT_WORKFLOWS': // the server already removed them (CON-431)
     case 'ENGINE_AUTOMATIONS_HYDRATED':
     case 'UPDATE_ENGINE_AUTOMATION':
     case 'ENGINE_AUTOMATIONS_SAVE_START':

@@ -118,7 +118,12 @@ final class CartFlusherTest extends TestCase {
 		self::assertStringContainsString( '"autoresponder":88', (string) $queue->exchanges[2]['sent'] );
 	}
 
-	public function test_no_mapping_and_no_autoresponder_is_a_terminal_skip_with_a_skip_marker(): void {
+	/**
+	 * CON-431: no workflow chosen — e.g. after the Smaily account was
+	 * replaced and its workflows removed — sends nothing and closes the row
+	 * as skipped with the reason the Event Log words.
+	 */
+	public function test_no_mapping_and_no_autoresponder_is_skipped_as_no_workflow(): void {
 		$queue = $this->fake_queue( array( $this->cart_event( 3 ) ) );
 
 		$client = $this->reading_client( self::smaily_contact( '0' ) );
@@ -126,9 +131,9 @@ final class CartFlusherTest extends TestCase {
 
 		$stats = ( new CartFlusher( $queue, $this->router_returning( false ), static fn () => $client, $this->no_discounts() ) )->flush();
 
-		self::assertSame( 1, $stats['sent'], 'Unconfigured is a terminal skip (mark_sent) — a retry cannot conjure a workflow.' );
-		self::assertNull( $queue->exchanges[3]['sent'] );
-		self::assertStringContainsString( '"outcome":"skipped"', (string) $queue->exchanges[3]['response'] );
+		self::assertSame( 1, $stats['skipped'], 'A retry cannot conjure a workflow.' );
+		self::assertSame( 0, $stats['sent'] );
+		self::assertSame( array( 3 => 'no_workflow' ), $queue->marked_skipped );
 	}
 
 	public function test_fallback_non_101_body_code_is_terminal_failed(): void {

@@ -362,6 +362,16 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
         ),
       };
 
+    case 'REMOVE_ACCOUNT_WORKFLOWS': {
+      const removed = new Set(action.payload.accountKeys.map((key) => key.toLowerCase()));
+      return {
+        ...state,
+        automationMappings: state.automationMappings.filter(
+          (m) => !removed.has(m.accountKey.toLowerCase()),
+        ),
+      };
+    }
+
     case 'SET_AUTOMATION_FALLBACK': {
       // Exactly one row per triggerType should have is_default_fallback=true.
       return {

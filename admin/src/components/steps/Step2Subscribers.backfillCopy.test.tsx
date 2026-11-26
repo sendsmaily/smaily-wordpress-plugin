@@ -167,7 +167,8 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
   /**
    * PRO-3988: the customers Smaily refused for good were skipped. The panel
    * names them — user id, masked address, Smaily's reason, a profile link —
-   * and says how many more were refused than it lists.
+   * and says how many more were refused than it lists. CON-431: it says how
+   * many Smaily refused and points to the Event Log, which keeps every reason.
    */
   it('lists the customers Smaily refused', async () => {
     vi.spyOn(backfillApi, 'getBackfillStatus').mockResolvedValue(
@@ -202,8 +203,13 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
     render(<Step2Subscribers state={state} dispatch={vi.fn()} />);
 
     expect(
-      await screen.findByText(/Smaily refused 21 customers, so they were not imported\./),
+      await screen.findByText(/21 contacts were refused by Smaily — see the Event Log for the reasons\./),
     ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the Event Log' })).toHaveAttribute(
+      'href',
+      'admin.php?page=smaily-connect-settings#events',
+    );
+    expect(screen.getByText('Fix them and run the import again:')).toBeInTheDocument();
     const link = screen.getByRole('link', {
       name: 'User 42 (j***@example.com): Smaily API returned code 204: Invalid email',
     });
@@ -249,7 +255,7 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
     render(<Step2Subscribers state={state} dispatch={vi.fn()} />);
 
     expect(
-      await screen.findByText(/Smaily refused 1 customer, so it was not imported\./),
+      await screen.findByText(/1 contact was refused by Smaily — see the Event Log for the reason\./),
     ).toBeInTheDocument();
     expect(
       screen.getByText('2 customers could not be read from your store, so they were not imported:'),
@@ -284,7 +290,7 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
     expect(
       await screen.findByText('1 customer could not be read from your store, so it was not imported:'),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Smaily refused/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/refused by Smaily/)).not.toBeInTheDocument();
   });
 
   /** CON-286: a state row the database cannot read is an error, never idle. */

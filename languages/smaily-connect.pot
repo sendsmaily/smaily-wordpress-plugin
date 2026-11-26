@@ -1846,20 +1846,8 @@ msgstr ""
 msgid "Manage your Smaily integration. Each tab saves independently."
 msgstr ""
 
-#: admin/src/components/settings/Settings.tsx:138
-msgid "Connect to Smaily first to unlock this tab."
-msgstr ""
-
 #: admin/src/components/settings/Settings.tsx:143
 msgid "Settings tabs"
-msgstr ""
-
-#: admin/src/components/settings/Settings.tsx:160
-msgid "Smaily connection required"
-msgstr ""
-
-#: admin/src/components/settings/Settings.tsx:160
-msgid "Contacts, WooCommerce, and Campaign Intelligence are locked until your Smaily credentials authenticate. Fix the connection on the Connection tab to unlock them."
 msgstr ""
 
 #: admin/src/components/settings/Settings.tsx:164
@@ -2588,14 +2576,6 @@ msgstr ""
 #, js-format
 msgid "Done — %1$d contacts synced (%2$d contacts checked)."
 msgstr ""
-
-#. translators: %d is the number of customers Smaily refused.
-#: admin/src/components/steps/Step2Subscribers.tsx:219
-#, js-format
-msgid "Smaily refused %d customer, so it was not imported. Fix it and run the import again:"
-msgid_plural "Smaily refused %d customers, so they were not imported. Fix them and run the import again:"
-msgstr[0] ""
-msgstr[1] ""
 
 #. translators: %d is the number of customers the plugin could not read.
 #: admin/src/components/steps/Step2Subscribers.tsx:235
@@ -3604,4 +3584,44 @@ msgstr ""
 #: blocks/recommendations/src/block.json
 msgctxt "block keyword"
 msgid "products"
+msgstr ""
+
+#: includes/Settings/Subdomain.php:52
+msgid "The subdomain must be a plain Smaily subdomain such as \"demo\": letters, digits and hyphens only."
+msgstr ""
+
+#. translators: %s is a comma-separated list of automation names, e.g. "Welcome email, Abandoned-cart reminder".
+#: admin/src/state/workflow-removal.ts:74
+#, js-format
+msgid "This change replaces a Smaily account. The workflows chosen from that account will be removed from these automations, and they send nothing until you choose a workflow again: %s. Save anyway?"
+msgstr ""
+
+#: admin/src/components/settings/Settings.tsx:287
+msgid "Fix the connection"
+msgstr ""
+
+#. translators: %s is why the Smaily connection test failed.
+#: admin/src/components/settings/Settings.tsx:294
+#, js-format
+msgid "The Smaily connection does not work: %s"
+msgstr ""
+
+#. translators: %d is the number of contacts Smaily refused in the contact import.
+#: admin/src/components/steps/Step2Subscribers.tsx:305
+#, js-format
+msgid "%d contact was refused by Smaily — see the Event Log for the reason."
+msgid_plural "%d contacts were refused by Smaily — see the Event Log for the reasons."
+msgstr[0] ""
+msgstr[1] ""
+
+#: admin/src/components/steps/Step2Subscribers.tsx:313
+msgid "Open the Event Log"
+msgstr ""
+
+#: admin/src/components/steps/Step2Subscribers.tsx:318
+msgid "Fix them and run the import again:"
+msgstr ""
+
+#: admin/src/lib/transactional-reasons.ts:77
+msgid "Smaily refused this contact in the contact import, so it was not imported. The details show Smaily’s answer code."
 msgstr ""

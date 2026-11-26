@@ -28,6 +28,7 @@ final class TestConnectionEndpointTest extends TestCase {
 		Functions\when( '__' )->returnArg( 1 );
 		Functions\when( 'apply_filters' )->returnArg( 2 );
 		Functions\when( 'get_bloginfo' )->justReturn( 'x' );
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
 	}
 
 	protected function tearDown(): void {
@@ -235,6 +236,44 @@ final class TestConnectionEndpointTest extends TestCase {
 
 		self::assertFalse( $response->get_data()['connected'] );
 		self::assertStringContainsString( 'required', (string) $response->get_data()['error'] );
+	}
+
+	/**
+	 * CON-431: a pasted account address is tested as its subdomain, and a
+	 * subdomain that is not one plain name is refused before any request.
+	 */
+	public function test_a_pasted_account_address_is_tested_as_its_subdomain(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'subdomain', 'https://Demo.sendsmaily.net/campaigns' );
+		$request->set_param( 'username', 'alice' );
+		$request->set_param( 'password', '' );
+
+		$endpoint = $this->endpoint_with_client(
+			RefusalReason::OK,
+			new CredentialSet( 'demo', 'alice', 'stored-secret' )
+		);
+		$response = $endpoint->handle( $request );
+
+		self::assertTrue( $response->get_data()['connected'] );
+		self::assertSame( 'stored-secret', $endpoint->last_password_used(), 'The reduced subdomain is the stored account.' );
+	}
+
+	public function test_a_subdomain_that_is_not_one_plain_name_is_refused(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'subdomain', 'my shop!' );
+		$request->set_param( 'username', 'alice' );
+		$request->set_param( 'password', 's3cret' );
+
+		$endpoint = new class extends TestConnectionEndpoint {
+			protected function build_client( string $subdomain, string $username, string $password ): Client {
+				throw new \RuntimeException( 'Client must not be built for a refused subdomain' );
+			}
+		};
+
+		$response = $endpoint->handle( $request );
+
+		self::assertFalse( $response->get_data()['connected'] );
+		self::assertStringContainsString( 'plain Smaily subdomain', (string) $response->get_data()['error'] );
 	}
 
 	private function endpoint_with_client( string $connection_result, ?CredentialSet $stored = null ): TestConnectionEndpoint {

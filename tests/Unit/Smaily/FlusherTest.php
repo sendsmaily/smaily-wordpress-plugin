@@ -477,6 +477,9 @@ final class FlusherTest extends TestCase {
 
 		self::assertSame( 1, $stats['sent'] );
 		self::assertSame( 0, $stats['retried'] );
+		// CON-431: the Event Log says why — e.g. the Smaily account was
+		// replaced and its workflows removed.
+		self::assertSame( 'no_workflow', EventQueue::skip_reason( (string) $queue->exchanges[13]['response'] ) );
 	}
 
 	// --- the automation's discount code (CON-199) -----------------------------

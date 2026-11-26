@@ -127,6 +127,11 @@ after — PRO-1256), or recover afterwards with
 `bash bin/run-integration-tests.sh --restore-only` (restores the dev
 connection and Smaily settings from the durable snapshots without running
 the suite).
+A filter that selects `ContactBackfillAudienceTest` alone errors in its
+tearDown with `undefined function wp_delete_user()` (2026-11-26, CON-431):
+`wp-admin/includes/user.php` is loaded only by an earlier test of a wider
+run. Filter it together with a class that runs earlier and loads it (e.g.
+`AutomationDiscountCodeTest`) before reading the errors as yours.
 
 ### A WP global assigned at file scope is EMPTY in the integration suite unless the bootstrap binds it
 Symptom: shortcodes are silently absent in the integration suite — ours,
