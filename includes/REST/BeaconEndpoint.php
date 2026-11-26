@@ -642,9 +642,9 @@ class BeaconEndpoint {
 	 * request has no WooCommerce session or cart, and starting one here would
 	 * delete a logged-in shopper's session (the relay sends no REST nonce, so
 	 * WordPress treats the request as logged out and WooCommerce takes the
-	 * user's session cookie as invalid). The session cookie is
-	 * checked by WooCommerce's own hash, so only the shopper's own session is
-	 * read. A store with another session handler finds nothing here.
+	 * user's session cookie as invalid). The session cookie is checked by
+	 * WooCommerce's own hash, so only the shopper's own session is read. A
+	 * store with another session handler finds nothing here.
 	 */
 	private function cart_variation_id( int $parent_id, string $event_type ): int {
 		if ( ! class_exists( \WC_Session_Handler::class ) ) {
