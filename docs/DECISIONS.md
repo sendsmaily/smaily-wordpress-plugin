@@ -11977,3 +11977,50 @@ engine ask, not plugin work. The resolver reads the order language from
 read (unchanged by this decision).
 **Relationships:** F3-47 (the resolver and its rules), F2-10 (omit an
 empty optional field), CON-246 (which customers reach §4).
+
+### CON-386 — The first-order email follows the contact-sync mode's consent rule (Erkki, 2026-11-20 via CON-381)
+
+**Context:** the first-order email went out for every registered customer's
+first order in all three contact-sync modes, with no consent check and no
+read of the contact in Smaily. Smaily creates an address an automation is
+triggered for as a subscribed contact, so in "Subscribers only" a buyer who
+never subscribed got a marketing email and became a subscriber. The
+abandoned-cart reminder already avoided this (CON-196). Erkki decided on
+2026-11-20 (CON-381) that the first-order email depends on consent in every
+connector.
+**Decision:** the first-order email uses the abandoned-cart reminder's rule,
+extracted into one class both flushers call: `Smaily\AutomationConsent::
+refusal()`. A contact Smaily has as unsubscribed gets nothing in any mode
+(`unsubscribed`); "All customers" sends everything else; "Subscribers only"
+and "Checkout opt-in only" send only with consent — the account's
+`user_newsletter = 1` (consent mode only), the newsletter box ticked at the
+checkout of this order, or a subscribed Smaily contact — else
+`no_marketing_consent`. The main `Flusher` asks it for an
+`automation.first_order` row before the workflow is found (so a stopped
+email makes no discount code), reading the contact from the "default"
+account. A stopped row closes as skipped with the reason (`sent`, no
+`sent_payload`, `last_response` `{outcome: skipped, note, reason}`), so the
+Event Log reads it "skipped" with the same sentences as the reminder's and
+the Sent filter leaves it out; a read that fails takes the RetryPolicy path
+(waits and is retried, never sent blind). `CartFlusher` keeps its
+`REASON_*` constants as aliases of the shared ones.
+**Design choices:** the row carries the consent inputs at the top level of
+its payload, as the cart row does: `user_id` and, when ticked,
+`newsletter_optin`. The order's own tick counts as consent for that order's
+email — classic from the posted box, block from the `_smaily_newsletter_
+optin` order meta the request hook writes (the block processed hook now reads
+the tick before it queues the email). Independent of the "Sync contacts to
+Smaily" switch, like the reminder (PRO-1742). The welcome is unchanged: it
+starts on the shopper's own opt-in (PRO-4093).
+**Accepted limits:** one Smaily read per first-order email. A row queued
+before this change carries no `user_id` / tick, so in a consent mode it goes
+out only to a contact Smaily has as subscribed. Contacts that earlier
+first-order emails added as subscribers stay subscribed and read as consent,
+as the reminder's residue does (CON-196 addendum). A contact deleted in
+Smaily is enrolled again under "All customers".
+**Relationships:** CON-196 (the rule, now shared), CON-381 (the
+cross-connector decision; Magento and Shopify got the same ask, PrestaShop
+builds it this way), CON-439 (a ticked guest reaches Smaily — a guest order
+still never starts the first-order email), PRO-4098 / CON-2 (skipped rows),
+CON-199 (the discount code comes after the gate), CONTACT_SYNC_MODES.md
+§ 6.2.

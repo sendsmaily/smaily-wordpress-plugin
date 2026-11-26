@@ -14,9 +14,11 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\AutomationDiscount;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Smaily\ApiException;
+use Smaily\Connect\Smaily\AutomationConsent;
 use Smaily\Connect\Smaily\AutomationMarker;
 use Smaily\Connect\Smaily\AutomationRouter;
 use Smaily\Connect\Smaily\Client;
+use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\Flusher;
 use Smaily\Connect\Smaily\StaleSubscription;
@@ -607,6 +609,202 @@ final class FlusherTest extends TestCase {
 		( new Flusher( $queue, $this->router_running_before_send(), static fn () => $client, $discounts ) )->flush();
 
 		self::assertSame( array( 8 ), $queue->marked_sent );
+	}
+
+	// --- the first-order email follows the consent rule (CON-386) -------------
+
+	/**
+	 * @param array<string, mixed> $extra Top-level payload keys (user_id, newsletter_optin).
+	 *
+	 * @return array<string, mixed>
+	 */
+	private function first_order_event( int $id, array $extra = array() ): array {
+		return array(
+			'id'         => $id,
+			'event_type' => HookHandler::EVENT_AUTOMATION_FIRST_ORDER,
+			'attempts'   => 0,
+			'payload'    => json_encode(
+				array(
+					'email'  => 'buyer@example.test',
+					'fields' => array( 'order_id' => '100' ),
+				) + $extra
+			),
+		);
+	}
+
+	private function stub_mode( string $mode ): void {
+		Monkey\Functions\when( 'get_option' )->alias(
+			static fn ( string $key, $fallback = false ) => $key === ContactSyncMode::OPTION_MODE ? $mode : $fallback
+		);
+	}
+
+	/**
+	 * A "default" account client whose contact read answers: null = an
+	 * address Smaily does not have, else the contact's is_unsubscribed.
+	 */
+	private function reading_client( ?string $is_unsubscribed ): Client {
+		$client = $this->createMock( Client::class );
+		$client->method( 'get_contact_consent' )->willReturn(
+			array(
+				'found'                   => $is_unsubscribed !== null,
+				'is_unsubscribed'         => $is_unsubscribed,
+				'smaily_rec_profiling'    => null,
+				'smaily_rec_profiling_ts' => null,
+			)
+		);
+		return $client;
+	}
+
+	public function test_consent_mode_skips_a_first_order_email_to_a_buyer_with_no_consent_anywhere(): void {
+		$this->stub_mode( ContactSyncMode::MODE_CONSENT );
+		Monkey\Functions\when( 'get_user_meta' )->justReturn( '' );
+		$queue     = $this->fake_queue( array( $this->first_order_event( 30, array( 'user_id' => 42 ) ) ) );
+		$router    = $this->router_running_before_send();
+		$discounts = $this->createMock( AutomationDiscount::class );
+		$discounts->expects( self::never() )->method( 'issue' );
+		$client = $this->reading_client( null );
+
+		( new Flusher( $queue, $router, static fn () => $client, $discounts ) )->flush();
+
+		self::assertSame( array(), $router->posted, 'The email would subscribe the buyer.' );
+		self::assertSame( array( 30 ), $queue->marked_sent, 'Closed for good, never retried.' );
+		$response = (string) $queue->exchanges[30]['response'];
+		self::assertSame( AutomationConsent::REASON_NO_MARKETING_CONSENT, EventQueue::skip_reason( $response ) );
+		self::assertStringContainsString( Flusher::NOTE_NO_CONSENT, (string) json_decode( $response, true )['note'] );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: array<string, mixed>, 2: ?string}>
+	 */
+	public static function consented_buyers(): array {
+		return array(
+			'consent: the store record'          => array( ContactSyncMode::MODE_CONSENT, array( 'user_id' => 42 ), null ),
+			'consent: this checkout tick'        => array( ContactSyncMode::MODE_CONSENT, array( 'newsletter_optin' => true ), null ),
+			'consent: subscribed in Smaily'      => array( ContactSyncMode::MODE_CONSENT, array(), '0' ),
+			'checkout opt-in: this checkout tick' => array( ContactSyncMode::MODE_CHECKOUT_OPTIN, array( 'newsletter_optin' => true ), null ),
+			'checkout opt-in: subscribed in Smaily' => array( ContactSyncMode::MODE_CHECKOUT_OPTIN, array(), '0' ),
+			'all customers: not in Smaily'       => array( ContactSyncMode::MODE_LEGITIMATE_INTEREST, array(), null ),
+		);
+	}
+
+	/**
+	 * @dataProvider consented_buyers
+	 *
+	 * @param array<string, mixed> $extra
+	 */
+	public function test_a_first_order_email_goes_out_where_the_mode_allows_it( string $mode, array $extra, ?string $smaily ): void {
+		$this->stub_mode( $mode );
+		Monkey\Functions\when( 'get_user_meta' )->justReturn( '1' );
+		$queue  = $this->fake_queue( array( $this->first_order_event( 31, $extra ) ) );
+		$router = $this->router_running_before_send();
+		$client = $this->reading_client( $smaily );
+
+		( new Flusher( $queue, $router, static fn () => $client, $this->no_discounts() ) )->flush();
+
+		self::assertCount( 1, $router->posted );
+		self::assertSame( '100', $router->posted[0]['order_id'] );
+		self::assertSame( array( 31 ), $queue->marked_sent );
+	}
+
+	public function test_checkout_only_mode_keeps_no_store_record_for_the_first_order_email(): void {
+		$this->stub_mode( ContactSyncMode::MODE_CHECKOUT_OPTIN );
+		Monkey\Functions\when( 'get_user_meta' )->justReturn( '1' );
+		$queue  = $this->fake_queue( array( $this->first_order_event( 32, array( 'user_id' => 42 ) ) ) );
+		$router = $this->router_running_before_send();
+		$client = $this->reading_client( null );
+
+		( new Flusher( $queue, $router, static fn () => $client, $this->no_discounts() ) )->flush();
+
+		self::assertSame( array(), $router->posted );
+		self::assertSame( AutomationConsent::REASON_NO_MARKETING_CONSENT, EventQueue::skip_reason( (string) $queue->exchanges[32]['response'] ) );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public static function every_mode(): array {
+		return array(
+			'consent'             => array( ContactSyncMode::MODE_CONSENT ),
+			'checkout_optin'      => array( ContactSyncMode::MODE_CHECKOUT_OPTIN ),
+			'legitimate_interest' => array( ContactSyncMode::MODE_LEGITIMATE_INTEREST ),
+		);
+	}
+
+	/**
+	 * @dataProvider every_mode
+	 */
+	public function test_a_buyer_unsubscribed_in_smaily_gets_no_first_order_email_in_any_mode( string $mode ): void {
+		$this->stub_mode( $mode );
+		Monkey\Functions\when( 'get_user_meta' )->justReturn( '1' );
+		$queue  = $this->fake_queue(
+			array(
+				$this->first_order_event(
+					33,
+					array(
+						'user_id'          => 42,
+						'newsletter_optin' => true,
+					)
+				),
+			)
+		);
+		$router = $this->router_running_before_send();
+		$client = $this->reading_client( '1' );
+
+		( new Flusher( $queue, $router, static fn () => $client, $this->no_discounts() ) )->flush();
+
+		self::assertSame( array(), $router->posted );
+		self::assertSame( AutomationConsent::REASON_UNSUBSCRIBED, EventQueue::skip_reason( (string) $queue->exchanges[33]['response'] ) );
+	}
+
+	public function test_a_first_order_email_waits_for_a_retry_when_smaily_cannot_be_read(): void {
+		$this->stub_mode( ContactSyncMode::MODE_LEGITIMATE_INTEREST );
+		$queue  = $this->fake_queue( array( $this->first_order_event( 34 ) ) );
+		$router = $this->router_running_before_send();
+		$client = $this->createMock( Client::class );
+		$client->method( 'get_contact_consent' )->willThrowException( new ApiException( 'Smaily API returned HTTP 503 for GET contact', 503 ) );
+		$client->method( 'last_exchange' )->willReturn(
+			array(
+				'request'  => array( 'method' => 'GET', 'endpoint' => 'contact' ),
+				'response' => array( 'http' => 503 ),
+			)
+		);
+
+		$stats = ( new Flusher( $queue, $router, static fn () => $client, $this->no_discounts() ) )->flush();
+
+		self::assertSame( array(), $router->posted, 'Nothing is sent blind.' );
+		self::assertSame( 1, $stats['retried'] );
+		self::assertSame( array(), $queue->marked_sent );
+		self::assertSame( 34, $queue->attempts[0]['id'] );
+		self::assertStringContainsString( '"http":503', (string) $queue->exchanges[34]['response'], 'The failed read is kept for the Event Log (F3-44).' );
+	}
+
+	public function test_the_first_order_buyer_is_read_from_the_default_account(): void {
+		$this->stub_mode( ContactSyncMode::MODE_LEGITIMATE_INTEREST );
+		$queue    = $this->fake_queue( array( $this->first_order_event( 35 ) ) );
+		$accounts = array();
+		$client   = $this->reading_client( '0' );
+
+		( new Flusher(
+			$queue,
+			$this->router_running_before_send(),
+			static function ( string $account_key ) use ( &$accounts, $client ): Client {
+				$accounts[] = $account_key;
+				return $client;
+			},
+			$this->no_discounts()
+		) )->flush();
+
+		self::assertSame( array( 'default' ), $accounts );
+	}
+
+	public function test_a_welcome_reads_no_contact_first(): void {
+		$queue  = $this->fake_queue( array( $this->welcome_event( 36 ) ) );
+		$client = $this->createMock( Client::class );
+		$client->expects( self::never() )->method( 'get_contact_consent' );
+
+		( new Flusher( $queue, $this->router_running_before_send(), static fn () => $client, $this->no_discounts() ) )->flush();
+
+		self::assertSame( array( 36 ), $queue->marked_sent, 'The welcome is out of scope (CON-386).' );
 	}
 
 	// --- the abandoned-cart purchase marker never creates a contact (PRO-3627)
