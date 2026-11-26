@@ -121,6 +121,7 @@ Once Campaign Intelligence is connected, the plugin sends the following WooComme
 * browsing events, including product views, searches, cart events and checkout events, only when browse tracking is enabled and the shopper has given the required consent;
 * requests for a shopper's product recommendations, when a page with the Smaily Recommendations block or shortcode loads and the shopper has given marketing consent. The shopper's browser asks your store, and your store asks Campaign Intelligence, sending the logged-in customer's store user ID or the store's visitor cookie value;
 * when the site administrator uses Edit design, requests for the list of email designs and for a one-time link to a design page, with the address of the admin page to return to;
+* when the site administrator presses "Send test email" on a Campaign Intelligence email, the address typed next to it and the store's default language: Campaign Intelligence adds that address to the store's Smaily list as a test contact and sends it one test of the email; and when the administrator turns that email's test mode off or on, the administrator's WordPress user ID;
 * when the site administrator disconnects Campaign Intelligence or deletes the plugin, a request that ends the connection: Campaign Intelligence revokes the plugin's key and, if the store has no other connection, pauses the store and keeps its data; and
 * personal-data export, erasure and profiling opt-out requests so the corresponding WordPress and shopper controls are honored by Campaign Intelligence.
 
