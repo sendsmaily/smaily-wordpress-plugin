@@ -11943,3 +11943,37 @@ product page as the add target (a page cache may answer it without PHP).
 superseded), PRO-3835 (cards after the page, through a store route —
 unchanged), F3-46 (attribution is server-side and consent-ungated),
 PRO-2391 (no new storefront bundle).
+
+### CON-354 — The engine customer row takes its language from ContactLanguageResolver (2026-11-26)
+
+**Context:** Campaign Intelligence localizes each customer's recommended
+product names, links and copy by the customer's `language` (contract §4)
+and uses the store's default language when it is absent. The §4 row took
+it from `get_user_locale()` — the WordPress profile locale, the admin-UI
+language, which F3-47 had already ruled out for Smaily contacts. On the
+multilingual pilots few customers had a language in the engine (counts of
+2026-11-20: MiuMjau 5 of 6,252, Nanomaxi 405 of 9,048), so customers who
+buy in Russian or Latvian got Estonian recommendations.
+**Decision:** `CustomerPayloadBuilder` reads `language` only through
+`ContactLanguageResolver::for_user()` — the rule the Smaily contact sync
+uses: the preferred-language user meta, else the latest order's
+`wpml_language`, else the multilingual default, else the site locale;
+normalised to the two-letter code (`en_GB` → `en`) and clamped to the
+store's active languages. The builder leaves the field out when the
+resolver returns `''` (F2-10, absent ≠ empty). Every §4 send builds
+through the builder at send time — the live hook, a buyer's order
+(CON-246), the customers import and the login job (CON-268) — so no other
+path changes. No second resolver and no new source.
+**Consequence:** the engine and the Smaily contact get the same language
+code. A customer already in the engine gets it the next time it is sent:
+the next Customers import ("Import now") for everyone, or a re-send of
+that customer (a new order, an account change, a login with consent).
+Guest buyers are unchanged: the plugin sends no §4 row for a guest — the
+engine learns a guest only from §5 orders, "Guest buyers arrive with
+their orders" (§4), and §5 defines no language field — so a guest's
+language cannot reach the engine without a contract change. That is an
+engine ask, not plugin work. The resolver reads the order language from
+`wpml_language` only; a Polylang or TranslatePress order language is not
+read (unchanged by this decision).
+**Relationships:** F3-47 (the resolver and its rules), F2-10 (omit an
+empty optional field), CON-246 (which customers reach §4).

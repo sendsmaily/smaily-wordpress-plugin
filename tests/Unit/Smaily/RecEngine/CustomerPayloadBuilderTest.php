@@ -14,16 +14,30 @@ namespace Smaily\Connect\Tests\Unit\Smaily\RecEngine;
 use Brain\Monkey;
 use Brain\Monkey\Functions;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
+use Smaily\Connect\Support\ContactLanguageResolver;
 
 final class CustomerPayloadBuilderTest extends TestCase {
+
+	/** @var array<string, string> get_user_meta fixtures keyed "<user_id>:<meta_key>". */
+	private array $user_meta = array();
 
 	protected function setUp(): void {
 		parent::setUp();
 		Monkey\setUp();
-		// Default: no resolvable locale, so `language` is omitted unless a
-		// test opts in by re-stubbing get_user_locale.
-		Functions\when( 'get_user_locale' )->justReturn( '' );
+		$this->user_meta = array();
+		$fixtures        =& $this->user_meta;
+		Functions\when( 'get_user_meta' )->alias(
+			static function ( int $user_id, string $key ) use ( &$fixtures ) {
+				return $fixtures[ $user_id . ':' . $key ] ?? '';
+			}
+		);
+		// No site locale either, so `language` is omitted unless a test
+		// gives the resolver a source.
+		Functions\when( 'get_locale' )->justReturn( '' );
+		// CON-354: the WP profile locale is never a source.
+		Functions\expect( 'get_user_locale' )->never();
 	}
 
 	protected function tearDown(): void {
@@ -34,7 +48,7 @@ final class CustomerPayloadBuilderTest extends TestCase {
 	public function test_build_maps_identity_event_id_and_external_id(): void {
 		$user = $this->fake_user( 67, 'Mari@Example.com' );
 
-		$payload = ( new CustomerPayloadBuilder() )->build( $user, 'evt-uuid-cust-1' );
+		$payload = $this->builder()->build( $user, 'evt-uuid-cust-1' );
 
 		self::assertSame( 'evt-uuid-cust-1', $payload['event_id'] );
 		self::assertSame( 'mari@example.com', $payload['email'], 'Email is the identity, lowercased.' );
@@ -44,7 +58,7 @@ final class CustomerPayloadBuilderTest extends TestCase {
 	public function test_email_is_lowercased_and_trimmed(): void {
 		$user = $this->fake_user( 1, '  ALICE@Example.TEST  ' );
 
-		$payload = ( new CustomerPayloadBuilder() )->build( $user, 'u' );
+		$payload = $this->builder()->build( $user, 'u' );
 
 		self::assertSame( 'alice@example.test', $payload['email'] );
 	}
@@ -60,7 +74,7 @@ final class CustomerPayloadBuilderTest extends TestCase {
 			)
 		);
 
-		$payload = ( new CustomerPayloadBuilder() )->build( $user, 'u' );
+		$payload = $this->builder()->build( $user, 'u' );
 
 		self::assertArrayNotHasKey( 'first_name', $payload );
 		self::assertArrayNotHasKey( 'last_name', $payload );
@@ -73,7 +87,7 @@ final class CustomerPayloadBuilderTest extends TestCase {
 	public function test_never_sends_consent(): void {
 		$user = $this->fake_user( 5, 'a@example.test' );
 
-		$payload = ( new CustomerPayloadBuilder() )->build( $user, 'u' );
+		$payload = $this->builder()->build( $user, 'u' );
 
 		self::assertArrayNotHasKey( 'consent', $payload, 'W4 removed consent from the customers contract entirely.' );
 	}
@@ -88,7 +102,7 @@ final class CustomerPayloadBuilderTest extends TestCase {
 			)
 		);
 
-		$payload = ( new CustomerPayloadBuilder() )->build( $user, 'u' );
+		$payload = $this->builder()->build( $user, 'u' );
 
 		self::assertSame( 'Mari', $payload['first_name'] );
 		self::assertSame( 'Tamm', $payload['last_name'] );
@@ -97,7 +111,7 @@ final class CustomerPayloadBuilderTest extends TestCase {
 	public function test_first_seen_at_serialised_iso8601_utc_with_z_suffix(): void {
 		$user = $this->fake_user( 5, 'a@example.test', array( 'user_registered' => '2026-01-15 10:30:00' ) );
 
-		$payload = ( new CustomerPayloadBuilder() )->build( $user, 'u' );
+		$payload = $this->builder()->build( $user, 'u' );
 
 		// `Z`, not `+00:00` — the engine's strict Zod .datetime() rejects an
 		// offset (3.3.4 live-walk caught this).
@@ -107,18 +121,44 @@ final class CustomerPayloadBuilderTest extends TestCase {
 	public function test_first_seen_at_omitted_for_zero_date(): void {
 		$user = $this->fake_user( 5, 'a@example.test', array( 'user_registered' => '0000-00-00 00:00:00' ) );
 
-		$payload = ( new CustomerPayloadBuilder() )->build( $user, 'u' );
+		$payload = $this->builder()->build( $user, 'u' );
 
 		self::assertArrayNotHasKey( 'first_seen_at', $payload );
 	}
 
-	public function test_language_derived_from_locale_as_iso639_1(): void {
-		Functions\when( 'get_user_locale' )->justReturn( 'et_EE' );
+	public function test_language_is_the_preferred_language_as_a_two_letter_code(): void {
+		// CON-354: the same source the Smaily contact sync reads.
+		$this->user_meta['5:_user_preferred_language'] = 'en_GB';
 		$user = $this->fake_user( 5, 'a@example.test' );
 
-		$payload = ( new CustomerPayloadBuilder() )->build( $user, 'u' );
+		$payload = $this->builder( 'et', array( 'et', 'en', 'ru' ) )->build( $user, 'u' );
 
-		self::assertSame( 'et', $payload['language'], 'et_EE → et (ISO 639-1 language part only).' );
+		self::assertSame( 'en', $payload['language'], 'en_GB → en, as the resolver returns it.' );
+	}
+
+	public function test_language_falls_back_to_the_latest_order_language(): void {
+		$user = $this->fake_user( 5, 'a@example.test' );
+
+		$payload = $this->builder( 'et', array( 'et', 'ru' ), 'ru' )->build( $user, 'u' );
+
+		self::assertSame( 'ru', $payload['language'] );
+	}
+
+	public function test_language_is_the_store_default_when_the_customer_has_none(): void {
+		$user = $this->fake_user( 5, 'a@example.test' );
+
+		$payload = $this->builder( 'et', array( 'et', 'ru' ) )->build( $user, 'u' );
+
+		self::assertSame( 'et', $payload['language'], 'The multilingual default, as for the Smaily contact.' );
+	}
+
+	public function test_language_outside_the_active_languages_is_the_default(): void {
+		$this->user_meta['5:_user_preferred_language'] = 'lv';
+		$user = $this->fake_user( 5, 'a@example.test' );
+
+		$payload = $this->builder( 'et', array( 'et', 'ru' ) )->build( $user, 'u' );
+
+		self::assertSame( 'et', $payload['language'] );
 	}
 
 	public function test_woocommerce_country_and_phone_included_when_present(): void {
@@ -160,15 +200,43 @@ final class CustomerPayloadBuilderTest extends TestCase {
 	}
 
 	/**
+	 * A builder whose language resolver reads a fake multilingual plugin
+	 * (default + active languages) and a fake latest-order language. The
+	 * defaults resolve nothing, so `language` is left out.
+	 *
+	 * @param array<int, string> $active
+	 */
+	private function builder( string $default_language = '', array $active = array(), string $order_language = '' ): CustomerPayloadBuilder {
+		return new CustomerPayloadBuilder( $this->resolver( $default_language, $active, $order_language ) );
+	}
+
+	/**
+	 * @param array<int, string> $active
+	 */
+	private function resolver( string $default_language, array $active, string $order_language ): ContactLanguageResolver {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_default_language' )->willReturn( $default_language );
+		$detector->method( 'get_detected_languages' )->willReturn( $active );
+
+		return new ContactLanguageResolver(
+			$detector,
+			static function () use ( $order_language ): string {
+				return $order_language;
+			}
+		);
+	}
+
+	/**
 	 * A builder with stubbed WooCommerce billing fields — the unit env has no
 	 * WC_Customer, so the country/phone seam is overridden directly.
 	 */
 	private function builder_with_wc( string $country, string $phone ): CustomerPayloadBuilder {
-		return new class( $country, $phone ) extends CustomerPayloadBuilder {
+		return new class( $country, $phone, $this->resolver( '', array(), '' ) ) extends CustomerPayloadBuilder {
 			private string $country;
 			private string $phone;
 
-			public function __construct( string $country, string $phone ) {
+			public function __construct( string $country, string $phone, ContactLanguageResolver $resolver ) {
+				parent::__construct( $resolver );
 				$this->country = $country;
 				$this->phone   = $phone;
 			}

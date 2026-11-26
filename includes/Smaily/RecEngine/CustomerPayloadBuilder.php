@@ -12,6 +12,7 @@ namespace Smaily\Connect\Smaily\RecEngine;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
+use Smaily\Connect\Support\ContactLanguageResolver;
 
 /**
  * Translates a WP_User into one entry of the
@@ -44,11 +45,22 @@ use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
  * engine no longer accepts, stores, or processes any `consent.*` field; Smaily
  * owns consent). The builder deliberately sends no consent data.
  *
- * Not final: tests subclass to stub the WooCommerce / locale reads (billing
- * country + phone, user locale) without standing up WC_Customer. Same
- * rationale as CatalogPayloadBuilder and Smaily\Client.
+ * `language` comes ONLY from ContactLanguageResolver::for_user() — the rule
+ * the Smaily contact sync uses (F3-47), so the engine and Smaily get the same
+ * code. Never the WP profile locale (get_user_locale): it is the admin-UI
+ * language and defaults to the site locale (CON-354).
+ *
+ * Not final: tests subclass to stub the WooCommerce reads (billing country +
+ * phone) without standing up WC_Customer. Same rationale as
+ * CatalogPayloadBuilder and Smaily\Client.
  */
 class CustomerPayloadBuilder {
+
+	private ?ContactLanguageResolver $language_resolver = null;
+
+	public function __construct( ?ContactLanguageResolver $language_resolver = null ) {
+		$this->language_resolver = $language_resolver;
+	}
 
 	/**
 	 * Build the customer wire object for one WP user + its queue event_uuid.
@@ -151,22 +163,15 @@ class CustomerPayloadBuilder {
 	}
 
 	/**
-	 * The user's language as an ISO 639-1 code (the language part of the WP
-	 * locale, e.g. `et_EE` → `et`). Protected so tests can drive it without
-	 * WordPress. Empty when the locale can't be resolved.
+	 * The user's language as the resolver returns it: the two-letter code
+	 * (`en_GB` → `en`), clamped to the store's active languages; '' when
+	 * nothing resolves, and build() then leaves the field out.
 	 */
-	protected function language( \WP_User $user ): string {
-		if ( ! function_exists( 'get_user_locale' ) ) {
-			return '';
+	private function language( \WP_User $user ): string {
+		if ( $this->language_resolver === null ) {
+			$this->language_resolver = new ContactLanguageResolver();
 		}
-		$locale = trim( (string) get_user_locale( $user ) );
-		if ( $locale === '' ) {
-			return '';
-		}
-		$parts = preg_split( '/[_-]/', $locale );
-		if ( ! is_array( $parts ) || ! isset( $parts[0] ) || $parts[0] === '' ) {
-			return '';
-		}
-		return strtolower( $parts[0] );
+
+		return $this->language_resolver->for_user( $user );
 	}
 }
