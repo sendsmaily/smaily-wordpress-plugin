@@ -30,6 +30,7 @@ final class CredentialsTest extends TestCase {
 		Functions\when( 'sanitize_key' )->alias(
 			static fn ( string $key ): string => strtolower( preg_replace( '/[^a-z0-9_\-]/i', '', $key ) ?? '' )
 		);
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
 
 		\Smaily_Connect\Includes\Cypher::$decrypt_calls = array();
 		\Smaily_Connect\Includes\Cypher::$decrypt_return  = '';
@@ -192,7 +193,16 @@ final class CredentialsTest extends TestCase {
 		self::assertTrue( $set->matches( 'demo', 'alice' ) );
 		self::assertFalse( $set->matches( 'other', 'alice' ), 'A different subdomain is a different account.' );
 		self::assertFalse( $set->matches( 'demo', 'bob' ), 'A different username is a different account.' );
-		self::assertFalse( $set->matches( 'Demo', 'alice' ), 'Comparison is exact, not case-folded.' );
+		self::assertTrue( $set->matches( 'Demo', 'alice' ), 'A typed subdomain is compared as its normalized form.' );
+		self::assertFalse( $set->matches( 'demo', 'Alice' ), 'The username is compared exactly.' );
+	}
+
+	public function test_matches_reads_a_stored_subdomain_saved_with_a_capital_as_the_same_account(): void {
+		// Audit 2026-11-26 L2: a save before CON-431 kept capitals.
+		$set = new CredentialSet( 'Demo', 'alice', 's3cret' );
+
+		self::assertTrue( $set->matches( 'demo', 'alice' ) );
+		self::assertFalse( $set->matches( 'other', 'alice' ) );
 	}
 
 	public function test_subdomains_lists_every_stored_account_trimmed_lower_case_and_once(): void {

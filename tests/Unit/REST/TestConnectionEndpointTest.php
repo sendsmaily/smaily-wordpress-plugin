@@ -258,6 +258,25 @@ final class TestConnectionEndpointTest extends TestCase {
 		self::assertSame( 'stored-secret', $endpoint->last_password_used(), 'The reduced subdomain is the stored account.' );
 	}
 
+	public function test_handle_reuses_the_stored_password_of_a_subdomain_saved_with_a_capital(): void {
+		// Audit 2026-11-26 L2: a save before CON-431 stored "Demo" as
+		// typed; the test lower-cases the typed value, so the stored one
+		// is compared normalized too.
+		$request = new WP_REST_Request();
+		$request->set_param( 'subdomain', 'Demo' );
+		$request->set_param( 'username', 'alice' );
+		$request->set_param( 'password', '' );
+
+		$endpoint = $this->endpoint_with_client(
+			RefusalReason::OK,
+			new CredentialSet( 'Demo', 'alice', 'stored-secret' )
+		);
+		$response = $endpoint->handle( $request );
+
+		self::assertTrue( $response->get_data()['connected'] );
+		self::assertSame( 'stored-secret', $endpoint->last_password_used() );
+	}
+
 	public function test_a_subdomain_that_is_not_one_plain_name_is_refused(): void {
 		$request = new WP_REST_Request();
 		$request->set_param( 'subdomain', 'my shop!' );

@@ -290,3 +290,11 @@ response, and no consent path sends without its basis. L1 (one session read
 per request on the public relay) and L2 (the connection test's password reuse
 after normalization) are small fixes. 3.26.0 may proceed once its release
 gate — Plugin Check on the built ZIP included — is green.
+
+## Disposition (2026-11-26)
+
+| # | Disposition |
+|---|---|
+| L1 (Low) | **Fixed** in #392: the relay reads the shopper's session at most once per request, on the first cart event that names a variable product, and resolves the rest of the batch from those lines; a batch with no variable product reads nothing. `RecEngineBrowseProxyTest` counts one read for a 10-event batch (10 before the fix). |
+| L2 (Low) | **Fixed** in #392: `CredentialSet::matches()` compares both subdomains through `Subdomain::normalize()`, so a stored `Demo` matches a typed `demo` and the connection test reuses the stored password; the username still has to match exactly. Unit cases in `CredentialsTest` and `TestConnectionEndpointTest`. |
+| I1–I8 (Info) | Accepted as recorded above; I5 stays a backlog candidate. |

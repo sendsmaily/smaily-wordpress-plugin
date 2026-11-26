@@ -262,6 +262,55 @@ final class RecEngineBrowseProxyTest extends TestCase {
 		self::assertSame( 'woo-' . $variation_ids[1], $received[0]['sku'] ?? null );
 	}
 
+	public function test_a_batch_of_variable_parent_cart_events_reads_the_session_once(): void {
+		// Audit 2026-11-26 L1: the session row was read and unserialized
+		// once per event — up to 100 reads a request on a public route.
+		// Each read builds a WC_Session_Handler, whose constructor applies
+		// `woocommerce_cookie`; counting that filter counts the reads
+		// whether or not WooCommerce's object cache answers the SELECT.
+		$this->enable_beacon();
+		list( $parent_id, $variation_ids ) = $this->make_variable_product( 2 );
+		$this->shopper_session(
+			array(
+				'cart'                  => array(
+					'k1' => array( 'product_id' => $parent_id, 'variation_id' => $variation_ids[0], 'quantity' => 1 ),
+				),
+				'removed_cart_contents' => array(
+					'k2' => array( 'product_id' => $parent_id, 'variation_id' => $variation_ids[1], 'quantity' => 1 ),
+				),
+			)
+		);
+
+		$reads   = 0;
+		$counter = static function ( $cookie ) use ( &$reads ) {
+			++$reads;
+			return $cookie;
+		};
+		add_filter( 'woocommerce_cookie', $counter );
+
+		$events = array();
+		for ( $i = 0; $i < 10; $i++ ) {
+			$events[] = array(
+				'event_id'   => 'l1-' . $i,
+				'event_type' => 0 === $i % 2 ? 'cart_add' : 'cart_remove',
+				'session_id' => 's1',
+				'event_ts'   => '2026-11-26T10:00:00Z',
+				'product_id' => (string) $parent_id,
+			);
+		}
+		$response = RestRequestHelper::post( '/relay', array( 'events' => $events ) );
+
+		remove_filter( 'woocommerce_cookie', $counter );
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( 1, $reads, 'One session read for the whole batch.' );
+		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertCount( 10, $received );
+		self::assertSame( 'woo-' . $variation_ids[0], $received[0]['sku'] ?? null, 'A cart_add keys on the cart line.' );
+		self::assertSame( 'woo-' . $variation_ids[1], $received[1]['sku'] ?? null, 'A cart_remove keys on the removed line.' );
+		self::assertSame( 'woo-' . $variation_ids[1], $received[9]['sku'] ?? null );
+	}
+
 	public function test_cart_event_naming_a_variable_parent_without_a_session_keeps_the_parent_key(): void {
 		$this->enable_beacon();
 		list( $parent_id ) = $this->make_variable_product( 1 );
