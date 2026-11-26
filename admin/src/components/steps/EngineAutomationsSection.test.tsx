@@ -420,6 +420,7 @@ describe('EngineAutomationsSection', () => {
       const field = await screen.findByLabelText('Send a test email to');
       expect(field).toHaveValue('admin@shop.example');
       expect(screen.getByText('This address is added to the Smaily list as a test contact.')).toBeInTheDocument();
+      expect(screen.getByText('The test shows the design your Smaily workflow holds.')).toBeInTheDocument();
 
       fireEvent.change(field, { target: { value: ' tester@shop.example ' } });
       const readsBefore = configMock.mock.calls.length;

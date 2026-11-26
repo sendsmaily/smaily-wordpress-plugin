@@ -2425,6 +2425,10 @@ msgstr "Saada testkiri"
 msgid "This address is added to the Smaily list as a test contact."
 msgstr "See aadress lisatakse Smaily listi testkontaktina."
 
+#: admin/src/components/steps/EngineAutomationsSection.tsx:923
+msgid "The test shows the design your Smaily workflow holds."
+msgstr "Test näitab kujundust, mis on sinu Smaily töövoos."
+
 #. translators: %s is the email address the test was sent to.
 #: admin/src/components/steps/EngineAutomationsSection.tsx:926
 #, js-format
