@@ -73,7 +73,7 @@ and `npx @wordpress/env run cli wp config set WP_DEBUG_DISPLAY false --raw`.
 Without them 78 unrelated tests failed (missing build hash, hooks never
 registered). A checkout whose gitignored builds are missing or stale also
 fails the render tests (LandingPageBlockRender, LandingPageShortcodeRender,
-StorefrontRecommendationsRender — 5 tests, 2026-10-06): run
+StorefrontRecommendationsRender, NewsletterBlockButtonStyle — 6 tests, 2026-11-26): run
 `composer run install-block-modules && composer run build` and
 `npm run build:admin` (it builds `sc-recs.js`) before reading those as yours.
 Port 8888 can be held by another local project (a Magento

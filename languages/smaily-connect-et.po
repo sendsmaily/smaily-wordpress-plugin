@@ -3516,8 +3516,8 @@ msgstr "Avame seadistusakent…"
 
 #: includes/Smaily/StaleSubscription.php:75
 msgid "The shopper has since changed their newsletter subscription, and the newer choice already reached Smaily. This older change is not sent again."
-msgstr "Ostleja on vahepeal oma uudiskirja tellimust muutnud ja uuem valik on juba Smailysse jõudnud. Seda vanemat muudatust uuesti ei saadeta."
+msgstr "Ostja on vahepeal oma uudiskirja tellimust muutnud ja uuem valik on juba Smailysse jõudnud. Seda vanemat muudatust uuesti ei saadeta."
 
 #: admin/src/lib/transactional-reasons.ts:56
 msgid "The shopper has since changed their newsletter subscription, and the newer choice already reached Smaily."
-msgstr "Ostleja on vahepeal oma uudiskirja tellimust muutnud ja uuem valik on juba Smailysse jõudnud."
+msgstr "Ostja on vahepeal oma uudiskirja tellimust muutnud ja uuem valik on juba Smailysse jõudnud."
