@@ -74,6 +74,92 @@ final class StorefrontBeaconTest extends TestCase {
 		self::assertArrayNotHasKey( 'categoryPath', $this->beacon()->product_context( $product ) );
 	}
 
+	public function test_a_variable_product_view_keys_on_its_default_variation(): void {
+		// CON-427: the catalog has a row per variation and none for the
+		// parent, so the parent's own key would join nothing.
+		$product = $this->fake_variable_product( 500, array( 501, 502 ) );
+		Monkey\Functions\when( 'get_post_status' )->justReturn( 'publish' );
+
+		self::assertSame( 'woo-502', $this->beacon_with_default( 502 )->product_context( $product )['sku'] );
+	}
+
+	public function test_a_variable_product_view_without_a_default_keys_on_the_first_published_variation(): void {
+		// 501 is disabled (private): never chosen, though the catalog sends it.
+		$product = $this->fake_variable_product( 500, array( 501, 502, 503 ) );
+		Monkey\Functions\when( 'get_post_status' )->alias(
+			static function ( int $id ): string {
+				return 501 === $id ? 'private' : 'publish';
+			}
+		);
+
+		self::assertSame( 'woo-502', $this->beacon_with_default( 0 )->product_context( $product )['sku'] );
+	}
+
+	public function test_a_variable_product_view_with_no_published_variation_keeps_the_parent_key(): void {
+		$product = $this->fake_variable_product( 500, array( 501 ) );
+		Monkey\Functions\when( 'get_post_status' )->justReturn( 'private' );
+
+		self::assertSame( 'woo-500', $this->beacon_with_default( 0 )->product_context( $product )['sku'] );
+	}
+
+	public function test_a_variation_page_context_keeps_its_own_key(): void {
+		// A simple product or a chosen variation: the key is unchanged.
+		$variation = $this->fake_product( 502, '' );
+
+		self::assertSame( 'woo-502', $this->beacon_with_default( 999 )->product_context( $variation )['sku'] );
+	}
+
+	/** A beacon whose default-variation lookup answers $default_id. */
+	private function beacon_with_default( int $default_id ): StorefrontBeacon {
+		return new class( new RecEngineSettings(), $default_id ) extends StorefrontBeacon {
+			private int $default_id;
+
+			public function __construct( RecEngineSettings $settings, int $default_id ) {
+				parent::__construct( $settings );
+				$this->default_id = $default_id;
+			}
+
+			protected function default_variation_id( \WC_Product $product ): int {
+				return $this->default_id;
+			}
+		};
+	}
+
+	/**
+	 * @param int[] $children Variation ids in the catalog's order.
+	 */
+	private function fake_variable_product( int $id, array $children ): \WC_Product {
+		return new class( $id, $children ) extends \WC_Product {
+			private int $id;
+			/** @var int[] */
+			private array $children;
+
+			/**
+			 * @param int[] $children
+			 */
+			public function __construct( int $id, array $children ) {
+				$this->id       = $id;
+				$this->children = $children;
+			}
+
+			public function get_id( $context = 'view' ) {
+				return $this->id;
+			}
+			public function get_parent_id( $context = 'view' ) {
+				return 0;
+			}
+			public function get_sku( $context = 'view' ) {
+				return 'MERCHANT-SKU';
+			}
+			public function is_type( $type ) {
+				return 'variable' === $type;
+			}
+			public function get_children( $context = 'view' ) {
+				return $this->children;
+			}
+		};
+	}
+
 	private function fake_product( int $id, string $sku ): \WC_Product {
 		return new class( $id, $sku ) extends \WC_Product {
 			private int $id;
@@ -92,6 +178,9 @@ final class StorefrontBeaconTest extends TestCase {
 			}
 			public function get_sku( $context = 'view' ) {
 				return $this->sku;
+			}
+			public function is_type( $type ) {
+				return 'simple' === $type;
 			}
 		};
 	}
