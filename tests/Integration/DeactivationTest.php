@@ -18,6 +18,7 @@ use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
+use Smaily\Connect\Smaily\RecEngine\PrivacyRequests;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 
 /**
@@ -57,6 +58,8 @@ final class DeactivationTest extends TestCase {
 		self::assertTrue( as_has_scheduled_action( EventQueue::FLUSH_HOOK, array(), EventQueue::AS_GROUP ) );
 		self::assertTrue( as_has_scheduled_action( 'smly_plus_abandoned_cart', array(), EventQueue::AS_GROUP ) );
 		self::assertTrue( as_has_scheduled_action( IngestQueue::FLUSH_HOOK, array(), IngestQueue::AS_GROUP ) );
+		// The engine's privacy requests (CON-431).
+		self::assertTrue( as_has_scheduled_action( PrivacyRequests::FLUSH_HOOK, array(), PrivacyRequests::AS_GROUP ) );
 
 		Deactivation::run();
 

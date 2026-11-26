@@ -78,6 +78,7 @@ use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
 use Smaily\Connect\Smaily\RecEngine\OrderPayloadBuilder;
+use Smaily\Connect\Smaily\RecEngine\PrivacyRequests;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
@@ -225,6 +226,9 @@ final class Bootstrap {
 		add_action( CustomerFlusher::FLUSH_HOOK, array( $this, 'on_flush_customer_queue' ) );
 		// Orders drain on their own hook too (3.3-orders.3).
 		add_action( OrderFlusher::FLUSH_HOOK, array( $this, 'on_flush_order_queue' ) );
+		// The engine's privacy requests (§9 deletion, §10 opt-out), paced to
+		// its limit of 10 a minute (CON-431).
+		add_action( PrivacyRequests::FLUSH_HOOK, array( $this, 'on_flush_privacy_requests' ) );
 
 		// smly_plus_contact_sync is the surviving legacy-bridge tick name
 		// (the callback no longer bridges to legacy hooks — F3-48.3).
@@ -292,7 +296,8 @@ final class Bootstrap {
 			},
 			$this->cart_session_store(),
 			$this->event_queue(),
-			$this->ingest_queue()
+			$this->ingest_queue(),
+			$this->privacy_requests()
 		) )->register();
 
 		// Proactive health notifications (3.10.2) — a recurring health-check sets
@@ -431,6 +436,13 @@ final class Bootstrap {
 	 */
 	public function on_order_date_index(): void {
 		( new LegacyOrderDateIndex() )->run();
+	}
+
+	/**
+	 * AS callback for PrivacyRequests::FLUSH_HOOK (CON-431).
+	 */
+	public function on_flush_privacy_requests(): void {
+		$this->privacy_requests()->run();
 	}
 
 	/**
@@ -987,6 +999,12 @@ final class Bootstrap {
 			as_schedule_recurring_action( time(), 60, CatalogRemoveFlusher::FLUSH_HOOK, array(), CatalogRemoveFlusher::AS_GROUP );
 		}
 
+		// The engine's privacy requests (CON-431) — every minute, so a request
+		// the window or a 429 held back goes out once it may.
+		if ( ! as_has_scheduled_action( PrivacyRequests::FLUSH_HOOK, array(), PrivacyRequests::AS_GROUP ) ) {
+			as_schedule_recurring_action( time(), 60, PrivacyRequests::FLUSH_HOOK, array(), PrivacyRequests::AS_GROUP );
+		}
+
 		// Nightly catalog manifest (§3c, PRO-3859) — daily, first run at the
 		// next 03:00 store time. A fixed 24 h interval: after a daylight-saving
 		// change it runs an hour off 03:00 until the action is re-created.
@@ -1376,8 +1394,24 @@ final class Bootstrap {
 				}
 				return $bootstrap->smaily_client();
 			},
+			$this->privacy_requests()
+		);
+	}
+
+	/**
+	 * The engine's privacy requests (§9, §10), queued and sent from their
+	 * own action within the engine's limit (CON-431). Its client makes ONE
+	 * attempt of at most PrivacyRequests::TIMEOUT_SECONDS: a 429 or a failure
+	 * parks the request in the queue, never a wait inside the run.
+	 */
+	public function privacy_requests(): PrivacyRequests {
+		$bootstrap = $this;
+
+		return new PrivacyRequests(
+			$this->ingest_queue(),
+			$this->rec_engine_settings(),
 			static function () use ( $bootstrap ): RecEngineClient {
-				return $bootstrap->rec_client();
+				return $bootstrap->rec_client( 1, PrivacyRequests::TIMEOUT_SECONDS );
 			}
 		);
 	}

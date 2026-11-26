@@ -1827,6 +1827,26 @@ Rows stored before CON-301 keep their old text until the janitor prunes them.
 Pinned per store by a test that puts an address in the remote message and
 asserts it is absent (DECISIONS "CON-301").
 
+### The engine's deletions and opt-outs are queued and paced — never sent in the request (CON-431)
+The eraser's §9 delete and ProfilingConsent's §10 opt-out / opt-in are rows
+in the Campaign Intelligence queue (`privacy.delete` / `privacy.opt_out`),
+sent by `RecEngine\PrivacyRequests::run()` on `smly_rec_flush_privacy`
+(group `smaily-rec-privacy`): at most 10 in any 60 s (option
+`smly_rec_privacy_pace`, the §8 export counted too), a 429 holds every row
+for the engine's wait, no answer / 5xx parks the row on a growing back-off,
+a 401 / 403 holds every row until a new setup exchange stores another key
+(`refused_key` in the pace option, a keyed hash — Erkki, 2026-11-26), any
+other 4xx ends it. Disconnect keeps the rows; uninstall drops them. Rules: a new GDPR call goes through this queue,
+never inline; the row's `entity_id` is `PrivacyRequests::anonymous_id()`
+and only `payload` holds the address, until the request ends (`{}` then);
+the Event Log's Details never return a privacy row's payload.
+**Integration-test trap:** an erasure or an opt-out only queues — a test that
+asserts the engine got the call runs `Bootstrap::instance()->
+privacy_requests()->run()` first (a fake clock: subclass `now()`, as
+`RecEnginePrivacyRequestsTest` does). The mock plays 429 / 5xx with
+`RecEngineMockServer::set_privacy_answers()` and counts the calls
+(`privacy_request_count()`).
+
 ### The installation report goes to subscription.smaily.com — tests and dev sites NEVER reach it (CON-290)
 `Report\InstallationReport` POSTs contract installation-report-v1 (private
 repo `erkkimarkus/subscription`, docs/contracts/installation-report-v1.md) to

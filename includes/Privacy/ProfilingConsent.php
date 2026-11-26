@@ -18,7 +18,7 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
-use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
+use Smaily\Connect\Smaily\RecEngine\PrivacyRequests;
 use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
 
 /**
@@ -36,6 +36,8 @@ use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
  *
  * When the decision resolves to "do not profile", two actions fire (the spec):
  *   1. engine opt-out (§10 Client::customer_opt_out) — excluded from recs;
+ *      queued, never sent in the request that decides it: PrivacyRequests
+ *      sends it from the background within the engine's limit (CON-431);
  *   2. beacon-stop — the beacon's profiling gate ((a).1 consumes may_profile()).
  *
  * Not final: the beacon + identity-merge tests inject a double overriding
@@ -68,21 +70,20 @@ class ProfilingConsent {
 	/** @var callable():?SmailyClient */
 	private $smaily_client_factory;
 
-	/** @var callable():RecEngineClient */
-	private $rec_client_factory;
+	private PrivacyRequests $privacy_requests;
 
 	/**
-	 * @param callable():?SmailyClient   $smaily_client_factory Default Smaily client, or null when the email side isn't configured.
-	 * @param callable():RecEngineClient $rec_client_factory    Rec-engine client (for the §10 opt-out).
+	 * @param callable():?SmailyClient $smaily_client_factory Default Smaily client, or null when the email side isn't configured.
+	 * @param PrivacyRequests          $privacy_requests      The queue of the engine's §10 opt-out and opt-in (CON-431).
 	 */
 	public function __construct(
 		RecEngineSettings $settings,
 		callable $smaily_client_factory,
-		callable $rec_client_factory
+		PrivacyRequests $privacy_requests
 	) {
 		$this->settings              = $settings;
 		$this->smaily_client_factory = $smaily_client_factory;
-		$this->rec_client_factory    = $rec_client_factory;
+		$this->privacy_requests      = $privacy_requests;
 	}
 
 	/**
@@ -293,38 +294,30 @@ class ProfilingConsent {
 	}
 
 	private function engine_opt_out( string $email ): void {
-		if ( ! $this->settings->sending_allowed() ) {
+		if ( ! $this->settings->is_connected() ) {
 			return;
 		}
-		try {
-			( $this->rec_client_factory )()->customer_opt_out(
-				$email,
-				array(
-					'opt_out'      => true,
-					'reason'       => 'profiling_consent',
-					'opted_out_at' => IsoDate::to_z( time() ),
-				)
-			);
-		} catch ( \Throwable $e ) {
-			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] engine opt-out failed: ' . self::describe( $e ) );
-		}
+		$this->privacy_requests->queue_opt_out(
+			$email,
+			array(
+				'opt_out'      => true,
+				'reason'       => 'profiling_consent',
+				'opted_out_at' => IsoDate::to_z( time() ),
+			)
+		);
 	}
 
 	private function engine_opt_in( string $email ): void {
-		if ( ! $this->settings->sending_allowed() ) {
+		if ( ! $this->settings->is_connected() ) {
 			return;
 		}
-		try {
-			( $this->rec_client_factory )()->customer_opt_out(
-				$email,
-				array(
-					'opt_out' => false,
-					'reason'  => 'profiling_consent',
-				)
-			);
-		} catch ( \Throwable $e ) {
-			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect profiling-consent] engine opt-in failed: ' . self::describe( $e ) );
-		}
+		$this->privacy_requests->queue_opt_out(
+			$email,
+			array(
+				'opt_out' => false,
+				'reason'  => 'profiling_consent',
+			)
+		);
 	}
 
 	/**

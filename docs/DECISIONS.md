@@ -12223,3 +12223,62 @@ their workflow ids in the engine's config and are not touched by this.
 (engine-pushed workflows are already account-scoped by subdomain), PRO-1686
 (the health notice), PRO-3988 / CON-305 (the refused list), PRO-4091 (the
 `no_workflow` sentence), F3-54 (the legacy autoresponder fallback).
+
+### CON-431 (privacy requests) — The engine's deletions and opt-outs go through a paced queue (Erkki, 2026-11-26 via CON-397)
+**Context:** Campaign Intelligence takes 10 privacy requests per 60 seconds
+per store (contract rate-limit table, v1.37.1) and answers more with `429`
+and `retry_after_seconds`. The eraser's §9 delete and ProfilingConsent's §10
+opt-out ran inside the request that made them — an admin's erasure, a
+shopper's My Account save, or any request whose profiling read-back
+resolved to "opted out" — with the client's in-request retry (up to two
+attempts, a Retry-After waited out in that request), and a failure was
+dropped with a debug line. A burst of opt-outs met 429s and lost requests.
+Erkki decided on 2026-11-26 (CON-397) one rule for every connector: privacy
+requests stay within the limit, a 429 waits as long as the engine asks, a
+failed delete or opt-out is kept and sent again, never dropped.
+**Decision:** both are rows in the existing Campaign Intelligence queue
+(`smly_rec_event_queue`, no schema change), event types `privacy.delete` /
+`privacy.opt_out`, drained by `RecEngine\PrivacyRequests::run()` on its own
+recurring Action Scheduler action (`smly_rec_flush_privacy`, every 60 s,
+group `smaily-rec-privacy` in `Deactivation::AS_GROUPS`). One attempt per
+request (`rec_client( 1, 10 )`), never a sleep. A run sends at most what
+the sliding window leaves (10 in 60 s, option `smly_rec_privacy_pace`). A
+429 holds every row until the engine's wait has passed (else 60 s) and
+spends no attempt; no answer or a 5xx parks the row for 60 / 300 / 900 /
+3600 s (the last step repeating) and stops the run; a 401 or 403 (a revoked
+key, a deactivated or suspended account) keeps the row, spends no attempt and
+holds every row until the store has another connection (below); any other
+4xx ends it as done (404 = nothing to delete, as before). The §8 export stays in the
+WordPress exporter's request — it has to answer it — and counts one request
+in the window, so the queue leaves it room (an export into a full window
+still goes out; the client's in-request retry is unchanged there).
+**Personal data:** the row's `entity_id` is a keyed hash of the address
+(`PrivacyRequests::anonymous_id()`, `wp_hash`), which the Event Log and the
+debug lines show. Only `payload` holds the address, until the request ends;
+then it becomes `{}`. `sent_payload` is the wire body, which has no address
+(it is in the URL path). The Event Log's Details never return a privacy
+row's payload. A new request for an address replaces its waiting ones (a
+later opt-out or opt-in replaces the earlier one, so the latest choice wins;
+a deletion replaces both kinds). Uninstall drops the table and sweeps the
+`smly_rec_*` options and hooks; deactivation cancels the group.
+**Gates:** queuing is gated on `is_connected()` (an enqueue path, PRO-1893),
+sending on `sending_allowed()`; rows wait while sending is not allowed.
+**A refused connection never closes a request (Erkki, 2026-11-26, PR #388
+review):** a deletion answered 401 or 403 is not done — the engine never
+processed it. The run records a keyed hash of the refusing key in
+`smly_rec_privacy_pace` (`refused_key`, never the key) and sends nothing
+more while that key is stored; a `403 tenant_inactive` also makes
+`sending_allowed()` false (PRO-1893). A new setup exchange stores a new key
+(`RecEngineSettings::store()`), so the rows go out under it, once. Opt-outs
+and opt-ins take the same path, so they wait the same way. Disconnect
+deletes no queue row, so waiting requests survive to the next connection;
+uninstall drops the table.
+**Accepted limits:** a deletion now reaches the engine within about a minute
+instead of at once, longer behind a backlog. A store that never connects
+again keeps its waiting requests, with their addresses, until it is
+uninstalled. The eraser's result says the deletion goes out in the
+background (a new message, EN + ET).
+**Relationships:** CON-397 (the cross-connector rule), PrestaShop e02e7ce
+(its pace, on its own queue), PRO-1893 (gates), CON-277/CON-301 (codes,
+never messages, in logs and stored errors), PRO-3906/CON-275 (the eraser's
+other background-job clean-up).

@@ -23,6 +23,7 @@ use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
+use Smaily\Connect\Smaily\RecEngine\PrivacyRequests;
 use Smaily\Connect\Smaily\StaleSubscription;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalResend;
@@ -220,7 +221,9 @@ class EventsEndpoint {
 				// skips that answer rather than paying for the order lookup
 				// behind it (the retry refusal it DOES render still costs one).
 				'event'         => $this->shape_rows( array( $row ), false )[0],
-				'payload'       => isset( $row['payload'] ) ? (string) $row['payload'] : '',
+				// A waiting privacy request's payload holds the address; the
+				// row shows only its kind and anonymous id (CON-431).
+				'payload'       => isset( $row['payload'] ) && ! in_array( (string) ( $row['event_type'] ?? '' ), PrivacyRequests::EVENT_TYPES, true ) ? (string) $row['payload'] : '',
 				// The send-time exchange (F3-44): exactly what was POSTed + the
 				// engine reply. Empty for rows enqueued before this shipped, or
 				// not-yet-flushed rows. sent_payload is null/empty when nothing

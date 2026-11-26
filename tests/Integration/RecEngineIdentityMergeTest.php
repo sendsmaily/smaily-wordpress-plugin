@@ -16,7 +16,6 @@ use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
-use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -208,14 +207,11 @@ final class RecEngineIdentityMergeTest extends TestCase {
 
 	/** Same handler, but with the (a).1 profiling gate wired in. */
 	private function handler_with_profiling(): IdentityHookHandler {
-		$settings = new RecEngineSettings();
-		$client   = static function () use ( $settings ): Client {
-			return new Client( $settings->api_key(), $settings->base_url(), $settings->endpoints(), 2 );
-		};
+		$settings  = new RecEngineSettings();
 		$profiling = new ProfilingConsent(
 			$settings,
 			static fn (): ?SmailyClient => null, // unused — the cache is pre-seeded below.
-			$client
+			Bootstrap::instance()->privacy_requests()
 		);
 
 		return new IdentityHookHandler( $settings, Bootstrap::instance()->login_merge(), $profiling );
