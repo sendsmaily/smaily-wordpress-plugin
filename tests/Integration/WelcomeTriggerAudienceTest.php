@@ -217,8 +217,13 @@ final class WelcomeTriggerAudienceTest extends TestCase {
 		$this->assert_welcomed_once( $this->flush(), $this->email_of( $user_id ) );
 	}
 
-	public function test_a_guest_checkout_tick_gets_the_welcome_where_contact_sync_sends_guests(): void {
-		$this->set_mode( ContactSyncMode::MODE_CHECKOUT_OPTIN );
+	/**
+	 * @dataProvider provide_every_mode
+	 */
+	public function test_a_guest_checkout_tick_gets_the_welcome_in_every_mode( string $mode ): void {
+		// A guest's tick reaches Smaily in every mode, the guest switch off
+		// (CON-439), so the welcome follows it.
+		$this->set_mode( $mode );
 		$email = 'smly-welcome-guest-' . wp_generate_password( 6, false ) . '@example.test';
 
 		$order  = $this->make_order( 0, $email );
@@ -226,6 +231,17 @@ final class WelcomeTriggerAudienceTest extends TestCase {
 		do_action( 'woocommerce_checkout_order_processed', $order->get_id(), $posted, $order );
 
 		$this->assert_welcomed_once( $this->flush(), $email );
+	}
+
+	/**
+	 * @return array<string, array{0: string}>
+	 */
+	public function provide_every_mode(): array {
+		return array(
+			'consent'             => array( ContactSyncMode::MODE_CONSENT ),
+			'legitimate_interest' => array( ContactSyncMode::MODE_LEGITIMATE_INTEREST ),
+			'checkout_optin'      => array( ContactSyncMode::MODE_CHECKOUT_OPTIN ),
+		);
 	}
 
 	public function test_legitimate_interest_checkout_tick_gets_the_welcome_each_time(): void {
@@ -243,13 +259,13 @@ final class WelcomeTriggerAudienceTest extends TestCase {
 	}
 
 	public function test_no_welcome_where_contact_sync_does_not_send_the_contact(): void {
-		// Consent mode does not sync guests unless the merchant includes them.
+		// Contact sync switched off: a guest's checkout tick and a registration
+		// tick send nothing.
+		update_option( ContactSyncMode::OPTION_SYNC_ENABLED, '' );
 		$guest = 'smly-welcome-guest-' . wp_generate_password( 6, false ) . '@example.test';
 		$order = $this->make_order( 0, $guest );
 		do_action( 'woocommerce_checkout_order_processed', $order->get_id(), $this->posted_checkout( $guest, 1 ), $order );
 
-		// Contact sync switched off: a registration tick sends nothing.
-		update_option( ContactSyncMode::OPTION_SYNC_ENABLED, '' );
 		$_POST   = array(
 			'woocommerce-register-nonce' => wp_create_nonce( 'woocommerce-register' ),
 			'register'                   => 'Register',
