@@ -46,18 +46,7 @@ final class RecEnginePrivacyRequestsTest extends TestCase {
 		parent::setUp();
 		EnvScrub::reset();
 		RecEngineMockServer::reset();
-
-		$base = (string) self::$engine->base_url();
-		EnvSeed::connect(
-			array(
-				'engine_base_url' => $base,
-				'endpoints'       => array(
-					'customer_export'  => $base . '/api/v1/customer/{email}/export',
-					'customer_delete'  => $base . '/api/v1/customer/{email}',
-					'customer_opt_out' => $base . '/api/v1/customer/{email}/opt-out',
-				),
-			)
-		);
+		$this->connect();
 		$this->t0 = time();
 	}
 
@@ -250,11 +239,108 @@ final class RecEnginePrivacyRequestsTest extends TestCase {
 		self::assertSame( 0, $this->rows_naming( $email ), 'Nothing in the queue names the address once the delete is sent.' );
 	}
 
+	public function test_a_401_keeps_the_delete_until_a_new_connection_and_then_sends_it_once(): void {
+		// Erkki, 2026-11-26: a refused key never closes a deletion.
+		self::$engine->set_privacy_answers( array( 401 ) );
+		$requests = $this->requests();
+		$requests->queue_delete( 'revoked@example.test' );
+
+		$requests->run();
+		self::assertSame( 1, self::$engine->privacy_request_count() );
+		$this->assert_waiting( 'revoked@example.test' );
+
+		$requests->clock = $this->t0 + 3600;
+		$requests->run();
+		self::assertSame( 1, self::$engine->privacy_request_count(), 'Nothing is sent again under the refused key.' );
+		$this->assert_waiting( 'revoked@example.test' );
+
+		$this->connect( 'sk_test_second_connection_key' );
+		$requests->run();
+		self::assertSame( 2, self::$engine->privacy_request_count(), 'A new connection sends it.' );
+		self::assertSame( IngestQueue::STATUS_SENT, $this->rows()[0]['status'] );
+		self::assertSame( '{}', $this->rows()[0]['payload'] );
+
+		$requests->clock = $this->t0 + 7200;
+		$requests->run();
+		self::assertSame( 2, self::$engine->privacy_request_count(), 'Sent once.' );
+	}
+
+	public function test_a_deactivated_account_keeps_the_delete_until_a_new_connection(): void {
+		self::$engine->set_tenant_inactive( true );
+		$requests = $this->requests();
+		$requests->queue_delete( 'suspended@example.test' );
+
+		$requests->run();
+		self::assertCount( 1, $this->delete_paths() );
+		$this->assert_waiting( 'suspended@example.test' );
+		self::assertFalse( ( new RecEngineSettings() )->sending_allowed(), 'The 403 refused the connection.' );
+
+		$requests->clock = $this->t0 + 3600;
+		$requests->run();
+		self::assertCount( 1, $this->delete_paths(), 'Nothing is sent while sending is not allowed.' );
+
+		self::$engine->set_tenant_inactive( false );
+		$this->connect( 'sk_test_after_reactivation_key' );
+		$requests->run();
+		self::assertCount( 2, $this->delete_paths(), 'A new connection sends it once.' );
+		self::assertSame( IngestQueue::STATUS_SENT, $this->rows()[0]['status'] );
+	}
+
+	public function test_disconnect_keeps_a_waiting_deletion_for_the_next_connection(): void {
+		$requests = $this->requests();
+		$requests->queue_delete( 'kept@example.test' );
+
+		( new RecEngineSettings() )->disconnect();
+		$requests->run();
+
+		self::assertSame( 0, self::$engine->privacy_request_count(), 'Nothing is sent while disconnected.' );
+		$this->assert_waiting( 'kept@example.test' );
+
+		$this->connect( 'sk_test_reconnected_key' );
+		$requests->run();
+		self::assertSame( 1, self::$engine->privacy_request_count() );
+		self::assertSame( IngestQueue::STATUS_SENT, $this->rows()[0]['status'] );
+	}
+
 	public function test_deactivation_cancels_the_requests_action(): void {
 		self::assertContains( PrivacyRequests::AS_GROUP, Deactivation::AS_GROUPS );
 	}
 
 	// ---- Helpers ---------------------------------------------------------
+
+	/** Connect to the mock engine through RecEngineSettings::store(). */
+	private function connect( string $api_key = EnvSeed::FIXTURE_API_KEY ): void {
+		$base = (string) self::$engine->base_url();
+		EnvSeed::connect(
+			array(
+				'api_key'         => $api_key,
+				'engine_base_url' => $base,
+				'endpoints'       => array(
+					'customer_export'  => $base . '/api/v1/customer/{email}/export',
+					'customer_delete'  => $base . '/api/v1/customer/{email}',
+					'customer_opt_out' => $base . '/api/v1/customer/{email}/opt-out',
+				),
+			)
+		);
+	}
+
+	/** The one privacy row still waits, with its address and no attempt spent. */
+	private function assert_waiting( string $email ): void {
+		$rows = $this->rows();
+		self::assertCount( 1, $rows );
+		self::assertSame( IngestQueue::STATUS_PENDING, $rows[0]['status'] );
+		self::assertSame( 0, (int) $rows[0]['attempts'] );
+		self::assertStringContainsString( $email, (string) $rows[0]['payload'] );
+	}
+
+	/**
+	 * The §9 deletes that reached the engine.
+	 *
+	 * @return array<int, string>
+	 */
+	private function delete_paths(): array {
+		return array_values( array_filter( self::$engine->request_paths(), static fn ( string $p ): bool => strpos( $p, 'DELETE /api/v1/customer/' ) === 0 ) );
+	}
 
 	/**
 	 * The requests on the mock engine, with a clock the test moves.

@@ -40,8 +40,12 @@ use Smaily\Connect\Support\DebugLog;
  * - A 429 holds every row until the engine's wait has passed (else
  *   DEFAULT_WAIT_SECONDS), and spends no attempt. No answer or a 5xx keeps
  *   the row and sends it again after RETRY_SECONDS (by its attempts, the
- *   last step repeating) — never dropped. Any other 4xx ends it as done:
- *   404 means nothing to delete or opt out.
+ *   last step repeating) — never dropped. A 401 or 403 (a revoked key, a
+ *   deactivated or suspended account) keeps every row, spends no attempt,
+ *   and holds them until the store has another connection: a new setup
+ *   exchange stores a new key, and the rows go out under it (Erkki,
+ *   2026-11-26). Disconnect leaves the rows; uninstall drops the table.
+ *   Any other 4xx ends it as done: 404 means nothing to delete or opt out.
  *
  * Not final: tests subclass it for a fake clock (now()).
  */
@@ -68,7 +72,11 @@ class PrivacyRequests {
 	/** The longest one request waits for the engine, in seconds. */
 	public const TIMEOUT_SECONDS = 10;
 
-	/** `{sent: int[], hold_until: int}` — the moments of the last window's requests and a 429's hold. */
+	/**
+	 * `{sent: int[], hold_until: int, refused_key: string}` — the moments of
+	 * the last window's requests, a 429's hold, and the mark of the key a
+	 * 401 / 403 refused (key_mark()).
+	 */
 	public const OPTION_PACE = 'smly_rec_privacy_pace';
 
 	private IngestQueue $queue;
@@ -126,6 +134,10 @@ class PrivacyRequests {
 
 		$pace = $this->pace();
 		if ( $pace['hold_until'] > $this->now() ) {
+			return;
+		}
+		if ( $pace['refused_key'] !== '' && hash_equals( $pace['refused_key'], $this->key_mark() ) ) {
+			// The engine refused this connection's key; wait for another.
 			return;
 		}
 
@@ -231,6 +243,14 @@ class PrivacyRequests {
 				DebugLog::write( sprintf( '[smaily-connect privacy] %s waits %ds: %s', $label, $wait, $e->summary() ) );
 				return false;
 			}
+			if ( $status === 401 || $status === 403 ) {
+				$pace                = $this->pace();
+				$pace['refused_key'] = $this->key_mark();
+				update_option( self::OPTION_PACE, $pace, false );
+				$this->queue->store_exchange( $id, $json, IngestQueue::http_error_response( $e ) );
+				DebugLog::write( '[smaily-connect privacy] ' . $label . ' waits for a new connection: ' . $e->summary() );
+				return false;
+			}
 			if ( $status === 0 || $status >= 500 ) {
 				$this->retry_later( $row, $label, $json, IngestQueue::http_error_message( $e ), IngestQueue::http_error_response( $e ), $e->summary() );
 				return false;
@@ -266,6 +286,14 @@ class PrivacyRequests {
 		$this->queue->forget_payload( $id );
 	}
 
+	/**
+	 * The stored key's mark: a keyed hash, never the key. A new setup
+	 * exchange stores a new key, so its mark differs.
+	 */
+	private function key_mark(): string {
+		return substr( wp_hash( $this->settings->api_key() ), 0, 16 );
+	}
+
 	private function hold( int $until ): void {
 		$pace               = $this->pace();
 		$pace['hold_until'] = $until;
@@ -273,9 +301,10 @@ class PrivacyRequests {
 	}
 
 	/**
-	 * The window's requests (older ones dropped) and the hold.
+	 * The window's requests (older ones dropped), the hold and the refused
+	 * key's mark.
 	 *
-	 * @return array{sent: array<int, int>, hold_until: int}
+	 * @return array{sent: array<int, int>, hold_until: int, refused_key: string}
 	 */
 	private function pace(): array {
 		$stored = get_option( self::OPTION_PACE, array() );
@@ -289,8 +318,9 @@ class PrivacyRequests {
 		}
 
 		return array(
-			'sent'       => $sent,
-			'hold_until' => (int) ( $stored['hold_until'] ?? 0 ),
+			'sent'        => $sent,
+			'hold_until'  => (int) ( $stored['hold_until'] ?? 0 ),
+			'refused_key' => (string) ( $stored['refused_key'] ?? '' ),
 		);
 	}
 }

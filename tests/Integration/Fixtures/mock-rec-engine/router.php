@@ -156,7 +156,8 @@ if ( isset( $state['ingest_throttle'] ) && is_array( $state['ingest_throttle'] )
 // counted (`privacy_request_count`). A test sets `privacy_answers`, a list of
 // HTTP statuses: each such request takes the next one — 429 with the wait
 // `privacy_retry_after` in the body (no header, as the live engine answers),
-// or any 5xx. With the list empty the routes below answer as usual.
+// a 401 (`unauthorised`, a revoked key) or any 5xx. With the list empty
+// the routes below answer as usual.
 if ( ( $method === 'DELETE' && preg_match( '#^/api/v1/customer/[^/]+$#', $path ) )
 	|| ( $method === 'POST' && preg_match( '#^/api/v1/customer/[^/]+/opt-out$#', $path ) )
 ) {
@@ -175,6 +176,9 @@ if ( ( $method === 'DELETE' && preg_match( '#^/api/v1/customer/[^/]+$#', $path )
 				'retry_after_seconds' => $wait,
 			)
 		);
+	}
+	if ( $answer === 401 ) {
+		reply( 401, array( 'error' => 'unauthorised', 'message' => 'Invalid API key.' ) );
 	}
 	if ( $answer >= 500 ) {
 		reply( $answer, array( 'error' => 'internal_error', 'message' => 'Mock failure.' ) );

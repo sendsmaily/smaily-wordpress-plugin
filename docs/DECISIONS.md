@@ -12165,8 +12165,10 @@ request (`rec_client( 1, 10 )`), never a sleep. A run sends at most what
 the sliding window leaves (10 in 60 s, option `smly_rec_privacy_pace`). A
 429 holds every row until the engine's wait has passed (else 60 s) and
 spends no attempt; no answer or a 5xx parks the row for 60 / 300 / 900 /
-3600 s (the last step repeating) and stops the run; any other 4xx ends it as
-done (404 = nothing to delete, as before). The §8 export stays in the
+3600 s (the last step repeating) and stops the run; a 401 or 403 (a revoked
+key, a deactivated or suspended account) keeps the row, spends no attempt and
+holds every row until the store has another connection (below); any other
+4xx ends it as done (404 = nothing to delete, as before). The §8 export stays in the
 WordPress exporter's request — it has to answer it — and counts one request
 in the window, so the queue leaves it room (an export into a full window
 still goes out; the client's in-request retry is unchanged there).
@@ -12181,11 +12183,21 @@ a deletion replaces both kinds). Uninstall drops the table and sweeps the
 `smly_rec_*` options and hooks; deactivation cancels the group.
 **Gates:** queuing is gated on `is_connected()` (an enqueue path, PRO-1893),
 sending on `sending_allowed()`; rows wait while sending is not allowed.
+**A refused connection never closes a request (Erkki, 2026-11-26, PR #388
+review):** a deletion answered 401 or 403 is not done — the engine never
+processed it. The run records a keyed hash of the refusing key in
+`smly_rec_privacy_pace` (`refused_key`, never the key) and sends nothing
+more while that key is stored; a `403 tenant_inactive` also makes
+`sending_allowed()` false (PRO-1893). A new setup exchange stores a new key
+(`RecEngineSettings::store()`), so the rows go out under it, once. Opt-outs
+and opt-ins take the same path, so they wait the same way. Disconnect
+deletes no queue row, so waiting requests survive to the next connection;
+uninstall drops the table.
 **Accepted limits:** a deletion now reaches the engine within about a minute
-instead of at once, longer behind a backlog. A 401/403 (revoked key, a
-deactivated account) ends a request like any other 4xx — the rule CON-397
-states; a new connection does not resend it. The eraser's result says the
-deletion goes out in the background (a new message, EN + ET).
+instead of at once, longer behind a backlog. A store that never connects
+again keeps its waiting requests, with their addresses, until it is
+uninstalled. The eraser's result says the deletion goes out in the
+background (a new message, EN + ET).
 **Relationships:** CON-397 (the cross-connector rule), PrestaShop e02e7ce
 (its pace, on its own queue), PRO-1893 (gates), CON-277/CON-301 (codes,
 never messages, in logs and stored errors), PRO-3906/CON-275 (the eraser's

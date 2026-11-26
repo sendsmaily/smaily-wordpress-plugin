@@ -1829,7 +1829,9 @@ sent by `RecEngine\PrivacyRequests::run()` on `smly_rec_flush_privacy`
 (group `smaily-rec-privacy`): at most 10 in any 60 s (option
 `smly_rec_privacy_pace`, the §8 export counted too), a 429 holds every row
 for the engine's wait, no answer / 5xx parks the row on a growing back-off,
-any other 4xx ends it. Rules: a new GDPR call goes through this queue,
+a 401 / 403 holds every row until a new setup exchange stores another key
+(`refused_key` in the pace option, a keyed hash — Erkki, 2026-11-26), any
+other 4xx ends it. Disconnect keeps the rows; uninstall drops them. Rules: a new GDPR call goes through this queue,
 never inline; the row's `entity_id` is `PrivacyRequests::anonymous_id()`
 and only `payload` holds the address, until the request ends (`{}` then);
 the Event Log's Details never return a privacy row's payload.
