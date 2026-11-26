@@ -34,7 +34,8 @@ use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
  * Scope is the single authority in docs/DATA_MODEL_GDPR.md — do NOT re-derive:
  *   - EXPORT (conservative, personal data only): engine browse_events,
  *     visitor_tokens, recommendations, email_events, outcome_events (§6b
- *     bookings a booking system sent, contract v1.32.0), and the engine customer
+ *     bookings a booking system sent, contract v1.32.0), stock_alert_requests
+ *     (§6c, v1.35.0), identifiers (v1.37.0), and the engine customer
  *     record MINUS its decision-logic fields (segment / RFM / engagement etc.
  *     are the engine's classification, a trade secret — not subject-access
  *     data); plus the plugin's own rec-meta markers. NOT WooCommerce order /
@@ -338,13 +339,19 @@ class GdprHandler {
 
 		// Activity arrays — one item per row.
 		$sections = array(
-			'browse_events'   => 'Browse events (Campaign Intelligence)',
-			'recommendations' => 'Recommendations shown',
-			'email_events'    => 'Email interaction signals',
-			'visitor_tokens'  => 'Visitor tokens',
+			'browse_events'        => 'Browse events (Campaign Intelligence)',
+			'recommendations'      => 'Recommendations shown',
+			'email_events'         => 'Email interaction signals',
+			'visitor_tokens'       => 'Visitor tokens',
 			// Contract v1.32.0 §8: bookings and visits a booking system sent to
 			// the same engine store (§6b). This plugin sends none.
-			'outcome_events'  => 'Bookings and visits (Campaign Intelligence)',
+			'outcome_events'       => 'Bookings and visits (Campaign Intelligence)',
+			// Contract v1.35.0 §8: back-in-stock requests a connector of the
+			// same engine store sent (§6c). This plugin sends none.
+			'stock_alert_requests' => 'Back-in-stock requests (Campaign Intelligence)',
+			// Contract v1.37.0 §8: the customer's store customer ids, loyalty
+			// numbers and phone number the engine keeps as lookup keys.
+			'identifiers'          => 'Customer identifiers (Campaign Intelligence)',
 		);
 		foreach ( $sections as $key => $label ) {
 			if ( ! isset( $export[ $key ] ) || ! is_array( $export[ $key ] ) ) {

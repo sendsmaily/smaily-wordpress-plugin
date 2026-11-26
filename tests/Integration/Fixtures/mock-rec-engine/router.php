@@ -1727,7 +1727,26 @@ if ( $method === 'GET' && preg_match( '#^/api/v1/customer/([^/]+)/export$#', $pa
 					'source'        => 'booking',
 				),
 			),
-			'orders'          => array( array( 'external_order_id' => 'WC-1', 'total_amount' => '67.50' ) ), // Woo — plugin must NOT export
+			// Contract v1.35.0 §8: back-in-stock requests a connector sent (§6c).
+			'stock_alert_requests' => array(
+				array(
+					'sku'          => 'woo-101',
+					'requester'    => 'logged_in',
+					'action'       => 'request',
+					'requested_at' => '2026-11-20T09:12:00Z',
+					'source'       => 'product_page',
+				),
+			),
+			// Contract v1.37.0 §8: the customer's store ids, loyalty numbers and phone.
+			'identifiers'     => array(
+				array(
+					'kind'          => 'store_id',
+					'scope'         => '',
+					'value'         => '67',
+					'first_seen_at' => '2026-11-23T10:00:00Z',
+				),
+			),
+			'orders'        => array( array( 'external_order_id' => 'WC-1', 'total_amount' => '67.50' ) ), // Woo — plugin must NOT export
 			'order_items'     => array( array( 'sku' => 'ACA-1', 'line_total' => '67.50' ) ),                // Woo
 		)
 	);
@@ -1755,7 +1774,7 @@ if ( $method === 'DELETE' && preg_match( '#^/api/v1/customer/([^/]+)$#', $path, 
 			'ok'              => true,
 			'deleted'         => true,
 			'customer_email'  => $email,
-			'records_removed' => array( 'customer' => 1, 'browse_events' => 2, 'outcome_events' => 1, 'rec_attribution' => 3, 'visitor_tokens' => 1 ),
+			'records_removed' => array( 'customer' => 1, 'browse_events' => 2, 'outcome_events' => 1, 'stock_alert_requests' => 1, 'identifiers' => 1, 'rec_attribution' => 3, 'visitor_tokens' => 1 ),
 			'audit_log_id'    => 'audit_' . bin2hex( random_bytes( 4 ) ),
 			'deleted_at'      => gmdate( 'c' ),
 		)

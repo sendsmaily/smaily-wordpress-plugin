@@ -147,6 +147,33 @@ final class RecEngineGdprTest extends TestCase {
 		self::assertSame( '2026-11-20T14:00:00Z', $pairs['scheduled_for'] ?? null );
 	}
 
+	public function test_export_includes_back_in_stock_requests_and_customer_identifiers(): void {
+		$export = $this->handler()->export( 'gdpr-identifiers@example.test' );
+
+		$group = static function ( string $label ) use ( $export ): array {
+			return array_values(
+				array_filter(
+					$export['data'],
+					static fn ( array $item ): bool => $item['group_label'] === $label
+				)
+			);
+		};
+
+		// Contract v1.35.0 §8: one item per stock_alert_requests row.
+		$requests = $group( 'Back-in-stock requests (Campaign Intelligence)' );
+		self::assertCount( 1, $requests );
+		$pairs = array_column( $requests[0]['data'], 'value', 'name' );
+		self::assertSame( 'woo-101', $pairs['sku'] ?? null );
+		self::assertSame( '2026-11-20T09:12:00Z', $pairs['requested_at'] ?? null );
+
+		// Contract v1.37.0 §8: one item per identifiers row.
+		$identifiers = $group( 'Customer identifiers (Campaign Intelligence)' );
+		self::assertCount( 1, $identifiers );
+		$pairs = array_column( $identifiers[0]['data'], 'value', 'name' );
+		self::assertSame( 'store_id', $pairs['kind'] ?? null );
+		self::assertSame( '67', $pairs['value'] ?? null );
+	}
+
 	public function test_export_404_still_returns_plugin_meta(): void {
 		$email = 'notfound-gdpr@example.test'; // mock §8 → 404
 		$this->make_order_with_rec_meta( $email );
