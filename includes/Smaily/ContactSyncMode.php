@@ -113,19 +113,11 @@ final class ContactSyncMode {
 	 * Guest buyers who did NOT tick the newsletter box are synced too — a
 	 * toggle (default off) under legitimate interest only. A guest who ticks
 	 * the box is synced in every mode whatever this says (CON-439); consent
-	 * never sends a guest who did not tick, so the stored toggle is ignored
-	 * there (kept, not deleted, for a later switch back). Checkout-only keeps
-	 * answering true: it is intrinsically guest-driven, and its audience is the
-	 * tick alone.
+	 * and checkout-only never send a guest who did not tick, so the stored
+	 * toggle is ignored there (kept, not deleted, for a later switch back).
 	 */
 	public function include_guests(): bool {
-		if ( $this->mode() === self::MODE_CHECKOUT_OPTIN ) {
-			return true;
-		}
-		if ( $this->mode() === self::MODE_CONSENT ) {
-			return false;
-		}
-		return $this->bool_option( self::OPTION_INCLUDE_GUESTS );
+		return $this->mode() === self::MODE_LEGITIMATE_INTEREST && $this->bool_option( self::OPTION_INCLUDE_GUESTS );
 	}
 
 	/** The store mirrors Smaily's unsubscribes/returns back into WP (consent only). */
