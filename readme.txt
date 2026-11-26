@@ -34,7 +34,7 @@ New subscribers are sent to your Smaily account, where you can manage contacts a
 
 = Keep contacts synchronized =
 
-Choose who is sent to Smaily and which customer fields are included. Consent-based synchronization is the default, and WooCommerce stores can also include guest checkout contacts where configured.
+Choose who is sent to Smaily and which customer fields are included. Consent-based synchronization is the default. A guest who ticks the newsletter box at checkout is always included, and with legitimate interest you can include the other guest buyers too.
 
 Smaily Connect resolves each contact's language through WPML, Polylang or TranslatePress so contacts can reach the correct Smaily list and workflow in multilingual setups.
 
