@@ -127,9 +127,14 @@ final class ProfilingConsentAccountTest extends TestCase {
 		} catch ( \RuntimeException $e ) {
 			$redirected = $e->getMessage() === 'redirected';
 		} finally {
-			remove_filter( 'pre_http_request', $fake_engine, 10 );
 			remove_filter( 'wp_redirect', $stop_at_redirect );
 			wc_clear_notices();
+		}
+		self::assertSame( array(), $engine_calls, 'The submit only queues the engine opt-out (CON-431).' );
+		try {
+			Bootstrap::instance()->privacy_requests()->run();
+		} finally {
+			remove_filter( 'pre_http_request', $fake_engine, 10 );
 		}
 
 		self::assertTrue( $redirected, 'The handler accepted the submit and redirected.' );

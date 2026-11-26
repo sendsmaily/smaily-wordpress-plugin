@@ -455,6 +455,27 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * The answers the next §9 deletes and §10 opt-outs get, one status each
+	 * in order: 429 (with $retry_after_seconds in the body) or a 5xx
+	 * (CON-431). After the list, they answer as usual.
+	 *
+	 * @param array<int, int> $statuses
+	 */
+	public function set_privacy_answers( array $statuses, int $retry_after_seconds = 5 ): void {
+		$this->write_state(
+			array(
+				'privacy_answers'     => array_values( $statuses ),
+				'privacy_retry_after' => $retry_after_seconds,
+			)
+		);
+	}
+
+	/** How many §9 deletes and §10 opt-outs reached the engine (CON-431). */
+	public function privacy_request_count(): int {
+		return (int) ( $this->state()['privacy_request_count'] ?? 0 );
+	}
+
+	/**
 	 * The requests that reached the engine, in order, as `METHOD /path` —
 	 * no bodies (CON-268: §4 before §7).
 	 *

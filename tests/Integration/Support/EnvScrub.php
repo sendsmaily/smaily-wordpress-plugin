@@ -177,6 +177,11 @@ final class EnvScrub {
 			// autoload=false and read into the installation report that
 			// InstallationReportTest asserts on.
 			\Smaily\Connect\Report\ConnectionHealth::OPTION,
+			// Same class again (CON-431): the privacy requests' window and
+			// 429 hold are autoload=false and asserted on by
+			// RecEnginePrivacyRequestsTest; a cached window would hold back
+			// the next test's requests.
+			\Smaily\Connect\Smaily\RecEngine\PrivacyRequests::OPTION_PACE,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

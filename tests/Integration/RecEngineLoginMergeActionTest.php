@@ -235,6 +235,8 @@ final class RecEngineLoginMergeActionTest extends TestCase {
 		self::assertTrue( $result['items_removed'] );
 		self::assertSame( array( $kept ), LoginMergeQueue::pending_args(), 'Every job of the erased customer is gone; the other customer\'s stays.' );
 		self::assertSame( 0, LoginMergeQueue::run_due(), 'Nothing of the erased customer is left to run.' );
+		self::assertSame( array(), self::$engine->request_paths(), 'The eraser only queues the engine delete (CON-431).' );
+		Bootstrap::instance()->privacy_requests()->run();
 		$paths = self::$engine->request_paths();
 		self::assertCount( 1, $paths, 'Only the engine delete reached the engine.' );
 		self::assertStringStartsWith( 'DELETE /api/v1/customer/', $paths[0] );

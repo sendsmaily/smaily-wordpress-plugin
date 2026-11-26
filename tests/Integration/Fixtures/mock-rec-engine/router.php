@@ -152,6 +152,35 @@ if ( isset( $state['ingest_throttle'] ) && is_array( $state['ingest_throttle'] )
 	}
 }
 
+// Privacy-request answers (CON-431). Every §9 delete and §10 opt-out is
+// counted (`privacy_request_count`). A test sets `privacy_answers`, a list of
+// HTTP statuses: each such request takes the next one — 429 with the wait
+// `privacy_retry_after` in the body (no header, as the live engine answers),
+// or any 5xx. With the list empty the routes below answer as usual.
+if ( ( $method === 'DELETE' && preg_match( '#^/api/v1/customer/[^/]+$#', $path ) )
+	|| ( $method === 'POST' && preg_match( '#^/api/v1/customer/[^/]+/opt-out$#', $path ) )
+) {
+	$state['privacy_request_count'] = (int) ( $state['privacy_request_count'] ?? 0 ) + 1;
+	$answers                        = ( isset( $state['privacy_answers'] ) && is_array( $state['privacy_answers'] ) ) ? $state['privacy_answers'] : array();
+	$answer                         = $answers !== array() ? (int) array_shift( $answers ) : 0;
+	$state['privacy_answers']       = $answers;
+	save_state( $state_file, $state );
+	if ( $answer === 429 ) {
+		$wait = (int) ( $state['privacy_retry_after'] ?? 5 );
+		reply(
+			429,
+			array(
+				'error'               => 'rate_limit_exceeded',
+				'message'             => sprintf( 'Rate limit exceeded. Retry after %d seconds.', $wait ),
+				'retry_after_seconds' => $wait,
+			)
+		);
+	}
+	if ( $answer >= 500 ) {
+		reply( $answer, array( 'error' => 'internal_error', 'message' => 'Mock failure.' ) );
+	}
+}
+
 /**
  * Automation trigger catalog (§11) — shared by GET /automations/catalog and
  * the PUT /automations/config trigger_key validation ("tundmatu trigger").

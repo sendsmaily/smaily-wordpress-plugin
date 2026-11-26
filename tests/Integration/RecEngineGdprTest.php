@@ -12,6 +12,7 @@ namespace Smaily\Connect\Tests\Integration;
 
 use Automattic\WooCommerce\Utilities\OrderUtil;
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Integrations\WooCommerce\IdentityHookHandler;
@@ -688,6 +689,8 @@ final class RecEngineGdprTest extends TestCase {
 			array_keys( $messages, 'This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed.', true ),
 			'The work that is not about orders runs once.'
 		);
+		self::assertSame( 0, self::$engine->request_count() - $before, 'The eraser only queues the engine delete (CON-431).' );
+		Bootstrap::instance()->privacy_requests()->run();
 		self::assertSame( 1, self::$engine->request_count() - $before, 'The engine is asked to delete the customer once.' );
 	}
 

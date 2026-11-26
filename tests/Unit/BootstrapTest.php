@@ -175,8 +175,8 @@ final class BootstrapTest extends TestCase {
 		);
 		Functions\when( 'wp_timezone' )->justReturn( new \DateTimeZone( 'UTC' ) );
 		// Every recurring job is checked, and the missing ones re-armed.
-		Functions\expect( 'as_has_scheduled_action' )->times( 12 )->andReturn( false );
-		Functions\expect( 'as_schedule_recurring_action' )->times( 12 );
+		Functions\expect( 'as_has_scheduled_action' )->times( 13 )->andReturn( false );
+		Functions\expect( 'as_schedule_recurring_action' )->times( 13 );
 		// CON-247: the one-time import start after an update is still to
 		// decide (its marker is unset), so its check is armed once.
 		Functions\expect( 'as_next_scheduled_action' )

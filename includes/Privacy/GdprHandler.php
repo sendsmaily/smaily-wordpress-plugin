@@ -26,6 +26,7 @@ use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
+use Smaily\Connect\Smaily\RecEngine\PrivacyRequests;
 
 /**
  * Registers a WP Privacy API exporter (Art 15) + eraser (Art 17) so the rec
@@ -44,7 +45,11 @@ use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
  *     omits it from §8 — decision logic).
  *   - ERASE (complete, asymmetric to export): engine §9 DELETE (CASCADE incl.
  *     rec_attribution + visitor_tokens; 404 = already gone = success) PLUS the
- *     plugin's rec-meta markers.
+ *     plugin's rec-meta markers. The §9 call is queued, never made in the
+ *     eraser's request: PrivacyRequests sends it from the background within
+ *     the engine's limit of 10 privacy requests a minute, and sends it again
+ *     until the engine answers (CON-431). The export (§8) answers the
+ *     exporter, so it stays in its request and is counted against that limit.
  *   - Also covers the local abandoned-cart session tracker
  *     (`smly_plus_cart_session`, PRO-1195) — not rec-engine data, but the
  *     plugin's only other local PII store (PRO-1343), so it rides the same
@@ -130,19 +135,22 @@ class GdprHandler {
 	private CartSessionStore $cart_store;
 	private EventQueue $event_queue;
 	private IngestQueue $ingest_queue;
+	private PrivacyRequests $privacy_requests;
 
 	/** @var callable(): Client */
 	private $client_factory;
 
 	/**
-	 * @param callable(): Client $client_factory
+	 * @param callable(): Client   $client_factory   The export's client.
+	 * @param PrivacyRequests|null $privacy_requests The queued §9 deletion; null = one on $ingest_queue.
 	 */
-	public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue, IngestQueue $ingest_queue ) {
-		$this->settings       = $settings;
-		$this->client_factory = $client_factory;
-		$this->cart_store     = $cart_store;
-		$this->event_queue    = $event_queue;
-		$this->ingest_queue   = $ingest_queue;
+	public function __construct( RecEngineSettings $settings, callable $client_factory, CartSessionStore $cart_store, EventQueue $event_queue, IngestQueue $ingest_queue, ?PrivacyRequests $privacy_requests = null ) {
+		$this->settings         = $settings;
+		$this->client_factory   = $client_factory;
+		$this->cart_store       = $cart_store;
+		$this->event_queue      = $event_queue;
+		$this->ingest_queue     = $ingest_queue;
+		$this->privacy_requests = $privacy_requests ?? new PrivacyRequests( $ingest_queue, $settings, $client_factory );
 	}
 
 	public function register(): void {
@@ -265,8 +273,9 @@ class GdprHandler {
 
 		// Before the engine call, so no update still waiting in the queue
 		// sends the customer to the engine again after it (PRO-3906).
-		$removed = $this->drop_waiting_updates( $email, $order_ids );
-		if ( $this->erase_engine( $email ) ) {
+		$removed       = $this->drop_waiting_updates( $email, $order_ids );
+		$engine_queued = $this->erase_engine( $email );
+		if ( $engine_queued ) {
 			$removed = true;
 		}
 		if ( $this->erase_order_meta( $orders ) ) {
@@ -295,6 +304,11 @@ class GdprHandler {
 		$messages = $this->event_queue_messages( $queue );
 		$removed  = $removed || $messages !== array();
 
+		if ( $engine_queued ) {
+			// The §9 deletion goes out from the background (CON-431).
+			$messages[] = __( 'Campaign Intelligence gets the deletion request in the background. It is sent again until Campaign Intelligence accepts it.', 'smaily-connect' );
+		}
+
 		// The plugin has no call that deletes a Smaily contact (PRO-3995).
 		$messages[] = __( 'This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed.', 'smaily-connect' );
 
@@ -317,6 +331,8 @@ class GdprHandler {
 			return array();
 		}
 
+		// The export shares the engine's limit of privacy requests (CON-431).
+		$this->privacy_requests->count_request();
 		try {
 			$export = ( $this->client_factory )()->customer_export( $email );
 		} catch ( ApiException $e ) {
@@ -503,26 +519,16 @@ class GdprHandler {
 
 	// --- erase internals ---------------------------------------------------
 
+	/**
+	 * Queue the engine's §9 deletion (CON-431); PrivacyRequests sends it.
+	 * It also replaces the address's waiting opt-outs. Returns whether it
+	 * waits now.
+	 */
 	private function erase_engine( string $email ): bool {
-		if ( ! $this->settings->sending_allowed() ) {
+		if ( ! $this->settings->is_connected() ) {
 			return false;
 		}
-		try {
-			( $this->client_factory )()->customer_delete(
-				$email,
-				array(
-					'confirm' => true,
-					'reason'  => 'user_request',
-				)
-			);
-			return true;
-		} catch ( ApiException $e ) {
-			if ( $e->getCode() === 404 ) {
-				return true; // Already deleted — idempotent success (§9).
-			}
-			\Smaily\Connect\Support\DebugLog::write( '[smaily-connect gdpr.erase] ' . $e->summary() );
-			return false;
-		}
+		return $this->privacy_requests->queue_delete( $email );
 	}
 
 	/**

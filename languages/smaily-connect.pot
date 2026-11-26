@@ -241,6 +241,10 @@ msgstr ""
 msgid "This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed."
 msgstr ""
 
+#: includes/Privacy/GdprHandler.php:309
+msgid "Campaign Intelligence gets the deletion request in the background. It is sent again until Campaign Intelligence accepts it."
+msgstr ""
+
 #. translators: %d: number of queued Smaily messages deleted.
 #: includes/Privacy/GdprHandler.php:651
 #, php-format

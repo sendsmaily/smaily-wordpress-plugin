@@ -410,6 +410,22 @@ class IngestQueue {
 		);
 	}
 
+	/**
+	 * Replace a row's payload with `{}` once nothing needs it — a privacy
+	 * request's payload holds the address until the request ends (CON-431,
+	 * PrivacyRequests).
+	 */
+	public function forget_payload( int $id ): void {
+		global $wpdb;
+		$wpdb->update(
+			$this->table_name(),
+			array( 'payload' => '{}' ),
+			array( 'id' => $id ),
+			array( '%s' ),
+			array( '%d' )
+		);
+	}
+
 	/** Cap a stored exchange field at EXCHANGE_MAX chars, flagging the truncation. */
 	public static function cap_exchange( string $text ): string {
 		return strlen( $text ) <= self::EXCHANGE_MAX

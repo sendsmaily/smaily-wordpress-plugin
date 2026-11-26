@@ -15,8 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Privacy\ProfilingConsent;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
-use Smaily\Connect\Smaily\RecEngine\ApiException;
-use Smaily\Connect\Smaily\RecEngine\Client as RecEngineClient;
+use Smaily\Connect\Smaily\RecEngine\PrivacyRequests;
 use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
 
 final class ProfilingConsentTest extends TestCase {
@@ -57,18 +56,18 @@ final class ProfilingConsentTest extends TestCase {
 
 	// --- the cached resolver ----------------------------------------------
 
-	private function resolver( ?SmailyClient $smaily, ?RecEngineClient $rec = null, bool $connected = true ): ProfilingConsent {
+	private function resolver( ?SmailyClient $smaily, ?PrivacyRequests $rec = null, bool $connected = true ): ProfilingConsent {
 		$settings = $this->createMock( RecEngineSettings::class );
 		$settings->method( 'is_connected' )->willReturn( $connected );
 		// The engine-sending gate is sending_allowed() (connected AND not
 		// refused, PRO-1893); a mocked class stubs it independently.
 		$settings->method( 'sending_allowed' )->willReturn( $connected );
-		$rec = $rec ?? $this->createMock( RecEngineClient::class );
+		$rec = $rec ?? $this->createMock( PrivacyRequests::class );
 
 		return new ProfilingConsent(
 			$settings,
 			static fn (): ?SmailyClient => $smaily,
-			static fn (): RecEngineClient => $rec
+			$rec
 		);
 	}
 
@@ -100,8 +99,8 @@ final class ProfilingConsentTest extends TestCase {
 		Functions\when( 'get_option' )->justReturn( $optouts );
 		$smaily = $this->createMock( SmailyClient::class );
 		$smaily->expects( self::never() )->method( 'get_contact_consent' );
-		$rec = $this->createMock( RecEngineClient::class );
-		$rec->expects( self::never() )->method( 'customer_opt_out' );
+		$rec = $this->createMock( PrivacyRequests::class );
+		$rec->expects( self::never() )->method( 'queue_opt_out' );
 
 		self::assertSame( $expected, $this->resolver( $smaily, $rec )->known_opt_out( 'a@example.com' ) );
 	}
@@ -160,11 +159,11 @@ final class ProfilingConsentTest extends TestCase {
 			array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '0' )
 		);
 
-		$rec = $this->createMock( RecEngineClient::class );
+		$rec = $this->createMock( PrivacyRequests::class );
 		$rec->expects( self::once() )
-			->method( 'customer_opt_out' )
+			->method( 'queue_opt_out' )
 			->with( 'a@example.com', self::callback( static fn ( array $b ): bool => $b['opt_out'] === true ) )
-			->willReturn( array( 'ok' => true ) );
+			->willReturn( true );
 
 		self::assertFalse( $this->resolver( $smaily, $rec )->refresh( 'a@example.com' ) );
 	}
@@ -261,11 +260,11 @@ final class ProfilingConsentTest extends TestCase {
 			->with( 'a@example.com', false, self::isType( 'string' ) )
 			->willReturn( array( 'code' => 101 ) );
 
-		$rec = $this->createMock( RecEngineClient::class );
+		$rec = $this->createMock( PrivacyRequests::class );
 		$rec->expects( self::once() )
-			->method( 'customer_opt_out' )
+			->method( 'queue_opt_out' )
 			->with( 'a@example.com', self::callback( static fn ( array $b ): bool => $b['opt_out'] === true ) )
-			->willReturn( array( 'ok' => true ) );
+			->willReturn( true );
 
 		$this->resolver( $smaily, $rec )->opt_out( 'a@example.com' );
 	}
@@ -284,11 +283,11 @@ final class ProfilingConsentTest extends TestCase {
 		$smaily->expects( self::never() )->method( 'write_profiling_consent' );
 		$smaily->expects( self::never() )->method( 'upsert_subscribers' );
 
-		$rec = $this->createMock( RecEngineClient::class );
+		$rec = $this->createMock( PrivacyRequests::class );
 		$rec->expects( self::once() )
-			->method( 'customer_opt_out' )
+			->method( 'queue_opt_out' )
 			->with( 'a@example.com', self::callback( static fn ( array $b ): bool => $b['opt_out'] === true ) )
-			->willReturn( array( 'ok' => true ) );
+			->willReturn( true );
 
 		$resolver = $this->resolver( $smaily, $rec );
 		$resolver->opt_out( 'a@example.com' );
@@ -322,8 +321,8 @@ final class ProfilingConsentTest extends TestCase {
 		$smaily->expects( self::never() )->method( 'write_profiling_consent' );
 		$smaily->expects( self::never() )->method( 'upsert_subscribers' );
 
-		$rec = $this->createMock( RecEngineClient::class );
-		$rec->expects( self::once() )->method( 'customer_opt_out' )->willReturn( array( 'ok' => true ) );
+		$rec = $this->createMock( PrivacyRequests::class );
+		$rec->expects( self::once() )->method( 'queue_opt_out' )->willReturn( true );
 
 		$resolver = $this->resolver( $smaily, $rec );
 		$resolver->opt_out( 'a@example.com' );
@@ -427,11 +426,11 @@ final class ProfilingConsentTest extends TestCase {
 		);
 		$store = &$this->transients();
 
-		$rec = $this->createMock( RecEngineClient::class );
+		$rec = $this->createMock( PrivacyRequests::class );
 		$rec->expects( self::once() )
-			->method( 'customer_opt_out' )
+			->method( 'queue_opt_out' )
 			->with( 'a@example.com', self::callback( static fn ( array $b ): bool => $b['opt_out'] === true ) )
-			->willReturn( array( 'ok' => true ) );
+			->willReturn( true );
 		$resolver = $this->resolver( null, $rec );
 
 		$resolver->opt_out( 'a@example.com' );
@@ -463,10 +462,7 @@ final class ProfilingConsentTest extends TestCase {
 
 		$smaily = $this->createMock( SmailyClient::class );
 		$smaily->method( 'has_contact' )->willThrowException( new \RuntimeException( 'No contact a@example.com' ) );
-		$rec = $this->createMock( RecEngineClient::class );
-		$rec->method( 'customer_opt_out' )->willThrowException(
-			new ApiException( 422, 'validation_failed', 'Customer a@example.com could not be opted out' )
-		);
+		$rec = $this->createMock( PrivacyRequests::class );
 
 		$log      = (string) tempnam( sys_get_temp_dir(), 'smly-log' );
 		$previous = (string) ini_set( 'error_log', $log );
@@ -479,7 +475,6 @@ final class ProfilingConsentTest extends TestCase {
 		}
 
 		self::assertStringContainsString( '[smaily-connect profiling-consent] write failed: RuntimeException code=0 at ', $written );
-		self::assertStringContainsString( '[smaily-connect profiling-consent] engine opt-out failed: http=422 error=validation_failed', $written );
 		self::assertStringNotContainsString( 'a@example.com', $written );
 	}
 

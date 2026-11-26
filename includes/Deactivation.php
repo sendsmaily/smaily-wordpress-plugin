@@ -23,6 +23,7 @@ use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\LoginMerge;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
+use Smaily\Connect\Smaily\RecEngine\PrivacyRequests;
 
 /**
  * Runs on plugin deactivation.
@@ -67,6 +68,7 @@ final class Deactivation {
 		LoginMerge::AS_GROUP,
 		InstallationReport::AS_GROUP,
 		PaymentReminderCheck::AS_GROUP,
+		PrivacyRequests::AS_GROUP,
 	);
 
 	public static function run(): void {

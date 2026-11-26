@@ -2997,6 +2997,10 @@ msgstr[1] "Sündmuste logis anonüümiti %d juba saadetud Smaily kirjet."
 msgid "This request does not remove the contact from your Smaily account. Remove it in Smaily too if needed."
 msgstr "See päring ei eemalda kontakti sinu Smaily kontolt. Vajaduse korral eemalda see ka Smailys."
 
+#: includes/Privacy/GdprHandler.php:309
+msgid "Campaign Intelligence gets the deletion request in the background. It is sent again until Campaign Intelligence accepts it."
+msgstr "Campaign Intelligence saab kustutamistaotluse taustal. Seda saadetakse uuesti, kuni Campaign Intelligence selle vastu võtab."
+
 #: integrations/elementor/landingpage-widget.class.php:60
 msgid "embed"
 msgstr "manustus"
