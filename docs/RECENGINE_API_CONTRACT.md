@@ -1,18 +1,19 @@
-# Smaily Recommendation Engine — API Contract v1.34
+# Smaily Recommendation Engine — API Contract v1.37
 
-**Version**: 1.34.0
+**Version**: 1.37.1
 **Published**: 2026-05-19
-**Last updated**: 2026-11-19 (v1.34.0 — a plugin can learn whether "Try Intelligence free" is open before it shows the button: the new `GET /api/v1/onboarding/status` needs no API key and no input and answers `{"start_open": true|false}`; `false` while the start of §21 is switched off. The answer may be cached for 5 minutes, so switching the start on reaches every plugin within 5 minutes with no plugin release. A plugin shows the button only on `true` and treats an error or a timeout as `false` (§21 [Is the start open?](#is-the-start-open)). MINOR bump: additive only — INT-298. Previous: 2026-11-17, v1.33.0 — one code prefix per shop connection: a connector that declares `capabilities: ["connection_prefix"]` at the setup exchange can get a code prefix for its connection (`config.connection.prefix`, for example `c2-`; also on the ping) and puts it in front of every product code, parent product id and order id it sends. Two shops in one engine store can then number their products and orders from 1 without overwriting each other. The nightly list (§3c) and removes (§3b) cover only the calling connection's own products, and the history progress (§25) is kept per connection. A connector without the capability, and every connection made before 1.33.0, has the prefix `""` and changes nothing. The engine side is built and switched off: the engine assigns prefixes only once it is switched on, and the refusal of a connector without the capability (`409 plugin_update_required`) is announced to the connector teams before it is switched on (§1 Status). MINOR bump: additive only — INT-285. Previous: 2026-11-13, v1.32.0 — outcome events: a booking system sends a customer's bookings and their states (`booked`, `cancelled`, `no_show`, `attended`) to the new §6b `POST /api/v1/ingest/outcomes`. An unknown type is stored as `other`, never rejected. A booking holds back the customer's recommendations in a store whose sector reads it. The events are not revenue and teach the engine nothing yet. The shopper's export (§8) and delete (§9) include them. MINOR bump: additive only — INT-259. Previous: 2026-11-13, v1.31.0 — the design page in a modal: a design link minted with `display: "frame"` keeps its session in the page, not in a cookie, so the page works in a frame inside the store admin in every browser; the plugin may name the origin of its admin page (`frame_origin`); the page tells its parent when it is ready and when it has unsaved changes (§22). Drafted as v1.26.0; that number was never published. MINOR bump: additive only — INT-14. Previous: 2026-11-13, v1.30.0 — an order can say where it was made: optional `channel`, `online` or `in_store`; a store's second order system (for example its tills) sends its orders into the same engine store with its own API key, by the sender rules of §5 "A second order source". An in-store order is credited by the same rules as any order, and the store's console shows the credited part made in the store. MINOR bump: one new optional field. Previous: 2026-11-12, v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step were specified before the engine side was complete; the engine side was built on 2026-11-13 and is switched off in production with the rest of §21, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
+**Last updated**: 2026-11-25 (v1.37.1 — clarification only, no behaviour change: §1 states that a reconnect reuses a prefix by the shop's full address (origin and path), not by origin alone; §3 no longer says which connectors send `tags.product_id`; §8b, §9b, §10, §10b and the rate-limit table state the real limit, 10 requests per 60 seconds per store, one limit for every GDPR request (`/api/v1/customer/...` and `/api/v1/gdpr/...`). PATCH bump: wording only. Previous: 2026-11-23, v1.37.0 — a customer without an email address: a store may send a customer it knows by its own customer id (`external_id`) or by a loyalty card number (`loyalty_id`, new), without an email (§4), and an order may name its customer by `customer_email`, `customer_external_id` or `customer_loyalty_id` (§5). Which customers may be sent without an email: §4 "Customers without an email". Such a customer gets no Smaily contact fields and no engine email; a logged-in shopper still gets storefront recommendations (§15). The identity merge finds a customer by `customer_external_id` too (§7). New GDPR requests find a customer by email, store customer id, loyalty number or phone, with the identifier in the body (§8b–§10b); the email-in-path requests (§8–§10) keep working and are deprecated. The phone number is a lookup key for these requests only: it never joins two customers and nothing is sent to it. Readers of §8 and §9 answers: `customer.email` and `customer_email` can be `null` for such a customer. The engine side is switched off until the engine announces it (§4 [Status](#customer-identity-status)); until then a row without an email is refused as before. MINOR bump: additive for senders — INT-283. Previous: 2026-11-23, v1.36.1 — clarification only, no behaviour change: the §25 sender rules name PrestaShop; §3 names PrestaShop's product keys (`ps-<id_product>`, `ps-<id_product>-<id_product_attribute>`, `tags.product_id` = `ps-<id_product>`); §5 states that every amount is in the store's default currency, and a shop that sells in several currencies converts an order in another currency with that order's own rate at order time. PATCH bump: wording only. Previous: 2026-11-20, v1.36.0 — price groups: a customer can carry one price group (§4 `price_group`) and a product its final price for each group (§3 `group_prices`). The store platform computes each price; the engine applies no percent or rule. Where a store sends them, the engine shows a customer of a group the group price wherever it shows a price: the Smaily contact fields `rec_N_price`, the storefront recommendations (§15 `price`) and the automated emails' `rec_bis_price` and `rec_rep_price`. No group, or no price for the group on the product, → the public `price`, as before. A shopper the storefront names only by the visitor token always sees the public price. Ranking keeps the public price; `compare_price` keeps its meaning. The shopper's export (§8) carries the group and delete (§9) removes it. The engine side is built and switched off until the engine announces it (§3 [Status](#price-groups-status)); nothing changes for a store until its connector sends groups. MINOR bump: additive only — INT-307. Previous: 2026-11-20, v1.35.0 — a shopper can ask to be told when a product is back in stock: the connector sends the shopper's request, and a cancel, to the new §6c `POST /api/v1/ingest/stock-alerts`. A logged-in shopper with marketing consent may ask, and a guest may ask with a typed email; the engine keeps a guest's request only when the email belongs to a customer already subscribed to the store's list. The engine sends the alert with its own back-in-stock email (§11 `back_in_stock`) as soon as the product is back, once per customer and product. In a store on the adult-wellness pack the engine stores no request. The connector shows its "Notify me" button only while §12 says that email is live for the store. The shopper's export (§8) and delete (§9) include the requests. The engine side is built and switched on (2026-11-20, same-day status edit, no version change); the engine's guest limits are 10 open guest requests per customer and 500 guest requests per store per hour (§6c [Status](#stock-alerts-status)). MINOR bump: additive only — INT-282. Previous: 2026-11-19, v1.34.0 — a plugin can learn whether "Try Intelligence free" is open before it shows the button: the new `GET /api/v1/onboarding/status` needs no API key and no input and answers `{"start_open": true|false}`; `false` while the start of §21 is switched off. The answer may be cached for 5 minutes, so switching the start on reaches every plugin within 5 minutes with no plugin release. A plugin shows the button only on `true` and treats an error or a timeout as `false` (§21 [Is the start open?](#is-the-start-open)). MINOR bump: additive only — INT-298. Previous: 2026-11-17, v1.33.0 — one code prefix per shop connection: a connector that declares `capabilities: ["connection_prefix"]` at the setup exchange can get a code prefix for its connection (`config.connection.prefix`, for example `c2-`; also on the ping) and puts it in front of every product code, parent product id and order id it sends. Two shops in one engine store can then number their products and orders from 1 without overwriting each other. The nightly list (§3c) and removes (§3b) cover only the calling connection's own products, and the history progress (§25) is kept per connection. A connector without the capability, and every connection made before 1.33.0, has the prefix `""` and changes nothing. The engine side is built and switched off: the engine assigns prefixes only once it is switched on, and the refusal of a connector without the capability (`409 plugin_update_required`) is announced to the connector teams before it is switched on (§1 Status). MINOR bump: additive only — INT-285. Previous: 2026-11-13, v1.32.0 — outcome events: a booking system sends a customer's bookings and their states (`booked`, `cancelled`, `no_show`, `attended`) to the new §6b `POST /api/v1/ingest/outcomes`. An unknown type is stored as `other`, never rejected. A booking holds back the customer's recommendations in a store whose sector reads it. The events are not revenue and teach the engine nothing yet. The shopper's export (§8) and delete (§9) include them. MINOR bump: additive only — INT-259. Previous: 2026-11-13, v1.31.0 — the design page in a modal: a design link minted with `display: "frame"` keeps its session in the page, not in a cookie, so the page works in a frame inside the store admin in every browser; the plugin may name the origin of its admin page (`frame_origin`); the page tells its parent when it is ready and when it has unsaved changes (§22). Drafted as v1.26.0; that number was never published. MINOR bump: additive only — INT-14. Previous: 2026-11-13, v1.30.0 — an order can say where it was made: optional `channel`, `online` or `in_store`; a store's second order system (for example its tills) sends its orders into the same engine store with its own API key, by the sender rules of §5 "A second order source". An in-store order is credited by the same rules as any order, and the store's console shows the credited part made in the store. MINOR bump: one new optional field. Previous: 2026-11-12, v1.29.0 — "Try Intelligence free" from the plugin: the start window of §21 can run in a modal inside the store admin (`display: "frame"`, `frame_origin`); the plugin may pre-fill the console email (`admin_email`) and name the window's language (`language`); every active sector can be picked; the window ends on a welcome step with the history import's progress; the plugin starts the history import after the setup exchange (§1, §25). Published for planning: the frame mode, the two pre-fill fields and the welcome step were specified before the engine side was complete; the engine side was built on 2026-11-13 and is switched off in production with the rest of §21, and a connector keeps the new-window flow as its fallback (§21 Status). MINOR bump: additive only — INT-247. Previous: 2026-11-08, v1.28.0 — a connector can say that its history import stopped, and why: an optional `stop_reason` (`cancelled`, `failed` or `stalled`) on the progress call that names the phase the import reached; the engine stops waiting for that import, and a new `import_id` starts over (§25). MINOR bump: one new optional field and two new response fields — INT-225. Previous: 2026-11-03 (v1.25.0 — the setup exchange names the store's Smaily account (`smaily_subdomain`, §1), so a connector of several websites refuses a link to a store of another account; three optional brand-kit fields (`accent_colour`, `button_radius`, `heading_font_family`), and the store's saved designs follow a brand-kit change: a place that holds the old brand value gets the new one, a value set by hand stays, each updated design gets a new §23 `version`, and the PUT response gains `designs_updated` (§18). MINOR bump: additive only — INT-207, INT-209. Previous: 2026-11-03, v1.24.0 — the contract now states what the engine already does in six places: catalog and browse accept 1–1000 items per request, 100 recommended (§3, §6); every bad API key, also a revoked one, answers one `401 unauthorised` (Authentication, §§17, 19, 20, 22, 24, 25); `event_id` examples are UUIDs (§3–§6); browse `sku` / `category_path` / `search_query` are SHOULD, not required (§6); `raw_attributes` are mapped into tags and every catalog `200` carries `unmapped_attributes` (§3); identity-merge `merge_ts` is optional (§7). Two engine changes: the setup exchange gives `config.batch_size_max` 100 (§1), and timestamps with a UTC offset are accepted and stored in UTC. MINOR bump: no shape change — INT-193. Previous: 2026-11-02, v1.23.0 — a third group of customers to send: a customer who logs in and has given marketing consent is sent at that login, before the identity merge (§4, §25), and a merge that answers `404 customer_not_found` may be retried once after the customer is sent (§7). MINOR bump: no shape change — INT-195. Previous: 2026-11-02, v1.22.0 — an identity merge binds the visitor token it carries with the same rules as an order: the store may create a `vs_` token at login for a shopper who gave marketing consent, and a merge with an unknown `vs_` token creates it for the merge's customer (§7); every merge with a token of the same customer renews it (§5, §15). MINOR bump: no shape change — INT-194. Previous: 2026-11-02, v1.21.0 — one engine store with several websites: the connector reports how the platform shares customer accounts (`store_config.customer_account_scope`, §1 and §25), and customer, order, catalog and storefront rows carry the website (§3, §4, §5, §15); every new field is optional, and a single-website store sends none of them and sees no change. MINOR bump: additive only — INT-171. Previous: 2026-10-28, v1.20.0 — the history import in two parts: the setup exchange and ping give the history window (`config.history`), the connector sends the last 18 months of orders first and the rest newest first down to 60 months, sends no older order, sends the customers its own contact sync puts into Smaily plus every customer with an order inside 60 months, and reports its progress with the new §25. MINOR bump: additive only — INT-185)
 **Status**: Stable — basis for plugin implementation
 
 ---
 
 ## Document location and synchronization
 
-This contract lives in four repositories and must stay byte-for-byte synchronized:
+This contract lives in five repositories and must stay byte-for-byte synchronized:
 - `connect/docs/RECENGINE_API_CONTRACT.md` (Smaily Connect — WooCommerce plugin)
 - `shopify-connect/docs/RECENGINE_API_CONTRACT.md` (Smaily Connect — Shopify app)
 - `magento-connect/docs/RECENGINE_API_CONTRACT.md` (Smaily Connect — Magento extension)
+- `smaily-prestashop-module/docs/RECENGINE_API_CONTRACT.md` (Smaily Connect — PrestaShop module, branch `v3`; added 2026-11-20)
 - `re/docs/RECENGINE_API_CONTRACT.md` (rec engine)
 
 When proposing a change (either side):
@@ -53,10 +54,14 @@ This document consolidates the earlier dialogue (`RECENGINE_API_ANALYSIS.md` + `
    - [POST /api/v1/ingest/orders](#5-post-apiv1ingestorders)
    - [POST /api/v1/ingest/browse](#6-post-apiv1ingestbrowse)
    - [POST /api/v1/ingest/outcomes](#6b-post-apiv1ingestoutcomes)
+   - [POST /api/v1/ingest/stock-alerts](#6c-post-apiv1ingeststock-alerts)
    - [POST /api/v1/identity/merge](#7-post-apiv1identitymerge)
    - [GET /api/v1/customer/{email}/export](#8-get-apiv1customeremailexport)
    - [DELETE /api/v1/customer/{email}](#9-delete-apiv1customeremail)
    - [POST /api/v1/customer/{email}/opt-out](#10-post-apiv1customeremailopt-out)
+   - [POST /api/v1/gdpr/export](#8b-post-apiv1gdprexport)
+   - [POST /api/v1/gdpr/delete](#9b-post-apiv1gdprdelete)
+   - [POST /api/v1/gdpr/opt-out](#10b-post-apiv1gdpropt-out)
    - [GET /api/v1/automations/catalog](#11-get-apiv1automationscatalog)
    - [GET /api/v1/automations/config](#12-get-apiv1automationsconfig)
    - [PUT /api/v1/automations/config](#13-put-apiv1automationsconfig)
@@ -221,7 +226,7 @@ The plugin manages four cookies. Names come from the **engine setup-response con
 | 401 | Unauthorized — API key missing, unknown or revoked (one `unauthorised` answer) | NO (display admin notice) |
 | 403 | Forbidden — tenant deactivated or access denied | NO |
 | 404 | Not Found — resource does not exist | NO |
-| 409 | Conflict — idempotency conflict (rare) | NO |
+| 409 | Conflict — idempotency conflict (rare); (v1.37.0) `identifier_ambiguous` on §8b–§10b | NO |
 | 429 | Too Many Requests — rate limit | YES (exponential backoff, honor `Retry-After` / `retry_after_seconds`) |
 | 500 | Internal Server Error — engine down | YES (exponential backoff, up to 3 retries) |
 | 502/503/504 | Bad Gateway / Service Unavailable / Gateway Timeout | YES (same as 500) |
@@ -286,6 +291,7 @@ HTTP 400 Bad Request
 | `/api/v1/ingest/customers` | 100 requests | per 1 second |
 | `/api/v1/ingest/orders` | 100 requests | per 1 second |
 | `/api/v1/ingest/outcomes` | 100 requests | per 1 second |
+| `/api/v1/ingest/stock-alerts` | 100 requests | per 1 second |
 | `/api/v1/ingest/history` | 100 requests | per 1 second |
 | `/api/v1/identity/merge` | 100 requests | per 1 second |
 | `/api/v1/automations/{key}/setup-link` | 10 requests | per 60 seconds |
@@ -298,7 +304,7 @@ HTTP 400 Bad Request
 | `/api/v1/recommendations/customer` | 100 requests | per 1 second |
 | `/api/v1/store/branding` | 10 requests | per 60 seconds |
 | `/api/v1/console/entry` | 10 requests | per 60 seconds |
-| `/api/v1/customer/...` (GDPR) | 10 requests | per 60 seconds |
+| `/api/v1/customer/...` and `/api/v1/gdpr/...` (GDPR, one limit for both) | 10 requests | per 60 seconds |
 | `/api/setup/exchange` | 10 requests | per 60 seconds (per IP) |
 | `/api/v1/onboarding/...` | 10 requests | per 60 seconds (per IP) |
 | `/api/console-entry/...` | 10 requests | per 60 seconds (per IP) |
@@ -349,6 +355,7 @@ Each ingest endpoint has a natural business key that uniquely identifies the rec
 | `/api/v1/ingest/customers` | `(tenant_id, email)` |
 | `/api/v1/ingest/orders` | `(tenant_id, external_order_id)` |
 | `/api/v1/ingest/browse` | (none — browse events are not semantically idempotent) |
+| `/api/v1/ingest/stock-alerts` | `(tenant_id, customer, sku)` (v1.35.0) |
 
 Sending the same record twice updates (UPSERT) — no duplicates. This protects against any retry, regardless of whether the plugin sends an `event_id`.
 
@@ -371,6 +378,7 @@ The per-item `event_id` field is **optional** on catalog / customers / orders �
 - `/api/v1/ingest/customers` — per customer (each `customers[]` object)
 - `/api/v1/ingest/orders` — per order (each `orders[]` object)
 - `/api/v1/ingest/browse` — per event (each `events[]` object)
+- `/api/v1/ingest/stock-alerts` — per item (each `requests[]` object); required (v1.35.0)
 
 **Wire field name**: `event_id` (snake_case, string, UUID v4). The plugin's internal queue column may use a different name (the Smaily Connect plugin uses `event_uuid` internally) — the PayloadBuilder maps it to `event_id` on the wire.
 
@@ -416,7 +424,7 @@ Setup-token exchange. **Unauthenticated endpoint** (one of two, with the onboard
 
 **Where the setup token comes from.** The operator's admin, the store's console (Settings → Connections), or — since v1.16.0 — the start window of a new store (§21), which sends it to the plugin's window in a browser message. The exchange is the same in every case.
 
-**After an exchange with a token from the start window (§21)** (v1.29.0), the plugin starts its history import at once, without another click: it reads `config.history` from the exchange response and follows the [§25 sender rules](#sender-rules-one-list-for-woocommerce-shopify-and-magento), beginning with `started`. The shop admin already asked for this by pressing "Try Intelligence free". An exchange with a token that the operator or the console issued keeps the plugin's current behaviour.
+**After an exchange with a token from the start window (§21)** (v1.29.0), the plugin starts its history import at once, without another click: it reads `config.history` from the exchange response and follows the [§25 sender rules](#sender-rules-one-list-for-woocommerce-shopify-magento-and-prestashop), beginning with `started`. The shop admin already asked for this by pressing "Try Intelligence free". An exchange with a token that the operator or the console issued keeps the plugin's current behaviour.
 
 **URL**: `POST /api/setup/exchange`
 
@@ -466,7 +474,7 @@ An unknown value is stored as absent (`global`), never a `400`: a failed setup e
 | `connection.previous_prefix` | string | NO | (v1.33.0) On a reconnect: the prefix this connector held before, `""` if it held an unprefixed connection. Omit it on a first connection. A malformed value is ignored, never a `400`. |
 
 <a id="connection-prefix"></a>
-**Connection prefix** (v1.33.0, INT-285). The engine gives each new connection of a store a code prefix, and only to a connector that declares the `connection_prefix` capability. A reconnect keeps the prefix it had: the engine reuses the prefix the connector reports as `previous_prefix` when the store assigned it, otherwise the prefix of the store's most recent connection with the same `plugin_info.site_url` origin and `ecommerce_platform`, otherwise it assigns a new one. A wrong "new" prefix would duplicate the shop's whole catalog and order history, so always send `previous_prefix` when you have one. A connection that existed before 1.33.0, and a connection made without the `connection_prefix` capability, has the prefix `""`. An API key a Smaily operator creates for the store (for example for a second order source, [§5](#second-order-source)) is a connection of its own and gets its own prefix the same way.
+**Connection prefix** (v1.33.0, INT-285). The engine gives each new connection of a store a code prefix, and only to a connector that declares the `connection_prefix` capability. A reconnect keeps the prefix it had: the engine reuses the prefix the connector reports as `previous_prefix` when the store assigned it, otherwise the prefix of the store's most recent connection with the same `plugin_info.site_url` address and `ecommerce_platform`, otherwise it assigns a new one. The address is the origin and the path (v1.37.1): the engine ignores the host's letter case, a trailing slash, the query and the fragment, and keeps the path's letter case. Two shops of one installation on one domain (`https://x.example/shop-a`, `https://x.example/shop-b`) are two addresses, and `https://x.example` and `https://x.example/shop` are two addresses: a shop that first reported only its domain and later reports a path gets a new prefix unless it sends `previous_prefix`. A wrong "new" prefix would duplicate the shop's whole catalog and order history, so always send `previous_prefix` when you have one. A connection that existed before 1.33.0, and a connection made without the `connection_prefix` capability, has the prefix `""`. An API key a Smaily operator creates for the store (for example for a second order source, [§5](#second-order-source)) is a connection of its own and gets its own prefix the same way.
 
 <a id="connection-prefix-status"></a>
 **Status** (2026-11-17). The engine side is built and switched off:
@@ -496,6 +504,9 @@ An unknown value is stored as absent (`global`), never a `400`: a failed setup e
     "customer_export":   "https://intelligence.smaily.com/api/v1/customer/{email}/export",
     "customer_delete":   "https://intelligence.smaily.com/api/v1/customer/{email}",
     "customer_opt_out":  "https://intelligence.smaily.com/api/v1/customer/{email}/opt-out",
+    "gdpr_export":   "https://intelligence.smaily.com/api/v1/gdpr/export",
+    "gdpr_delete":   "https://intelligence.smaily.com/api/v1/gdpr/delete",
+    "gdpr_opt_out":  "https://intelligence.smaily.com/api/v1/gdpr/opt-out",
     "recommendations_preview": "https://intelligence.smaily.com/api/v1/recommendations/preview",
     "recommendations_issue":   "https://intelligence.smaily.com/api/v1/recommendations/issue",
     "recommendations_customer": "https://intelligence.smaily.com/api/v1/recommendations/customer",
@@ -553,6 +564,8 @@ An unknown value is stored as absent (`global`), never a `400`: a failed setup e
 > **Email design keys** (v1.17.0): `emails_design_link` ([§22](#22-post-apiv1emailsemail_keydesign-link)) and `emails_designs` ([§23](#23-get-apiv1emailsdesigns)). `{email_key}` is a placeholder: the plugin replaces it with an email key (URL-encoded; the dot needs no encoding). **The engine returns both keys now** (since 2026-10-22). A connection set up before the endpoints went live has no key and uses the fallback path constant.
 
 > **Console entry key** (v1.19.0): `console_entry` ([§24](#24-post-apiv1consoleentry)). **The engine returns the key only while console entry is switched on**; until then the key is absent and the endpoint answers `404`. A connection set up before v1.19.0, or before console entry went live, has no key and uses the fallback path constant `/api/v1/console/entry`.
+
+> **Stock alerts** (v1.35.0): `ingest_stock_alerts` ([§6c](#6c-post-apiv1ingeststock-alerts)), `"https://intelligence.smaily.com/api/v1/ingest/stock-alerts"`. **The engine returns the key while §6c is switched on** (since 2026-11-20); while it is off the key is absent and the endpoint answers `404`. A connection set up before the endpoint went live has no key and uses the fallback path constant `/api/v1/ingest/stock-alerts`.
 
 > **History import** (v1.20.0): `config.history` says how much order history to send and in which order — `start_months` 18 (the start part), `horizon_months` 60 (the oldest order to send, the same for every sector pack), `order` `newest_first` ([§25](#25-post-apiv1ingesthistoryprogress)); `ingest_history_progress` is the progress call. A connection set up before v1.20.0 has neither: it reads `config.history` from the ping ([§2](#2-get-apiv1ingestping)) and uses the fallback path constant `/api/v1/ingest/history/progress`. When neither the exchange nor the ping has the block, use 18 / 60 / `newest_first`.
 
@@ -733,7 +746,7 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `event_id` | UUID v4 string | NO | Per-product transport-level dedup key. See [Idempotency](#idempotency). |
-| `sku` | string (max 72) | YES | **Canonical product-identity token — NOT the merchant's SKU field.** The stable platform product/variant id, namespaced by source (`shp-<variant_id>`, `woo-<id>`). Never the merchant-entered SKU string, and never a fallback to it. See [Product identity](#catalog-identity). v1.33.0: the [connection prefix](#connection-prefix) followed by the platform key — `c2-woo-101`, `c1-shp-4471…`, `c3-ABC-123` (a Magento SKU); without a prefix, the platform key as before. |
+| `sku` | string (max 72) | YES | **Canonical product-identity token — NOT the merchant's SKU field.** The stable platform product/variant id, namespaced by source (`shp-<variant_id>`, `woo-<id>`, `ps-<id_product>` or `ps-<id_product>-<id_product_attribute>`). Never the merchant-entered SKU string, and never a fallback to it. See [Product identity](#catalog-identity). v1.33.0: the [connection prefix](#connection-prefix) followed by the platform key — `c2-woo-101`, `c1-shp-4471…`, `c3-ABC-123` (a Magento SKU), `c4-ps-12-45` (a PrestaShop combination); without a prefix, the platform key as before. |
 | `name` | string \| `{lang: string}` | YES | Product name |
 | `category_path` | string | YES | Hierarchical category (`food/dry`, `accessories/leashes`) |
 | `price` | number | YES | Customer's current selling price (NOT regular_price) |
@@ -744,6 +757,7 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 | `description` | string \| `{lang: string}` | NO | Short description (max 500 characters) |
 | `image_url` | string (URL) \| `{lang: string}` | NO | Product image URL. **Stored as a representative scalar only** — there is no `image_url_i18n` column, so the `{lang}` form is accepted but not stored per-language. |
 | `product_url` | string (URL) \| `{lang: string}` | YES | Product page URL. **Required, non-empty** — an empty string `""` is rejected (400), mirroring `category_path`. No silent fallback to `product_base_url + sku`. |
+| `group_prices` | object \| `null` | NO | (v1.36.0) The product's final price for each price group: `{"<group>": price}`. See [Price groups](#price-groups). Absent, `null` or `{}` = no group prices. |
 | `websites` | object \| `null` | NO | (v1.21.0) The websites that sell the product, with its link on each. See [Several websites](#catalog-websites). Absent or `null` = sold on every website with the row's values. |
 | `external_id` | string | NO | Plugin/platform internal ID (for debugging/traceability). |
 | `tags` | object | NO | Best-effort mapping (engine uses immediately). Includes the optional `category_defaulted` marker — see [below](#category-defaulted). |
@@ -774,6 +788,51 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 - An invalid entry (a key that is empty or longer than 64 characters, a missing or empty `product_url`) fails the product in `errors[]`, as an invalid row `product_url` does.
 - What the engine does with it: a customer whose website ([§4](#customer-website)) some product of the store lists is never recommended a product that website does not sell, and every link the engine sends — the Smaily `rec_N_link_url` and the storefront `product_url` ([§15](#15-post-apiv1recommendationscustomer)) — is the link of the customer's website (or of the storefront request's website), in the render language, falling back inside that website's entry (tenant default → `en` → `default` → first). A customer without a website, or whose website no product lists, keeps the row's values.
 
+<a id="price-groups"></a>
+**Price groups** (v1.36.0, INT-307). A store can give some customers their own price: a B2B or wholesale group, a staff discount, a loyalty tier, one customer's negotiated price. The engine carries such prices as **price groups**: a customer belongs to one group ([§4 `price_group`](#customer-price-group)), and each product carries its final price for each group.
+
+```json
+{
+  "products": [
+    {
+      "sku": "c1-woo-101",
+      "name": "Riesling 0.75 l",
+      "category_path": "wine/white",
+      "price": 14.90,
+      "in_stock": true,
+      "product_url": "https://shop.example/riesling/",
+      "group_prices": { "c1-wholesale": 11.20, "c1-staff": 10.50 }
+    }
+  ]
+}
+```
+
+- **The platform computes, the engine copies.** Each price is what the store's checkout charges a logged-in customer of that group for one unit of this product today, as the platform's own pricing computes it (group discounts, group price lists, rounding). The engine never applies a percent, a rule or rounding of its own.
+- **Same tax display as `price`** (both with VAT, or both without, as the store shows prices).
+- **Only real differences.** Send a group only when its price differs from `price`. A group the product has no entry for shows `price`.
+- **Group names.** 1–72 characters: letters, digits and `_ . : -`, starting with a letter or digit. Compared exactly (case-sensitive). Use the platform's stable group key (an id or a slug), never a display name the merchant can rename. In a connection with a [prefix](#connection-prefix), every group name starts with the connection's prefix, as a `sku` does (`c1-wholesale`); a name that does not is refused with `connection_prefix_mismatch`.
+- **Prices.** A number of at least `0.01`; stored rounded to cents, as `price`. A zero or negative price is refused.
+- **At most 50 groups per product.** A store with more sends the 50 it uses most; a customer of another group sees `price`.
+- **One customer, one price.** A store that gives a single customer an individual price uses a group with that one member (for example `c1-cust-67`); it counts towards the 50.
+- **Send the whole row.** `group_prices` is replaced as a whole on every catalogue send, like `websites`: a send without it (or with `null` or `{}`) clears the product's group prices. A change of a group price is sent as a catalogue update of that product, as a change of `price` is. [§3c](#3c-post-apiv1ingestcatalogmanifest) and [§3b](#3b-post-apiv1ingestcatalogremove) do not touch group prices.
+- **Validation.** An invalid `group_prices` (a bad name, a bad price, more than 50 groups) refuses that product as a per-item error (`field`: `group_prices.<group>` or `group_prices`); the rest of the batch is written.
+- **Where the engine shows it.** A customer of a group sees the group price in the Smaily contact fields `rec_N_price` (and in the slot copy), in the storefront recommendations ([§15](#15-post-apiv1recommendationscustomer) `price`) and in the automated emails' `rec_bis_price` and `rec_rep_price`. A test send ([§19](#19-post-apiv1automationskeytest-send)) shows public prices. A customer without a group, or a product without a price for the customer's group, shows `price`. A changed customer group reaches the Smaily contact with the next morning contact sync; a changed product price (public or group) reaches it with the contact's next push, as today.
+- **Ranking.** The engine ranks and chooses products by the public `price` only. A group price changes what a customer of that group is shown, never which products they get.
+- **`compare_price`** keeps its meaning: the store's own pre-sale price for the product, shown beside a group price as it is (a pack that hides compare prices, alcohol, hides it there too). The engine never shows the public `price` as a "was" price beside a group price.
+
+<a id="price-groups-status"></a>
+**Status** (2026-11-20). The engine side is built and **switched off** until the engine announces it. Until then both fields (`group_prices`, [§4](#customer-price-group) `price_group`) are accepted and ignored, as any unknown field: a connector may send them before the switch-on, and nothing changes. After it, nothing changes for a store until its connector sends groups.
+
+<a id="price-groups-connector"></a>
+**What each connector builds** (v1.36.0):
+1. **Ask the platform, do not compute.** Each group price is what the platform's own pricing gives a logged-in customer of that group for one unit today. A connector that cannot get it from the platform without re-implementing the rules does not send that group.
+2. **Send only groups whose price differs**, at most 50 per product; leave out groups with no members.
+3. **Stable keys**, prefixed with `config.connection.prefix` in a prefixed connection.
+4. **Resend the product** (§3) whenever a group price changes (a rule change, a sale start or end, a group discount edit).
+5. **Send `price_group`** with every §4 row of a customer who has a group; send `null` once when a customer leaves their group; leave the field out for customers without one.
+6. **Never send** the group's display name or the customer's discount percent. Send a group only for customers the connector already sends (§4 data minimisation).
+7. **Platform notes.** WooCommerce: the group is the customer-discount plugin's group or the WordPress user role that carries the price rule; ask that plugin for the price, per variation row. Magento: customer groups (`customer_group_id`) with the price index's final price per group, so tier prices and catalog price rules are included; `NOT LOGGED IN` is never sent. Shopify: only B2B (Plus) catalogs, one group per company-location catalog; prices from discount apps that the connector cannot read per product are not sent. PrestaShop: customer groups (`id_group`) with `Product::getPriceStatic` for that group (specific prices, group reductions and price rules included); `Visitor` and `Guest` are never sent.
+
 <a name="sale-semantics"></a>
 **Sale semantics** (D2 Variant 1, Shopify convention):
 - `price` is the current selling price; `compare_price` is the pre-sale ("was") price.
@@ -786,11 +845,11 @@ The engine accepts both forms — field type is checked at runtime. Storage beha
 <a name="catalog-identity"></a>
 **Catalog identity, multilingual & lifecycle** (added 2026-06-13; identity rule sharpened 2026-07-09):
 
-- **`sku` is the platform product/variant id — NEVER the merchant SKU field.** The engine's `sku` is a join/identity key, not a human-facing code. It **must** be the platform's stable internal id, namespaced by source: Shopify → `shp-<variant_id>` (the order line's `variant_id`, **not** `line_item.sku`); WooCommerce → `woo-<variation_id>` for variable products, `woo-<product_id>` for simple; **Magento → the catalog `sku` field itself** (Magento enforces the SKU field as mandatory + store-unique, so it *is* Magento's own canonical identifier — the one platform where the merchant `sku` field is the correct key), with `mag-<entity_id>` as a fallback **only** when the SKU field is empty. The `mag-<entity_id>` fallback must be applied **identically on catalog and order lines** for the same empty-SKU product (see "Same key from every path" below), or the two paths diverge onto different keys. **The "never the merchant SKU field" rule that follows is specific to Shopify/WooCommerce**, where "SKU" is a free-text, optional, reusable merchant field distinct from the platform id; it does **not** apply to Magento, whose SKU is the platform-canonical key. The merchant-entered "SKU" field on Shopify/Woo is **optional, frequently blank, reused, or garbage** (real-world examples seen: a price `"63.00"`, a sequence number `"12"` shared by dozens of products, an EAN barcode) — using it, **even as a fallback when the platform id is momentarily unavailable**, collapses distinct products onto one `(tenant_id, sku)` key and silently destroys history. If you need the merchant SKU for display/debugging, send it as `tags.merchant_sku` — **never** as `sku`, and **never** in `external_id`. (`catalog.external_id` carries the platform variant id and drives the engine's same-SKU collision detection; putting the reused/blank merchant SKU there would break it. The engine does not consume or surface `tags.merchant_sku` today — send it only if an operator genuinely needs it, per data-minimization.)
-  - **Same key from every path.** The identical token must be emitted from catalog **and** order-line **and** browse ingest for the same product. Consistency is required only *within one tenant/source* (one store = one plugin); `shp-` and `woo-` namespaces never cross-join.
+- **`sku` is the platform product/variant id — NEVER the merchant SKU field.** The engine's `sku` is a join/identity key, not a human-facing code. It **must** be the platform's stable internal id, namespaced by source: Shopify → `shp-<variant_id>` (the order line's `variant_id`, **not** `line_item.sku`); WooCommerce → `woo-<variation_id>` for variable products, `woo-<product_id>` for simple; **Magento → the catalog `sku` field itself** (Magento enforces the SKU field as mandatory + store-unique, so it *is* Magento's own canonical identifier — the one platform where the merchant `sku` field is the correct key), with `mag-<entity_id>` as a fallback **only** when the SKU field is empty; **PrestaShop → `ps-<id_product>`** for a product without combinations, `ps-<id_product>-<id_product_attribute>` for each combination (v1.36.1). On every platform the [connection prefix](#connection-prefix) goes in front of the key when the connection has one. The `mag-<entity_id>` fallback must be applied **identically on catalog and order lines** for the same empty-SKU product (see "Same key from every path" below), or the two paths diverge onto different keys. **The "never the merchant SKU field" rule that follows is specific to Shopify/WooCommerce/PrestaShop**, where "SKU" is a free-text, optional, reusable merchant field distinct from the platform id; it does **not** apply to Magento, whose SKU is the platform-canonical key. The merchant-entered "SKU" field on Shopify/Woo is **optional, frequently blank, reused, or garbage** (real-world examples seen: a price `"63.00"`, a sequence number `"12"` shared by dozens of products, an EAN barcode) — using it, **even as a fallback when the platform id is momentarily unavailable**, collapses distinct products onto one `(tenant_id, sku)` key and silently destroys history. If you need the merchant SKU for display/debugging, send it as `tags.merchant_sku` — **never** as `sku`, and **never** in `external_id`. (`catalog.external_id` carries the platform variant id and drives the engine's same-SKU collision detection; putting the reused/blank merchant SKU there would break it. The engine does not consume or surface `tags.merchant_sku` today — send it only if an operator genuinely needs it, per data-minimization.)
+  - **Same key from every path.** The identical token must be emitted from catalog **and** order-line **and** browse ingest for the same product. Consistency is required only *within one tenant/source* (one store = one plugin); `shp-`, `woo-` and `ps-` namespaces never cross-join.
   - **Fail-loud enforcement (rolling out — see PRO-1223).** The engine will validate that each `sku` matches the sender's declared namespace pattern and route a non-conforming row to `errors[]` / `import_errors` rather than silently UPSERTing it. Senders must not rely on silent acceptance of off-scheme keys.
 - **One row per canonical product — collapse translations.** Send exactly one catalog row per real, purchasable product. Do **NOT** send a separate row per language: a multilingual product (WPML/Polylang) must be a **single `sku`** whose translations are carried in the `{lang: value}` object form of `name` / `description` / `product_url` (see *Multilingual variant* above). Keep the `sku` identical across languages and across syncs. Emitting one row per translation creates duplicate SKUs that the engine **cannot** dedupe (there is no language tag or parent link), producing language-mixed recommendations.
-- **Parent product id — `tags.product_id`.** Alongside the variant-level `sku`, emit the platform **parent product id** as `tags.product_id` (Shopify `<product_id>`, Woo `<product_id>`). All variants of one product share one `tags.product_id`; v1.33.0: it carries the [connection prefix](#connection-prefix) too (`c2-101`). The engine uses it for **product-level removal** (see [§3b](#3b-post-apiv1ingestcatalogremove)) and for **cross-variant grouping** — it groups catalog variants sharing a `tags.product_id` into one product family for cross-variant cadence and `sample_to_full` (live since PRO-1227). `sku` stays the variant-level key and `external_id` stays the variant id; only the grouping is by parent. Shopify and Woo emit it today; Magento rolls it in with its canonical-key work. Where a sender does not emit it, product-level removal is unavailable and cadence/grouping degrade to per-SKU for that sender (per-SKU `in_stock=false` still works).
+- **Parent product id — `tags.product_id`.** Alongside the variant-level `sku`, emit the platform **parent product id** as `tags.product_id` (Shopify `<product_id>`, Woo `<product_id>`, PrestaShop `ps-<id_product>`). All variants of one product share one `tags.product_id`; v1.33.0: it carries the [connection prefix](#connection-prefix) too (`c2-101`). The engine uses it for **product-level removal** (see [§3b](#3b-post-apiv1ingestcatalogremove)) and for **cross-variant grouping** — it groups catalog variants sharing a `tags.product_id` into one product family for cross-variant cadence and `sample_to_full` (live since PRO-1227). `sku` stays the variant-level key and `external_id` stays the variant id; only the grouping is by parent. Where a sender does not emit it, product-level removal is unavailable and cadence/grouping degrade to per-SKU for that sender (per-SKU `in_stock=false` still works).
 - **Real products only.** Do not send non-purchasable artifacts: language-switcher pseudo-products, gift cards, donation items, or virtual config entries. *(The engine additionally derives an internal `recommendable` flag at ingest to defensively exclude such items — see [Engine-internal fields](#engine-internal). The source should still not send them, to avoid catalog bloat.)*
 - **Lifecycle is UPSERT-only; removal is soft, never a hard delete.** The engine UPSERTs by `sku` and never removes a `sku` merely because it stopped appearing in a §3 sync or a full import. The one place absence counts is the nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest), which lists the store's complete catalog. **Removal is explicit and always *soft*:** either re-send the product with `in_stock=false` (per-SKU), or call [`POST /api/v1/ingest/catalog/remove`](#3b-post-apiv1ingestcatalogremove) with the parent `product_id` to tombstone all of a product's SKUs at once (the path for a platform hard-delete, where the webhook gives only the product id). A tombstone sets `in_stock=false` + `recommendable=false` — it drops the product from every recommendation path but **keeps the row**. Catalog rows (like `orders` / `order_items`) are **retained as a learning corpus** and are **never hard-deleted** except on GDPR erasure or tenant offboarding; the engine offers no full-catalog replace and deletes by absence only through the §3c manifest. A product missing from the nightly [manifest (§3c)](#3c-post-apiv1ingestcatalogmanifest) is tombstoned the same way. When to send what is the [catalog sync lifecycle](#catalog-sync-lifecycle) below. **Consequence when changing the SKU scheme:** migrated old SKUs are **not** auto-removed — they linger as stale rows; orphan removal at a SKU-scheme migration is a **one-time manual purge** on the engine side, coordinated with the sender.
 
@@ -1019,7 +1078,7 @@ Send nothing else (no names, prices or descriptions). Unknown keys are ignored. 
 
 ### 4. POST /api/v1/ingest/customers
 
-Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant_id, email)`; email is lowercased on ingest and matched case-insensitively. There is no `smaily_contact_id`.
+Batch upload of customers. **Identity** (v1.37.0): a customer is named by its `email`, by the store's own customer id (`external_id`) or by a loyalty card number (`loyalty_id`); a row carries at least one of them. One email is one customer (UPSERT by `(tenant_id, email)`; lowercased on ingest, matched case-insensitively), as before. See [Identity](#customer-identity) for how a row without an email finds its customer. There is no `smaily_contact_id`.
 
 **URL**: `POST /api/v1/ingest/customers`
 
@@ -1048,20 +1107,44 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 }
 ```
 
+Customers without an email (v1.37.0, [Status](#customer-identity-status)):
+```json
+{
+  "customers": [
+    {
+      "event_id": "b2c3d4e5-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+      "external_id": "4021",
+      "first_name": "Jaan",
+      "phone": "+37255512345",
+      "language": "et"
+    },
+    {
+      "event_id": "c3d4e5f6-7a8b-4c9d-8e0f-2a3b4c5d6e7f",
+      "loyalty_id": "2001004417",
+      "first_name": "Kai",
+      "phone": "5551 2345",
+      "country": "EE"
+    }
+  ]
+}
+```
+
 **Field reference**:
 
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `event_id` | UUID v4 string | NO | Per-customer transport-level dedup key. See [Idempotency](#idempotency). |
-| `email` | string (valid email) | YES | **Identity** — natural key for the `(tenant_id, email)` UPSERT. Lowercased on ingest; matched case-insensitively. |
+| `email` | string (valid email) | ONE OF (v1.37.0) | At least one of `email`, `external_id`, `loyalty_id`. One email is one customer: the natural key of the `(tenant_id, email)` UPSERT. Lowercased on ingest; matched case-insensitively. Before v1.37.0: required. |
 | `first_name` | string | NO | |
 | `last_name` | string | NO | |
 | `country` | string (ISO 3166-1 alpha-2) | NO | E.g. "EE", "FI", "US". Stored **as sent** — not strictly ISO-validated (N-8). |
 | `language` | string (ISO 639-1) | NO | E.g. "et", "en", "ru". Drives **per-customer localization** of the recommendation fields pushed to Smaily — `rec_N_name` / `rec_N_description` / `rec_N_link_url` are resolved from the catalog `*_i18n` columns in this language (fallback: `tenant_settings.default_language` → `en` → `default` → first). Also pushed to the Smaily contact's native `language` field for segmentation — only when sent. When absent, localization and copy use the tenant default, and the Smaily `language` field is left as it is (never overwritten with the default). Stored **as sent** — not strictly ISO-validated (N-8). See `MULTILINGUAL_DESIGN.md`. |
-| `phone` | string | NO | |
+| `phone` | string | NO | Stored as sent, as before. (v1.37.0) The engine also keeps the number in international form (E.164) as a lookup key for GDPR requests ([§8b](#8b-post-apiv1gdprexport)); a national number is read in the row's `country`, else the store's country. A number the engine cannot read is kept as sent and is not an error. A sent number replaces the stored one; an omitted number keeps it. **The engine never joins customers by phone and sends nothing to it.** |
 | `first_seen_at` | ISO 8601 | NO | Registration timestamp (if different from row creation). Not overwritten on update (earliest wins). A UTC offset is accepted and normalised to UTC (v1.24.0). |
-| `external_id` | string | NO | Platform-internal user_id |
+| `external_id` | string | ONE OF (v1.37.0) | Platform-internal user_id: the store's own customer id. Names the customer without an email (v1.37.0, [Identity](#customer-identity)). |
+| `loyalty_id` | string | ONE OF (v1.37.0) | The customer's loyalty card number, 1–100 characters after trimming, compared exactly. One per row; a customer can hold several (a replaced card). See [Loyalty numbers](#loyalty-numbers). |
 | `website` | string | NO | (v1.21.0) The code of the website this customer account belongs to (Magento: the website of `customer.website_id`). The row's `external_id` and `language` belong to this website. An invalid value is ignored, never rejected. See [Several websites](#customer-website). |
+| `price_group` | string \| `null` | NO | (v1.36.0) The customer's price group, the same name as in [§3 `group_prices`](#price-groups). Absent = the stored group stays; `null` = the customer has no group (public prices). See [Price group](#customer-price-group). |
 
 <a id="customer-website"></a>
 **Several websites** (v1.21.0, INT-171).
@@ -1069,6 +1152,47 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 - **The customer's website** is the website of the customer's newest order that names one ([§5](#5-post-apiv1ingestorders) `website`, any status); without such an order, the website of the latest customer row that named one. The engine recomputes it from the orders it holds, so the order in which rows arrive does not matter.
 - **The customer's `external_id` and `language`** are those of the account on the customer's website, when the engine has one. A row without `website` writes both as before 1.21.0. A row for another website is kept for that website only.
 - Identity stays `(tenant_id, email)`. Nothing else in §4 changes. A customer with no website (data from before 1.21.0, a guest without orders) keeps today's behaviour everywhere.
+
+<a id="customer-price-group"></a>
+**Price group** (v1.36.0, INT-307). [Status](#price-groups-status) as §3.
+- One group per customer. A customer the platform puts in several groups gets the group whose prices the checkout charges them; send that one.
+- `price_group` follows the §4 rule for sparse rows: a row without the field keeps the stored group. Send `null` when the customer leaves their group.
+- Same name rules as the §3 group names, including the connection prefix. A `null` from a connection clears only a group of that connection (a name with its prefix, or any name in a store without prefixes); one shop never clears the group another shop gave.
+- In a store with several prefixed connections, the customer's group is the one the last connection sent; the customer then sees group prices only on that connection's products.
+- An invalid `price_group` refuses that customer as a per-item error (`field`: `price_group`).
+
+<a id="customer-identity"></a>
+**Identity** (v1.37.0, INT-283).
+
+- **A row with an email** finds its customer as before: the customer with that email; else, when the email is new, the customer that the row's `external_id` names gets the email (the store id is the person: the customer's history and measurement group stay, and the old address's Smaily contact is emptied once); else a new customer. New in v1.37.0: when the email is new and the row's `loyalty_id` names a customer **without** an email, that customer gets the email.
+- **A row without an email** finds the customer its `external_id` names, else the customer its `loyalty_id` names, else the engine creates a new customer without an email.
+- **Identifiers sent together stay together.** Every `external_id` and `loyalty_id` of a row is kept for the customer the row found.
+- **No merges.** When the row's `external_id` and `loyalty_id` name two different customers, the row is written to the `external_id`'s customer, and the loyalty number is kept for both. An identifier that two customers hold names nobody: the engine uses it for no lookup until it is resolved. The engine never moves an identifier from one customer to another, and never moves a customer's email to another customer.
+- **A loyalty number does not rename.** A row with a new email and a `loyalty_id` whose customer already has another email creates a customer for the new email; the card number then names nobody. A card can be lent within a household; a store id cannot.
+- **Refused row.** A row without an email whose only identifier names nobody (two customers hold it) is refused as a per-item error (`field`: `customer`): creating a third holder would not help anyone. Its `event_id` is not registered, so a corrected retry is processed.
+- **The store id belongs to the connection.** `external_id` names a customer of the calling connection ([Connection prefix](#connection-prefix)), as in [§15](#15-post-apiv1recommendationscustomer). In a Per Website store, the website's account.
+
+<a id="loyalty-numbers"></a>
+**Loyalty numbers** (v1.37.0).
+
+- A loyalty number is **store-wide**: every connection of the store (the web plugin and the store's tills) names the same customer with the same number.
+- **One loyalty programme per store.** A store whose businesses run separate card programmes that can issue the same number prefixes the numbers itself (for example `spa-100` and `hotel-100`), as a second order source prefixes its order ids. The engine cannot tell two programmes apart: the same number from two programmes would be one customer.
+- Send the number the customer shows at the till, trimmed, without spaces you add yourself. The engine compares it exactly (case and leading zeros count).
+- A web connector sends `loyalty_id` on the customer's §4 row when the store's web account knows the customer's card. That is how a till customer and a web account meet.
+
+<a id="customers-without-email"></a>
+**Customers without an email** (v1.37.0, data minimisation). The rule "Which customers to send" applies unchanged; only the email is no longer required. Send a customer without an email only when it is in one of these groups:
+
+- (b) a customer with an order inside `now − config.history.horizon_months` (60 months), named by `external_id`;
+- (c) a customer who logs in and has given marketing consent in the store, at that login or earlier and not withdrawn, named by `external_id` (for example a shop account with a phone number and no email);
+- (d) a customer who joined the store's loyalty programme and agreed there that the store may use their purchases to personalise offers, named by `loyalty_id`. The store records that agreement; the engine cannot see it.
+
+Never send a customer that only a phone number names: a phone number is not an identifier the engine finds a customer by.
+
+**What such a customer gets.** Recommendations are computed only when someone can see them: a customer without an email is computed when the store's customer id names it alone (a logged-in shopper sees them on the store's pages, [§15](#15-post-apiv1recommendationscustomer)) or when it holds a live visitor token. It gets no Smaily contact fields, no engine email and no back-in-stock alert. Its orders count in the store's measurement like any order. When an email arrives later for the customer (by the rules above), it gets everything a customer with an email gets.
+
+<a id="customer-identity-status"></a>
+**Status** (2026-11-23). The engine side is built and **switched off** until the engine announces it. Until then a row without an email is refused (`field`: `email`) and `loyalty_id` is ignored, as before 1.37.0: a connector may send the new rows only after the switch-on is announced on its connector issue. The GDPR requests [§8b–§10b](#8b-post-apiv1gdprexport) by `email` and `external_id` work now; by `loyalty_id` and `phone` only after the switch-on.
 
 > **Note on consent**: consent is **not part of the customers contract**. The engine does not accept, store, or process any `consent.*` fields — Smaily owns consent (it will not send to a contact without marketing consent regardless of engine data). Do not send consent fields; they are ignored.
 
@@ -1093,10 +1217,10 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 
 `deduplicated_all: true` is added when **every** item was deduplicated (a pure no-op retry), e.g. `{"ok":true,"processed":0,"deduplicated":3,"errors":[],"deduplicated_all":true}`.
 
-**Error object shape**: `{index, email?, field, message}` — `index` is the item's position in the batch; `email` is included when present (helps map the error to a row); `field` + `message` describe the failure. (No `request_id` — the engine emits none.)
+**Error object shape**: `{index, email?, external_id?, loyalty_id?, field, message}` — `index` is the item's position in the batch; `email` is included when present (helps map the error to a row); (v1.37.0) `external_id` and `loyalty_id` are included when the item carried them, so the sender can map the error of a row without an email; `field` + `message` describe the failure. (No `request_id` — the engine emits none.) New errors (v1.37.0): `field: "customer"`, "Send at least one of email, external_id or loyalty_id", and `field: "customer"`, "The identifier is held by several customers".
 
 **Idempotency**: two layers, as described in [Idempotency](#idempotency):
-- **Layer 1**: `(tenant_id, email)` natural-key UPSERT.
+- **Layer 1**: `(tenant_id, email)` natural-key UPSERT; a row without an email finds its customer by `external_id`, then `loyalty_id` ([Identity](#customer-identity)).
 - **Layer 2**: optional per-item `event_id` for retry deduplication (integer counts).
 
 ---
@@ -1105,7 +1229,7 @@ Batch upload of customers. **Identity is `email`** (W4 / D1): UPSERT by `(tenant
 
 Batch upload of orders + order items. HPOS-aware payload.
 
-Batch upload of orders + line items. **Order natural key is `(tenant_id, external_order_id)`**; the customer is referenced by `customer_email` (lowercased, auto-created if absent — W4 email identity).
+Batch upload of orders + line items. **Order natural key is `(tenant_id, external_order_id)`**; the customer is referenced by `customer_email`, `customer_external_id` or `customer_loyalty_id` (v1.37.0; at least one), and is created when none of them names a customer ([§4 Identity](#customer-identity)).
 
 **URL**: `POST /api/v1/ingest/orders`
 
@@ -1160,11 +1284,13 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 |-------|------|----------|-------|
 | `event_id` | UUID v4 string | NO | Per-order transport-level dedup key. See [Idempotency](#idempotency). |
 | `external_order_id` | string | YES | Plugin/platform order ID (UNIQUE per tenant — natural key). v1.33.0: starts with the [connection prefix](#connection-prefix) (`c2-1234`). An order of a prefixed key whose id does not start with the prefix is refused in `errors[]` (`field`: `external_order_id`, `connection_prefix_mismatch`). Line `sku`s are references to the store's catalog and are not checked against the connection: a line may name another connection's product. |
-| `customer_email` | string | YES | Customer reference is by email (not external_id). Engine lowercases on ingest. |
+| `customer_email` | string | ONE OF (v1.37.0) | At least one of `customer_email`, `customer_external_id`, `customer_loyalty_id`. Engine lowercases on ingest. Before v1.37.0: required. |
+| `customer_external_id` | string | ONE OF | (v1.37.0) The store's own customer id of the buyer, as §4 `external_id`, of the calling connection. Leave it out for a guest order. |
+| `customer_loyalty_id` | string | ONE OF | (v1.37.0) The buyer's loyalty card number, as §4 `loyalty_id`. Send it only for a customer in §4 group (d). |
 | `ordered_at` | ISO 8601 | YES | Order placement timestamp. A UTC offset is accepted and normalised to UTC (v1.24.0). |
 | `total_amount` | number | YES | Grand total charged — **gross/tax-inclusive**, incl. shipping, after discounts (see Amount semantics) |
 | `discount_amount` | number | NO | Total discount (default 0) |
-| `currency` | string (ISO 4217) | NO | Default `EUR`. Stored **as sent** — not strictly ISO-validated. |
+| `currency` | string (ISO 4217) | NO | Default `EUR`. Stored **as sent** — not strictly ISO-validated. The store's default currency: every amount on the order is in it (v1.36.1, see Amount semantics). |
 | `status` | enum | YES | `completed` / `processing` / `cancelled` / `refunded`. **Required** — a missing or out-of-enum `status` is a per-item `errors[]` entry. |
 | `smaily_rec_id` | UUID v4 string | NO | Attribution: which recommendation was clicked pre-purchase (from cookie). Stored; consumed by the async attribution cron (see below). **UUID-validated — a malformed value rejects the whole order** (see below). |
 | `smaily_visitor_token` | string | NO | Visitor token from the visitor-token cookie: an engine-issued `vt_` token, or a token the store created at checkout (`vs_`, v1.11.0 — [below](#store-created-visitor-token)). Stored; attribution is async. Also binds the token to the order's customer (below). |
@@ -1182,6 +1308,8 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 | `items[].return_reason_standardised` | enum | NO | Why it came back, from the engine's 7-value vocabulary. **An unrecognised value is never rejected** — see [Return signals](#return-signals). |
 | `items[].return_reason_raw` | string | NO | The platform's verbatim reason string (Shopify `returnReasonNote` or reason-definition handle, Woo's free-text refund reason). Truncated to 500 chars, never rejected. Diagnostic only. |
 
+**The order's customer** (v1.37.0, [Status](#customer-identity-status)). The order's customer is found and created by the [§4 Identity](#customer-identity) rules, with the order's identifiers as the row. An order that carries none of the three is refused in `errors[]` (`field`: `customer`). The error object gains `customer_external_id?` and `customer_loyalty_id?`.
+
 <a id="return-signals"></a>
 **Return signals** (v1.8.0) — all three fields are **optional and nullable**, on the line, not the order:
 
@@ -1198,10 +1326,11 @@ Batch upload of orders + line items. **Order natural key is `(tenant_id, externa
 - ⚠️ **Items are fully replaced on order re-ingest** (see below), so a later sync of a returned order that omits these fields **erases the return**. Whoever pushes a return must keep pushing it on every subsequent sync of that order. (The derived full-refund case is self-healing — it is re-derived from `status` on every sync.)
 
 **Amount semantics (tax basis)** (v1.4.0):
-- All money fields on this endpoint are **gross amounts — tax-inclusive, in the order's `currency`**: what the customer actually paid.
+- All money fields on this endpoint are **gross amounts — tax-inclusive, in the store's default currency**: what the customer actually paid.
+- **One currency per store** (v1.36.1). Every amount — `total_amount`, `discount_amount` and each line's `unit_price`, `line_total` and `discount_amount` — is sent in the store's default currency. A connector whose shop sells in several currencies converts an order placed in another currency with that order's own rate at the time of the order. The engine adds up every amount as the store's currency; it converts nothing.
 - `total_amount` = the order's grand total as charged (products + shipping + tax − discounts). This was already every sender's de-facto behavior.
 - `items[].line_total` = the line's charged amount **including its share of tax**, after line-level discounts. `items[].unit_price` = the same gross basis ÷ qty. `discount_amount` fields are gross.
-- Platform notes: **Shopify** — `taxes_included=true` shops send line prices as-is (already gross); `taxes_included=false` shops add the line's `tax_lines` sum. **WooCommerce** — `$item->get_total() + $item->get_total_tax()` (NOT bare `get_total()`, which is net). **Magento** — `row_total_incl_tax` (current Magento payloads already conform).
+- Platform notes: **Shopify** — `taxes_included=true` shops send line prices as-is (already gross); `taxes_included=false` shops add the line's `tax_lines` sum. **WooCommerce** — `$item->get_total() + $item->get_total_tax()` (NOT bare `get_total()`, which is net). **Magento** — `row_total_incl_tax` (current Magento payloads already conform). **PrestaShop** — `total_paid_tax_incl` (order) and `total_price_tax_incl` (line).
 - Sender invariant: `Σ items[].line_total + shipping ≈ total_amount` (± rounding). The engine may monitor drift as a data-quality signal; it does not reject on it.
 - The engine stores amounts as sent and never recomputes tax. Rows ingested on the wrong basis are corrected by re-syncing the affected orders (re-ingest fully replaces line items — see [Idempotency](#idempotency)).
 
@@ -1268,11 +1397,11 @@ Matching steps (run by the cron; PRO-1524, 2026-07-23 — a former 4th-priority
 
 1. **Uses its own API key**, which a Smaily operator creates for the store. It does not run the setup exchange ([§1](#1-post-apisetupexchange)). Its key is a connection of the store like any other: while it is active, the store is not paused when the plugin disconnects ([§16](#16-post-apiv1storeuninstall)).
 2. **Prefixes its order ids** (`external_order_id`), so that no id equals an id of the plugin's orders. The order's natural key is `(store, external_order_id)`: an equal id replaces the other system's order. (v1.33.0) It reads `config.connection.prefix` from the ping ([§2](#2-get-apiv1ingestping)): when its key has a [connection prefix](#connection-prefix), it starts every order id with it (`c4-1234`); when the prefix is `""` (a key created before the engine assigns prefixes), it keeps its own id prefix, for example `POS-1234`.
-3. **Sends only orders with a customer email** (`customer_email` is required). An order without an email cannot be sent.
+3. **Sends only orders with a customer email or a loyalty number** (v1.37.0: `customer_email` or `customer_loyalty_id`). An order with neither, an anonymous sale, cannot be sent. Send `customer_loyalty_id` only for a customer who joined the loyalty programme with the agreement of §4 group (d), and send `customer_email` too when the till knows it.
 4. **Uses the store's canonical SKUs**: the `sku` values the plugin sends in its catalog ([§3](#3-post-apiv1ingestcatalog)) — the platform's canonical id (for example `woo-<id>`), never the merchant's own SKU field. The engine knows a product only from the catalog; a line with a SKU that is not in it names no product the engine can recommend, and a store with a SKU-identity policy rejects an order whose SKU lacks the store's prefix. With connection prefixes (v1.33.0) the store's SKUs carry the shop's prefix (`c2-woo-101`); copy them from the catalog as they are.
 5. **Sends `channel: "in_store"` on every order**, also on every later sync of the same order. A sync without it stores `online`.
 6. **Sends no catalog, no catalog list and no history progress**: no call to §3, §3b, §3c or [§25](#25-post-apiv1ingesthistoryprogress). The plugin owns the catalog and the history import.
-7. **Sends customer rows only with fields it owns** ([§4](#4-post-apiv1ingestcustomers)). A sent value replaces the stored one; an omitted field keeps it. Do not send `external_id` or `website`: they are the website's customer id and website, which the store's pages use ([§15](#15-post-apiv1recommendationscustomer)). A customer row is optional — an order creates its customer from `customer_email`.
+7. **Sends customer rows only with fields it owns** ([§4](#4-post-apiv1ingestcustomers)). A sent value replaces the stored one; an omitted field keeps it. Do not send `external_id`, `customer_external_id` or `website`: they are the website's customer id and website, which the store's pages use ([§15](#15-post-apiv1recommendationscustomer)). A customer row is optional — an order creates its customer from `customer_email` or `customer_loyalty_id`. A §4 row of the till names its customer by `email` or `loyalty_id`.
 8. **Sends no attribution fields** (`smaily_rec_id`, `smaily_visitor_token`, `smaily_rec_ctx`, `session_id`): a shop has no cookie.
 
 All other §5 rules apply unchanged: 1–50 orders per request, the history horizon, `event_id`, full replacement of the lines.
@@ -1504,6 +1633,193 @@ No free text, note, treatment reason or practitioner field exists: the engine st
 
 ---
 
+### 6c. POST /api/v1/ingest/stock-alerts
+
+(v1.35.0, INT-282, Erkki's decisions 2026-11-20) A shopper asks on a product page to be told when an out-of-stock product is back in stock, or cancels that request. The connector's server sends the request here. The engine stores it and sends the alert with the store's back-in-stock email ([§11](#11-get-apiv1automationscatalog) `back_in_stock`) when the product comes back in stock.
+
+<a id="stock-alerts-status"></a>
+**Status** (2026-11-20). The engine side is built and switched on (2026-11-20): the endpoint takes requests and the endpoint map carries the `ingest_stock_alerts` key. A connector still shows the button only while [§12](#12-get-apiv1automationsconfig) says the store's `back_in_stock` email is `live` (rule 1 under [What each connector builds](#stock-alerts-connector)), so a store whose back-in-stock email is not live shows no button. A connector treats `404` as "not available" and shows no button; the engine answers `404` again only if it is switched off. Two parts are later work and not in this version: the service (transactional) channel (route (a) under [Which account sends the alert](#stock-alerts-routing)) and a guest address that is not on the store's list (version C, under [Who may ask](#stock-alerts-who)).
+
+**When to show the button.** Show the "Notify me" button only when all of these hold:
+
+- the product, or the selected variant, is out of stock and cannot be ordered (no backorders);
+- [§12](#12-get-apiv1automationsconfig) `setup[]` has an item with `trigger_key: "back_in_stock"`, `setup_state: "live"` and `notice: null`;
+- the shopper may ask, by the rules under [Who may ask](#stock-alerts-who).
+
+In every other case show nothing. With `setup_state` `off`, `set_up`, `test` or `stopped`, or with a `notice`, nobody would get the alert yet, so the button would make a promise that nobody keeps. Read §12 on the server and cache the answer for at most 15 minutes. Do not ask §12 on each page view.
+
+**URL**: `POST /api/v1/ingest/stock-alerts`
+
+**Auth**: `Authorization: Bearer sk_...` — server to server only. The browser never calls the engine: the connector's own route receives the button press and relays it, as for browse events ([§6](#6-post-apiv1ingestbrowse)).
+
+**Endpoint map key**: `ingest_stock_alerts` ([§1](#1-post-apisetupexchange)). The engine returns the key once the endpoint is live. A connection set up before then has no key and uses the fallback path constant `/api/v1/ingest/stock-alerts`.
+
+**Rate limit**: 100 requests per second per store ([Rate limiting](#rate-limiting)). The per-store guest limit below applies in addition.
+
+**Request**
+
+```json
+{
+  "requests": [
+    {
+      "event_id": "4c1a7e2b-9d3f-4b8a-a6e1-2f5c8d0b7e93",
+      "action": "request",
+      "requester": "logged_in",
+      "customer_email": "mari@example.com",
+      "external_id": "67",
+      "sku": "c2-woo-101",
+      "requested_at": "2026-11-20T09:12:00Z",
+      "marketing_consent": true,
+      "source": "product_page"
+    },
+    {
+      "event_id": "9b2d5f10-3e7a-4c61-8f0d-6a1e4b7c2d58",
+      "action": "request",
+      "requester": "guest",
+      "customer_email": "jaan@example.com",
+      "sku": "c2-woo-101",
+      "requested_at": "2026-11-20T09:14:00Z",
+      "source": "product_page"
+    }
+  ]
+}
+```
+
+1–100 items per request. The wrapper is validated as a whole (`400 validation_failed`). Each item is validated on its own, as [§6b](#6b-post-apiv1ingestoutcomes).
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `event_id` | UUID v4 string | YES | Transport dedup, as [Idempotency](#idempotency) layer 2: the same `event_id` again within 90 days is counted in `deduplicated` and not written. |
+| `action` | `"request"` \| `"cancel"` | YES | `request`: the shopper asks to be told. `cancel`: the shopper no longer wants the alert. Any other value is an item error (`field: action`). A `cancel` needs `requester: "logged_in"`: a `cancel` with `requester: "guest"` is an item error (`field: requester`), so a typed address can never cancel another person's request. |
+| `requester` | `"logged_in"` \| `"guest"` | YES | `logged_in`: the connector took the shopper's identity from the store's session. `guest`: the shopper was not logged in and typed the email address on the product page. Any other value is an item error (`field: requester`). |
+| `customer_email` | string | `logged_in`: one of the two; `guest`: YES | Matched in any letter case, as [§4](#4-post-apiv1ingestcustomers). For `guest`, the address the shopper typed, trimmed; the engine matches by this email only. |
+| `external_id` | string | `logged_in`: one of the two; `guest`: never | The store's customer id, the `external_id` of [§4](#4-post-apiv1ingestcustomers). Used when no email matches. In a Per Website store, the id the engine holds for any website of the store. Send it for a logged-in shopper. A `guest` item with `external_id` is an item error (`field: external_id`). |
+| `sku` | string (max 72) | YES | The product the shopper asked about: the variant, exactly as the connector sends it in [§3](#3-post-apiv1ingestcatalog), with the [connection prefix](#connection-prefix). A key with a prefix may name only its own products: another `sku` is an item error (`field: sku`, `connection_prefix_mismatch`). A `sku` the engine's catalog does not hold is an item error (`field: sku`, "unknown product"). |
+| `requested_at` | ISO 8601 | YES for `request` | When the shopper pressed the button. A UTC offset is accepted and stored in UTC. |
+| `cancelled_at` | ISO 8601 | YES for `cancel` | When the shopper cancelled. |
+| `marketing_consent` | boolean | YES for a `logged_in` `request`; never for `guest` | Whether the shopper had given the store marketing email consent at the moment of the request, **as the store records it** (for example a newsletter subscription or the checkout opt-in). The engine stores it as the store's statement. It never grants a send: the send rules and [Which account sends the alert](#stock-alerts-routing) decide. A `guest` item with this field is an item error (`field: marketing_consent`): for a guest, the subscribed Smaily contact is the consent. |
+| `source` | string | NO | Where the shopper asked: `product_page`, `account` (the store's account page), `import` (requests the connector held before it was connected, or a platform's own stock-alert list). Another value is stored as sent. Not part of the natural key. |
+
+No free text, note or reason field exists: the engine stores none.
+
+> **Consent field.** [§4](#4-post-apiv1ingestcustomers) says the engine stores no consent. `marketing_consent` is the one exception, and only on this endpoint: it is the store's record of a logged-in shopper's consent at the moment of the request, kept with the request as the store's proof. The engine does not copy it to the customer and does not read it anywhere else.
+
+**Natural key.** One stored request per (store, customer, `sku`), whoever made it. The engine keeps the latest action by its time (`requested_at` or `cancelled_at`):
+
+- A `request` for a product the customer has no request for creates one.
+- A `request` again replaces the stored time, requester, consent and source. It reopens a cancelled request, and it reopens a request whose alert was already sent (the product went out of stock again).
+- A `cancel` closes the request. A `cancel` for a product with no stored request changes nothing and is counted in `processed`.
+- An action older than the stored one (a queue that sends out of order) changes nothing and is counted in `processed`.
+
+<a id="stock-alerts-who"></a>
+**Who may ask.**
+
+- **A logged-in shopper** whom the store has sent with §4 and who has given the store marketing email consent. The connector takes the email and the customer id from the store's session, never from the browser.
+- **A guest** who types an email address on the product page. The engine stores the request only when the address matches an existing customer whose Smaily contact is subscribed at that moment: the contact is in Smaily, is not unsubscribed, and never complained. Such a person already gave the store marketing consent. For any other address — no customer, a customer without a Smaily contact, an unsubscribed contact, a contact that complained — the engine stores nothing and answers `not_subscribed` for the item (below).
+- **A logged-in shopper without marketing consent** sees no button. The connector may show the store's newsletter signup instead.
+
+A typed address that is not on the store's list is a later version (version C): the engine will first send one confirmation email that asks only about this alert, with no newsletter offer, and the request will count only once the person confirms. Version C needs the service channel.
+
+**Adult-wellness store.** In a store on the `adult_wellness` sector pack the engine stores no request, from a logged-in shopper or a guest. Each `request` item is counted in `skipped` with reason `not_offered`, and nothing is written. The connector needs no pack logic: it shows the button by the rules above, and it shows a guest the same neutral message as for every other outcome.
+
+**Customer.** A request never creates a customer.
+
+- `logged_in`: the customer must exist ([§4](#4-post-apiv1ingestcustomers) or [§5](#5-post-apiv1ingestorders)). An unknown customer is an item error (`field: customer`). For a shopper the engine does not know yet, send the customer with §4 first, when the shopper is in the §4 scope, and then the request.
+- `guest`: an address that matches no subscribed customer is not an error. It is counted in `skipped` with reason `not_subscribed`.
+- A request from a customer who objected to profiling ([§10](#10-post-apiv1customeremailopt-out)) is stored and the alert is sent: the shopper asked, and the request is not profiling.
+
+**Engine limits for guests.** The engine skips a `guest` `request` with reason `limit` when the customer already has too many open requests that `guest` items made, or when the store has received too many `guest` requests in the last hour. The limits (2026-11-20): at most 10 open requests that `guest` items made per customer, and at most 500 `guest` requests per store per hour. A `logged_in` request has no such limit. The connector has its own limits on the shopper's side (rule 4 below).
+
+**Response `200`**
+
+```json
+{
+  "ok": true, "processed": 1, "deduplicated": 0, "skipped": 1,
+  "skipped_items": [ { "index": 1, "reason": "not_subscribed" } ],
+  "errors": []
+}
+```
+
+`skipped_items[]`: `{index, reason}` per item that the engine accepted and did not store. `reason` is `not_subscribed` (a `guest` address that matches no subscribed customer), `limit` (a `guest` request over the engine's limits), `not_offered` (any `request` in a store on the adult-wellness pack) or (v1.37.0) `no_email` (a `logged_in` request of a customer without an email: the alert is an email, so the engine stores no request it cannot send). The engine gives one reason for every unmatched address: it never says whether the address belongs to a customer, has a Smaily contact, unsubscribed or complained. A skipped item's `event_id` is registered, so a retry of the same item is deduplicated. The engine keeps no copy of the typed address: not in a table, not in a log.
+
+`errors[]`: `{index, field, message}` per refused item — `field: "customer"` for an unknown `logged_in` customer, `field: "sku"` for an unknown product or a `connection_prefix_mismatch`, else the field that failed validation. A refused item's `event_id` is not registered, so a corrected retry is processed.
+
+**Invariant:** `processed + deduplicated + skipped + errors.length == total items`, and `skipped == skipped_items.length`.
+
+> **The answer stays on the connector's server.** `skipped_items` tells the connector what the engine did. The connector never passes it to the browser. To a guest, the connector shows one neutral message for every outcome, and it answers the browser before the engine sees the item (rule 4 below). The endpoint therefore shows the typing person nothing about whether an address is a customer or subscribed.
+
+<a id="stock-alerts-routing"></a>
+**Which account sends the alert.** A requested alert is a service message, not direct marketing: the shopper asked for it, and it is one email about one product.
+
+| Route | When | Account | Who gets it |
+|---|---|---|---|
+| (a) | A service (transactional) account is connected, and the shopper asked | Service channel, separate from the marketing list | Everyone who asked, also without marketing consent or after leaving the list. A guest whose address is not on the list only after the confirmation email (version C). **Later work, not in this version.** |
+| (b) | No service account, and the shopper asked | Marketing account | Subscribed contacts only. **This version.** The same rule holds for a connector's own alert when the store has no engine connection (rule 10 below). |
+| (c) | The engine inferred the interest (bought, viewed, wishlist; no request) | Marketing account | Marketing consent only, as today. An inferred alert is marketing. |
+| (a) + (c) | The same customer and product qualify for both | Service channel | One email, sent by route (a). |
+
+**What the engine does with a request.**
+
+- **When.** At the product's next out-of-stock → in-stock change that the catalog reports ([§3](#3-post-apiv1ingestcatalog), [§3c](#3c-post-apiv1ingestcatalogmanifest)). A request made while the product is in stock is stored and waits for the next such change.
+- **How.** With the store's back-in-stock email (§11 `back_in_stock`), the same Smaily workflow and the same `rec_bis_*` fields as the engine's own back-in-stock alert. The email names the requested product. In this version the alert goes through the store's marketing account (route (b)).
+- **Once.** Once per customer and product: the engine marks the request done when it sends the alert. A new `request` after that opens it again. A guest who types the same address again, or another person who types it, adds no second alert: the natural key holds one request per customer and product.
+- **Before the engine's own alert.** A customer who asked and who also bought or viewed the product gets one email, sent as the alert they asked for.
+- **Rules that do not apply to a request:** the pause between emails (`cooldown_days`) and the spacing rule (`spacing`: 3 days after another engine email, 24 hours after a newsletter). The shopper asked for this product, and the alert loses value with delay.
+- **Rules that always apply** in this version, to a `logged_in` and a `guest` request alike, checked again at the send:
+  - the customer has a Smaily contact, is subscribed, has never complained and did not unsubscribe in the last 30 days (`suppression`);
+  - the product is in stock, can be recommended, and is sold on the customer's website;
+  - the sector pack's never-promote gates (for example a regulated or a safety category);
+  - the store's switches: test mode, the daily cap and the ramp (`ramp`), and the Smaily workflow is active.
+- **Rules the shopper overrides.** The pack's preference gates (species, life stage, fit and size) and "already owns it" or "recently returned it" do not apply.
+- **Daily cap and ramp.** A request counts toward them. An alert held back by the daily cap or the ramp stays open for 24 hours and is sent on the first run with room. After 24 hours the request stays open and waits for the next restock.
+- **Bought it meanwhile.** A customer who bought the product after the request and before the send gets no alert, and the request is done.
+- **Measurement group.** A customer in the store's holdout group gets the alert too. The alert goes to both groups alike, so it counts the same in both and does not move the holdout comparison. A purchase after the alert is not credited to the engine. The store's console shows it on its own line, "requested by the shopper".
+- **Biocides.** The engine adds no sentence to the alert. A store that sells biocides puts this sentence in its back-in-stock email template: "Use biocides safely. Always read the label and product information before use." / „Kasutage biotsiide ohutult. Enne kasutamist lugege alati etiketti ja tooteteavet.“
+- **Recommendations.** A request does not change the customer's recommendations, segment or any other engine output. It is used only for the alert.
+- **Email not live.** While §12 does not say `live`, the engine stores requests and sends nothing. A restock in that time does not close a request.
+
+**Retention.** A request that is not done or cancelled closes 90 days after `requested_at`. A closed request (done, cancelled or expired) is deleted 30 days after it closed. §8 `data_retention_policy.stock_alert_requests` states the period.
+
+<a id="stock-alerts-connector"></a>
+**What each connector builds.**
+
+1. **Show only when live.** Show the button only on an out-of-stock product or variant that cannot be ordered, and only while §12 `setup[]` `back_in_stock` is `setup_state: "live"` with `notice: null`. Read §12 on the server, cache it for at most 15 minutes, and hide the button when the engine answers anything else, an error or a timeout. Show nothing when §6c answers `404`.
+2. **Who may ask.**
+   - **Logged in.** A shopper the connector sends with §4 and who has given the store marketing email consent: one button, no email field, `requester: "logged_in"`. Never trust an email or a customer id sent by the browser for a logged-in shopper: take them from the server session. A logged-in shopper without marketing consent sees no button; the connector may show the store's newsletter signup instead.
+   - **Guest.** A shopper who is not logged in sees the button with one email field. The connector sends the typed address, trimmed, as `customer_email` with `requester: "guest"`, and no `external_id` and no `marketing_consent`. The engine decides whether the address belongs to a subscribed customer.
+3. **Consent.** For a logged-in shopper, send `marketing_consent` as the store records it at the moment of the request (newsletter or checkout opt-in), never inferred. For a guest, send no consent field and show no consent checkbox. The store owns the wording near the button; the connector offers editable default text in ET and EN. A cookie-banner choice is not marketing email consent.
+4. **Server relay, limits and the neutral answer.** The browser posts to the connector's own route. The route needs no engine key in the browser. The server sends §6c with the store's API key.
+   - **Limits.** The route limits guest requests per IP and per typed address, and logged-in requests per session. It has a hidden honeypot field; a filled honeypot is dropped silently.
+   - **Neutral answer to a guest.** The route answers a guest at once, after it puts the item in its queue and before the engine sees it, with the same answer for every outcome — stored, `not_subscribed`, `limit`, `not_offered`, over the connector's own limit, honeypot, validation failure of the address, engine error. The browser gets the same status code, body and text in each case, and the answer never waits for the engine. The message always offers the store's newsletter signup (rule 9).
+   - **Engine answer.** The engine's `skipped_items[].reason` stays on the connector's server. The connector counts it in its logs (counts only) and never shows it to the browser.
+   - A logged-in shopper may see their own real state ("You will be notified"), because it is their own account. After `not_offered` the connector shows no "You will be notified" and keeps no copy.
+   - **No pack logic.** The connector does not check the store's sector pack; it treats `not_offered` as any other answer.
+5. **Queue and `event_id`.** Every item carries a new UUID v4 `event_id`, kept in the connector's queue, so a retry is deduplicated. Send cancels through the same queue, in order.
+6. **Connection prefix.** `sku` is the §3 key with `config.connection.prefix` in front (v1.33.0). Never strip or build a prefix by hand.
+7. **Cancel.** Only a logged-in shopper can cancel. They see "You will be notified" on the product page with a cancel action, and the list of their open requests where the platform has an account page. A cancel sends `action: "cancel"` with `requester: "logged_in"`. A guest has no cancel action.
+8. **Own copy.** The connector keeps a logged-in shopper's open requests (customer, `sku`, time, consent, state) to show and cancel them. The copy is personal data: it is in the platform's privacy export and erasure, and it is deleted by the same retention as the engine's. The connector keeps no copy of a guest's request: the typed address stays only in the queue item until the engine has answered, and the connector then deletes the item, whatever the answer. The connector never builds a list of typed addresses.
+9. **Shopper text** (the store may edit it).
+   - Button: "Notify me when it's back" / „Teata, kui toode on tagasi“.
+   - Logged in, after the request: "We'll email you once when it's back in stock." / „Saadame sulle ühe e-kirja, kui toode on jälle laos.“
+   - Guest field label: "Your email address" / „Sinu e-posti aadress“.
+   - Guest, after every submit: "If this address is on our email list, we'll email you once when it's back in stock. Not on our list yet? Subscribe to our newsletter." / „Kui see aadress on meie e-posti listis, saadame sulle ühe e-kirja, kui toode on jälle laos. Pole veel meie listis? Liitu meie uudiskirjaga.“ The last sentence links to the store's newsletter signup.
+10. **Not connected to the engine.** When the store has no engine connection, the connector runs its own logic: a marketing email to subscribed contacts only, through the store's own Smaily automation (route (b)). A separate automation on a service Smaily account (route (a)) is later work. When the store connects the engine, the connector sends its open requests once to §6c (`source: "import"`) and stops its own alerts, so a shopper never gets two. Without the engine, a guest request follows the same rule: the connector serves only an address that its own Smaily list holds as subscribed, and shows the same neutral answer.
+11. **No logs of identity.** Logs carry counts and error classes, never an email, a typed address, a customer id with a `sku`, or a request body.
+12. **Biocides.** The connector's store guide tells the store to put the biocide sentence (above) in its back-in-stock email template. Neither the engine nor the connector adds it to the email.
+
+**Not in this version.**
+
+- A request reaches the engine only through this endpoint, not as a browse event (§6) or an outcome event (§6b).
+- No endpoint lists a shopper's requests. A connector that shows a logged-in shopper their open requests keeps its own copy (rule 8).
+- A guest's typed address that is not on the store's list (version C, later work).
+- A guest cannot cancel. A guest's request ends when the alert is sent, after 90 days, or when the person unsubscribes from the store's list. A request that a guest made does not show in the shopper's account list.
+- The service channel (route (a), later work). The alert goes only through the store's marketing workflow.
+- No cancel link in the alert email: it is one email, and the request closes when it is sent. A logged-in shopper cancels in the store. Through the marketing account the email carries Smaily's list unsubscribe link, as every marketing email does.
+- A request names one variant. A request for "any variant of this product" is not supported.
+- No request is stored in an adult-wellness store (`not_offered`).
+
+---
+
 ### 7. POST /api/v1/identity/merge
 
 Anonymous visitor → known customer manual merge. The plugin calls this when a customer logs in and we have cookies tied to an anonymous session that we now want to bind to the customer.
@@ -1537,8 +1853,8 @@ Anonymous visitor → known customer manual merge. The plugin calls this when a 
 |-------|------|----------|-------|
 | `anon_session_id` | UUID | NO | Plugin-side anon-session cookie (`smaily_anon_sid`) |
 | `smaily_visitor_token` | string | NO | The visitor token from the visitor-token cookie (default name `smaily_rec_uid`): an engine `vt_` token from an email link, or a `vs_` token the store created at checkout ([§5](#store-created-visitor-token)) or at this login ([below](#store-created-token-at-login)). Binds the token to the merge's customer (below). |
-| `customer_email` | string | YES | Known customer identity |
-| `customer_external_id` | string | NO | Platform user_id |
+| `customer_email` | string | ONE OF (v1.37.0) | At least one of `customer_email` and `customer_external_id`. Before v1.37.0: required. |
+| `customer_external_id` | string | ONE OF (v1.37.0) | The store's own customer id, as §4 `external_id`, of the calling connection. (v1.37.0) Finds the customer when `customer_email` is absent or finds nobody. Before v1.37.0 it was accepted and not read. |
 | `merge_ts` | ISO 8601 | NO | The time of the login or checkout in the store (v1.24.0: optional, as the engine already treats it). When sent, it must be a valid ISO 8601 timestamp (a UTC offset is accepted), else the merge answers `400 validation_failed`. The engine does not use the value: token lifetimes count from when the engine receives the merge ([below](#store-created-token-at-login)). |
 | `merge_reason` | enum | NO | `user_logged_in`, `email_provided_at_checkout`, `manual_admin` |
 
@@ -1564,9 +1880,11 @@ At least **one** of `anon_session_id` or `smaily_visitor_token` must be present 
 ```json
 {
   "error": "customer_not_found",
-  "message": "No customer found with email mari@example.com. Send via POST /api/v1/ingest/customers first."
+  "message": "No customer found. Send it via POST /api/v1/ingest/customers first."
 }
 ```
+
+**Which customer** (v1.37.0, [Status](#customer-identity-status)). The merge finds the customer with `customer_email`; when the email is absent or finds nobody, the customer that `customer_external_id` names. An id that several customers hold names nobody. The merge never creates a customer: `404 customer_not_found` when neither finds one, and the "Retry after 404" rule applies unchanged. A customer without an email is merged like any other: send it with §4 first (group c), then merge with `customer_external_id`. (The message no longer repeats the email once the switch-on is announced.)
 
 The engine matches `customer_email` without regard to letter case (v1.22.0), as the customers and orders endpoints do.
 
@@ -1599,6 +1917,8 @@ After such a merge, a §15 request with the token answers that customer's recomm
 ---
 
 ### 8. GET /api/v1/customer/{email}/export
+
+> **Deprecated** (v1.37.0). Use [§8b](#8b-post-apiv1gdprexport): it finds a customer by any identifier and keeps the email out of the URL. This endpoint keeps working unchanged; no removal date is set. It finds only a customer with an email.
 
 GDPR data export. Returns all engine-held data for the customer.
 
@@ -1737,6 +2057,10 @@ GDPR data export. Returns all engine-held data for the customer.
 
 > **`outcome_events`** (v1.32.0) holds the shopper's stored outcome events (§6b), full rows, `[]` when empty. Absent before v1.32.0.
 
+> **`stock_alert_requests`** (v1.35.0) holds the shopper's stored back-in-stock requests (§6c), full rows, `[]` when empty. `data_retention_policy` and `data_retention_purpose` gain the key `stock_alert_requests`: "until the alert is sent, the shopper cancels it, or 90 days pass; then 30 days" and "sending the one alert the shopper asked for, and keeping the store's record of the request". Present since the engine side of §6c was built (2026-11-20, §6c [Status](#stock-alerts-status)).
+
+> **`customer.price_group`** (v1.36.0) is the customer's price group ([§4](#customer-price-group)), `null` when none, with `price_group_changed_at`; both are columns of the `customer` object, which the export returns whole.
+
 > **`data_retention_policy`** (v1.13.0, PRO-4108) lists every kind of data the engine's privacy policy (§4 "How long we keep data") lists, with the period after which the engine's nightly cleanup deletes it. Each value is a human-readable string — show it, do not parse it. `recommendations` is the period for an issued recommendation that was not replaced by a newer one; `replaced_recommendations` is the period for a replaced one. `orders` are deleted 60 months after the order date (v1.19.1, INT-185). `customers` and `catalog` are never deleted automatically while the store uses the service; their values start with `indefinite`. When the merchant closes the store's Smaily account, all of the store's data is deleted; removing the plugin only pauses the store ([§16](#16-post-apiv1storeuninstall)). Keys are only added, never renamed or removed, within contract 1.x.
 
 > **`data_retention_purpose`** (v1.14.0, PRO-4116) has the same keys as `data_retention_policy` and says why each period is as long as it is. Each value is a human-readable string — show it, do not parse it. The three tiers: behavioural signals (`browse_events` for identified and anonymous visitors, `email_events`, and since v1.32.0 `outcome_events`) are kept **14 months from the event**; visitor tokens **14 months from their last activity**; outcomes (`recommendations`, `rec_attribution`, `customer_engagement_history`) **730 days**; orders **60 months from the order date** (v1.19.1); master data (`customers`, `catalog`) while the store uses the service.
@@ -1762,11 +2086,15 @@ GDPR data export. Returns all engine-held data for the customer.
 
 **Idempotency**: read-only; all exports are identical (same data state).
 
+> **`identifiers`** (v1.37.0) holds the customer's store customer ids, loyalty numbers and phone number (international form) as `{kind, scope, value, first_seen_at}` — `kind` is `store_id`, `loyalty_id` or `phone`; `scope` is the website code of a Per Website store's id, else `""`. `[]` when none. `export_metadata.identifier_kind` names the identifier the request used (`email` here).
+
 **Audit log**: every export is logged to the `gdpr_audit_log` table — tenant_id, customer_email, action=`'export'`, performed_at, source (`'plugin'` or `'admin_ui'`).
 
 ---
 
 ### 9. DELETE /api/v1/customer/{email}
+
+> **Deprecated** (v1.37.0). Use [§9b](#9b-post-apiv1gdprdelete): it finds a customer by any identifier and keeps the email out of the URL. This endpoint keeps working unchanged; no removal date is set. It finds only a customer with an email.
 
 GDPR full data deletion.
 
@@ -1814,6 +2142,12 @@ GDPR full data deletion.
 
 `records_removed.outcome_events` (v1.32.0): the shopper's outcome events (§6b), deleted with the rest.
 
+`records_removed.stock_alert_requests` (v1.35.0): the shopper's back-in-stock requests (§6c), deleted with the rest. Present since the engine side of §6c was built (2026-11-20).
+
+The customer's price group (v1.36.0, [§4](#customer-price-group)) is a column of the customer row and goes with it; no separate count.
+
+`records_removed.identifiers` (v1.37.0): the customer's store customer ids, loyalty numbers and phone number, deleted with the customer. An id another customer also held stays that customer's.
+
 `audit_log_id` references the `gdpr_audit_log` row that records the deletion fact (not its content) — **required for GDPR compliance as proof**.
 
 **What persists after DELETE**:
@@ -1832,13 +2166,15 @@ GDPR full data deletion.
 
 ### 10. POST /api/v1/customer/{email}/opt-out
 
+> **Deprecated** (v1.37.0). Use [§10b](#10b-post-apiv1gdpropt-out): it finds a customer by any identifier and keeps the email out of the URL. This endpoint keeps working unchanged; no removal date is set. It finds only a customer with an email.
+
 GDPR opt-out: data is retained, but the customer is excluded from future recommendations.
 
 **URL**: `POST /api/v1/customer/{email}/opt-out`
 
 **Auth**: `Authorization: Bearer sk_...`
 
-**Rate limit**: 100 req/sec
+**Rate limit**: 10 req/60 seconds per tenant, one limit for every GDPR request (§8–§10, §8b–§10b) (v1.37.1)
 
 **Use case**: the customer clicked an "Exclude me from the recommendation system" link in a contact form. The plugin calls this endpoint. The engine flags the customer `opted_out=true` — every future `issue-daily-recommendations` cron run skips this customer.
 
@@ -1881,6 +2217,101 @@ GDPR opt-out: data is retained, but the customer is excluded from future recomme
 **Idempotency**: same opt-out twice = second call returns `previous_status: true, opt_out_status: true` (no-op but successful).
 
 **Audit log**: logged to `gdpr_audit_log` (action=`'opt_out'` or `'opt_in'`).
+
+---
+
+### 8b. POST /api/v1/gdpr/export
+
+(v1.37.0) GDPR data export by any identifier. Returns the same body as [§8](#8-get-apiv1customeremailexport).
+
+**URL**: `POST /api/v1/gdpr/export`
+
+**Auth**: `Authorization: Bearer sk_...`
+
+**Rate limit**: 10 req/60 seconds per tenant, one limit for every GDPR request (§8–§10, §8b–§10b) (v1.37.1).
+
+**Request body**:
+```json
+{
+  "customer": { "loyalty_id": "2001004417" },
+  "format": "json",
+  "since": null
+}
+```
+
+`format` and `since` as §8.
+
+<a id="gdpr-customer-identifier"></a>
+**The customer object** (shared by §8b, §9b, §10b). Exactly one of:
+
+| Key | Matching |
+|---|---|
+| `email` | lower case, as §4 |
+| `external_id` | the store's customer id of the calling connection, as §4. Optional `website` beside it in a Per Website store: that website's account; without it, any website. |
+| `loyalty_id` | the loyalty card number, store-wide, exact after trimming |
+| `phone` | read in the store's country when national, and compared in international form |
+
+A customer object with no key, or with two identifiers, is `400 validation_failed` (`field`: `customer`). Send one identifier: when two point at two customers, the store chooses, not the engine. **Status**: `email` and `external_id` work now; `loyalty_id` and `phone` only after the switch-on ([Status](#customer-identity-status)) — until then they are ignored like any unknown key.
+
+**Responses**:
+- `200 OK` — the §8 body. `customer.email` and `export_metadata.customer_email` are `null` for a customer without an email; `export_metadata.identifier_kind` names the key the request used.
+- `404 customer_not_found` — no customer holds the identifier.
+- `409 identifier_ambiguous` — several customers hold it (a phone number a household shares, or an id or card that two customers hold). The body: `{"error": "identifier_ambiguous", "customers": 2}`. The engine acts on nobody; ask the shopper for another identifier (their email, account or card).
+
+**Audit log**: every request is logged to `gdpr_audit_log` (action `export`). A request by email stores the email, as §8; a request by any other identifier stores its kind and a one-way hash of it, never the value.
+
+---
+
+### 9b. POST /api/v1/gdpr/delete
+
+(v1.37.0) GDPR full data deletion by any identifier. Deletes what [§9](#9-delete-apiv1customeremail) deletes.
+
+**URL**: `POST /api/v1/gdpr/delete`
+
+**Auth**: `Authorization: Bearer sk_...`
+
+**Rate limit**: 10 req/60 seconds per tenant, one limit for every GDPR request (§8–§10, §8b–§10b) (v1.37.1).
+
+**Request body**:
+```json
+{
+  "customer": { "external_id": "4021" },
+  "confirm": true,
+  "reason": "user_request"
+}
+```
+
+The [customer object](#gdpr-customer-identifier), `confirm` and `reason` as §9.
+
+**Response 200 OK**: the §9 body; `customer_email` is `null` for a customer without an email; `records_removed.identifiers` counts the deleted identifiers. `404 customer_not_found` and `409 identifier_ambiguous` as §8b. Idempotency as §9: a second request answers `404`; treat it as success.
+
+**Audit log**: as §8b, action `delete`.
+
+---
+
+### 10b. POST /api/v1/gdpr/opt-out
+
+(v1.37.0) GDPR opt-out (objection to profiling) by any identifier. Does what [§10](#10-post-apiv1customeremailopt-out) does.
+
+**URL**: `POST /api/v1/gdpr/opt-out`
+
+**Auth**: `Authorization: Bearer sk_...`
+
+**Rate limit**: 10 req/60 seconds per tenant, one limit for every GDPR request (§8–§10, §8b–§10b) (v1.37.1).
+
+**Request body**:
+```json
+{
+  "customer": { "phone": "+37255512345" },
+  "opt_out": true,
+  "reason": "user_preference",
+  "opted_out_at": "2026-11-23T10:15:23Z"
+}
+```
+
+The [customer object](#gdpr-customer-identifier); `opt_out`, `reason`, `opted_out_at` as §10. **Response 200 OK**: the §10 body; `customer_email` is `null` for a customer without an email. `404` and `409 identifier_ambiguous` as §8b.
+
+**Audit log**: as §8b, action `opt_out` or `opt_in`.
 
 ---
 
@@ -1938,6 +2369,8 @@ Returns the automated emails available **for this store**. The list is filtered 
   "docs": "https://intelligence.smaily.com/docs/en/smaily-templates"
 }
 ```
+
+> **`back_in_stock` and shopper requests** (v1.35.0): since §6c was built (2026-11-20), the `back_in_stock` description also says that the email notifies a customer who asked for it on the product page ([§6c](#6c-post-apiv1ingeststock-alerts)), once, as soon as the product is back. EN: "Also notifies a customer who asked for it on the product page (contract §6c), once, as soon as the product is back." ET: "Teavitab ka klienti, kes soovis seda tootelehel (leping §6c), ühe korra, kohe kui toode on tagasi." The text is engine copy, not a contract value.
 
 **Field reference** (per `triggers[]` item):
 
@@ -2487,11 +2920,13 @@ A returning guest shopper (no store customer account), named by the visitor toke
 | `sku` | The canonical catalog key ([§3](#3-post-apiv1ingestcatalog)) — the stable product identity. |
 | `external_id` | The catalog row's `external_id`, **nullable**. When null, use `sku`. Treat `sku` as opaque — never strip a prefix from it to find a product (v1.33.0: a `sku` can carry a [connection prefix](#connection-prefix), for example `c2-woo-101`, and a slot can name another shop's product of the same store); render with `external_id` and `product_url`. On a multilingual stand-in row it can differ from the id in `sku`; render with `external_id`, identify with `sku`. |
 | `name`, `description`, `product_url` | Localized in the customer's language (`customers.language`), else the tenant default — as in the email. `description` is not truncated. With several websites (v1.21.0), `product_url` is the render website's link and the language is the customer's on that website (see above). |
-| `price`, `compare_price` | Numbers; `compare_price` nullable. Read live from the catalog at request time. No currency — render in the store's own. |
+| `price`, `compare_price` | Numbers; `compare_price` nullable. Read live from the catalog at request time. No currency — render in the store's own. `price` is the customer's group price when the shopper is named by `customer_external_id` and has one (v1.36.0, [Price groups](#price-groups)); a shopper named only by `smaily_visitor_token` always gets the public price. |
 | `in_stock` | Live from the catalog. **Informational** — an out-of-stock slot is not removed. Re-check price and stock locally before rendering. |
 | `image_url` | Nullable. |
 | `product_url` | `<product url>?smaily_rec=<rec_id>&smaily_ctx=storefront` — **no `utm_*` and no `smaily_vt`** (an on-site click is not email traffic). Null when the product has no valid absolute URL. Capture it like any landing with `smaily_rec` ([context cookie rule](#cookie-names-plugin-side-management)), and forward `smaily_rec_id` + `smaily_rec_ctx` on the order. |
 | `headline`, `cta`, `reason` | The slot copy the email renders, in the customer's language. Rendered **without the customer's first name** — a greeting falls back to its default word. Nullable. |
+
+**Price groups** (v1.36.0, INT-307). A shopper named by `customer_external_id` whose customer has a [price group](#customer-price-group) gets the group price in `price` for every product with a price for that group, the public price otherwise. A shopper named only by `smaily_visitor_token` always gets the public price: on a shared browser the cookie can belong to another person. `compare_price` is the catalogue's, unchanged. The plugin keeps re-checking price locally before rendering.
 
 **Empty answer.** `{ "slots": [] }` with status 200 for: an unknown `customer_external_id`; an unknown, expired or other-tenant `smaily_visitor_token`; an id that several customers share in the tenant; a customer in the holdout group of a running measurement; a customer who objected to profiling ([§10](#10-post-apiv1customeremailopt-out)) or whom Smaily reports unsubscribed; a customer with no current recommendations. **The response is the same in every case and does not say which** — render nothing (or your own fallback). Do not retry.
 
@@ -3805,7 +4240,7 @@ No date may be more than one day ahead of the engine's clock. Counts and dates o
 
 **Endpoint map key**: `ingest_history_progress` ([§1](#1-post-apisetupexchange)). A connection set up before v1.20.0 uses the fallback path constant `/api/v1/ingest/history/progress`.
 
-#### Sender rules (one list for WooCommerce, Shopify and Magento)
+#### Sender rules (one list for WooCommerce, Shopify, Magento and PrestaShop)
 
 1. Read `config.history` from the setup exchange or, before each import, from the ping (fallback when absent: 18 / 60 / `newest_first`).
 2. Call progress with `started`.
@@ -4320,6 +4755,42 @@ curl -X POST https://intelligence.smaily.com/api/v1/ingest/browse \
 - **The gap.** The start of §21 is switched off in production until the terms of service and the data processing agreement are published. A plugin learned that only by pressing the button and getting `404`, so a store would see a button that does nothing.
 - **§21 `GET /api/v1/onboarding/status`** (new): no API key, no input; always `200 {"start_open": true|false}`; `true` exactly when the start takes a request, `false` while it is switched off. `Cache-Control: public, max-age=300`: switching the start on or off reaches every plugin within 5 minutes, with no plugin release. Not counted in the `/api/v1/onboarding/...` rate limit bucket. Live in production.
 - **What the plugin does.** Show the button only on `start_open: true`; treat an error, another answer or a timeout as `false`. **A plugin built for an earlier version keeps working unchanged**: it still hides the button on the start's `404`.
+
+**v1.35.0** (2026-11-20) — **A shopper asks to be told when a product is back**. MINOR bump per the [Versioning](#versioning) rule (one new endpoint, one new endpoint-map key, one new export array, one new delete count; backward-compatible). INT-282, Erkki's decisions 2026-11-17 and 2026-11-20.
+- **Status.** The contract text is published; the engine side is not built. §6c answers `404`, the endpoint map has no `ingest_stock_alerts` key, and §8 and §9 carry no `stock_alert_requests` until it is. Connectors build behind the §12 `back_in_stock` live check, so nothing shows before the engine is ready. *Status 2026-11-20 (same day, no version change):* the engine side is built and switched on; the guest limits are 10 open guest requests per customer and 500 guest requests per store per hour (§6c). Connectors still show the button only while §12 `back_in_stock` is live.
+- **§6c `POST /api/v1/ingest/stock-alerts`** (new): `request` and `cancel` per (customer, sku); the alert goes with the store's back-in-stock email, once, without the pause and spacing rules; suppression, stock, website and never-promote gates always apply; a holdout customer gets it too.
+- **Who may ask.** A logged-in shopper with marketing consent; a guest with a typed email, which the engine keeps only when it matches a customer with a subscribed Smaily contact (`skipped_items[].reason: "not_subscribed"` otherwise). A guest cannot cancel. The connector shows a guest one neutral message for every outcome. In a store on the adult-wellness pack the engine stores no request (`not_offered`).
+- **Routing.** A requested alert is a service message. This version sends it through the store's marketing account to subscribed contacts only (route (b)). The service channel (route (a)) and a guest address not on the list, confirmed by email (version C), are later work.
+- **The connector shows its button** only while §12 `back_in_stock` is `live` with no `notice`.
+- **§8 export**: `stock_alert_requests` and its retention keys (90 days open, then 30 days). **§9 delete**: `records_removed.stock_alert_requests`. **§11**: the `back_in_stock` description names shopper requests.
+
+**v1.36.0** (2026-11-20) — **Price groups: a customer's own price**. MINOR bump per the [Versioning](#versioning) rule (two optional fields; backward-compatible). INT-307, Erkki's decisions 2026-11-20.
+- **Status.** The engine side is built and switched off until the engine announces it; both fields are accepted and ignored until then. After the switch-on nothing changes for a store until its connector sends groups.
+- **§3 `group_prices`** (new, optional): `{"<group>": price}`, the product's final price for each price group, computed by the platform. Names 1–72 characters (`[A-Za-z0-9][A-Za-z0-9_.:-]*`, exact match, connection prefix in a prefixed connection), prices ≥ 0.01, at most 50 groups per product; replaced as a whole on every send.
+- **§4 `price_group`** (new, optional): the customer's one group; absent keeps it, `null` clears it (only within the sending connection's scope).
+- **Where it shows.** `rec_N_price` (and the slot copy), §15 `price`, `rec_bis_price`, `rec_rep_price`. No group or no price for the group → the public `price`. §15: a shopper named only by `smaily_visitor_token` always sees the public price. Test sends show public prices. Ranking keeps the public price; `compare_price` keeps its meaning.
+- **§8 export** carries `customer.price_group`; **§9 delete** removes it with the customer row.
+- **Connector rules**: §3 [What each connector builds](#price-groups-connector).
+
+**v1.36.1** (2026-11-23) — **PrestaShop keys and one currency per store**. PATCH bump per the [Versioning](#versioning) rule (clarification only, no behaviour change — no new endpoint, no new field, no shape change). Erkki's approval 2026-11-23:
+- **§25 sender rules** name PrestaShop: the one list covers WooCommerce, Shopify, Magento and PrestaShop.
+- **§3 product identity** names PrestaShop's keys: `ps-<id_product>` for a product without combinations, `ps-<id_product>-<id_product_attribute>` for each combination, and `tags.product_id` = `ps-<id_product>`. The connection prefix goes in front when the connection has one, as on every platform.
+- **§5 amounts**: every amount (order total and each line) is sent in the store's default currency. A connector whose shop sells in several currencies converts an order in another currency with that order's own rate at order time. The engine adds up every amount as the store's currency. The §5 tax-basis platform notes name PrestaShop's tax-inclusive fields: `total_paid_tax_incl` (order) and `total_price_tax_incl` (line).
+
+**v1.37.0** (2026-11-23) — **A customer without an email address**. MINOR bump per the [Versioning](#versioning) rule (optional fields, three new endpoints; backward-compatible for senders: a row with an email behaves exactly as before). INT-283, Erkki's decisions 2026-11-23.
+- **Status.** The engine side is built and switched off until the engine announces it. Until then `loyalty_id` and `customer_loyalty_id` are ignored and a row or order without an email is refused as before. §8b–§10b by `email` and `external_id` work now.
+- **§4**: `email` is no longer required. A row carries at least one of `email`, `external_id` and `loyalty_id` (new). Which customers may be sent without an email: §4 [Customers without an email](#customers-without-email). `phone` is unchanged on the wire; the engine also keeps it in E.164 form as a lookup key for GDPR requests. The error object can carry `external_id` and `loyalty_id`.
+- **§5**: `customer_email` is no longer required. An order carries at least one of `customer_email`, `customer_external_id` (new) and `customer_loyalty_id` (new). A second order source sends orders with a customer email or a loyalty number (rule 3).
+- **§6c**: a `logged_in` request of a customer without an email is skipped with reason `no_email`.
+- **§7**: `customer_email` is no longer required; the merge finds the customer by `customer_email` or `customer_external_id`.
+- **§8b–§10b** (new): export, delete and opt-out by `email`, `external_id` (+ `website`), `loyalty_id` or `phone`, in the request body. `409 identifier_ambiguous` when several customers hold the identifier. §8–§10 keep working and are deprecated. The setup exchange `endpoints` map carries `gdpr_export`, `gdpr_delete` and `gdpr_opt_out`; the old keys stay.
+- **Readers**: in §8 and §9 answers, `customer.email`, `export_metadata.customer_email` and `customer_email` are `null` for a customer without an email. §8 gains `identifiers` and `export_metadata.identifier_kind`; §9 gains `records_removed.identifiers`.
+- **No merges.** The engine never joins two existing customers. Identifiers that a store sends together are kept together on one customer; an identifier another customer already holds then names nobody until the engine resolves it.
+
+**v1.37.1** (2026-11-25) — **Wording only, no behaviour change**. PATCH bump per the [Versioning](#versioning) rule (clarification only — no new endpoint, no new field, no shape change). The text now says what the engine already does:
+- **§1 connection prefix**: a reconnect without `previous_prefix` reuses the prefix of the most recent connection with the same shop address — the origin and the path of `plugin_info.site_url` (host letter case, a trailing slash, the query and the fragment ignored) — and the same `ecommerce_platform`. The text said "origin"; the engine compares the path too since INT-311. A shop that first reported only its domain and later a path gets a new prefix unless it sends `previous_prefix`.
+- **§3 `tags.product_id`**: the sentence that named which connectors send it is gone; the rule and the per-SKU fallback stay.
+- **GDPR rate limit (§8b, §9b, §10, §10b, rate-limit table)**: 10 requests per 60 seconds per store, one limit for every GDPR request (§8–§10 and §8b–§10b). §10 and §10b said 100 requests per second; §8b and §9b named only one shared endpoint; the table row named only `/api/v1/customer/...` and now names `/api/v1/gdpr/...` too.
 
 ### Appendix F: Migration notes
 
