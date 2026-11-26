@@ -201,6 +201,22 @@ and before the trigger. It reads the contact from Smaily
   2 with `include_guests` off never reached Smaily, so such a returning guest
   is reminded only after ticking the box again at checkout.
 
+### 6.2 Who gets the first-order email (CON-386, Erkki 2026-11-20 via CON-381)
+
+The first-order email has the same problem — Smaily creates the buyer as a
+subscribed contact — and gets the same rule: the main `Flusher` asks
+`AutomationConsent::refusal()`, the one rule `CartFlusher` asks too (the
+table in § 6.1 applies, "this checkout" being the checkout of the order).
+The row carries the consent inputs at the top level of its payload:
+`user_id` (the buyer's account — a guest order never starts the email) and
+`newsletter_optin` when the order's own newsletter box was ticked (classic
+from the posted fields, block from the `_smaily_newsletter_optin` order
+meta). The store record and Smaily are read at send time, before the
+workflow is found, so a stopped email makes no discount code. A stopped row
+is closed as skipped with the reason (`last_response` `{outcome: skipped,
+reason}`, like the stale-subscription skip); a failed read retries. The
+welcome is not gated here (it starts on the shopper's own opt-in, PRO-4093).
+
 ## 7. Architecture (CC-1 single source)
 
 One decision core, consumed by every surface:

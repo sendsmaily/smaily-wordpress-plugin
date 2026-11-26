@@ -8,8 +8,9 @@ import { __ } from '@admin/lib/i18n';
  * (PRO-4095, CON-328) — plus `workflow_inactive`, which only this screen can tell (it holds the
  * Smaily workflow list). One wording for both places that show a reason:
  * the card's status line and the Event Log's skipped row. The Event Log
- * also shows a skipped abandoned-cart reminder's reason through it (CON-196),
- * and `no_billing_email` on an order Campaign Intelligence skipped (CON-330).
+ * also shows a skipped abandoned-cart reminder's and first-order email's
+ * reason through it (CON-196, CON-386), and `no_billing_email` on an order
+ * Campaign Intelligence skipped (CON-330).
  */
 export function transactionalReasonMessage(reason: string): string {
   switch (reason) {
@@ -53,8 +54,8 @@ export function transactionalReasonMessage(reason: string): string {
         'When the wait ended, the order no longer waited for payment — it was paid, put on hold, cancelled or is being processed.',
         'smaily-connect',
       );
-    // An abandoned-cart reminder the contact-sync mode does not allow
-    // (CartFlusher::REASON_*, CON-196).
+    // An abandoned-cart reminder or first-order email the contact-sync mode
+    // does not allow (AutomationConsent::REASON_*, CON-196, CON-386).
     case 'no_marketing_consent':
       return __(
         'The shopper has not subscribed to marketing emails, neither in the store nor in Smaily.',

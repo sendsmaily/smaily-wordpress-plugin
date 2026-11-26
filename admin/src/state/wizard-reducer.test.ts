@@ -530,10 +530,7 @@ describe('wizardReducer — engine-run automations slice (T2.2)', () => {
       type: 'ENGINE_AUTOMATIONS_HYDRATED',
       payload: { rows: [row], keepDirty: false },
     });
-    s = wizardReducer(s, {
-      type: 'ENGINE_AUTOMATIONS_SAVED',
-      payload: { realSendsRequested: [] },
-    });
+    s = wizardReducer(s, { type: 'ENGINE_AUTOMATIONS_SAVED' });
     s = wizardReducer(s, {
       type: 'UPDATE_ENGINE_AUTOMATION',
       payload: { triggerKey: 'replenish_due', patch: { enabled: true } },
@@ -568,14 +565,10 @@ describe('wizardReducer — engine-run automations slice (T2.2)', () => {
     expect(s.engineAutomations.saveStatus).toBe('error');
     expect(s.engineAutomations.serverErrors).toHaveLength(1);
 
-    s = wizardReducer(s, {
-      type: 'ENGINE_AUTOMATIONS_SAVED',
-      payload: { realSendsRequested: ['replenish_due'] },
-    });
+    s = wizardReducer(s, { type: 'ENGINE_AUTOMATIONS_SAVED' });
     expect(s.engineAutomations.dirty).toBe(false);
     expect(s.engineAutomations.saveStatus).toBe('success');
     expect(s.engineAutomations.serverErrors).toEqual([]);
-    expect(s.engineAutomations.realSendsRequested).toEqual(['replenish_due']);
   });
 
   it('records which optional §13 fields the merchant changed, per trigger (CON-172)', () => {
@@ -617,20 +610,17 @@ describe('wizardReducer — engine-run automations slice (T2.2)', () => {
 
     s = wizardReducer(s, {
       type: 'UPDATE_ENGINE_AUTOMATION',
-      payload: { triggerKey: 'replenish_due', patch: { test_mode: true } },
+      payload: { triggerKey: 'replenish_due', patch: { test_emails: ['a@shop.example'] } },
     });
     s = wizardReducer(s, {
       type: 'ENGINE_AUTOMATIONS_HYDRATED',
       payload: { rows: [row], keepDirty: true },
     });
     expect(s.engineAutomations.changedFields).toEqual({
-      replenish_due: ['automation_map', 'test_mode'],
+      replenish_due: ['automation_map', 'test_emails'],
     });
 
-    s = wizardReducer(s, {
-      type: 'ENGINE_AUTOMATIONS_SAVED',
-      payload: { realSendsRequested: [] },
-    });
+    s = wizardReducer(s, { type: 'ENGINE_AUTOMATIONS_SAVED' });
     expect(s.engineAutomations.changedFields).toEqual({});
 
     s = wizardReducer(s, {
@@ -641,10 +631,7 @@ describe('wizardReducer — engine-run automations slice (T2.2)', () => {
   });
 
   it('the re-read after a save keeps the save outcome; any other hydrate resets it (PRO-3707)', () => {
-    let s = wizardReducer(baseState, {
-      type: 'ENGINE_AUTOMATIONS_SAVED',
-      payload: { realSendsRequested: [] },
-    });
+    let s = wizardReducer(baseState, { type: 'ENGINE_AUTOMATIONS_SAVED' });
     s = wizardReducer(s, {
       type: 'ENGINE_AUTOMATIONS_HYDRATED',
       payload: { rows: [row], keepDirty: false, afterSave: true },

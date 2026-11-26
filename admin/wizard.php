@@ -274,6 +274,9 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 		'designFrameable' => \Smaily\Connect\REST\EmailDesignsEndpoint::frameable( (string) get_site_url(), (string) admin_url() ),
 		// Which invitation banners the screens show (CON-350, CON-351).
 		'banners'         => \Smaily\Connect\Notifications\NotificationManager::banner_boot(),
+		// The signed-in admin's own email: the default address of an
+		// automation's "Send test email" (CON-455). Never a customer's.
+		'adminEmail'      => (string) wp_get_current_user()->user_email,
 	);
 
 	wp_add_inline_script(

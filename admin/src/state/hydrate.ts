@@ -114,6 +114,11 @@ export interface BootPayload {
    * before it; read through `bannerBoot()`.
    */
   banners?: BannerBoot;
+  /**
+   * The signed-in admin's own email, the default address of an automation's
+   * "Send test email" (CON-455). Absent from a boot blob written before it.
+   */
+  adminEmail?: string;
   savedSettings: {
     smailyCredentials: { subdomain: string; username: string; password: string };
     /**

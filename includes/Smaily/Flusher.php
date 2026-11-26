@@ -54,8 +54,11 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  *     abandoned-cart purchase marker for an address Smaily does not have,
  *     or a contact sync that would put a stale subscription into Smaily —
  *     StaleSubscription, asked at every attempt so an automatic retry never
- *     undoes a later delivered change, CON-395; a retry can't recover any of
- *     them, so we don't waste retry attempts)
+ *     undoes a later delivered change, CON-395; or a first-order email the
+ *     contact-sync mode does not allow — AutomationConsent, the
+ *     abandoned-cart reminder's rule, asked before the workflow is found,
+ *     CON-386; a retry can't recover any of them, so we don't waste retry
+ *     attempts)
  *   - mark_failed on TerminalDispatchException (unknown event_type,
  *     payload decode failure, an HTTP 200 reply whose Smaily body code
  *     refuses the request for good, as `permanent_envelope_<code>` with
@@ -66,7 +69,8 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  *     body code) is retried with backoff until the attempt ceiling
  *     (PRO-1685)
  *
- * A welcome or first-order email whose "Send a discount code" is on gets
+ * A first-order email the consent rule stops makes no discount code. A
+ * welcome or first-order email whose "Send a discount code" is on gets
  * the shopper's code just before the post, once the workflow is found
  * (AutomationDiscount, CON-199): a retry posts the code its first attempt
  * made, and an email sent without one keeps the reason as the exchange's
@@ -84,6 +88,9 @@ final class Flusher {
 
 	/** The Event Log note on a contact sync closed as a stale subscription (CON-395). */
 	public const NOTE_STALE_SUBSCRIPTION = 'a newer subscription change of this contact already reached Smaily — nothing was sent';
+
+	/** The Event Log note on a first-order email the consent rule stopped (CON-386). */
+	public const NOTE_NO_CONSENT = 'the contact-sync mode does not allow a marketing email to this contact (see the reason) — nothing was sent';
 
 	private EventQueue $queue;
 	private AutomationRouter $router;
@@ -112,6 +119,9 @@ final class Flusher {
 	 */
 	private ?string $skip_reason = null;
 
+	/** The contact-sync mode, read afresh for every flush (its own memo must not outlive one). */
+	private ?ContactSyncMode $mode = null;
+
 	/** The automations' discount codes (CON-199). */
 	private DiscountCodeIssuer $discount_codes;
 
@@ -137,6 +147,8 @@ final class Flusher {
 			'failed'    => 0,
 			'retried'   => 0,
 		);
+
+		$this->mode = null;
 
 		foreach ( $this->queue->pending(
 			$batch_size,
@@ -213,6 +225,12 @@ final class Flusher {
 				return;
 
 			case HookHandler::EVENT_AUTOMATION_FIRST_ORDER:
+				$refused = $this->consent_refusal( $email, $payload );
+				if ( $refused !== '' ) {
+					$this->skip_note   = self::NOTE_NO_CONSENT;
+					$this->skip_reason = $refused;
+					return;
+				}
 				$this->dispatch_automation( $id, 'first_order', $payload, $fields );
 				return;
 
@@ -273,6 +291,30 @@ final class Flusher {
 	private function smaily_has_contact( Client $client, string $email ): bool {
 		try {
 			return $client->has_contact( $email );
+		} catch ( ApiException $e ) {
+			$this->current_exchange = $client->last_exchange();
+			throw $e;
+		}
+	}
+
+	/**
+	 * Why the first-order email may not go out, or '' when it may — the
+	 * shared AutomationConsent rule, the abandoned-cart reminder's (CON-386).
+	 * A read that fails throws, so the row takes the normal retry path and
+	 * nothing is sent blind; its request is kept for the Event Log (F3-44).
+	 *
+	 * @param array<string, mixed> $payload
+	 *
+	 * @throws ApiException When Smaily cannot be read.
+	 */
+	private function consent_refusal( string $email, array $payload ): string {
+		if ( $this->mode === null ) {
+			$this->mode = new ContactSyncMode();
+		}
+
+		$client = ( $this->client_factory )( 'default' );
+		try {
+			return AutomationConsent::refusal( $client, $email, $payload, $this->mode );
 		} catch ( ApiException $e ) {
 			$this->current_exchange = $client->last_exchange();
 			throw $e;

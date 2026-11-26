@@ -223,6 +223,37 @@ final class ClientAutomationsTest extends TestCase {
 	 *
 	 * @param array<string, string> $endpoints
 	 */
+	public function test_test_send_and_go_live_substitute_the_key_into_the_engine_map_urls(): void {
+		$client = $this->capturing_client(
+			'sk_live',
+			'https://base.test',
+			array(
+				'automations_test_send' => 'https://engine.test/api/v1/automations/{key}/test-send',
+				'automations_go_live'   => 'https://engine.test/api/v1/automations/{key}/go-live',
+			)
+		);
+
+		$client->automation_test_send( 'replenish_due', array( 'email' => 'owner@shop.example' ) );
+		self::assertSame( 'POST', $client->captured['method'] );
+		self::assertSame( 'https://engine.test/api/v1/automations/replenish_due/test-send', $client->captured['url'] );
+		self::assertSame( array( 'email' => 'owner@shop.example' ), $client->captured['body'] );
+
+		$client->automation_go_live( 'replenish_due', array( 'live' => false ) );
+		self::assertSame( 'https://engine.test/api/v1/automations/replenish_due/go-live', $client->captured['url'] );
+		self::assertSame( array( 'live' => false ), $client->captured['body'] );
+	}
+
+	public function test_test_send_and_go_live_fall_back_to_the_path_constants_without_map_keys(): void {
+		// A connection set up before 2026-11-26 has neither key (§1).
+		$client = $this->capturing_client( 'sk_live', 'https://base.test', array( 'automations_config' => 'https://engine.test/api/v1/automations/config' ) );
+
+		$client->automation_test_send( 'winback_risk', array( 'email' => 'owner@shop.example' ) );
+		self::assertSame( 'https://base.test/api/v1/automations/winback_risk/test-send', $client->captured['url'] );
+
+		$client->automation_go_live( 'winback_risk', array( 'live' => true ) );
+		self::assertSame( 'https://base.test/api/v1/automations/winback_risk/go-live', $client->captured['url'] );
+	}
+
 	private function capturing_client( string $api_key, string $base_url, array $endpoints = array() ): Client {
 		return new class( $api_key, $base_url, $endpoints ) extends Client {
 			/** @var array<string, mixed> */

@@ -296,7 +296,7 @@ final class AutomationDiscountCodeTest extends TestCase {
 		self::assertStringContainsString( $first_code, (string) $row['payload'], 'The row keeps its code for the retry.' );
 
 		$this->make_due( (int) $row['id'] );
-		$address = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '5252' );
+		$address = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK, PipelineFixture::subscribed_contact_read() ), '5252' );
 
 		self::assertSame( $first_code, $address['first_order_coupon_code'] );
 		self::assertCount( 1, $this->generated_coupon_ids(), 'A retry makes no second coupon.' );
@@ -741,13 +741,18 @@ final class AutomationDiscountCodeTest extends TestCase {
 	}
 
 	/**
-	 * Flush the main queue with Smaily answering every POST with $status.
+	 * Flush the main queue with Smaily answering every POST with $status. A
+	 * contact read (GET) finds the shopper subscribed, so the first-order
+	 * consent rule lets the email through (CON-386).
 	 *
 	 * @return array<int, mixed> The POST bodies.
 	 */
 	private function flush_answering( int $status ): array {
 		$bodies = array();
 		$fake   = static function ( $pre, $args ) use ( &$bodies, $status ) {
+			if ( ( $args['method'] ?? '' ) === 'GET' ) {
+				return ( PipelineFixture::subscribed_contact_read() )();
+			}
 			$bodies[] = $args['body'] ?? null;
 			return array(
 				'headers'  => array(),

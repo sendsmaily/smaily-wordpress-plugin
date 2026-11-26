@@ -23,9 +23,9 @@ use Smaily\Connect\Support\DebugLog;
  * two drains from consuming each other's rows, same discipline as the
  * rec-engine flushers).
  *
- * A consent gate runs first (CON-196, consent_refusal()): a reminder the
- * contact-sync mode does not allow closes as skipped with its reason
- * (EventQueue::mark_skipped), so the Event Log never reads it as sent.
+ * A consent gate runs first (CON-196, the shared AutomationConsent rule): a
+ * reminder the contact-sync mode does not allow closes as skipped with its
+ * reason (EventQueue::mark_skipped), so the Event Log never reads it as sent.
  *
  * Dispatch, mirroring the retired legacy pass's F3-54 router-first order —
  * the SAME Smaily autoresponder destination, so an upgrading store needs
@@ -78,10 +78,10 @@ class CartFlusher {
 	public const DEFAULT_BATCH_SIZE = 50;
 
 	/** Skip reason: a consent mode, and the shopper consented nowhere (CON-196). */
-	public const REASON_NO_MARKETING_CONSENT = 'no_marketing_consent';
+	public const REASON_NO_MARKETING_CONSENT = AutomationConsent::REASON_NO_MARKETING_CONSENT;
 
 	/** Skip reason: Smaily has the contact as unsubscribed — any mode (CON-196). */
-	public const REASON_UNSUBSCRIBED = 'unsubscribed';
+	public const REASON_UNSUBSCRIBED = AutomationConsent::REASON_UNSUBSCRIBED;
 
 	/** Cap (chars) on each stored exchange field so the queue stays bounded (F3-44). */
 	private const EXCHANGE_MAX = 10000;
@@ -255,22 +255,10 @@ class CartFlusher {
 	}
 
 	/**
-	 * Why this reminder may not go out, or '' when it may (CON-196). Smaily
-	 * creates an address an automation is triggered for as a subscribed
-	 * contact, so the reminder goes out only where that is the shopper's
-	 * consent or the store's lawful basis:
-	 *
-	 *   - Smaily has the contact as unsubscribed → never, in any mode;
-	 *   - legitimate interest → otherwise always;
-	 *   - consent / checkout opt-in → only with the shopper's consent: the
-	 *     store's record (`user_newsletter`, consent mode only — checkout-only
-	 *     keeps none for an account), the newsletter box ticked in this
-	 *     unfinished classic checkout, or a subscribed Smaily contact.
-	 *
-	 * The contact is read from the "default" account, where contact sync
-	 * keeps it. A read that fails throws, so the row takes the normal retry
-	 * path and nothing is sent blind; its request is kept for the Event Log
-	 * (F3-44). Independent of the "Sync contacts to Smaily" switch.
+	 * Why this reminder may not go out, or '' when it may — the shared
+	 * AutomationConsent rule (CON-196, CON-386). A read that fails throws,
+	 * so the row takes the normal retry path and nothing is sent blind; its
+	 * request is kept for the Event Log (F3-44).
 	 *
 	 * @param array<string, mixed> $payload
 	 *
@@ -279,37 +267,11 @@ class CartFlusher {
 	private function consent_refusal( string $email, array $payload ): string {
 		$client = ( $this->client_factory )( 'default' );
 		try {
-			$contact = $client->get_contact_consent( $email );
+			return AutomationConsent::refusal( $client, $email, $payload, $this->mode ?? new ContactSyncMode() );
 		} catch ( ApiException $e ) {
 			$this->current_exchange = $client->last_exchange();
 			throw $e;
 		}
-
-		if ( $contact['found'] && $contact['is_unsubscribed'] === '1' ) {
-			return self::REASON_UNSUBSCRIBED;
-		}
-
-		$mode = $this->mode ?? new ContactSyncMode();
-		if ( ! $mode->requires_optin() ) {
-			return '';
-		}
-
-		if ( $contact['found'] && $contact['is_unsubscribed'] === '0' ) {
-			return '';
-		}
-
-		if ( ( $payload['newsletter_optin'] ?? false ) === true ) {
-			return '';
-		}
-
-		$user_id = isset( $payload['user_id'] ) ? (int) $payload['user_id'] : 0;
-		if ( $mode->mode() === ContactSyncMode::MODE_CONSENT && $user_id > 0
-			&& (int) get_user_meta( $user_id, ContactAudience::OPTIN_META, true ) === 1
-		) {
-			return '';
-		}
-
-		return self::REASON_NO_MARKETING_CONSENT;
 	}
 
 	/**

@@ -1853,7 +1853,180 @@ if ( $method === 'GET' && $path === '/api/v1/automations/config' ) {
 	$rows = ( isset( $state['automations_configs'] ) && is_array( $state['automations_configs'] ) )
 		? array_values( $state['automations_configs'] )
 		: array();
-	reply( 200, array( 'configs' => $rows ) );
+	reply(
+		200,
+		array(
+			'configs' => $rows,
+			'setup'   => automations_setup_items( $state ),
+		)
+	);
+}
+
+/**
+ * §12 `setup[]` (v1.15.0): one item per catalogue email. The state comes
+ * from the stored config row (`off`, `test` or `live`, with ramp step 1's
+ * `daily_limit` 10 once live); a test overlays fields with
+ * RecEngineMockServer::set_automation_setup() (e.g. `stopped`,
+ * `go_live_blockers`, `notice`).
+ */
+function automations_setup_items( array $state ): array {
+	$configs = ( isset( $state['automations_configs'] ) && is_array( $state['automations_configs'] ) ) ? $state['automations_configs'] : array();
+	$patches = ( isset( $state['automations_setup_patches'] ) && is_array( $state['automations_setup_patches'] ) ) ? $state['automations_setup_patches'] : array();
+	$items   = array();
+	foreach ( automations_catalog_triggers() as $trigger ) {
+		$key  = $trigger['key'];
+		$row  = $configs[ $key ] ?? null;
+		$live = is_array( $row ) && ( $row['enabled'] ?? false ) === true && ( $row['test_mode'] ?? true ) === false;
+		$item = array(
+			'trigger_key'       => $key,
+			'setup_state'       => ! is_array( $row ) || ( $row['enabled'] ?? false ) !== true ? 'off' : ( $live ? 'live' : 'test' ),
+			'stop_reason'       => null,
+			'go_live_blockers'  => array(),
+			'notice'            => null,
+			'live_since'        => $live ? ( $state['automations_live_since'][ $key ] ?? null ) : null,
+			'daily_limit'       => $live ? 10 : null,
+			'last_test_send_at' => $state['automations_last_test_send_at'][ $key ] ?? null,
+		);
+		$items[] = isset( $patches[ $key ] ) && is_array( $patches[ $key ] ) ? array_merge( $item, $patches[ $key ] ) : $item;
+	}
+	return $items;
+}
+
+/**
+ * §19 test send and §20 test-mode switch (v1.15.0, live since 2026-11-26,
+ * CON-455). Every call is recorded with its key and body
+ * (`automation_send_requests`, RecEngineMockServer::automation_send_requests()),
+ * so a test can prove one press = one call. A test forces an answer per
+ * action with RecEngineMockServer::set_automation_send_answer() — e.g. 409
+ * `not_ready`, 409 `sender_refused`, 429, 502 `smaily_unavailable`. A
+ * non-catalogue key answers 404 `unknown_automation`, as the live engine
+ * does for plugin and transactional emails. §20 `live: true` is refused with
+ * 409 `go_live_blocked` while the email's §12 `go_live_blockers` is not empty.
+ */
+if ( $method === 'POST' && preg_match( '#^/api/v1/automations/([^/]+)/(test-send|go-live)$#', $path, $m ) === 1 ) {
+	require_bearer_auth();
+	$key    = rawurldecode( $m[1] );
+	$action = $m[2];
+	$body   = json_decode( (string) file_get_contents( 'php://input' ), true );
+
+	$requests   = ( isset( $state['automation_send_requests'] ) && is_array( $state['automation_send_requests'] ) ) ? $state['automation_send_requests'] : array();
+	$requests[] = array(
+		'action'      => $action,
+		'trigger_key' => $key,
+		'body'        => $body,
+	);
+	$state['automation_send_requests'] = $requests;
+	save_state( $state_file, $state );
+
+	if ( ! in_array( $key, array_column( automations_catalog_triggers(), 'key' ), true ) ) {
+		reply( 404, array( 'error' => 'unknown_automation', 'message' => sprintf( 'No automation %s for this store.', $key ) ) );
+	}
+	if ( ! is_array( $body ) ) {
+		reply( 400, array( 'error' => 'invalid_json', 'message' => 'Request body is not valid JSON.' ) );
+	}
+
+	$errors = array();
+	if ( $action === 'test-send' ) {
+		$email = $body['email'] ?? null;
+		if ( ! is_string( $email ) || strlen( $email ) > 254 || filter_var( $email, FILTER_VALIDATE_EMAIL ) === false ) {
+			$errors[] = array( 'field' => 'email', 'message' => 'Invalid email' );
+		}
+		if ( array_key_exists( 'language', $body ) && ( ! is_string( $body['language'] ) || preg_match( '/^[a-z]{2}$/', $body['language'] ) !== 1 ) ) {
+			$errors[] = array( 'field' => 'language', 'message' => 'Must be an ISO 639-1 code.' );
+		}
+	} else {
+		if ( ! is_bool( $body['live'] ?? null ) ) {
+			$errors[] = array( 'field' => 'live', 'message' => 'Required' );
+		} elseif ( $body['live'] === true && ( $body['confirmed'] ?? null ) !== true ) {
+			$errors[] = array( 'field' => 'confirmed', 'message' => 'Must be true.' );
+		}
+		if ( array_key_exists( 'switched_by', $body ) && ( ! is_string( $body['switched_by'] ) || strlen( $body['switched_by'] ) > 100 ) ) {
+			$errors[] = array( 'field' => 'switched_by', 'message' => 'Must be a string of at most 100 characters.' );
+		}
+	}
+	if ( $errors !== array() ) {
+		reply( 422, array( 'error' => 'validation_failed', 'errors' => $errors ) );
+	}
+
+	$forced = $state['automation_send_answers'][ $action ] ?? null;
+	if ( is_array( $forced ) ) {
+		if ( (int) $forced['status'] === 429 ) {
+			header( 'Retry-After: 1800' );
+		}
+		reply( (int) $forced['status'], (array) $forced['body'] );
+	}
+
+	$now = gmdate( 'Y-m-d\\TH:i:s.000\\Z' );
+	if ( $action === 'test-send' ) {
+		$state['automations_last_test_send_at'][ $key ] = $now;
+		save_state( $state_file, $state );
+		reply(
+			200,
+			array(
+				'ok'          => true,
+				'trigger_key' => $key,
+				'accepted_at' => $now,
+				'sender'      => array( 'from_name' => 'Mock Shop', 'from_address' => 'news@mock-shop.test' ),
+			)
+		);
+	}
+
+	$item = null;
+	foreach ( automations_setup_items( $state ) as $candidate ) {
+		if ( $candidate['trigger_key'] === $key ) {
+			$item = $candidate;
+		}
+	}
+	if ( $body['live'] === true && is_array( $item ) && $item['go_live_blockers'] !== array() ) {
+		reply(
+			409,
+			array(
+				'error'   => 'go_live_blocked',
+				'message' => 'Real sends cannot be switched on now.',
+				'details' => array( 'blockers' => $item['go_live_blockers'] ),
+			)
+		);
+	}
+
+	$row     = $state['automations_configs'][ $key ] ?? array(
+		'trigger_key'    => $key,
+		'enabled'        => false,
+		'language_mode'  => 'single',
+		'automation_map' => array(),
+		'cooldown_days'  => 7,
+		'daily_cap'      => null,
+		'test_mode'      => true,
+		'test_emails'    => array(),
+	);
+	$changed = $body['live'] === true
+		? ! ( ( $row['enabled'] ?? false ) === true && ( $row['test_mode'] ?? true ) === false )
+		: ( ( $row['test_mode'] ?? true ) === false );
+	if ( $body['live'] === true ) {
+		$row['enabled']   = true;
+		$row['test_mode'] = false;
+		if ( $changed ) {
+			$state['automations_live_since'][ $key ] = $now;
+		}
+	} else {
+		$row['test_mode'] = true;
+	}
+	$row['configured_via']                = 'plugin';
+	$row['updated_at']                    = $now;
+	$state['automations_configs'][ $key ] = $row;
+	save_state( $state_file, $state );
+
+	$live = $body['live'] === true;
+	reply(
+		200,
+		array(
+			'ok'          => true,
+			'trigger_key' => $key,
+			'changed'     => $changed,
+			'setup_state' => $live ? 'live' : ( $row['enabled'] === true ? 'test' : 'off' ),
+			'live_since'  => $live ? ( $state['automations_live_since'][ $key ] ?? $now ) : null,
+			'daily_limit' => $live ? 10 : null,
+		)
+	);
 }
 
 // Automations config save (§13). Full-selection UPSERT on trigger_key —

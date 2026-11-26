@@ -2337,47 +2337,9 @@ msgstr "Workflow ID, nt 123"
 msgid "No active workflows found in Smaily — enter the workflow id manually or create the workflow first."
 msgstr "Smailyst ei leitud ühtegi aktiivset workflow'd — sisesta workflow ID käsitsi või loo workflow enne."
 
-#: admin/src/components/steps/EngineAutomationsSection.tsx:235
-msgid "Waiting for Smaily's confirmation"
-msgstr "Ootab Smaily kinnitust"
-
 #: admin/src/components/steps/EngineAutomationsSection.tsx:236
 msgid "Live — real sends on"
 msgstr "Aktiivne — päris saatmine sees"
-
-#. translators: %s is the automation name, e.g. "Replenishment due".
-#: admin/src/components/steps/EngineAutomationsSection.tsx:463
-#, js-format
-msgid "Request real sends for \"%s\"? The automation stays in test mode until Smaily switches real sends on after your confirmation."
-msgstr "Kas taotleda automaatikale \"%s\" päris saatmist? Automaatika jääb testrežiimi, kuni Smaily lülitab päris saatmise sisse pärast sinu kinnitust."
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:481
-msgid "Live — real sends are on: real customers receive this automation."
-msgstr "Aktiivne — päris saatmine on sees: seda automaatikat saavad päris kliendid."
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:512
-msgid "Real sends requested — waiting for Smaily's confirmation. Until then this automation stays in test mode."
-msgstr "Päris saatmist on taotletud — ootab Smaily kinnitust. Seni jääb see automaatika testrežiimi."
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:512
-msgid "Real sends will be requested when you save. Until Smaily switches them on, this automation stays in test mode."
-msgstr "Päris saatmist taotletakse salvestamisel. Kuni Smaily selle sisse lülitab, jääb see automaatika testrežiimi."
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:516
-msgid "Real sends are switched on by Smaily after your confirmation."
-msgstr "Päris saatmise lülitab sisse Smaily pärast sinu kinnitust."
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:518
-msgid "Contact Smaily support"
-msgstr "Võta ühendust Smaily toega"
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:475
-msgid "Back to test mode"
-msgstr "Tagasi testrežiimi"
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:487
-msgid "Test mode is on — emails go only to the test addresses below, never to customers."
-msgstr "Testrežiim on sees — kirjad lähevad ainult allolevatele test-aadressidele, mitte kunagi klientidele."
 
 #: admin/src/components/steps/EngineAutomationsSection.tsx:489
 msgid "Test addresses"
@@ -2386,10 +2348,6 @@ msgstr "Test-aadressid"
 #: admin/src/components/steps/EngineAutomationsSection.tsx:503
 msgid "Comma-separated, up to 50 addresses."
 msgstr "Komadega eraldatult, kuni 50 aadressi."
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:511
-msgid "Activate for real…"
-msgstr "Aktiveeri päriselt…"
 
 #: admin/src/components/steps/Step4Recommendations.tsx:54
 msgid "Back to Step 3"
@@ -2448,6 +2406,128 @@ msgstr "Ühendus Smaily Campaign Intelligence'iga ebaõnnestus. Kontrolli võrgu
 #: admin/src/components/steps/EngineAutomationsSection.tsx:504
 msgid "This automation is enabled in test mode without any test addresses — no emails will be sent to anyone until you add at least one address."
 msgstr "See automaatika on lubatud test-režiimis ilma test-aadressideta — kirju ei saadeta mitte kellelegi, kuni lisad vähemalt ühe aadressi."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:401
+msgid "Stopped"
+msgstr "Peatatud"
+
+#. translators: %d is the number of emails, e.g. 25.
+#: admin/src/components/steps/EngineAutomationsSection.tsx:851
+#, js-format
+msgid "Sending to real customers · up to %d emails today"
+msgstr "Saadab päris klientidele · täna kuni %d kirja"
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:854
+msgid "Sending to real customers"
+msgstr "Saadab päris klientidele"
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:855
+msgid "The email goes to test addresses only."
+msgstr "Kiri läheb ainult test-aadressidele."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:862
+msgid "Starts when your sender domain is verified in Smaily."
+msgstr "Algab, kui sinu saatja domeen on Smailys kinnitatud."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:898
+msgid "Send a test email to"
+msgstr "Saada testkiri aadressile"
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:916
+msgid "Send test email"
+msgstr "Saada testkiri"
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:920
+msgid "This address is added to the Smaily list as a test contact."
+msgstr "See aadress lisatakse Smaily listi testkontaktina."
+
+#. translators: %s is the email address the test was sent to.
+#: admin/src/components/steps/EngineAutomationsSection.tsx:926
+#, js-format
+msgid "Test email sent to %s. Check the inbox."
+msgstr "Testkiri saadeti aadressile %s. Vaata postkasti."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1001
+msgid "Turn off test mode?"
+msgstr "Kas lülitada testrežiim välja?"
+
+#. translators: %s is the email's name, e.g. "Replenishment due".
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1006
+#, js-format
+msgid "“%s” will start going to your store's real customers, at first up to 10 emails a day, then 25 and 50."
+msgstr "„%s“ hakkab minema sinu poe päris klientidele, alguses kuni 10 kirja päevas, seejärel 25 ja 50."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1016
+msgid "Turn off test mode"
+msgstr "Lülita testrežiim välja"
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1046
+msgid "The test email cannot be sent yet:"
+msgstr "Testkirja ei saa veel saata:"
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1048
+msgid "Test mode stays on until this is fixed:"
+msgstr "Testrežiim jääb sisse, kuni see on korras:"
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1050
+msgid "Smaily refused to send from your sender address: its domain is not verified in Smaily yet, or the address is not allowed. Real sends are not affected."
+msgstr "Smaily keeldus sinu saatja aadressilt saatmast: selle domeen pole Smailys veel kinnitatud või aadress pole lubatud. See ei mõjuta päris saatmist."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1052
+msgid "Too many requests. Up to 10 test emails can be sent an hour. Try again later."
+msgstr "Liiga palju päringuid. Tunnis saab saata kuni 10 testkirja. Proovi hiljem uuesti."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1054
+msgid "Smaily did not answer, so the test email was not sent. Press the button again to try once more."
+msgstr "Smaily ei vastanud, nii et testkirja ei saadetud. Vajuta nuppu uuesti, et veel kord proovida."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1057
+msgid "Enter a valid email address."
+msgstr "Sisesta korrektne e-posti aadress."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1059
+msgid "Campaign Intelligence did not take the request. Try again in a moment."
+msgstr "Campaign Intelligence ei võtnud päringut vastu. Proovi hetke pärast uuesti."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1067
+msgid "No Smaily workflow is linked to this email."
+msgstr "Selle kirjaga pole seotud ühtegi Smaily töövoogu."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1069
+msgid "The email's Smaily workflow is not active yet, for example because its sender domain is not verified."
+msgstr "Kirja Smaily töövoog pole veel aktiivne, näiteks seetõttu, et selle saatja domeen pole kinnitatud."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1071
+msgid "The email has no design yet."
+msgstr "Kirjal pole veel kujundust."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1073
+msgid "The design check failed — open the design to fix it."
+msgstr "Kujunduse kontroll ebaõnnestus — ava kujundus, et seda parandada."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1075
+msgid "The email has no subject."
+msgstr "Kirjal pole teemarida."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1077
+msgid "The email has no sender address."
+msgstr "Kirjal pole saatja aadressi."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1079
+msgid "No customer has recommendations for this email yet."
+msgstr "Selle kirja jaoks pole veel ühelgi kliendil soovitusi."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1081
+msgid "Smaily reviews this stop before the email can send again."
+msgstr "Smaily vaatab peatamise üle, enne kui kirja saab uuesti saata."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1083
+msgid "A Smaily operator switches real sends on for this email."
+msgstr "Selle kirja päris saatmise lülitab sisse Smaily operaator."
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1085
+msgid "Setup is not complete."
+msgstr "Seadistus pole lõpetatud."
 
 #. translators: %d is the number of contacts in the sync audience.
 #: admin/src/components/steps/Step2Subscribers.tsx:166

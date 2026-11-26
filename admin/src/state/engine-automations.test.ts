@@ -101,7 +101,7 @@ describe('convertAutomationMap — store-global mode conversion (T2.4/1)', () =>
 describe('buildRows — dynamic catalog-driven rows', () => {
   it('renders an unknown new trigger from the catalog with a fail-closed default row', () => {
     // A key this plugin has never heard of — must appear with no code change.
-    const { rows } = buildRows([catalogTrigger('brand_new_trigger_2027')], [], null, 'single', []);
+    const { rows } = buildRows([catalogTrigger('brand_new_trigger_2027')], [], null, 'single');
 
     expect(rows).toHaveLength(1);
     expect(rows[0]).toEqual(defaultRow('brand_new_trigger_2027', 'single'));
@@ -113,7 +113,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('derives per_language for default rows on multilingual sites', () => {
-    const { rows } = buildRows([catalogTrigger('t')], [], null, 'per_language', []);
+    const { rows } = buildRows([catalogTrigger('t')], [], null, 'per_language');
     expect(rows[0]?.language_mode).toBe('per_language');
   });
 
@@ -123,7 +123,6 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow({ daily_cap: 500 })],
       null,
       'single',
-      [],
     );
 
     expect(rows[0]?.daily_cap).toBe(500);
@@ -133,7 +132,7 @@ describe('buildRows — dynamic catalog-driven rows', () => {
   });
 
   it('strips the read-only §12 fields so they cannot reach the PUT body', () => {
-    const { rows } = buildRows([catalogTrigger('replenish_due')], [configuredRow()], null, 'single', []);
+    const { rows } = buildRows([catalogTrigger('replenish_due')], [configuredRow()], null, 'single');
 
     expect(rows[0]).not.toHaveProperty('configured_via');
     expect(rows[0]).not.toHaveProperty('updated_at');
@@ -145,7 +144,6 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow({ trigger_key: 'retired_trigger' })],
       null,
       'single',
-      [],
     );
 
     expect(rows.map((r) => r.trigger_key)).toEqual(['winback_risk']);
@@ -163,7 +161,6 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow()],
       [draft],
       'single',
-      [],
     );
 
     expect(rows[0]).toBe(draft);
@@ -178,7 +175,6 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow({ trigger_key: 'replenish_due', language_mode: 'single', automation_map: { id: '123' } })],
       null,
       'per_language',
-      [],
     );
 
     expect(rows.map((r) => r.language_mode)).toEqual(['per_language', 'per_language']);
@@ -198,41 +194,21 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       ],
       null,
       'single',
-      [],
     );
 
     expect(rows[0]?.language_mode).toBe('single');
     expect(rows[0]?.automation_map).toEqual({ id: '13' });
   });
 
-  it('keeps a standing real-sends request in the draft while the engine still stores test mode (PRO-3707)', () => {
-    const { rows } = buildRows(
-      [catalogTrigger('replenish_due'), catalogTrigger('winback_rescue')],
-      [
-        configuredRow({ trigger_key: 'replenish_due', test_mode: true }),
-        configuredRow({ trigger_key: 'winback_rescue', test_mode: true }),
-      ],
-      null,
-      'single',
-      ['replenish_due'],
-    );
-
-    // Requested → the draft keeps asking; a re-save repeats the request.
-    expect(rows[0]?.test_mode).toBe(false);
-    // Not requested → stored test mode as-is.
-    expect(rows[1]?.test_mode).toBe(true);
-  });
-
-  it('never turns test mode off for a requested trigger the engine stores as disabled', () => {
+  it('takes test mode as the engine stores it — a switched-off test mode is not undone by a re-read (CON-455)', () => {
     const { rows } = buildRows(
       [catalogTrigger('replenish_due')],
-      [configuredRow({ enabled: false, test_mode: true })],
+      [configuredRow({ trigger_key: 'replenish_due', test_mode: false })],
       null,
       'single',
-      ['replenish_due'],
     );
 
-    expect(rows[0]?.test_mode).toBe(true);
+    expect(rows[0]?.test_mode).toBe(false);
   });
 
   it('follows catalog order', () => {
@@ -241,26 +217,27 @@ describe('buildRows — dynamic catalog-driven rows', () => {
       [configuredRow({ trigger_key: 'a' })],
       null,
       'single',
-      [],
     );
     expect(rows.map((r) => r.trigger_key)).toEqual(['b', 'a']);
   });
 });
 
-describe('engineTriggerStatus — the stored state on the card (PRO-3707)', () => {
-  it('is off for a never-configured or disabled trigger', () => {
-    expect(engineTriggerStatus(undefined, false)).toBe('off');
-    expect(engineTriggerStatus({ enabled: false, test_mode: false }, true)).toBe('off');
+describe('engineTriggerStatus — the stored state on the card (CON-455)', () => {
+  it('reads the §12 setup state when the engine sends one', () => {
+    const stored = { enabled: true, test_mode: true };
+    expect(engineTriggerStatus(stored, { setup_state: 'test' })).toBe('test');
+    expect(engineTriggerStatus(stored, { setup_state: 'live' })).toBe('live');
+    expect(engineTriggerStatus(stored, { setup_state: 'stopped' })).toBe('stopped');
+    expect(engineTriggerStatus(stored, { setup_state: 'set_up' })).toBe('off');
+    expect(engineTriggerStatus(stored, { setup_state: 'off' })).toBe('off');
+    expect(engineTriggerStatus(stored, { setup_state: 'something_new' })).toBe('off');
   });
 
-  it('is live only when the engine stores real sends on', () => {
-    expect(engineTriggerStatus({ enabled: true, test_mode: false }, false)).toBe('live');
-    expect(engineTriggerStatus({ enabled: true, test_mode: false }, true)).toBe('live');
-  });
-
-  it('tells a pending real-sends request apart from plain test mode', () => {
-    expect(engineTriggerStatus({ enabled: true, test_mode: true }, true)).toBe('waiting');
-    expect(engineTriggerStatus({ enabled: true, test_mode: true }, false)).toBe('test');
+  it('falls back to the config row for an engine without setup items', () => {
+    expect(engineTriggerStatus(undefined, undefined)).toBe('off');
+    expect(engineTriggerStatus({ enabled: false, test_mode: false }, undefined)).toBe('off');
+    expect(engineTriggerStatus({ enabled: true, test_mode: false }, undefined)).toBe('live');
+    expect(engineTriggerStatus({ enabled: true, test_mode: true }, undefined)).toBe('test');
   });
 });
 
@@ -417,9 +394,9 @@ describe('toPutRow — what a save sends (CON-172)', () => {
     });
   });
 
-  it('sends test mode only when the merchant switched it back on — never test_mode: false', () => {
-    expect(toPutRow(row, ['test_mode'])).toMatchObject({ test_mode: true });
-    expect(toPutRow({ ...row, test_mode: false }, ['test_mode'])).not.toHaveProperty('test_mode');
+  it('never sends test mode — the switch calls §20 at once (CON-455)', () => {
+    expect(toPutRow(row, ['automation_map', 'test_emails'])).not.toHaveProperty('test_mode');
+    expect(toPutRow({ ...row, test_mode: false }, ['automation_map', 'test_emails'])).not.toHaveProperty('test_mode');
   });
 });
 
@@ -431,10 +408,10 @@ describe('buildRows mapConverted — stored maps the screen converts (CON-172)',
     });
 
     expect(
-      buildRows([], [stored('a', 'single'), stored('b', 'per_language')], null, 'per_language', [])
+      buildRows([], [stored('a', 'single'), stored('b', 'per_language')], null, 'per_language')
         .mapConverted,
     ).toEqual(['a']);
-    expect(buildRows([], [stored('a', 'single')], null, 'single', []).mapConverted).toEqual([]);
+    expect(buildRows([], [stored('a', 'single')], null, 'single').mapConverted).toEqual([]);
   });
 });
 
@@ -487,20 +464,6 @@ describe('saveEngineAutomations — save orchestration', () => {
       'ENGINE_AUTOMATIONS_SAVE_START',
       'ENGINE_AUTOMATIONS_SAVED',
     ]);
-  });
-
-  it('records which saved rows requested real sends (enabled + test mode off)', async () => {
-    putMock.mockResolvedValue({ ok: true, upserted: 3 });
-    const live = { ...defaultRow('live', 'single'), enabled: true, automation_map: { id: '1' }, test_mode: false };
-    const test = { ...defaultRow('test', 'single'), enabled: true, automation_map: { id: '2' } };
-    const off = { ...defaultRow('off', 'single'), test_mode: false };
-
-    await saveEngineAutomations({ rows: [live, test, off], changedFields: {} }, dispatch);
-
-    expect(dispatched[1]).toEqual({
-      type: 'ENGINE_AUTOMATIONS_SAVED',
-      payload: { realSendsRequested: ['live'] },
-    });
   });
 
   it('skips the PUT entirely when client-side validation fails', async () => {

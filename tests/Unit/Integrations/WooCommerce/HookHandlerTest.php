@@ -517,6 +517,47 @@ final class HookHandlerTest extends TestCase {
 			$this->enqueued[0]['payload']['fields']['first_order_automation_at']
 		);
 		self::assertArrayNotHasKey( 'welcome_automation_at', $this->enqueued[0]['payload']['fields'] );
+		// CON-386: the consent inputs the flusher reads — the account, and no
+		// tick when the box was left empty.
+		self::assertSame( 9, $this->enqueued[0]['payload']['user_id'] );
+		self::assertArrayNotHasKey( 'newsletter_optin', $this->enqueued[0]['payload'] );
+	}
+
+	/**
+	 * CON-386: the order's own newsletter tick is consent for its first-order
+	 * email, so the row carries it — on the classic checkout from the posted
+	 * box, on the block checkout from the order meta the request hook wrote.
+	 */
+	public function test_the_first_order_row_carries_the_classic_checkout_tick(): void {
+		$this->first_order_without_contact_sync();
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 100, 'buyer@example.test', 9, 1 ) );
+		Functions\when( 'wc_get_customer_order_count' )->justReturn( 1 );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 9, 'buyer@example.test', '', '' ) );
+
+		( new HookHandler( $this->queue ) )->on_checkout_order_processed( 100, array( 'user_newsletter' => 1 ) );
+
+		$row = $this->find_enqueued( '100' );
+		self::assertNotNull( $row );
+		self::assertSame( HookHandler::EVENT_AUTOMATION_FIRST_ORDER, $row['type'] );
+		self::assertTrue( $row['payload']['newsletter_optin'] );
+		self::assertSame( 9, $row['payload']['user_id'] );
+	}
+
+	public function test_the_first_order_row_carries_the_block_checkout_tick(): void {
+		$this->first_order_without_contact_sync();
+		Functions\when( 'wc_get_customer_order_count' )->justReturn( 1 );
+		Functions\when( 'get_userdata' )->justReturn( $this->fake_user( 9, 'buyer@example.test', '', '' ) );
+		$order   = $this->fake_order( 100, 'buyer@example.test', 9, 1 );
+		$handler = new HookHandler( $this->queue );
+		$this->wire_user_meta( $handler );
+
+		$handler->on_checkout_block_optin( $order, $this->block_request( true ) );
+		$handler->on_block_checkout_order_processed( $order );
+
+		$row = $this->find_enqueued( '100' );
+		self::assertNotNull( $row );
+		self::assertSame( HookHandler::EVENT_AUTOMATION_FIRST_ORDER, $row['type'] );
+		self::assertTrue( $row['payload']['newsletter_optin'] );
 	}
 
 	public function test_checkout_order_processed_skips_on_second_order(): void {
@@ -1739,6 +1780,18 @@ final class HookHandlerTest extends TestCase {
 				$key === 'smly_plus_setup_completed'
 					? true
 					: ( $key === 'smly_plus_first_order_enabled' ? true : $default )
+		);
+	}
+
+	/** Wizard finished, the first-order automation on, contact sync switched off. */
+	private function first_order_without_contact_sync(): void {
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = null ) {
+				if ( $key === 'smly_plus_setup_completed' || $key === 'smly_plus_first_order_enabled' ) {
+					return true;
+				}
+				return $key === ContactSyncMode::OPTION_SYNC_ENABLED ? '' : $default;
+			}
 		);
 	}
 

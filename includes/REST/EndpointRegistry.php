@@ -158,6 +158,15 @@ final class EndpointRegistry {
 					return new RecEngineClient( $api_key, $base_url, $endpoints );
 				}
 			),
+			// An automation's "Send test email" and "Test mode" switch
+			// (CON-455, contract §19–§20). One attempt: a retried §19 502
+			// could send a second email.
+			new AutomationSendsEndpoint(
+				new RecEngineSettings(),
+				static function ( string $api_key, string $base_url, array $endpoints ): RecEngineClient {
+					return new RecEngineClient( $api_key, $base_url, $endpoints, 1 );
+				}
+			),
 			new EmailDesignsEndpoint(
 				new RecEngineSettings(),
 				new EmailDesignWorkflows(),

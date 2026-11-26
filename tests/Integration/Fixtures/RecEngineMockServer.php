@@ -312,6 +312,44 @@ final class RecEngineMockServer {
 	}
 
 	/**
+	 * Overlay fields on one email's §12 `setup[]` item (CON-455), e.g.
+	 * `['setup_state' => 'stopped', 'go_live_blockers' => ['stopped_needs_review']]`.
+	 *
+	 * @param array<string, mixed> $fields
+	 */
+	public function set_automation_setup( string $trigger_key, array $fields ): void {
+		$patches                 = (array) ( $this->state()['automations_setup_patches'] ?? array() );
+		$patches[ $trigger_key ] = $fields;
+		$this->write_state( array( 'automations_setup_patches' => $patches ) );
+	}
+
+	/**
+	 * Force the answer of every later §19 (`test-send`) or §20 (`go-live`)
+	 * call (CON-455): the status and the body, as the engine would send them.
+	 * A 429 also carries `Retry-After: 1800`. Null answers normally again.
+	 *
+	 * @param array<string, mixed> $body
+	 */
+	public function set_automation_send_answer( string $action, ?int $status, array $body = array() ): void {
+		$answers            = (array) ( $this->state()['automation_send_answers'] ?? array() );
+		$answers[ $action ] = $status === null ? null : array(
+			'status' => $status,
+			'body'   => $body,
+		);
+		$this->write_state( array( 'automation_send_answers' => $answers ) );
+	}
+
+	/**
+	 * Every §19 / §20 call the engine received, oldest first, each
+	 * `{action, trigger_key, body}`.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function automation_send_requests(): array {
+		return (array) ( $this->state()['automation_send_requests'] ?? array() );
+	}
+
+	/**
 	 * Every §16 disconnect the engine received, oldest first:
 	 * `{key, body}` — the Bearer key it carried and its raw body.
 	 *
