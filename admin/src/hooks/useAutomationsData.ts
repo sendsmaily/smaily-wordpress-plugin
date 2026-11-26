@@ -7,11 +7,14 @@ import {
   type AutomationConfigServerRow,
   type AutomationsCatalogResponse,
   type AutomationsFailure,
+  type AutomationSetupItem,
 } from '../api/automations';
 
 export interface AutomationsData {
   catalog: AutomationsCatalogResponse;
   configs: AutomationConfigServerRow[];
+  /** §12 `setup[]`, one item per catalogue email; empty from an engine before v1.15.0. */
+  setup: AutomationSetupItem[];
 }
 
 export type AutomationsDataStatus = 'idle' | 'pending' | 'success' | 'error';
@@ -22,7 +25,7 @@ export interface UseAutomationsDataResult {
   failure: AutomationsFailure | null;
   /** Re-run both GETs (the Retry button). */
   refetch: () => void;
-  /** Re-read only the §12 config (after a save); the loaded catalog is kept. */
+  /** Re-read only the §12 config (after a save, a test send or a switch); the loaded catalog is kept. */
   refetchConfig: () => void;
 }
 
@@ -69,7 +72,7 @@ export function useAutomationsData(enabled: boolean): UseAutomationsDataResult {
           return;
         }
         catalogRef.current = catalog;
-        setData({ catalog, configs: config.configs });
+        setData({ catalog, configs: config.configs, setup: config.setup ?? [] });
         setStatus('success');
       } catch (err) {
         if (controller.signal.aborted) {

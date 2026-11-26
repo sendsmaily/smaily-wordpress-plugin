@@ -6,6 +6,7 @@ import {
   putAutomationsConfig,
   type AutomationCatalogTrigger,
   type AutomationConfigServerRow,
+  type AutomationSetupItem,
 } from '../api/automations';
 import {
   type EngineAutomationPutRow,
@@ -120,10 +121,6 @@ export function convertAutomationMap(
  *   server row for triggers it already holds, so a tab switch doesn't
  *   clobber unsaved edits; triggers new to the catalog still get a
  *   default row appended.
- * - A trigger in `realSendsRequested` that the engine still stores in
- *   test mode keeps `test_mode: false` in the draft: the merchant's
- *   request stands on the screen. A save never sends it (`toPutRow`,
- *   CON-172); the engine keeps such a row in test mode either way (§13).
  *
  * `mapConverted` lists every stored row whose language mode differs from
  * the store's — the triggers whose workflow map the screen converts. The
@@ -134,7 +131,6 @@ export function buildRows(
   configs: AutomationConfigServerRow[],
   previousDraft: EngineAutomationRow[] | null,
   languageMode: EngineAutomationRow['language_mode'],
-  realSendsRequested: readonly string[],
 ): { rows: EngineAutomationRow[]; mapConverted: string[] } {
   const configByKey = new Map(configs.map((c) => [c.trigger_key, c]));
   const draftByKey = new Map((previousDraft ?? []).map((r) => [r.trigger_key, r]));
@@ -163,9 +159,7 @@ export function buildRows(
         ),
         cooldown_days: server.cooldown_days,
         daily_cap: server.daily_cap,
-        test_mode:
-          server.test_mode &&
-          !(server.enabled && realSendsRequested.includes(server.trigger_key)),
+        test_mode: server.test_mode,
         test_emails: [...server.test_emails],
       };
     }
@@ -178,12 +172,11 @@ export function buildRows(
 /**
  * The §13 PUT row for one draft row (CON-172). The required fields go
  * every time; the workflow map and the test addresses only when the
- * merchant changed them on the screen; test mode only when the merchant
- * switched it back on. The engine keeps its stored value of a left-out
- * key, so a save never overwrites what the store set on the engine's
- * setup page. `test_mode: false` is never sent: it never switches real
- * sends on (§13), and real sends start only through the go-live action
- * (§20) or a Smaily operator.
+ * merchant changed them on the screen. The engine keeps its stored value
+ * of a left-out key, so a save never overwrites what the store set on the
+ * engine's setup page. `test_mode` is never sent (CON-455): the "Test
+ * mode" switch calls §20 at once, and a sent `test_mode: true` would
+ * switch off real sends the store switched on (§13).
  */
 export function toPutRow(
   row: EngineAutomationRow,
@@ -199,35 +192,32 @@ export function toPutRow(
   if (changed.includes('automation_map')) {
     putRow.automation_map = row.automation_map;
   }
-  if (changed.includes('test_mode') && row.test_mode) {
-    putRow.test_mode = true;
-  }
   if (changed.includes('test_emails')) {
     putRow.test_emails = row.test_emails;
   }
   return putRow;
 }
 
-export type EngineTriggerStatus = 'off' | 'test' | 'waiting' | 'live';
+export type EngineTriggerStatus = 'off' | 'test' | 'live' | 'stopped';
 
 /**
- * A trigger's state as the engine stores it (§12), for the card's
- * status label. Real sends are switched on by a Smaily operator only
- * (§13): a requested trigger stays in test mode until then, and the
- * §12 read does not show the request — `realSendsRequested` (the
- * plugin's own last save) tells "waiting" apart from plain test mode.
+ * An email's state as the engine stores it, for the card's status label
+ * and its "Test mode" switch (CON-455). The §12 `setup[]` item decides
+ * (`set_up` and an unknown state read as off); an engine that sends no
+ * item (before v1.15.0) is read from the config row instead.
  */
 export function engineTriggerStatus(
   stored: Pick<EngineAutomationRow, 'enabled' | 'test_mode'> | undefined,
-  realSendsRequested: boolean,
+  setup: Pick<AutomationSetupItem, 'setup_state'> | undefined,
 ): EngineTriggerStatus {
+  if (setup !== undefined) {
+    const state = setup.setup_state;
+    return state === 'test' || state === 'live' || state === 'stopped' ? state : 'off';
+  }
   if (stored === undefined || !stored.enabled) {
     return 'off';
   }
-  if (!stored.test_mode) {
-    return 'live';
-  }
-  return realSendsRequested ? 'waiting' : 'test';
+  return stored.test_mode ? 'test' : 'live';
 }
 
 /**
@@ -426,7 +416,7 @@ export async function saveEngineAutomations(
 
   if (rows.length === 0) {
     // Empty catalog — nothing to send (§13 requires 1..50 rows).
-    dispatch({ type: 'ENGINE_AUTOMATIONS_SAVED', payload: { realSendsRequested: [] } });
+    dispatch({ type: 'ENGINE_AUTOMATIONS_SAVED' });
     return true;
   }
 
@@ -436,14 +426,7 @@ export async function saveEngineAutomations(
   );
 
   if (result.ok) {
-    dispatch({
-      type: 'ENGINE_AUTOMATIONS_SAVED',
-      payload: {
-        realSendsRequested: rows
-          .filter((row) => row.enabled && !row.test_mode)
-          .map((row) => row.trigger_key),
-      },
-    });
+    dispatch({ type: 'ENGINE_AUTOMATIONS_SAVED' });
     return true;
   }
 
