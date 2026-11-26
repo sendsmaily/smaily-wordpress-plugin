@@ -128,6 +128,13 @@ class Client {
 	// every existing connection, not just the rare pre-exchange call.
 	public const PATH_AUTOMATIONS_CATALOG = '/api/v1/automations/catalog';
 	public const PATH_AUTOMATIONS_CONFIG  = '/api/v1/automations/config';
+	// §19 test send and §20 test-mode switch (contract v1.15.0, live since
+	// 2026-11-26, CON-455). Map keys `automations_test_send` /
+	// `automations_go_live`; a connection set up before the engine returned
+	// them has neither, so these fallbacks serve it. `{key}` is a catalogue
+	// key, substituted like `{email}` — never sprintf'd.
+	public const PATH_AUTOMATIONS_TEST_SEND_TMPL = '/api/v1/automations/{key}/test-send';
+	public const PATH_AUTOMATIONS_GO_LIVE_TMPL   = '/api/v1/automations/{key}/go-live';
 	// Storefront recommendations (contract v1.9.0, §15). Map key
 	// `recommendations_customer`; a connection exchanged before v1.9.0 has no
 	// such key, so this fallback serves every existing connection.
@@ -555,6 +562,41 @@ class Client {
 	}
 
 	/**
+	 * Send one test email of a catalogue email to one address the shop admin
+	 * typed (§19, CON-455). `$body` is `{email, language?}`. The engine adds
+	 * the address to the store's Smaily list as a test contact. Each accepted
+	 * call sends one email, so the caller builds this client with ONE attempt:
+	 * a retried 502 could send a second email.
+	 *
+	 * @param array<string, string> $body
+	 *
+	 * @return array<string, mixed> `{ok, trigger_key, accepted_at, sender}`.
+	 *
+	 * @throws ApiException On 4xx (404 unknown_automation, 409 not_ready /
+	 *                      sender_refused, 422, 429) / 5xx or network failure.
+	 */
+	public function automation_test_send( string $trigger_key, array $body ): array {
+		$url = $this->templated_url( 'automations_test_send', self::PATH_AUTOMATIONS_TEST_SEND_TMPL, '{key}', $trigger_key );
+		return $this->request_url( 'POST', $url, $body );
+	}
+
+	/**
+	 * Switch one catalogue email's test mode off (`live: true`, with the
+	 * admin's confirmation) or back on (`live: false`) (§20, CON-455).
+	 *
+	 * @param array<string, mixed> $body `{live, confirmed?, switched_by?}`.
+	 *
+	 * @return array<string, mixed> `{ok, trigger_key, changed, setup_state, live_since, daily_limit}`.
+	 *
+	 * @throws ApiException On 4xx (404 unknown_automation, 409 go_live_blocked,
+	 *                      422, 429) / 5xx or network failure.
+	 */
+	public function automation_go_live( string $trigger_key, array $body ): array {
+		$url = $this->templated_url( 'automations_go_live', self::PATH_AUTOMATIONS_GO_LIVE_TMPL, '{key}', $trigger_key );
+		return $this->request_url( 'POST', $url, $body );
+	}
+
+	/**
 	 * The current recommendations of one logged-in shopper, for the store to
 	 * show (§15) — `{slots: [...]}`, up to `$limit` slots, possibly empty. The
 	 * shopper is named by the store's own customer id (the `external_id` sent
@@ -750,7 +792,8 @@ class Client {
 	/**
 	 * Build an endpoint URL that carries a value in its PATH by substituting
 	 * a `{placeholder}` token (`{email}` for the GDPR customer URLs,
-	 * `{email_key}` for the design link). The engine advertises these URLs
+	 * `{email_key}` for the design link, `{key}` for an automation's test send and
+	 * test-mode switch). The engine advertises these URLs
 	 * with the literal token (in both the endpoints-map value and our
 	 * fallback template), so the substitution is a str_replace — NOT sprintf,
 	 * which would silently leave a `{email}`-style URL unchanged and send the
