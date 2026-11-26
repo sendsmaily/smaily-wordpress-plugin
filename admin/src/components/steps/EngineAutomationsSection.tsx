@@ -919,6 +919,9 @@ function TestSendForm({
       <p className="mt-1 text-xs text-text-tertiary">
         { __( 'This address is added to the Smaily list as a test contact.', 'smaily-connect' ) }
       </p>
+      <p className="mt-1 text-xs text-text-tertiary">
+        { __( 'The test shows the design your Smaily workflow holds.', 'smaily-connect' ) }
+      </p>
       {outcome !== null && 'sentTo' in outcome && (
         <p role="status" className="mt-1 text-sm text-success-soft-text">
           {sprintf(

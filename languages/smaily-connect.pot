@@ -2228,6 +2228,10 @@ msgstr ""
 msgid "This address is added to the Smaily list as a test contact."
 msgstr ""
 
+#: admin/src/components/steps/EngineAutomationsSection.tsx:923
+msgid "The test shows the design your Smaily workflow holds."
+msgstr ""
+
 #. translators: %s is the email address the test was sent to.
 #: admin/src/components/steps/EngineAutomationsSection.tsx:926
 #, js-format
