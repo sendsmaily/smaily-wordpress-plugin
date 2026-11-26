@@ -570,7 +570,9 @@ class BeaconEndpoint {
 	 * it here, server-side, through the SAME resolver catalog/orders use, so a
 	 * cart event joins the same catalog row a product_view or order line would.
 	 * `product_id` is proxy-internal: it is not in EVENT_FIELDS, so
-	 * validate_batch() drops it and it never reaches the engine.
+	 * validate_batch() drops it and it never reaches the engine. An id that
+	 * names a variable product's parent is keyed on the variation the cart
+	 * took (cart_variation_id(), CON-427).
 	 *
 	 * `product_view` needs no such step — StorefrontBeacon::page_context()
 	 * already resolves it server-side (PRO-1224) before the JS ever sees it.
@@ -604,7 +606,10 @@ class BeaconEndpoint {
 			$product_id = (int) $event['product_id'];
 			$product    = $product_id > 0 ? wc_get_product( $product_id ) : false;
 			if ( $product instanceof \WC_Product ) {
-				$event['sku'] = \Smaily\Connect\Smaily\RecEngine\Support\SkuResolver::resolve( $product );
+				$variation_id = $product->is_type( 'variable' ) ? $this->cart_variation_id( $product_id, $event_type ) : 0;
+				$event['sku'] = $variation_id > 0
+					? \Smaily\Connect\Smaily\RecEngine\Support\SkuResolver::resolve_id( $variation_id )
+					: \Smaily\Connect\Smaily\RecEngine\Support\SkuResolver::resolve( $product );
 			} else {
 				unset( $event['sku'] );
 				++$dropped;
@@ -622,6 +627,47 @@ class BeaconEndpoint {
 		}
 
 		return $events;
+	}
+
+	/**
+	 * The variation of a variable product that the shopper's cart took, for
+	 * a cart event whose button named only the parent (CON-427) — WooCommerce's
+	 * mini-cart remove link does that for every variation line. The catalog
+	 * has a row per variation and none for the parent. A `cart_add` reads the
+	 * cart, a `cart_remove` the lines WooCommerce keeps after a removal (for
+	 * its undo link); the last line of that product wins. 0 when nothing
+	 * matches — the event then keeps the parent's key.
+	 *
+	 * Reads the shopper's WooCommerce session row directly: this REST
+	 * request has no WooCommerce session or cart, and starting one here would
+	 * delete a logged-in shopper's session (the relay sends no REST nonce, so
+	 * WordPress treats the request as logged out and WooCommerce takes the
+	 * user's session cookie as invalid). The session cookie is
+	 * checked by WooCommerce's own hash, so only the shopper's own session is
+	 * read. A store with another session handler finds nothing here.
+	 */
+	private function cart_variation_id( int $parent_id, string $event_type ): int {
+		if ( ! class_exists( \WC_Session_Handler::class ) ) {
+			return 0;
+		}
+		$handler = new \WC_Session_Handler();
+		$cookie  = $handler->get_session_cookie();
+		if ( ! is_array( $cookie ) ) {
+			return 0;
+		}
+		$session = $handler->get_session( (string) $cookie[0], array() );
+		$key     = 'cart_add' === $event_type ? 'cart' : 'removed_cart_contents';
+		$lines   = is_array( $session ) && isset( $session[ $key ] ) ? maybe_unserialize( $session[ $key ] ) : array();
+		if ( ! is_array( $lines ) ) {
+			return 0;
+		}
+
+		foreach ( array_reverse( $lines ) as $line ) {
+			if ( is_array( $line ) && (int) ( $line['product_id'] ?? 0 ) === $parent_id && (int) ( $line['variation_id'] ?? 0 ) > 0 ) {
+				return (int) $line['variation_id'];
+			}
+		}
+		return 0;
 	}
 
 	/**

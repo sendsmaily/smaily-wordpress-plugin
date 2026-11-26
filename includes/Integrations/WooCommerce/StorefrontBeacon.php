@@ -16,6 +16,7 @@ use Smaily\Connect\Constants;
 use Smaily\Connect\REST\LandEndpoint;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
+use Smaily\Connect\Smaily\RecEngine\Support\SkuResolver;
 
 /**
  * Enqueues `sc-runtime.js` on storefront pages and prints a `window.smailyConnectBeacon`
@@ -308,17 +309,63 @@ class StorefrontBeacon {
 	 * @return array<string, string>
 	 */
 	public function product_context( \WC_Product $product ): array {
+		$variation_id = $product->is_type( 'variable' ) ? $this->shown_variation_id( $product ) : 0;
+
 		$context = array(
 			// SkuResolver (PRO-1224): always non-empty — the `woo-{id}`
 			// platform key (never the merchant SKU), matching what catalog
 			// ingest sent, so the engine joins product_view to the catalog row.
-			'sku' => \Smaily\Connect\Smaily\RecEngine\Support\SkuResolver::resolve( $product ),
+			'sku' => $variation_id > 0
+				? SkuResolver::resolve_id( $variation_id )
+				: SkuResolver::resolve( $product ),
 		);
 		$path = ( new CatalogPayloadBuilder() )->primary_category_path( $product );
 		if ( $path !== '' ) {
 			$context['categoryPath'] = $path;
 		}
 		return $context;
+	}
+
+	/**
+	 * The variation a variable product's page view is keyed on (CON-427).
+	 * The catalog sends a row per variation and none for the parent, so the
+	 * parent's own key joins nothing. The page shows the default variation
+	 * (the one WooCommerce preselects from the default attributes); without
+	 * one, the first published variation in the catalog's own order (menu
+	 * order, then id). Both have a catalog row. A disabled (private)
+	 * variation is never chosen. 0 when the product has no published
+	 * variation — the page view then keeps the parent's key.
+	 */
+	private function shown_variation_id( \WC_Product $product ): int {
+		$default_id = $this->default_variation_id( $product );
+		if ( $default_id > 0 ) {
+			return $default_id;
+		}
+		foreach ( $product->get_children() as $child_id ) {
+			if ( 'publish' === get_post_status( (int) $child_id ) ) {
+				return (int) $child_id;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * The published variation that matches the product's default attributes
+	 * — the one WooCommerce's own lookup returns for them — or 0 when none is
+	 * set or none matches. Protected so unit tests can stand in for the
+	 * product data store.
+	 */
+	protected function default_variation_id( \WC_Product $product ): int {
+		$match = array();
+		foreach ( $product->get_default_attributes() as $name => $value ) {
+			$match[ 'attribute_' . sanitize_title( (string) $name ) ] = $value;
+		}
+		if ( $match === array() ) {
+			return 0;
+		}
+		/** @var \WC_Product_Data_Store_Interface $store WC_Data_Store forwards to it. */
+		$store = \WC_Data_Store::load( 'product' );
+		return (int) $store->find_matching_product_variation( $product, $match );
 	}
 
 	/**

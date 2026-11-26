@@ -175,4 +175,75 @@ final class StorefrontBeaconTest extends TestCase {
 		$context = $this->beacon()->page_context();
 		self::assertSame( 'other', $context['pageType'], 'No product/category/search query ⇒ no page-view event.' );
 	}
+
+	public function test_a_variable_product_view_keys_on_the_default_variation(): void {
+		// CON-427: the catalog has a row per variation, none for the parent.
+		list( $parent, $variations ) = $this->make_variable_product( array( 'S', 'M', 'L' ), 'M' );
+
+		try {
+			self::assertSame( 'woo-' . $variations['M'], $this->beacon()->product_context( $parent )['sku'] );
+		} finally {
+			$this->delete_variable_product( $parent );
+		}
+	}
+
+	public function test_a_variable_product_view_without_a_default_keys_on_the_first_published_variation(): void {
+		// S is disabled (private): the catalog still sends it, the page view
+		// never names it.
+		list( $parent, $variations ) = $this->make_variable_product( array( 'S', 'M', 'L' ), '' );
+		wp_update_post(
+			array(
+				'ID'          => $variations['S'],
+				'post_status' => 'private',
+			)
+		);
+
+		try {
+			self::assertSame( 'woo-' . $variations['M'], $this->beacon()->product_context( wc_get_product( $parent->get_id() ) )['sku'] );
+		} finally {
+			$this->delete_variable_product( $parent );
+		}
+	}
+
+	/**
+	 * A variable product with one variation per size, in that order.
+	 *
+	 * @param string[] $sizes
+	 * @return array{0: \WC_Product, 1: array<string, int>} The parent and the variation id per size.
+	 */
+	private function make_variable_product( array $sizes, string $default ): array {
+		$attribute = new \WC_Product_Attribute();
+		$attribute->set_name( 'Size' );
+		$attribute->set_options( $sizes );
+		$attribute->set_visible( true );
+		$attribute->set_variation( true );
+
+		$parent = new \WC_Product_Variable();
+		$parent->set_name( 'CON-427 Page View' );
+		$parent->set_attributes( array( $attribute ) );
+		if ( $default !== '' ) {
+			$parent->set_default_attributes( array( 'size' => $default ) );
+		}
+		$parent_id = (int) $parent->save();
+
+		$variations = array();
+		foreach ( $sizes as $size ) {
+			$variation = new \WC_Product_Variation();
+			$variation->set_parent_id( $parent_id );
+			$variation->set_attributes( array( 'size' => $size ) );
+			$variation->set_regular_price( '9.00' );
+			$variations[ $size ] = (int) $variation->save();
+		}
+
+		$loaded = wc_get_product( $parent_id );
+		self::assertInstanceOf( \WC_Product::class, $loaded );
+		return array( $loaded, $variations );
+	}
+
+	private function delete_variable_product( \WC_Product $parent ): void {
+		foreach ( $parent->get_children() as $child_id ) {
+			wp_delete_post( (int) $child_id, true );
+		}
+		wp_delete_post( $parent->get_id(), true );
+	}
 }

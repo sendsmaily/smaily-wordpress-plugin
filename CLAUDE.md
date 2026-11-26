@@ -1644,6 +1644,23 @@ client address in `REMOTE_ADDR` (nginx `real_ip`, Apache `mod_remoteip`) shares 
 bucket per proxy address — the fix is the server's real-IP config, there is deliberately no
 trust-this-header filter. (DECISIONS PRO-3620.)
 
+### A variable product's browse and cart key is a variation — never start a WooCommerce session in `/relay` (CON-427)
+The catalog has rows for variations only, so a key of a variable PARENT joins
+nothing. `StorefrontBeacon::product_context()` keys a variable product's page
+view on its default variation, else the first published one
+(`default_variation_id()` is the unit-test seam); `BeaconEndpoint` keys a
+cart event that names a parent on the variation the shopper's cart took
+(`cart_variation_id()`). The relay reads the WooCommerce session ROW
+(`WC_Session_Handler::get_session_cookie()` + `get_session()`), never
+`wc_load_cart()` / `WC()->initialize_session()`: the relay has no REST
+nonce, so WordPress treats a logged-in shopper as logged out there, and
+WooCommerce's session init then takes the user's session cookie as invalid
+and deletes the session. **Integration-test trap:** the session tests write a
+row into `woocommerce_sessions` and sign the cookie the way the running
+WooCommerce checks it (`wp_fast_hash()` where WordPress has it, else the
+older HMAC — `RecEngineBrowseProxyTest::shopper_session()`); delete the row
+and the cookie in tearDown. (DECISIONS "CON-427".)
+
 ### Order storage: CI runs the integration suite on BOTH legacy and HPOS (PRO-3435)
 OrderBackfillJob (3.5.2) reads orders with a direct keyset query against
 whichever table is active — `wc_orders` (HPOS) or `wp_posts` (legacy) —

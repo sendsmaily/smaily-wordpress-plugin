@@ -49,6 +49,9 @@ final class RecEngineBrowseProxyTest extends TestCase {
 	/** @var array<int, int> */
 	private array $created_products = array();
 
+	/** The WooCommerce session row a test wrote, if any (CON-427). */
+	private string $session_key = '';
+
 	public static function setUpBeforeClass(): void {
 		self::$engine = RecEngineMockServer::start();
 	}
@@ -66,7 +69,12 @@ final class RecEngineBrowseProxyTest extends TestCase {
 			wp_delete_post( $product_id, true );
 		}
 		$this->created_products = array();
-		unset( $_COOKIE['smaily_anon_sid'], $_COOKIE[ LOGGED_IN_COOKIE ], $_COOKIE[ self::VISITOR_COOKIE ] );
+		if ( $this->session_key !== '' ) {
+			global $wpdb;
+			$wpdb->delete( $wpdb->prefix . 'woocommerce_sessions', array( 'session_key' => $this->session_key ) );
+			$this->session_key = '';
+		}
+		unset( $_COOKIE['smaily_anon_sid'], $_COOKIE[ LOGGED_IN_COOKIE ], $_COOKIE[ self::VISITOR_COOKIE ], $_COOKIE[ self::wc_session_cookie() ] );
 		update_option( BeaconEndpoint::OPTION_TRACK_BROWSING, false );
 		parent::tearDown();
 	}
@@ -206,6 +214,63 @@ final class RecEngineBrowseProxyTest extends TestCase {
 			$received[0]['sku'] ?? null,
 			'A variable-product cart event keys on the VARIATION id (same SkuResolver rule as catalog), not the parent.'
 		);
+	}
+
+	public function test_cart_add_naming_a_variable_parent_keys_the_variation_the_cart_took(): void {
+		// CON-427: a button that names only the parent. The catalog has no
+		// row for the parent; the cart line holds the variation.
+		$this->enable_beacon();
+		list( $parent_id, $variation_ids ) = $this->make_variable_product( 2 );
+		$other                             = $this->make_product( 'con427-other' );
+		$this->shopper_session(
+			array(
+				'cart' => array(
+					'k1' => array( 'product_id' => $parent_id, 'variation_id' => $variation_ids[0], 'quantity' => 1 ),
+					'k2' => array( 'product_id' => $other->get_id(), 'variation_id' => 0, 'quantity' => 1 ),
+					'k3' => array( 'product_id' => $parent_id, 'variation_id' => $variation_ids[1], 'quantity' => 1 ),
+				),
+			)
+		);
+
+		$response = $this->post_cart_event( 'cart_add', $parent_id );
+
+		self::assertSame( 200, $response->get_status() );
+		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertSame( 'woo-' . $variation_ids[1], $received[0]['sku'] ?? null, 'The last cart line of that product names the variation.' );
+	}
+
+	public function test_cart_remove_naming_a_variable_parent_keys_the_removed_variation(): void {
+		// WooCommerce's mini-cart remove link carries the parent id for a
+		// variation line; the removed line stays in the session for undo.
+		$this->enable_beacon();
+		list( $parent_id, $variation_ids ) = $this->make_variable_product( 2 );
+		$this->shopper_session(
+			array(
+				'cart'                  => array(
+					'k1' => array( 'product_id' => $parent_id, 'variation_id' => $variation_ids[0], 'quantity' => 1 ),
+				),
+				'removed_cart_contents' => array(
+					'k2' => array( 'product_id' => $parent_id, 'variation_id' => $variation_ids[1], 'quantity' => 1 ),
+				),
+			)
+		);
+
+		$response = $this->post_cart_event( 'cart_remove', $parent_id );
+
+		self::assertSame( 200, $response->get_status() );
+		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertSame( 'woo-' . $variation_ids[1], $received[0]['sku'] ?? null );
+	}
+
+	public function test_cart_event_naming_a_variable_parent_without_a_session_keeps_the_parent_key(): void {
+		$this->enable_beacon();
+		list( $parent_id ) = $this->make_variable_product( 1 );
+
+		$response = $this->post_cart_event( 'cart_add', $parent_id );
+
+		self::assertSame( 200, $response->get_status() );
+		$received = self::$engine->state()['last_browse_events'] ?? array();
+		self::assertSame( 'woo-' . $parent_id, $received[0]['sku'] ?? null, 'No cart to read: the event is sent as before.' );
 	}
 
 	public function test_cart_add_with_unresolvable_product_id_drops_sku_instead_of_guessing(): void {
@@ -638,6 +703,73 @@ final class RecEngineBrowseProxyTest extends TestCase {
 	 * `sku` is the canonical `woo-<id>` platform key, never this raw value
 	 * (PRO-1390/PRO-1224).
 	 */
+	private function post_cart_event( string $event_type, int $product_id ): \WP_REST_Response {
+		return RestRequestHelper::post(
+			'/relay',
+			array(
+				'events' => array(
+					array(
+						'event_id'   => 'con427-' . $event_type,
+						'event_type' => $event_type,
+						'session_id' => 's1',
+						'event_ts'   => '2026-11-26T10:00:00Z',
+						'product_id' => (string) $product_id,
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * A variable product with $count published variations.
+	 *
+	 * @return array{0: int, 1: array<int, int>} The parent id and the variation ids.
+	 */
+	private function make_variable_product( int $count ): array {
+		$parent = new \WC_Product_Variable();
+		$parent->set_name( 'CON-427 Variable' );
+		$parent_id                = (int) $parent->save();
+		$this->created_products[] = $parent_id;
+
+		$variation_ids = array();
+		for ( $i = 0; $i < $count; $i++ ) {
+			$variation = new \WC_Product_Variation();
+			$variation->set_parent_id( $parent_id );
+			$variation->set_regular_price( '9.00' );
+			$variation_ids[] = (int) $variation->save();
+		}
+		return array( $parent_id, $variation_ids );
+	}
+
+	/**
+	 * The shopper's WooCommerce session: a row in WooCommerce's session table
+	 * and the session cookie that names it, signed the way WooCommerce checks
+	 * it (wp_fast_hash where WordPress has it, else the older HMAC).
+	 *
+	 * @param array<string, array<string, array<string, int>>> $data Session keys → cart lines.
+	 */
+	private function shopper_session( array $data ): void {
+		global $wpdb;
+		$this->session_key = 't_' . substr( md5( uniqid( 'con427', true ) ), 0, 30 );
+		$expiration        = time() + HOUR_IN_SECONDS;
+		$to_hash           = $this->session_key . '|' . $expiration;
+		$hash              = function_exists( 'wp_fast_hash' ) ? wp_fast_hash( $to_hash ) : hash_hmac( 'md5', $to_hash, wp_hash( $to_hash ) );
+
+		$wpdb->replace(
+			$wpdb->prefix . 'woocommerce_sessions',
+			array(
+				'session_key'    => $this->session_key,
+				'session_value'  => maybe_serialize( array_map( 'maybe_serialize', $data ) ),
+				'session_expiry' => $expiration,
+			)
+		);
+		$_COOKIE[ self::wc_session_cookie() ] = $this->session_key . '||' . $expiration . '||' . ( $expiration - 60 ) . '||' . $hash;
+	}
+
+	private static function wc_session_cookie(): string {
+		return (string) apply_filters( 'woocommerce_cookie', 'wp_woocommerce_session_' . COOKIEHASH );
+	}
+
 	private function make_product( string $merchant_sku ): \WC_Product {
 		// Idempotent across crashed runs that skipped tearDown (mirrors
 		// RecEngineCatalogTest::make_product): drop any leftover product with
