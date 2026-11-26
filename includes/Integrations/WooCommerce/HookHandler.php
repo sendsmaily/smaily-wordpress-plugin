@@ -406,7 +406,7 @@ class HookHandler {
 			$this->maybe_welcome_checkout_optin( $order, self::SOURCE_CHECKOUT );
 		}
 
-		$this->maybe_enqueue_first_order( $order );
+		$this->maybe_enqueue_first_order( $order, $opted_in );
 		$this->maybe_mark_abandoned_cart_purchase( $order );
 	}
 
@@ -456,10 +456,11 @@ class HookHandler {
 	 */
 	public function on_block_checkout_order_processed( \WC_Order $order ): void {
 		$this->save_attribution_cookies_to_order( $order );
-		$this->maybe_enqueue_first_order( $order );
-		$this->maybe_mark_abandoned_cart_purchase( $order );
 
 		$opted_in = $order->get_meta( self::ORDER_META_NEWSLETTER_OPTIN ) === '1';
+		$this->maybe_enqueue_first_order( $order, $opted_in );
+		$this->maybe_mark_abandoned_cart_purchase( $order );
+
 		$this->sync_order_contact( $order, $opted_in );
 
 		if ( $opted_in ) {
@@ -576,8 +577,13 @@ class HookHandler {
 	 * a store where both fire for one order still enqueues once — the hooks fire
 	 * in the same request and maybe_enqueue() dedupes on
 	 * "automation.first_order:{order_id}".
+	 *
+	 * The row carries the consent inputs the flusher's consent rule reads at
+	 * send time (AutomationConsent, CON-386): the buyer's account id and,
+	 * when ticked, this checkout's newsletter box — the order's own tick is
+	 * consent for that order's email.
 	 */
-	private function maybe_enqueue_first_order( \WC_Order $order ): void {
+	private function maybe_enqueue_first_order( \WC_Order $order, bool $opted_in ): void {
 		if ( $this->gate_closed() ) {
 			return;
 		}
@@ -597,8 +603,8 @@ class HookHandler {
 
 		$order_id = (string) $order->get_id();
 		$payload  = array(
-			'email'  => $email,
-			'fields' => array_merge(
+			'email'   => $email,
+			'fields'  => array_merge(
 				array(
 					'order_id'       => $order_id,
 					'order_total'    => (string) $order->get_total(),
@@ -606,7 +612,11 @@ class HookHandler {
 				),
 				AutomationMarker::stamp( 'first_order' )
 			),
+			'user_id' => (int) $order->get_customer_id(),
 		);
+		if ( $opted_in ) {
+			$payload['newsletter_optin'] = true;
+		}
 
 		$language = $this->detect_language_for_order( $order );
 		if ( $language !== '' ) {

@@ -2281,13 +2281,15 @@ repo: a red staleness run is the signal to sync.
   **`dbDelta()` silently ignores `DROP TABLE`** — a schema step it cannot run
   is a `migrations/NNN-*.php` file returning a callable (`false` = not done,
   the `Migrator` stops without recording it).
-- **The CartFlusher reads Smaily before every reminder (CON-196).** A consent
-  gate (`CartFlusher::consent_refusal()`) does a `get_contact_consent()` GET
-  per cart and skips by the contact-sync mode (`no_marketing_consent` /
-  `unsubscribed`, DECISIONS "CON-196"). Test trap: an integration test that
-  flushes the cart queue must answer that GET — in the default consent mode a
-  reminder to an unknown address is skipped. Pass
-  `PipelineFixture::subscribed_contact_read()` to `PipelineFixture::flush()`.
+- **The CartFlusher reads Smaily before every reminder (CON-196) — and the
+  main Flusher before every first-order email (CON-386).** One rule,
+  `Smaily\AutomationConsent::refusal()`, does a `get_contact_consent()` GET
+  per row and skips by the contact-sync mode (`no_marketing_consent` /
+  `unsubscribed`, DECISIONS "CON-196" / "CON-386"); both flushers call it,
+  never a copy. Test trap: an integration test that flushes the cart queue,
+  or a main-queue flush that carries a first-order row, must answer that GET
+  — in the default consent mode an email to an unknown address is skipped.
+  Pass `PipelineFixture::subscribed_contact_read()` to `PipelineFixture::flush()`.
   The checkout's newsletter tick — and the storefront language
   (PRO-4253) — live in the tracker's `cart_content`
   (`CartSessionStore::encode_content()`/`decode_content()` — read them only

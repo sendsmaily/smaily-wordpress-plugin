@@ -116,7 +116,9 @@ final class AutomationMarkerPipelineTest extends TestCase {
 
 		do_action( 'woocommerce_store_api_checkout_order_processed', wc_get_order( $order_id ) );
 
-		$address = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK ), '5252' );
+		// The default consent mode sends the first-order email to a subscribed
+		// contact (CON-386).
+		$address = $this->automation_address( PipelineFixture::flush( EventQueue::FLUSH_HOOK, PipelineFixture::subscribed_contact_read() ), '5252' );
 
 		self::assertMatchesRegularExpression( self::MARKER_FORMAT, $address['first_order_automation_at'] );
 		self::assertSame( (string) $order_id, $address['order_id'], 'The existing order fields are unchanged.' );
