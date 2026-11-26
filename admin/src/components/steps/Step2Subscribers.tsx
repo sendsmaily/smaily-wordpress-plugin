@@ -175,13 +175,16 @@ export function Step2Subscribers({
             </Banner>
           )}
 
-          {state.contactSyncMode !== 'checkout_optin' && (
+          {/* CON-439: a guest who ticks the checkout box is synced in every
+              mode, so the switch only adds guests who did not tick — which
+              consent never does. */}
+          {state.contactSyncMode === 'legitimate_interest' && (
             <div className="mt-4">
               <Checkbox
                 name="smly-include-guests"
                 checked={state.includeGuests}
                 onChange={() => dispatch({ type: 'SET_INCLUDE_GUESTS', payload: !state.includeGuests })}
-                label={ __( 'Also sync guest-order email addresses', 'smaily-connect' ) }
+                label={ __( 'Also sync guest buyers who did not tick the newsletter box', 'smaily-connect' ) }
               />
             </div>
           )}
