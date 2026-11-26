@@ -434,6 +434,36 @@ describe('EventLog', () => {
     expect(screen.getByText(text)).toBeInTheDocument();
   });
 
+  it('says why a contact sync with a stale subscription was skipped (CON-395)', async () => {
+    vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
+      events: [
+        {
+          ...ROW,
+          id: 64,
+          source: 'smaily' as const,
+          event_type: 'contact.sync',
+          status: 'sent',
+          last_error: '',
+          skipped: true,
+          skip_reason: 'stale_subscription',
+        },
+      ],
+      total: 1,
+      page: 1,
+      per_page: 50,
+      failed_24h: 0,
+    });
+
+    render(<EventLog />);
+
+    expect(await screen.findByText('skipped')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The shopper has since changed their newsletter subscription, and the newer choice already reached Smaily.',
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('reads any other skipped row as skipped, even with no reason (PRO-4098)', async () => {
     vi.spyOn(eventsApi, 'listEvents').mockResolvedValue({
       events: [{ ...ROW, id: 62, status: 'sent', last_error: '', skipped: true }],

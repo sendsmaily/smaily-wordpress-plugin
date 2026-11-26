@@ -62,6 +62,13 @@ export function transactionalReasonMessage(reason: string): string {
       );
     case 'unsubscribed':
       return __('The shopper has unsubscribed from marketing emails in Smaily.', 'smaily-connect');
+    // A contact sync whose newer subscription change already reached Smaily
+    // (StaleSubscription::REASON, CON-395).
+    case 'stale_subscription':
+      return __(
+        'The shopper has since changed their newsletter subscription, and the newer choice already reached Smaily.',
+        'smaily-connect',
+      );
     default:
       return reason;
   }
