@@ -2436,7 +2436,7 @@ msgid "Under the EU soft opt-in, email these customers only about products simil
 msgstr ""
 
 #: admin/src/components/steps/Step2Subscribers.tsx:132
-msgid "Also sync guest-order email addresses"
+msgid "Also sync guest buyers who did not tick the newsletter box"
 msgstr ""
 
 #: admin/src/components/steps/Step2Subscribers.tsx:138

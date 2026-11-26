@@ -2217,8 +2217,8 @@ msgid "Under the EU soft opt-in, email these customers only about products simil
 msgstr "ELi pehme nõusoleku (soft opt-in) reeglite järgi saada neile klientidele turunduskirju ainult ostetuga sarnaste toodete kohta ja anna neile ostu tegemisel selge võimalus turundusest keelduda. Õigusliku aluse eest vastutad sina."
 
 #: admin/src/components/steps/Step2Subscribers.tsx:132
-msgid "Also sync guest-order email addresses"
-msgstr "Sünkroniseeri ka külalisostude kontaktid"
+msgid "Also sync guest buyers who did not tick the newsletter box"
+msgstr "Sünkroniseeri ka need külalisostjad, kes ei märkinud kassas uudiskirja linnukest"
 
 #: admin/src/components/steps/Step2Subscribers.tsx:286
 msgid "Subscribers only (consent)"

@@ -88,13 +88,20 @@ final class ContactSyncModeTest extends TestCase {
 		self::assertFalse( $mode->syncs_accounts() );
 		self::assertTrue( $mode->requires_optin() );
 		self::assertFalse( $mode->reconciles() );
-		self::assertTrue( $mode->include_guests(), 'Checkout-only is intrinsically guest-driven.' );
+		self::assertFalse( $mode->include_guests(), 'Checkout-only sends only the tick (CON-439).' );
 	}
 
 	public function test_include_guests_defaults_off(): void {
 		$this->options[ ContactSyncMode::OPTION_MODE ] = ContactSyncMode::MODE_CONSENT;
 
 		self::assertFalse( ( new ContactSyncMode() )->include_guests() );
+	}
+
+	public function test_consent_ignores_a_stored_include_guests(): void {
+		$this->options[ ContactSyncMode::OPTION_MODE ]           = ContactSyncMode::MODE_CONSENT;
+		$this->options[ ContactSyncMode::OPTION_INCLUDE_GUESTS ] = '1';
+
+		self::assertFalse( ( new ContactSyncMode() )->include_guests(), 'Consent never sends a guest who did not tick (CON-439).' );
 	}
 
 	public function test_include_guests_toggle(): void {

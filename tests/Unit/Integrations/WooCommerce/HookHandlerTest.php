@@ -967,7 +967,11 @@ final class HookHandlerTest extends TestCase {
 		$order   = $this->fake_order( 100, 'guest@example.test', 0, 1 );
 		$request = array( 'extensions' => array( 'smaily-checkout-optin' => array( 'user_newsletter' => true ) ) );
 
-		( new HookHandler( $this->queue ) )->on_checkout_block_optin( $order, $request );
+		$handler = new HookHandler( $this->queue );
+		$handler->on_checkout_block_optin( $order, $request );
+		self::assertNull( $this->find_enqueued( 'order:100' ), 'The request hook only records the tick (CON-439).' );
+
+		$handler->on_block_checkout_order_processed( $order );
 
 		$contact = $this->find_enqueued( 'order:100' );
 		self::assertNotNull( $contact );
@@ -1333,19 +1337,26 @@ final class HookHandlerTest extends TestCase {
 		self::assertSame( array(), $this->welcomes(), 'Already subscribed — the store records no new opt-in, so no welcome.' );
 	}
 
-	public function test_consent_mode_guest_checkout_tick_welcomes_only_when_guests_are_synced(): void {
+	public function test_consent_mode_guest_checkout_tick_welcomes_with_the_guest_switch_off(): void {
+		// A guest's tick always reaches Smaily (CON-439), so the welcome follows it.
 		$this->welcome_store( ContactSyncMode::MODE_CONSENT );
 		$handler = new HookHandler( $this->queue );
 		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 110, 'guest@example.test', 0, 1 ) );
 
 		$handler->on_checkout_order_processed( 110, $this->posted( 'guest@example.test', 1 ), $this->fake_order( 110, 'guest@example.test', 0, 1 ) );
-		self::assertSame( array(), $this->welcomes(), 'Contact sync does not send guests here, so neither does the welcome.' );
-
-		HookHandler::reset_seen();
-		$this->welcome_store( ContactSyncMode::MODE_CONSENT, array( ContactSyncMode::OPTION_INCLUDE_GUESTS => '1' ) );
-		$handler->on_checkout_order_processed( 110, $this->posted( 'guest@example.test', 1 ), $this->fake_order( 110, 'guest@example.test', 0, 1 ) );
 
 		$this->assert_welcomed( array( 'order:110' => 'guest@example.test' ) );
+	}
+
+	public function test_consent_mode_guest_who_did_not_tick_gets_no_welcome_even_with_the_switch_stored_on(): void {
+		$this->welcome_store( ContactSyncMode::MODE_CONSENT, array( ContactSyncMode::OPTION_INCLUDE_GUESTS => '1' ) );
+		$handler = new HookHandler( $this->queue );
+		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 110, 'guest@example.test', 0, 1 ) );
+
+		$handler->on_checkout_order_processed( 110, $this->posted( 'guest@example.test', '' ), $this->fake_order( 110, 'guest@example.test', 0, 1 ) );
+
+		self::assertSame( array(), $this->welcomes() );
+		self::assertNull( $this->find_enqueued( 'order:110' ), 'Consent never sends a guest who did not tick.' );
 	}
 
 	public function test_legitimate_interest_checkout_tick_welcomes_every_time(): void {

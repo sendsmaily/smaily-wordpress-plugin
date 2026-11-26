@@ -81,26 +81,34 @@ final class ContactAudienceTest extends TestCase {
 		self::assertFalse( $this->audience()->should_sync_order_email( 0, false ) );
 	}
 
-	public function test_should_sync_order_email_consent_guests_need_optin_and_toggle(): void {
+	public function test_should_sync_order_email_consent_guests_need_only_the_tick(): void {
 		$this->options[ ContactSyncMode::OPTION_MODE ] = ContactSyncMode::MODE_CONSENT;
 
 		// Registered customers go through the account hooks, not the order path.
 		self::assertFalse( $this->audience()->should_sync_order_email( 9, true ) );
-		// Guests: only with include_guests AND opted in.
-		self::assertFalse( $this->audience()->should_sync_order_email( 0, true ), 'include_guests off by default.' );
+		// A guest's tick is synced with the guest switch off (CON-439) ...
+		self::assertTrue( $this->audience()->should_sync_order_email( 0, true ), 'A ticked box always reaches Smaily.' );
+		self::assertFalse( $this->audience()->should_sync_order_email( 0, false ) );
 
+		// ... and a guest who did not tick is never synced, whatever the stored switch says.
 		$this->options[ ContactSyncMode::OPTION_INCLUDE_GUESTS ] = '1';
 		self::assertTrue( $this->audience()->should_sync_order_email( 0, true ) );
-		self::assertFalse( $this->audience()->should_sync_order_email( 0, false ), 'Consent guests need the opt-in.' );
+		self::assertFalse( $this->audience()->should_sync_order_email( 0, false ), 'Consent ignores the guest switch.' );
 	}
 
-	public function test_should_sync_order_email_legitimate_interest_guests_need_only_the_toggle(): void {
-		$this->options[ ContactSyncMode::OPTION_MODE ]           = ContactSyncMode::MODE_LEGITIMATE_INTEREST;
-		$this->options[ ContactSyncMode::OPTION_INCLUDE_GUESTS ] = '1';
+	public function test_should_sync_order_email_legitimate_interest_guests(): void {
+		$this->options[ ContactSyncMode::OPTION_MODE ] = ContactSyncMode::MODE_LEGITIMATE_INTEREST;
 
-		// Guest synced without an opt-in; registered still via account hooks.
+		// Switch off: only a guest who ticked (CON-439).
+		self::assertTrue( $this->audience()->should_sync_order_email( 0, true ) );
+		self::assertFalse( $this->audience()->should_sync_order_email( 0, false ) );
+
+		// Switch on: a guest who did not tick too; registered still via account hooks.
+		$this->options[ ContactSyncMode::OPTION_INCLUDE_GUESTS ] = '1';
 		self::assertTrue( $this->audience()->should_sync_order_email( 0, false ) );
+		self::assertTrue( $this->audience()->should_sync_order_email( 0, true ) );
 		self::assertFalse( $this->audience()->should_sync_order_email( 9, false ) );
+		self::assertFalse( $this->audience()->should_sync_order_email( 9, true ) );
 	}
 
 	public function test_the_switch_off_empties_the_audience_whatever_the_mode_says(): void {

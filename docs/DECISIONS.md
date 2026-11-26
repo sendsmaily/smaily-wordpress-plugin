@@ -8792,8 +8792,9 @@ the pre-wizard legacy sync are unchanged.
 **Accepted limits:** a contact deleted in Smaily reads as not found, so "All
 customers" enrols it again as subscribed. With "include guests" off in
 consent mode a guest's earlier tick never reached Smaily, so a returning guest
-is reminded only after ticking the box again in the classic checkout. One
-extra Smaily read per reminder.
+is reminded only after ticking the box again in the classic checkout (since
+CON-439 a guest's tick always reaches Smaily; this holds only for ticks made
+before it). One extra Smaily read per reminder.
 **Alternatives:** gate in the sweeper — rejected: consent can change between
 sweep and send, and a skip there leaves no Event Log row. A new tracker
 column for the tick — rejected: a schema migration for one flag. Reading
@@ -11770,3 +11771,39 @@ plain-text short field — the Smaily RSS schema has no such field
 (integration, parses the rendered feed). Magento v3 (`strip_tags`) and
 Shopify (`description(truncateAt: 500)`) send plain text — making the
 connectors consistent is a follow-up.
+
+### CON-439 — A shopper who ticks the newsletter box at checkout always reaches Smaily, guest or not (Erkki, 2026-11-26)
+
+**Context:** the "Sync guest-order contacts too" switch
+(`smly_plus_contact_sync_include_guests`) sat in front of the checkout tick:
+`ContactAudience::should_sync_order_email()` sent a guest only with the
+switch on, in consent mode also only with the tick. With the switch off
+(its default) a guest who ticked the newsletter box the store showed was
+dropped silently — a client in consent mode with the checkout box on hit
+it on 3.25.0.
+**Decision (Erkki):** a box the store shows must work. (1) A guest who
+ticks the box is synced in every mode, whatever the switch says; in
+consent and checkout-only as subscribed (`is_unsubscribed = 0`), under
+legitimate interest without a status as before (Smaily creates a new
+contact subscribed and keeps an existing contact's status — PRO-3609).
+(2) The switch only adds guests who did NOT tick, which only legitimate
+interest sends: Settings and the wizard show it for that mode alone,
+labelled "Also sync guest buyers who did not tick the newsletter box".
+(3) Consent never sends a guest who did not tick: `ContactSyncMode::
+include_guests()` answers false outside legitimate interest, and the stored
+value is kept (not deleted) for a switch back. (4) Checkout-only and registered customers are
+unchanged. (5) The block checkout now syncs the order contact in the
+processed hook (`on_block_checkout_order_processed`, the tick read from the
+order meta the request hook writes), not in the request hook: an account
+created at that checkout has no customer id at the request hook, so it went
+out as a guest too — once a guest's tick always syncs, a second subscribe
+beside the account's own consent change.
+**Consequence:** the welcome follows contact sync (PRO-4093), so a ticking
+guest now gets the welcome in consent and legitimate-interest mode with the
+switch off (Erkki approved). Ticks made before the change are not re-sent:
+the classic checkout stores no tick on the order, the block checkout stores
+`_smaily_newsletter_optin`, and neither the contact import nor the daily
+refresh walks guest orders.
+**Relationships:** F3-48 (the presets and `include_guests`), PRO-3406 (the
+order meta), PRO-4093 (the welcome), CON-196 (the cart reminder's consent
+check, which now finds a ticking guest subscribed in Smaily).

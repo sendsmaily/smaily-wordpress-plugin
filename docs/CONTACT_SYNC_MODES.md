@@ -47,7 +47,7 @@ sub-options; surfaced in the UI as **three named presets**:
 | Live-sync trigger | every registered customer (register / profile / order) | only on opt-in (`user_newsletter=1` via checkbox) | only the checkout checkbox |
 | Account (registered) sync | yes | yes | **no** |
 | Mass backfill / daily-refresh audience | **all** registered customers | only `user_newsletter=1` | none (event-only) |
-| Guests | optional (`include_guests`, default **off**) | guest checkout opt-in | guest checkout opt-in (the point) |
+| Guests | checkout opt-in always; the rest optional (`include_guests`, default **off**) | guest checkout opt-in only (CON-439) | guest checkout opt-in (the point) |
 | `is_unsubscribed` sent on upsert | **never** (Smaily owns suppression) | `0` on opt-in; `1` on WP opt-out | `0` on checkbox |
 | Sync-back (Smaily → WP reconcile) | no | **yes** — leavers **and** returners | no |
 | Automation `force_opt_in` | **`false`** (PRO-1716: the advanced toggle is retired) | **`false`** (trigger fires, consent untouched) | **`false`** |
@@ -59,8 +59,9 @@ lawful basis.
 ## 3. Presets in detail
 
 ### Preset 1 — All customers (legitimate interest)
-- **Audience:** every registered customer. Guests only if `include_guests` is on
-  (default off — Erkki).
+- **Audience:** every registered customer, and every guest who ticks the
+  checkout box (CON-439). Guests who did not tick only if `include_guests` is
+  on (default off — Erkki).
 - **Live:** register / profile-update / order → upsert (no opt-in filter).
 - **Mass:** backfill + daily refresh cover **all** registered customers — this is
   what fixes Prike's "missing contacts".
@@ -100,8 +101,11 @@ lawful basis.
 
 ## 4. Sub-options (orthogonal)
 
-- **`include_guests`** (bool, default **off**) — include guest-order emails as
-  contacts. Off in presets 1/2 by default; intrinsically on in preset 3.
+- **`include_guests`** (bool, default **off**) — include the emails of guest
+  buyers who did NOT tick the checkout box (preset 1 only). A guest who ticks
+  is synced in every preset whatever it says (CON-439, Erkki 2026-11-26);
+  presets 2 and 3 never send a guest who did not tick, so they ignore the
+  stored value (kept, not deleted).
 - ~~**"Force opt-in on automation triggers"** (bool, default **off**) — shown
   ONLY for preset 1 (legitimate interest).~~ **RETIRED (PRO-1716)** — every
   preset sends `force_opt_in=false`; there is nothing per-store to choose.
@@ -193,9 +197,9 @@ and before the trigger. It reads the contact from Smaily
 - A Smaily read that fails takes the normal retry path — never a blind send.
 - Independent of the "Sync contacts to Smaily" switch (PRO-1678/PRO-1742).
 - Accepted limits: a contact deleted in Smaily reads as not found, so preset 1
-  enrols it again as subscribed; in preset 2 with `include_guests` off a
-  guest's earlier tick never reached Smaily, so a returning guest is reminded
-  only after ticking the box again at checkout.
+  enrols it again as subscribed; a guest's tick made before CON-439 in preset
+  2 with `include_guests` off never reached Smaily, so such a returning guest
+  is reminded only after ticking the box again at checkout.
 
 ## 7. Architecture (CC-1 single source)
 
@@ -260,7 +264,8 @@ the existing `Card` / `Toggle` / `Checkbox` / `Banner` primitives:
   way to refuse marketing at purchase, and the merchant's own responsibility
   for the legal basis. (The automation sentence never shipped; PRO-1716.)
 - An **`include_guests` `Checkbox`** under the mode card (default off), shown for
-  presets 1/2.
+  preset 1 only since CON-439 ("Also sync guest buyers who did not tick the
+  newsletter box").
 - ~~An advanced **"Force opt-in on automation triggers" `Toggle`** shown ONLY
   for preset 1.~~ **RETIRED (PRO-1716)** — no such control renders anywhere.
 - Preset 2 shows a short info `Banner` that the store mirrors Smaily's
