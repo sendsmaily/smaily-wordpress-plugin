@@ -20,6 +20,7 @@ use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\BackfillJobInterface;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\ContactSyncMode;
+use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 
 final class BackfillJobTest extends TestCase {
@@ -353,7 +354,13 @@ final class BackfillJobTest extends TestCase {
 			}
 		);
 
-		$result = ( new BackfillJob( $this->client_refusing( array( 'bad@example.com' ) ) ) )->process_batch( 10 );
+		// CON-431: the Event Log keeps a row with the reason for each one.
+		$queue = $this->createMock( EventQueue::class );
+		$queue->expects( $this->once() )
+			->method( 'record_skipped' )
+			->with( BackfillJob::EVENT_TYPE_REFUSED, '2', BackfillJob::REASON_REFUSED, 'permanent_envelope_204: Smaily API returned code 204' );
+
+		$result = ( new BackfillJob( $this->client_refusing( array( 'bad@example.com' ) ), 7 * 86400, $queue ) )->process_batch( 10 );
 
 		self::assertSame( array( 1, 3 ), $marked, 'Only the contacts Smaily accepted are marked synced.' );
 		self::assertCount( 1, $wpdb->updates );
@@ -470,7 +477,10 @@ final class BackfillJobTest extends TestCase {
 			}
 		);
 
-		( new BackfillJob( $this->client_refusing( array( 'bad@example.com' ) ) ) )->process_batch( 1 );
+		$queue = $this->createMock( EventQueue::class );
+		$queue->expects( $this->once() )->method( 'record_skipped' );
+
+		( new BackfillJob( $this->client_refusing( array( 'bad@example.com' ) ), 7 * 86400, $queue ) )->process_batch( 1 );
 
 		self::assertSame( 1, $recorded['count'] ?? null, 'The refused contact is recorded.' );
 		self::assertCount( 1, $wpdb->updates );
@@ -509,7 +519,11 @@ final class BackfillJobTest extends TestCase {
 			}
 		);
 
-		$result = ( new BackfillJob( $this->client_refusing( array( 'a@example.com', 'b@example.com' ) ) ) )->process_batch( 10 );
+		// A refusal of the request is no contact's: no Event Log row per contact (CON-431).
+		$queue = $this->createMock( EventQueue::class );
+		$queue->expects( $this->never() )->method( 'record_skipped' );
+
+		$result = ( new BackfillJob( $this->client_refusing( array( 'a@example.com', 'b@example.com' ) ), 7 * 86400, $queue ) )->process_batch( 10 );
 
 		self::assertCount( 1, $wpdb->updates, 'Only the error is written — the cursor stays before the page.' );
 		self::assertSame( 'failed', $wpdb->updates[0]['data']['status'] );

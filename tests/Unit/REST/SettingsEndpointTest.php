@@ -32,6 +32,7 @@ final class SettingsEndpointTest extends TestCase {
 		Functions\when( 'sanitize_text_field' )->returnArg( 1 );
 		Functions\when( 'sanitize_key' )->returnArg( 1 );
 		Functions\when( '__' )->returnArg( 1 );
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
 
 		$this->option_writes = array();
 		Functions\when( 'update_option' )->alias(
@@ -199,6 +200,147 @@ final class SettingsEndpointTest extends TestCase {
 		self::assertNotEmpty( $response->get_data()['errors'] );
 		self::assertSame( 'subdomain', $response->get_data()['errors'][0]['field'] );
 		self::assertArrayNotHasKey( 'smaily_connect_api_credentials', $this->option_writes );
+	}
+
+	/**
+	 * CON-431: a pasted account address is saved as its subdomain; a
+	 * subdomain that is not one plain name is refused, field by field,
+	 * before anything is written.
+	 */
+	public function test_connection_tab_saves_a_pasted_account_address_as_its_subdomain(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'connection' );
+		$request->set_param(
+			'data',
+			array(
+				'smailyCredentials' => array(
+					'subdomain' => 'https://MyPetShop.sendsmaily.net/',
+					'username'  => 'alice',
+					'password'  => 's3cret',
+				),
+				'multilingualMode'  => 'B',
+			)
+		);
+
+		$response = ( new SettingsEndpoint() )->handle( $request );
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( 'mypetshop', $this->option_writes['smaily_connect_api_credentials']['subdomain'] );
+		self::assertSame( array(), $response->get_data()['workflowsRemoved'] );
+	}
+
+	public function test_connection_tab_refuses_a_subdomain_that_is_not_one_plain_name(): void {
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'connection' );
+		$request->set_param(
+			'data',
+			array(
+				'smailyCredentials'        => array(
+					'subdomain' => 'my shop',
+					'username'  => 'alice',
+					'password'  => 's3cret',
+				),
+				'perLanguageAccounts'      => array(
+					array(
+						'accountKey'  => 'account_et',
+						'credentials' => array(
+							'subdomain' => 'eesti_pood',
+							'username'  => 'bob',
+							'password'  => 'x',
+						),
+					),
+				),
+				'transactionalCredentials' => array(
+					'subdomain' => 'tx.example.com',
+					'username'  => 'carol',
+					'password'  => 'y',
+				),
+			)
+		);
+
+		$response = ( new SettingsEndpoint() )->handle( $request );
+
+		self::assertSame( 400, $response->get_status() );
+		self::assertSame(
+			array( 'subdomain', 'perLanguageAccounts.account_et.subdomain', 'transactionalCredentials.subdomain' ),
+			array_column( $response->get_data()['errors'], 'field' )
+		);
+		self::assertStringContainsString( 'plain Smaily subdomain', $response->get_data()['errors'][0]['message'] );
+		self::assertSame( array(), $this->option_writes, 'A refused save writes nothing.' );
+	}
+
+	/**
+	 * CON-431: another Smaily account in the default account's place removes
+	 * the workflows picked from the replaced one — its mapping rows and the
+	 * abandoned-cart reminder's legacy autoresponder id — and the answer
+	 * names the account key.
+	 */
+	public function test_connection_tab_removes_the_workflows_of_a_replaced_account(): void {
+		$this->option_writes['smaily_connect_api_credentials'] = array(
+			'subdomain' => 'Oldshop',
+			'username'  => 'alice',
+			'password'  => 'blob',
+		);
+		$this->option_writes['smaily_connect_abandoned_cart_status'] = array(
+			'enabled'          => true,
+			'autoresponder_id' => 42,
+		);
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'connection' );
+		$request->set_param(
+			'data',
+			array(
+				'smailyCredentials' => array(
+					'subdomain' => 'newshop',
+					'username'  => 'alice',
+					'password'  => 's3cret',
+				),
+				'multilingualMode'  => 'single',
+			)
+		);
+
+		$response = ( new SettingsEndpoint() )->handle( $request );
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( array( 'default' ), $response->get_data()['workflowsRemoved'] );
+		self::assertSame(
+			array(
+				'enabled'          => true,
+				'autoresponder_id' => 0,
+			),
+			$this->option_writes['smaily_connect_abandoned_cart_status']
+		);
+		self::assertCount( 1, $GLOBALS['wpdb']->queries );
+		self::assertSame( 'DELETE FROM wp_smly_plus_automation_mapping WHERE account_key = %s', $GLOBALS['wpdb']->queries[0] );
+	}
+
+	public function test_another_api_user_of_the_same_account_keeps_the_workflows(): void {
+		$this->option_writes['smaily_connect_api_credentials'] = array(
+			'subdomain' => 'Myshop',
+			'username'  => 'alice',
+			'password'  => 'blob',
+		);
+		// No $wpdb: a save that replaces no account never reads the mapping table.
+
+		$request = new WP_REST_Request();
+		$request->set_param( 'tab', 'connection' );
+		$request->set_param(
+			'data',
+			array(
+				'smailyCredentials' => array(
+					'subdomain' => 'myshop',
+					'username'  => 'another-api-user',
+					'password'  => 's3cret',
+				),
+			)
+		);
+
+		$response = ( new SettingsEndpoint() )->handle( $request );
+
+		self::assertSame( 200, $response->get_status() );
+		self::assertSame( array(), $response->get_data()['workflowsRemoved'] );
 	}
 
 	public function test_subscribers_tab_persists_field_list_and_toggles(): void {
@@ -826,6 +968,8 @@ final class SettingsEndpointTest extends TestCase {
 	}
 
 	public function test_clearing_the_transactional_account_reports_the_disconnect_before_its_credentials_go(): void {
+		// The cleared account's workflows go too (CON-431); none are mapped here.
+		$GLOBALS['wpdb'] = $this->fake_wpdb_with_mappings();
 		Cypher::$decrypt_return = 'stored-secret';
 		$this->option_writes['smly_plus_credentials_transactional'] = array(
 			'subdomain' => 'trxdemo',

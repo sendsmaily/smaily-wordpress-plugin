@@ -22,6 +22,11 @@ export interface Step1ConnectProps {
    * eyebrow + intro paragraph; the field cards stay identical.
    */
   inSettings?: boolean;
+  /**
+   * The last save's field refusals (CON-431): a subdomain that is not one
+   * plain name is shown next to its field.
+   */
+  fieldErrors?: ReadonlyArray<{ field: string; message: string }>;
 }
 
 /**
@@ -40,7 +45,11 @@ export function Step1Connect({
   state,
   dispatch,
   inSettings = false,
+  fieldErrors = [],
 }: Step1ConnectProps): React.JSX.Element {
+  const fieldError = (field: string): string | undefined =>
+    fieldErrors.find((error) => error.field === field)?.message;
+
   // Default-account handlers
   const onDefaultCredentialsChange = useCallback(
     (payload: Partial<SmailyCredentials>) => {
@@ -145,6 +154,7 @@ export function Step1Connect({
           onConnectionFailure={onDefaultConnFailure}
           idSuffix="default"
           hasStoredPassword={state.smailyHasStoredPassword}
+          subdomainError={fieldError('subdomain')}
         />
       )}
 
@@ -156,6 +166,7 @@ export function Step1Connect({
               state={state}
               dispatch={dispatch}
               language={language}
+              subdomainError={fieldError(`perLanguageAccounts.account_${language.toLowerCase()}.subdomain`)}
             />
           ))}
 
@@ -176,7 +187,12 @@ export function Step1Connect({
           after the pilot found it undiscoverable inside WooCommerce
           automations. Its own trigger config lives on the WooCommerce
           tab/step, gated on this connection (TransactionalTriggersSection). */}
-      <TransactionalEmailsSection state={state} dispatch={dispatch} inSettings={inSettings} />
+      <TransactionalEmailsSection
+        state={state}
+        dispatch={dispatch}
+        inSettings={inSettings}
+        subdomainError={fieldError('transactionalCredentials.subdomain')}
+      />
     </div>
   );
 }
@@ -185,12 +201,14 @@ interface PerLanguageBlockProps {
   state: WizardState;
   dispatch: Dispatch<WizardAction>;
   language: string;
+  subdomainError?: string;
 }
 
 function PerLanguageBlock({
   state,
   dispatch,
   language,
+  subdomainError,
 }: PerLanguageBlockProps): React.JSX.Element {
   const accountKey = `account_${language}`;
   const account = state.perLanguageAccounts.find((a) => a.accountKey === accountKey) ?? null;
@@ -246,6 +264,7 @@ function PerLanguageBlock({
         })
       }
       idSuffix={language}
+      subdomainError={subdomainError}
     />
   );
 }

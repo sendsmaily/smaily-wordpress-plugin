@@ -70,6 +70,13 @@ export function transactionalReasonMessage(reason: string): string {
         'The shopper has since changed their newsletter subscription, and the newer choice already reached Smaily.',
         'smaily-connect',
       );
+    // A contact Smaily refused in the contact import (BackfillJob::REASON_REFUSED,
+    // CON-431); the row's details carry Smaily's answer code.
+    case 'import_refused':
+      return __(
+        'Smaily refused this contact in the contact import, so it was not imported. The details show Smaily’s answer code.',
+        'smaily-connect',
+      );
     default:
       return reason;
   }

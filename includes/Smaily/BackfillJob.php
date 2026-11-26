@@ -44,9 +44,11 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *      that contact instead (PRO-3988): it is recorded with its user id and
  *      Smaily's reason in OPTION_REFUSED, not marked or counted as synced,
  *      and the walk goes on. Each upsert carries one contact, so the answer
- *      names the refused contact. A page where Smaily refuses every contact
- *      it sends, two or more, is about the request, and stops the import as
- *      in 3.
+ *      names the refused contact. The Event Log keeps a row for each one
+ *      (EVENT_TYPE_REFUSED, its reason as the note — CON-431), beyond the
+ *      MAX_LISTED_REFUSALS the panel lists. A page where Smaily refuses
+ *      every contact it sends, two or more, is about the request, and stops
+ *      the import as in 3.
  *   5. A contact whose payload cannot be built (it throws) is skipped and
  *      listed in OPTION_UNREADABLE, with the error class and line as its
  *      reason, and the walk goes on (CON-302). It never counts as a Smaily
@@ -92,6 +94,16 @@ class BackfillJob implements BackfillJobInterface {
 	public const MAX_LISTED_REFUSALS = 20;
 
 	/**
+	 * The Event Log row of a contact Smaily refused in the import (CON-431):
+	 * a finished `skipped` row with the WordPress user id as its entity,
+	 * REASON_REFUSED as its reason and the stored refusal as its note.
+	 */
+	public const EVENT_TYPE_REFUSED = 'contact.import';
+
+	/** The reason code of that row. */
+	public const REASON_REFUSED = 'import_refused';
+
+	/**
 	 * Default freshness window — users synced within this many seconds are
 	 * skipped on re-run. 7 days, expressed as a literal so the file is
 	 * loadable without WordPress's DAY_IN_SECONDS constant being available
@@ -109,9 +121,12 @@ class BackfillJob implements BackfillJobInterface {
 
 	private ?ContactAudience $audience = null;
 
-	public function __construct( Client $client, int $freshness_seconds = self::DEFAULT_FRESHNESS_SECONDS ) {
+	private ?EventQueue $queue;
+
+	public function __construct( Client $client, int $freshness_seconds = self::DEFAULT_FRESHNESS_SECONDS, ?EventQueue $queue = null ) {
 		$this->client            = $client;
 		$this->freshness_seconds = $freshness_seconds;
+		$this->queue             = $queue;
 	}
 
 	/**
@@ -537,6 +552,7 @@ class BackfillJob implements BackfillJobInterface {
 		// apart from them (CON-305).
 		$this->record_skipped( self::OPTION_REFUSED, $refused );
 		$this->record_skipped( self::OPTION_UNREADABLE, $not_built );
+		$this->log_refused( $refused );
 
 		\Smaily\Connect\Support\DebugLog::write(
 			sprintf(
@@ -708,6 +724,25 @@ class BackfillJob implements BackfillJobInterface {
 			),
 			false
 		);
+	}
+
+	/**
+	 * One Event Log row per contact Smaily refused (CON-431), so every
+	 * reason is kept, not only the first MAX_LISTED_REFUSALS. The reason is
+	 * the plugin's own text with Smaily's code, never an address (CON-301).
+	 *
+	 * @param array<int, array{user_id: int, reason: string}> $refused
+	 */
+	private function log_refused( array $refused ): void {
+		if ( $refused === array() ) {
+			return;
+		}
+		if ( $this->queue === null ) {
+			$this->queue = new EventQueue();
+		}
+		foreach ( $refused as $contact ) {
+			$this->queue->record_skipped( self::EVENT_TYPE_REFUSED, (string) $contact['user_id'], self::REASON_REFUSED, $contact['reason'] );
+		}
 	}
 
 	/**

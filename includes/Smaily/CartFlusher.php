@@ -234,10 +234,11 @@ class CartFlusher {
 					'[smaily-connect cart.flush] Abandoned cart is enabled but no workflow is configured (no automation mapping, no legacy autoresponder id) - reminder(s) skipped. Map an abandoned-cart workflow in the plugin settings.'
 				);
 			}
-			// Terminal skip: mark_sent semantics with a "skipped" exchange
-			// marker — the row is visible in the Event Log, never eternally
-			// retried.
-			return '';
+			// Closed for good as skipped with its reason — the row says in
+			// the Event Log that no workflow is chosen, e.g. after the Smaily
+			// account was replaced and its workflows removed (CON-431); never
+			// eternally retried.
+			return TransactionalGate::REASON_NO_WORKFLOW;
 		}
 
 		$address = array_merge( array( 'email' => $email ), $fields, $discount_fields() );

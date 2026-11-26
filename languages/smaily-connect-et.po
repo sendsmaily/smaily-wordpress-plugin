@@ -1132,14 +1132,6 @@ msgstr "Import ebaõnnestus."
 msgid "Backfill cancelled. Re-run when ready."
 msgstr "Import tühistatud. Käivita uuesti, kui valmis."
 
-#. translators: %d is the number of customers Smaily refused.
-#: admin/src/components/steps/Step2Subscribers.tsx:219
-#, js-format
-msgid "Smaily refused %d customer, so it was not imported. Fix it and run the import again:"
-msgid_plural "Smaily refused %d customers, so they were not imported. Fix them and run the import again:"
-msgstr[0] "Smaily lükkas tagasi %d kliendi, seetõttu teda ei imporditud. Paranda andmed ja käivita import uuesti:"
-msgstr[1] "Smaily lükkas tagasi %d klienti, seetõttu neid ei imporditud. Paranda andmed ja käivita import uuesti:"
-
 #. translators: %d is the number of customers the plugin could not read.
 #: admin/src/components/steps/Step2Subscribers.tsx:235
 #, js-format
@@ -1417,17 +1409,9 @@ msgstr "Smaily Connect — seaded"
 msgid "Manage your Smaily integration. Each tab saves independently."
 msgstr "Halda Smaily Connect plugina seadistusi. Iga vahekaart salvestub eraldi."
 
-#: admin/src/components/settings/Settings.tsx:138
-msgid "Connect to Smaily first to unlock this tab."
-msgstr "Ühenda esmalt Smailyga, et see vahekaart avada."
-
 #: admin/src/components/settings/Settings.tsx:143
 msgid "Settings tabs"
 msgstr "Sätete vahekaardid"
-
-#: admin/src/components/settings/Settings.tsx:160
-msgid "Smaily connection required"
-msgstr "Vajalik on Smaily ühendus"
 
 #: admin/src/components/settings/Settings.tsx:164
 msgid "Save failed"
@@ -2617,10 +2601,6 @@ msgstr "Ava kontaktide seaded"
 msgid "Contacts"
 msgstr "Kontaktid"
 
-#: admin/src/components/settings/Settings.tsx:160
-msgid "Contacts, WooCommerce, and Campaign Intelligence are locked until your Smaily credentials authenticate. Fix the connection on the Connection tab to unlock them."
-msgstr "Kontaktid, WooCommerce ja Campaign Intelligence on lukus, kuni sinu Smaily mandaadid autendivad. Ühenduse parandamiseks mine vahekaardile Ühendus."
-
 #: admin/src/components/steps/EngineAutomationsSection.tsx:44
 msgid "Campaign Intelligence automation workflows"
 msgstr "Campaign Intelligence automaatikad"
@@ -3601,3 +3581,43 @@ msgstr "Ostja on vahepeal oma uudiskirja tellimust muutnud ja uuem valik on juba
 #: admin/src/lib/transactional-reasons.ts:56
 msgid "The shopper has since changed their newsletter subscription, and the newer choice already reached Smaily."
 msgstr "Ostja on vahepeal oma uudiskirja tellimust muutnud ja uuem valik on juba Smailysse jõudnud."
+
+#: includes/Settings/Subdomain.php:52
+msgid "The subdomain must be a plain Smaily subdomain such as \"demo\": letters, digits and hyphens only."
+msgstr "Alamdomeen peab olema lihtne Smaily alamdomeen, näiteks \"demo\": ainult tähed, numbrid ja sidekriipsud."
+
+#. translators: %s is a comma-separated list of automation names, e.g. "Welcome email, Abandoned-cart reminder".
+#: admin/src/state/workflow-removal.ts:74
+#, js-format
+msgid "This change replaces a Smaily account. The workflows chosen from that account will be removed from these automations, and they send nothing until you choose a workflow again: %s. Save anyway?"
+msgstr "See muudatus asendab Smaily konto. Selle konto töövood eemaldatakse nendest automaatikatest ja need ei saada midagi, kuni valid uuesti töövoo: %s. Kas salvestada ikkagi?"
+
+#: admin/src/components/settings/Settings.tsx:287
+msgid "Fix the connection"
+msgstr "Paranda ühendus"
+
+#. translators: %s is why the Smaily connection test failed.
+#: admin/src/components/settings/Settings.tsx:294
+#, js-format
+msgid "The Smaily connection does not work: %s"
+msgstr "Smaily ühendus ei tööta: %s"
+
+#. translators: %d is the number of contacts Smaily refused in the contact import.
+#: admin/src/components/steps/Step2Subscribers.tsx:305
+#, js-format
+msgid "%d contact was refused by Smaily — see the Event Log for the reason."
+msgid_plural "%d contacts were refused by Smaily — see the Event Log for the reasons."
+msgstr[0] "Smaily lükkas tagasi %d kontakti — põhjuse leiad sündmuste logist."
+msgstr[1] "Smaily lükkas tagasi %d kontakti — põhjused leiad sündmuste logist."
+
+#: admin/src/components/steps/Step2Subscribers.tsx:313
+msgid "Open the Event Log"
+msgstr "Ava sündmuste logi"
+
+#: admin/src/components/steps/Step2Subscribers.tsx:318
+msgid "Fix them and run the import again:"
+msgstr "Paranda andmed ja käivita import uuesti:"
+
+#: admin/src/lib/transactional-reasons.ts:77
+msgid "Smaily refused this contact in the contact import, so it was not imported. The details show Smaily’s answer code."
+msgstr "Smaily lükkas selle kontakti kontaktide impordis tagasi, seetõttu seda ei imporditud. Üksikasjades on Smaily vastuse kood."

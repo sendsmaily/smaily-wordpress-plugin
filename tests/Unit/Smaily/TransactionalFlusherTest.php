@@ -1055,7 +1055,7 @@ final class TransactionalFlusherTest extends TestCase {
 			/** @var array<int, array{0: string, 1: string, 2: string}> */
 			public array $skipped = array();
 
-			public function record_skipped( string $event_type, string $entity_id, string $reason ): ?int {
+			public function record_skipped( string $event_type, string $entity_id, string $reason, string $note = '' ): ?int {
 				$this->skipped[] = array( $event_type, $entity_id, $reason );
 				return $this->next_id++;
 			}

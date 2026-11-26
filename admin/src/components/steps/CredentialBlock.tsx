@@ -23,6 +23,8 @@ export interface CredentialBlockProps {
    * "type the password" rule.
    */
   hasStoredPassword?: boolean;
+  /** Why the save refused the subdomain, shown next to the field (CON-431). */
+  subdomainError?: string;
 }
 
 /**
@@ -48,6 +50,7 @@ export function CredentialBlock({
   onConnectionFailure,
   idSuffix,
   hasStoredPassword = false,
+  subdomainError,
 }: CredentialBlockProps): React.JSX.Element {
   const { mutate, status, data, error, reset } = useTestConnection();
 
@@ -125,7 +128,7 @@ export function CredentialBlock({
     credentials.username !== '' &&
     (credentials.password !== '' || canUseStoredPassword);
 
-  if (editMode === 'view' && isVerifiedAndPristine) {
+  if (editMode === 'view' && isVerifiedAndPristine && subdomainError === undefined) {
     return (
       <Card title={title} description={description}>
         <div className="flex items-center justify-between gap-4">
@@ -157,7 +160,14 @@ export function CredentialBlock({
             placeholder={ __( 'mypetshop', 'smaily-connect' ) }
             autoComplete="off"
             className="mt-1"
+            invalid={subdomainError !== undefined}
+            describedById={subdomainError !== undefined ? `smaily-subdomain-${idSuffix}-error` : undefined}
           />
+          {subdomainError !== undefined && (
+            <p id={`smaily-subdomain-${idSuffix}-error`} className="mt-1 text-xs text-danger">
+              {subdomainError}
+            </p>
+          )}
         </div>
 
         <div>

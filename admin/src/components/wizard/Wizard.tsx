@@ -1,9 +1,16 @@
-import { useReducer, useState } from 'react';
+import { useReducer, useRef, useState } from 'react';
 
-import { saveSettings } from '../../api/saveSettings';
+import { ApiError } from '../../api/client';
+import { saveSettings, type SaveSettingsResponse } from '../../api/saveSettings';
 import { buildTabPayload } from '../../state/buildTabPayload';
 import { saveEngineAutomations } from '../../state/engine-automations';
 import { wizardReducer } from '../../state/wizard-reducer';
+import {
+  afterConnectionSaved,
+  confirmWorkflowRemoval,
+  mappingsLosingWorkflow,
+  savedAccounts,
+} from '../../state/workflow-removal';
 import { type SettingsTabKey, type WizardState } from '../../state/types';
 import { __, sprintf } from '@admin/lib/i18n';
 import { Banner } from '../primitives';
@@ -67,6 +74,11 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
   const [state, dispatch] = useReducer(wizardReducer, initialState);
   const [navStatus, setNavStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [navError, setNavError] = useState<string | null>(null);
+  // The last save's field refusals, shown next to their fields (CON-431).
+  const [fieldErrors, setFieldErrors] = useState<SaveSettingsResponse['errors']>([]);
+  // The Smaily accounts the server holds — what a Connection save is
+  // compared with before it removes workflows (CON-431).
+  const savedRef = useRef(savedAccounts(buildTabPayload(initialState, 'connection')));
 
   // Strict progressive (sub-PR 2.I): Steps 2+ require a verified
   // Smaily connection. Locked steps render non-clickable in the rail +
@@ -93,12 +105,19 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
     if (tab === null) {
       return true;
     }
-    setNavStatus('saving');
-    setNavError(null);
     const payload =
       tab === 'connection'
         ? { ...buildTabPayload(state, tab), smailyCredentials: mainAccount(state).credentials }
         : buildTabPayload(state, tab);
+    if (
+      tab === 'connection' &&
+      !confirmWorkflowRemoval(mappingsLosingWorkflow(savedRef.current, payload, state.automationMappings))
+    ) {
+      return false;
+    }
+    setNavStatus('saving');
+    setNavError(null);
+    setFieldErrors([]);
     try {
       const response = await saveSettings({ tab, data: payload });
       if (!response.saved) {
@@ -112,7 +131,25 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
         );
         return false;
       }
+      if (tab === 'connection') {
+        savedRef.current = afterConnectionSaved(savedRef.current, payload, response, dispatch);
+      }
     } catch (err) {
+      // A refused field comes back as a 400 with the errors in its body.
+      const body = err instanceof ApiError ? (err.body as Partial<SaveSettingsResponse> | null) : null;
+      if (body !== null && Array.isArray(body.errors) && body.errors.length > 0) {
+        setFieldErrors(body.errors);
+        setNavStatus('error');
+        setNavError(
+          // translators: %1$s is the settings tab key, %2$s is the error detail.
+          sprintf(
+            __('Couldn’t save %1$s: %2$s', 'smaily-connect'),
+            tab,
+            body.errors.map((e) => `${e.field}: ${e.message}`).join('; '),
+          ),
+        );
+        return false;
+      }
       const message = err instanceof Error ? err.message : __('Network error', 'smaily-connect');
       setNavStatus('error');
       setNavError(
@@ -200,7 +237,7 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
         <div className="min-w-0 flex-1">
           <div className="rounded-lg bg-surface shadow-card">
             <div className="px-6 py-6">
-              {renderStep(state, dispatch)}
+              {renderStep(state, dispatch, fieldErrors)}
               {navStatus === 'error' && navError !== null && (
                 <Banner tone="danger" className="mt-4">
                   {navError}
@@ -228,10 +265,11 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
 function renderStep(
   state: WizardState,
   dispatch: React.Dispatch<Parameters<typeof wizardReducer>[1]>,
+  fieldErrors: SaveSettingsResponse['errors'],
 ): React.JSX.Element {
   switch (state.currentStep) {
     case 1:
-      return <Step1Connect state={state} dispatch={dispatch} />;
+      return <Step1Connect state={state} dispatch={dispatch} fieldErrors={fieldErrors} />;
     case 2:
       return <Step2Subscribers state={state} dispatch={dispatch} />;
     case 3:
@@ -243,7 +281,7 @@ function renderStep(
     case 6:
       return <Step6Done state={state} />;
     default:
-      return <Step1Connect state={state} dispatch={dispatch} />;
+      return <Step1Connect state={state} dispatch={dispatch} fieldErrors={fieldErrors} />;
   }
 }
 

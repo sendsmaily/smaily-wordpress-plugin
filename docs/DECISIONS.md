@@ -12143,3 +12143,83 @@ contract change.
 **Relationships:** PRO-1224 (the `woo-<id>` key), PRO-1390 (cart events
 resolved on the server), PRO-1445 (`product_context()`), CON-323 (the
 connection prefix — `resolve_id()` adds it).
+
+### CON-431 (settings) — An account change removes its workflows; Settings stays open; a subdomain is one plain name; refused contacts are kept in the Event Log (Erkki's cross-connector rule CON-397, 2026-11-26)
+
+**Context:** CON-397 set one settings rule for all four connectors; CON-395
+and PR #388 (privacy requests) carried its first parts. In WooCommerce: (1)
+the automation-mapping rows kept the workflow ids of a Smaily account after
+a Connection save put another account in its place, or after the store left
+the account-per-language mode, so an automation was posted to an account
+with another account's workflow id; (2) Settings disabled the Contacts,
+WooCommerce and Campaign Intelligence tabs while the connection test had not
+passed, so a merchant with a broken connection could reach no other setting;
+(3) a subdomain was saved as typed (`sanitize_text_field` only), so a pasted
+`https://demo.sendsmaily.net/` was stored and every call went to a host that
+does not exist; (4) the contact import listed at most 20 refused contacts
+with their reasons and kept the others nowhere.
+**Decision:**
+- **Workflows of a replaced account (PrestaShop parity, fork commit
+  3b47dda).** `SettingsEndpoint::save_connection()` compares each account
+  key the save carries (`default`, each language account, `transactional`)
+  with what is stored: a stored subdomain that the save replaces with
+  another one (or none) removes the mapping rows of that account key; a
+  save that leaves Mode A removes the rows of every language account (keys
+  other than `default` / `transactional`). Subdomains are compared after
+  normalising, so another API user of the same subdomain is the same
+  account and keeps its workflows. A replaced `default` account also sets
+  the abandoned-cart reminder's legacy `autoresponder_id` to 0 (it was that
+  account's workflow, and CartFlusher falls back to it). The answer carries
+  `workflowsRemoved` (the account keys); the page drops those rows from its
+  state, so a later WooCommerce save cannot write them back, and forgets
+  the cached workflow lists of the replaced accounts. Mode changes among
+  single / B / C keep the one account, so nothing is removed.
+- **The question before the save.** Settings (Connection Save) and the
+  setup wizard (Connect step Continue) predict the same rule in the browser
+  (`state/workflow-removal.ts`) and, when automations would lose a
+  workflow, ask with `window.confirm()`, naming the automations. Cancel
+  saves nothing.
+- **Sends nothing until chosen.** With no mapping row the router finds no
+  workflow; the main Flusher now closes a welcome / first-order row as
+  skipped with reason `no_workflow` (it had no reason), and CartFlusher
+  closes a reminder with neither a mapping nor a legacy id the same way
+  (`mark_skipped`). The Event Log words it with the transactional emails'
+  existing sentence, "No workflow is chosen for this email."
+- **Settings stays open.** No tab is disabled and no hash is bounced. A
+  failed connection test on the page (the main account or a language
+  account) shows a top notice "The Smaily connection does not work: …"
+  with the test's reason and, off the Connection tab, a **Fix the
+  connection** button. The wizard's own Continue gate is unchanged. A
+  stored connection that stops working later is still reported by the
+  hourly health notice (PRO-1686), which WordPress prints on the Settings
+  page too.
+- **Subdomain.** `Settings\Subdomain` (PrestaShop's `normalizeSubdomain` and
+  pattern): a pasted `https://x.sendsmaily.net/…` or `x.sendsmaily.net` is
+  reduced to `x`, lower case; anything that is not one DNS label
+  (`[a-z0-9]`, inner hyphens, 1–63 characters) is refused with a field
+  error before anything is written — `subdomain`,
+  `perLanguageAccounts.<key>.subdomain`, `transactionalCredentials.subdomain`
+  — which the page shows under the field. The connection test applies the
+  same rule.
+- **Refused contacts.** For each contact Smaily refuses in the contact
+  import, `BackfillJob` writes one finished Event Log row
+  (`contact.import`, the user id as entity, `skipped` with reason
+  `import_refused` and the plugin's own text with Smaily's code as `note`,
+  never an address — CON-301). The panel says "N contacts were refused by
+  Smaily — see the Event Log for the reasons." with a link, and keeps its
+  list of 20 with profile links. A page whose every contact is refused is
+  about the request and still fails the import with no per-contact rows.
+- **Shops of one network sharing an account with different consent modes:
+  not built.** WordPress multisite keeps each site's options apart and the
+  plugin has no network-level code; two sites can hold the same subdomain
+  with different contact-sync modes, but warning needs a lookup across
+  every site's options on each setup or Settings load. Returned as a
+  follow-up.
+**Consequence:** a merchant who changes accounts re-chooses the workflows of
+the automations named in the question; until then those automations send
+nothing and say why. Engine-run (Campaign Intelligence) automations keep
+their workflow ids in the engine's config and are not touched by this.
+**Relationships:** CON-397 (the rule), CON-395 (part one), CON-218
+(engine-pushed workflows are already account-scoped by subdomain), PRO-1686
+(the health notice), PRO-3988 / CON-305 (the refused list), PRO-4091 (the
+`no_workflow` sentence), F3-54 (the legacy autoresponder fallback).
