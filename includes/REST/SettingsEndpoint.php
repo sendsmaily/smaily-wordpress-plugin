@@ -20,6 +20,7 @@ use Smaily\Connect\Report\InstallationReport;
 use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\SetupState;
+use Smaily\Connect\Settings\Subdomain;
 use Smaily\Connect\Smaily\CartAbandonmentSweeper;
 use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\TransactionalGate;
@@ -72,6 +73,9 @@ class SettingsEndpoint {
 	private const LEGACY_OPTION_CHECKOUT_OPTIN  = 'smaily_connect_checkout_subscription_enabled';
 	private const LEGACY_OPTION_CART_CUTOFF     = 'smaily_connect_abandoned_cart_cutoff';
 	private const LEGACY_OPTION_CART_STATUS     = 'smaily_connect_abandoned_cart_status';
+
+	/** The account key of the transactional Smaily account (PRO-1504). */
+	private const TRANSACTIONAL_ACCOUNT_KEY = 'transactional';
 
 	/**
 	 * Automation-mapping trigger_type allowlist (PRO-1504). Rows outside
@@ -243,7 +247,7 @@ class SettingsEndpoint {
 		$smaily       = isset( $data['smailyCredentials'] ) && is_array( $data['smailyCredentials'] )
 			? $data['smailyCredentials']
 			: array();
-		$subdomain    = isset( $smaily['subdomain'] ) ? sanitize_text_field( (string) $smaily['subdomain'] ) : '';
+		$subdomain    = isset( $smaily['subdomain'] ) ? Subdomain::normalize( sanitize_text_field( (string) $smaily['subdomain'] ) ) : '';
 		$username     = isset( $smaily['username'] ) ? sanitize_text_field( (string) $smaily['username'] ) : '';
 		$password     = isset( $smaily['password'] ) ? (string) $smaily['password'] : '';
 		$mode_raw     = isset( $data['multilingualMode'] ) ? (string) $data['multilingualMode'] : 'single';
@@ -255,11 +259,72 @@ class SettingsEndpoint {
 				'field'   => 'subdomain',
 				'message' => __( 'Subdomain + username are required.', 'smaily-connect' ),
 			);
+		} elseif ( ! Subdomain::is_plain( $subdomain ) ) {
+			$errors[] = array(
+				'field'   => 'subdomain',
+				'message' => Subdomain::refusal(),
+			);
+		}
+
+		// Mode A per-language credentials, checked before anything is written.
+		$per_language = array();
+		$accounts     = isset( $data['perLanguageAccounts'] ) && is_array( $data['perLanguageAccounts'] )
+			? $data['perLanguageAccounts']
+			: array();
+		foreach ( $accounts as $account ) {
+			if ( ! is_array( $account ) ) {
+				continue;
+			}
+			$account_key = isset( $account['accountKey'] ) ? sanitize_key( (string) $account['accountKey'] ) : '';
+			if ( $account_key === '' ) {
+				continue;
+			}
+			$creds                        = isset( $account['credentials'] ) && is_array( $account['credentials'] )
+				? $account['credentials']
+				: array();
+			$per_language[ $account_key ] = array(
+				isset( $creds['subdomain'] ) ? Subdomain::normalize( sanitize_text_field( (string) $creds['subdomain'] ) ) : '',
+				isset( $creds['username'] ) ? sanitize_text_field( (string) $creds['username'] ) : '',
+				isset( $creds['password'] ) ? (string) $creds['password'] : '',
+			);
+			if ( $per_language[ $account_key ][0] !== '' && ! Subdomain::is_plain( $per_language[ $account_key ][0] ) ) {
+				$errors[] = array(
+					'field'   => 'perLanguageAccounts.' . $account_key . '.subdomain',
+					'message' => Subdomain::refusal(),
+				);
+			}
+		}
+
+		$transactional           = isset( $data['transactionalCredentials'] ) && is_array( $data['transactionalCredentials'] )
+			? $data['transactionalCredentials']
+			: array();
+		$transactional_subdomain = isset( $transactional['subdomain'] ) ? Subdomain::normalize( sanitize_text_field( (string) $transactional['subdomain'] ) ) : '';
+		if ( $transactional_subdomain !== '' && ! Subdomain::is_plain( $transactional_subdomain ) ) {
+			$errors[] = array(
+				'field'   => 'transactionalCredentials.subdomain',
+				'message' => Subdomain::refusal(),
+			);
 		}
 
 		if ( ! empty( $errors ) ) {
 			return $this->error_response( $errors, 400 );
 		}
+
+		// CON-431: a workflow belongs to the Smaily account it was picked
+		// from. Read what is stored before this save replaces it.
+		$replaced = array();
+		if ( $this->replaces_account( self::LEGACY_OPTION_API_CREDENTIALS, $subdomain ) ) {
+			$replaced[] = Credentials::DEFAULT_ACCOUNT_KEY;
+		}
+		foreach ( $per_language as $account_key => $creds ) {
+			if ( $this->replaces_account( Credentials::PHASE2_OPTION_PREFIX . $account_key, $creds[0] ) ) {
+				$replaced[] = (string) $account_key;
+			}
+		}
+		if ( $this->replaces_account( Credentials::PHASE2_OPTION_PREFIX . self::TRANSACTIONAL_ACCOUNT_KEY, $transactional_subdomain ) ) {
+			$replaced[] = self::TRANSACTIONAL_ACCOUNT_KEY;
+		}
+		$leaves_mode_a = get_option( 'smly_plus_multilingual_mode', 'single' ) === 'A' && $multilingual !== 'A';
 
 		$this->report_cleared_accounts( $data );
 
@@ -279,31 +344,12 @@ class SettingsEndpoint {
 
 		update_option( 'smly_plus_multilingual_mode', $multilingual );
 
-		// Mode A per-language credentials.
-		$per_language = isset( $data['perLanguageAccounts'] ) && is_array( $data['perLanguageAccounts'] )
-			? $data['perLanguageAccounts']
-			: array();
-		foreach ( $per_language as $account ) {
-			if ( ! is_array( $account ) ) {
-				continue;
-			}
-			$account_key   = isset( $account['accountKey'] ) ? sanitize_key( (string) $account['accountKey'] ) : '';
-			$creds         = isset( $account['credentials'] ) && is_array( $account['credentials'] )
-				? $account['credentials']
-				: array();
-			$acc_subdomain = isset( $creds['subdomain'] ) ? sanitize_text_field( (string) $creds['subdomain'] ) : '';
-			$acc_username  = isset( $creds['username'] ) ? sanitize_text_field( (string) $creds['username'] ) : '';
-			$acc_password  = isset( $creds['password'] ) ? (string) $creds['password'] : '';
-
-			if ( $account_key === '' ) {
-				continue;
-			}
-
+		foreach ( $per_language as $account_key => $creds ) {
 			$this->persist_credentials(
 				Credentials::PHASE2_OPTION_PREFIX . $account_key,
-				$acc_subdomain,
-				$acc_username,
-				$acc_password
+				$creds[0],
+				$creds[1],
+				$creds[2]
 			);
 		}
 
@@ -312,9 +358,81 @@ class SettingsEndpoint {
 			: 'default';
 		update_option( 'smly_plus_default_fallback_account', $fallback_key );
 
-		$this->save_transactional_account( $data );
+		$this->save_transactional_account( $data, $transactional_subdomain );
 
-		return $this->success_response();
+		return $this->success_response( array( 'workflowsRemoved' => $this->remove_workflows( $replaced, $leaves_mode_a ) ) );
+	}
+
+	/**
+	 * Whether this save puts another Smaily account in the place of the one
+	 * stored under $option_key: one with a subdomain is stored, and the new
+	 * subdomain is another one (an empty one included). Another API user of
+	 * the same subdomain is the same account — it lists the same workflows.
+	 */
+	private function replaces_account( string $option_key, string $subdomain ): bool {
+		$stored = get_option( $option_key, array() );
+		$stored = is_array( $stored ) && isset( $stored['subdomain'] ) ? Subdomain::normalize( (string) $stored['subdomain'] ) : '';
+
+		return $stored !== '' && $stored !== $subdomain;
+	}
+
+	/**
+	 * Removes the workflows picked from a replaced Smaily account (CON-431):
+	 * the automation-mapping rows of each replaced account key, and with
+	 * $language_accounts (the save left the account-per-language mode) the
+	 * rows of every language account. The automations concerned then send
+	 * nothing — the send path skips them as `no_workflow` — until the
+	 * merchant picks a workflow of the new account. A replaced default
+	 * account also drops the abandoned-cart reminder's legacy autoresponder
+	 * id, the reminder's fallback workflow from before the mapping table.
+	 *
+	 * @param string[] $account_keys
+	 *
+	 * @return string[] The account keys that had a workflow removed.
+	 */
+	private function remove_workflows( array $account_keys, bool $language_accounts ): array {
+		$removed = array();
+
+		if ( in_array( Credentials::DEFAULT_ACCOUNT_KEY, $account_keys, true ) ) {
+			$cart = \Smaily_Connect\Includes\Options::abandoned_cart_status();
+			if ( $cart['autoresponder_id'] > 0 ) {
+				update_option(
+					self::LEGACY_OPTION_CART_STATUS,
+					array(
+						'enabled'          => $cart['enabled'],
+						'autoresponder_id' => 0,
+					)
+				);
+				$removed[] = Credentials::DEFAULT_ACCOUNT_KEY;
+			}
+		}
+
+		if ( $account_keys === array() && ! $language_accounts ) {
+			return $removed;
+		}
+
+		global $wpdb;
+		$table = $wpdb->prefix . 'smly_plus_automation_mapping';
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		foreach ( $account_keys as $account_key ) {
+			if ( (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE account_key = %s", $account_key ) ) > 0 ) {
+				$removed[] = $account_key;
+			}
+		}
+
+		if ( $language_accounts ) {
+			$keys = $wpdb->get_col(
+				$wpdb->prepare( "SELECT DISTINCT account_key FROM {$table} WHERE account_key NOT IN ( %s, %s )", Credentials::DEFAULT_ACCOUNT_KEY, self::TRANSACTIONAL_ACCOUNT_KEY )
+			);
+			if ( is_array( $keys ) && $keys !== array() ) {
+				$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE account_key NOT IN ( %s, %s )", Credentials::DEFAULT_ACCOUNT_KEY, self::TRANSACTIONAL_ACCOUNT_KEY ) );
+				$removed = array_merge( $removed, array_map( 'strval', $keys ) );
+			}
+		}
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		return array_values( array_unique( $removed ) );
 	}
 
 	/**
@@ -538,21 +656,20 @@ class SettingsEndpoint {
 	 * Smaily account bound under account_key='transactional', mirroring how
 	 * the default account's credentials are persisted above: empty inbound
 	 * password = "leave the stored secret as-is", non-empty = "rotate to
-	 * this".
+	 * this". The subdomain comes normalized and checked by save_connection().
 	 *
 	 * @param array<string, mixed> $data
 	 */
-	private function save_transactional_account( array $data ): void {
+	private function save_transactional_account( array $data, string $subdomain ): void {
 		update_option( 'smly_plus_transactional_emails_enabled', ! empty( $data['transactionalEmailsEnabled'] ) );
 
-		$creds     = isset( $data['transactionalCredentials'] ) && is_array( $data['transactionalCredentials'] )
+		$creds    = isset( $data['transactionalCredentials'] ) && is_array( $data['transactionalCredentials'] )
 			? $data['transactionalCredentials']
 			: array();
-		$subdomain = isset( $creds['subdomain'] ) ? sanitize_text_field( (string) $creds['subdomain'] ) : '';
-		$username  = isset( $creds['username'] ) ? sanitize_text_field( (string) $creds['username'] ) : '';
-		$password  = isset( $creds['password'] ) ? (string) $creds['password'] : '';
+		$username = isset( $creds['username'] ) ? sanitize_text_field( (string) $creds['username'] ) : '';
+		$password = isset( $creds['password'] ) ? (string) $creds['password'] : '';
 
-		$this->persist_credentials( Credentials::PHASE2_OPTION_PREFIX . 'transactional', $subdomain, $username, $password );
+		$this->persist_credentials( Credentials::PHASE2_OPTION_PREFIX . self::TRANSACTIONAL_ACCOUNT_KEY, $subdomain, $username, $password );
 
 		// Mirrors save_connection()'s default-account verified flag, but
 		// scoped to whether this save actually carries a usable credential
@@ -742,11 +859,14 @@ class SettingsEndpoint {
 		return $plain; // Defensive fallback — shouldn't happen post-bootstrap.
 	}
 
-	private function success_response(): WP_REST_Response {
+	/**
+	 * @param array<string, mixed> $extra What one tab's save adds to the answer.
+	 */
+	private function success_response( array $extra = array() ): WP_REST_Response {
 		$data = array(
 			'saved'  => true,
 			'errors' => array(),
-		);
+		) + $extra;
 
 		// Read after the write, so the card's status line reflects the save.
 		if ( $this->transactional_status !== null ) {

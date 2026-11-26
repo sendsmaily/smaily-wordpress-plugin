@@ -540,6 +540,23 @@ final class ContactBackfillAudienceTest extends TestCase {
 		self::assertStringNotContainsString( $email, (string) wp_json_encode( $status ), 'The full address never reaches the screen.' );
 		self::assertStringNotContainsString( $email, (string) wp_json_encode( get_option( BackfillJob::OPTION_REFUSED ) ), 'The stored list holds no address.' );
 
+		// CON-431: the Event Log keeps the reason, as a skipped row of the user.
+		RestRequestHelper::login_as_admin();
+		$logged = array_values(
+			array_filter(
+				RestRequestHelper::listed_smaily_events(),
+				static fn ( array $row ): bool => $row['event_type'] === BackfillJob::EVENT_TYPE_REFUSED
+			)
+		);
+		self::assertCount( 1, $logged, 'One Event Log row per refused contact.' );
+		self::assertSame( (string) $refused, $logged[0]['entity_id'] );
+		self::assertTrue( $logged[0]['skipped'] );
+		self::assertSame( BackfillJob::REASON_REFUSED, $logged[0]['skip_reason'] );
+		$detail = RestRequestHelper::get( '/events/detail', array( 'source' => 'smaily', 'id' => (int) $logged[0]['id'] ) );
+		wp_set_current_user( 0 );
+		self::assertStringContainsString( 'Smaily API returned code 204', (string) wp_json_encode( $detail->get_data() ), 'Details show Smaily\'s code.' );
+		self::assertStringNotContainsString( $email, (string) wp_json_encode( $detail->get_data() ), 'The row holds no address.' );
+
 		// A new run lists only its own refusals.
 		$job->start();
 		self::assertFalse( get_option( BackfillJob::OPTION_REFUSED ) );

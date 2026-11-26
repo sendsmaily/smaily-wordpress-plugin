@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ApiError } from '../../api/client';
 import * as saveApi from '../../api/saveSettings';
+import * as testConnectionApi from '../../api/testConnection';
 import { _resetUseWorkflowsCache } from '../../hooks/useWorkflows';
 import { Settings } from './Settings';
 
@@ -91,28 +93,75 @@ describe('Settings — tab routing + dirty + save', () => {
     expect(screen.queryByLabelText(/subdomain/i)).not.toBeInTheDocument();
   });
 
-  it('locks Subscribers / WooCommerce / Campaign Intelligence until connected and bounces hash deep-links back', async () => {
+  /**
+   * CON-431: while the Smaily connection does not work, every tab stays
+   * open; a notice at the top says why and leads back to the Connection tab.
+   */
+  it('keeps every tab open while the connection test fails and says so at the top', async () => {
+    vi.spyOn(testConnectionApi, 'testSmailyConnection').mockResolvedValue({
+      connected: false,
+      error: 'Smaily did not accept those credentials.',
+    });
+
     render(<Settings />);
+    fireEvent.change(screen.getByLabelText(/subdomain/i), { target: { value: 'mypetshop' } });
+    fireEvent.change(screen.getByLabelText(/api username/i), { target: { value: 'alice' } });
+    fireEvent.change(screen.getByLabelText(/api password/i), { target: { value: 'wrong' } });
+    fireEvent.click(screen.getByRole('button', { name: /test connection/i }));
 
-    // Banner explains the lock.
-    expect(screen.getByText(/Smaily connection required/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText('The Smaily connection does not work: Smaily did not accept those credentials.'),
+    ).toBeInTheDocument();
+    for (const name of [/contacts/i, /woocommerce/i, /campaign intelligence/i, /integrations/i, /event log/i]) {
+      expect(screen.getByRole('tab', { name })).not.toBeDisabled();
+    }
+    // On the Connection tab the notice needs no way there.
+    expect(screen.queryByRole('button', { name: 'Fix the connection' })).not.toBeInTheDocument();
 
-    // PillTabs render the locked tabs as disabled buttons.
-    expect(screen.getByRole('tab', { name: /contacts/i })).toBeDisabled();
-    expect(screen.getByRole('tab', { name: /woocommerce/i })).toBeDisabled();
-    expect(screen.getByRole('tab', { name: /campaign intelligence/i })).toBeDisabled();
-    // Connection + Integrations stay accessible.
-    expect(screen.getByRole('tab', { name: /^connection$/i })).not.toBeDisabled();
-    expect(screen.getByRole('tab', { name: /integrations/i })).not.toBeDisabled();
-
-    // Hash deep-link to a locked tab gets bounced back to Connection.
+    // A deep link to another tab opens it; the notice stays on top.
     window.location.hash = 'subscribers';
     window.dispatchEvent(new HashChangeEvent('hashchange'));
+    expect(await screen.findByText(/sync contacts to smaily/i)).toBeInTheDocument();
+    expect(
+      screen.getByText('The Smaily connection does not work: Smaily did not accept those credentials.'),
+    ).toBeInTheDocument();
 
-    await waitFor(() => {
-      // Bounce target — Connection panel still showing subdomain input.
-      expect(screen.getByLabelText(/subdomain/i)).toBeInTheDocument();
-    });
+    fireEvent.click(screen.getByRole('button', { name: 'Fix the connection' }));
+    expect(await screen.findByLabelText(/subdomain/i)).toBeInTheDocument();
+  });
+
+  it('shows no connection notice before a test fails', () => {
+    render(<Settings />);
+
+    expect(screen.queryByText(/The Smaily connection does not work/)).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /contacts/i })).not.toBeDisabled();
+  });
+
+  /** CON-431: a subdomain the save refuses is said next to its field. */
+  it('shows a refused subdomain next to the field', async () => {
+    vi.spyOn(saveApi, 'saveSettings').mockRejectedValue(
+      new ApiError('POST /settings → 400', 400, {
+        saved: false,
+        errors: [
+          {
+            field: 'subdomain',
+            message: 'The subdomain must be a plain Smaily subdomain such as "demo": letters, digits and hyphens only.',
+          },
+        ],
+      }),
+    );
+
+    render(<Settings />);
+    fireEvent.change(screen.getByLabelText(/subdomain/i), { target: { value: 'my shop' } });
+    fireEvent.change(screen.getByLabelText(/api username/i), { target: { value: 'alice' } });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    const message = await screen.findByText(
+      'The subdomain must be a plain Smaily subdomain such as "demo": letters, digits and hyphens only.',
+      { selector: 'p' },
+    );
+    expect(message).toHaveAttribute('id', 'smaily-subdomain-default-error');
+    expect(screen.getByLabelText(/subdomain/i)).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('hides Save / Discard footer on the Integrations tab', async () => {

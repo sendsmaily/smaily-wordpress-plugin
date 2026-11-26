@@ -10,6 +10,8 @@ export interface TransactionalEmailsSectionProps {
   dispatch: Dispatch<WizardAction>;
   /** True when rendered inside Settings tabs — see Step1Connect's own flag. */
   inSettings?: boolean;
+  /** The save's refusal of the subdomain, shown next to the field (CON-431). */
+  subdomainError?: string;
 }
 
 /**
@@ -32,6 +34,7 @@ export function TransactionalEmailsSection({
   state,
   dispatch,
   inSettings = false,
+  subdomainError,
 }: TransactionalEmailsSectionProps): React.JSX.Element {
   const onCredentialsChange = useCallback(
     (payload: Partial<SmailyCredentials>) => {
@@ -86,6 +89,7 @@ export function TransactionalEmailsSection({
             onConnectionSuccess={onConnSuccess}
             onConnectionFailure={onConnFailure}
             idSuffix="transactional"
+            subdomainError={subdomainError}
           />
 
           <p className="text-sm text-text-secondary">

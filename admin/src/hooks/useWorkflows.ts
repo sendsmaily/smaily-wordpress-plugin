@@ -129,6 +129,19 @@ export function useWorkflows(accountKey: string = 'default'): UseWorkflowsResult
   return { workflows, status, error, refresh };
 }
 
+/**
+ * Forgets the cached lists of these account keys — their Smaily account was
+ * replaced (CON-431), so the next instance loads the new account's list.
+ */
+export function forgetWorkflows(accountKeys: readonly string[]): void {
+  const forget = new Set(accountKeys.map((key) => key.toLowerCase()));
+  for (const key of [...cache.keys()]) {
+    if (forget.has(key.toLowerCase())) {
+      cache.delete(key);
+    }
+  }
+}
+
 /** Test-only helper — clears the module-level cache between cases. */
 export function _resetUseWorkflowsCache(): void {
   cache.clear();

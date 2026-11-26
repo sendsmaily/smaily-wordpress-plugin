@@ -92,6 +92,9 @@ final class Flusher {
 	/** The Event Log note on a first-order email the consent rule stopped (CON-386). */
 	public const NOTE_NO_CONSENT = 'the contact-sync mode does not allow a marketing email to this contact (see the reason) — nothing was sent';
 
+	/** The Event Log note on an automation with no workflow chosen (CON-431). */
+	public const NOTE_NO_WORKFLOW = 'no workflow is chosen for this email — nothing was sent';
+
 	private EventQueue $queue;
 	private AutomationRouter $router;
 
@@ -337,12 +340,19 @@ final class Flusher {
 		// has mark_sent semantics, which is what flush() does after
 		// dispatch() returns without throwing.
 		try {
-			$this->router->trigger_automation(
+			$sent = $this->router->trigger_automation(
 				$trigger,
 				$contact_data,
 				$fields,
 				fn (): array => $this->discount_codes->fields( $id, $trigger, $payload )
 			);
+			// The email is set (dispatch() checked it), so false means no
+			// workflow is chosen — e.g. after the Smaily account was
+			// replaced and its workflows removed (CON-431).
+			if ( ! $sent ) {
+				$this->skip_note   = self::NOTE_NO_WORKFLOW;
+				$this->skip_reason = TransactionalGate::REASON_NO_WORKFLOW;
+			}
 		} finally {
 			// null when the router short-circuited before any request (no
 			// workflow) — record_exchange() then stores a skip marker (F3-44).

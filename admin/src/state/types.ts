@@ -684,6 +684,8 @@ export type WizardAction =
     }
   | { type: 'UPSERT_AUTOMATION_MAPPING'; payload: AutomationMapping }
   | { type: 'REMOVE_AUTOMATION_MAPPING'; payload: { triggerType: AutomationTrigger; language: string; accountKey: string } }
+  /** CON-431: a Connection save removed the workflows of these replaced accounts. */
+  | { type: 'REMOVE_ACCOUNT_WORKFLOWS'; payload: { accountKeys: string[] } }
   | { type: 'SET_AUTOMATION_FALLBACK'; payload: { triggerType: AutomationTrigger; language: string; accountKey: string } }
 
   // Transactional emails (PRO-1504, stage 1) ---------------------------------

@@ -14,6 +14,7 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Constants;
 use Smaily\Connect\Settings\CredentialSet;
 use Smaily\Connect\Settings\Credentials;
+use Smaily\Connect\Settings\Subdomain;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\RefusalReason;
 use WP_Error;
@@ -99,9 +100,22 @@ class TestConnectionEndpoint {
 	}
 
 	public function handle( WP_REST_Request $request ): WP_REST_Response {
-		$subdomain = (string) $request->get_param( 'subdomain' );
+		$subdomain = Subdomain::normalize( (string) $request->get_param( 'subdomain' ) );
 		$username  = (string) $request->get_param( 'username' );
 		$password  = (string) $request->get_param( 'password' );
+
+		// A pasted account address is reduced to its subdomain; anything
+		// else that is not one plain name is refused, as a save refuses it
+		// (CON-431).
+		if ( $subdomain !== '' && ! Subdomain::is_plain( $subdomain ) ) {
+			return new WP_REST_Response(
+				array(
+					'connected' => false,
+					'error'     => Subdomain::refusal(),
+				),
+				200
+			);
+		}
 
 		if ( $password === '' ) {
 			// PRO-2286: a store upgrading from the wordpress.org 2.0.0

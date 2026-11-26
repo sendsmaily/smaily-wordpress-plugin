@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type Dispatch,
 } from 'react';
@@ -22,6 +23,12 @@ import {
   type WizardState,
 } from '../../state/types';
 import { wizardReducer } from '../../state/wizard-reducer';
+import {
+  afterConnectionSaved,
+  confirmWorkflowRemoval,
+  mappingsLosingWorkflow,
+  savedAccounts,
+} from '../../state/workflow-removal';
 import { __, sprintf } from '@admin/lib/i18n';
 import { dismissNotice } from '../../api/notices';
 import { bannerBoot, CampaignIntelligenceBanner, campaignIntelligenceBannerVariant } from '../banners';
@@ -84,6 +91,11 @@ type AnyTab = SettingsTabKey | 'integrations' | 'events';
  *   5. Discard = full page reload — re-fetches server-loaded state.
  *      Phase 4 polish can snapshot pristine state for an in-place revert,
  *      but for the pilot a hard reload is acceptable and bulletproof.
+ *
+ *   6. Every tab stays open while the Smaily connection does not work
+ *      (CON-431); a notice at the top says so and leads to the Connection
+ *      tab. A Connection save that replaces a Smaily account asks first
+ *      when automations would lose their workflows (workflow-removal.ts).
  */
 export function Settings({ initialEnv = {}, initialState }: SettingsProps): React.JSX.Element {
   const [rawState, rawDispatch] = useReducer(
@@ -128,41 +140,33 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
 
   const [activeTab, setActiveTab] = useTabRouting('connection');
 
-  // Progressive disclosure (sub-PR 2.I). The wizard-first gate at the PHP
-  // layer makes sure no one reaches Settings before Step 1 has been
-  // completed at least once. But the merchant can still break their
-  // connection from inside Settings (rotate credentials, paste garbage,
-  // etc.); when that happens we lock the dependent tabs so they can't
-  // silently save against an unauthenticated state.
-  //
-  // Locked tabs: Subscribers, WooCommerce, Recommendations.
-  //   Connection is always accessible (that's where you fix the break).
-  //   Integrations is info-only — never locked.
-  //
-  // If the user lands on a locked tab via a #hash deep-link or a
-  // post-broken-state reload, bounce them back to Connection so the
-  // CTA banner makes sense.
-  const isConnected = rawState.smailyConnection.kind === 'success';
-  const lockedTabs = useMemo<ReadonlySet<AnyTab>>(
-    () =>
-      isConnected
-        ? new Set<AnyTab>()
-        : new Set<AnyTab>(['subscribers', 'woocommerce', 'recommendations']),
-    [isConnected],
-  );
+  // CON-431: every tab stays open while the Smaily connection does not
+  // work — the merchant must reach the other settings to keep the store
+  // running — and the notice on top says so. A failed connection test on
+  // this page is what tells; the setup wizard keeps its own gate.
+  const connectionError = [
+    rawState.smailyConnection,
+    ...rawState.perLanguageAccounts.map((account) => account.connection),
+  ].find((connection) => connection.kind === 'failure');
 
-  useEffect(() => {
-    if (lockedTabs.has(activeTab)) {
-      setActiveTab('connection');
-    }
-  }, [lockedTabs, activeTab, setActiveTab]);
+  // The Smaily accounts the server holds — what a Connection save is
+  // compared with before it removes workflows (CON-431).
+  const savedRef = useRef(savedAccounts(buildTabPayload(rawState, 'connection')));
 
-  const { mutate: save, status: saveStatus, error: saveError } = useSaveSettings({
+  const {
+    mutate: save,
+    status: saveStatus,
+    error: saveError,
+    data: saveData,
+  } = useSaveSettings({
     onSuccess: (response, request) => {
       rawDispatch({
         type: 'CLEAR_TAB_DIRTY',
         payload: { tab: request.tab as SettingsTabKey },
       });
+      if (request.tab === 'connection') {
+        savedRef.current = afterConnectionSaved(savedRef.current, request.data, response, rawDispatch);
+      }
       // PRO-4091: the confirmation cards show what the save just changed.
       if (response.transactionalStatus !== undefined) {
         rawDispatch({ type: 'SET_TRANSACTIONAL_STATUS', payload: response.transactionalStatus });
@@ -175,6 +179,12 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
       return;
     }
     const payload = buildTabPayload(rawState, activeTab);
+    if (
+      activeTab === 'connection' &&
+      !confirmWorkflowRemoval(mappingsLosingWorkflow(savedRef.current, payload, rawState.automationMappings))
+    ) {
+      return;
+    }
     void save({ tab: activeTab, data: payload });
 
     // The engine-run automations section (T2.2) joins the WooCommerce
@@ -236,25 +246,18 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
           </div>
 
           <PillTabs
-            tabs={TABS.map((t) => {
-              const isLocked = lockedTabs.has(t.value);
-              return {
-                value: t.value,
-                label: t.label,
-                badge:
-                  t.value !== 'integrations' &&
-                  t.value !== 'finish' &&
-                  t.value !== 'events' &&
-                  (rawState.dirtyTabs[t.value] ||
-                    (t.value === 'woocommerce' && rawState.engineAutomations.dirty))
-                    ? '•'
-                    : undefined,
-                disabled: isLocked,
-                title: isLocked
-                  ? __('Connect to Smaily first to unlock this tab.', 'smaily-connect')
+            tabs={TABS.map((t) => ({
+              value: t.value,
+              label: t.label,
+              badge:
+                t.value !== 'integrations' &&
+                t.value !== 'finish' &&
+                t.value !== 'events' &&
+                (rawState.dirtyTabs[t.value] ||
+                  (t.value === 'woocommerce' && rawState.engineAutomations.dirty))
+                  ? '•'
                   : undefined,
-              };
-            })}
+            }))}
             value={activeTab}
             onChange={(next) => setActiveTab(next as AnyTab)}
             ariaLabel={__('Settings tabs', 'smaily-connect')}
@@ -275,11 +278,21 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
             onShowSmailyConnection={() => setActiveTab('connection')}
           />
         )}
-        {!isConnected && (
-          <Banner tone="warning" title={__('Smaily connection required', 'smaily-connect')}>
-            {__(
-              'Contacts, WooCommerce, and Campaign Intelligence are locked until your Smaily credentials authenticate. Fix the connection on the Connection tab to unlock them.',
-              'smaily-connect',
+        {connectionError?.kind === 'failure' && (
+          <Banner
+            tone="danger"
+            actions={
+              activeTab !== 'connection' ? (
+                <Button variant="secondary" size="sm" type="button" onClick={() => setActiveTab('connection')}>
+                  {__('Fix the connection', 'smaily-connect')}
+                </Button>
+              ) : undefined
+            }
+          >
+            {sprintf(
+              // translators: %s is why the Smaily connection test failed.
+              __('The Smaily connection does not work: %s', 'smaily-connect'),
+              connectionError.error,
             )}
           </Banner>
         )}
@@ -294,7 +307,12 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
 
         <main>
           <TabPanel active={activeTab === 'connection'}>
-            <Step1Connect state={rawState} dispatch={dispatch} inSettings />
+            <Step1Connect
+              state={rawState}
+              dispatch={dispatch}
+              inSettings
+              fieldErrors={saveStatus === 'error' ? saveData?.errors : undefined}
+            />
           </TabPanel>
           <TabPanel active={activeTab === 'subscribers'}>
             <Step2Subscribers

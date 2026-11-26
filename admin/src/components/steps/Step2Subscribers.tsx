@@ -294,21 +294,30 @@ export function Step2Subscribers({
               {wasCancelled && __( 'Backfill cancelled. Re-run when ready.', 'smaily-connect' )}
             </p>
             {/* PRO-3988: the customers Smaily refused for good were skipped;
-                name them so the merchant can fix them and import again. */}
+                name them so the merchant can fix them and import again.
+                CON-431: the Event Log keeps the reason of every one. */}
             {progress.refused && progress.refused.count > 0 && (
-              <SkippedCustomers
-                list={progress.refused}
-                heading={sprintf(
-                  // translators: %d is the number of customers Smaily refused.
-                  _n(
-                    'Smaily refused %d customer, so it was not imported. Fix it and run the import again:',
-                    'Smaily refused %d customers, so they were not imported. Fix them and run the import again:',
+              <>
+                <p className="mt-2 text-xs text-text-secondary">
+                  {sprintf(
+                    // translators: %d is the number of contacts Smaily refused in the contact import.
+                    _n(
+                      '%d contact was refused by Smaily — see the Event Log for the reason.',
+                      '%d contacts were refused by Smaily — see the Event Log for the reasons.',
+                      progress.refused.count,
+                      'smaily-connect',
+                    ),
                     progress.refused.count,
-                    'smaily-connect',
-                  ),
-                  progress.refused.count,
-                )}
-              />
+                  )}{' '}
+                  <a href={EVENT_LOG_URL} className="underline">
+                    { __( 'Open the Event Log', 'smaily-connect' ) }
+                  </a>
+                </p>
+                <SkippedCustomers
+                  list={progress.refused}
+                  heading={ __( 'Fix them and run the import again:', 'smaily-connect' ) }
+                />
+              </>
             )}
             {/* CON-305: the customers the plugin could not read were skipped
                 too (CON-302) — Smaily never saw them, so they are counted
@@ -359,6 +368,9 @@ export function Step2Subscribers({
     </div>
   );
 }
+
+/** The Settings page's Event Log tab — the page reads its tab from the hash. */
+const EVENT_LOG_URL = 'admin.php?page=smaily-connect-settings#events';
 
 /**
  * One list of customers the contact import skipped — the ones Smaily refused

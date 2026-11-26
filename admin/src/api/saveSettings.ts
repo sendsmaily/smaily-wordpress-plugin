@@ -10,6 +10,8 @@ export interface SaveSettingsResponse {
   errors: Array<{ field: string; message: string }>;
   /** The confirmation cards' status lines, read after the save (PRO-4091). */
   transactionalStatus?: Partial<Record<TransactionalTrigger, TransactionalSendStatus>>;
+  /** Connection tab: the account keys whose workflows the save removed (CON-431). */
+  workflowsRemoved?: string[];
 }
 
 export interface SaveSettingsRequest {
