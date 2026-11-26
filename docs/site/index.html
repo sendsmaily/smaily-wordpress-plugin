@@ -803,16 +803,17 @@ td code{white-space:nowrap}
       <ul>
         <li>an <strong>Enable</strong> toggle and, once it is on, the Smaily <strong>workflow</strong> to use;</li>
         <li>a <strong>Cooldown</strong> — minimum days between two fires for the same customer (<strong>1–365</strong>);</li>
-        <li><strong>Test mode</strong> — while on, emails go only to your test addresses (comma‑separated), never to customers. Use <strong>Activate for real…</strong> to ask for real sends.</li>
+        <li><strong>Test mode</strong> — on by default: the email goes only to your test addresses (comma‑separated), never to customers. How to send a test email and turn test mode off is below.</li>
       </ul>
       <div class="note">
         <span class="k">Fail‑closed by design</span>
         <p>Test mode starts <strong>on</strong>. A test‑mode automation with no test addresses sends to <strong>no one</strong> until you add at least one address — so an automation can never fire at customers before you mean it to.</p>
       </div>
       <div class="note">
-        <span class="k">Real sends are switched on by Smaily</span>
-        <p><strong>Activate for real…</strong> marks your request on this page when you save; the plugin does not send it to Smaily. The automation stays in test mode — test addresses only — until Smaily switches real sends on after your confirmation; <a href="https://smaily.com/help/" target="_blank" rel="noopener">contact Smaily support</a> to confirm.</p>
-        <p>After each save the plugin reads back what Campaign Intelligence stored, and the label on each automation shows it: <strong>Test mode</strong>, <strong>Waiting for Smaily's confirmation</strong> (you asked for real sends and Smaily has not switched them on yet) or <strong>Live — real sends on</strong>. The waiting label comes from your own last save on that page: after you reload the page, an automation that is still waiting shows <strong>Test mode</strong> again.</p>
+        <span class="k">Send a test email and turn test mode off</span>
+        <p>While test mode is on, <strong>Send test email</strong> sends one test of the email — with real products from your store and no customer's name — to the address in the field next to it, your own WordPress email address by default. The address is added to your Smaily list as a test contact; remove it in Smaily if you do not want to keep it. Up to 10 test emails can be sent an hour. If the email cannot be sent yet — for example, no Smaily workflow is linked to it, or Smaily refuses your sender address — the card says why, and nothing is sent again by itself: press the button again once it is fixed.</p>
+        <p>Turning the <strong>Test mode</strong> switch off asks you to confirm: the email then starts going to your store's real customers, at first up to 10 emails a day, then 25 and 50. Campaign Intelligence switches it at once; if something still blocks it (for example, the email has no design yet), the dialog lists it and test mode stays on. Turning the switch back on returns the email to test mode at once, with no question. The switch takes effect immediately, not when you save the page; the <strong>Enable</strong> toggle still switches the automation itself on and off.</p>
+        <p>Under the switch the card shows the email's state as Campaign Intelligence stores it: <strong>The email goes to test addresses only.</strong>, or <strong>Sending to real customers</strong> with today's limit (the label then reads <strong>Live — real sends on</strong>). When Campaign Intelligence stops an email after a complaint or too many unsubscribes, the label reads <strong>Stopped</strong>, and Smaily reviews the stop before the email can go to customers again. An email that is switched on while its Smaily workflow waits for your sender domain shows <strong>Starts when your sender domain is verified in Smaily.</strong></p>
       </div>
       <div class="note">
         <span class="k">Edit an email's design</span>
@@ -900,16 +901,17 @@ td code{white-space:nowrap}
       <ul>
         <li><strong>Enable</strong> lüliti ja, kui see on sees, kasutatava Smaily <strong>töövoo</strong>;</li>
         <li><strong>Cooldown</strong> — vähim päevade arv sama kliendi kahe käivituse vahel (<strong>1–365</strong>);</li>
-        <li><strong>Test mode</strong> — sees olles lähevad e‑kirjad ainult su test‑aadressidele (komadega eraldatud), mitte kunagi klientidele. Päris saatmise taotlemiseks kasuta <strong>Activate for real…</strong>.</li>
+        <li><strong>Test mode</strong> („Testrežiim“) — vaikimisi sees: kiri läheb ainult su test‑aadressidele (komadega eraldatud), mitte kunagi klientidele. Kuidas testkirja saata ja testrežiim välja lülitada, loe allpool.</li>
       </ul>
       <div class="note">
         <span class="k">Disaini poolest fail‑closed</span>
         <p>Test mode algab <strong>sees</strong>. Test‑režiimi automaatika ilma test‑aadressideta saadab <strong>mitte kellelegi</strong>, kuni lisad vähemalt ühe aadressi — nii ei saa automaatika kunagi klientidele käivituda enne, kui sa seda soovid.</p>
       </div>
       <div class="note">
-        <span class="k">Päris saatmise lülitab sisse Smaily</span>
-        <p><strong>Activate for real…</strong> märgib salvestamisel sinu taotluse sellel lehel; plugin ei saada seda Smailyle. Automaatika jääb testrežiimi — ainult test‑aadressidele — kuni Smaily lülitab päris saatmise sisse pärast sinu kinnitust; kinnitamiseks <a href="https://smaily.com/help/" target="_blank" rel="noopener">võta ühendust Smaily toega</a>.</p>
-        <p>Pärast iga salvestamist loeb plugin tagasi, mida Campaign Intelligence salvestas, ja iga automaatika silt näitab seda: <strong>Test mode</strong> („Testrežiim“), <strong>Waiting for Smaily's confirmation</strong> („Ootab Smaily kinnitust“ — taotlesid päris saatmist ja Smaily pole seda veel sisse lülitanud) või <strong>Live — real sends on</strong> („Aktiivne — päris saatmine sees“). Ootamise silt tuleb sinu enda viimasest salvestamisest sellel lehel: kui laadid lehe uuesti, näitab veel ootel automaatika jälle <strong>Test mode</strong> silti.</p>
+        <span class="k">Saada testkiri ja lülita testrežiim välja</span>
+        <p>Kui testrežiim on sees, saadab <strong>Send test email</strong> („Saada testkiri“) kirjast ühe testi — sinu poe päris toodetega ja ilma kliendi nimeta — kõrval olevale aadressile, vaikimisi sinu enda WordPressi e‑posti aadressile. Aadress lisatakse sinu Smaily listi testkontaktina; kui sa ei soovi seda alles hoida, eemalda see Smailys. Tunnis saab saata kuni 10 testkirja. Kui kirja ei saa veel saata — näiteks pole sellega seotud ühtegi Smaily töövoogu või Smaily keeldub sinu saatja aadressist —, ütleb kaart, miks, ja midagi ei saadeta ise uuesti: vajuta nuppu uuesti, kui viga on parandatud.</p>
+        <p><strong>Test mode</strong> („Testrežiim“) lüliti väljalülitamisel küsitakse kinnitust: seejärel hakkab kiri minema sinu poe päris klientidele, alguses kuni 10 kirja päevas, seejärel 25 ja 50. Campaign Intelligence lülitab selle kohe; kui miski seda veel takistab (näiteks pole kirjal veel kujundust), loetleb aken selle ja testrežiim jääb sisse. Kui lülitad lüliti uuesti sisse, läheb kiri kohe ja ilma küsimata testrežiimi tagasi. Lüliti mõjub kohe, mitte lehe salvestamisel; automaatika enda lülitab endiselt sisse ja välja <strong>Enable</strong> lüliti.</p>
+        <p>Lüliti all näitab kaart kirja olekut nii, nagu Campaign Intelligence selle salvestas: „Kiri läheb ainult test‑aadressidele.“ või „Saadab päris klientidele“ koos tänase piiranguga (silt on siis <strong>Live — real sends on</strong>, „Aktiivne — päris saatmine sees“). Kui Campaign Intelligence peatab kirja kaebuse või liiga paljude loobumiste tõttu, on silt <strong>Stopped</strong> („Peatatud“) ja Smaily vaatab peatamise üle, enne kui kiri saab jälle klientidele minna. Sisselülitatud kiri, mille Smaily töövoog ootab sinu saatja domeeni kinnitamist, näitab teadet „Algab, kui sinu saatja domeen on Smailys kinnitatud.“</p>
       </div>
       <div class="note">
         <span class="k">Muuda kirja kujundust</span>

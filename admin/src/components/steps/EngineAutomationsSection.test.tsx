@@ -1,11 +1,15 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { useReducer } from 'react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { StrictMode, useReducer } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getAutomationsCatalog,
   getAutomationsConfig,
+  sendAutomationTest,
+  switchAutomationTestMode,
+  type AutomationConfigServerRow,
   type AutomationsCatalogResponse,
+  type AutomationSetupItem,
 } from '../../api/automations';
 import { ApiError } from '../../api/client';
 import { listWorkflows } from '../../api/workflows';
@@ -22,6 +26,8 @@ vi.mock('../../api/automations', async (importOriginal) => {
     getAutomationsCatalog: vi.fn(),
     getAutomationsConfig: vi.fn(),
     putAutomationsConfig: vi.fn(),
+    sendAutomationTest: vi.fn(),
+    switchAutomationTestMode: vi.fn(),
   };
 });
 
@@ -32,6 +38,8 @@ vi.mock('../../api/workflows', () => ({
 const catalogMock = vi.mocked(getAutomationsCatalog);
 const configMock = vi.mocked(getAutomationsConfig);
 const workflowsMock = vi.mocked(listWorkflows);
+const sendMock = vi.mocked(sendAutomationTest);
+const switchMock = vi.mocked(switchAutomationTestMode);
 
 /**
  * A catalog whose trigger key this plugin has never heard of — proving
@@ -147,7 +155,7 @@ describe('EngineAutomationsSection', () => {
     expect(docsLink).toHaveAttribute('href', CATALOG.docs);
 
     // Test mode starts on, with the test-address field.
-    expect(screen.getByText(/test mode is on/i)).toBeInTheDocument();
+    expect(screen.getByText(/the email goes to test addresses only/i)).toBeInTheDocument();
   });
 
   it('shows only the title, description and switch while the trigger is off (CON-255)', async () => {
@@ -160,8 +168,8 @@ describe('EngineAutomationsSection', () => {
     expect(screen.queryByText(/ehita smailys vastav automatsioon/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/cooldown/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/test mode is on/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /activate for real/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/the email goes to test addresses only/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: /^test mode$/i })).not.toBeInTheDocument();
   });
 
   it('shows the workflow, cooldown and test mode in that order once switched on (CON-255)', async () => {
@@ -171,7 +179,7 @@ describe('EngineAutomationsSection', () => {
     const recipe = screen.getByText(/ehita smailys vastav automatsioon/i);
     const workflow = await screen.findByRole('combobox');
     const cooldown = screen.getByLabelText(/cooldown/i);
-    const testMode = screen.getByText(/test mode is on/i);
+    const testMode = screen.getByText(/the email goes to test addresses only/i);
 
     const follows = (a: Element, b: Element): boolean =>
       (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
@@ -261,65 +269,199 @@ describe('EngineAutomationsSection', () => {
     expect(optionLabels).not.toContain('Old flow');
   });
 
-  it('requires a confirm before requesting real sends, and offers the way back', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    render(<Harness initial={connectedState()} />);
-    await switchOn();
+  describe('test mode and the test email (CON-455)', () => {
+    const KEY = 'quantum_upsell_2027';
 
-    const activate = await screen.findByRole('button', { name: /activate for real/i });
+    function storedRow(testMode: boolean): AutomationConfigServerRow {
+      return {
+        trigger_key: KEY,
+        enabled: true,
+        language_mode: 'single',
+        automation_map: { id: '123' },
+        cooldown_days: 7,
+        daily_cap: null,
+        test_mode: testMode,
+        test_emails: ['owner@shop.example'],
+        configured_via: 'plugin',
+        updated_at: '2026-11-26T08:00:00.000Z',
+      };
+    }
 
-    // Declined → still in test mode.
-    fireEvent.click(activate);
-    expect(confirmSpy).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('button', { name: /activate for real/i })).toBeInTheDocument();
+    function setupItem(fields: Partial<AutomationSetupItem>): AutomationSetupItem {
+      return {
+        trigger_key: KEY,
+        setup_state: 'test',
+        stop_reason: null,
+        go_live_blockers: [],
+        notice: null,
+        live_since: null,
+        daily_limit: null,
+        ...fields,
+      };
+    }
 
-    // Confirmed → a REQUEST to be saved, never "live": the trigger stays
-    // in test mode until Smaily switches real sends on (§13).
-    confirmSpy.mockReturnValue(true);
-    fireEvent.click(activate);
-    expect(await screen.findByText(/real sends will be requested when you save/i)).toBeInTheDocument();
-    expect(screen.getByText(/test mode is on/i)).toBeInTheDocument();
-    expect(screen.queryByText(/live/i)).not.toBeInTheDocument();
+    /**
+     * The engine's §12 answer, changed by a mocked switch the way the engine
+     * changes it. StrictMode mounts twice, so the first read happens twice:
+     * the mock answers by state, never by call order.
+     */
+    function engineAnswers(initial: { live: boolean; dailyLimit?: number }): void {
+      let live = initial.live;
+      const dailyLimit = initial.dailyLimit ?? 10;
+      configMock.mockImplementation(async () => ({
+        configs: [storedRow(!live)],
+        setup: [setupItem(live ? { setup_state: 'live', daily_limit: dailyLimit } : {})],
+      }));
+      switchMock.mockImplementation(async (_key, testMode) => {
+        live = !testMode;
+        return { ok: true };
+      });
+    }
 
-    fireEvent.click(screen.getByRole('button', { name: /back to test mode/i }));
-    expect(await screen.findByRole('button', { name: /activate for real/i })).toBeInTheDocument();
-  });
+    function renderStrict(): void {
+      render(
+        <StrictMode>
+          <Harness initial={connectedState()} />
+        </StrictMode>,
+      );
+    }
 
-  it('says next to the go-live step that Smaily switches real sends on, with a support link (PRO-3707)', async () => {
-    render(<Harness initial={connectedState()} />);
-    await switchOn();
-
-    await screen.findByRole('button', { name: /activate for real/i });
-    expect(
-      screen.getByText(/real sends are switched on by smaily after your confirmation/i),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /contact smaily support/i })).toHaveAttribute(
-      'href',
-      'https://smaily.com/help/',
-    );
-  });
-
-  it('labels a trigger the engine stores with real sends on as live (PRO-3707)', async () => {
-    configMock.mockResolvedValue({
-      configs: [
-        {
-          trigger_key: 'quantum_upsell_2027',
-          enabled: true,
-          language_mode: 'single',
-          automation_map: { id: '123' },
-          cooldown_days: 7,
-          daily_cap: null,
-          test_mode: false,
-          test_emails: [],
-          configured_via: 'admin',
-          updated_at: '2026-10-05T08:00:00.000Z',
-        },
-      ],
+    afterEach(() => {
+      delete (window as unknown as { smailyConnectBoot?: unknown }).smailyConnectBoot;
     });
-    render(<Harness initial={connectedState()} />);
 
-    expect(await screen.findByText('Live — real sends on')).toBeInTheDocument();
-    expect(screen.getByText(/real sends are on: real customers receive/i)).toBeInTheDocument();
+    it('turns test mode off only after a dialog that names the email, then shows the state the engine stores', async () => {
+      engineAnswers({ live: false, dailyLimit: 25 });
+      renderStrict();
+
+      const testMode = await screen.findByRole('switch', { name: /^test mode$/i });
+      expect(testMode).toBeChecked();
+      expect(screen.getByText('The email goes to test addresses only.')).toBeInTheDocument();
+      expect(screen.queryByText(/activate for real/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/waiting for smaily/i)).not.toBeInTheDocument();
+
+      // Cancel: nothing is sent and test mode stays on.
+      fireEvent.click(testMode);
+      let dialog = screen.getByRole('dialog', { name: 'Turn off test mode?' });
+      expect(dialog).toHaveTextContent(
+        '“Quantum upsell” will start going to your store\'s real customers, at first up to 10 emails a day, then 25 and 50.',
+      );
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(switchMock).not.toHaveBeenCalled();
+      expect(testMode).toBeChecked();
+
+      // Confirm: one switch, then the §12 re-read shows the email live.
+      fireEvent.click(testMode);
+      dialog = screen.getByRole('dialog', { name: 'Turn off test mode?' });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Turn off test mode' }));
+
+      expect(await screen.findByText('Sending to real customers · up to 25 emails today')).toBeInTheDocument();
+      expect(switchMock).toHaveBeenCalledTimes(1);
+      expect(switchMock).toHaveBeenCalledWith(KEY, false);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: /^test mode$/i })).not.toBeChecked();
+      expect(screen.getByText('Live — real sends on')).toBeInTheDocument();
+    });
+
+    it('lists what blocks the switch in plain words and keeps test mode on', async () => {
+      configMock.mockResolvedValue({ configs: [storedRow(true)], setup: [setupItem({})] });
+      switchMock.mockResolvedValue({ ok: false, error: 'go_live_blocked', codes: ['no_design', 'stopped_needs_review', 'new_engine_blocker'] });
+      renderStrict();
+
+      fireEvent.click(await screen.findByRole('switch', { name: /^test mode$/i }));
+      const dialog = screen.getByRole('dialog', { name: 'Turn off test mode?' });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Turn off test mode' }));
+
+      expect(await within(dialog).findByText('Test mode stays on until this is fixed:')).toBeInTheDocument();
+      expect(within(dialog).getByText('The email has no design yet.')).toBeInTheDocument();
+      expect(within(dialog).getByText('Smaily reviews this stop before the email can send again.')).toBeInTheDocument();
+      expect(within(dialog).getByText('Setup is not complete.')).toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: /^test mode$/i })).toBeChecked();
+    });
+
+    it('turns test mode back on at once, with no dialog', async () => {
+      engineAnswers({ live: true });
+      renderStrict();
+
+      expect(await screen.findByText('Sending to real customers · up to 10 emails today')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('switch', { name: /^test mode$/i }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(await screen.findByText('The email goes to test addresses only.')).toBeInTheDocument();
+      expect(switchMock).toHaveBeenCalledWith(KEY, true);
+    });
+
+    it('shows a stop Smaily reviews and the engine notice in plain words', async () => {
+      configMock.mockResolvedValue({
+        configs: [storedRow(true)],
+        setup: [
+          setupItem({
+            setup_state: 'stopped',
+            stop_reason: 'auto_stop_complaint',
+            go_live_blockers: ['stopped_needs_review'],
+            notice: 'starts_when_sender_verified',
+          }),
+        ],
+      });
+      renderStrict();
+
+      expect(await screen.findByText('Stopped')).toBeInTheDocument();
+      expect(screen.getByText('Smaily reviews this stop before the email can send again.')).toBeInTheDocument();
+      expect(screen.getByText('Starts when your sender domain is verified in Smaily.')).toBeInTheDocument();
+    });
+
+    it('sends a test email to the admin\'s own address by default and says it joins the Smaily list', async () => {
+      (window as unknown as { smailyConnectBoot: unknown }).smailyConnectBoot = { adminEmail: 'admin@shop.example' };
+      configMock.mockResolvedValue({ configs: [storedRow(true)], setup: [setupItem({})] });
+      sendMock.mockResolvedValue({ ok: true });
+      renderStrict();
+
+      const field = await screen.findByLabelText('Send a test email to');
+      expect(field).toHaveValue('admin@shop.example');
+      expect(screen.getByText('This address is added to the Smaily list as a test contact.')).toBeInTheDocument();
+
+      fireEvent.change(field, { target: { value: ' tester@shop.example ' } });
+      const readsBefore = configMock.mock.calls.length;
+      fireEvent.click(screen.getByRole('button', { name: 'Send test email' }));
+
+      expect(await screen.findByText('Test email sent to tester@shop.example. Check the inbox.')).toBeInTheDocument();
+      expect(sendMock).toHaveBeenCalledTimes(1);
+      expect(sendMock).toHaveBeenCalledWith(KEY, 'tester@shop.example');
+      // The §12 state is read again after the send.
+      await waitFor(() => expect(configMock).toHaveBeenCalledTimes(readsBefore + 1));
+    });
+
+    it.each([
+      [
+        { ok: false as const, error: 'not_ready', codes: ['no_workflow', 'no_products'] },
+        ['The test email cannot be sent yet:', 'No Smaily workflow is linked to this email.', 'No customer has recommendations for this email yet.'],
+      ],
+      [
+        { ok: false as const, error: 'sender_refused', codes: ['unverified'] },
+        ['Smaily refused to send from your sender address: its domain is not verified in Smaily yet, or the address is not allowed. Real sends are not affected.'],
+      ],
+      [
+        { ok: false as const, error: 'rate_limited', codes: [] },
+        ['Too many requests. Up to 10 test emails can be sent an hour. Try again later.'],
+      ],
+      [
+        { ok: false as const, error: 'smaily_unavailable', codes: [] },
+        ['Smaily did not answer, so the test email was not sent. Press the button again to try once more.'],
+      ],
+    ])('says why a refused test send was not sent and sends nothing more by itself (%o)', async (result, texts) => {
+      configMock.mockResolvedValue({ configs: [storedRow(true)], setup: [setupItem({})] });
+      sendMock.mockResolvedValue(result);
+      renderStrict();
+
+      fireEvent.change(await screen.findByLabelText('Send a test email to'), { target: { value: 'tester@shop.example' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Send test email' }));
+
+      for (const text of texts) {
+        expect(await screen.findByText(text)).toBeInTheDocument();
+      }
+      expect(sendMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('flags an enabled trigger without a workflow at the field before any PUT', async () => {

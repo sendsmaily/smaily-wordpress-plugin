@@ -1315,8 +1315,12 @@ bundle" is not evidence it isn't ours. Rules:
   — the bundled copy was always the production build, so this never ran
   before. A ref set to `false` in an effect cleanup must be set back to
   `true` in that effect's body (`useWorkflows`, `useBackfillProgress`); test
-  such a hook with `renderHook(…, { wrapper: StrictMode })`. To see what a
-  merchant site runs, compare with core's `*.min.js` React.
+  such a hook with `renderHook(…, { wrapper: StrictMode })`. Under
+  StrictMode a component's first fetch runs twice, so a mock queued with
+  `mockResolvedValueOnce` is used up by the discarded mount — answer by
+  state with `mockImplementation` (`EngineAutomationsSection.test.tsx`,
+  CON-455). To see what a merchant site runs, compare with core's
+  `*.min.js` React.
 
 ### Browse consent is fail-closed on the WP Consent API — needs the `wp-consent-api` plugin, NOT vendor code (F3-50)
 The beacon (`beacon-core.ts` `detectConsent`) and the recommendations fetch
