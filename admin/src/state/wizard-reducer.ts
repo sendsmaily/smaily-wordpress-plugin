@@ -514,7 +514,6 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
           saveStatus: 'success',
           saveError: null,
           serverErrors: [],
-          realSendsRequested: action.payload.realSendsRequested,
           changedFields: {},
         },
       };

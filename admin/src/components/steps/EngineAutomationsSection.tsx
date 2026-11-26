@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState, type Dispatch } from 'react';
+import { useEffect, useId, useRef, useState, type Dispatch } from 'react';
+import { createPortal } from 'react-dom';
 
 import { __, sprintf } from '@admin/lib/i18n';
 import {
+  sendAutomationTest,
+  switchAutomationTestMode,
+  type AutomationActionResult,
   type AutomationCatalogTrigger,
+  type AutomationSetupItem,
   type AutomationsFailure,
 } from '../../api/automations';
 import { useAutomationsData } from '../../hooks/useAutomationsData';
@@ -21,6 +26,7 @@ import {
   validateRows,
   type EngineTriggerStatus,
 } from '../../state/engine-automations';
+import { readBoot } from '../../state/hydrate';
 import {
   type EngineAutomationRow,
   type EngineAutomationsIssue,
@@ -40,7 +46,6 @@ import {
   Toggle,
 } from '../primitives';
 import { EditDesign } from './EmailDesigns';
-import { SMAILY_SUPPORT_URL } from '@admin/lib/links';
 
 export interface EngineAutomationsSectionProps {
   state: WizardState;
@@ -65,13 +70,12 @@ export interface EngineAutomationsSectionProps {
  *  - The engine's GET is the truth: catalog+config re-fetch on every
  *    open (the section unmounts on tab switch). A dirty draft survives
  *    the re-fetch; a clean one is replaced.
- *  - Fail-closed: enabled comes only from the merchant's toggle;
- *    test_mode defaults ON, and switching it off ("activate for real")
- *    is a separate, confirmed action — never the enable checkbox. It
- *    only REQUESTS real sends: the engine keeps the trigger in test
- *    mode until a Smaily operator switches real sends on (§13), so
- *    every save is followed by a §12 re-read and the status label
- *    shows the stored state.
+ *  - Fail-closed: enabled comes only from the merchant's toggle; test
+ *    mode starts ON. The "Test mode" switch is not part of the save: it
+ *    calls §20 at once (CON-455) — off only after a confirmation dialog
+ *    that names the email, back on with no dialog — and "Send test
+ *    email" calls §19. After a save, a switch or a test send the §12
+ *    config is re-read, and the card shows what the engine stores.
  *  - Save rides the surrounding context's save path (Settings sticky
  *    footer / wizard Continue) via state.engineAutomations — this
  *    component renders and edits; it never PUTs on its own.
@@ -196,7 +200,6 @@ function ConnectedSection({
       data.configs,
       engine.dirty ? engine.rows : null,
       derivedMode,
-      engine.realSendsRequested,
     );
     dispatch({
       type: 'ENGINE_AUTOMATIONS_HYDRATED',
@@ -247,6 +250,7 @@ function ConnectedSection({
   // Wrapper-level / unbindable server errors surface in the section banner.
   const unboundServer = boundServer.get('') ?? [];
   const storedByKey = new Map(data.configs.map((c) => [c.trigger_key, c]));
+  const setupByKey = new Map(data.setup.map((item) => [item.trigger_key, item]));
 
   return (
     <div className="space-y-4">
@@ -276,10 +280,9 @@ function ConnectedSection({
             trigger={trigger}
             row={row}
             docsUrl={data.catalog.docs}
-            status={engineTriggerStatus(
-              storedByKey.get(trigger.key),
-              engine.realSendsRequested.includes(trigger.key),
-            )}
+            status={engineTriggerStatus(storedByKey.get(trigger.key), setupByKey.get(trigger.key))}
+            setup={setupByKey.get(trigger.key)}
+            onEngineChanged={refetchConfig}
             state={state}
             dispatch={dispatch}
             issues={[
@@ -360,6 +363,10 @@ interface TriggerCardProps {
   docsUrl: string;
   /** The trigger's state as the engine stores it (§12) — not the draft. */
   status: EngineTriggerStatus;
+  /** The §12 `setup[]` item; undefined from an engine before v1.15.0. */
+  setup: AutomationSetupItem | undefined;
+  /** Re-read §12 after a test send or a test-mode switch. */
+  onEngineChanged: () => void;
   state: WizardState;
   dispatch: Dispatch<WizardAction>;
   issues: EngineAutomationsIssue[];
@@ -370,6 +377,8 @@ function TriggerCard({
   row,
   docsUrl,
   status,
+  setup,
+  onEngineChanged,
   state,
   dispatch,
   issues,
@@ -388,8 +397,8 @@ function TriggerCard({
   const statusPill = {
     off: <Pill tone="neutral">{ __( 'Off', 'smaily-connect' ) }</Pill>,
     test: <Pill tone="warning">{ __( 'Test mode', 'smaily-connect' ) }</Pill>,
-    waiting: <Pill tone="brand">{ __( "Waiting for Smaily's confirmation", 'smaily-connect' ) }</Pill>,
     live: <Pill tone="success">{ __( 'Live — real sends on', 'smaily-connect' ) }</Pill>,
+    stopped: <Pill tone="danger">{ __( 'Stopped', 'smaily-connect' ) }</Pill>,
   }[status];
 
   // CON-255: an off card is its title, description and switch only. The
@@ -447,6 +456,8 @@ function TriggerCard({
             row={row}
             name={name}
             status={status}
+            setup={setup}
+            onEngineChanged={onEngineChanged}
             patch={patch}
             issues={issues}
           />
@@ -696,18 +707,21 @@ function WorkflowSelect({
 }
 
 /**
- * Test-mode block — the fail-closed heart of the section (§11):
- * test_mode starts ON, fires reach only the listed addresses, and
- * going live is a SEPARATE confirmed action, never the enable toggle.
- * That action only REQUESTS real sends: a Smaily operator switches them
- * on after the merchant's confirmation (§13), so until the engine
- * stores the trigger live the test addresses stay in force and editable.
+ * Test-mode block — the fail-closed heart of the section (§11, CON-455).
+ * The "Test mode" switch shows what the engine stores (§12) and changes
+ * it at once through §20: off only after a dialog that names the email
+ * and says that the store's customers will receive it, back on with no
+ * dialog. While test mode is on, the email goes to the test addresses
+ * only, and "Send test email" sends one test through §19. Every call is
+ * followed by a §12 re-read; nothing here is part of the save.
  */
 function TestModeBlock({
   trigger,
   row,
   name,
   status,
+  setup,
+  onEngineChanged,
   patch,
   issues,
 }: {
@@ -715,106 +729,361 @@ function TestModeBlock({
   row: EngineAutomationRow;
   name: string;
   status: EngineTriggerStatus;
+  setup: AutomationSetupItem | undefined;
+  onEngineChanged: () => void;
   patch: (fields: Partial<EngineAutomationRow>) => void;
   issues: EngineAutomationsIssue[];
 }): React.JSX.Element {
   const [emailsText, setEmailsText] = useState(() => row.test_emails.join(', '));
+  const [confirming, setConfirming] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const [switchFailed, setSwitchFailed] = useState(false);
+  const testMode = status !== 'live';
 
-  const handleActivate = (): void => {
-    const confirmed = window.confirm(
-      sprintf(
-        // translators: %s is the automation name, e.g. "Replenishment due".
-        __(
-          'Request real sends for "%s"? The automation stays in test mode until Smaily switches real sends on after your confirmation.',
-          'smaily-connect',
-        ),
-        name,
-      ),
-    );
-    if (!confirmed) {
-      return;
-    }
-    patch({ test_mode: false });
+  const turnTestModeOn = async (): Promise<void> => {
+    setSwitching(true);
+    setSwitchFailed(false);
+    const result = await switchAutomationTestMode(trigger.key, true);
+    setSwitching(false);
+    setSwitchFailed(!result.ok);
+    onEngineChanged();
   };
 
-  const backToTestMode = (
-    <Button variant="ghost" size="sm" type="button" onClick={() => patch({ test_mode: true })}>
-      { __( 'Back to test mode', 'smaily-connect' ) }
-    </Button>
-  );
-
-  if (!row.test_mode && status === 'live') {
-    return (
-      <Banner
-        tone="success"
-        title={ __( 'Live — real sends are on: real customers receive this automation.', 'smaily-connect' ) }
-        actions={backToTestMode}
-      />
-    );
-  }
-
   return (
-    <div className="rounded border border-warning-soft-bg bg-warning-soft-bg p-4">
-      <p className="text-sm font-medium text-text-primary">
-        { __( 'Test mode is on — emails go only to the test addresses below, never to customers.', 'smaily-connect' ) }
-      </p>
-      <div className="mt-3">
-        <Label htmlFor={`smly-engine-automation-${trigger.key}-test-emails`}>
-          { __( 'Test addresses', 'smaily-connect' ) }
-        </Label>
-        <div className="mt-1">
-          <Input
-            id={`smly-engine-automation-${trigger.key}-test-emails`}
-            value={emailsText}
-            invalid={hasIssuePrefix(issues, 'test_emails')}
-            placeholder="owner@shop.example, marketing@shop.example"
-            onChange={(e) => {
-              setEmailsText(e.target.value);
-              patch({ test_emails: parseEmails(e.target.value) });
-            }}
-          />
-        </div>
-        <p className="mt-1 text-xs text-text-tertiary">
-          { __( 'Comma-separated, up to 50 addresses.', 'smaily-connect' ) }
-        </p>
-        {/* T2.4/3: the engine's test-mode fire path sends ONLY to the listed
-            addresses — enabled + test mode + empty list means nobody ever
-            gets an email, silently. A warning (saving stays allowed), not
-            an error. */}
-        {row.enabled && row.test_emails.length === 0 && (
-          <p className="mt-1 text-xs font-medium text-warning-soft-text">
-            { __(
-              'This automation is enabled in test mode without any test addresses — no emails will be sent to anyone until you add at least one address.',
-              'smaily-connect',
-            ) }
-          </p>
-        )}
-        <FieldIssuesPrefix issues={issues} prefix="test_emails" />
-      </div>
-      <div className="mt-3">
-        {row.test_mode ? (
-          <Button variant="secondary" size="sm" type="button" onClick={handleActivate}>
-            { __( 'Activate for real…', 'smaily-connect' ) }
-          </Button>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-text-primary">
-              {status === 'waiting'
-                ? __( "Real sends requested — waiting for Smaily's confirmation. Until then this automation stays in test mode.", 'smaily-connect' )
-                : __( 'Real sends will be requested when you save. Until Smaily switches them on, this automation stays in test mode.', 'smaily-connect' )}
+    <div
+      className={
+        testMode
+          ? 'space-y-3 rounded border border-warning-soft-bg bg-warning-soft-bg p-4'
+          : 'space-y-3 rounded border border-success-soft-bg bg-success-soft-bg p-4'
+      }
+    >
+      <Toggle
+        name={`smly-engine-automation-${trigger.key}-test-mode`}
+        checked={testMode}
+        disabled={switching}
+        onChange={(e) => {
+          if (e.target.checked) {
+            void turnTestModeOn();
+          } else {
+            setSwitchFailed(false);
+            setConfirming(true);
+          }
+        }}
+        label={ __( 'Test mode', 'smaily-connect' ) }
+      />
+      {switchFailed && (
+        <p className="text-sm text-danger-soft-text">{failureText('')}</p>
+      )}
+      <EngineStateLine status={status} setup={setup} />
+
+      {testMode && (
+        <>
+          <div>
+            <Label htmlFor={`smly-engine-automation-${trigger.key}-test-emails`}>
+              { __( 'Test addresses', 'smaily-connect' ) }
+            </Label>
+            <div className="mt-1">
+              <Input
+                id={`smly-engine-automation-${trigger.key}-test-emails`}
+                value={emailsText}
+                invalid={hasIssuePrefix(issues, 'test_emails')}
+                placeholder="owner@shop.example, marketing@shop.example"
+                onChange={(e) => {
+                  setEmailsText(e.target.value);
+                  patch({ test_emails: parseEmails(e.target.value) });
+                }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-text-tertiary">
+              { __( 'Comma-separated, up to 50 addresses.', 'smaily-connect' ) }
             </p>
-            {backToTestMode}
+            {/* T2.4/3: the engine's test-mode fire path sends ONLY to the listed
+                addresses — enabled + test mode + empty list means nobody ever
+                gets an email, silently. A warning (saving stays allowed), not
+                an error. */}
+            {row.enabled && row.test_emails.length === 0 && (
+              <p className="mt-1 text-xs font-medium text-warning-soft-text">
+                { __(
+                  'This automation is enabled in test mode without any test addresses — no emails will be sent to anyone until you add at least one address.',
+                  'smaily-connect',
+                ) }
+              </p>
+            )}
+            <FieldIssuesPrefix issues={issues} prefix="test_emails" />
           </div>
-        )}
-        <p className="mt-2 text-xs text-text-tertiary">
-          { __( 'Real sends are switched on by Smaily after your confirmation.', 'smaily-connect' ) }{' '}
-          <a href={SMAILY_SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="underline">
-            { __( 'Contact Smaily support', 'smaily-connect' ) }
-          </a>
-        </p>
-      </div>
+          <TestSendForm triggerKey={trigger.key} onSent={onEngineChanged} />
+        </>
+      )}
+
+      {confirming && (
+        <TestModeOffDialog
+          triggerKey={trigger.key}
+          name={name}
+          onClose={() => setConfirming(false)}
+          onEngineChanged={onEngineChanged}
+        />
+      )}
     </div>
   );
+}
+
+/**
+ * The email's state line under the switch (CON-455), from §12: who the
+ * email goes to now and today's limit, a stop Smaily reviews, and the
+ * engine's `notice` (only the codes the contract names; an unknown one
+ * shows nothing).
+ */
+function EngineStateLine({
+  status,
+  setup,
+}: {
+  status: EngineTriggerStatus;
+  setup: AutomationSetupItem | undefined;
+}): React.JSX.Element {
+  const dailyLimit = setup?.daily_limit ?? null;
+  return (
+    <div className="space-y-1 text-sm">
+      <p className="font-medium text-text-primary">
+        {status === 'live'
+          ? dailyLimit !== null
+            ? sprintf(
+                // translators: %d is the number of emails, e.g. 25.
+                __( 'Sending to real customers · up to %d emails today', 'smaily-connect' ),
+                dailyLimit,
+              )
+            : __( 'Sending to real customers', 'smaily-connect' )
+          : __( 'The email goes to test addresses only.', 'smaily-connect' )}
+      </p>
+      {(status === 'stopped' || setup?.go_live_blockers.includes('stopped_needs_review') === true) && (
+        <p className="text-text-secondary">{reasonText('stopped_needs_review')}</p>
+      )}
+      {setup?.notice === 'starts_when_sender_verified' && (
+        <p className="text-text-secondary">
+          { __( 'Starts when your sender domain is verified in Smaily.', 'smaily-connect' ) }
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Send test email" (§19): one email to one address, the admin's own by
+ * default. Never retried — the admin presses again (a retry can send a
+ * second email).
+ */
+function TestSendForm({
+  triggerKey,
+  onSent,
+}: {
+  triggerKey: string;
+  onSent: () => void;
+}): React.JSX.Element {
+  const [email, setEmail] = useState(() => readBoot()?.adminEmail ?? '');
+  const [pending, setPending] = useState(false);
+  const [outcome, setOutcome] = useState<{ sentTo: string } | AutomationActionResult | null>(null);
+  const fieldId = `smly-engine-automation-${triggerKey}-test-send`;
+
+  const send = async (): Promise<void> => {
+    const to = email.trim();
+    setPending(true);
+    setOutcome(null);
+    const result = await sendAutomationTest(triggerKey, to);
+    setPending(false);
+    setOutcome(result.ok ? { sentTo: to } : result);
+    onSent();
+  };
+
+  return (
+    <div>
+      <Label htmlFor={fieldId}>{ __( 'Send a test email to', 'smaily-connect' ) }</Label>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <div className="w-72 max-w-full">
+          <Input
+            id={fieldId}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          type="button"
+          loading={pending}
+          disabled={pending || email.trim() === ''}
+          onClick={() => void send()}
+        >
+          { __( 'Send test email', 'smaily-connect' ) }
+        </Button>
+      </div>
+      <p className="mt-1 text-xs text-text-tertiary">
+        { __( 'This address is added to the Smaily list as a test contact.', 'smaily-connect' ) }
+      </p>
+      {outcome !== null && 'sentTo' in outcome && (
+        <p role="status" className="mt-1 text-sm text-success-soft-text">
+          {sprintf(
+            // translators: %s is the email address the test was sent to.
+            __( 'Test email sent to %s. Check the inbox.', 'smaily-connect' ),
+            outcome.sentTo,
+          )}
+        </p>
+      )}
+      {outcome !== null && !('sentTo' in outcome) && !outcome.ok && (
+        <ActionFailure result={outcome} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Turn off test mode?" — the confirmation §20 asks for: it names the
+ * email and says that the store's customers will receive it. Confirming
+ * sends `live: true, confirmed: true`; a blocked switch lists what blocks
+ * it and keeps test mode on.
+ */
+function TestModeOffDialog({
+  triggerKey,
+  name,
+  onClose,
+  onEngineChanged,
+}: {
+  triggerKey: string;
+  name: string;
+  onClose: () => void;
+  onEngineChanged: () => void;
+}): React.JSX.Element {
+  const titleId = useId();
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const [pending, setPending] = useState(false);
+  const [failure, setFailure] = useState<AutomationActionResult | null>(null);
+
+  useEffect(() => {
+    cancelRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  const confirm = async (): Promise<void> => {
+    setPending(true);
+    setFailure(null);
+    const result = await switchAutomationTestMode(triggerKey, false);
+    setPending(false);
+    onEngineChanged();
+    if (result.ok) {
+      onClose();
+    } else {
+      setFailure(result);
+    }
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 font-sans">
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full cursor-default bg-text-primary/60"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative z-10 w-full max-w-md space-y-4 rounded-lg bg-surface p-6 shadow-xl"
+      >
+        <h2 id={titleId} className="text-lg font-semibold text-text-primary">
+          { __( 'Turn off test mode?', 'smaily-connect' ) }
+        </h2>
+        <p className="text-sm text-text-secondary">
+          {sprintf(
+            // translators: %s is the email's name, e.g. "Replenishment due".
+            __( '“%s” will start going to your store\'s real customers, at first up to 10 emails a day, then 25 and 50.', 'smaily-connect' ),
+            name,
+          )}
+        </p>
+        {failure !== null && !failure.ok && <ActionFailure result={failure} />}
+        <div className="flex justify-end gap-2">
+          <Button ref={cancelRef} variant="ghost" size="sm" type="button" onClick={onClose}>
+            { __( 'Cancel', 'smaily-connect' ) }
+          </Button>
+          <Button variant="primary" size="sm" type="button" loading={pending} disabled={pending} onClick={() => void confirm()}>
+            { __( 'Turn off test mode', 'smaily-connect' ) }
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** A refused test send or switch, in the plugin's own words (CON-301: never the engine's text). */
+function ActionFailure({ result }: { result: Extract<AutomationActionResult, { ok: false }> }): React.JSX.Element {
+  const listed = result.error === 'not_ready' || result.error === 'go_live_blocked';
+  return (
+    <div role="alert" className="mt-1 text-sm text-danger-soft-text">
+      <p>{failureText(result.error)}</p>
+      {listed && (
+        <ul className="mt-1 list-disc pl-5">
+          {(result.codes.length > 0 ? result.codes : ['']).map((code) => (
+            <li key={code}>{reasonText(code)}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** The headline of a refused §19 or §20 call, by the route's error code. */
+function failureText(error: string): string {
+  switch (error) {
+    case 'not_ready':
+      return __( 'The test email cannot be sent yet:', 'smaily-connect' );
+    case 'go_live_blocked':
+      return __( 'Test mode stays on until this is fixed:', 'smaily-connect' );
+    case 'sender_refused':
+      return __( 'Smaily refused to send from your sender address: its domain is not verified in Smaily yet, or the address is not allowed. Real sends are not affected.', 'smaily-connect' );
+    case 'rate_limited':
+      return __( 'Too many requests. Up to 10 test emails can be sent an hour. Try again later.', 'smaily-connect' );
+    case 'smaily_unavailable':
+      return __( 'Smaily did not answer, so the test email was not sent. Press the button again to try once more.', 'smaily-connect' );
+    case 'invalid_email':
+    case 'validation_failed':
+      return __( 'Enter a valid email address.', 'smaily-connect' );
+    default:
+      return __( 'Campaign Intelligence did not take the request. Try again in a moment.', 'smaily-connect' );
+  }
+}
+
+/** One engine reason (§19 `not_ready`) or blocker (§12/§20), in plain words. */
+function reasonText(code: string): string {
+  switch (code) {
+    case 'no_workflow':
+      return __( 'No Smaily workflow is linked to this email.', 'smaily-connect' );
+    case 'workflow_not_active':
+      return __( 'The email\'s Smaily workflow is not active yet, for example because its sender domain is not verified.', 'smaily-connect' );
+    case 'no_design':
+      return __( 'The email has no design yet.', 'smaily-connect' );
+    case 'design_check_failed':
+      return __( 'The design check failed — open the design to fix it.', 'smaily-connect' );
+    case 'missing_subject':
+      return __( 'The email has no subject.', 'smaily-connect' );
+    case 'no_sender':
+      return __( 'The email has no sender address.', 'smaily-connect' );
+    case 'no_products':
+      return __( 'No customer has recommendations for this email yet.', 'smaily-connect' );
+    case 'stopped_needs_review':
+      return __( 'Smaily reviews this stop before the email can send again.', 'smaily-connect' );
+    case 'operator_switch_required':
+      return __( 'A Smaily operator switches real sends on for this email.', 'smaily-connect' );
+    default:
+      return __( 'Setup is not complete.', 'smaily-connect' );
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -247,21 +247,27 @@ export interface EngineAutomationRow {
    * an engine-admin-set cap is never wiped. Null = no cap.
    */
   daily_cap: number | null;
-  /** UI default TRUE (fail-closed §11) — switching off is a confirmed, separate action. */
+  /**
+   * As the engine stores it (§12). Read only: a save never sends it — the
+   * "Test mode" switch calls §20 at once, with a confirmation to turn it
+   * off (CON-455).
+   */
   test_mode: boolean;
   /** Max 50 valid emails; may be empty. */
   test_emails: string[];
 }
 
 /**
- * The §13 keys that are optional on the wire (contract v1.15.0): a save
- * sends them only when the merchant set them in the plugin (CON-172).
+ * The §13 keys that are optional on the wire (contract v1.15.0) and that a
+ * save sends only when the merchant set them in the plugin (CON-172). The
+ * third optional key, `test_mode`, is never sent: test mode is switched
+ * through §20 (CON-455).
  */
-export const MERCHANT_SET_FIELDS = ['automation_map', 'test_mode', 'test_emails'] as const;
+export const MERCHANT_SET_FIELDS = ['automation_map', 'test_emails'] as const;
 export type MerchantSetField = (typeof MERCHANT_SET_FIELDS)[number];
 
 /** One §13 PUT row: the required fields, plus the optional ones the merchant set. */
-export type EngineAutomationPutRow = Omit<EngineAutomationRow, MerchantSetField> &
+export type EngineAutomationPutRow = Omit<EngineAutomationRow, MerchantSetField | 'test_mode'> &
   Partial<Pick<EngineAutomationRow, MerchantSetField>>;
 
 /**
@@ -293,20 +299,11 @@ export interface EngineAutomationsState {
   /** §13 422 errors (or local pre-validation issues) from the last save attempt. */
   serverErrors: EngineAutomationsIssue[];
   /**
-   * Trigger keys the last successful save in this page session sent
-   * with `enabled: true` + `test_mode: false` — a request for real
-   * sends. The engine stores such a row in test mode until a Smaily
-   * operator switches real sends on (contract §13), and the §12 read
-   * cannot tell a request from plain test mode, so this is the only
-   * record of it.
-   */
-  realSendsRequested: string[];
-  /**
    * Per trigger key, the optional §13 fields the merchant changed on the
-   * screen since the rows were read (CON-172). A save sends only these of
-   * the three — the engine keeps its stored value of a left-out key, so a
-   * workflow, test mode or test address list set on the engine's setup
-   * page is never overwritten by a value the merchant did not touch.
+   * screen since the rows were read (CON-172). A save sends only these —
+   * the engine keeps its stored value of a left-out key, so a workflow or
+   * test address list set on the engine's setup page is never overwritten
+   * by a value the merchant did not touch.
    */
   changedFields: Record<string, MerchantSetField[]>;
 }
@@ -621,7 +618,6 @@ export const idleEngineAutomations: EngineAutomationsState = {
   saveStatus: 'idle',
   saveError: null,
   serverErrors: [],
-  realSendsRequested: [],
   changedFields: {},
 };
 
@@ -733,7 +729,7 @@ export type WizardAction =
     }
   | { type: 'UPDATE_ENGINE_AUTOMATION'; payload: { triggerKey: string; patch: Partial<EngineAutomationRow> } }
   | { type: 'ENGINE_AUTOMATIONS_SAVE_START' }
-  | { type: 'ENGINE_AUTOMATIONS_SAVED'; payload: { realSendsRequested: string[] } }
+  | { type: 'ENGINE_AUTOMATIONS_SAVED' }
   | { type: 'ENGINE_AUTOMATIONS_SAVE_FAILED'; payload: { error: string; errors: EngineAutomationsIssue[] } }
 
   // Settings dirty-tab tracking ---------------------------------------------

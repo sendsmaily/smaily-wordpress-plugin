@@ -2154,10 +2154,6 @@ msgstr ""
 msgid "Test mode"
 msgstr ""
 
-#: admin/src/components/steps/EngineAutomationsSection.tsx:235
-msgid "Waiting for Smaily's confirmation"
-msgstr ""
-
 #: admin/src/components/steps/EngineAutomationsSection.tsx:236
 msgid "Live — real sends on"
 msgstr ""
@@ -2194,24 +2190,6 @@ msgstr ""
 msgid "No active workflows found in Smaily — enter the workflow id manually or create the workflow first."
 msgstr ""
 
-#. translators: %s is the automation name, e.g. "Replenishment due".
-#: admin/src/components/steps/EngineAutomationsSection.tsx:463
-#, js-format
-msgid "Request real sends for \"%s\"? The automation stays in test mode until Smaily switches real sends on after your confirmation."
-msgstr ""
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:475
-msgid "Back to test mode"
-msgstr ""
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:481
-msgid "Live — real sends are on: real customers receive this automation."
-msgstr ""
-
-#: admin/src/components/steps/EngineAutomationsSection.tsx:487
-msgid "Test mode is on — emails go only to the test addresses below, never to customers."
-msgstr ""
-
 #: admin/src/components/steps/EngineAutomationsSection.tsx:489
 msgid "Test addresses"
 msgstr ""
@@ -2224,24 +2202,126 @@ msgstr ""
 msgid "This automation is enabled in test mode without any test addresses — no emails will be sent to anyone until you add at least one address."
 msgstr ""
 
-#: admin/src/components/steps/EngineAutomationsSection.tsx:511
-msgid "Activate for real…"
+#: admin/src/components/steps/EngineAutomationsSection.tsx:401
+msgid "Stopped"
 msgstr ""
 
-#: admin/src/components/steps/EngineAutomationsSection.tsx:512
-msgid "Real sends requested — waiting for Smaily's confirmation. Until then this automation stays in test mode."
+#. translators: %d is the number of emails, e.g. 25.
+#: admin/src/components/steps/EngineAutomationsSection.tsx:851
+#, js-format
+msgid "Sending to real customers · up to %d emails today"
 msgstr ""
 
-#: admin/src/components/steps/EngineAutomationsSection.tsx:512
-msgid "Real sends will be requested when you save. Until Smaily switches them on, this automation stays in test mode."
+#: admin/src/components/steps/EngineAutomationsSection.tsx:854
+msgid "Sending to real customers"
 msgstr ""
 
-#: admin/src/components/steps/EngineAutomationsSection.tsx:516
-msgid "Real sends are switched on by Smaily after your confirmation."
+#: admin/src/components/steps/EngineAutomationsSection.tsx:855
+msgid "The email goes to test addresses only."
 msgstr ""
 
-#: admin/src/components/steps/EngineAutomationsSection.tsx:518
-msgid "Contact Smaily support"
+#: admin/src/components/steps/EngineAutomationsSection.tsx:862
+msgid "Starts when your sender domain is verified in Smaily."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:898
+msgid "Send a test email to"
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:916
+msgid "Send test email"
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:920
+msgid "This address is added to the Smaily list as a test contact."
+msgstr ""
+
+#. translators: %s is the email address the test was sent to.
+#: admin/src/components/steps/EngineAutomationsSection.tsx:926
+#, js-format
+msgid "Test email sent to %s. Check the inbox."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1001
+msgid "Turn off test mode?"
+msgstr ""
+
+#. translators: %s is the email's name, e.g. "Replenishment due".
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1006
+#, js-format
+msgid "“%s” will start going to your store's real customers, at first up to 10 emails a day, then 25 and 50."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1016
+msgid "Turn off test mode"
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1046
+msgid "The test email cannot be sent yet:"
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1048
+msgid "Test mode stays on until this is fixed:"
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1050
+msgid "Smaily refused to send from your sender address: its domain is not verified in Smaily yet, or the address is not allowed. Real sends are not affected."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1052
+msgid "Too many requests. Up to 10 test emails can be sent an hour. Try again later."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1054
+msgid "Smaily did not answer, so the test email was not sent. Press the button again to try once more."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1057
+msgid "Enter a valid email address."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1059
+msgid "Campaign Intelligence did not take the request. Try again in a moment."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1067
+msgid "No Smaily workflow is linked to this email."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1069
+msgid "The email's Smaily workflow is not active yet, for example because its sender domain is not verified."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1071
+msgid "The email has no design yet."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1073
+msgid "The design check failed — open the design to fix it."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1075
+msgid "The email has no subject."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1077
+msgid "The email has no sender address."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1079
+msgid "No customer has recommendations for this email yet."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1081
+msgid "Smaily reviews this stop before the email can send again."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1083
+msgid "A Smaily operator switches real sends on for this email."
+msgstr ""
+
+#: admin/src/components/steps/EngineAutomationsSection.tsx:1085
+msgid "Setup is not complete."
 msgstr ""
 
 #: admin/src/components/steps/OpenConsoleButton.tsx:40

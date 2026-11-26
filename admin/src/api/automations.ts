@@ -54,8 +54,26 @@ export interface AutomationConfigServerRow extends EngineAutomationRow {
   updated_at?: string;
 }
 
+/**
+ * One §12 `setup[]` item (v1.15.0): the email's state as the engine
+ * stores it. Every field is read-only. An engine before v1.15.0 sends no
+ * `setup`; `notice` is absent before 2026-11-26 (= null).
+ */
+export interface AutomationSetupItem {
+  trigger_key: string;
+  /** `off` | `set_up` | `test` | `live` | `stopped`; an unknown value reads as off. */
+  setup_state: string;
+  stop_reason: string | null;
+  go_live_blockers: string[];
+  notice?: string | null;
+  live_since: string | null;
+  /** `live` only: the most real sends today; null when nothing limits them. */
+  daily_limit: number | null;
+}
+
 export interface AutomationsConfigResponse {
   configs: AutomationConfigServerRow[];
+  setup?: AutomationSetupItem[];
 }
 
 /**
@@ -176,5 +194,69 @@ export function classifyAutomationsFailure(err: unknown): AutomationsFailure {
       'smaily-connect',
     ),
     detail: err instanceof Error ? err.message : undefined,
+  };
+}
+
+/**
+ * The outcome of a "Send test email" press or a "Test mode" switch
+ * (contract §19–§20, REST\AutomationSendsEndpoint — CON-455). A failure
+ * carries the route's `error` code and the engine's codes behind it
+ * (`not_ready` reasons, `go_live_blocked` blockers, the `sender_refused`
+ * sender state) — never a message text; the screen words each code.
+ */
+export type AutomationActionResult =
+  | { ok: true }
+  | { ok: false; error: string; codes: string[] };
+
+/**
+ * Send one test email of a catalogue email to the typed address. The
+ * server adds the store's default language. Never retried: a retry can
+ * send a second email (§19).
+ */
+export async function sendAutomationTest(
+  triggerKey: string,
+  email: string,
+): Promise<AutomationActionResult> {
+  try {
+    await apiRequest('/rec-engine/automations/test-send', {
+      method: 'POST',
+      body: { trigger_key: triggerKey, email },
+    });
+    return { ok: true };
+  } catch (err) {
+    return actionFailure(err);
+  }
+}
+
+/**
+ * Switch a catalogue email's test mode. Off (`testMode: false`) is the
+ * §20 `live: true` the admin confirmed in the dialog; on is `live: false`.
+ */
+export async function switchAutomationTestMode(
+  triggerKey: string,
+  testMode: boolean,
+): Promise<AutomationActionResult> {
+  try {
+    await apiRequest('/rec-engine/automations/go-live', {
+      method: 'POST',
+      body: testMode
+        ? { trigger_key: triggerKey, live: false }
+        : { trigger_key: triggerKey, live: true, confirmed: true },
+    });
+    return { ok: true };
+  } catch (err) {
+    return actionFailure(err);
+  }
+}
+
+function actionFailure(err: unknown): AutomationActionResult {
+  const body = err instanceof ApiError
+    ? (err.body as { error?: unknown; reasons?: unknown; blockers?: unknown; sender_state?: unknown } | null)
+    : null;
+  const list = body?.reasons ?? body?.blockers ?? (body?.sender_state !== undefined ? [body.sender_state] : []);
+  return {
+    ok: false,
+    error: typeof body?.error === 'string' ? body.error : 'engine_unavailable',
+    codes: Array.isArray(list) ? list.filter((code): code is string => typeof code === 'string') : [],
   };
 }

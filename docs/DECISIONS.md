@@ -7210,6 +7210,11 @@ seconds and would flash the notice.
 
 ### PRO-3707 — The automations screen shows what the engine stored; a real-sends request is known from the plugin's own last save (2026-10-05)
 
+> **Superseded in part by CON-455 (2026-11-26):** there is no real-sends
+> request any more, so `realSendsRequested` and the "Waiting for Smaily's
+> confirmation" label are gone. The card shows the §12 `setup[]` state; the
+> re-read after every save, test send and switch stays.
+
 **Context:** contract §13 (v1.8.2, PRO-3705): the engine stores an enabled
 row sent with `test_mode: false` in test mode unless a Smaily operator has
 switched that trigger's real sends on, and answers the PUT exactly as before.
@@ -8521,6 +8526,11 @@ personal data in the queue longer than needed; a new queue status
 transitions) and `tests/Unit/Smaily/TransactionalFlusherTest.php`.
 
 ### CON-172 — An automations save sends only what the merchant set in the plugin, and never `test_mode: false` (2026-10-22)
+
+> **Superseded in part by CON-455 (Erkki, 2026-11-26):** the save never sends
+> `test_mode` at all now — not even `true`. The "Test mode" switch calls §20
+> at once, and "Activate for real…" with its request is gone. The rest
+> (`automation_map` / `test_emails` only when the merchant changed them) holds.
 
 **Context:** contract v1.15.0 made `automation_map`, `test_mode` and
 `test_emails` optional in the §13 PUT; a left-out key keeps the engine's
@@ -11977,3 +11987,60 @@ engine ask, not plugin work. The resolver reads the order language from
 read (unchanged by this decision).
 **Relationships:** F3-47 (the resolver and its rules), F2-10 (omit an
 empty optional field), CON-246 (which customers reach §4).
+
+### CON-455 — The store owner sends a test email and turns test mode off and on from the plugin (Erkki, 2026-11-26)
+
+**Context:** contract v1.37.2 (INT-154) made two engine calls live on
+2026-11-26: a test send of a catalogue email (§19) and the switch that takes
+it out of test mode and back (§20). Until then the automations screen only
+recorded a request ("Activate for real…", CON-172 / PRO-3707) that never left
+the plugin, and a Smaily operator switched real sends on.
+**Decision (Erkki, 2026-11-26):** each Campaign Intelligence email card keeps
+its on/off tick and gets a **Test mode** switch, on by default, worded as test
+mode on/off — never as "go live", because the tick already starts the
+automation. While test mode is on the card says "The email goes to test
+addresses only." and offers **Send test email** with an address field (the
+signed-in admin's own email by default) and the note that the address joins
+the Smaily list as a test contact. Turning the switch off opens a dialog that
+names the email and says it starts going to the store's real customers at up
+to 10, then 25 and 50 emails a day; confirming calls §20 `{live: true,
+confirmed: true, switched_by: <WordPress user id>}`. A blocked switch (409
+`go_live_blocked`) lists the blockers in the plugin's own words. Turning it
+back on calls §20 `{live: false}` at once, with no dialog. After every call
+the card re-reads §12 and shows the `setup[]` state: test mode, "Sending to
+real customers · up to N emails today" (`daily_limit`), a stop Smaily reviews
+(`stopped` / `stopped_needs_review`) and the `notice` code
+`starts_when_sender_verified`. "Activate for real…", the waiting state and
+`realSendsRequested` are removed; the save never sends `test_mode`.
+Implementation: two admin routes, `/rec-engine/automations/test-send` and
+`/rec-engine/automations/go-live` (`REST\AutomationSendsEndpoint`: signed-in
+admin, `wp_rest` nonce, `manage_options`, gated on `sending_allowed()`),
+calling the engine through `Client::automation_test_send()` /
+`automation_go_live()` on the `automations_test_send` / `automations_go_live`
+map keys with `{key}` substituted (`templated_url()`), falling back to
+`/api/v1/automations/{key}/test-send|go-live` for a connection set up before
+the keys existed. The client makes ONE attempt: a retried §19 502 could send
+a second email. The route refuses `live: true` without `confirmed: true`. The
+test address is validated (`is_email`) and never stored or logged. The store's
+default language (`ContactLanguageResolver::for_guest()`) goes as §19
+`language`. Errors reach the admin as the engine's codes only (reasons,
+blockers, sender state), never its message text (CON-301); an unknown code
+reads "Setup is not complete.". Plugin and transactional emails have neither
+control: the section shows only §11 catalogue emails, and the engine answers
+404 `unknown_automation` for any other key.
+**Rationale:** the contract makes §20 the only way a plugin starts real
+sends, and the merchant's confirmation in the dialog is the go-live consent
+record (§20 audit) that replaced the written yes of the pilot rule. Keeping
+the switch out of the save makes its effect immediate and keeps a later save
+from undoing it (§13: a sent `test_mode: true` switches real sends off).
+**Alternatives:** keep the switch in the draft and call §20 on save —
+rejected: a save that fails half-way would leave the screen and the engine
+disagreeing, and Erkki asked for an immediate switch with a dialog; send
+`switched_by` as an integer — not possible, §20 types it as a string, so the
+WordPress user id goes as its decimal string and nothing else.
+**Relationships:** supersedes the request flow of CON-172 and PRO-3707 (in
+part); CON-301 (codes, never message text); contract §12, §13, §19, §20.
+Pinned by `tests/Integration/AutomationSendsTest.php` (mock §19/§20 with each
+refusal, no retry, fallback paths), `ClientAutomationsTest`, the vitest
+`EngineAutomationsSection` "test mode and the test email" cases and the
+`engine-automations` state tests.
