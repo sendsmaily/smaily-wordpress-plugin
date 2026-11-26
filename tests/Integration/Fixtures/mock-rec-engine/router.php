@@ -346,10 +346,13 @@ if ( $method === 'POST' && $path === '/api/setup/exchange' ) {
 				// (the plugin calls `store_uninstall` — §16, CON-219 — and the
 				// two `emails_*` keys). `{key}` / `{email_key}`
 				// are placeholders like `{email}`; the reply must still pass
-				// SetupExchange::is_allowed_reply(). §19/§20's keys are left
-				// out: the engine returns them only once those are live.
+				// SetupExchange::is_allowed_reply(). §19/§20's keys are
+				// returned since v1.37.2 (2026-11-26); the plugin calls
+				// neither endpoint.
 				'store_uninstall'         => $engine_base . '/api/v1/store/uninstall',
 				'automations_setup_link'  => $engine_base . '/api/v1/automations/{key}/setup-link',
+				'automations_test_send'   => $engine_base . '/api/v1/automations/{key}/test-send',
+				'automations_go_live'     => $engine_base . '/api/v1/automations/{key}/go-live',
 				'store_branding'          => $engine_base . '/api/v1/store/branding',
 				'emails_design_link'      => $engine_base . '/api/v1/emails/{email_key}/design-link',
 				'emails_designs'          => $engine_base . '/api/v1/emails/designs',
