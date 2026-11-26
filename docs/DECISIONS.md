@@ -12092,6 +12092,58 @@ still never starts the first-order email), PRO-4098 / CON-2 (skipped rows),
 CON-199 (the discount code comes after the gate), CONTACT_SYNC_MODES.md
 § 6.2.
 
+### CON-427 — A variable product's browse and cart events are keyed on a variation (2026-11-26)
+
+**Context:** The engine learns from a browse or cart event only when its
+`sku` matches a catalog row (contract §3 "Same key from every path"; §6
+offers no parent-level key for browse). The catalog sends a row per
+variation of a variable product and none for the parent. A variable
+product's page view was keyed `woo-<parent_id>`, and so was a cart event
+whose button names only the parent — WooCommerce's mini-cart remove link
+does that for every variation line (`data-product_id` is the cart line's
+`product_id`). Neither joined anything. Found from the PrestaShop
+repository (PrestaShop keys such a cart event with the combination its
+cart takes).
+**Decision:**
+- **Page view** (`StorefrontBeacon::product_context()`): the default
+  variation — the published one WooCommerce's own
+  `find_matching_product_variation()` returns for the product's default
+  attributes, the one the page preselects; without a default (or none that
+  matches), the first published variation in the catalog's order
+  (`get_children()`: menu order, then id). A disabled (private) variation is
+  never chosen, though the catalog sends it. Both choices have a catalog
+  row. Why not "any variation" or the cheapest: the default is what the
+  shopper sees, and the fallback is the same deterministic order the import
+  walks.
+- **Cart event** (`BeaconEndpoint::resolve_cart_product_skus()`): when the
+  id names a variable product, the variation the cart took — the last line
+  of that product in the shopper's cart for `cart_add`, in the lines
+  WooCommerce keeps after a removal (`removed_cart_contents`, for its undo
+  link) for `cart_remove`. The relay reads the shopper's WooCommerce session
+  row directly (`WC_Session_Handler::get_session_cookie()` +
+  `get_session()`): the REST request has no WooCommerce session, and
+  starting one there would delete a logged-in shopper's session, because
+  the relay sends no REST nonce and WordPress treats the request as logged
+  out. The cookie is checked by WooCommerce's own hash, so only the
+  shopper's own session is read.
+- A simple product or an id that already names a variation keeps its key.
+  When no variation is found (no published variation; no session; a store
+  with another session handler; WooCommerce already cleared the removed
+  lines on a page load) the event keeps the parent's key, as before. Every
+  key still goes through `SkuResolver`.
+**Consequence:** a variable product's views and cart events teach the
+engine about one of its variations, grouped back to the product by
+`tags.product_id`. A page view names the default (or first) variation even
+when the shopper later picks another — the cart event and the order line
+then name the one bought. Two variations of one product removed on the same
+page are both keyed on the last one removed: the remove button also carries
+WooCommerce's `cart_item_key`, which would make it exact, but sending it
+needs a client change that this decision does not make. No JS change, no
+contract change.
+**Relationships:** PRO-1224 (the `woo-<id>` key), PRO-1390 (cart events
+resolved on the server), PRO-1445 (`product_context()`), CON-323 (the
+connection prefix — `resolve_id()` adds it).
+
 ### CON-431 (privacy requests) — The engine's deletions and opt-outs go through a paced queue (Erkki, 2026-11-26 via CON-397)
 **Context:** Campaign Intelligence takes 10 privacy requests per 60 seconds
 per store (contract rate-limit table, v1.37.1) and answers more with `429`
