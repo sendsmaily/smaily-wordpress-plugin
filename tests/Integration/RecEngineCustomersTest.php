@@ -13,6 +13,8 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
+use Smaily\Connect\Multilingual\DetectorFactory;
+use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\ContactSyncMode;
@@ -20,6 +22,7 @@ use Smaily\Connect\Smaily\RecEngine\Client;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerPayloadBuilder;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
+use Smaily\Connect\Support\ContactLanguageResolver;
 use Smaily\Connect\Tests\Integration\Fixtures\RecEngineMockServer;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 use Smaily\Connect\Tests\Integration\Support\EnvSeed;
@@ -43,6 +46,9 @@ final class RecEngineCustomersTest extends TestCase {
 	/** @var array<int, int> User ids created by a test, torn down after. */
 	private array $created_users = array();
 
+	/** @var array<int, int> Order ids created by a test, torn down after. */
+	private array $created_orders = array();
+
 	public static function setUpBeforeClass(): void {
 		self::$engine = RecEngineMockServer::start();
 	}
@@ -59,6 +65,14 @@ final class RecEngineCustomersTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		foreach ( $this->created_orders as $order_id ) {
+			$order = wc_get_order( $order_id );
+			if ( $order ) {
+				$order->delete( true ); // Not wp_delete_post: a no-op under HPOS.
+			}
+		}
+		$this->created_orders = array();
+		DetectorFactory::reset();
 		foreach ( $this->created_users as $user_id ) {
 			wp_delete_user( $user_id );
 		}
@@ -169,6 +183,75 @@ final class RecEngineCustomersTest extends TestCase {
 			$queue->pending( 10, array( CustomerFlusher::EVENT_CUSTOMER_UPSERT ) ),
 			'The row is sent and no longer pending.'
 		);
+	}
+
+	/**
+	 * CON-354: a registered buyer's order queues the buyer's customer row,
+	 * and that row carries the order's language — the rule the Smaily
+	 * contact sync uses, not the WordPress profile locale.
+	 */
+	public function test_a_buyers_order_re_sends_the_customer_with_the_order_language(): void {
+		$this->multilingual_store( 'et', array( 'et', 'ru', 'lv' ) );
+		$user_id = $this->register_customer( 'lang-buyer@example.test' );
+		update_user_meta( $user_id, 'locale', 'en_US' );
+		$this->flusher()->flush();
+		self::assertSame( 'et', $this->sent_customer( $user_id )['language'] ?? null, 'No order yet: the store default.' );
+
+		$order = wc_create_order( array( 'customer_id' => $user_id ) );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		$this->created_orders[] = (int) $order->get_id();
+		$order->set_billing_email( 'lang-buyer@example.test' );
+		$order->update_meta_data( 'wpml_language', 'lv' );
+		$order->save();
+		$order->update_status( 'completed' );
+
+		$pending = ( new IngestQueue() )->pending( 10, array( CustomerFlusher::EVENT_CUSTOMER_UPSERT ) );
+		self::assertSame( array( (string) $user_id ), array_column( $pending, 'entity_id' ), 'The order queues the buyer.' );
+
+		$this->flusher()->flush();
+
+		self::assertSame( 'lv', $this->sent_customer( $user_id )['language'] ?? null );
+	}
+
+	public function test_the_language_is_left_out_when_none_resolves(): void {
+		$this->multilingual_store( 'et', array( 'et' ) );
+		add_filter( ContactLanguageResolver::FILTER_LANGUAGE, '__return_empty_string' );
+		try {
+			$user_id = $this->register_customer( 'lang-none@example.test' );
+			$this->flusher()->flush();
+		} finally {
+			remove_filter( ContactLanguageResolver::FILTER_LANGUAGE, '__return_empty_string' );
+		}
+
+		$sent = $this->sent_customer( $user_id );
+		self::assertNotSame( array(), $sent );
+		self::assertArrayNotHasKey( 'language', $sent, 'Absent, never "".' );
+	}
+
+	/** @return array<string, mixed> The last wire object the mock got for $user_id, empty when none. */
+	private function sent_customer( int $user_id ): array {
+		foreach ( (array) ( self::$engine->state()['last_customers_payload'] ?? array() ) as $customer ) {
+			if ( ( $customer['external_id'] ?? null ) === (string) $user_id ) {
+				return $customer;
+			}
+		}
+		return array();
+	}
+
+	/**
+	 * Stands in for the store's multilingual plugin: its default and active
+	 * languages. tearDown() resets the factory.
+	 *
+	 * @param array<int, string> $active
+	 */
+	private function multilingual_store( string $default_language, array $active ): void {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_default_language' )->willReturn( $default_language );
+		$detector->method( 'get_detected_languages' )->willReturn( $active );
+
+		$cached = new \ReflectionProperty( DetectorFactory::class, 'cached' );
+		$cached->setAccessible( true );
+		$cached->setValue( null, $detector );
 	}
 
 	private function flusher(): CustomerFlusher {

@@ -12,6 +12,8 @@ declare(strict_types=1);
 namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
+use Smaily\Connect\Multilingual\DetectorFactory;
+use Smaily\Connect\Multilingual\DetectorInterface;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\ContactSyncMode;
@@ -79,6 +81,7 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 		}
 		$this->created_orders = array();
 		$this->delete_non_admin_users();
+		DetectorFactory::reset();
 		delete_option( ContactSyncMode::OPTION_MODE );
 		delete_option( ContactSyncMode::OPTION_SYNC_ENABLED );
 		parent::tearDown();
@@ -306,6 +309,41 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 	}
 
 	/**
+	 * CON-354: the import sends each customer's language by the rule the
+	 * Smaily contact sync uses — the preferred language, else the latest
+	 * order's language, else the store default — never the WordPress
+	 * profile locale. So the next import gives existing customers theirs.
+	 */
+	public function test_the_import_sends_the_contact_sync_language_never_the_profile_locale(): void {
+		$this->multilingual_store( 'et', array( 'et', 'ru', 'lv' ) );
+
+		$preferred = $this->make_user( 'bf-lang-pref@example.test', 'customer' );
+		update_user_meta( $preferred, '_user_preferred_language', 'ru_RU' );
+
+		$buyer = $this->make_user( 'bf-lang-order@example.test', 'customer' );
+		$order = wc_get_order( $this->make_order( $buyer, 'completed', time() - DAY_IN_SECONDS ) );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		$order->update_meta_data( 'wpml_language', 'lv' );
+		$order->save();
+
+		$profile = $this->make_user( 'bf-lang-locale@example.test', 'customer' );
+		update_user_meta( $profile, 'locale', 'en_US' );
+
+		$job = $this->job();
+		$job->start();
+		$job->process_batch();
+
+		$sent = array();
+		foreach ( (array) ( self::$engine->state()['last_customers_payload'] ?? array() ) as $customer ) {
+			$sent[ (string) $customer['email'] ] = $customer['language'] ?? null;
+		}
+
+		self::assertSame( 'ru', $sent['bf-lang-pref@example.test'] ?? null, 'The preferred language, as a two-letter code.' );
+		self::assertSame( 'lv', $sent['bf-lang-order@example.test'] ?? null, 'The latest order language.' );
+		self::assertSame( 'et', $sent['bf-lang-locale@example.test'] ?? null, 'The store default, not the en_US profile locale.' );
+	}
+
+	/**
 	 * PRO-3821: Action Scheduler had already claimed the next tick when the
 	 * merchant pressed Cancel (or Hold back). That tick must send nothing and
 	 * leave the import cancelled, not flip it back to running.
@@ -443,6 +481,22 @@ final class RecEngineCustomerBackfillTest extends TestCase {
 		self::assertIsInt( $id );
 		$this->created_users[] = (int) $id;
 		return (int) $id;
+	}
+
+	/**
+	 * Stands in for the store's multilingual plugin: its default and active
+	 * languages. tearDown() resets the factory.
+	 *
+	 * @param array<int, string> $active
+	 */
+	private function multilingual_store( string $default_language, array $active ): void {
+		$detector = $this->createMock( DetectorInterface::class );
+		$detector->method( 'get_default_language' )->willReturn( $default_language );
+		$detector->method( 'get_detected_languages' )->willReturn( $active );
+
+		$cached = new \ReflectionProperty( DetectorFactory::class, 'cached' );
+		$cached->setAccessible( true );
+		$cached->setValue( null, $detector );
 	}
 
 	/** An order of $customer_id placed at $created, without line items: the scope reads the order row only. */
