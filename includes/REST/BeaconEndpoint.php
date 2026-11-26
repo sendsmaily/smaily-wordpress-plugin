@@ -572,7 +572,8 @@ class BeaconEndpoint {
 	 * `product_id` is proxy-internal: it is not in EVENT_FIELDS, so
 	 * validate_batch() drops it and it never reaches the engine. An id that
 	 * names a variable product's parent is keyed on the variation the cart
-	 * took (cart_variation_id(), CON-427).
+	 * took (cart_variation_id(), CON-427); the session is read at most once
+	 * per request (cart_session_lines()).
 	 *
 	 * `product_view` needs no such step — StorefrontBeacon::page_context()
 	 * already resolves it server-side (PRO-1224) before the JS ever sees it.
@@ -591,6 +592,10 @@ class BeaconEndpoint {
 	 */
 	private function resolve_cart_product_skus( array $events ): array {
 		$dropped = 0;
+		// The shopper's cart lines, read on the first event that names a
+		// variable product and reused for the rest of the batch: one session
+		// read per request, never one per event.
+		$cart_lines = null;
 		foreach ( $events as $index => $event ) {
 			if ( ! is_array( $event ) ) {
 				continue;
@@ -606,7 +611,13 @@ class BeaconEndpoint {
 			$product_id = (int) $event['product_id'];
 			$product    = $product_id > 0 ? wc_get_product( $product_id ) : false;
 			if ( $product instanceof \WC_Product ) {
-				$variation_id = $product->is_type( 'variable' ) ? $this->cart_variation_id( $product_id, $event_type ) : 0;
+				$variation_id = 0;
+				if ( $product->is_type( 'variable' ) ) {
+					if ( null === $cart_lines ) {
+						$cart_lines = $this->cart_session_lines();
+					}
+					$variation_id = self::cart_variation_id( $product_id, $cart_lines[ 'cart_add' === $event_type ? 'cart' : 'removed_cart_contents' ] );
+				}
 				$event['sku'] = $variation_id > 0
 					? \Smaily\Connect\Smaily\RecEngine\Support\SkuResolver::resolve_id( $variation_id )
 					: \Smaily\Connect\Smaily\RecEngine\Support\SkuResolver::resolve( $product );
@@ -638,6 +649,22 @@ class BeaconEndpoint {
 	 * its undo link); the last line of that product wins. 0 when nothing
 	 * matches — the event then keeps the parent's key.
 	 *
+	 * @param array<int|string, mixed> $lines The cart or removed lines from cart_session_lines().
+	 */
+	private static function cart_variation_id( int $parent_id, array $lines ): int {
+		foreach ( array_reverse( $lines ) as $line ) {
+			if ( is_array( $line ) && (int) ( $line['product_id'] ?? 0 ) === $parent_id && (int) ( $line['variation_id'] ?? 0 ) > 0 ) {
+				return (int) $line['variation_id'];
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * The shopper's cart lines and removed lines, read once per request
+	 * (resolve_cart_product_skus() keeps the answer for the batch). Empty
+	 * lists when there is no session to read.
+	 *
 	 * Reads the shopper's WooCommerce session row directly: this REST
 	 * request has no WooCommerce session or cart, and starting one here would
 	 * delete a logged-in shopper's session (the relay sends no REST nonce, so
@@ -645,29 +672,33 @@ class BeaconEndpoint {
 	 * user's session cookie as invalid). The session cookie is checked by
 	 * WooCommerce's own hash, so only the shopper's own session is read. A
 	 * store with another session handler finds nothing here.
+	 *
+	 * @return array{cart: array<int|string, mixed>, removed_cart_contents: array<int|string, mixed>}
 	 */
-	private function cart_variation_id( int $parent_id, string $event_type ): int {
+	private function cart_session_lines(): array {
+		$lines = array(
+			'cart'                  => array(),
+			'removed_cart_contents' => array(),
+		);
 		if ( ! class_exists( \WC_Session_Handler::class ) ) {
-			return 0;
+			return $lines;
 		}
 		$handler = new \WC_Session_Handler();
 		$cookie  = $handler->get_session_cookie();
 		if ( ! is_array( $cookie ) ) {
-			return 0;
+			return $lines;
 		}
 		$session = $handler->get_session( (string) $cookie[0], array() );
-		$key     = 'cart_add' === $event_type ? 'cart' : 'removed_cart_contents';
-		$lines   = is_array( $session ) && isset( $session[ $key ] ) ? maybe_unserialize( $session[ $key ] ) : array();
-		if ( ! is_array( $lines ) ) {
-			return 0;
+		if ( ! is_array( $session ) ) {
+			return $lines;
 		}
-
-		foreach ( array_reverse( $lines ) as $line ) {
-			if ( is_array( $line ) && (int) ( $line['product_id'] ?? 0 ) === $parent_id && (int) ( $line['variation_id'] ?? 0 ) > 0 ) {
-				return (int) $line['variation_id'];
+		foreach ( array_keys( $lines ) as $key ) {
+			$value = isset( $session[ $key ] ) ? maybe_unserialize( $session[ $key ] ) : array();
+			if ( is_array( $value ) ) {
+				$lines[ $key ] = $value;
 			}
 		}
-		return 0;
+		return $lines;
 	}
 
 	/**

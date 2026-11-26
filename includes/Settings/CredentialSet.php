@@ -43,9 +43,11 @@ final class CredentialSet {
 	 * True when this set belongs to the given account — i.e. both the
 	 * subdomain and the username are the ones stored here. Callers reusing
 	 * a stored password check this first, so a set never vouches for an
-	 * account it was not stored for (PRO-2286).
+	 * account it was not stored for (PRO-2286). Both subdomains are read
+	 * through Subdomain::normalize(): a set saved before CON-431 may hold
+	 * "Demo", which is the same account as a typed "demo".
 	 */
 	public function matches( string $subdomain, string $username ): bool {
-		return $this->subdomain === $subdomain && $this->username === $username;
+		return Subdomain::normalize( $this->subdomain ) === Subdomain::normalize( $subdomain ) && $this->username === $username;
 	}
 }
