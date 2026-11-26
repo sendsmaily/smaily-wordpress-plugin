@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.25.0
+Stable tag: 3.26.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -197,6 +197,24 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.26.0 =
+* New: each Campaign Intelligence email has a Test mode switch and a Send test email button. While test mode is on, the email goes to test addresses only. You turn test mode off yourself, after a confirmation, and back on at any time. This replaces "Activate for real…".
+* New: recommended products in the store show as a product grid on any theme, each with an add-to-cart button. A purchase through the button counts for the recommendation.
+* Changed: the first-order email follows your contact-sync mode, like the abandoned-cart reminder. Under "Subscribers only" and "Checkout opt-in only" it goes only to customers who agreed to marketing. A contact unsubscribed in Smaily never gets it.
+* Changed: a guest who ticks the newsletter box at checkout reaches Smaily in every contact-sync mode. The guest switch shows only under "All customers" and adds guest buyers who did not tick the box.
+* Changed: replacing a saved Smaily account asks first and removes the workflows chosen for that account. Choose them again for the new account.
+* Changed: Settings stays open when the Smaily connection test fails, with a notice on top.
+* Changed: the subdomain field takes only your Smaily account name. A pasted account address is shortened to it.
+* Changed: the contact import says how many contacts Smaily refused, and the Event Log shows the reason for each one.
+* Fixed: Campaign Intelligence gets each customer's language by the same rule as the Smaily contact sync, not from the WordPress profile language.
+* Fixed: product views and cart events of a variable product are sent under a variation, so Campaign Intelligence matches them to the product.
+* Fixed: a retried newsletter subscription never marks a shopper subscribed again after a newer unsubscribe reached Smaily.
+* Fixed: in the setup wizard with one Smaily account per language, a tested fallback-language account opens the Connect step.
+* Fixed: Test connection reuses the stored password of a subdomain saved with a capital letter.
+* Privacy: deletion and opt-out requests to Campaign Intelligence are queued and sent in the background, within its limit. A failed request is sent again, never dropped.
+* Privacy: the personal-data export lists back-in-stock requests and customer identifiers held in Campaign Intelligence.
+* Updated to the Smaily Campaign Intelligence API contract v1.37.2.
+
 = 3.25.0 =
 * New: Try Intelligence free. A store with a connected Smaily account can start Campaign Intelligence from the plugin, without asking Smaily for a setup link. The button appears when Smaily opens the self-service start; until then the banner offers Contact Smaily.
 * New: a Campaign Intelligence banner on the Campaign Intelligence tab, the setup wizard's step 4 and on top of Settings, where it can be dismissed for 30 days. When the Smaily package has no API access, it says so and links to your Smaily account.
@@ -259,6 +277,9 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Updated to the Smaily Campaign Intelligence API contract v1.29.0.
 
 == Upgrade Notice ==
+
+= 3.26.0 =
+Connected to Campaign Intelligence? Run the Customers import once (Import now) so customer languages reach it. Campaign Intelligence emails get a Test mode switch: you turn test mode off yourself. The first-order email now follows your consent mode.
 
 = 3.25.0 =
 Adds Try Intelligence free and new Smaily and Campaign Intelligence banners, and the product RSS feed shows description formatting instead of HTML code.

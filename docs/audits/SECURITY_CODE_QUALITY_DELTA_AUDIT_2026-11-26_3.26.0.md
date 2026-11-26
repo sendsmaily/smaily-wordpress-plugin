@@ -280,6 +280,10 @@ inside `CredentialSet::matches()`), with a unit case for a stored capital.
   sit under their file's `phpcs:disable` of `DirectQuery` / `NoCaching` with
   no earlier re-enable of those codes in the file, and the delta adds no
   dynamic hook name — so no new warning is expected. Only the run settles it.
+- **Settled (2026-11-26):** the 3.26.0 release gate ran Plugin Check 2.2.0
+  on the ZIP built from the bump commit `612cf17` — 0 ERRORS / 17 WARNINGS,
+  exactly the lines above. Recorded as the 3.26.0 release-gate row in
+  `INDEX.md`.
 
 ## Conclusion
 
