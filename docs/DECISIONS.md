@@ -7094,6 +7094,10 @@ admin notice and how consent is decided are unchanged.
 > the page — a consent-gated script asks a store route after the page loads;
 > returning guests are asked about by the visitor token; the timeout is 10 s.
 > The context cookie rule below is unchanged.
+>
+> **Changed by CON-449 (2026-11-26):** the cards now bring a default
+> stylesheet (zero-specificity rules) and an add-to-cart button; "no plugin
+> stylesheet" below is superseded.
 
 **Context:** contract v1.9.0 (§15) lets the store ask the engine for a
 logged-in shopper's current recommendations by the store's own customer id,
@@ -11877,3 +11881,65 @@ PRO-1723. Who is synced and when a status is sent are unchanged.
 (the retry), F3-44 / PRO-4098 / CON-2 (skipped rows in the Event Log),
 PRO-1733 (a refused Retry), PRO-1723 (`delivered`), CON-431 (the
 cross-connector rule).
+
+### CON-449 — Storefront recommendations bring a default grid and an add-to-cart button (Erkki, 2026-11-26)
+
+**Context:** PRO-3788 shipped the recommendation cards with WooCommerce's
+product-list classes and no plugin stylesheet, so that the theme would
+style them. A theme that styles only its own product-list markup does not:
+on MiuMjau (Avada) the cart page's "Recommended for you" showed one card
+per row, an image about 210 px wide on the left, and no button — it looked
+broken. Erkki decided on 2026-11-26 that the plugin brings a small default
+style and an add-to-cart button.
+**Decision:** (1) `public/css/smaily-connect-recommendations.css`, a static
+file (the same for every visitor, so the page stays cacheable), enqueued by
+`StorefrontRecommendations::placeholder()` for the block and the shortcode
+with the plugin version. Every selector sits in `:where()`, scoped under
+`.smaily-connect-recommendations`, so every rule has zero specificity and a
+theme rule wins property by property. The layout is floats, as
+WooCommerce's own product grid: four across, two at 768 px and below, the
+image filling the card. The cards also carry WooCommerce's `first` /
+`last` row classes, so WooCommerce's own grid stylesheet fits four in a
+row. (2) Each card has a button under its link. A product that passes
+WooCommerce's own product-list test for an add straight from the list
+(`supports( 'ajax_add_to_cart' )`, `is_purchasable()`, `is_in_stock()`)
+gets a link to the cart page with `add-to-cart=<id>` plus the card's
+`smaily_rec` + `smaily_ctx=storefront`; any other product (variable, out
+of stock, grouped, external) gets the card's own attributed link to the
+product page. Text and label are WooCommerce's own (`add_to_cart_text()`,
+`add_to_cart_description()`), so no new strings. (3) LandingCapture
+captures on `woocommerce_add_to_cart` as well as on `template_redirect`,
+once per request: WooCommerce adds the product on `wp_loaded` and, when the
+store sends the shopper to the cart after an add (or a filter names
+another target), redirects and exits there, before `template_redirect`.
+**Rationale:** a purchase that starts from the button must be credited as
+one from the card link. WooCommerce's AJAX add (`ajax_add_to_cart`) posts
+to `?wc-ajax=add_to_cart` and never requests a URL with the attribution, so
+the button is a plain link without WooCommerce's add-to-cart classes and
+data attributes, which WooCommerce's or a theme's script would intercept.
+A plain link writes the cookies server-side, on the same request and by
+the same `resolve()` rules, with no new storefront script (PRO-2391) and
+no second capture path. The cart page as the target: full-page caches never
+keep it (WooCommerce also sends no-cache headers on an add), so the add and
+the capture always reach PHP, which a cached product page with an unknown
+query string does not promise. Floats over a CSS grid: a grid on
+`ul.products` would combine with WooCommerce's own float widths (22.05 %
+of a grid cell) on every theme that keeps WooCommerce's stylesheet; floats
+are simply replaced by them. The integration test drives WooCommerce's own
+`WC_Form_Handler::add_to_cart_action()` with the button's query and checks
+that the recorded cookies equal the card link's at the point WooCommerce
+asks for the redirect target.
+**Consequence:** the shopper who uses the button lands on the cart page
+with the product in it (a refresh of that URL adds it again — WooCommerce's
+own behaviour for a non-AJAX add link). A theme that turns `ul.products`
+into a CSS grid and leaves the card width unset shows narrower cards; that,
+and the look on real themes, is a human check. Supersedes PRO-3788's "no
+plugin stylesheet".
+**Rejected:** WooCommerce's AJAX button (drops the attribution); the
+`/land` route posted from a click handler in `sc-recs.js` (more script, a
+race between the post and the add, and a second way to capture); the
+product page as the add target (a page cache may answer it without PHP).
+**Relationships:** PRO-3788 (the cards; its no-stylesheet clause is
+superseded), PRO-3835 (cards after the page, through a store route —
+unchanged), F3-46 (attribution is server-side and consent-ungated),
+PRO-2391 (no new storefront bundle).

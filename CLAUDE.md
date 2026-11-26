@@ -1444,6 +1444,17 @@ never plain `rec_client()`. Cache: tenant +
 md5(type|id), one hour, empty answers included; a FAILED call (error,
 timeout, 4xx/5xx) is cached as empty for 10 minutes (`FAILURE_CACHE_TTL`), so
 an engine that cannot answer gets one call per shopper per 10 minutes.
+**The cards' look and button (CON-449):** `placeholder()` also enqueues
+`public/css/smaily-connect-recommendations.css` (static, committed, in
+`verify-release-zip.sh`'s required list) — every selector inside `:where()`
+under `.smaily-connect-recommendations`, so a theme rule always wins; keep
+new rules there. The button of a product WooCommerce adds straight from a
+list links to the CART page with `add-to-cart=<id>` + the card's
+`smaily_rec`/`smaily_ctx`; never give it WooCommerce's `ajax_add_to_cart` /
+`add_to_cart_button` classes or `data-product_id` — a script then adds it in
+the background and the attribution is lost. LandingCapture therefore also
+captures on `woocommerce_add_to_cart` (WooCommerce's redirect-after-add exits
+on `wp_loaded`, before `template_redirect`), once per request.
 **Guest wire shape (contract v1.10.0):** `smaily_visitor_token` IN PLACE OF
 `customer_external_id` (`Client::visitor_recommendations()`, mock
 `storefront_visitor_slots`) — never both; with both the engine uses the
