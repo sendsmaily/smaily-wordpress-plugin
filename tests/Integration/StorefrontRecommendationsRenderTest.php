@@ -17,6 +17,8 @@ namespace Smaily\Connect\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Bootstrap;
+use Smaily\Connect\Constants;
+use Smaily\Connect\Integrations\WooCommerce\LandingCapture;
 use Smaily\Connect\Integrations\WooCommerce\StorefrontRecommendations;
 use Smaily\Connect\REST\RecommendationsEndpoint;
 use Smaily\Connect\REST\RequestThrottle;
@@ -78,6 +80,15 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 	}
 
 	protected function tearDown(): void {
+		$_GET     = array();
+		$_REQUEST = array();
+		if ( function_exists( 'WC' ) && WC()->cart instanceof \WC_Cart ) {
+			WC()->cart->empty_cart();
+		}
+		if ( function_exists( 'wc_clear_notices' ) && null !== WC()->session ) {
+			wc_clear_notices();
+		}
+		remove_all_filters( 'woocommerce_add_to_cart_redirect' );
 		delete_transient( StorefrontRecommendations::PAUSE_KEY );
 		wp_set_current_user( 0 );
 		$this->forget_visitor();
@@ -129,6 +140,16 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		self::assertStringContainsString( '"category":"marketing"', $boot );
 	}
 
+	public function test_the_page_loads_the_cards_stylesheet_versioned_by_the_plugin(): void {
+		do_shortcode( '[smaily_recommendations]' );
+
+		self::assertTrue( wp_style_is( StorefrontRecommendations::HANDLE, 'enqueued' ), 'CON-449: the cards bring their own default look.' );
+		$style = wp_styles()->registered[ StorefrontRecommendations::HANDLE ];
+		self::assertStringEndsWith( 'public/css/smaily-connect-recommendations.css', (string) $style->src );
+		self::assertSame( Constants::version(), $style->ver );
+		self::assertFileExists( SMAILY_CONNECT_PLUGIN_PATH . 'public/css/smaily-connect-recommendations.css' );
+	}
+
 	public function test_a_store_without_an_engine_connection_prints_nothing(): void {
 		EnvScrub::reset();
 
@@ -153,6 +174,79 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 			self::$engine->state()['last_recommendations_request'] ?? null,
 			'The shopper is named by the WordPress user id only — no email reaches the engine.'
 		);
+	}
+
+	public function test_a_card_that_can_be_added_straight_gets_a_button_that_adds_it_on_the_cart_page_with_the_cards_attribution(): void {
+		$this->log_in( $this->user_id );
+
+		$html   = $this->cards();
+		$button = $this->button_href( $html );
+		parse_str( (string) wp_parse_url( $button, PHP_URL_QUERY ), $query );
+
+		self::assertSame( (string) $this->product_id, $query['add-to-cart'] ?? null );
+		self::assertSame( self::REC_ID, $query['smaily_rec'] ?? null );
+		self::assertSame( 'storefront', $query['smaily_ctx'] ?? null );
+		self::assertSame( wp_parse_url( wc_get_cart_url(), PHP_URL_PATH ), wp_parse_url( $button, PHP_URL_PATH ), 'The add happens on the cart page, which no page cache keeps.' );
+		self::assertStringNotContainsString( 'ajax_add_to_cart', $html, 'No script may turn the button into a background add that drops the attribution.' );
+		self::assertStringContainsString( '>Add to cart</a>', $html );
+	}
+
+	public function test_a_card_that_cannot_be_added_straight_gets_a_button_to_the_attributed_product_page(): void {
+		$product = wc_get_product( $this->product_id );
+		$product->set_stock_status( 'outofstock' );
+		$product->save();
+		$this->log_in( $this->user_id );
+
+		$html = $this->cards();
+
+		self::assertSame( $this->card_href( $html ), $this->button_href( $html ) );
+		self::assertStringNotContainsString( 'add-to-cart=', $html );
+	}
+
+	public function test_the_buttons_add_writes_the_same_attribution_cookies_as_the_card_link_before_any_redirect(): void {
+		$this->log_in( $this->user_id );
+		$html = $this->cards();
+
+		// The card link's landing: the cookies LandingCapture writes there.
+		parse_str( (string) wp_parse_url( $this->card_href( $html ), PHP_URL_QUERY ), $card_query );
+		$_GET    = $card_query;
+		$landing = $this->capture_recorder();
+		$landing->capture();
+		self::assertSame( self::REC_ID, $landing->written['smaily_rec_id'] ?? null );
+		self::assertSame( 'storefront', $landing->written['smaily_rec_ctx'] ?? null );
+
+		// The button's request through WooCommerce's own add-to-cart handler.
+		// A store that sends the shopper to the cart after an add redirects
+		// and exits right after the add, before template_redirect — so the
+		// cookies must already be written when WooCommerce asks for the
+		// redirect target.
+		parse_str( (string) wp_parse_url( $this->button_href( $html ), PHP_URL_QUERY ), $button_query );
+		$_GET     = $button_query;
+		$_REQUEST = $button_query;
+		if ( ! WC()->cart instanceof \WC_Cart || null === WC()->session ) {
+			wc_load_cart();
+		}
+		WC()->cart->empty_cart();
+		$add = $this->capture_recorder();
+		$add->register();
+		$at_redirect = null;
+		add_filter(
+			'woocommerce_add_to_cart_redirect',
+			static function ( $url ) use ( $add, &$at_redirect ) {
+				$at_redirect = $add->written;
+				return $url; // false: no redirect, so the test process goes on.
+			}
+		);
+
+		try {
+			\WC_Form_Handler::add_to_cart_action();
+		} finally {
+			remove_action( 'template_redirect', array( $add, 'capture' ) );
+			remove_action( 'woocommerce_add_to_cart', array( $add, 'capture' ), 10 );
+		}
+
+		self::assertSame( 1, WC()->cart->get_cart_contents_count(), 'The button added the product.' );
+		self::assertSame( $landing->written, $at_redirect, 'The add wrote the card link\'s cookies before the redirect point.' );
 	}
 
 	public function test_a_returning_guest_gets_their_cards_by_the_visitor_token_cookie(): void {
@@ -330,6 +424,37 @@ final class StorefrontRecommendationsRenderTest extends TestCase {
 		self::assertSame( 200, $response->get_status() );
 		$data = $response->get_data();
 		return is_array( $data ) ? (string) ( $data['html'] ?? '' ) : '';
+	}
+
+	/** The card link's href, decoded. */
+	private function card_href( string $html ): string {
+		self::assertSame( 1, preg_match( '/<a href="([^"]+)" class="woocommerce-LoopProduct-link/', $html, $m ), 'A card link.' );
+		return html_entity_decode( $m[1] );
+	}
+
+	/** The card button's href, decoded. */
+	private function button_href( string $html ): string {
+		self::assertSame( 1, preg_match( '/<a href="([^"]+)" class="button smaily-connect-recommendations__button"/', $html, $m ), 'A card button.' );
+		return html_entity_decode( $m[1] );
+	}
+
+	/**
+	 * A LandingCapture that records the cookies it would write: PHPUnit's
+	 * output makes the real headers_sent() true.
+	 */
+	private function capture_recorder(): LandingCapture {
+		return new class( new RecEngineSettings() ) extends LandingCapture {
+			/** @var array<string, string> */
+			public array $written = array();
+
+			protected function headers_already_sent(): bool {
+				return false;
+			}
+
+			protected function send_cookie( string $name, string $value, int $expires ): void {
+				$this->written[ $name ] = $value;
+			}
+		};
 	}
 
 	/** @return array<int, array<string, mixed>> */

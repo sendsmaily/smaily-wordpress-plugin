@@ -80,6 +80,9 @@ class LandingCapture {
 
 	private RecEngineSettings $settings;
 
+	/** Whether capture() already ran in this request (it has two hooks). */
+	private bool $captured = false;
+
 	public function __construct( RecEngineSettings $settings ) {
 		$this->settings = $settings;
 	}
@@ -89,6 +92,11 @@ class LandingCapture {
 		// cron), and it fires before any template output, so cookies can still be
 		// set as headers.
 		add_action( 'template_redirect', array( $this, 'capture' ) );
+		// A storefront recommendation's add-to-cart link (CON-449) carries the
+		// same params. WooCommerce adds the product on `wp_loaded` and, when
+		// the store sends the shopper to the cart after an add, redirects and
+		// exits there — before template_redirect. So capture on the add too.
+		add_action( 'woocommerce_add_to_cart', array( $this, 'capture' ), 10, 0 );
 	}
 
 	/**
@@ -96,6 +104,11 @@ class LandingCapture {
 	 * them to the first-party cookies the checkout stamping reads.
 	 */
 	public function capture(): void {
+		if ( $this->captured ) {
+			return;
+		}
+		$this->captured = true;
+
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public email-link landing (read-only GET); every value is unslashed, sanitised and format-validated in resolve(); there is no form submission to nonce.
 		$get = $_GET;
 
