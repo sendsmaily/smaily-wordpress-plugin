@@ -55,7 +55,7 @@ const STEP_LABELS: Array<{ label: string; description: string }> = [
  * Per-step layout: <StepRail | step body | WizardFooter>.
  *
  * canAdvance gating (Phase 2):
- *   Step 1 — requires smailyConnection.kind === 'success'
+ *   Step 1 — requires a passed test of the main account (mainAccount())
  *   Step 2-5 — always pass (toggles + info)
  *   Step 6 — Finish enabled when Step 1 connection passed
  *
@@ -72,7 +72,7 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
   // Smaily connection. Locked steps render non-clickable in the rail +
   // show a tooltip explaining why. The StepRail still treats completed
   // steps as clickable so back-navigation works once the gate clears.
-  const isConnected = state.smailyConnection.kind === 'success';
+  const isConnected = mainAccount(state).connection.kind === 'success';
   const railItems: StepRailItem[] = STEP_LABELS.map((entry, idx) => {
     const stepId = idx + 1;
     const locked = !isConnected && stepId > 1;
@@ -95,7 +95,10 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
     }
     setNavStatus('saving');
     setNavError(null);
-    const payload = buildTabPayload(state, tab);
+    const payload =
+      tab === 'connection'
+        ? { ...buildTabPayload(state, tab), smailyCredentials: mainAccount(state).credentials }
+        : buildTabPayload(state, tab);
     try {
       const response = await saveSettings({ tab, data: payload });
       if (!response.saved) {
@@ -266,18 +269,36 @@ function stepToTab(step: number): SettingsTabKey | null {
   }
 }
 
-function computeCanAdvance(state: WizardState): boolean {
-  if (state.currentStep === 1) {
-    return state.smailyConnection.kind === 'success';
+/**
+ * The account the Connect step saves as the main Smaily account (CON-441).
+ * The account-per-language mode (Mode A) shows no shared account: once
+ * the fallback language account has passed its test, it is the one the
+ * step saves. Otherwise the shared account — the only one in the other
+ * modes, and in Mode A the one saved and verified earlier.
+ */
+function mainAccount(state: WizardState): {
+  credentials: WizardState['smailyCredentials'];
+  connection: WizardState['smailyConnection'];
+} {
+  const isModeA = state.multilingualMode === 'A' && state.env.detectedLanguages.length > 1;
+  const fallback = isModeA
+    ? state.perLanguageAccounts.find((a) => a.accountKey === state.defaultFallbackAccountKey)
+    : undefined;
+  if (fallback !== undefined && fallback.connection.kind === 'success') {
+    return { credentials: fallback.credentials, connection: fallback.connection };
   }
-  if (state.currentStep === 6) {
-    return state.smailyConnection.kind === 'success';
+  return { credentials: state.smailyCredentials, connection: state.smailyConnection };
+}
+
+function computeCanAdvance(state: WizardState): boolean {
+  if (state.currentStep === 1 || state.currentStep === 6) {
+    return mainAccount(state).connection.kind === 'success';
   }
   return true;
 }
 
 function computeAdvanceHint(state: WizardState): string | undefined {
-  if (state.currentStep === 1 && state.smailyConnection.kind !== 'success') {
+  if (state.currentStep === 1 && mainAccount(state).connection.kind !== 'success') {
     return __('Test your Smaily connection to continue.', 'smaily-connect');
   }
   return undefined;
