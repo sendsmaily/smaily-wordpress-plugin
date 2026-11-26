@@ -65,7 +65,13 @@ use Smaily\Connect\Support\DebugLog;
  * the answer. A product the store no longer shows (unpublished, hidden, or
  * out of stock while the store hides those) is left out. Each link carries
  * `smaily_rec` + `smaily_ctx=storefront`, so LandingCapture stamps the
- * purchase as a storefront credit (§15 Attribution).
+ * purchase as a storefront credit (§15 Attribution) — the card's button too
+ * (button()).
+ *
+ * The cards keep WooCommerce's product-list classes, so a theme that styles
+ * product grids styles them; the plugin's own stylesheet (STYLE_FILE) only
+ * fills in a plain grid where nothing else does — every rule of it has zero
+ * specificity (CON-449).
  *
  * Not final: unit tests drive slots() without WooCommerce.
  */
@@ -113,6 +119,9 @@ class StorefrontRecommendations {
 	/** Shipped bundle, relative to the plugin root (vite entry key `public/js/sc-recs`). */
 	private const SCRIPT_FILE = 'dist/public/js/sc-recs.js';
 
+	/** The cards' default look, relative to the plugin root (CON-449). */
+	private const STYLE_FILE = 'public/css/smaily-connect-recommendations.css';
+
 	private const CACHE_PREFIX = 'smly_rec_storefront_';
 
 	/** The §15 storefront context the card links carry. */
@@ -150,6 +159,15 @@ class StorefrontRecommendations {
 		if ( ! $this->enqueue_script() ) {
 			return '';
 		}
+		// A static file, the same for every visitor, so a full-page cache may
+		// keep the page. Printed in the footer when the block renders in the
+		// content; the cards arrive only after the page has loaded anyway.
+		wp_enqueue_style(
+			self::HANDLE,
+			plugins_url( self::STYLE_FILE, SMAILY_CONNECT_PLUGIN_FILE ),
+			array(),
+			Constants::version()
+		);
 
 		return '<div class="smaily-connect-recommendations-slot" data-smaily-connect-recs></div>';
 	}
@@ -222,22 +240,22 @@ class StorefrontRecommendations {
 		_prime_post_caches( array_filter( $image_ids ), false );
 
 		$cards = '';
-		foreach ( $shown as $card ) {
-			$product = $card['product'];
-			$url     = add_query_arg(
-				array(
-					LandingCapture::URL_PARAM_REC_ID  => $card['rec_id'],
-					LandingCapture::URL_PARAM_CONTEXT => self::CONTEXT_STOREFRONT,
-				),
-				$product->get_permalink()
+		foreach ( $shown as $index => $card ) {
+			$product     = $card['product'];
+			$attribution = array(
+				LandingCapture::URL_PARAM_REC_ID  => $card['rec_id'],
+				LandingCapture::URL_PARAM_CONTEXT => self::CONTEXT_STOREFRONT,
 			);
+			$url         = add_query_arg( $attribution, $product->get_permalink() );
 
 			$cards .= sprintf(
-				'<li class="product"><a href="%1$s" class="woocommerce-LoopProduct-link woocommerce-loop-product__link">%2$s<h2 class="woocommerce-loop-product__title">%3$s</h2><span class="price">%4$s</span></a></li>',
+				'<li class="%1$s"><a href="%2$s" class="woocommerce-LoopProduct-link woocommerce-loop-product__link">%3$s<h2 class="woocommerce-loop-product__title">%4$s</h2><span class="price">%5$s</span></a>%6$s</li>',
+				esc_attr( self::card_class( $index ) ),
 				esc_url( $url ),
 				$product->get_image(),
 				esc_html( $product->get_name() ),
-				wp_kses_post( $product->get_price_html() )
+				wp_kses_post( $product->get_price_html() ),
+				$this->button( $product, $url, $attribution )
 			);
 		}
 
@@ -250,6 +268,52 @@ class StorefrontRecommendations {
 			esc_html__( 'Recommended for you', 'smaily-connect' ),
 			self::LIMIT,
 			$cards
+		);
+	}
+
+	/**
+	 * A card's classes: `product`, plus WooCommerce's own `first` / `last` on
+	 * the cards that open and close a row, as its product loop marks them —
+	 * WooCommerce's grid stylesheet needs them to fit LIMIT cards in a row.
+	 */
+	private static function card_class( int $index ): string {
+		$column = $index % self::LIMIT;
+		if ( 0 === $column ) {
+			return 'product first';
+		}
+		return self::LIMIT - 1 === $column ? 'product last' : 'product';
+	}
+
+	/**
+	 * The card's button (CON-449). A product WooCommerce adds straight from a
+	 * product list (its own test: supports the list's add-to-cart, can be
+	 * bought, is in stock) gets a link that adds it on the cart page; any
+	 * other product — a variable one, one out of stock — gets the card's own
+	 * link to the product page. WooCommerce's own button text and label.
+	 *
+	 * The add-to-cart link carries the card's `smaily_rec` + `smaily_ctx`, so
+	 * LandingCapture writes the same cookies on that request as on the card
+	 * link's landing, and a purchase that starts from the button is credited
+	 * the same way. It is a plain link, deliberately without the
+	 * `ajax_add_to_cart` / `add_to_cart_button` classes and the product data
+	 * attributes: WooCommerce's (or a theme's) script would turn those into a
+	 * background add that never requests a URL with the attribution. The cart
+	 * page, because full-page caches never keep it, so the add and the capture
+	 * always reach PHP.
+	 *
+	 * @param array<string, string> $attribution The card link's attribution params.
+	 */
+	private function button( \WC_Product $product, string $card_url, array $attribution ): string {
+		$adds = $product->supports( 'ajax_add_to_cart' ) && $product->is_purchasable() && $product->is_in_stock();
+		$url  = $adds
+			? add_query_arg( array( 'add-to-cart' => $product->get_id() ) + $attribution, wc_get_cart_url() )
+			: $card_url;
+
+		return sprintf(
+			'<a href="%1$s" class="button smaily-connect-recommendations__button" aria-label="%2$s" rel="nofollow">%3$s</a>',
+			esc_url( $url ),
+			esc_attr( $product->add_to_cart_description() ),
+			esc_html( $product->add_to_cart_text() )
 		);
 	}
 

@@ -79,6 +79,8 @@ require dist/admin/admin.css
 require dist/public/js/sc-runtime.js
 require dist/public/js/sc-landing.js
 require dist/public/js/sc-recs.js
+# The storefront recommendations' stylesheet — committed, not built (CON-449).
+require public/css/smaily-connect-recommendations.css
 require languages/smaily-connect-et.mo
 # The admin bundle's script translations: WordPress requests this exact name
 # (md5 of "dist/admin/admin.js"), so a generically-named catalog is not loaded.
