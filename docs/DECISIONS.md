@@ -11807,3 +11807,30 @@ refresh walks guest orders.
 **Relationships:** F3-48 (the presets and `include_guests`), PRO-3406 (the
 order meta), PRO-4093 (the welcome), CON-196 (the cart reminder's consent
 check, which now finds a ticking guest subscribed in Smaily).
+
+### CON-441 — In the account-per-language mode the setup saves the tested fallback account as the main account (2026-11-26)
+
+**Context:** the setup's Connect step unlocks Continue only after a passed
+connection test of the main Smaily account (`smailyConnection`). In Mode A
+(a separate Smaily account per language, more than one language detected)
+the step shows no shared account since sub-PR 2.H.2 — only one block per
+language and the "Default fallback account" choice. A language block's test
+never counted, so on a store without a saved, verified main account the
+step stayed locked; and the save route requires the main account
+(`save_connection()`: subdomain + username), which Mode A gave no field for.
+Magento asked (CON-441) after building the same gate (CON-417).
+**Decision (the issue's acceptance criteria, Magento parity):** the
+wizard's main account (`mainAccount()` in `Wizard.tsx`) is, in Mode A, the
+fallback language account once its test has passed; otherwise the shared
+account, as before. Its passed test unlocks Continue, the rail and Finish,
+and the Connect step's save sends its credentials as `smailyCredentials`, so
+it is stored as the main (`default`) account — the account F2-8 says
+language-less contacts go to. The other modes and a Mode A store whose main
+account was saved and verified earlier are unchanged; a passed test of a
+language account that is not the fallback does not unlock Continue.
+**Consequence:** on a Mode A store that completes the setup this way, the
+contact sync, the contact import and every other `default`-account path use
+the fallback account. Settings (outside the wizard) keeps its own gate and
+save, unchanged.
+**Relationships:** F2-6 / F2-8 (Mode A and its default account), PRO-2286
+(the stored password), CON-417 (Magento's gate).
