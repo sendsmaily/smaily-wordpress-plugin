@@ -15,6 +15,7 @@ defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQLPlaceholders.UnquotedComplexPlaceholder, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom plugin tables: interpolated values are $wpdb->prepare()d (dynamic IN() lists build placeholder strings); object-cache is N/A for a write-through queue / cleanup / DDL path.
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
@@ -22,6 +23,7 @@ use Smaily\Connect\Smaily\RecEngine\CatalogRemoveFlusher;
 use Smaily\Connect\Smaily\RecEngine\CustomerFlusher;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Smaily\RecEngine\OrderFlusher;
+use Smaily\Connect\Smaily\StaleSubscription;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalResend;
 use Smaily\Connect\Smaily\TransactionalRetryGuard;
@@ -243,7 +245,11 @@ class EventsEndpoint {
 	 * next scheduled pass — within about a minute.
 	 *
 	 * Which failed transactional rows may be revived at all is not this
-	 * route's rule to state — see TransactionalRetryGuard (PRO-1733).
+	 * route's rule to state — see TransactionalRetryGuard (PRO-1733). A single
+	 * failed contact sync that would put a stale subscription into Smaily is
+	 * refused by StaleSubscription's rule (CON-395); a bulk retry revives it,
+	 * and the Flusher, which asks the same rule at every attempt, closes it as
+	 * skipped.
 	 */
 	public function retry( WP_REST_Request $request ): WP_REST_Response {
 		$source = $this->sanitize_source( (string) $request->get_param( 'source' ) );
@@ -274,6 +280,17 @@ class EventsEndpoint {
 						'error'   => 'transactional_retry_refused',
 						'reason'  => $refused[ $id ],
 						'message' => TransactionalRetryGuard::message( $refused[ $id ] ),
+					),
+					409
+				);
+			}
+
+			if ( $id > 0 && $this->stale_failed_contact_sync( $id ) ) {
+				return new WP_REST_Response(
+					array(
+						'error'   => 'contact_sync_retry_refused',
+						'reason'  => StaleSubscription::REASON,
+						'message' => StaleSubscription::message(),
 					),
 					409
 				);
@@ -433,6 +450,37 @@ class EventsEndpoint {
 	}
 
 	/**
+	 * Whether this Smaily queue row is a failed contact sync that would put a
+	 * stale subscription into Smaily (CON-395).
+	 */
+	private function stale_failed_contact_sync( int $id ): bool {
+		$row = $this->fetch_row( $this->smaily_table(), $id );
+
+		return $row !== null
+			&& (string) $row['status'] === EventQueue::STATUS_FAILED
+			&& $this->contact_sync_refusal( $row ) !== '';
+	}
+
+	/**
+	 * StaleSubscription::REASON when this row is a contact sync whose newer
+	 * change already reached Smaily, '' otherwise. The caller decides which
+	 * status asks; the payload is the list query's `retry_payload` or the
+	 * row's own.
+	 *
+	 * @param array<string, mixed> $row
+	 */
+	private function contact_sync_refusal( array $row ): string {
+		$payload = json_decode( (string) ( $row['retry_payload'] ?? $row['payload'] ?? '' ), true );
+
+		return StaleSubscription::is_stale(
+			new EventQueue(),
+			(int) ( $row['id'] ?? 0 ),
+			(string) ( $row['event_type'] ?? '' ),
+			is_array( $payload ) ? $payload : null
+		) ? StaleSubscription::REASON : '';
+	}
+
+	/**
 	 * Make sure a flush pass is queued for a single hook. Deduplicated against
 	 * whatever is already scheduled on it — and the flusher's recurring action
 	 * always is, so in practice this is a no-op and the rows go out on the next
@@ -535,7 +583,7 @@ class EventsEndpoint {
 				? $this->conditional_column_expr(
 					'payload',
 					EventQueue::STATUS_FAILED,
-					' AND event_type IN ( ' . implode( ', ', array_map( array( $this, 'quote' ), TransactionalFlusher::EVENT_TYPES ) ) . ' )'
+					' AND event_type IN ( ' . implode( ', ', array_map( array( $this, 'quote' ), array_merge( TransactionalFlusher::EVENT_TYPES, array( HookHandler::EVENT_CONTACT_SYNC ) ) ) ) . ' )'
 				)
 				: "''",
 			$this->conditional_column_expr( 'last_response', EventQueue::STATUS_SENT ),
@@ -614,15 +662,24 @@ class EventsEndpoint {
 	private function shape_row( array $row, array $existing_orders ): array {
 		// PRO-1733: '' when the row may be retried; otherwise why not, plus
 		// the sentence the Details panel shows. Only a FAILED transactional
-		// row can be refused, and only for those does the list query carry a
-		// payload (retry_payload); detail() reads the row's own payload.
-		$refusal = $this->is_transactional( $row ) && (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_FAILED
-			? TransactionalRetryGuard::refusal_reason(
-				(string) ( $row['event_type'] ?? '' ),
-				(string) ( $row['retry_payload'] ?? $row['payload'] ?? '' ),
-				$this->order_exists( (string) ( $row['entity_id'] ?? '' ), $existing_orders )
-			)
-			: '';
+		// row or contact sync (CON-395) can be refused, and only for those
+		// does the list query carry a payload (retry_payload); detail() reads
+		// the row's own payload.
+		$refusal = '';
+		$message = '';
+		if ( (string) ( $row['status'] ?? '' ) === EventQueue::STATUS_FAILED ) {
+			if ( $this->is_transactional( $row ) ) {
+				$refusal = TransactionalRetryGuard::refusal_reason(
+					(string) ( $row['event_type'] ?? '' ),
+					(string) ( $row['retry_payload'] ?? $row['payload'] ?? '' ),
+					$this->order_exists( (string) ( $row['entity_id'] ?? '' ), $existing_orders )
+				);
+				$message = $refusal === '' ? '' : TransactionalRetryGuard::message( $refusal );
+			} elseif ( (string) ( $row['source'] ?? '' ) === self::SOURCE_SMAILY ) {
+				$refusal = $this->contact_sync_refusal( $row );
+				$message = $refusal === '' ? '' : StaleSubscription::message();
+			}
+		}
 
 		return array(
 			'id'                    => isset( $row['id'] ) ? (int) $row['id'] : 0,
@@ -635,7 +692,7 @@ class EventsEndpoint {
 			'last_error'            => isset( $row['last_error'] ) ? (string) $row['last_error'] : '',
 			'created_at'            => isset( $row['created_at'] ) ? (string) $row['created_at'] : '',
 			'retry_refusal'         => $refusal,
-			'retry_refusal_message' => $refusal === '' ? '' : TransactionalRetryGuard::message( $refusal ),
+			'retry_refusal_message' => $message,
 			// PRO-2372: a reminder withdrawn because the shopper bought first
 			// is terminal-marked `sent` like any other skip; the merchant
 			// must read "cancelled" on the row without opening Details.

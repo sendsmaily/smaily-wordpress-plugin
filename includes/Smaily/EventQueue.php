@@ -305,6 +305,40 @@ class EventQueue {
 	}
 
 	/**
+	 * The payloads of this contact's rows of this event type that were queued
+	 * after row $after_id and DELIVERED (CON-395) — StaleSubscription reads
+	 * them to tell whether a newer change already reached Smaily.
+	 *
+	 * Queue order is the row id (the insert order). "Delivered" is what
+	 * withdraw_pending_for() means by it: `sent` with a `sent_payload`, which
+	 * the flushers write only for a row that really reached Smaily (F3-44) —
+	 * a skipped or withdrawn row sent nothing. Rows are found by contact_key()
+	 * through the (event_type, contact_key, status) index; rows enqueued
+	 * before migration 011 carry no key and are invisible here.
+	 *
+	 * @return array<int, string>
+	 */
+	public function later_delivered_payloads( string $event_type, string $email, int $after_id ): array {
+		global $wpdb;
+
+		$table = $this->table_name();
+
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		$payloads = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT payload FROM {$table} WHERE event_type = %s AND contact_key = %s AND status = %s AND id > %d AND sent_payload IS NOT NULL AND sent_payload <> ''",
+				$event_type,
+				self::contact_key( $email ),
+				self::STATUS_SENT,
+				$after_id
+			)
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+
+		return array_map( 'strval', is_array( $payloads ) ? $payloads : array() );
+	}
+
+	/**
 	 * The row key for a contact: a sha256 of the normalised address. A HASH,
 	 * never the address itself — the queue keeps no second copy of a contact's
 	 * email beyond the payload it already stores, and this is what the

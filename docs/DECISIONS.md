@@ -11834,3 +11834,46 @@ the fallback account. Settings (outside the wizard) keeps its own gate and
 save, unchanged.
 **Relationships:** F2-6 / F2-8 (Mode A and its default account), PRO-2286
 (the stored password), CON-417 (Magento's gate).
+
+### CON-395 — A retried contact sync never marks a contact subscribed after a newer delivered change (2026-11-26)
+
+**Context:** a `contact.sync` row stores the subscription status the store
+saw when it was queued (`is_unsubscribed`, consent mode's opt-in/opt-out
+and a ticked checkout box) and sends it as stored. A row that fails waits
+for its retry (RetryPolicy, PRO-1685) while later rows of the same contact
+go out. A shopper who subscribed (that delivery failed) and then
+unsubscribed (that delivery succeeded) was marked subscribed in Smaily
+again when the first row's retry ran — reproduced in
+`StaleContactSyncTest` before the fix. The PrestaShop connector closed the
+same defect on 2026-11-21 (fork commit 588d40e); CON-431 makes the rule
+cross-connector.
+**Decision (the issue's acceptance criteria, PrestaShop parity):** one rule,
+`Smaily\StaleSubscription::is_stale()`: a `contact.sync` row that marks the
+contact subscribed (`is_unsubscribed` 0) is stale once a LATER row (higher
+id = queued later) of the same event type and the same contact
+(`EventQueue::contact_key()`, the queue's own key and index) that carries a
+status of its own (0 or 1) was DELIVERED (`sent` with a `sent_payload`, the
+meaning `withdraw_pending_for()` already uses). Decided on queue data only,
+never on a call to Smaily. (1) The Flusher asks it at every attempt, the
+automatic retry included, and closes a stale row as skipped — `sent`, no
+`sent_payload`, `last_response` `{outcome: skipped, reason:
+stale_subscription}` — so the Event Log reads it as skipped, with a
+sentence, and the Sent filter leaves it out (PRO-4098 / CON-2). (2) The
+Event Log's Retry of a single failed stale row answers 409
+`contact_sync_retry_refused` with the same reason and a plain message, and
+the list hides that row's Retry (`retry_refusal`, as PRO-1733 does for
+confirmations). "Retry all failed" still revives such a row; the Flusher
+then closes it as skipped — the Flusher is the backstop, so the bulk route
+needs no second copy of the rule. (3) An unsubscribe (`is_unsubscribed` 1)
+is never stale — sent late, it can only narrow who is subscribed — as the
+sibling connectors send it. A row without a status (a data sync, the
+abandoned-cart purchase marker) is never stale, and a later one of those,
+or a later change that has not been delivered, makes nothing stale.
+**Consequence:** contact syncs that are not superseded go out exactly as
+before; transactional, cart and automation rows are untouched. Rows queued
+before migration 011 carry no contact key and are not matched, as for
+PRO-1723. Who is synced and when a status is sent are unchanged.
+**Relationships:** F3-48.6 (the status a consent change sends), PRO-1685
+(the retry), F3-44 / PRO-4098 / CON-2 (skipped rows in the Event Log),
+PRO-1733 (a refused Retry), PRO-1723 (`delivered`), CON-431 (the
+cross-connector rule).

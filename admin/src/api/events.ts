@@ -16,15 +16,18 @@ export interface EventRow {
   created_at: string;
   /**
    * Why this row's Retry is refused, '' when it may be retried (PRO-1733).
-   * Only failed transactional-email rows are ever refused: fail-open already
-   * re-fired the native WooCommerce email (`wc_email_sent`), the order is
-   * gone (`order_missing`), or it was a deliberate second confirmation that
-   * failed and sent nothing (`resend_failed`, PRO-2368).
+   * Only failed transactional-email rows and contact syncs are ever refused:
+   * fail-open already re-fired the native WooCommerce email
+   * (`wc_email_sent`), the order is gone (`order_missing`), it was a
+   * deliberate second confirmation that failed and sent nothing
+   * (`resend_failed`, PRO-2368), or a newer subscription change of the
+   * contact already reached Smaily (`stale_subscription`, CON-395).
    */
   retry_refusal: string;
   /**
    * The sentence Details shows for that refusal, '' when there is none. The
-   * server owns the wording (TransactionalRetryGuard::message) so the 409 body
+   * server owns the wording (TransactionalRetryGuard::message,
+   * StaleSubscription::message) so the 409 body
    * and the Event Log can't drift apart.
    */
   retry_refusal_message: string;

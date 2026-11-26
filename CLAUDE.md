@@ -73,7 +73,7 @@ and `npx @wordpress/env run cli wp config set WP_DEBUG_DISPLAY false --raw`.
 Without them 78 unrelated tests failed (missing build hash, hooks never
 registered). A checkout whose gitignored builds are missing or stale also
 fails the render tests (LandingPageBlockRender, LandingPageShortcodeRender,
-StorefrontRecommendationsRender — 5 tests, 2026-10-06): run
+StorefrontRecommendationsRender, NewsletterBlockButtonStyle — 6 tests, 2026-11-26): run
 `composer run install-block-modules && composer run build` and
 `npm run build:admin` (it builds `sc-recs.js`) before reading those as yours.
 Port 8888 can be held by another local project (a Magento
@@ -326,6 +326,13 @@ outcome is `skipped` or a withdrawn reminder's `cancelled` (CON-2): one list,
 `EventsEndpoint::NOTHING_SENT_OUTCOMES`, read by `sent_nothing()` and its SQL twin in
 `branch()` — a new "nothing went out" outcome goes into that list. Details shows the
 same status word as the row's pill (`statusLabel()` in `EventLog.tsx`).
+**A retried contact sync never undoes a newer one (CON-395):** a `contact.sync`
+that subscribes (`is_unsubscribed` 0) is closed as skipped (reason
+`stale_subscription`) once a later row of the same contact (`contact_key`) that
+carries a status was delivered — `Smaily\StaleSubscription`, the one rule the
+Flusher (every attempt) and the Event Log's Retry (409) ask. A new writer of a
+subscription status must put it in the payload's `is_unsubscribed`, or the rule
+cannot see it.
 
 ### Trashing a product fires NO catalog hook — it's kept as `in_stock=false`
 `before_delete_post` is **permanent-delete-only**; trashing routes through
