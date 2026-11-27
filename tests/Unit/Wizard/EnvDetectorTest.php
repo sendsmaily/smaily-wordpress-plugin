@@ -43,6 +43,8 @@ final class EnvDetectorTest extends TestCase {
 		);
 		Functions\when( 'wc_get_orders' )->justReturn( array() );
 		Functions\when( 'wc_get_order_statuses' )->justReturn( array() );
+		// saved_settings() lists the detected languages' accounts (CON-446).
+		Functions\when( 'get_locale' )->justReturn( 'en_US' );
 
 		\Smaily_Connect\Includes\Cypher::$decrypt_return = '';
 	}
@@ -276,6 +278,50 @@ final class EnvDetectorTest extends TestCase {
 		self::assertSame( '', $saved['smailyCredentials']['password'] );
 		// PRO-2286: the wizard is told a usable password EXISTS — never its value.
 		self::assertTrue( $saved['smailyHasStoredPassword'] );
+	}
+
+	/**
+	 * CON-446: each language's saved account comes back after a reload, keyed
+	 * as the per-language block keys it, without its password; the saved
+	 * fallback (stored lower case by sanitize_key()) names that block.
+	 */
+	public function test_saved_settings_carries_each_language_account_without_its_password(): void {
+		\Smaily_Connect\Includes\Cypher::$decrypt_return = 'plain-pw';
+		Functions\when( 'get_locale' )->justReturn( 'et_EE' );
+		Functions\when( 'get_option' )->alias(
+			static function ( string $key, $default = false ) {
+				if ( $key === 'smly_plus_credentials_account_et_ee' ) {
+					return array(
+						'subdomain' => 'eesti',
+						'username'  => 'mari',
+						'password'  => 'enc-blob',
+					);
+				}
+				if ( $key === 'smly_plus_default_fallback_account' ) {
+					return 'account_et_ee';
+				}
+				return $default;
+			}
+		);
+
+		$saved = ( new EnvDetector() )->saved_settings();
+
+		self::assertSame(
+			array(
+				array(
+					'accountKey'  => 'account_et_EE',
+					'language'    => 'et_EE',
+					'credentials' => array(
+						'subdomain' => 'eesti',
+						'username'  => 'mari',
+						'password'  => '',
+					),
+					'connected'   => true,
+				),
+			),
+			$saved['perLanguageAccounts']
+		);
+		self::assertSame( 'account_et_EE', $saved['defaultFallbackAccountKey'] );
 	}
 
 	public function test_saved_settings_reports_no_stored_password_on_a_fresh_install(): void {

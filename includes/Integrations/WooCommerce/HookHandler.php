@@ -12,10 +12,12 @@ namespace Smaily\Connect\Integrations\WooCommerce;
 defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
+use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Settings\SetupState;
 use Smaily\Connect\Smaily\AutomationMarker;
 use Smaily\Connect\Smaily\CartFlusher;
+use Smaily\Connect\Smaily\ContactAccount;
 use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\ContactReconciler;
 use Smaily\Connect\Smaily\ContactSyncMode;
@@ -545,12 +547,17 @@ class HookHandler {
 			return;
 		}
 
+		// The marker sends no language; the account is the order's language's,
+		// where contact sync keeps the buyer (CON-446).
 		$this->maybe_enqueue(
 			self::EVENT_CONTACT_SYNC,
 			'order:' . $order->get_id() . ':cart-purchase',
-			array(
-				'email'  => $reminded,
-				'fields' => AutomationMarker::purchase_stamp(),
+			self::with_account(
+				array(
+					'email'  => $reminded,
+					'fields' => AutomationMarker::purchase_stamp(),
+				),
+				$this->detect_language_for_order( $order )
 			)
 		);
 	}
@@ -740,7 +747,30 @@ class HookHandler {
 		}
 		self::$seen[ $key ] = true;
 
+		if ( $event_type === self::EVENT_CONTACT_SYNC && ! isset( $payload[ ContactAccount::PAYLOAD_KEY ] ) ) {
+			$payload = self::with_account( $payload, isset( $payload['language'] ) ? (string) $payload['language'] : '' );
+		}
+
 		$this->queue->enqueue( $event_type, $entity_id, $payload );
+	}
+
+	/**
+	 * A contact sync records the Smaily account it goes to, so a retry goes
+	 * to the same one (CON-446): in the account-per-language mode the
+	 * account of the contact's language. The `default` account is left
+	 * unwritten — a row without the key goes there, as every row did before.
+	 *
+	 * @param array<string, mixed> $payload
+	 *
+	 * @return array<string, mixed>
+	 */
+	private static function with_account( array $payload, string $language ): array {
+		$account_key = ( new ContactAccount() )->for_language( $language );
+		if ( $account_key !== Credentials::DEFAULT_ACCOUNT_KEY ) {
+			$payload[ ContactAccount::PAYLOAD_KEY ] = $account_key;
+		}
+
+		return $payload;
 	}
 
 	/**

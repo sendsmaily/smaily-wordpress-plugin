@@ -12350,3 +12350,70 @@ reads exactly as before (WPML never writes `trp_language`). An order with
 no stored language leaves the next source, as before.
 **Relationships:** F3-47 (the resolver), CON-354 (the engine customer row),
 CON-203 (TranslatePress locale codes compared in the short form).
+
+### CON-446 — In the account-per-language mode each contact reaches its own language's Smaily account (Erkki, 2026-11-26)
+
+**Context:** in Mode A (a separate Smaily account per language) the live
+contact sync and the contact import sent every contact to the `default`
+account, never to the account of the contact's language; only the
+automations were routed per language (the mapping rows carry the account
+key). The screens lost the language accounts too: the boot payload never
+carried them back, so after a reload the per-language blocks were empty,
+and the summary step, the Step 1 invitation and the Campaign Intelligence
+invitation read the shared account's test only; Settings' Connection save
+sent the shared account as the main account even where the setup saves
+the fallback language account (CON-441).
+**Decision (Erkki, 2026-11-26):** a contact goes to its own language's
+account.
+- **One rule, `Smaily\ContactAccount::for_language()`.** In Mode A: the
+  language account (`account_<language>`, the per-language blocks' key)
+  whose language equals the contact's language — the one
+  ContactLanguageResolver gives it — compared through
+  `ContactLanguageResolver::normalize()` (CON-203's rule, so a stored
+  `account_en_gb` takes `en`), and only when that account holds a complete
+  credential set; else the fallback account the merchant chose ("Default
+  fallback account"), when it is a complete language account; else
+  `default`, the main account (since CON-441 the setup saves the fallback
+  there; F2-8). Every other mode answers `default` without a read.
+- **The queue row records its account.** HookHandler puts `account_key` on
+  a `contact.sync` payload when it is not `default` (the abandoned-cart
+  purchase marker takes its order's language); the Flusher sends the row
+  to that account, a retry too. A row without the key goes to `default`,
+  so single / B / C rows and every row queued before this are unchanged.
+  A row whose language account was removed since is failed with
+  `account_not_configured: <key>` — nothing goes to another account. The
+  Smaily request never carries the key. CON-395's stale rule keys on
+  `contact_key` and is unchanged: rows of one contact in different
+  accounts still count as one contact's changes (only possible after its
+  language changed; the skip only ever withholds a subscribe). The eraser
+  and the Event Log find the rows as before; Details shows the key in the
+  stored payload — the Event Log adds no column (smallest choice).
+- **The contact import** asks the same rule per contact and sends it
+  through Bootstrap's client of that account.
+- **The consent reads follow the contact.** The first-order email's and the
+  abandoned-cart reminder's AutomationConsent read (CON-386, CON-196) asks
+  the account contact sync keeps the contact in — otherwise a new
+  contact, kept in its language account, read as unknown in `default`.
+- **Screens.** `EnvDetector::saved_settings()` carries
+  `perLanguageAccounts` (each detected language's saved account, password
+  omitted, `connected` = a complete stored set) and the fallback key in
+  the blocks' spelling (the save lower-cases it through `sanitize_key()`).
+  One `mainAccount()` (`admin/src/state/main-account.ts`, was private to
+  Wizard.tsx) is the main account for Continue, the summary's "Smaily
+  connected", both invitations, and the Connection save in the setup AND
+  Settings. Settings' tabs were already always open (CON-431). An empty
+  main-account password in Mode A keeps the password stored for the
+  language account the main account names
+  (`SettingsEndpoint::main_password_option()`), not the old main account's.
+**Not built (Erkki):** contacts that already reached the `default` account
+stay there; a contact whose language changes later goes to the new
+language's account and the old account keeps its copy. Still read from
+`default` only: the consent sync-back (`ContactReconciler`) and the
+profiling-consent read (`ProfilingConsent`) — follow-ups.
+**Consequence:** a Mode A store's new contact syncs and its next import
+reach the language accounts. Single account and one account for all
+languages are unchanged.
+**Relationships:** F2-6 / F2-8 (Mode A, its default account), CON-441 (the
+fallback account is the main account), CON-203 (short-form comparison),
+CON-395 (stale rule), CON-386 / CON-196 (consent reads), CON-431 (Settings
+stays open).

@@ -328,7 +328,7 @@ class SettingsEndpoint {
 
 		$this->report_cleared_accounts( $data );
 
-		$this->persist_credentials( self::LEGACY_OPTION_API_CREDENTIALS, $subdomain, $username, $password );
+		$this->persist_credentials( self::LEGACY_OPTION_API_CREDENTIALS, $subdomain, $username, $password, $this->main_password_option( $multilingual, $subdomain, $username, $password, $per_language ) );
 
 		// Sub-PR 2.H.15 — mark the default account as verified.
 		//
@@ -361,6 +361,33 @@ class SettingsEndpoint {
 		$this->save_transactional_account( $data, $transactional_subdomain );
 
 		return $this->success_response( array( 'workflowsRemoved' => $this->remove_workflows( $replaced, $leaves_mode_a ) ) );
+	}
+
+	/**
+	 * Where an empty main-account password is kept from (CON-446). In the
+	 * account-per-language mode the main account is the fallback language
+	 * account (CON-441), and after a reload that account's password is not
+	 * in the browser: the main account then keeps the password stored for
+	 * the language account it names, not the one it held before. Otherwise
+	 * the main account's own option.
+	 *
+	 * @param array<string, array{0: string, 1: string, 2: string}> $per_language
+	 */
+	private function main_password_option( string $mode, string $subdomain, string $username, string $password, array $per_language ): string {
+		if ( $password !== '' || $mode !== 'A' ) {
+			return self::LEGACY_OPTION_API_CREDENTIALS;
+		}
+
+		foreach ( $per_language as $account_key => $creds ) {
+			$option = Credentials::PHASE2_OPTION_PREFIX . $account_key;
+			$stored = get_option( $option, array() );
+			if ( $creds[0] === $subdomain && $creds[1] === $username && $creds[2] === ''
+				&& is_array( $stored ) && isset( $stored['password'] ) && (string) $stored['password'] !== '' ) {
+				return $option;
+			}
+		}
+
+		return self::LEGACY_OPTION_API_CREDENTIALS;
 	}
 
 	/**
@@ -764,11 +791,12 @@ class SettingsEndpoint {
 	 * downstream API call (Workflows fetch, Backfill push) would fail
 	 * with "Credentials not configured" the next time the merchant
 	 * loaded the wizard. Empty incoming password === "leave as-is";
-	 * a non-empty value === "rotate to this".
+	 * a non-empty value === "rotate to this". $kept_from names another
+	 * option to keep the password from (main_password_option(), CON-446).
 	 */
-	private function persist_credentials( string $option_key, string $subdomain, string $username, string $password ): void {
+	private function persist_credentials( string $option_key, string $subdomain, string $username, string $password, string $kept_from = '' ): void {
 		if ( $password === '' ) {
-			$existing  = get_option( $option_key, array() );
+			$existing  = get_option( $kept_from !== '' ? $kept_from : $option_key, array() );
 			$encrypted = is_array( $existing ) && isset( $existing['password'] ) ? (string) $existing['password'] : '';
 		} else {
 			$encrypted = $this->encrypt_password( $password );

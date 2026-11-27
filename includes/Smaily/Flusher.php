@@ -24,7 +24,8 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  *
  * Event-type routing:
  *
- *   contact.sync              → Smaily\Client::upsert_subscribers (default account)
+ *   contact.sync              → Smaily\Client::upsert_subscribers (the row's
+ *                               account — ContactAccount, CON-446)
  *   automation.welcome        → AutomationRouter::trigger_automation('welcome', …)
  *   automation.first_order    → AutomationRouter::trigger_automation('first_order', …)
  *
@@ -125,6 +126,9 @@ final class Flusher {
 	/** The contact-sync mode, read afresh for every flush (its own memo must not outlive one). */
 	private ?ContactSyncMode $mode = null;
 
+	/** Which account a contact is kept in, read afresh for every flush (CON-446). */
+	private ?ContactAccount $accounts = null;
+
 	/** The automations' discount codes (CON-199). */
 	private DiscountCodeIssuer $discount_codes;
 
@@ -151,7 +155,8 @@ final class Flusher {
 			'retried'   => 0,
 		);
 
-		$this->mode = null;
+		$this->mode     = null;
+		$this->accounts = null;
 
 		foreach ( $this->queue->pending(
 			$batch_size,
@@ -264,7 +269,7 @@ final class Flusher {
 			$row['is_unsubscribed'] = (int) $payload['is_unsubscribed'];
 		}
 
-		$client = ( $this->client_factory )( 'default' );
+		$client = $this->row_client( $payload );
 
 		// Smaily creates a contact sent without a status as SUBSCRIBED, so the
 		// abandoned-cart purchase marker goes only to a contact Smaily already
@@ -281,6 +286,28 @@ final class Flusher {
 			// Capture even when upsert throws — the Client records the exchange
 			// before throwing (F3-44).
 			$this->current_exchange = $client->last_exchange();
+		}
+	}
+
+	/**
+	 * The client of the account a contact sync row records (CON-446) —
+	 * `default` when it records none. A language account removed since the
+	 * row was queued fails the row: a retry would find it gone too.
+	 *
+	 * @param array<string, mixed> $payload
+	 *
+	 * @throws TerminalDispatchException When the recorded account has no credentials any more.
+	 */
+	private function row_client( array $payload ): Client {
+		$account_key = isset( $payload[ ContactAccount::PAYLOAD_KEY ] ) ? (string) $payload[ ContactAccount::PAYLOAD_KEY ] : 'default';
+		if ( $account_key === 'default' ) {
+			return ( $this->client_factory )( 'default' );
+		}
+
+		try {
+			return ( $this->client_factory )( $account_key );
+		} catch ( \RuntimeException $e ) {
+			throw new TerminalDispatchException( 'account_not_configured: ' . $account_key );
 		}
 	}
 
@@ -315,7 +342,13 @@ final class Flusher {
 			$this->mode = new ContactSyncMode();
 		}
 
-		$client = ( $this->client_factory )( 'default' );
+		if ( $this->accounts === null ) {
+			$this->accounts = new ContactAccount();
+		}
+
+		// The contact is read where contact sync keeps it (CON-446).
+		$language = isset( $payload['language'] ) ? (string) $payload['language'] : '';
+		$client   = ( $this->client_factory )( $this->accounts->for_language( $language ) );
 		try {
 			return AutomationConsent::refusal( $client, $email, $payload, $this->mode );
 		} catch ( ApiException $e ) {

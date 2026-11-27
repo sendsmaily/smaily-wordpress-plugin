@@ -326,4 +326,84 @@ final class SettingsRoundTripTest extends TestCase {
 			'Bug-2.H.19#3: empty inbound password wiped the stored secret instead of preserving it.'
 		);
 	}
+
+	/**
+	 * CON-446: in the account-per-language mode each language's saved account
+	 * comes back after a reload (without its password), and a save made
+	 * after the reload — the main account is the fallback language account,
+	 * its password not in the browser — keeps that account's password as
+	 * the main account's, not the password the main account held before.
+	 */
+	public function test_language_accounts_round_trip_and_the_main_account_keeps_the_fallbacks_password(): void {
+		$languages = ( new EnvDetector() )->snapshot()['detectedLanguages'];
+		self::assertNotSame( array(), $languages, 'The test site lists at least one language.' );
+		$account_key = 'account_' . $languages[0];
+
+		update_option(
+			'smaily_connect_api_credentials',
+			array(
+				'subdomain' => 'oldmain',
+				'username'  => 'old',
+				'password'  => \Smaily_Connect\Includes\Cypher::encrypt( 'old-secret' ),
+			)
+		);
+		$connection = static fn ( string $password ): array => array(
+			'tab'  => 'connection',
+			'data' => array(
+				'smailyCredentials'         => array(
+					'subdomain' => 'eestisub',
+					'username'  => 'mari',
+					'password'  => $password,
+				),
+				'multilingualMode'          => 'A',
+				'perLanguageAccounts'       => array(
+					array(
+						'accountKey'  => $account_key,
+						'credentials' => array(
+							'subdomain' => 'eestisub',
+							'username'  => 'mari',
+							'password'  => $password,
+						),
+					),
+				),
+				'defaultFallbackAccountKey' => $account_key,
+			),
+		);
+
+		// The language account is saved first on its own (the main account
+		// left as it was), as a Settings save of that block only would.
+		$first = $connection( 'fallback-secret' );
+		$first['data']['smailyCredentials'] = array(
+			'subdomain' => 'oldmain',
+			'username'  => 'old',
+			'password'  => '',
+		);
+		self::assertSame( 200, RestRequestHelper::post( '/settings', $first )->get_status() );
+
+		$saved = ( new EnvDetector() )->saved_settings();
+		self::assertSame(
+			array(
+				array(
+					'accountKey'  => $account_key,
+					'language'    => $languages[0],
+					'credentials' => array(
+						'subdomain' => 'eestisub',
+						'username'  => 'mari',
+						'password'  => '',
+					),
+					'connected'   => true,
+				),
+			),
+			$saved['perLanguageAccounts']
+		);
+		self::assertSame( $account_key, $saved['defaultFallbackAccountKey'] );
+
+		// After the reload: the fallback account is the main account.
+		self::assertSame( 200, RestRequestHelper::post( '/settings', $connection( '' ) )->get_status() );
+
+		$main = ( new \Smaily\Connect\Settings\Credentials() )->get();
+		self::assertNotNull( $main );
+		self::assertSame( 'eestisub', $main->subdomain );
+		self::assertSame( 'fallback-secret', $main->password, 'The main account keeps the fallback account\'s password.' );
+	}
 }

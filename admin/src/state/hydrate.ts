@@ -138,6 +138,17 @@ export interface BootPayload {
     setupCompleted: boolean;
     multilingualMode: string;
     defaultFallbackAccountKey: string;
+    /**
+     * Each language's saved account (CON-446), without the password.
+     * `connected` = the server holds a complete credential set. Optional for
+     * payload compatibility.
+     */
+    perLanguageAccounts?: Array<{
+      accountKey: string;
+      language: string;
+      credentials: { subdomain: string; username: string; password: string };
+      connected: boolean;
+    }>;
     subscriberSyncEnabled: boolean;
     syncFields: string[];
     wordpressSubscriptionCheckbox: boolean;
@@ -332,7 +343,12 @@ export function hydrateState(boot: BootPayload | null, inSettings: boolean): Wiz
     smailyConnection: deriveCredentialConnection(s.smailyConnected, s.smailyCredentials),
     smailyHasStoredPassword: s.smailyHasStoredPassword ?? false,
     multilingualMode: mode,
-    perLanguageAccounts: [],
+    perLanguageAccounts: (s.perLanguageAccounts ?? []).map((account) => ({
+      accountKey: account.accountKey,
+      language: account.language,
+      credentials: { ...emptyCredentials, ...account.credentials },
+      connection: deriveCredentialConnection(account.connected, account.credentials),
+    })),
     defaultFallbackAccountKey: s.defaultFallbackAccountKey || 'default',
     recEngineSetupToken: '',
     recEngineConnection: deriveRecEngineConnection(s.recEngine),

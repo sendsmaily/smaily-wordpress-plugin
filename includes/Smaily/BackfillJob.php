@@ -11,6 +11,7 @@ namespace Smaily\Connect\Smaily;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Smaily\RecEngine\Backfill\AbstractBackfillJob;
 use Smaily\Connect\Support\ContactLanguageResolver;
 
@@ -109,7 +110,7 @@ class BackfillJob implements BackfillJobInterface {
 	 * loadable without WordPress's DAY_IN_SECONDS constant being available
 	 * (e.g. from unit tests).
 	 */
-	private const DEFAULT_FRESHNESS_SECONDS = 7 * 86400;
+	public const DEFAULT_FRESHNESS_SECONDS = 7 * 86400;
 
 	private Client $client;
 
@@ -123,10 +124,21 @@ class BackfillJob implements BackfillJobInterface {
 
 	private ?EventQueue $queue;
 
-	public function __construct( Client $client, int $freshness_seconds = self::DEFAULT_FRESHNESS_SECONDS, ?EventQueue $queue = null ) {
+	/** @var (callable(string): Client)|null */
+	private $client_factory;
+
+	/**
+	 * @param Client                      $client         The `default` account's client.
+	 * @param (callable(string): Client)|null $client_factory The client of an account key — each
+	 *                                                    contact goes to its language's account in
+	 *                                                    the account-per-language mode (CON-446).
+	 *                                                    Null: every contact goes to $client.
+	 */
+	public function __construct( Client $client, int $freshness_seconds = self::DEFAULT_FRESHNESS_SECONDS, ?EventQueue $queue = null, ?callable $client_factory = null ) {
 		$this->client            = $client;
 		$this->freshness_seconds = $freshness_seconds;
 		$this->queue             = $queue;
+		$this->client_factory    = $client_factory;
 	}
 
 	/**
@@ -455,6 +467,7 @@ class BackfillJob implements BackfillJobInterface {
 		$refused        = array();
 		$not_built      = array();
 		$last_refusal   = '';
+		$accounts       = new ContactAccount();
 		foreach ( $users as $user ) {
 			// F3-48: only sync the mode's audience (consent → opted-in only;
 			// legitimate interest → all; checkout-only → none). Walked-past but
@@ -485,13 +498,15 @@ class BackfillJob implements BackfillJobInterface {
 				);
 				continue;
 			}
+			// The contact goes to its language's account (CON-446).
+			$client = $this->client_for( $accounts->for_language( isset( $payload['language'] ) ? (string) $payload['language'] : '' ) );
 			try {
-				$this->client->upsert_subscribers( array( $payload ) );
+				$client->upsert_subscribers( array( $payload ) );
 				// An HTTP 200 can still carry a refusal in Smaily's body code:
 				// it throws like the queued sends (PRO-3862), so the contact
 				// is not counted as synced (PRO-3904). A permanent code skips
 				// the contact (PRO-3988); 225 stops the import.
-				RetryPolicy::throw_if_refused_envelope( $this->client->last_exchange() );
+				RetryPolicy::throw_if_refused_envelope( $client->last_exchange() );
 				update_user_meta( (int) $user->ID, self::META_KEY, time() );
 				++$synced;
 			} catch ( TerminalDispatchException $e ) {
@@ -678,6 +693,14 @@ class BackfillJob implements BackfillJobInterface {
 		}
 
 		return $payload;
+	}
+
+	private function client_for( string $account_key ): Client {
+		if ( $account_key === Credentials::DEFAULT_ACCOUNT_KEY || $this->client_factory === null ) {
+			return $this->client;
+		}
+
+		return ( $this->client_factory )( $account_key );
 	}
 
 	private function payload_builder(): SubscriberPayloadBuilder {

@@ -106,6 +106,9 @@ class CartFlusher {
 	/** The contact-sync mode, read afresh for every flush (its own memo must not outlive one). */
 	private ?ContactSyncMode $mode = null;
 
+	/** Which account a contact is kept in, read afresh for every flush (CON-446). */
+	private ?ContactAccount $accounts = null;
+
 	/** The reminders' discount codes (CON-199). */
 	private DiscountCodeIssuer $discount_codes;
 
@@ -135,6 +138,7 @@ class CartFlusher {
 
 		$this->unconfigured_logged = false;
 		$this->mode                = new ContactSyncMode();
+		$this->accounts            = new ContactAccount();
 
 		foreach ( $this->queue->pending( $batch_size, array( self::EVENT_TYPE ) ) as $event ) {
 			++$stats['processed'];
@@ -266,7 +270,9 @@ class CartFlusher {
 	 * @throws ApiException When Smaily cannot be read.
 	 */
 	private function consent_refusal( string $email, array $payload ): string {
-		$client = ( $this->client_factory )( 'default' );
+		// The contact is read where contact sync keeps it (CON-446).
+		$language = isset( $payload['language'] ) ? (string) $payload['language'] : '';
+		$client   = ( $this->client_factory )( ( $this->accounts ?? new ContactAccount() )->for_language( $language ) );
 		try {
 			return AutomationConsent::refusal( $client, $email, $payload, $this->mode ?? new ContactSyncMode() );
 		} catch ( ApiException $e ) {

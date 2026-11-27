@@ -1,3 +1,4 @@
+import { mainAccount } from '../../state/main-account';
 import { type WizardState } from '../../state/types';
 import { Button, Card } from '../primitives';
 import { __, _n, sprintf } from '@admin/lib/i18n';
@@ -101,7 +102,7 @@ function computeSummary(state: WizardState): SummaryItem[] {
   const accountCount = 1 + state.perLanguageAccounts.length;
   items.push({
     label: __('Smaily connected', 'smaily-connect'),
-    active: state.smailyConnection.kind === 'success',
+    active: mainAccount(state).connection.kind === 'success',
     detail:
       state.multilingualMode === 'A'
         ? sprintf(
