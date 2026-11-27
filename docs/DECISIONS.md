@@ -12409,7 +12409,8 @@ account.
 stay there; a contact whose language changes later goes to the new
 language's account and the old account keeps its copy. Still read from
 `default` only: the consent sync-back (`ContactReconciler`) and the
-profiling-consent read (`ProfilingConsent`) — follow-ups.
+profiling-consent read (`ProfilingConsent`) — follow-ups, since done:
+CON-471 (the sync-back, below).
 **Consequence:** a Mode A store's new contact syncs and its next import
 reach the language accounts. Single account and one account for all
 languages are unchanged.
@@ -12417,3 +12418,42 @@ languages are unchanged.
 fallback account is the main account), CON-203 (short-form comparison),
 CON-395 (stale rule), CON-386 / CON-196 (consent reads), CON-431 (Settings
 stays open).
+
+### CON-471 — In the account-per-language mode an unsubscribe in a language's Smaily account reaches WordPress (2026-11-27)
+
+**Context:** the daily contact-sync tick mirrors unsubscribes made in
+Smaily back to WordPress (`ContactReconciler`, F3-48: Smaily's action log
+from a stored cursor) from the `default` account only. Since CON-446 a
+Mode A contact lives in its language's account, so an unsubscribe made
+there never reached WordPress: in "Subscribers only (consent)" the store
+kept the contact as subscribed, and a later change could send them to
+Smaily as subscribed again.
+**Decision:** the tick reads every account contact sync can keep a
+contact in — `ContactAccount::distinct_accounts()`: `default` first, then
+in Mode A each language account with a complete credential set, each
+Smaily account (subdomain) once, so the fallback language account the
+setup saved as the main account (CON-441) is read once, as `default`.
+Every other mode reads `default` alone, as before.
+- **A cursor per account.** The main account's stays in
+  `smly_plus_contact_reconcile_seq`, so an update re-reads and loses
+  nothing; a language account's is kept in
+  `smly_plus_contact_reconcile_seq_accounts` (account key => seq id) —
+  one option, not one per account. A language account read for the first
+  time starts from 0: the action log's ~30-day window, as the main
+  account's first run did.
+- **A failing account does not stop the others.** Each account runs in
+  its own try/catch in `Bootstrap::run_contact_reconcile()`; a failure is
+  logged with the account key and the error's type, code and place
+  (CON-301), and that account's cursor stays where it was.
+- **Bounded as before:** each account's walk keeps `MAX_PAGES`; the
+  number of walks is the number of Smaily accounts the store holds.
+- Every account's event applies to the WP user of that address, whichever
+  account it came from — an account holds a contact only where contact
+  sync (or the merchant) put it.
+**Consequence:** a Mode A contact who unsubscribes in their language's
+account is recorded as unsubscribed in WordPress, so the consent-mode
+audience leaves them out of every later sync. Single account and one
+account for all languages read the main account only, as before.
+**Relationships:** F3-48 (the sync-back), CON-446 (`ContactAccount`),
+CON-441 (the fallback account is the main account), CON-301 (no remote
+text in logs).

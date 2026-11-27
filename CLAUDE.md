@@ -789,8 +789,12 @@ contact (AutomationConsent), asks it — never a bare `client_factory(
 'default' )` for a contact. A `contact.sync` row records the answer as
 `account_key` (absent = `default`, so single / B / C payloads are unchanged)
 and the Flusher sends it there, a retry too; a removed language account
-fails the row `account_not_configured: <key>`. Not yet routed: the consent
-sync-back (`ContactReconciler`) and the profiling-consent read.
+fails the row `account_not_configured: <key>`. The consent sync-back
+(`ContactReconciler`, the daily tick) reads every account
+`ContactAccount::distinct_accounts()` lists — `default`, then in Mode A each
+complete language account, one per subdomain — each with its own cursor
+(`OPTION_CURSOR` for `default`, `OPTION_ACCOUNT_CURSORS` for the rest) and
+its own try/catch (CON-471). Not yet routed: the profiling-consent read.
 **Integration-test trap:** Bootstrap keeps one Smaily client per account key
 for the whole process (`smaily_clients`) — a test that changes or removes an
 account's credentials clears it (`AccountPerLanguageContactSyncTest::

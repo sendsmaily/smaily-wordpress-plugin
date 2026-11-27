@@ -171,6 +171,31 @@ final class ContactReconcilerTest extends TestCase {
 		self::assertSame( 105, $this->options[ ContactReconciler::OPTION_CURSOR ] );
 	}
 
+	public function test_a_language_account_keeps_its_own_cursor(): void {
+		$this->consent_mode();
+		$this->options[ ContactReconciler::OPTION_CURSOR ]          = 100;
+		$this->options[ ContactReconciler::OPTION_ACCOUNT_CURSORS ] = array( 'account_en' => 7 );
+		$this->user( 'a@x.test', 10, 1 );
+
+		$client = $this->createMock( Client::class );
+		$client->expects( $this->once() )
+			->method( 'get_action_log' )
+			->with( 0, $this->anything() )
+			->willReturn( array( array( 'seq_id' => 3, 'email' => 'a@x.test', 'action' => 'optout' ) ) );
+
+		self::assertSame( 1, ( new ContactReconciler( $client, new ContactSyncMode(), 'account_et' ) )->reconcile() );
+
+		self::assertSame( 100, $this->options[ ContactReconciler::OPTION_CURSOR ], 'The main account keeps its cursor.' );
+		self::assertSame(
+			array(
+				'account_en' => 7,
+				'account_et' => 3,
+			),
+			$this->options[ ContactReconciler::OPTION_ACCOUNT_CURSORS ],
+			'A language account starts from its own cursor and stores it beside the others.'
+		);
+	}
+
 	public function test_rebaseline_sets_flags_from_is_unsubscribed(): void {
 		$this->consent_mode();
 		$this->user( 'a@x.test', 10, 1 ); // in Smaily unsubscribed → should drop to 0
