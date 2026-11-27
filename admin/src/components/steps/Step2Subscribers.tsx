@@ -4,6 +4,7 @@ import { formatUtc } from '@admin/lib/format-utc';
 import { __, _n, sprintf } from '@admin/lib/i18n';
 import { LOG_URL } from '@admin/lib/links';
 import { useBackfillProgress } from '../../hooks/useBackfillProgress';
+import { readBoot } from '../../state/hydrate';
 import {
   DEFAULT_SYNC_FIELDS,
   type BackfillRefusals,
@@ -68,6 +69,12 @@ export function Step2Subscribers({
   // The run finished without a contact to sync because the audience is empty
   // — not because the walk went wrong (PRO-1715).
   const nothingToSync = progress.synced === 0 && progress.audienceEstimate === 0;
+  // CON-467: other sites of a multisite network that keep contacts in one
+  // of this site's Smaily accounts under another mode than the one chosen
+  // here — their rules contradict this site's in one contact list.
+  const clashingSites = (readBoot()?.networkSites ?? []).filter(
+    (site) => site.mode !== state.contactSyncMode,
+  );
 
   return (
     <div className="space-y-6">
@@ -162,6 +169,26 @@ export function Step2Subscribers({
               );
             })}
           </fieldset>
+
+          {clashingSites.length > 0 && (
+            <Banner tone="warning" className="mt-4">
+              {_n(
+                'Another site of this network sends contacts to the same Smaily account with a different contact sync mode, so the sites apply contradicting rules to one contact list:',
+                'Other sites of this network send contacts to the same Smaily account with a different contact sync mode, so the sites apply contradicting rules to one contact list:',
+                clashingSites.length,
+                'smaily-connect',
+              )}{' '}
+              {clashingSites
+                .map((site) => sprintf(
+                  // translators: %1$s is a site name, %2$s is its address, %3$s is its contact sync mode.
+                  __( '%1$s (%2$s): %3$s', 'smaily-connect' ),
+                  site.name,
+                  site.url,
+                  CONTACT_SYNC_MODES.find((mode) => mode.value === site.mode)?.label ?? site.mode,
+                ))
+                .join('; ')}
+            </Banner>
+          )}
 
           {state.contactSyncMode === 'legitimate_interest' && (
             <Banner tone="warning" className="mt-4">

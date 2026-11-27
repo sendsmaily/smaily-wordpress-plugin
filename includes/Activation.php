@@ -15,6 +15,7 @@ use Smaily\Connect\DB\Migrator;
 use Smaily\Connect\Migration\WPCronAuditor;
 use Smaily\Connect\Smaily\CartAbandonmentSweeper;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\NetworkAccounts;
 
 /**
  * Runs on plugin activation.
@@ -58,6 +59,9 @@ final class Activation {
 		self::migrate_wp_cron_to_action_scheduler();
 		self::schedule_recurring_action_scheduler_jobs();
 		self::clear_action_scheduler_verification();
+		// This site's entry in the network index (CON-467), so a site
+		// configured before the index existed appears in it after the update.
+		NetworkAccounts::refresh();
 		self::stamp_plugin_version();
 	}
 
