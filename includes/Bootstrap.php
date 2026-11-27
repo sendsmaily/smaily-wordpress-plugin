@@ -479,7 +479,15 @@ final class Bootstrap {
 		switch ( $job_type ) {
 			case BackfillJob::BACKFILL_TYPE: // 'contacts' — legacy Smaily.
 				try {
-					return new BackfillJob( $this->smaily_client() );
+					$bootstrap = $this;
+					return new BackfillJob(
+						$this->smaily_client(),
+						BackfillJob::DEFAULT_FRESHNESS_SECONDS,
+						null,
+						static function ( string $account_key ) use ( $bootstrap ): Client {
+							return $bootstrap->smaily_client( $account_key );
+						}
+					);
 				} catch ( \RuntimeException $e ) {
 					return null;
 				}

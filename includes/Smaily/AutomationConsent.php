@@ -28,8 +28,10 @@ defined( 'ABSPATH' ) || exit;
  *
  * The consent inputs ride the queue payload at the top level (`user_id`,
  * `newsletter_optin`); the store record and Smaily are read at send time.
- * The contact is read from the "default" account, where contact sync keeps
- * it. Independent of the "Sync contacts to Smaily" switch (PRO-1742).
+ * The contact is read from the account contact sync keeps it in —
+ * ContactAccount, the account of its language in the account-per-language
+ * mode, else "default" (CON-446). Independent of the "Sync contacts to
+ * Smaily" switch (PRO-1742).
  *
  * The one rule both flushers ask — never copy it.
  */
@@ -44,7 +46,7 @@ final class AutomationConsent {
 	/**
 	 * Why the automation may not go out, or '' when it may.
 	 *
-	 * @param Client               $client  The "default" account's client.
+	 * @param Client               $client  The client of the account the contact is kept in.
 	 * @param array<string, mixed> $payload The queue row's decoded payload.
 	 *
 	 * @throws ApiException When Smaily cannot be read — the caller retries the

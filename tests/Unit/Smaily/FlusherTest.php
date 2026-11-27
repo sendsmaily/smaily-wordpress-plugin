@@ -121,6 +121,82 @@ final class FlusherTest extends TestCase {
 		self::assertSame( 1, $captured['is_unsubscribed'] ?? null );
 	}
 
+	/**
+	 * CON-446: a contact sync goes to the account its row records — a retry
+	 * too — and the account key never reaches Smaily.
+	 */
+	public function test_contact_sync_goes_to_the_account_its_row_records(): void {
+		$queue = $this->fake_queue(
+			array(
+				array(
+					'id'         => 1,
+					'event_type' => HookHandler::EVENT_CONTACT_SYNC,
+					'payload'    => json_encode(
+						array(
+							'email'       => 'a@b.c',
+							'language'    => 'et',
+							'account_key' => 'account_et',
+						)
+					),
+				),
+			)
+		);
+
+		$captured = array();
+		$client   = $this->createMock( Client::class );
+		$client->expects( $this->once() )->method( 'upsert_subscribers' )->willReturnCallback(
+			static function ( array $rows ) use ( &$captured ): array {
+				$captured = $rows[0];
+				return array();
+			}
+		);
+		$asked = array();
+
+		( new Flusher(
+			$queue,
+			$this->automation_router_returning_true(),
+			static function ( string $account_key ) use ( $client, &$asked ): Client {
+				$asked[] = $account_key;
+				return $client;
+			},
+			$this->no_discounts()
+		) )->flush();
+
+		self::assertSame( array( 'account_et' ), $asked );
+		self::assertArrayNotHasKey( 'account_key', $captured );
+		self::assertSame( array( 1 ), $queue->marked_sent );
+	}
+
+	/** CON-446: a language account removed since the row was queued fails the row. */
+	public function test_contact_sync_fails_when_its_account_is_gone(): void {
+		$queue = $this->fake_queue(
+			array(
+				array(
+					'id'         => 1,
+					'event_type' => HookHandler::EVENT_CONTACT_SYNC,
+					'payload'    => json_encode(
+						array(
+							'email'       => 'a@b.c',
+							'account_key' => 'account_et',
+						)
+					),
+				),
+			)
+		);
+
+		$stats = ( new Flusher(
+			$queue,
+			$this->automation_router_returning_true(),
+			static function ( string $account_key ): Client {
+				throw new \RuntimeException( 'Smaily credentials are not configured for account "' . $account_key . '"' );
+			},
+			$this->no_discounts()
+		) )->flush();
+
+		self::assertSame( 1, $stats['failed'] );
+		self::assertSame( 'account_not_configured: account_et', $queue->marked_failed[0]['error'] );
+	}
+
 	public function test_contact_sync_records_the_exchange_from_the_client(): void {
 		// F3-44: the Flusher stores what the Client sent + the Smaily reply, read
 		// from the Client's last_exchange() (populated in Client::request()).
