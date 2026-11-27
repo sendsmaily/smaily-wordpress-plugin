@@ -65,8 +65,11 @@ lawful basis.
 - **Live:** register / profile-update / order → upsert (no opt-in filter).
 - **Mass:** backfill + daily refresh cover **all** registered customers — this is
   what fixes Prike's "missing contacts".
-- **Send:** never send `is_unsubscribed` (Smaily owns suppression; a plain upsert
-  preserves an existing unsubscribe — confirmed by Erkki).
+- **Send:** no `is_unsubscribed` (Smaily owns suppression; a plain upsert
+  preserves an existing unsubscribe — confirmed by Erkki), except a ticked
+  checkout box: classic or block, guest or registered, it is sent with
+  `is_unsubscribed=0`, so a shopper who unsubscribed earlier becomes a
+  subscriber again (CON-442, Erkki 2026-11-26).
 - **Sync-back:** none.
 - **Automations:** `force_opt_in=false` (resolved with Erkki) — even under
   legitimate interest an explicit unsubscribe is honoured (GDPR Art. 21: the
@@ -117,12 +120,13 @@ lawful basis.
 
 Single policy object decides, per mode, what an upsert carries:
 - `is_unsubscribed` is **omitted** unless the mode + event explicitly set it
-  (preset 2 opt-in → `0`, opt-out → `1`). Omission preserves Smaily's value;
+  (preset 2 opt-in → `0`, opt-out → `1`; a ticked checkout box → `0` in every
+  preset, CON-442). Omission preserves Smaily's value;
   presets never silently flip consent.
 - **VERIFIED (Erkki, 2026-10-02 — PRO-3609; raised as an assumption in
   PRO-3407):** a **brand-new** contact upserted WITHOUT `is_unsubscribed` (the
   omitted case above — e.g. `HookHandler`'s order path under legitimate
-  interest; `Smaily\Flusher` forwards the key only when the payload sets it)
+  interest for a checkout without a tick; `Smaily\Flusher` forwards the key only when the payload sets it)
   is created by Smaily as **subscribed** (Smaily's default). The "omission
   preserves" rule above covers an EXISTING contact; together they are the EU
   **soft opt-in** Erkki set as the meaning of preset 1 across the Smaily
