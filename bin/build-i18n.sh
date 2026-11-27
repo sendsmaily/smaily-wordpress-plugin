@@ -56,6 +56,14 @@ else
 	wpc() { docker exec "$CONTAINER" sh -c "cd $P && wp i18n $* --allow-root"; }
 fi
 
+# Entries (msgids, the header included) of a .po, and a copy of the committed
+# catalogs to put back if the run strips them (see the check after make-json).
+count_msgids() { grep -c '^msgid ' "$1" || true; }
+po_before="$( count_msgids "languages/smaily-connect-${LANG}.po" )"
+backup="$( mktemp -d )"
+trap 'rm -rf "$backup"' EXIT
+cp languages/smaily-connect.pot "languages/smaily-connect-${LANG}.po" "$backup/"
+
 echo "1/6  Transpile admin/src TS/TSX -> _i18n-src (so make-pot can read the __() calls)"
 rm -rf _i18n-src
 node_modules/.bin/esbuild $( find admin/src -name '*.tsx' -o -name '*.ts' | grep -v '\.test\.' ) \
@@ -86,11 +94,31 @@ PY
 # `--purge` (which we must switch off, or make-json strips the JS strings out of
 # the committed .po) only exists in older i18n-command releases; newer ones
 # dropped purging altogether and reject the flag. Pass it only when understood.
+# The help text is read into a variable first, never piped into `grep -q`: grep
+# exits at the first match, the writer can then die of SIGPIPE, pipefail turns
+# the test false, and make-json ran WITHOUT --no-purge (wp-cli 2.12.0 purges by
+# default) — it deleted 601 of 862 .po entries while the script printed OK.
+# A help text that cannot be read is a stop, never "no --purge flag".
+if ! make_json_help="$( wpc make-json --help 2>&1 )" || [[ "$make_json_help" != *--use-map* ]]; then
+	echo "!! could not read 'wp i18n make-json --help'; refusing to run make-json without knowing whether it purges the .po" >&2
+	exit 1
+fi
 purge_flag=""
-if wpc make-json --help 2>/dev/null | grep -q -- '--purge'; then
+if [[ "$make_json_help" == *--purge* ]]; then
 	purge_flag="--no-purge"
 fi
 wpc make-json "languages/smaily-connect-${LANG}.po" languages/ --use-map=languages/i18n-map.json ${purge_flag}
+# Backstop: a purge (or any other step) that strips the catalog fails the run and
+# puts the committed .pot/.po back. update-po legitimately drops strings removed
+# from the source, so a small drop passes; more than 10% does not.
+po_after="$( count_msgids "languages/smaily-connect-${LANG}.po" )"
+if [ $(( ( po_before - po_after ) * 10 )) -gt "$po_before" ]; then
+	cp "$backup/smaily-connect.pot" languages/smaily-connect.pot
+	cp "$backup/smaily-connect-${LANG}.po" "languages/smaily-connect-${LANG}.po"
+	echo "!! languages/smaily-connect-${LANG}.po lost more than 10% of its entries (${po_before} -> ${po_after} msgids)." >&2
+	echo "   The .pot and .po are restored to what they were before this run; the .mo/.json built from them are not trustworthy — re-run the script." >&2
+	exit 1
+fi
 # The combined admin catalog is the .po-derived JSON with the most strings; rename it
 # to the name WordPress requests for dist/admin/admin.js.
 combined="$( for f in languages/smaily-connect-${LANG}-*.json; do

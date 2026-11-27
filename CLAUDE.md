@@ -1080,6 +1080,14 @@ WRONG for this, so use **`bin/build-i18n.sh`** (it needs the wp-env container):
   non-zero if any `_i18n-src` reference is left or the admin catalog JSON is missing.
   A reference keeps its real `.ts`/`.tsx` extension; line numbers point at the
   transpiled JS, not the source.
+- **Never pipe a command into `grep -q` under `pipefail` to decide a flag**
+  (2026-11-27): `grep -q` exits at the first match, the writer dies of SIGPIPE
+  and the test reads false — 9 of 30 runs here. The `make-json --help | grep -q
+  -- '--purge'` check then dropped `--no-purge`, and make-json (wp-cli 2.12.0
+  purges by default) deleted 601 of 862 `-et.po` entries while the script
+  printed OK. The script now reads the help into a variable and stops when it
+  cannot read it, and fails — restoring the `.pot`/`.po` — when the `.po` loses
+  more than 10% of its msgids in a run.
 - **A worktree the dev container does not mount cannot use the default run, and
   the host run is not a substitute for a commit** (CON-321, 2026-11-17):
   `WP_CLI_BIN=vendor/bin/wp bash bin/build-i18n.sh` on the Mac (newer wp-cli,
