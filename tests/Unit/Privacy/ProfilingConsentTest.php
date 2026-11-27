@@ -491,6 +491,58 @@ final class ProfilingConsentTest extends TestCase {
 	}
 
 	/**
+	 * CON-475: a finished setup whose main Smaily account is incomplete —
+	 * the factory throws instead of building a client. The gate answers as
+	 * it does with no client: the durable opt-out, else the last read,
+	 * else fail-open, cached for the day; nothing is thrown.
+	 */
+	public function test_a_client_that_cannot_be_built_falls_back_like_no_client(): void {
+		$options = &$this->options();
+		$store   = &$this->transients();
+
+		$resolver = $this->resolver_without_a_buildable_client();
+
+		self::assertTrue( $resolver->may_profile( 'a@example.com' ) );
+		self::assertSame( '1', $store[ 'smly_profiling_' . md5( 'a@example.com' ) ] );
+
+		$store                             = array();
+		$options['smly_profiling_optouts'] = array( md5( 'a@example.com' ) => 0 );
+		self::assertFalse( $resolver->may_profile( 'a@example.com' ) );
+	}
+
+	/**
+	 * CON-475: the My Account opt-out on such a store writes nothing to
+	 * Smaily, as with no client, and still sticks and reaches the engine.
+	 */
+	public function test_opt_out_with_a_client_that_cannot_be_built_is_durable_and_reaches_the_engine(): void {
+		$options = &$this->options();
+		$this->transients();
+
+		$rec = $this->createMock( PrivacyRequests::class );
+		$rec->expects( self::once() )
+			->method( 'queue_opt_out' )
+			->with( 'a@example.com', self::callback( static fn ( array $b ): bool => $b['opt_out'] === true ) )
+			->willReturn( true );
+
+		$this->resolver_without_a_buildable_client( $rec )->opt_out( 'a@example.com' );
+
+		self::assertArrayHasKey( md5( 'a@example.com' ), (array) $options['smly_profiling_optouts'] );
+	}
+
+	private function resolver_without_a_buildable_client( ?PrivacyRequests $rec = null ): ProfilingConsent {
+		$settings = $this->createMock( RecEngineSettings::class );
+		$settings->method( 'is_connected' )->willReturn( true );
+
+		return new ProfilingConsent(
+			$settings,
+			static function (): SmailyClient {
+				throw new \RuntimeException( 'Smaily credentials are not configured for account "default"' );
+			},
+			$rec ?? $this->createMock( PrivacyRequests::class )
+		);
+	}
+
+	/**
 	 * CON-277: a debug log is often shared with support, and the remote
 	 * message can name the customer — the lines carry the engine's HTTP
 	 * status and error code, or the error type and where it was thrown,
