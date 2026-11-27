@@ -916,6 +916,22 @@ class HookHandler {
 		// any same-request data sync (which omits is_unsubscribed = preserve) —
 		// the per-request dedupe never swallows the consent change.
 		$this->maybe_enqueue( self::EVENT_CONTACT_SYNC, $user->ID . ':consent', $payload );
+
+		if ( $is_unsubscribed !== 1 ) {
+			return;
+		}
+
+		// An opt-out reaches every Smaily account that can keep the contact,
+		// one row each, not only the account of its language now (CON-480):
+		// a contact synced before CON-446, or whose language changed, is kept
+		// in another one too. Sent to an account that lacks the contact, it
+		// creates an unsubscribed record. An opt-in is never carried over.
+		$accounts = new ContactAccount();
+		$routed   = $accounts->for_language( isset( $payload['language'] ) ? (string) $payload['language'] : '' );
+		foreach ( $accounts->other_accounts( $routed ) as $account_key ) {
+			$payload[ ContactAccount::PAYLOAD_KEY ] = $account_key;
+			$this->maybe_enqueue( self::EVENT_CONTACT_SYNC, $user->ID . ':consent:' . $account_key, $payload );
+		}
 	}
 
 	private function detect_language_for_user( \WP_User $user ): string {

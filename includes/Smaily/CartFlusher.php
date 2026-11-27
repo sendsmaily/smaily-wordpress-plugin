@@ -112,14 +112,18 @@ class CartFlusher {
 	/** The reminders' discount codes (CON-199). */
 	private DiscountCodeIssuer $discount_codes;
 
+	/** Reads the store's other Smaily accounts for the consent rule (CON-482); null: never. */
+	private ?UnsubscribeCarryOver $carry_over;
+
 	/**
 	 * @param callable(string $account_key): Client $client_factory
 	 */
-	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, AutomationDiscount $discounts ) {
+	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, AutomationDiscount $discounts, ?UnsubscribeCarryOver $carry_over = null ) {
 		$this->queue          = $queue;
 		$this->router         = $router;
 		$this->client_factory = $client_factory;
 		$this->discount_codes = new DiscountCodeIssuer( $queue, $discounts );
+		$this->carry_over     = $carry_over;
 	}
 
 	/**
@@ -272,11 +276,13 @@ class CartFlusher {
 	private function consent_refusal( string $email, array $payload ): string {
 		// The contact is read where contact sync keeps it (CON-446).
 		$language = isset( $payload['language'] ) ? (string) $payload['language'] : '';
-		$client   = ( $this->client_factory )( ( $this->accounts ?? new ContactAccount() )->for_language( $language ) );
+		$account  = ( $this->accounts ?? new ContactAccount() )->for_language( $language );
+		$client   = ( $this->client_factory )( $account );
 		try {
-			return AutomationConsent::refusal( $client, $email, $payload, $this->mode ?? new ContactSyncMode() );
+			return AutomationConsent::refusal( $client, $email, $payload, $this->mode ?? new ContactSyncMode(), $this->carry_over, $account );
 		} catch ( ApiException $e ) {
-			$this->current_exchange = $client->last_exchange();
+			// The read that failed: another account's (CON-482), else the own one.
+			$this->current_exchange = ( $this->carry_over !== null ? $this->carry_over->exchange_of( $e ) : null ) ?? $client->last_exchange();
 			throw $e;
 		}
 	}

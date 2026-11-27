@@ -25,7 +25,10 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  * Event-type routing:
  *
  *   contact.sync              → Smaily\Client::upsert_subscribers (the row's
- *                               account — ContactAccount, CON-446)
+ *                               account — ContactAccount, CON-446; sent
+ *                               without a status, it carries an unsubscribe
+ *                               from another account — UnsubscribeCarryOver,
+ *                               CON-480)
  *   automation.welcome        → AutomationRouter::trigger_automation('welcome', …)
  *   automation.first_order    → AutomationRouter::trigger_automation('first_order', …)
  *
@@ -69,6 +72,9 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  *     429) fails the row at once, anything else (incl. a transient Smaily
  *     body code) is retried with backoff until the attempt ceiling
  *     (PRO-1685)
+ *   - mark_failed on any other Throwable (a client that cannot be built,
+ *     the automation router's included), with the error type and place —
+ *     the row fails alone and the rest are sent (CON-481)
  *
  * A first-order email the consent rule stops makes no discount code. A
  * welcome or first-order email whose "Send a discount code" is on gets
@@ -132,14 +138,18 @@ final class Flusher {
 	/** The automations' discount codes (CON-199). */
 	private DiscountCodeIssuer $discount_codes;
 
+	/** Carries an unsubscribe into another Smaily account (CON-480); null: never. */
+	private ?UnsubscribeCarryOver $carry_over;
+
 	/**
 	 * @param callable(string $account_key): Client $client_factory
 	 */
-	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, AutomationDiscount $discounts ) {
+	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, AutomationDiscount $discounts, ?UnsubscribeCarryOver $carry_over = null ) {
 		$this->queue          = $queue;
 		$this->router         = $router;
 		$this->client_factory = $client_factory;
 		$this->discount_codes = new DiscountCodeIssuer( $queue, $discounts );
+		$this->carry_over     = $carry_over;
 	}
 
 	/**
@@ -188,6 +198,14 @@ final class Flusher {
 				++$stats['failed'];
 			} catch ( ApiException $e ) {
 				++$stats[ RetryPolicy::apply( $this->queue, $id, (int) ( $event['attempts'] ?? 0 ), $e ) ];
+			} catch ( \Throwable $e ) {
+				// Anything else is deterministic data or configuration — e.g. a
+				// Smaily client that cannot be built for the row's account. It
+				// fails this row alone: left to escape, it would stop every
+				// flush at the same row (CON-481, F3-53). The error type and
+				// where it was thrown, never its text (CON-301).
+				$this->queue->mark_failed( $id, \Smaily\Connect\Support\DebugLog::where( $e ) );
+				++$stats['failed'];
 			}
 
 			// Record what was actually sent + the reply, whatever the outcome —
@@ -269,15 +287,28 @@ final class Flusher {
 			$row['is_unsubscribed'] = (int) $payload['is_unsubscribed'];
 		}
 
-		$client = $this->row_client( $payload );
+		$account_key = isset( $payload[ ContactAccount::PAYLOAD_KEY ] ) ? (string) $payload[ ContactAccount::PAYLOAD_KEY ] : 'default';
+		$client      = $this->row_client( $payload );
 
 		// Smaily creates a contact sent without a status as SUBSCRIBED, so the
 		// abandoned-cart purchase marker goes only to a contact Smaily already
 		// has (PRO-3627): the reminder that scopes it (PRO-1723) does not prove
 		// Smaily kept the contact. A missing contact closes the row as a skip.
-		if ( isset( $fields[ AutomationMarker::FIELD_ABANDONED_CART_PURCHASED ] ) && ! $this->smaily_has_contact( $client, $email ) ) {
+		$marker = isset( $fields[ AutomationMarker::FIELD_ABANDONED_CART_PURCHASED ] );
+		if ( $marker && ! $this->smaily_has_contact( $client, $email ) ) {
 			$this->skip_note = self::NOTE_NOT_A_CONTACT;
 			return;
+		}
+
+		// For the same reason a contact sent without a status to an account
+		// that does not hold it carries an unsubscribe it made in another
+		// account (CON-480).
+		$carried = null;
+		if ( ! $marker && ! isset( $row['is_unsubscribed'] ) ) {
+			$carried = $this->carried_unsubscribe( $client, $account_key, $email );
+			if ( $carried === true ) {
+				$row['is_unsubscribed'] = 1;
+			}
 		}
 
 		try {
@@ -286,6 +317,31 @@ final class Flusher {
 			// Capture even when upsert throws — the Client records the exchange
 			// before throwing (F3-44).
 			$this->current_exchange = $client->last_exchange();
+		}
+
+		if ( $carried !== null && $this->carry_over !== null && RetryPolicy::envelope_refusal( $this->current_exchange ) === null ) {
+			$this->carry_over->remember( $account_key, $email );
+		}
+	}
+
+	/**
+	 * Whether this send must carry an unsubscribe (UnsubscribeCarryOver,
+	 * CON-480); null when nothing was read. A read that fails throws, so the
+	 * row takes the normal retry path and nothing is sent; its request is
+	 * kept for the Event Log (F3-44).
+	 *
+	 * @throws ApiException When an account cannot be read.
+	 */
+	private function carried_unsubscribe( Client $client, string $account_key, string $email ): ?bool {
+		if ( $this->carry_over === null ) {
+			return null;
+		}
+
+		try {
+			return $this->carry_over->unsubscribed_elsewhere( $client, $account_key, $email );
+		} catch ( ApiException $e ) {
+			$this->current_exchange = $this->carry_over->exchange_of( $e );
+			throw $e;
 		}
 	}
 
@@ -348,11 +404,13 @@ final class Flusher {
 
 		// The contact is read where contact sync keeps it (CON-446).
 		$language = isset( $payload['language'] ) ? (string) $payload['language'] : '';
-		$client   = ( $this->client_factory )( $this->accounts->for_language( $language ) );
+		$account  = $this->accounts->for_language( $language );
+		$client   = ( $this->client_factory )( $account );
 		try {
-			return AutomationConsent::refusal( $client, $email, $payload, $this->mode );
+			return AutomationConsent::refusal( $client, $email, $payload, $this->mode, $this->carry_over, $account );
 		} catch ( ApiException $e ) {
-			$this->current_exchange = $client->last_exchange();
+			// The read that failed: another account's (CON-482), else the own one.
+			$this->current_exchange = ( $this->carry_over !== null ? $this->carry_over->exchange_of( $e ) : null ) ?? $client->last_exchange();
 			throw $e;
 		}
 	}

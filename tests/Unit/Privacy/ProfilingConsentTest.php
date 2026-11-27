@@ -116,6 +116,67 @@ final class ProfilingConsentTest extends TestCase {
 		self::assertSame( '1', $entries[ 'smly_profiling_' . md5( $email ) ], 'The main account\'s entry is left as it was.' );
 	}
 
+	/**
+	 * CON-480: the contact's own account does not hold it; an objection in
+	 * another account holds. A contact the own account holds is never read
+	 * anywhere else.
+	 *
+	 * @dataProvider other_account_cases
+	 */
+	public function test_an_objection_in_another_account_holds_when_the_own_account_lacks_the_contact( bool $own_found, bool $expected, array $expected_reads ): void {
+		$entries = array();
+		Functions\when( 'get_transient' )->alias(
+			static function ( string $key ) use ( &$entries ) {
+				return $entries[ $key ] ?? false;
+			}
+		);
+		Functions\when( 'set_transient' )->alias(
+			static function ( string $key, $value ) use ( &$entries ): bool {
+				$entries[ $key ] = $value;
+				return true;
+			}
+		);
+		Functions\when( 'get_option' )->justReturn( array() );
+		Functions\when( 'update_option' )->justReturn( true );
+
+		$reads   = array();
+		$answers = array(
+			'account_et' => array( 'found' => $own_found, 'is_unsubscribed' => $own_found ? '0' : null, 'smaily_rec_profiling' => null, 'smaily_rec_profiling_ts' => null ),
+			'default'    => array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '0', 'smaily_rec_profiling_ts' => null ),
+		);
+		$factory = function ( string $account_key ) use ( &$reads, $answers ): SmailyClient {
+			$client = $this->createMock( SmailyClient::class );
+			$client->method( 'get_contact_consent' )->willReturnCallback(
+				static function () use ( &$reads, $answers, $account_key ): array {
+					$reads[] = $account_key;
+					return $answers[ $account_key ];
+				}
+			);
+			return $client;
+		};
+
+		$profiling = new ProfilingConsent(
+			$this->createMock( RecEngineSettings::class ),
+			$factory,
+			$this->createMock( PrivacyRequests::class ),
+			static fn ( string $address ): string => 'account_et',
+			static fn ( string $account_key ): array => array( 'default' )
+		);
+
+		self::assertSame( $expected, $profiling->may_profile( 'a@example.com' ) );
+		self::assertSame( $expected_reads, $reads );
+	}
+
+	/**
+	 * @return array<string, array{0: bool, 1: bool, 2: array<int, string>}>
+	 */
+	public static function other_account_cases(): array {
+		return array(
+			'own account lacks the contact' => array( false, false, array( 'account_et', 'default' ) ),
+			'own account holds the contact' => array( true, true, array( 'account_et' ) ),
+		);
+	}
+
 	public function test_may_profile_uses_the_cache_without_a_readback(): void {
 		Functions\when( 'get_transient' )->justReturn( '0' );
 

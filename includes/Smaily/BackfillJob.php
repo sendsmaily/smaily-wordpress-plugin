@@ -468,6 +468,7 @@ class BackfillJob implements BackfillJobInterface {
 		$not_built      = array();
 		$last_refusal   = '';
 		$accounts       = new ContactAccount();
+		$carry_over     = $this->client_factory !== null ? new UnsubscribeCarryOver( fn ( string $key ): Client => $this->client_for( $key ) ) : null;
 		foreach ( $users as $user ) {
 			// F3-48: only sync the mode's audience (consent → opted-in only;
 			// legitimate interest → all; checkout-only → none). Walked-past but
@@ -499,14 +500,25 @@ class BackfillJob implements BackfillJobInterface {
 				continue;
 			}
 			// The contact goes to its language's account (CON-446).
-			$client = $this->client_for( $accounts->for_language( isset( $payload['language'] ) ? (string) $payload['language'] : '' ) );
+			$account_key = $accounts->for_language( isset( $payload['language'] ) ? (string) $payload['language'] : '' );
+			$client      = $this->client_for( $account_key );
 			try {
+				// Sent without a status, it carries an unsubscribe the contact
+				// made in another account (CON-480); a read that fails stops
+				// the import below like a failed send, with nothing sent.
+				$carried = $carry_over !== null ? $carry_over->unsubscribed_elsewhere( $client, $account_key, (string) $payload['email'] ) : null;
+				if ( $carried === true ) {
+					$payload['is_unsubscribed'] = 1;
+				}
 				$client->upsert_subscribers( array( $payload ) );
 				// An HTTP 200 can still carry a refusal in Smaily's body code:
 				// it throws like the queued sends (PRO-3862), so the contact
 				// is not counted as synced (PRO-3904). A permanent code skips
 				// the contact (PRO-3988); 225 stops the import.
 				RetryPolicy::throw_if_refused_envelope( $client->last_exchange() );
+				if ( $carried !== null && $carry_over !== null ) {
+					$carry_over->remember( $account_key, (string) $payload['email'] );
+				}
 				update_user_meta( (int) $user->ID, self::META_KEY, time() );
 				++$synced;
 			} catch ( TerminalDispatchException $e ) {
