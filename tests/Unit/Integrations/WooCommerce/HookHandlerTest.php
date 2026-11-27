@@ -983,6 +983,46 @@ final class HookHandlerTest extends TestCase {
 		self::assertArrayNotHasKey( 'is_unsubscribed', $contact['payload'], 'Legit interest leaves consent to Smaily.' );
 	}
 
+	/**
+	 * @dataProvider provide_customer_id
+	 */
+	public function test_a_legitimate_interest_checkout_tick_subscribes( int $customer_id ): void {
+		// CON-442: a tick under legitimate interest is sent as subscribed —
+		// a guest's and a registered buyer's, whose account sync sends none.
+		$this->welcome_store( ContactSyncMode::MODE_LEGITIMATE_INTEREST, array( 'smly_plus_welcome_enabled' => false ) );
+		$this->known_users( $this->fake_user( 49, 'shopper@example.test', '', '' ) );
+		$order = $this->fake_order( 100, 'shopper@example.test', $customer_id, 1 );
+		Functions\when( 'wc_get_order' )->justReturn( $order );
+
+		( new HookHandler( $this->queue ) )->on_checkout_order_processed( 100, $this->posted( 'shopper@example.test', 1 ), $order );
+
+		$contact = $this->find_enqueued( 'order:100' );
+		self::assertNotNull( $contact );
+		self::assertSame( 'shopper@example.test', $contact['payload']['email'] );
+		self::assertSame( 0, $contact['payload']['is_unsubscribed'] );
+	}
+
+	/**
+	 * @return array<string, array{0: int}>
+	 */
+	public function provide_customer_id(): array {
+		return array(
+			'guest'      => array( 0 ),
+			'registered' => array( 49 ),
+		);
+	}
+
+	public function test_a_legitimate_interest_registered_buyer_without_a_tick_is_left_to_the_account_sync(): void {
+		$this->welcome_store( ContactSyncMode::MODE_LEGITIMATE_INTEREST, array( 'smly_plus_welcome_enabled' => false ) );
+		$this->known_users( $this->fake_user( 49, 'shopper@example.test', '', '' ) );
+		$order = $this->fake_order( 100, 'shopper@example.test', 49, 1 );
+		Functions\when( 'wc_get_order' )->justReturn( $order );
+
+		( new HookHandler( $this->queue ) )->on_checkout_order_processed( 100, $this->posted( 'shopper@example.test', '' ), $order );
+
+		self::assertNull( $this->find_enqueued( 'order:100' ) );
+	}
+
 	public function test_checkout_order_skips_guest_in_default_consent_mode(): void {
 		// Default consent + include_guests off → guests are not synced.
 		Functions\when( 'wc_get_order' )->justReturn( $this->fake_order( 100, 'guest@example.test', 0, 1 ) );
