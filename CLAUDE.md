@@ -797,6 +797,23 @@ complete language account, one per subdomain — each with its own cursor
 its own try/catch (CON-471). The profiling-consent read (`ProfilingConsent`)
 asks `ContactAccount::for_email()` and keys its caches on that account when
 it is not `default` (CON-472).
+**Unsubscribes and profiling objections carry across the accounts
+(CON-480):** a store opt-out (`is_unsubscribed` 1 from a newsletter change)
+queues one row per account `ContactAccount::other_accounts()` lists beside
+the routed one (entity id `<user>:consent:<account_key>`, `account_key`
+explicit, `default` included); a contact sync WITHOUT a status asks
+`Smaily\UnsubscribeCarryOver` first (the Flusher and the contact import —
+one rule, never a copy): the target account is read, and when it lacks the
+contact every other account, and the send carries `is_unsubscribed` 1 when
+one has the contact unsubscribed; "held" is remembered per account + address
+for 30 days (`smly_held_*` transient). A failed read — or a read that finds
+no contact without Smaily's 206 — throws: nothing is sent. An opt-in is
+never carried. `ProfilingConsent` reads the other accounts when the own
+account lacks the contact. Outside Mode A all of it reads nothing.
+**Integration-test trap:** a Mode A test whose contact sync carries no
+status now meets contact READS before the POST — the fake transport must
+answer them (206 = not found), and the `smly_held_*` transients are not
+swept by `EnvScrub` (`AccountPerLanguageConsentCarryTest::forget_caches()`).
 **Integration-test trap:** Bootstrap keeps one Smaily client per account key
 for the whole process (`smaily_clients`) — a test that changes or removes an
 account's credentials clears it (`AccountPerLanguageContactSyncTest::

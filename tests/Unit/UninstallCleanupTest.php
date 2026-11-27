@@ -160,6 +160,17 @@ final class UninstallCleanupTest extends TestCase {
 	 * The drain stamp outlives nothing: migration 012 deletes it, and the
 	 * smly_plus_ LIKE sweep catches it on a store deleted before 012 ran.
 	 */
+	/** CON-480: "this account holds this contact" is a transient per account and contact. */
+	public function test_sweeps_the_unsubscribe_carry_over_transients_by_prefix(): void {
+		$source = $this->uninstall_source();
+		foreach ( array( '_transient_', '_transient_timeout_' ) as $kind ) {
+			self::assertStringContainsString(
+				"esc_like( '" . $kind . \Smaily\Connect\Smaily\UnsubscribeCarryOver::CACHE_PREFIX . "' )",
+				$source
+			);
+		}
+	}
+
 	/**
 	 * The network index lives in wp_sitemeta, out of the smly_plus_ LIKE
 	 * sweep's reach (CON-481).

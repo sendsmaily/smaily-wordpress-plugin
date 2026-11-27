@@ -12407,7 +12407,9 @@ account.
   (`SettingsEndpoint::main_password_option()`), not the old main account's.
 **Not built (Erkki):** contacts that already reached the `default` account
 stay there; a contact whose language changes later goes to the new
-language's account and the old account keeps its copy. Still read from
+language's account and the old account keeps its copy. Their unsubscribe
+and profiling objection follow them across the accounts since CON-480
+(below). Still read from
 `default` only: the consent sync-back (`ContactReconciler`) and the
 profiling-consent read (`ProfilingConsent`) — follow-ups, since done:
 CON-471 (the sync-back) and CON-472 (the profiling read), below.
@@ -12618,3 +12620,66 @@ site removed from the network is skipped when read.
 **Relationships:** CON-431 (Erkki's cross-connector decision), CON-446 /
 CON-471 (`ContactAccount::distinct_accounts()`), PR #392
 (`Subdomain::normalize()` for stored subdomains), F3-48 (the modes).
+
+### CON-480 — In the account-per-language mode an unsubscribe and a profiling objection hold in every Smaily account (Erkki, 2026-11-27)
+
+**Context:** the pre-3.27.0 security audit (M1). Since CON-446 a Mode A
+contact is routed by its language now, but it can be kept in more than
+one Smaily account: every contact synced before CON-446 is in the main
+account, and a contact whose language changes stays in the old one. So a
+store opt-out reached only the current account; under legitimate
+interest a later sync or the import's weekly refresh sent the contact
+without a status to its language account, where Smaily creates an
+unknown address as SUBSCRIBED — although it unsubscribed in the old one;
+and a profiling objection held only in the old account was not read.
+**Decision (Erkki, 2026-11-27):** consent carries across the accounts.
+Only an unsubscribe and an objection carry — never an opt-in, unless the
+shopper's own action asks for it in that account.
+- **(a) A store opt-out reaches every account.** A newsletter change to
+  unsubscribed (consent mode, as before) queues the routed row plus one
+  row per other account `ContactAccount::other_accounts()` lists —
+  `distinct_accounts()` minus the routed account's Smaily account
+  (subdomain); entity id `<user>:consent:<account_key>`, `account_key`
+  explicit (`default` too). Sent to an account that lacks the contact it
+  creates an unsubscribed record — harmless, and no read is needed.
+- **(b) A send without a status carries an unsubscribe.**
+  `Smaily\UnsubscribeCarryOver`, the one rule the Flusher and the contact
+  import ask: in Mode A it reads the target account; when that account
+  does not hold the contact it reads every other account and sends
+  `is_unsubscribed = 1` when one of them has the contact unsubscribed,
+  else the row as it is. An account that holds the contact keeps its own
+  status — no other account is read. The abandoned-cart purchase marker
+  is not asked (it goes only to a contact the account holds, PRO-3627).
+- **Cost:** none outside Mode A, nor in Mode A when every language shares
+  one Smaily account. Otherwise one read of the target account per
+  contact, and one read of each other account for a contact the target
+  does not hold; "the account holds the contact" is remembered per
+  account + address for 30 days (`smly_held_*`, a non-autoloaded,
+  self-expiring transient, written after a read that found it or a send
+  Smaily accepted), so the import's weekly refresh reads a known contact
+  at most once a month. Uninstall sweeps the prefix.
+- **Fail toward not subscribing:** a read that fails — an error, a
+  timeout, a non-2xx answer, or an answer without a contact that is not
+  Smaily's 206 "no such contact" — throws, so nothing is sent: the live
+  row takes the normal retry path (a 4xx other than 429 fails it, the
+  rest retry until the attempt limit, then fail) and keeps the failed
+  read's request for the Event Log; the import stops failed as on any
+  Smaily error, with the contact unsent and unstamped. A subscribed state
+  nobody asked for is never sent on doubt.
+- **(c) A profiling objection held elsewhere counts.** When the contact's
+  own account does not hold it, `ProfilingConsent` reads the other
+  accounts and treats an objection (or an unsubscribe) there as an
+  opt-out — cached under the own account like any read, the durable
+  registry entry and the engine opt-out as before; nothing is written to
+  the own account (it would create the contact). A read that fails
+  answers `fallback_on_error()`, as any read error (F3-31 / PRO-1194).
+**Consequence:** in Mode A a contact who unsubscribed or objected in any
+account of the store stays unsubscribed or opted out wherever contact
+sync sends it next. Single account and one account for all languages:
+unchanged, with no extra read.
+**Not covered:** an automation (welcome, first-order, abandoned cart) is
+gated by `AutomationConsent`, which reads the contact's own account only
+— a follow-up, not part of this decision.
+**Relationships:** CON-446 (routing), CON-471 / CON-472 (consent reads),
+PRO-3627 (no status-less write to an unknown contact), F3-48 (modes),
+pre-3.27.0 security audit M1.

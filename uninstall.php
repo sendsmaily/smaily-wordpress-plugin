@@ -9,7 +9,8 @@
  *
  * Removes:
  *   1. Every `smly_plus_*` row in wp_options (Phase-2 BETA fork state), plus
- *      the ProfilingConsent per-contact cache/stale transients (PRO-1336) and
+ *      the ProfilingConsent per-contact cache/stale transients (PRO-1336), the
+ *      UnsubscribeCarryOver per-contact transients (CON-480), and
  *      every `smly_rec_*` row — the rec-engine connection (per-connection API
  *      key, tenant identity, endpoints map, config, connected flag —
  *      `Settings\RecEngineSettings` — plus `NotificationManager::
@@ -113,6 +114,17 @@ $wpdb->query(
 		"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
 		$wpdb->esc_like( '_transient_smly_profiling_' ) . '%',
 		$wpdb->esc_like( '_transient_timeout_smly_profiling_' ) . '%'
+	)
+);
+
+// UnsubscribeCarryOver (includes/Smaily/UnsubscribeCarryOver.php) remembers
+// per account and contact that a Smaily account holds the contact, as a
+// 30-day transient `smly_held_<hash>` — swept the same way (CON-480).
+$wpdb->query(
+	$wpdb->prepare(
+		"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+		$wpdb->esc_like( '_transient_smly_held_' ) . '%',
+		$wpdb->esc_like( '_transient_timeout_smly_held_' ) . '%'
 	)
 );
 

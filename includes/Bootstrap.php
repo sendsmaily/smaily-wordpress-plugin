@@ -85,6 +85,7 @@ use Smaily\Connect\Smaily\RecEngine\PrivacyRequests;
 use Smaily\Connect\Smaily\TransactionalFlusher;
 use Smaily\Connect\Smaily\TransactionalGate;
 use Smaily\Connect\Smaily\TransactionalPayloadBuilder;
+use Smaily\Connect\Smaily\UnsubscribeCarryOver;
 use Smaily\Connect\Smaily\TransactionalResend;
 use Smaily\Connect\Smaily\TransactionalStatus;
 use Smaily\Connect\Smaily\TransactionalSuppression;
@@ -1251,13 +1252,15 @@ final class Bootstrap {
 	public function flusher(): Flusher {
 		if ( $this->flusher === null ) {
 			$bootstrap     = $this;
+			$clients       = static function ( string $account_key ) use ( $bootstrap ): Client {
+				return $bootstrap->smaily_client( $account_key );
+			};
 			$this->flusher = new Flusher(
 				$this->event_queue(),
 				$this->automation_router(),
-				static function ( string $account_key ) use ( $bootstrap ): Client {
-					return $bootstrap->smaily_client( $account_key );
-				},
-				new AutomationDiscount()
+				$clients,
+				new AutomationDiscount(),
+				new UnsubscribeCarryOver( $clients )
 			);
 		}
 
@@ -1421,6 +1424,9 @@ final class Bootstrap {
 			$this->privacy_requests(),
 			static function ( string $email ): string {
 				return ( new ContactAccount() )->for_email( $email );
+			},
+			static function ( string $account_key ): array {
+				return ( new ContactAccount() )->other_accounts( $account_key );
 			}
 		);
 	}

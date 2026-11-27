@@ -178,7 +178,7 @@ final class AccountPerLanguageContactSyncTest extends TestCase {
 		$this->flush_against( 500 );
 		$unsubscribe = $this->change_subscription( $estonian, 0 );
 		$sent        = $this->flush_against( 200 );
-		self::assertSame( array( 'eestisub' ), array_column( $sent, 'account' ) );
+		self::assertSame( 'eestisub', $sent[0]['account'] ?? null );
 		self::assertSame( EventQueue::STATUS_SENT, $this->row( $unsubscribe )['status'] );
 
 		$this->make_due( $subscribe );

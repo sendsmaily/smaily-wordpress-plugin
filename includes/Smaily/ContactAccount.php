@@ -34,7 +34,8 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  * consent reads that look up where contact sync keeps the contact
  * (`for_email()` for a contact known only by address), and the accounts
  * whose unsubscribes reach WordPress (`distinct_accounts()`).
- * Contacts already in another account are not moved.
+ * Contacts already in another account are not moved; their unsubscribe and
+ * profiling objection follow them (`other_accounts()`, CON-480).
  */
 final class ContactAccount {
 
@@ -123,6 +124,34 @@ final class ContactAccount {
 		}
 
 		return $keys;
+	}
+
+	/**
+	 * Every account of distinct_accounts() but the Smaily account (subdomain)
+	 * this key names — where else contact sync can keep a contact (CON-480).
+	 * Empty outside Mode A, and in Mode A when every language shares one
+	 * Smaily account.
+	 *
+	 * @return array<int, string>
+	 */
+	public function other_accounts( string $account_key ): array {
+		$accounts = $this->distinct_accounts();
+		if ( count( $accounts ) < 2 ) {
+			return array();
+		}
+
+		$credentials = new Credentials();
+		$own         = $credentials->get( $account_key );
+		$subdomain   = $own !== null ? strtolower( trim( $own->subdomain ) ) : '';
+		$others      = array();
+		foreach ( $accounts as $key ) {
+			$set = $credentials->get( $key );
+			if ( $key !== $account_key && ( $set === null || strtolower( trim( $set->subdomain ) ) !== $subdomain ) ) {
+				$others[] = $key;
+			}
+		}
+
+		return $others;
 	}
 
 	/**

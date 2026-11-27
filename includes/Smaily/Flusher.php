@@ -25,7 +25,10 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  * Event-type routing:
  *
  *   contact.sync              → Smaily\Client::upsert_subscribers (the row's
- *                               account — ContactAccount, CON-446)
+ *                               account — ContactAccount, CON-446; sent
+ *                               without a status, it carries an unsubscribe
+ *                               from another account — UnsubscribeCarryOver,
+ *                               CON-480)
  *   automation.welcome        → AutomationRouter::trigger_automation('welcome', …)
  *   automation.first_order    → AutomationRouter::trigger_automation('first_order', …)
  *
@@ -135,14 +138,18 @@ final class Flusher {
 	/** The automations' discount codes (CON-199). */
 	private DiscountCodeIssuer $discount_codes;
 
+	/** Carries an unsubscribe into another Smaily account (CON-480); null: never. */
+	private ?UnsubscribeCarryOver $carry_over;
+
 	/**
 	 * @param callable(string $account_key): Client $client_factory
 	 */
-	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, AutomationDiscount $discounts ) {
+	public function __construct( EventQueue $queue, AutomationRouter $router, callable $client_factory, AutomationDiscount $discounts, ?UnsubscribeCarryOver $carry_over = null ) {
 		$this->queue          = $queue;
 		$this->router         = $router;
 		$this->client_factory = $client_factory;
 		$this->discount_codes = new DiscountCodeIssuer( $queue, $discounts );
+		$this->carry_over     = $carry_over;
 	}
 
 	/**
@@ -280,15 +287,28 @@ final class Flusher {
 			$row['is_unsubscribed'] = (int) $payload['is_unsubscribed'];
 		}
 
-		$client = $this->row_client( $payload );
+		$account_key = isset( $payload[ ContactAccount::PAYLOAD_KEY ] ) ? (string) $payload[ ContactAccount::PAYLOAD_KEY ] : 'default';
+		$client      = $this->row_client( $payload );
 
 		// Smaily creates a contact sent without a status as SUBSCRIBED, so the
 		// abandoned-cart purchase marker goes only to a contact Smaily already
 		// has (PRO-3627): the reminder that scopes it (PRO-1723) does not prove
 		// Smaily kept the contact. A missing contact closes the row as a skip.
-		if ( isset( $fields[ AutomationMarker::FIELD_ABANDONED_CART_PURCHASED ] ) && ! $this->smaily_has_contact( $client, $email ) ) {
+		$marker = isset( $fields[ AutomationMarker::FIELD_ABANDONED_CART_PURCHASED ] );
+		if ( $marker && ! $this->smaily_has_contact( $client, $email ) ) {
 			$this->skip_note = self::NOTE_NOT_A_CONTACT;
 			return;
+		}
+
+		// For the same reason a contact sent without a status to an account
+		// that does not hold it carries an unsubscribe it made in another
+		// account (CON-480).
+		$carried = null;
+		if ( ! $marker && ! isset( $row['is_unsubscribed'] ) ) {
+			$carried = $this->carried_unsubscribe( $client, $account_key, $email );
+			if ( $carried === true ) {
+				$row['is_unsubscribed'] = 1;
+			}
 		}
 
 		try {
@@ -297,6 +317,31 @@ final class Flusher {
 			// Capture even when upsert throws — the Client records the exchange
 			// before throwing (F3-44).
 			$this->current_exchange = $client->last_exchange();
+		}
+
+		if ( $carried !== null && $this->carry_over !== null && RetryPolicy::envelope_refusal( $this->current_exchange ) === null ) {
+			$this->carry_over->remember( $account_key, $email );
+		}
+	}
+
+	/**
+	 * Whether this send must carry an unsubscribe (UnsubscribeCarryOver,
+	 * CON-480); null when nothing was read. A read that fails throws, so the
+	 * row takes the normal retry path and nothing is sent; its request is
+	 * kept for the Event Log (F3-44).
+	 *
+	 * @throws ApiException When an account cannot be read.
+	 */
+	private function carried_unsubscribe( Client $client, string $account_key, string $email ): ?bool {
+		if ( $this->carry_over === null ) {
+			return null;
+		}
+
+		try {
+			return $this->carry_over->unsubscribed_elsewhere( $client, $account_key, $email );
+		} catch ( ApiException $e ) {
+			$this->current_exchange = $this->carry_over->failed_exchange();
+			throw $e;
 		}
 	}
 
