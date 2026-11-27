@@ -60,8 +60,8 @@ export interface BootPayload {
   nonce: string;
   /** Base URL for the REST namespace — passed to configureApiClient. */
   restUrl: string;
-  /** 'wizard' | 'settings' — same string the data-view attribute carries. */
-  view: 'wizard' | 'settings' | 'unknown';
+  /** The same string the data-view attribute carries. */
+  view: 'wizard' | 'settings' | 'dashboard' | 'log' | 'unknown';
   envSnapshot: {
     detectedLanguages: string[];
     multilingualPlugin: 'wpml' | 'polylang' | 'translatepress' | null;

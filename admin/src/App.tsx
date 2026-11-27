@@ -1,18 +1,20 @@
 import type { JSX } from 'react';
 
 import { configureApiClient } from './api/client';
+import { Dashboard } from './components/dashboard';
+import { LogPage } from './components/log/LogPage';
 import { Settings } from './components/settings';
 import { Wizard } from './components/wizard';
 import { hydrateState, readBoot } from './state/hydrate';
 
-type View = 'wizard' | 'settings' | 'unknown';
+type View = 'wizard' | 'settings' | 'dashboard' | 'log' | 'unknown';
 
 interface AppProps {
   view: View;
 }
 
 /**
- * Top-level switch between the wizard and settings panels.
+ * Top-level switch between the wizard, settings, Dashboard and Log panels.
  *
  * State hydration: both panels share the same wizardReducer, so we
  * hydrate once at the App level and hand the resulting WizardState to
@@ -37,8 +39,17 @@ export function App({ view }: AppProps): JSX.Element {
   if (boot !== null) {
     configureApiClient({ restUrl: boot.restUrl, nonce: boot.nonce });
   }
-  const inSettings = view === 'settings';
+  // The Dashboard reads the saved settings the way Settings does.
+  const inSettings = view === 'settings' || view === 'dashboard';
   const initialState = hydrateState(boot, inSettings);
+
+  if (view === 'dashboard') {
+    return <Dashboard state={initialState} />;
+  }
+
+  if (view === 'log') {
+    return <LogPage />;
+  }
 
   if (view === 'settings') {
     return <Settings initialState={initialState} />;

@@ -112,7 +112,7 @@ describe('Settings — tab routing + dirty + save', () => {
     expect(
       await screen.findByText('The Smaily connection does not work: Smaily did not accept those credentials.'),
     ).toBeInTheDocument();
-    for (const name of [/contacts/i, /woocommerce/i, /campaign intelligence/i, /integrations/i, /event log/i]) {
+    for (const name of [/contacts/i, /woocommerce/i, /campaign intelligence/i, /integrations/i]) {
       expect(screen.getByRole('tab', { name })).not.toBeDisabled();
     }
     // On the Connection tab the notice needs no way there.

@@ -14,6 +14,7 @@ import {
 } from '../../state/workflow-removal';
 import { type SettingsTabKey, type WizardState } from '../../state/types';
 import { __, sprintf } from '@admin/lib/i18n';
+import { DASHBOARD_URL } from '@admin/lib/links';
 import { Banner } from '../primitives';
 import {
   Step1Connect,
@@ -205,14 +206,14 @@ export function Wizard({ initialState }: WizardProps): React.JSX.Element {
 
   // Finish is now lightweight — every step has already persisted its
   // slice on Continue, so this just flips the setup-completed flag
-  // and redirects to Settings.
+  // and opens the Dashboard (CON-464).
   const handleFinish = async (): Promise<void> => {
     const ok = await saveAndAdvance('finish');
     if (!ok) {
       return;
     }
     if (typeof window !== 'undefined') {
-      window.location.href = 'admin.php?page=smaily-connect-settings';
+      window.location.href = DASHBOARD_URL;
     }
   };
 
