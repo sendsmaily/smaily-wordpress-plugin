@@ -209,6 +209,41 @@ final class AccountPerLanguageConsentReadTest extends TestCase {
 		self::assertSame( array( 'mainsub' ), array_column( $requests, 'account' ) );
 	}
 
+	/**
+	 * CON-475: a finished setup whose main account's saved credentials are
+	 * incomplete. Bootstrap cannot build that account's client; the check
+	 * answers its usual fallback, and the My Account opt-out still sticks.
+	 */
+	public function test_an_incomplete_main_account_answers_the_fallback(): void {
+		update_option( Router::OPTION_MODE, Router::MODE_B );
+		update_option(
+			'smaily_connect_api_credentials',
+			array(
+				'subdomain' => 'mainsub',
+				'username'  => '',
+				'password'  => '',
+			)
+		);
+		$this->forget_clients();
+		$estonian = $this->make_subscriber( 'et' );
+		$email    = (string) get_userdata( $estonian )->user_email;
+
+		$requests = $this->record(
+			array(),
+			static function () use ( $email, &$allowed, &$after_opt_out ): void {
+				$consent = Bootstrap::instance()->profiling_consent();
+				$allowed = $consent->may_profile( $email );
+				$consent->opt_out( $email );
+				$after_opt_out = $consent->may_profile( $email );
+			}
+		);
+		$this->forget_profiling( $email, 'default' );
+
+		self::assertTrue( $allowed, 'A never-read contact fails open, as with no client.' );
+		self::assertFalse( $after_opt_out, 'The opt-out is kept in the store.' );
+		self::assertSame( array(), $requests, 'Nothing is sent to Smaily.' );
+	}
+
 	// --- helpers -------------------------------------------------------------
 
 	/**

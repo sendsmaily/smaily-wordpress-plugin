@@ -167,7 +167,7 @@ class ProfilingConsent {
 	}
 
 	private function refresh_in( string $email, string $account ): bool {
-		$client = ( $this->smaily_client_factory )( $account );
+		$client = $this->client( $account );
 
 		if ( $client instanceof SmailyClient ) {
 			try {
@@ -303,7 +303,7 @@ class ProfilingConsent {
 	 */
 	private function write( string $email, string $account, bool $may_profile, bool $contact_known = false ): int {
 		$now    = time();
-		$client = ( $this->smaily_client_factory )( $account );
+		$client = $this->client( $account );
 		if ( ! $client instanceof SmailyClient ) {
 			return $now;
 		}
@@ -362,6 +362,20 @@ class ProfilingConsent {
 
 	private function cache( string $email, string $account, bool $allowed ): void {
 		set_transient( self::cache_key( $email, $account ), $allowed ? '1' : '0', self::CACHE_TTL );
+	}
+
+	/**
+	 * The Smaily client of an account, or null — also when it cannot be
+	 * built (CON-475): a finished setup whose account's saved credentials
+	 * are incomplete makes the factory throw, and that answers as no client
+	 * does, never as an error in the shopper's request.
+	 */
+	private function client( string $account ): ?SmailyClient {
+		try {
+			return ( $this->smaily_client_factory )( $account );
+		} catch ( \Throwable $e ) {
+			return null;
+		}
 	}
 
 	/** The account the contact of this address is kept in (CON-472). */
