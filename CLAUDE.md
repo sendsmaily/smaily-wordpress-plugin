@@ -778,6 +778,25 @@ clamp just locks it. Contact sync is gated by `setup_completed` (email wizard),
 independent of the rec-engine — so this can ship to a non-engine store. The corrective mass re-sync of an already-
 drifted store is the backfill running the SAME resolver (SP-B), not a one-off.
 
+### In the account-per-language mode a contact goes to its language's account — `ContactAccount` (CON-446)
+`Smaily\ContactAccount::for_language()` is the one rule: in Mode A the
+`account_<language>` account whose language equals the contact's (compared
+through `ContactLanguageResolver::normalize()`) when it holds a complete
+credential set, else the chosen fallback language account (when complete),
+else `default`; every other mode `default`. A new path that
+sends a contact to Smaily, or reads Smaily where contact sync keeps the
+contact (AutomationConsent), asks it — never a bare `client_factory(
+'default' )` for a contact. A `contact.sync` row records the answer as
+`account_key` (absent = `default`, so single / B / C payloads are unchanged)
+and the Flusher sends it there, a retry too; a removed language account
+fails the row `account_not_configured: <key>`. Not yet routed: the consent
+sync-back (`ContactReconciler`) and the profiling-consent read.
+**Integration-test trap:** Bootstrap keeps one Smaily client per account key
+for the whole process (`smaily_clients`) — a test that changes or removes an
+account's credentials clears it (`AccountPerLanguageContactSyncTest::
+forget_clients()`). A test gives a user its language through the resolver's
+final filter `smaily_connect_contact_language`.
+
 ### Deactivation cancels our AS groups; the upgrade runs behind UpgradeLock; never `set_transient( …, 0 )` per entity (PRO-2433..2436)
 Three residues found on MiuMjau (2026-09-10, "deactivated the plugin, still
 slow"):
