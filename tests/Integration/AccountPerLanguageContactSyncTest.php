@@ -31,10 +31,11 @@ use Smaily\Connect\Tests\Integration\Support\EnvScrub;
  * faked, at the pre_http_request seam, and every request is recorded with
  * the Smaily account (subdomain) it went to.
  *
- * The store: the main account `mainsub` (the setup saves the fallback
- * language account there, CON-441), an Estonian account `eestisub` and an
- * English account stored as TranslatePress lists English (`en_GB`), which
- * is the main account. Latvian has no account of its own.
+ * The store: an Estonian account `eestisub`, an English account
+ * `englishsub` stored as TranslatePress lists English (`en_GB`) and chosen
+ * as the fallback account, and a main account `mainsub` saved before the
+ * fallback was chosen (since CON-441 the setup saves the fallback there).
+ * Latvian has no account of its own.
  */
 final class AccountPerLanguageContactSyncTest extends TestCase {
 
@@ -57,7 +58,7 @@ final class AccountPerLanguageContactSyncTest extends TestCase {
 
 		$this->store_account( 'smaily_connect_api_credentials', 'mainsub' );
 		$this->store_account( 'smly_plus_credentials_account_et', 'eestisub' );
-		$this->store_account( 'smly_plus_credentials_account_en_gb', 'mainsub' );
+		$this->store_account( 'smly_plus_credentials_account_en_gb', 'englishsub' );
 		update_option( 'smly_plus_default_fallback_account', 'account_en_gb' );
 
 		$this->language_filter = static function ( string $language, $context ): string {
@@ -97,13 +98,13 @@ final class AccountPerLanguageContactSyncTest extends TestCase {
 		$sent = $this->flush_against( 200 );
 
 		self::assertSame( 'eestisub', $this->account_of( $sent, $estonian ), 'An Estonian contact reaches the Estonian account.' );
-		self::assertSame( 'mainsub', $this->account_of( $sent, $english ), 'An English contact reaches the English account.' );
-		self::assertSame( 'mainsub', $this->account_of( $sent, $latvian ), 'A language with no account of its own reaches the fallback account.' );
+		self::assertSame( 'englishsub', $this->account_of( $sent, $english ), 'An English contact reaches the English account.' );
+		self::assertSame( 'englishsub', $this->account_of( $sent, $latvian ), 'A language with no account of its own reaches the fallback account.' );
 
 		// The row records the account it goes to; the Smaily row never carries it.
 		self::assertSame( 'account_et', $this->payload_of( $estonian )['account_key'] ?? null );
 		self::assertSame( 'account_en_gb', $this->payload_of( $english )['account_key'] ?? null );
-		self::assertArrayNotHasKey( 'account_key', $this->payload_of( $latvian ), 'The fallback account is the default — the row records nothing.' );
+		self::assertSame( 'account_en_gb', $this->payload_of( $latvian )['account_key'] ?? null, 'The fallback account is the one the merchant chose.' );
 		foreach ( $sent as $request ) {
 			self::assertArrayNotHasKey( 'account_key', $request['contact'] );
 		}
@@ -194,7 +195,17 @@ final class AccountPerLanguageContactSyncTest extends TestCase {
 		);
 
 		self::assertSame( 'eestisub', $this->account_of( $sent, $estonian ) );
+		self::assertSame( 'englishsub', $this->account_of( $sent, $latvian ) );
+	}
+
+	public function test_with_no_fallback_account_chosen_the_main_account_takes_the_rest(): void {
+		update_option( 'smly_plus_default_fallback_account', 'default' );
+		$latvian = $this->make_user( 'lv' );
+
+		$sent = $this->flush_against( 200 );
+
 		self::assertSame( 'mainsub', $this->account_of( $sent, $latvian ) );
+		self::assertArrayNotHasKey( 'account_key', $this->payload_of( $latvian ), 'The main account is the default — the row records nothing.' );
 	}
 
 	public function test_one_account_for_all_languages_sends_everyone_to_the_main_account(): void {

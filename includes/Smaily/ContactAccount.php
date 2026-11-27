@@ -22,8 +22,10 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  * language ContactLanguageResolver gave it, compared in the short form, as
  * Router::find_mapping() compares a mapping row's language (CON-203) — when
  * that account holds a complete credential set. Any other contact goes to
- * the `default` account: the main account, which the setup saves from the
- * fallback language account (CON-441).
+ * the fallback account the merchant chose ("Default fallback account"),
+ * when it holds a complete credential set, else to the `default` account —
+ * the main account, which the setup saves from the fallback language
+ * account (CON-441).
  *
  * Every other mode answers `default` without reading anything.
  *
@@ -36,6 +38,9 @@ final class ContactAccount {
 
 	/** The queue payload key of a `contact.sync` row's account; absent = `default`. */
 	public const PAYLOAD_KEY = 'account_key';
+
+	/** The fallback account's key, as the Connection save stores it (sanitize_key()). */
+	private const OPTION_FALLBACK = 'smly_plus_default_fallback_account';
 
 	/** The account-key prefix of a language account. */
 	private const LANGUAGE_ACCOUNT_PREFIX = 'account_';
@@ -55,12 +60,15 @@ final class ContactAccount {
 			return Credentials::DEFAULT_ACCOUNT_KEY;
 		}
 
-		$wanted = ContactLanguageResolver::normalize( $language );
-		if ( $wanted === '' ) {
-			return Credentials::DEFAULT_ACCOUNT_KEY;
+		$accounts = $this->language_accounts();
+		$wanted   = ContactLanguageResolver::normalize( $language );
+		if ( $wanted !== '' && isset( $accounts[ $wanted ] ) ) {
+			return $accounts[ $wanted ];
 		}
 
-		return $this->language_accounts()[ $wanted ] ?? Credentials::DEFAULT_ACCOUNT_KEY;
+		$fallback = (string) get_option( self::OPTION_FALLBACK, Credentials::DEFAULT_ACCOUNT_KEY );
+
+		return in_array( $fallback, $accounts, true ) ? $fallback : Credentials::DEFAULT_ACCOUNT_KEY;
 	}
 
 	/**
