@@ -3633,3 +3633,15 @@ msgstr ""
 #: admin/src/lib/transactional-reasons.ts:77
 msgid "Smaily refused this contact in the contact import, so it was not imported. The details show Smaily’s answer code."
 msgstr ""
+
+#: admin/src/components/steps/Step2Subscribers.tsx:174
+msgid "Another site of this network sends contacts to the same Smaily account with a different contact sync mode, so the sites apply contradicting rules to one contact list:"
+msgid_plural "Other sites of this network send contacts to the same Smaily account with a different contact sync mode, so the sites apply contradicting rules to one contact list:"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %1$s is a site name, %2$s is its address, %3$s is its contact sync mode.
+#: admin/src/components/steps/Step2Subscribers.tsx:183
+#, js-format
+msgid "%1$s (%2$s): %3$s"
+msgstr ""
