@@ -197,6 +197,67 @@ final class FlusherTest extends TestCase {
 		self::assertSame( 'account_not_configured: account_et', $queue->marked_failed[0]['error'] );
 	}
 
+	/**
+	 * CON-481: a row whose client cannot be built — the `default` account,
+	 * or the account a welcome's workflow names — fails alone, with the error
+	 * type and place and never its text, and the rows behind it are sent.
+	 */
+	public function test_a_row_whose_client_cannot_be_built_fails_alone(): void {
+		$queue = $this->fake_queue(
+			array(
+				array(
+					'id'         => 1,
+					'event_type' => HookHandler::EVENT_CONTACT_SYNC,
+					'payload'    => json_encode( array( 'email' => 'main@b.c' ) ),
+				),
+				array(
+					'id'         => 2,
+					'event_type' => HookHandler::EVENT_AUTOMATION_WELCOME,
+					'payload'    => json_encode( array( 'email' => 'welcome@b.c' ) ),
+				),
+				array(
+					'id'         => 3,
+					'event_type' => HookHandler::EVENT_CONTACT_SYNC,
+					'payload'    => json_encode(
+						array(
+							'email'       => 'et@b.c',
+							'account_key' => 'account_et',
+						)
+					),
+				),
+			)
+		);
+
+		$client = $this->createMock( Client::class );
+		$client->expects( $this->once() )->method( 'upsert_subscribers' );
+		$router = new class() extends AutomationRouter {
+			public function __construct() {}
+
+			public function trigger_automation( string $trigger_type, array $contact_data, array $additional_fields = array(), ?callable $before_send = null ): bool {
+				throw new \RuntimeException( 'Smaily credentials are not configured for account "welcome@b.c"' );
+			}
+		};
+
+		$stats = ( new Flusher(
+			$queue,
+			$router,
+			static function ( string $account_key ) use ( $client ): Client {
+				if ( $account_key === 'default' ) {
+					throw new \RuntimeException( 'Smaily credentials are not configured for account "default"' );
+				}
+				return $client;
+			},
+			$this->no_discounts()
+		) )->flush();
+
+		self::assertSame( 2, $stats['failed'] );
+		self::assertSame( array( 3 ), $queue->marked_sent, 'The row behind them is sent.' );
+		self::assertSame( array( 1, 2 ), array_column( $queue->marked_failed, 'id' ) );
+		foreach ( $queue->marked_failed as $failed ) {
+			self::assertMatchesRegularExpression( '/^RuntimeException at [\w.-]+\.php:\d+$/', $failed['error'] );
+		}
+	}
+
 	public function test_contact_sync_records_the_exchange_from_the_client(): void {
 		// F3-44: the Flusher stores what the Client sent + the Smaily reply, read
 		// from the Client's last_exchange() (populated in Client::request()).

@@ -19,7 +19,9 @@
  *      never deletes it. A re-install needs a fresh setup token.
  *   2. The explicit `smaily_connect_*` option keys this plugin owns
  *      (credentials, sync settings, schema-version marker), plus the
- *      `smly_profiling_optouts` durable opt-out registry (PRO-1194/PRO-1336).
+ *      `smly_profiling_optouts` durable opt-out registry (PRO-1194/PRO-1336),
+ *      and on a multisite network the network option
+ *      `smly_plus_network_accounts` (CON-467, CON-481).
  *   3. Custom tables created by the migration runner (includes the rec-engine
  *      `smly_rec_event_queue` table), plus the two retired tables schema
  *      migration 012 drops (`smaily_connect_abandoned_carts`,
@@ -152,6 +154,13 @@ $legacy_options = array(
 );
 foreach ( $legacy_options as $opt ) {
 	delete_option( $opt );
+}
+
+// The network's index of each site's Smaily accounts (NetworkAccounts,
+// CON-467) is a network option in wp_sitemeta, which the LIKE sweep above
+// never reaches; the uninstall runs once per network (CON-481).
+if ( is_multisite() ) {
+	delete_site_option( 'smly_plus_network_accounts' );
 }
 
 // --- 2. Custom tables. ----------------------------------------------------

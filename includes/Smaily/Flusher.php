@@ -69,6 +69,9 @@ use Smaily\Connect\Integrations\WooCommerce\HookHandler;
  *     429) fails the row at once, anything else (incl. a transient Smaily
  *     body code) is retried with backoff until the attempt ceiling
  *     (PRO-1685)
+ *   - mark_failed on any other Throwable (a client that cannot be built,
+ *     the automation router's included), with the error type and place —
+ *     the row fails alone and the rest are sent (CON-481)
  *
  * A first-order email the consent rule stops makes no discount code. A
  * welcome or first-order email whose "Send a discount code" is on gets
@@ -188,6 +191,14 @@ final class Flusher {
 				++$stats['failed'];
 			} catch ( ApiException $e ) {
 				++$stats[ RetryPolicy::apply( $this->queue, $id, (int) ( $event['attempts'] ?? 0 ), $e ) ];
+			} catch ( \Throwable $e ) {
+				// Anything else is deterministic data or configuration — e.g. a
+				// Smaily client that cannot be built for the row's account. It
+				// fails this row alone: left to escape, it would stop every
+				// flush at the same row (CON-481, F3-53). The error type and
+				// where it was thrown, never its text (CON-301).
+				$this->queue->mark_failed( $id, \Smaily\Connect\Support\DebugLog::where( $e ) );
+				++$stats['failed'];
 			}
 
 			// Record what was actually sent + the reply, whatever the outcome —
