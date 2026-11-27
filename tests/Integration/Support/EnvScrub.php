@@ -182,6 +182,11 @@ final class EnvScrub {
 			// RecEnginePrivacyRequestsTest; a cached window would hold back
 			// the next test's requests.
 			\Smaily\Connect\Smaily\RecEngine\PrivacyRequests::OPTION_PACE,
+			// Same class again (CON-471): the unsubscribe sync-back's cursors
+			// are autoload=false and asserted on by
+			// AccountPerLanguageConsentReadTest.
+			\Smaily\Connect\Smaily\ContactReconciler::OPTION_CURSOR,
+			\Smaily\Connect\Smaily\ContactReconciler::OPTION_ACCOUNT_CURSORS,
 		) );
 		foreach ( $keys_to_flush as $key ) {
 			wp_cache_delete( (string) $key, 'options' );

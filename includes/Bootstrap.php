@@ -52,7 +52,9 @@ use Smaily\Connect\Smaily\CartPayloadBuilder;
 use Smaily\Connect\Smaily\CartSessionStore;
 use Smaily\Connect\Smaily\BackfillJob;
 use Smaily\Connect\Smaily\BackfillJobInterface;
+use Smaily\Connect\Smaily\ContactAccount;
 use Smaily\Connect\Smaily\ContactReconciler;
+use Smaily\Connect\Smaily\ContactSyncMode;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogBackfillJob;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CatalogImportOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\CustomerBackfillJob;
@@ -645,23 +647,29 @@ final class Bootstrap {
 
 	/**
 	 * Pull the Smaily action-log deltas and mirror opt-in/opt-out into WP
-	 * (consent mode only). Swallows API/credential errors so the tick never
-	 * fails — a missing connection just means "nothing to reconcile yet".
+	 * (consent mode only), from every account contact sync keeps contacts in
+	 * — in the account-per-language mode each language's account too
+	 * (CON-471). Swallows API/credential errors per account so neither the
+	 * tick nor the other accounts fail — a missing connection just means
+	 * "nothing to reconcile yet".
 	 */
 	private function run_contact_reconcile(): void {
-		try {
-			$changed = ( new ContactReconciler( $this->smaily_client() ) )->reconcile();
-			if ( $changed > 0 ) {
+		$mode = new ContactSyncMode();
+		foreach ( ( new ContactAccount() )->distinct_accounts() as $account_key ) {
+			try {
+				$changed = ( new ContactReconciler( $this->smaily_client( $account_key ), $mode, $account_key ) )->reconcile();
+				if ( $changed > 0 ) {
+					\Smaily\Connect\Support\DebugLog::write(
+						sprintf( '[smaily-connect contact.reconcile] %d WP opt-in flags updated from Smaily account %s', $changed, $account_key )
+					);
+				}
+			} catch ( \Throwable $e ) {
+				// The error type, its code and where it was thrown — never its text,
+				// which can carry a contact's data (CON-301).
 				\Smaily\Connect\Support\DebugLog::write(
-					sprintf( '[smaily-connect contact.reconcile] %d WP opt-in flags updated from Smaily', $changed )
+					'[smaily-connect contact.reconcile] skipped account ' . $account_key . ': ' . \Smaily\Connect\Support\DebugLog::where_with_code( $e )
 				);
 			}
-		} catch ( \Throwable $e ) {
-			// The error type, its code and where it was thrown — never its text,
-			// which can carry a contact's data (CON-301).
-			\Smaily\Connect\Support\DebugLog::write(
-				'[smaily-connect contact.reconcile] skipped: ' . \Smaily\Connect\Support\DebugLog::where_with_code( $e )
-			);
 		}
 	}
 
@@ -1388,21 +1396,25 @@ final class Bootstrap {
 
 	/**
 	 * Profiling-consent enforcement ((a).0/.1). The Smaily-client factory returns
-	 * the default client only once the email wizard is finished — an un-set-up
-	 * store has no contact to read consent from.
+	 * a client only once the email wizard is finished — an un-set-up store has
+	 * no contact to read consent from. The contact is read in the account
+	 * contact sync keeps it in (ContactAccount, CON-472).
 	 */
 	public function profiling_consent(): ProfilingConsent {
 		$bootstrap = $this;
 
 		return new ProfilingConsent(
 			$this->rec_engine_settings(),
-			static function () use ( $bootstrap ): ?Client {
+			static function ( string $account_key ) use ( $bootstrap ): ?Client {
 				if ( ! SetupState::completed() ) {
 					return null;
 				}
-				return $bootstrap->smaily_client();
+				return $bootstrap->smaily_client( $account_key );
 			},
-			$this->privacy_requests()
+			$this->privacy_requests(),
+			static function ( string $email ): string {
+				return ( new ContactAccount() )->for_email( $email );
+			}
 		);
 	}
 

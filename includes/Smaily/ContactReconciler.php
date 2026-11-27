@@ -11,6 +11,8 @@ namespace Smaily\Connect\Smaily;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Settings\Credentials;
+
 /**
  * Smaily → WP marketing-consent sync-back (F3-48, preset "Subscribers only").
  * Keeps the WP `user_newsletter` opt-in flag a faithful mirror of Smaily, so a
@@ -31,11 +33,20 @@ defined( 'ABSPATH' ) || exit;
  *
  * Only runs in consent mode (`ContactSyncMode::reconciles()`); legitimate
  * interest doesn't filter by consent and checkout-only has no accounts.
+ *
+ * One instance reads one Smaily account's action log. In the
+ * account-per-language mode the daily tick runs one per account
+ * (`ContactAccount::distinct_accounts()`, CON-471), each with its own
+ * cursor: the main account's stays in OPTION_CURSOR, a language account's
+ * in OPTION_ACCOUNT_CURSORS under its account key.
  */
 final class ContactReconciler {
 
 	/** Durable action-log cursor (max processed seq_id). */
 	public const OPTION_CURSOR = 'smly_plus_contact_reconcile_seq';
+
+	/** The language accounts' cursors: account key => max processed seq_id (CON-471). */
+	public const OPTION_ACCOUNT_CURSORS = 'smly_plus_contact_reconcile_seq_accounts';
 
 	public const OPTIN_META = ContactAudience::OPTIN_META;
 
@@ -58,9 +69,13 @@ final class ContactReconciler {
 
 	private ContactSyncMode $mode;
 
-	public function __construct( Client $client, ?ContactSyncMode $mode = null ) {
-		$this->client = $client;
-		$this->mode   = $mode ?? new ContactSyncMode();
+	/** The account $client reads — whose cursor this instance keeps. */
+	private string $account_key;
+
+	public function __construct( Client $client, ?ContactSyncMode $mode = null, string $account_key = Credentials::DEFAULT_ACCOUNT_KEY ) {
+		$this->client      = $client;
+		$this->mode        = $mode ?? new ContactSyncMode();
+		$this->account_key = $account_key;
 	}
 
 	/**
@@ -201,12 +216,26 @@ final class ContactReconciler {
 	}
 
 	private function cursor(): int {
-		$raw = get_option( self::OPTION_CURSOR, 0 );
+		if ( $this->account_key === Credentials::DEFAULT_ACCOUNT_KEY ) {
+			$raw = get_option( self::OPTION_CURSOR, 0 );
+		} else {
+			$cursors = get_option( self::OPTION_ACCOUNT_CURSORS, array() );
+			$raw     = is_array( $cursors ) && isset( $cursors[ $this->account_key ] ) ? $cursors[ $this->account_key ] : 0;
+		}
 
 		return is_numeric( $raw ) ? (int) $raw : 0;
 	}
 
 	private function save_cursor( int $seq ): void {
-		update_option( self::OPTION_CURSOR, $seq, false );
+		if ( $this->account_key === Credentials::DEFAULT_ACCOUNT_KEY ) {
+			update_option( self::OPTION_CURSOR, $seq, false );
+			return;
+		}
+
+		$cursors = get_option( self::OPTION_ACCOUNT_CURSORS, array() );
+		$cursors = is_array( $cursors ) ? $cursors : array();
+
+		$cursors[ $this->account_key ] = $seq;
+		update_option( self::OPTION_ACCOUNT_CURSORS, $cursors, false );
 	}
 }
