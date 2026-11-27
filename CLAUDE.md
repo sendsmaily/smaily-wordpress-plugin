@@ -738,7 +738,9 @@ ContactLanguageResolver` (`for_user` / `for_order`). It is context-independent
 (no `ICL_LANGUAGE_CODE`/`pll_current_language`/`get_user_locale` reads), so it
 returns the same answer in a cron tick as an HTTP request. Sources mirror the
 merchant's working Make automations: `_user_preferred_language` user meta →
-most-recent order's `wpml_language` → the multilingual default via
+most-recent order's language (`wpml_language`, else TranslatePress's
+`trp_language` locale — CON-457; Polylang stores none, only its paid
+WooCommerce add-on does, not read) → the multilingual default via
 `DetectorFactory` (WPML `wpml_default_language`, e.g. `et`) → site-locale short
 code; normalised to the short form (`en_US`→`en`). The scar it routes around
 (Prike, F3-47): the legacy cron's `Helper::get_current_language_code()` falls
