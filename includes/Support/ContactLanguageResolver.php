@@ -29,7 +29,8 @@ defined( 'ABSPATH' ) || exit;
  * This resolver mirrors the language sources the merchant's Make automations
  * read (which were the *correct* logic, just racing the buggy cron):
  *   - customer language  → `_user_preferred_language` user meta
- *   - order language     → `wpml_language` order meta
+ *   - order language     → `wpml_language` order meta (WPML), else
+ *                          `trp_language` (TranslatePress, CON-457)
  *   - default            → the multilingual plugin's configured default
  *                          (WPML `wpml_default_language` = `et`), NOT
  *                          get_locale().
@@ -61,8 +62,14 @@ final class ContactLanguageResolver {
 
 	private const DEFAULT_USER_PREF_META = '_user_preferred_language';
 
-	/** Order meta holding the language the order was placed in (WPML). */
-	private const ORDER_LANGUAGE_META = 'wpml_language';
+	/**
+	 * Order meta holding the language the order was placed in, read in this
+	 * order: WPML's `wpml_language`, then TranslatePress's `trp_language`
+	 * (CON-457 — TranslatePress core writes it at checkout, classic and block,
+	 * on both order storages: `TRP_WooCommerce_Emails::save_language_on_checkout()`).
+	 * Polylang stores no order language; Polylang for WooCommerce is not read.
+	 */
+	private const ORDER_LANGUAGE_META = array( 'wpml_language', 'trp_language' );
 
 	/** Final override hook: apply_filters( FILTER, $language, $context ). */
 	public const FILTER_LANGUAGE = 'smaily_connect_contact_language';
@@ -71,8 +78,8 @@ final class ContactLanguageResolver {
 
 	/**
 	 * Latest-order language lookup, injectable for testing. Given a user id,
-	 * returns that user's most-recent order's `wpml_language` (raw, pre-
-	 * normalisation) or '' when unavailable.
+	 * returns that user's most-recent order's language (order_language())
+	 * or '' when unavailable.
 	 *
 	 * @var callable(int): string
 	 */
@@ -94,7 +101,7 @@ final class ContactLanguageResolver {
 	 *
 	 * Priority: the cart's storefront language (abandoned-cart reminder
 	 * only, PRO-4253) → `_user_preferred_language` → most-recent order's
-	 * `wpml_language` → multilingual default → site locale.
+	 * language (order_language()) → multilingual default → site locale.
 	 *
 	 * @param string $storefront_language The language the cart recorded, '' when none.
 	 */
@@ -122,11 +129,12 @@ final class ContactLanguageResolver {
 	 * Resolve the language code for a WC order (first-order automation, and
 	 * any future order-triggered contact refresh).
 	 *
-	 * Priority: order's `wpml_language` → the (registered) customer's
-	 * `_user_preferred_language` → multilingual default → site locale.
+	 * Priority: the order's language (order_language()) → the (registered)
+	 * customer's `_user_preferred_language` → multilingual default → site
+	 * locale.
 	 */
 	public function for_order( \WC_Order $order ): string {
-		$language = self::normalize( (string) $order->get_meta( self::ORDER_LANGUAGE_META ) );
+		$language = self::order_language( $order );
 
 		if ( $language === '' ) {
 			$customer_id = (int) $order->get_customer_id();
@@ -246,7 +254,7 @@ final class ContactLanguageResolver {
 	}
 
 	/**
-	 * Most-recent order's `wpml_language`. One query per user; only reached
+	 * Most-recent order's language. One query per user; only reached
 	 * when the preferred-language meta is empty, and skipped entirely when
 	 * WooCommerce isn't loaded (unit context).
 	 */
@@ -274,9 +282,22 @@ final class ContactLanguageResolver {
 			return '';
 		}
 
-		$language = $order->get_meta( self::ORDER_LANGUAGE_META );
+		return self::order_language( $order );
+	}
 
-		return is_string( $language ) ? $language : '';
+	/**
+	 * The language an order was placed in, normalised: the first non-empty
+	 * ORDER_LANGUAGE_META value, '' when the order stores none.
+	 */
+	private static function order_language( \WC_Order $order ): string {
+		foreach ( self::ORDER_LANGUAGE_META as $key ) {
+			$language = $order->get_meta( $key );
+			if ( is_string( $language ) && self::normalize( $language ) !== '' ) {
+				return self::normalize( $language );
+			}
+		}
+
+		return '';
 	}
 
 	/**

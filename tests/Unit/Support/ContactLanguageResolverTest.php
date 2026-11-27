@@ -211,6 +211,27 @@ final class ContactLanguageResolverTest extends TestCase {
 		self::assertSame( 'en', $resolver->for_order( $this->order( 'EN', 9 ) ) );
 	}
 
+	public function test_for_order_uses_the_translatepress_order_language(): void {
+		// CON-457: TranslatePress stores the checkout language as a locale.
+		$resolver = $this->resolver( $this->detector( 'et', array( 'et', 'lv' ) ), static fn ( int $id ): string => '' );
+
+		self::assertSame( 'lv', $resolver->for_order( $this->order( '', 9, 'lv_LV' ) ) );
+	}
+
+	public function test_for_order_reads_the_wpml_language_before_the_translatepress_one(): void {
+		$resolver = $this->resolver( $this->detector( 'et', array( 'et', 'lv', 'ru' ) ), static fn ( int $id ): string => '' );
+
+		self::assertSame( 'ru', $resolver->for_order( $this->order( 'ru', 9, 'lv_LV' ) ) );
+	}
+
+	public function test_for_order_without_a_stored_language_falls_back_to_customer_preferred_language(): void {
+		$this->seed_meta( 9, '_user_preferred_language', 'ru' );
+
+		$resolver = $this->resolver( $this->detector( 'et' ), static fn ( int $id ): string => '' );
+
+		self::assertSame( 'ru', $resolver->for_order( $this->order( '', 9, '' ) ) );
+	}
+
 	public function test_for_order_falls_back_to_customer_preferred_language(): void {
 		$this->seed_meta( 9, '_user_preferred_language', 'ru' );
 
@@ -330,14 +351,16 @@ final class ContactLanguageResolverTest extends TestCase {
 		};
 	}
 
-	private function order( string $wpml_language, int $customer_id ): \WC_Order {
-		return new class( $wpml_language, $customer_id ) extends \WC_Order {
+	private function order( string $wpml_language, int $customer_id, string $trp_language = '' ): \WC_Order {
+		return new class( $wpml_language, $customer_id, $trp_language ) extends \WC_Order {
 			private string $wpml_language;
 			private int $customer_id;
+			private string $trp_language;
 
-			public function __construct( string $wpml_language, int $customer_id ) {
+			public function __construct( string $wpml_language, int $customer_id, string $trp_language ) {
 				$this->wpml_language = $wpml_language;
 				$this->customer_id   = $customer_id;
+				$this->trp_language  = $trp_language;
 			}
 
 			public function get_customer_id( $context = 'view' ): int {
@@ -345,6 +368,9 @@ final class ContactLanguageResolverTest extends TestCase {
 			}
 
 			public function get_meta( $key = '', $single = true, $context = 'view' ) {
+				if ( $key === 'trp_language' ) {
+					return $this->trp_language;
+				}
 				return $key === 'wpml_language' ? $this->wpml_language : '';
 			}
 		};
