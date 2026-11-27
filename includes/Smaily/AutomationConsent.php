@@ -30,7 +30,9 @@ defined( 'ABSPATH' ) || exit;
  * `newsletter_optin`); the store record and Smaily are read at send time.
  * The contact is read from the account contact sync keeps it in —
  * ContactAccount, the account of its language in the account-per-language
- * mode, else "default" (CON-446). Independent of the "Sync contacts to
+ * mode, else "default" (CON-446). When that account does not hold the
+ * contact, an unsubscribe in another account of the store counts too
+ * (UnsubscribeCarryOver, CON-482). Independent of the "Sync contacts to
  * Smaily" switch (PRO-1742).
  *
  * The one rule both flushers ask — never copy it.
@@ -46,16 +48,24 @@ final class AutomationConsent {
 	/**
 	 * Why the automation may not go out, or '' when it may.
 	 *
-	 * @param Client               $client  The client of the account the contact is kept in.
-	 * @param array<string, mixed> $payload The queue row's decoded payload.
+	 * @param Client                    $client      The client of the account the contact is kept in.
+	 * @param array<string, mixed>      $payload     The queue row's decoded payload.
+	 * @param UnsubscribeCarryOver|null $carry_over  Reads the store's other accounts (CON-482); null: none.
+	 * @param string                    $account_key The account $client belongs to.
 	 *
 	 * @throws ApiException When Smaily cannot be read — the caller retries the
 	 *                      row, so nothing is sent blind.
 	 */
-	public static function refusal( Client $client, string $email, array $payload, ContactSyncMode $mode ): string {
+	public static function refusal( Client $client, string $email, array $payload, ContactSyncMode $mode, ?UnsubscribeCarryOver $carry_over = null, string $account_key = 'default' ): string {
 		$contact = $client->get_contact_consent( $email );
 
 		if ( $contact['found'] && $contact['is_unsubscribed'] === '1' ) {
+			return self::REASON_UNSUBSCRIBED;
+		}
+
+		// A contact its account does not hold can be kept, unsubscribed, in
+		// another account of the store (CON-482).
+		if ( ! $contact['found'] && $carry_over !== null && $carry_over->unsubscribed_in_other_accounts( $account_key, $email ) ) {
 			return self::REASON_UNSUBSCRIBED;
 		}
 

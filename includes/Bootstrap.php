@@ -1278,13 +1278,15 @@ final class Bootstrap {
 	public function cart_flusher(): CartFlusher {
 		if ( $this->cart_flusher === null ) {
 			$bootstrap          = $this;
+			$clients            = static function ( string $account_key ) use ( $bootstrap ): Client {
+				return $bootstrap->smaily_client( $account_key );
+			};
 			$this->cart_flusher = new CartFlusher(
 				$this->event_queue(),
 				$this->automation_router(),
-				static function ( string $account_key ) use ( $bootstrap ): Client {
-					return $bootstrap->smaily_client( $account_key );
-				},
-				new AutomationDiscount()
+				$clients,
+				new AutomationDiscount(),
+				new UnsubscribeCarryOver( $clients )
 			);
 		}
 

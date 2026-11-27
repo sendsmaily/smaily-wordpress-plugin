@@ -14,7 +14,9 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Bootstrap;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Multilingual\Router;
+use Smaily\Connect\Smaily\AutomationConsent;
 use Smaily\Connect\Smaily\BackfillJob;
+use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\ContactReconciler;
 use Smaily\Connect\Smaily\ContactSyncMode;
@@ -235,6 +237,65 @@ final class AccountPerLanguageConsentCarryTest extends TestCase {
 	}
 
 	/**
+	 * CON-482: a first-order email (Flusher) and a cart reminder (CartFlusher)
+	 * to a contact its own account does not hold, who unsubscribed in the
+	 * main account, are skipped as for an unsubscribed contact.
+	 *
+	 * @dataProvider automations
+	 */
+	public function test_an_automation_skips_a_contact_unsubscribed_in_another_account( string $event_type, string $hook ): void {
+		$email = 'et-' . strtolower( wp_generate_password( 8, false ) ) . '@example.test';
+		$id    = $this->queue_automation( $event_type, $email );
+
+		$sent = $this->record(
+			array( 'mainsub' => $this->contact( $email, '1' ) ),
+			static function () use ( $hook ): void {
+				do_action( $hook );
+			}
+		);
+		$this->forget_caches( $email );
+
+		self::assertSame( array( 'eestisub', 'mainsub' ), array_column( $sent, 'account' ), 'The own account, then the others until one has the contact unsubscribed — nothing else.' );
+		$row = $this->row( $id );
+		self::assertSame( EventQueue::STATUS_SENT, $row['status'] );
+		self::assertSame( AutomationConsent::REASON_UNSUBSCRIBED, EventQueue::skip_reason( (string) $row['last_response'] ) );
+	}
+
+	/**
+	 * CON-482: while another account cannot be read the email waits for its
+	 * retry — it never goes out on doubt.
+	 *
+	 * @dataProvider automations
+	 */
+	public function test_an_automation_waits_while_another_account_cannot_be_read( string $event_type, string $hook ): void {
+		$email = 'et-' . strtolower( wp_generate_password( 8, false ) ) . '@example.test';
+		$id    = $this->queue_automation( $event_type, $email );
+
+		$sent = $this->record(
+			array( 'mainsub' => 500 ),
+			static function () use ( $hook ): void {
+				do_action( $hook );
+			}
+		);
+		$this->forget_caches( $email );
+
+		self::assertSame( array(), array_values( array_filter( $sent, static fn ( array $request ): bool => $request['method'] === 'POST' ) ), 'Nothing is sent.' );
+		$row = $this->row( $id );
+		self::assertSame( EventQueue::STATUS_PENDING, $row['status'], 'The row waits for its retry.' );
+		self::assertStringContainsString( 'HTTP 500 for GET contact', (string) $row['last_error'] );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: string}>
+	 */
+	public static function automations(): array {
+		return array(
+			'first-order email' => array( HookHandler::EVENT_AUTOMATION_FIRST_ORDER, EventQueue::FLUSH_HOOK ),
+			'cart reminder'     => array( CartFlusher::EVENT_TYPE, CartFlusher::FLUSH_HOOK ),
+		);
+	}
+
+	/**
 	 * A single account and one account for all languages: no extra read, the
 	 * opt-out goes to the main account alone, the profiling read too.
 	 *
@@ -264,6 +325,18 @@ final class AccountPerLanguageConsentCarryTest extends TestCase {
 		);
 		self::assertTrue( $allowed );
 		self::assertSame( array( 'mainsub' ), array_column( $sent, 'account' ) );
+
+		foreach ( self::automations() as list( $event_type, $hook ) ) {
+			$id   = $this->queue_automation( $event_type, $email );
+			$sent = $this->record(
+				array( 'eestisub' => $this->contact( $email, '1' ) ),
+				static function () use ( $hook ): void {
+					do_action( $hook );
+				}
+			);
+			self::assertSame( array( 'mainsub' ), array_column( $this->reads( $sent ), 'account' ), $event_type . ' reads the main account only.' );
+			self::assertNotSame( AutomationConsent::REASON_UNSUBSCRIBED, EventQueue::skip_reason( (string) $this->row( $id )['last_response'] ) );
+		}
 	}
 
 	/**
@@ -471,6 +544,33 @@ final class AccountPerLanguageConsentCarryTest extends TestCase {
 			ARRAY_A
 		);
 		self::assertIsArray( $row, 'The new account queued a contact sync.' );
+
+		return $row;
+	}
+
+	/** A first-order email or a cart reminder of an Estonian contact, as the hooks queue it. */
+	private function queue_automation( string $event_type, string $email ): int {
+		$id = ( new EventQueue() )->enqueue(
+			$event_type,
+			'automation:' . $email,
+			array(
+				'email'    => $email,
+				'language' => 'et',
+			)
+		);
+		self::assertIsInt( $id );
+
+		return $id;
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function row( int $id ): array {
+		global $wpdb;
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}smly_plus_event_queue WHERE id = %d", $id ), ARRAY_A );
+		self::assertIsArray( $row );
 
 		return $row;
 	}

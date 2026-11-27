@@ -41,7 +41,9 @@ use Smaily\Connect\Multilingual\Router;
  * reply without a contact is a failed read.
  *
  * The one rule for the live contact sync (Flusher) and the contact import
- * (BackfillJob) — never copy it.
+ * (BackfillJob), and — through unsubscribed_in_other_accounts() — for the
+ * first-order email's and the cart reminder's consent read
+ * (AutomationConsent, CON-482). Never copy it.
  */
 final class UnsubscribeCarryOver {
 
@@ -57,8 +59,11 @@ final class UnsubscribeCarryOver {
 	/** @var callable(string $account_key): Client */
 	private $client_factory;
 
+	/** The error of the read that failed last. */
+	private ?ApiException $failed = null;
+
 	/**
-	 * The exchange of the read that failed, for the Event Log (F3-44).
+	 * The exchange of that read, for the Event Log (F3-44).
 	 *
 	 * @var array<string, mixed>|null
 	 */
@@ -85,7 +90,6 @@ final class UnsubscribeCarryOver {
 	 * @throws ApiException When an account cannot be read — the caller sends nothing.
 	 */
 	public function unsubscribed_elsewhere( Client $client, string $account_key, string $email ): ?bool {
-		$this->failed_exchange = null;
 		if ( get_option( Router::OPTION_MODE, Router::MODE_SINGLE ) !== Router::MODE_A
 			|| get_transient( self::cache_key( $account_key, $email ) ) !== false
 		) {
@@ -102,13 +106,19 @@ final class UnsubscribeCarryOver {
 			return null;
 		}
 
-		foreach ( $others as $other ) {
-			if ( $this->read( ( $this->client_factory )( $other ), $email )['is_unsubscribed'] === '1' ) {
-				return true;
-			}
-		}
+		return $this->unsubscribed_in( $others, $email );
+	}
 
-		return false;
+	/**
+	 * Whether an account other than $account_key has the contact
+	 * unsubscribed — asked by AutomationConsent for a contact its own
+	 * account does not hold (CON-482). False without a read outside Mode A
+	 * and when every language shares one Smaily account.
+	 *
+	 * @throws ApiException When an account cannot be read — the caller sends nothing.
+	 */
+	public function unsubscribed_in_other_accounts( string $account_key, string $email ): bool {
+		return $this->unsubscribed_in( ( new ContactAccount() )->other_accounts( $account_key ), $email );
 	}
 
 	/** The account holds the contact now. */
@@ -117,16 +127,32 @@ final class UnsubscribeCarryOver {
 	}
 
 	/**
-	 * The exchange of the read that made unsubscribed_elsewhere() throw.
+	 * The exchange of the read that threw $e, or null when this rule did not
+	 * throw it — e.g. the caller's own read failed first.
 	 *
 	 * @return array<string, mixed>|null
 	 */
-	public function failed_exchange(): ?array {
-		return $this->failed_exchange;
+	public function exchange_of( ApiException $e ): ?array {
+		return $e === $this->failed ? $this->failed_exchange : null;
 	}
 
 	public static function cache_key( string $account_key, string $email ): string {
 		return self::CACHE_PREFIX . md5( $account_key . ':' . md5( strtolower( trim( $email ) ) ) );
+	}
+
+	/**
+	 * @param array<int, string> $accounts
+	 *
+	 * @throws ApiException When an account cannot be read.
+	 */
+	private function unsubscribed_in( array $accounts, string $email ): bool {
+		foreach ( $accounts as $account_key ) {
+			if ( $this->read( ( $this->client_factory )( $account_key ), $email )['is_unsubscribed'] === '1' ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -138,6 +164,7 @@ final class UnsubscribeCarryOver {
 		try {
 			$contact = $client->get_contact_consent( $email );
 		} catch ( ApiException $e ) {
+			$this->failed          = $e;
 			$this->failed_exchange = $client->last_exchange();
 			throw $e;
 		}
@@ -146,7 +173,8 @@ final class UnsubscribeCarryOver {
 		if ( ! $contact['found'] && $code !== self::CODE_NOT_FOUND ) {
 			$this->failed_exchange = $client->last_exchange();
 			// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- plugin-built text, stored as plain text in the Event Log, never echoed to a browser.
-			throw new ApiException( sprintf( 'Smaily API answered a contact read with code %d', (int) $code ), 0, null, $code );
+			$this->failed = new ApiException( sprintf( 'Smaily API answered a contact read with code %d', (int) $code ), 0, null, $code );
+			throw $this->failed;
 		}
 
 		return $contact;

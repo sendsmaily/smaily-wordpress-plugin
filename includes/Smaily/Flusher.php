@@ -340,7 +340,7 @@ final class Flusher {
 		try {
 			return $this->carry_over->unsubscribed_elsewhere( $client, $account_key, $email );
 		} catch ( ApiException $e ) {
-			$this->current_exchange = $this->carry_over->failed_exchange();
+			$this->current_exchange = $this->carry_over->exchange_of( $e );
 			throw $e;
 		}
 	}
@@ -404,11 +404,13 @@ final class Flusher {
 
 		// The contact is read where contact sync keeps it (CON-446).
 		$language = isset( $payload['language'] ) ? (string) $payload['language'] : '';
-		$client   = ( $this->client_factory )( $this->accounts->for_language( $language ) );
+		$account  = $this->accounts->for_language( $language );
+		$client   = ( $this->client_factory )( $account );
 		try {
-			return AutomationConsent::refusal( $client, $email, $payload, $this->mode );
+			return AutomationConsent::refusal( $client, $email, $payload, $this->mode, $this->carry_over, $account );
 		} catch ( ApiException $e ) {
-			$this->current_exchange = $client->last_exchange();
+			// The read that failed: another account's (CON-482), else the own one.
+			$this->current_exchange = ( $this->carry_over !== null ? $this->carry_over->exchange_of( $e ) : null ) ?? $client->last_exchange();
 			throw $e;
 		}
 	}

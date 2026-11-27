@@ -12677,9 +12677,20 @@ shopper's own action asks for it in that account.
 account of the store stays unsubscribed or opted out wherever contact
 sync sends it next. Single account and one account for all languages:
 unchanged, with no extra read.
-**Not covered:** an automation (welcome, first-order, abandoned cart) is
-gated by `AutomationConsent`, which reads the contact's own account only
-— a follow-up, not part of this decision.
+**Covered since by CON-482 (Erkki, 2026-11-27):** the first-order email
+and the cart reminder are gated by `AutomationConsent`, the one rule both
+flushers ask. When the contact's own account does not hold it, the rule
+now asks `UnsubscribeCarryOver::unsubscribed_in_other_accounts()` — the
+same reads, `ContactAccount::other_accounts()` and 206 rule as (b), never
+a second copy — and an unsubscribe in any other account skips the email
+with the existing `unsubscribed` reason. The own account is read anyway,
+so the held cache saves no read here and is not consulted; an account
+that holds the contact decides alone. A read that fails throws: the row
+takes the normal retry path (a 4xx other than 429 fails it, the rest
+retry up to the attempt limit, then fail) and the email never goes out.
+Outside Mode A nothing more is read. Other automations (the welcome)
+are out of scope.
 **Relationships:** CON-446 (routing), CON-471 / CON-472 (consent reads),
-PRO-3627 (no status-less write to an unknown contact), F3-48 (modes),
-pre-3.27.0 security audit M1.
+CON-482 (automations), CON-196 / CON-386 (`AutomationConsent`), PRO-3627
+(no status-less write to an unknown contact), F3-48 (modes), pre-3.27.0
+security audit M1.

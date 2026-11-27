@@ -809,7 +809,9 @@ one has the contact unsubscribed; "held" is remembered per account + address
 for 30 days (`smly_held_*` transient). A failed read — or a read that finds
 no contact without Smaily's 206 — throws: nothing is sent. An opt-in is
 never carried. `ProfilingConsent` reads the other accounts when the own
-account lacks the contact. Outside Mode A all of it reads nothing.
+account lacks the contact, and so does `AutomationConsent` (first-order
+email, cart reminder — `unsubscribed_in_other_accounts()`, CON-482).
+Outside Mode A all of it reads nothing.
 **Integration-test trap:** a Mode A test whose contact sync carries no
 status now meets contact READS before the POST — the fake transport must
 answer them (206 = not found), and the `smly_held_*` transients are not
