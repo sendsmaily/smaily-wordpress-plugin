@@ -17,7 +17,7 @@ import { Banner, Button, Card, Pill, Select, type PillTone } from '../primitives
 
 const PER_PAGE = 50;
 
-function statusTone(status: string): PillTone {
+export function statusTone(status: string): PillTone {
   switch (status) {
     case 'sent':
       return 'success';
@@ -38,7 +38,7 @@ function statusTone(status: string): PillTone {
  * (PRO-4098) are stored `sent` (terminal, never retried) but nothing was
  * sent, so they read "cancelled" / "skipped" instead.
  */
-function statusLabel(row: EventRow): string {
+export function statusLabel(row: EventRow): string {
   if (row.cancelled) {
     return __('cancelled', 'smaily-connect');
   }
@@ -55,14 +55,15 @@ function statusLabel(row: EventRow): string {
  * Event Log (PLUGIN.md §13) — read-only diagnostic view over both durable
  * queues. The merchant answers "did X sync?" (status column) and the developer
  * "why not?" (last_error + the drill-down payload). Recovery (retry) is 3.10.1.
+ * `initialStatus` opens it filtered — the Dashboard's "Review failures" (CON-464).
  */
-export function EventLog(): React.JSX.Element {
+export function EventLog({ initialStatus = '' }: { initialStatus?: string }): React.JSX.Element {
   const [rows, setRows] = useState<EventRow[]>([]);
   const [total, setTotal] = useState(0);
   const [failed24h, setFailed24h] = useState(0);
   const [page, setPage] = useState(1);
   const [source, setSource] = useState<EventSource | ''>('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(initialStatus);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<EventDetailResponse | null>(null);

@@ -207,7 +207,7 @@ describe('Step2Subscribers — audience-aware backfill copy (F3-55)', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the Event Log' })).toHaveAttribute(
       'href',
-      'admin.php?page=smaily-connect-settings#events',
+      'admin.php?page=smaily-connect-log',
     );
     expect(screen.getByText('Fix them and run the import again:')).toBeInTheDocument();
     const link = screen.getByRole('link', {

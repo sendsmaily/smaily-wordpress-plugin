@@ -218,6 +218,9 @@ final class EndpointRegistry {
 			),
 			// Closing the Campaign Intelligence banner on top of Settings (CON-350).
 			new NoticesEndpoint(),
+			// The Dashboard's state (CON-464): local queue counts and the
+			// health check's stored state — no engine or Smaily call.
+			new DashboardEndpoint( new RecEngineSettings() ),
 		);
 	}
 
@@ -351,6 +354,11 @@ final class EndpointRegistry {
 			array(
 				'method' => 'POST',
 				'path'   => '/notices/dismiss',
+			),
+			// The Dashboard's state (CON-464).
+			array(
+				'method' => 'GET',
+				'path'   => '/dashboard',
 			),
 		);
 	}

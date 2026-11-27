@@ -1160,7 +1160,7 @@ function FieldIssuesPrefix({
  * wp-admin stamps the locale on <html lang="…"> — no boot-payload
  * addition needed.
  */
-function isEstonianAdminLocale(): boolean {
+export function isEstonianAdminLocale(): boolean {
   if (typeof document === 'undefined') {
     return false;
   }
