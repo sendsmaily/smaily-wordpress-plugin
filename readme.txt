@@ -6,7 +6,7 @@ Requires at least: 6.6
 Tested up to: 7.1
 WC requires at least: 6.9
 WC tested up to: 10.7
-Stable tag: 3.26.0
+Stable tag: 3.27.0
 License: GPLv3 or later
 
 Connect WordPress and WooCommerce to Smaily to collect subscribers, automate emails and add optional personalized product recommendations.
@@ -197,6 +197,21 @@ Use the [Smaily Connect documentation](https://smaily.com/connect-woo/) for setu
 
 The latest releases are listed here. Earlier releases are listed at https://github.com/sendsmaily/smaily-wordpress-plugin/releases
 
+= 3.27.0 =
+* New: a Dashboard opens from the Smaily Connect menu. It shows the state of Smaily, Campaign Intelligence, browse tracking and background tasks, your automations, the latest events, and links to Settings, the Log, the setup and the User Guide.
+* New: with one Smaily account per language, each contact goes to the Smaily account of its language, in the live sync and in the contact import. A contact whose language has no account goes to the fallback language's account.
+* New: with one Smaily account per language, an unsubscribe made in any of the accounts reaches the store within a day, and a profiling objection made in a contact's own account stops its recommendations.
+* New: on a multisite network, the setup and Settings warn when another site sends contacts to the same Smaily account with a different contact sync mode.
+* Changed: the menu reads Dashboard, Initial setup, Settings and Log. The Event Log is now the Log page, and the setup's Finish button opens the Dashboard.
+* Changed: the Estonian translation uses one term for the cookie banner, „küpsiste bänner“.
+* Changed: the plugin icon draws the S in solid white.
+* Fixed: under "All customers", a shopper who unsubscribed earlier and ticks the newsletter box at checkout is subscribed in Smaily again.
+* Fixed: on a TranslatePress or Polylang for WooCommerce store, a customer with no preferred language gets the language of their latest order.
+* Fixed: a queued Smaily sync whose account has incomplete saved credentials fails alone and no longer holds up the rest of the queue.
+* Fixed: incomplete saved credentials of the main Smaily account no longer break recommendations, browse tracking or the My Account newsletter setting. The consent check falls back as it does when Smaily cannot be reached.
+* Privacy: with one Smaily account per language, an unsubscribe in My Account reaches every account, a contact unsubscribed in one account is added to another one as unsubscribed, and a profiling objection in any account holds.
+* Privacy: with one Smaily account per language, a contact unsubscribed in another account gets no first-order email and no abandoned-cart reminder.
+
 = 3.26.0 =
 * New: each Campaign Intelligence email has a Test mode switch and a Send test email button. While test mode is on, the email goes to test addresses only. You turn test mode off yourself, after a confirmation, and back on at any time. This replaces "Activate for real…".
 * New: recommended products in the store show as a product grid on any theme, each with an add-to-cart button. A purchase through the button counts for the recommendation.
@@ -277,6 +292,9 @@ The latest releases are listed here. Earlier releases are listed at https://gith
 * Updated to the Smaily Campaign Intelligence API contract v1.29.0.
 
 == Upgrade Notice ==
+
+= 3.27.0 =
+Adds a Dashboard, which the Smaily Connect menu now opens; the Event Log is now the Log page. With a separate Smaily account per language, contacts now go to their language's account, and an unsubscribe holds in every account.
 
 = 3.26.0 =
 Connected to Campaign Intelligence? Run the Customers import once (Import now) so customer languages reach it. Campaign Intelligence emails get a Test mode switch: you turn test mode off yourself. The first-order email now follows your consent mode.

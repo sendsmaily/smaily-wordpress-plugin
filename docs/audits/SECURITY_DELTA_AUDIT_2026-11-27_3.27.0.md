@@ -291,6 +291,12 @@ per-account reads, `AccountPerLanguageConsentReadTest`).
   delta adds no `do_action` / `apply_filters` with a dynamic name (the new
   `add_action( 'load-' . $hook_suffix … )` is not one). Only the run settles
   it.
+- **Settled (2026-11-27):** the 3.27.0 release gate ran Plugin Check 2.2.0
+  on the ZIP built from the bump commit `5e6a7bd` — 0 ERRORS / 17 WARNINGS,
+  the lines above except `BackfillJob.php:790` (not 778): PR #408 (CON-481),
+  merged after this audit's baseline, added 12 lines above the same
+  `record_error()` `$wpdb->update()`. Recorded as the 3.27.0 release-gate row
+  in `INDEX.md`.
 
 ## Conclusion
 
