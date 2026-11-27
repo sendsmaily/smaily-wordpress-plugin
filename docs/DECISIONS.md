@@ -12409,7 +12409,8 @@ account.
 stay there; a contact whose language changes later goes to the new
 language's account and the old account keeps its copy. Still read from
 `default` only: the consent sync-back (`ContactReconciler`) and the
-profiling-consent read (`ProfilingConsent`) — follow-ups.
+profiling-consent read (`ProfilingConsent`) — follow-ups, since done:
+CON-471 (the sync-back) and CON-472 (the profiling read), below.
 **Consequence:** a Mode A store's new contact syncs and its next import
 reach the language accounts. Single account and one account for all
 languages are unchanged.
@@ -12417,6 +12418,86 @@ languages are unchanged.
 fallback account is the main account), CON-203 (short-form comparison),
 CON-395 (stale rule), CON-386 / CON-196 (consent reads), CON-431 (Settings
 stays open).
+
+### CON-471 — In the account-per-language mode an unsubscribe in a language's Smaily account reaches WordPress (2026-11-27)
+
+**Context:** the daily contact-sync tick mirrors unsubscribes made in
+Smaily back to WordPress (`ContactReconciler`, F3-48: Smaily's action log
+from a stored cursor) from the `default` account only. Since CON-446 a
+Mode A contact lives in its language's account, so an unsubscribe made
+there never reached WordPress: in "Subscribers only (consent)" the store
+kept the contact as subscribed, and a later change could send them to
+Smaily as subscribed again.
+**Decision:** the tick reads every account contact sync can keep a
+contact in — `ContactAccount::distinct_accounts()`: `default` first, then
+in Mode A each language account with a complete credential set, each
+Smaily account (subdomain) once, so the fallback language account the
+setup saved as the main account (CON-441) is read once, as `default`.
+Every other mode reads `default` alone, as before.
+- **A cursor per account.** The main account's stays in
+  `smly_plus_contact_reconcile_seq`, so an update re-reads and loses
+  nothing; a language account's is kept in
+  `smly_plus_contact_reconcile_seq_accounts` (account key => seq id) —
+  one option, not one per account. A language account read for the first
+  time starts from 0: the action log's ~30-day window, as the main
+  account's first run did.
+- **A failing account does not stop the others.** Each account runs in
+  its own try/catch in `Bootstrap::run_contact_reconcile()`; a failure is
+  logged with the account key and the error's type, code and place
+  (CON-301), and that account's cursor stays where it was.
+- **Bounded as before:** each account's walk keeps `MAX_PAGES`; the
+  number of walks is the number of Smaily accounts the store holds.
+- Every account's event applies to the WP user of that address, whichever
+  account it came from — an account holds a contact only where contact
+  sync (or the merchant) put it.
+**Consequence:** a Mode A contact who unsubscribes in their language's
+account is recorded as unsubscribed in WordPress, so the consent-mode
+audience leaves them out of every later sync. Single account and one
+account for all languages read the main account only, as before.
+**Relationships:** F3-48 (the sync-back), CON-446 (`ContactAccount`),
+CON-441 (the fallback account is the main account), CON-301 (no remote
+text in logs).
+
+### CON-472 — In the account-per-language mode a profiling opt-out is read from the contact's own Smaily account (2026-11-27)
+
+**Context:** `ProfilingConsent` reads whether a contact objected to
+Campaign Intelligence profiling (`smaily_rec_profiling`, or a general
+unsubscribe) from the `default` account only. Since CON-446 a Mode A
+contact lives in its language's account, so an objection recorded there
+was never seen and the contact could still be profiled.
+**Decision:** the read goes to the account contact sync keeps the contact
+in — `ContactAccount::for_email()`: the language ContactLanguageResolver
+gives the store's user of that address (`for_user()`), else the one it
+gives a contact known only by email (`for_guest()`), through
+`for_language()`. Every other mode answers `default` without a read.
+- **Mirrors `AutomationConsent` (CON-446):** `ProfilingConsent` takes the
+  rule as a fourth constructor argument (`$account_for`, null = `default`
+  for every contact) and its client factory now takes the account key;
+  Bootstrap passes `ContactAccount::for_email()` and
+  `smaily_client( $account_key )`. A new `ContactAccount` per call — the
+  rule's memo must not outlive a request where hooks keep one
+  `ProfilingConsent` for the process.
+- **The write follows the read:** a My Account opt-out / opt-in and the
+  PRO-3191 carry-over write `smaily_rec_profiling` to the same account.
+- **Caches per account where the account changes the answer:** the daily
+  and the stale cache key on the address alone for `default` — as before,
+  so an update loses no cached answer — and on the account + address for
+  a language account, so an answer read in one account is never served
+  for another. Every TTL is unchanged (daily, a year; never a no-expiry
+  transient). The durable opt-out registry stays per address: it is the
+  store's own record of the person's choice, whichever account holds the
+  contact.
+- In Mode A each decision resolves the contact's language first (a user
+  lookup, its meta, at most its latest order) — local reads, before the
+  cache.
+**Consequence:** a Mode A contact who objected to profiling in their
+language's account is treated as opted out — no recommendations, no
+login merge, no identity on browse events — and the engine opt-out is
+queued. Single account and one account for all languages read the main
+account with the same cache keys as before.
+**Relationships:** F3-31 / PRO-1194 / PRO-3191 (the profiling gate),
+CON-446 (`ContactAccount`, `AutomationConsent`), PRO-2435 (no no-expiry
+transient per contact).
 
 ### CON-464 — A Dashboard and a Log page, as in Magento and PrestaShop (Erkki, 2026-11-27)
 

@@ -30,8 +30,10 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  * Every other mode answers `default` without reading anything.
  *
  * The one rule for live contact sync (HookHandler stores the answer on the
- * queue row, so a retry goes to the same account), the contact import, and
- * the consent reads that look up where contact sync keeps the contact.
+ * queue row, so a retry goes to the same account), the contact import, the
+ * consent reads that look up where contact sync keeps the contact
+ * (`for_email()` for a contact known only by address), and the accounts
+ * whose unsubscribes reach WordPress (`distinct_accounts()`).
  * Contacts already in another account are not moved.
  */
 final class ContactAccount {
@@ -69,6 +71,58 @@ final class ContactAccount {
 		$fallback = (string) get_option( self::OPTION_FALLBACK, Credentials::DEFAULT_ACCOUNT_KEY );
 
 		return in_array( $fallback, $accounts, true ) ? $fallback : Credentials::DEFAULT_ACCOUNT_KEY;
+	}
+
+	/**
+	 * The account key of a contact known only by address (CON-472): the
+	 * language ContactLanguageResolver gives the store's user of that
+	 * address, else the one it gives a contact known only by email. Every
+	 * other mode answers `default` without reading anything.
+	 */
+	public function for_email( string $email ): string {
+		if ( get_option( Router::OPTION_MODE, Router::MODE_SINGLE ) !== Router::MODE_A ) {
+			return Credentials::DEFAULT_ACCOUNT_KEY;
+		}
+
+		$resolver = new ContactLanguageResolver();
+		$user     = get_user_by( 'email', $email );
+
+		return $this->for_language( $user instanceof \WP_User ? $resolver->for_user( $user ) : $resolver->for_guest() );
+	}
+
+	/**
+	 * Every account contact sync can keep a contact in, each Smaily account
+	 * once (CON-471): `default` first, then in Mode A each language account
+	 * with a complete credential set whose subdomain no earlier key has —
+	 * the fallback language account is usually the main account itself
+	 * (CON-441). Every other mode answers `default` without reading anything.
+	 *
+	 * @return array<int, string>
+	 */
+	public function distinct_accounts(): array {
+		$keys = array( Credentials::DEFAULT_ACCOUNT_KEY );
+		if ( get_option( Router::OPTION_MODE, Router::MODE_SINGLE ) !== Router::MODE_A ) {
+			return $keys;
+		}
+
+		$credentials = new Credentials();
+		$main        = $credentials->get();
+		$seen        = $main !== null && $main->is_complete() ? array( strtolower( trim( $main->subdomain ) ) => true ) : array();
+		$prefix      = Credentials::PHASE2_OPTION_PREFIX . self::LANGUAGE_ACCOUNT_PREFIX;
+		foreach ( Credentials::option_keys() as $option_key ) {
+			if ( strpos( $option_key, $prefix ) !== 0 ) {
+				continue;
+			}
+			$account_key = substr( $option_key, strlen( Credentials::PHASE2_OPTION_PREFIX ) );
+			$set         = $credentials->get( $account_key );
+			$subdomain   = $set !== null ? strtolower( trim( $set->subdomain ) ) : '';
+			if ( $set !== null && $set->is_complete() && ! isset( $seen[ $subdomain ] ) ) {
+				$seen[ $subdomain ] = true;
+				$keys[]             = $account_key;
+			}
+		}
+
+		return $keys;
 	}
 
 	/**

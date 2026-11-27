@@ -15,6 +15,7 @@ namespace Smaily\Connect\Privacy;
 
 defined( 'ABSPATH' ) || exit;
 
+use Smaily\Connect\Settings\Credentials;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\Client as SmailyClient;
 use Smaily\Connect\Smaily\RecEngine\ApiException;
@@ -33,6 +34,12 @@ use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
  * (non-transient option row, immune to cache eviction) always wins; failing
  * that, the last successfully fetched state is served from a no-expiry stale
  * cache; only a genuinely never-seen contact still fails open.
+ *
+ * The contact is read in the Smaily account contact sync keeps it in — in
+ * the account-per-language mode its language's account (CON-472, the
+ * `$account_for` rule); there the caches are keyed by that account as well,
+ * so an answer read from one account is never served for another. The
+ * durable opt-out is the store's own record and stays per address.
  *
  * When the decision resolves to "do not profile", two actions fire (the spec):
  *   1. engine opt-out (§10 Client::customer_opt_out) — excluded from recs;
@@ -67,23 +74,31 @@ class ProfilingConsent {
 
 	private RecEngineSettings $settings;
 
-	/** @var callable():?SmailyClient */
+	/** @var callable(string):?SmailyClient */
 	private $smaily_client_factory;
 
 	private PrivacyRequests $privacy_requests;
 
+	/** @var callable(string):string */
+	private $account_for;
+
 	/**
-	 * @param callable():?SmailyClient $smaily_client_factory Default Smaily client, or null when the email side isn't configured.
-	 * @param PrivacyRequests          $privacy_requests      The queue of the engine's §10 opt-out and opt-in (CON-431).
+	 * @param callable(string):?SmailyClient $smaily_client_factory The Smaily client of an account key, or null when the email side isn't configured.
+	 * @param PrivacyRequests                $privacy_requests      The queue of the engine's §10 opt-out and opt-in (CON-431).
+	 * @param (callable(string):string)|null $account_for           The account key a contact's address is kept in (CON-472); null: `default` for every contact.
 	 */
 	public function __construct(
 		RecEngineSettings $settings,
 		callable $smaily_client_factory,
-		PrivacyRequests $privacy_requests
+		PrivacyRequests $privacy_requests,
+		?callable $account_for = null
 	) {
 		$this->settings              = $settings;
 		$this->smaily_client_factory = $smaily_client_factory;
 		$this->privacy_requests      = $privacy_requests;
+		$this->account_for           = $account_for ?? static function (): string {
+			return Credentials::DEFAULT_ACCOUNT_KEY;
+		};
 	}
 
 	/**
@@ -112,11 +127,15 @@ class ProfilingConsent {
 	 * consistent with the opt-out, default-on model (DECISIONS F3-31).
 	 */
 	public function may_profile( string $email ): bool {
-		$cached = get_transient( self::cache_key( $email ) );
+		return $this->may_profile_in( $email, $this->account( $email ) );
+	}
+
+	private function may_profile_in( string $email, string $account ): bool {
+		$cached = get_transient( self::cache_key( $email, $account ) );
 		if ( $cached !== false ) {
 			return $cached === '1';
 		}
-		return $this->refresh( $email );
+		return $this->refresh_in( $email, $account );
 	}
 
 	/**
@@ -128,12 +147,13 @@ class ProfilingConsent {
 	 * allowed.
 	 */
 	public function known_opt_out( string $email ): bool {
-		$cached = get_transient( self::cache_key( $email ) );
+		$account = $this->account( $email );
+		$cached  = get_transient( self::cache_key( $email, $account ) );
 		if ( $cached !== false ) {
 			return $cached !== '1';
 		}
 
-		return $this->stored_preference( $email ) === false;
+		return $this->stored_preference( $email, $account ) === false;
 	}
 
 	/**
@@ -143,7 +163,11 @@ class ProfilingConsent {
 	 * instead of defaulting to allowed. Returns the decision.
 	 */
 	public function refresh( string $email ): bool {
-		$client = ( $this->smaily_client_factory )();
+		return $this->refresh_in( $email, $this->account( $email ) );
+	}
+
+	private function refresh_in( string $email, string $account ): bool {
+		$client = ( $this->smaily_client_factory )( $account );
 
 		if ( $client instanceof SmailyClient ) {
 			try {
@@ -162,10 +186,10 @@ class ProfilingConsent {
 						// Carry the opt-out to the contact that lacks it or holds
 						// the older answer. Never for a not-found contact: the
 						// upsert would create one.
-						$carried_at = $this->write( $email, false, true );
+						$carried_at = $this->write( $email, $account, false, true );
 					}
 				}
-				$this->remember( $email, $allowed, $carried_at );
+				$this->remember( $email, $account, $allowed, $carried_at );
 				if ( ! $allowed ) {
 					$this->engine_opt_out( $email );
 				}
@@ -175,8 +199,8 @@ class ProfilingConsent {
 			}
 		}
 
-		$allowed = $this->fallback_on_error( $email );
-		$this->cache( $email, $allowed );
+		$allowed = $this->fallback_on_error( $email, $account );
+		$this->cache( $email, $account, $allowed );
 		return $allowed;
 	}
 
@@ -210,8 +234,8 @@ class ProfilingConsent {
 	 * expiry); otherwise a genuinely never-seen contact fails open
 	 * (DECISIONS F3-31 — the merchant's accepted residual risk).
 	 */
-	private function fallback_on_error( string $email ): bool {
-		return $this->stored_preference( $email ) ?? true;
+	private function fallback_on_error( string $email, string $account ): bool {
+		return $this->stored_preference( $email, $account ) ?? true;
 	}
 
 	/**
@@ -223,20 +247,21 @@ class ProfilingConsent {
 	 * from Smaily as before; the gate's answer and its caches are unchanged.
 	 */
 	public function known_preference( string $email ): ?bool {
-		$this->may_profile( $email );
-		return $this->stored_preference( $email );
+		$account = $this->account( $email );
+		$this->may_profile_in( $email, $account );
+		return $this->stored_preference( $email, $account );
 	}
 
 	/**
 	 * What we durably know without a fresh read: a durable opt-out, else the
 	 * last successfully fetched (or WP-side set) state, else null.
 	 */
-	private function stored_preference( string $email ): ?bool {
+	private function stored_preference( string $email, string $account ): ?bool {
 		if ( $this->is_durably_opted_out( $email ) ) {
 			return false;
 		}
 
-		$stale = get_transient( self::stale_cache_key( $email ) );
+		$stale = get_transient( self::stale_cache_key( $email, $account ) );
 		if ( $stale !== false ) {
 			return $stale === '1';
 		}
@@ -251,14 +276,16 @@ class ProfilingConsent {
 	 * to say no).
 	 */
 	public function opt_out( string $email ): void {
-		$this->remember( $email, false, $this->write( $email, false ) );
+		$account = $this->account( $email );
+		$this->remember( $email, $account, false, $this->write( $email, $account, false ) );
 		$this->engine_opt_out( $email );
 	}
 
 	/** WP-side opt back in: write `1` + timestamp (to an existing contact only), cache, re-include in the engine. */
 	public function opt_in( string $email ): void {
-		$this->write( $email, true );
-		$this->remember( $email, true );
+		$account = $this->account( $email );
+		$this->write( $email, $account, true );
+		$this->remember( $email, $account, true );
 		$this->engine_opt_in( $email );
 	}
 
@@ -274,9 +301,9 @@ class ProfilingConsent {
 	 * does not have keeps the choice store-side only, and a read that fails
 	 * writes nothing.
 	 */
-	private function write( string $email, bool $may_profile, bool $contact_known = false ): int {
+	private function write( string $email, string $account, bool $may_profile, bool $contact_known = false ): int {
 		$now    = time();
-		$client = ( $this->smaily_client_factory )();
+		$client = ( $this->smaily_client_factory )( $account );
 		if ( ! $client instanceof SmailyClient ) {
 			return $now;
 		}
@@ -327,14 +354,19 @@ class ProfilingConsent {
 	 * registry (added/removed as appropriate). `$optout_moment` is set when
 	 * the store itself makes the opt-out (PRO-3192).
 	 */
-	private function remember( string $email, bool $allowed, ?int $optout_moment = null ): void {
-		$this->cache( $email, $allowed );
-		set_transient( self::stale_cache_key( $email ), $allowed ? '1' : '0', self::STALE_CACHE_TTL );
+	private function remember( string $email, string $account, bool $allowed, ?int $optout_moment = null ): void {
+		$this->cache( $email, $account, $allowed );
+		set_transient( self::stale_cache_key( $email, $account ), $allowed ? '1' : '0', self::STALE_CACHE_TTL );
 		$this->remember_optout( $email, $allowed, $optout_moment );
 	}
 
-	private function cache( string $email, bool $allowed ): void {
-		set_transient( self::cache_key( $email ), $allowed ? '1' : '0', self::CACHE_TTL );
+	private function cache( string $email, string $account, bool $allowed ): void {
+		set_transient( self::cache_key( $email, $account ), $allowed ? '1' : '0', self::CACHE_TTL );
+	}
+
+	/** The account the contact of this address is kept in (CON-472). */
+	private function account( string $email ): string {
+		return ( $this->account_for )( $email );
 	}
 
 	/**
@@ -400,11 +432,20 @@ class ProfilingConsent {
 		return md5( strtolower( trim( $email ) ) );
 	}
 
-	private static function cache_key( string $email ): string {
-		return self::CACHE_PREFIX . self::email_hash( $email );
+	private static function cache_key( string $email, string $account ): string {
+		return self::CACHE_PREFIX . self::entry_hash( $email, $account );
 	}
 
-	private static function stale_cache_key( string $email ): string {
-		return self::STALE_CACHE_PREFIX . self::email_hash( $email );
+	private static function stale_cache_key( string $email, string $account ): string {
+		return self::STALE_CACHE_PREFIX . self::entry_hash( $email, $account );
+	}
+
+	/**
+	 * The caches' key part: the address alone for the `default` account —
+	 * as before CON-472, so no cached answer is lost — else the account too.
+	 */
+	private static function entry_hash( string $email, string $account ): string {
+		$hash = self::email_hash( $email );
+		return $account === Credentials::DEFAULT_ACCOUNT_KEY ? $hash : md5( $account . ':' . $hash );
 	}
 }
