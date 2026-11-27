@@ -179,10 +179,17 @@ plugin), plus the line in the file's header list.
   VERIFY OK. `admin.js` grew 17 685 B raw (the Dashboard and Log pages) and
   stays under the gzip budget at 61 665 B.
 
-## Disposition (to be filled)
+## Disposition (2026-11-27, Erkki)
 
 | # | Disposition |
 |---|---|
-| L1 (Low) | _open_ |
-| L2 (Low) | _open_ |
-| I1–I8 (Info) | _open_ (I8 fixed in this PR) |
+| L1 (Low) | **Fixed before 3.27.0** — Linear CON-481, PR #408 (open). |
+| L2 (Low) | **Fixed before 3.27.0** — Linear CON-481, PR #408 (open). |
+| I1 | Accepted, no change for 3.27.0. |
+| I2 | Accepted, no change for 3.27.0. |
+| I3 | Accepted, no change for 3.27.0. |
+| I4 | Accepted, no change for 3.27.0. |
+| I5 | Accepted, no change for 3.27.0. |
+| I6 | Already fixed on main: #405 regenerated the catalogs, and neither unused message is in them any more. |
+| I7 | Accepted, no change for 3.27.0; recorded as a follow-up in STATUS. |
+| I8 | Fixed in this PR (#407): STATUS says #404 is merged as `54e057f`. |
