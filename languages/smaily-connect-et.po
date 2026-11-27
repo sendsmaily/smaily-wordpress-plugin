@@ -1409,6 +1409,10 @@ msgstr "Smaily Connect — seaded"
 msgid "Manage your Smaily integration. Each tab saves independently."
 msgstr "Halda Smaily Connect plugina seadistusi. Iga vahekaart salvestub eraldi."
 
+#: admin/src/components/settings/Settings.tsx:131
+msgid "User Guide"
+msgstr "Kasutusjuhend"
+
 #: admin/src/components/settings/Settings.tsx:143
 msgid "Settings tabs"
 msgstr "Sätete vahekaardid"
@@ -2523,11 +2527,11 @@ msgstr "Seadistus pole lõpetatud."
 msgid "Based on your contact sync mode, about %d of them will be synced to Smaily as contacts."
 msgstr "Valitud kontaktide sünkroniseerimise valimi järgi sünkroniseeritakse Smailysse ligikaudu %d kontakti."
 
-#: admin/wizard.php:170
+#: admin/wizard.php:171
 #: includes/smaily.class.php:274
 #: includes/smaily.class.php:290
 msgid "Documentation"
-msgstr "Dokumentatsioon"
+msgstr "Kasutusjuhend"
 
 #: integrations/elementor/newsletter-widget.class.php:500
 msgid "If a previously selected workflow no longer appears here, it may have been disabled or deleted in Smaily — your existing selection is kept; check Smaily before choosing a different one."

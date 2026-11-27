@@ -221,6 +221,9 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
   const enginePending = rawState.engineAutomations.saveStatus === 'pending';
   const canSaveOrDiscard = tabIsDirty || engineDirty;
   const version = readBoot()?.version ?? '';
+  // The merchant guide (CON-463): the full documentation, one click from the
+  // plugin's main screen. Constants::docs_url() through the boot payload.
+  const docsUrl = rawState.env.docsUrl ?? '';
 
   // The Campaign Intelligence banner on top of Settings (CON-350). It can be
   // closed (back in 30 days), and it steps aside on the Campaign Intelligence
@@ -243,6 +246,13 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
             <p className="mt-1 text-sm text-text-secondary">
               {__('Manage your Smaily integration. Each tab saves independently.', 'smaily-connect')}
             </p>
+            {docsUrl !== '' && (
+              <p className="mt-1 text-sm">
+                <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                  {__('User Guide', 'smaily-connect')}
+                </a>
+              </p>
+            )}
           </div>
 
           <PillTabs

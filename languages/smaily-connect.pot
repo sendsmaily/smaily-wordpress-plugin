@@ -76,7 +76,7 @@ msgstr ""
 msgid "You do not have permission to view this page."
 msgstr ""
 
-#: admin/wizard.php:170
+#: admin/wizard.php:171
 #: includes/smaily.class.php:274
 #: includes/smaily.class.php:290
 msgid "Documentation"
@@ -1844,6 +1844,10 @@ msgstr ""
 
 #: admin/src/components/settings/Settings.tsx:126
 msgid "Manage your Smaily integration. Each tab saves independently."
+msgstr ""
+
+#: admin/src/components/settings/Settings.tsx:131
+msgid "User Guide"
 msgstr ""
 
 #: admin/src/components/settings/Settings.tsx:143
