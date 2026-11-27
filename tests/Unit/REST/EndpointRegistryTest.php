@@ -77,10 +77,13 @@ final class EndpointRegistryTest extends TestCase {
 		// Closing the Campaign Intelligence banner on top of Settings (CON-350).
 		self::assertContains( 'POST /notices/dismiss', $paths );
 
+		// The Dashboard's state (CON-464).
+		self::assertContains( 'GET /dashboard', $paths );
+
 		// Pin the TOTAL so a route can't silently drop out of the list
 		// (PRO-1258: the /events triple was missing for months and nothing
 		// failed). A new endpoint bumps this number on purpose.
-		self::assertCount( 25, $paths );
+		self::assertCount( 26, $paths );
 		self::assertSame( $paths, array_unique( $paths ), 'Duplicate method+path pair in expected_routes()' );
 	}
 

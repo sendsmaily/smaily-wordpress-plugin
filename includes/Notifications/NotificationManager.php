@@ -183,7 +183,7 @@ final class NotificationManager {
 	 */
 	public function run_health_check(): void {
 		$now        = time();
-		$failed     = $this->failed_last_24h();
+		$failed     = self::failed_last_24h();
 		$down_since = $this->probe_engine( $now );
 		$smaily     = $this->probe_smaily( $now );
 
@@ -364,8 +364,11 @@ final class NotificationManager {
 		);
 	}
 
-	/** Failed rows across both durable queues in the last 24h. */
-	private function failed_last_24h(): int {
+	/**
+	 * Failed rows across both durable queues in the last 24h — the health
+	 * check's count, and the Dashboard's (CON-464), so the two agree.
+	 */
+	public static function failed_last_24h(): int {
 		global $wpdb;
 
 		$rec    = $wpdb->prefix . IngestQueue::TABLE_SUFFIX;
