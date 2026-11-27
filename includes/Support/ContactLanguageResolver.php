@@ -30,7 +30,8 @@ defined( 'ABSPATH' ) || exit;
  * read (which were the *correct* logic, just racing the buggy cron):
  *   - customer language  → `_user_preferred_language` user meta
  *   - order language     → `wpml_language` order meta (WPML), else
- *                          `trp_language` (TranslatePress, CON-457)
+ *                          `trp_language` (TranslatePress), else the
+ *                          Polylang for WooCommerce order language (CON-457)
  *   - default            → the multilingual plugin's configured default
  *                          (WPML `wpml_default_language` = `et`), NOT
  *                          get_locale().
@@ -67,9 +68,19 @@ final class ContactLanguageResolver {
 	 * order: WPML's `wpml_language`, then TranslatePress's `trp_language`
 	 * (CON-457 — TranslatePress core writes it at checkout, classic and block,
 	 * on both order storages: `TRP_WooCommerce_Emails::save_language_on_checkout()`).
-	 * Polylang stores no order language; Polylang for WooCommerce is not read.
+	 * Polylang stores no order language; its paid Polylang for WooCommerce
+	 * add-on does, read through its own API after these (POLYLANG_WC_STORE).
 	 */
 	private const ORDER_LANGUAGE_META = array( 'wpml_language', 'trp_language' );
+
+	/**
+	 * Polylang for WooCommerce's data-store class (CON-457). Its public API,
+	 * per the vendor's stubs (`polylang/polylang-wc-stubs`):
+	 * `PLLWC_Data_Store::load( 'order_language' )->get_language( $order_id )`
+	 * returns the order's language slug, or false when it has none. Built
+	 * without a running copy of the add-on (Erkki, 2026-11-27).
+	 */
+	private const POLYLANG_WC_STORE = 'PLLWC_Data_Store';
 
 	/** Final override hook: apply_filters( FILTER, $language, $context ). */
 	public const FILTER_LANGUAGE = 'smaily_connect_contact_language';
@@ -287,7 +298,8 @@ final class ContactLanguageResolver {
 
 	/**
 	 * The language an order was placed in, normalised: the first non-empty
-	 * ORDER_LANGUAGE_META value, '' when the order stores none.
+	 * ORDER_LANGUAGE_META value, else the Polylang for WooCommerce order
+	 * language, '' when the order has none.
 	 */
 	private static function order_language( \WC_Order $order ): string {
 		foreach ( self::ORDER_LANGUAGE_META as $key ) {
@@ -297,7 +309,32 @@ final class ContactLanguageResolver {
 			}
 		}
 
-		return '';
+		return self::normalize( self::polylang_wc_order_language( (int) $order->get_id() ) );
+	}
+
+	/**
+	 * The order's language slug from Polylang for WooCommerce, '' when the
+	 * add-on is not active, the order has none, or its API fails — then the
+	 * next source applies. A failure is logged as class + file:line only.
+	 */
+	private static function polylang_wc_order_language( int $order_id ): string {
+		$load = array( self::POLYLANG_WC_STORE, 'load' );
+		if ( $order_id <= 0 || ! class_exists( self::POLYLANG_WC_STORE ) || ! is_callable( $load ) ) {
+			return '';
+		}
+
+		try {
+			$store = call_user_func( $load, 'order_language' );
+			if ( ! is_object( $store ) || ! method_exists( $store, 'get_language' ) ) {
+				return '';
+			}
+			$language = $store->get_language( $order_id );
+		} catch ( \Throwable $e ) {
+			DebugLog::write( '[smaily-connect language] Polylang for WooCommerce order language not read: ' . DebugLog::where( $e ) );
+			return '';
+		}
+
+		return is_string( $language ) ? $language : '';
 	}
 
 	/**

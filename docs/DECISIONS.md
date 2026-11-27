@@ -12329,14 +12329,22 @@ checkout language (`$TRP_LANGUAGE`, a locale) on every classic and block
 checkout, through `trp_woo_hpos_manipulate_post_meta()` — order meta on
 HPOS, post meta on legacy storage, both read by `WC_Order::get_meta()`. A
 plain meta read beside WPML's, not a detector method: the WPML read was
-never routed through the detector. **Polylang is not read:** Polylang
-(3.9.2, the suite's) stores no order language; only the paid add-on
-Polylang for WooCommerce does, as a `language` taxonomy term behind
-`PLLWC_Data_Store::load( 'order_language' )->get_language( $order_id )`
-(its vendor stubs, `polylang/polylang-wc-stubs`), whose code is not
-available here — left as an open question to Erkki, not built.
-**Consequence:** on a TranslatePress store a customer's Smaily contact and
-engine customer row take the language of their latest order; existing
+never routed through the detector. **Polylang (Erkki, 2026-11-27, option
+a):** Polylang (3.9.2, the suite's) stores no order language; only the
+paid add-on Polylang for WooCommerce does, as a `language` taxonomy term
+behind `PLLWC_Data_Store::load( 'order_language' )->get_language(
+$order_id )` (slug or false, per its vendor stubs,
+`polylang/polylang-wc-stubs`). When both meta keys are empty the resolver
+calls that API, only where the class exists, inside a catch of any
+`Throwable` that logs class + file:line and falls through to the next
+source. It is built against the vendor's published API without a running
+copy of the add-on, and pinned by a unit double of that shape; the check
+on a real store with Polylang for WooCommerce is human acceptance after
+release.
+**Consequence:** on a TranslatePress store and on a store with Polylang
+for WooCommerce a customer's Smaily contact and engine customer row take
+the language of their latest order; with free Polylang alone nothing
+changes; existing
 customers get it on their next re-send or the next import. A WPML store
 reads exactly as before (WPML never writes `trp_language`). An order with
 no stored language leaves the next source, as before.
