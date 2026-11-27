@@ -858,6 +858,23 @@ slow"):
   runs `on_tick()` with rows left schedules a follow-up — unschedule it in
   tearDown (`as_unschedule_all_actions( HOOK, FOLLOW_UP_ARGS, AS_GROUP )`).
 
+### Four admin pages: Dashboard, Initial setup, Settings, Log (CON-464)
+`admin/wizard.php` registers them under the top-level `smaily-connect-dashboard`
+item; each mounts the one admin bundle with its own `data-view`
+(`dashboard` / `wizard` / `settings` / `log`), and the boot `view` follows the
+`?page=` slug. Until setup is finished the Dashboard, Settings and the Log
+redirect to the wizard from `smaily_connect_require_finished_setup()` on each
+page's `load-` hook — never from a render callback, where the admin header
+is already sent. The Event Log is the Log page (`?status=failed` opens it
+filtered); Settings has no Event Log tab, and an old `#events` bookmark is
+sent on to the Log. Admin links use the constants in `admin/src/lib/links.ts`.
+The Dashboard's figures come from `GET /dashboard` (`REST\DashboardEndpoint`),
+local queries only; a new queue event type that is a contact sync or a
+catalog item must be added to its counts deliberately. "The WordPress
+Dashboard" below is WordPress's own start screen, not this page.
+**Integration-test trap:** `AdminMenuTest` registers the menu more than once
+per process — clear the `load-…` actions with the menu globals.
+
 ### The invitation banners have two copies — the React one and the Dashboard's PHP one (CON-350, CON-351)
 `admin/src/components/banners/PromoBanner.tsx` draws the banner in the admin
 bundle; the Smaily invitation on the WordPress Dashboard is printed by

@@ -286,12 +286,19 @@ newest-first page query — in a background Action Scheduler action, online DDL,
 at most three attempts. HPOS stores are not touched. Uninstall drops it;
 deactivation leaves it.
 
-## 8. Admin app — React wizard + settings
+## 8. Admin app — React wizard, settings, Dashboard and Log
 
 One Vite-built React 18 bundle (`admin/src/` → `dist/admin/admin.js`), mounted
-by `admin/wizard.php` on two wp-admin pages (menu `smaily-connect-wizard`,
-submenu `smaily-connect-settings`) with a `data-view` switch; wizard-first gate
-bounces Settings to the wizard until `setup_completed`. The app talks ONLY to
+by `admin/wizard.php` on four wp-admin pages — menu `smaily-connect-dashboard`
+with the submenu Dashboard, Initial setup (`smaily-connect-wizard`), Settings
+(`smaily-connect-settings`) and Log (`smaily-connect-log`), as Magento's and
+PrestaShop's (CON-464) — with a `data-view` switch; the wizard-first gate (on
+each page's `load-` hook) sends the Dashboard, Settings and the Log to the
+wizard until `setup_completed`. The Dashboard reads `GET /dashboard`
+(`REST\DashboardEndpoint`: local queue counts, the health check's stored
+notices, the newest run of our Action Scheduler actions — no engine or Smaily
+call) and the last 10 rows of `GET /events`; its Campaign Intelligence emails
+come from the automations proxy after the page shows. The app talks ONLY to
 the plugin's own REST routes (`smaily-connect/v1/*`, cookie + `wp_rest` nonce,
 `manage_options`) — never directly to Smaily or the engine; the PHP endpoints
 proxy outbound calls (`REST\EndpointRegistry` is the single route registry —
