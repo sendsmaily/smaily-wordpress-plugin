@@ -738,7 +738,11 @@ ContactLanguageResolver` (`for_user` / `for_order`). It is context-independent
 (no `ICL_LANGUAGE_CODE`/`pll_current_language`/`get_user_locale` reads), so it
 returns the same answer in a cron tick as an HTTP request. Sources mirror the
 merchant's working Make automations: `_user_preferred_language` user meta →
-most-recent order's `wpml_language` → the multilingual default via
+most-recent order's language (`wpml_language`, else TranslatePress's
+`trp_language` locale, else the paid Polylang for WooCommerce add-on's
+`PLLWC_Data_Store::load( 'order_language' )->get_language()` behind a
+`class_exists` + try/catch — CON-457; free Polylang stores none) → the
+multilingual default via
 `DetectorFactory` (WPML `wpml_default_language`, e.g. `et`) → site-locale short
 code; normalised to the short form (`en_US`→`en`). The scar it routes around
 (Prike, F3-47): the legacy cron's `Helper::get_current_language_code()` falls
@@ -2416,20 +2420,46 @@ picture.
   *Smaily Connect for WooCommerce — v3 rewrite* (P-PRO-215).
 - **Shape: TREND.** The work is open-ended (pilot stores, merchant requests,
   releases), so there is **no target date and no milestones**. Erkki decided
-  this on 2026-09-29: "tähtaega pole — näita progressi ajas". Don't ask again
-  before ~2026-10-13 unless something makes a date likely (a client commitment,
-  a vendor deadline).
-- **Gauges** (read-only; print only the numbers, never names or payloads):
-  1. Live version and active installs on wordpress.org. Use the **1.2**
-     endpoint: the 1.0 `…/info/1.0/smaily-connect.json` has no
+  this on 2026-09-29: "tähtaega pole — näita progressi ajas", and reconfirmed
+  it on 2026-11-27 with the gauge change below. Don't ask for a date unless
+  something makes one likely (a client commitment, a vendor deadline).
+- **Gauges** (read-only; print only the numbers, never names or payloads).
+  Erkki changed them on 2026-11-27: the outcome is WooCommerce installs
+  connected to a Smaily account, and of them the ones with Campaign
+  Intelligence connected; wordpress.org's active installs stay as context
+  only.
+  1. WooCommerce installs connected to a Smaily account, and
+  2. of them, the installs with Campaign Intelligence connected — both read
+     in the private subscription repo's production database (the
+     installation-report receiver). **Production reads are Erkki's:** he runs
+     `npm run gauge` in that repo, or this count-only SQL:
+     ```
+     WITH w AS (
+       SELECT i.last_report_at > now() - interval '7 days' AS recent,
+              i.last_event <> 'deactivated'
+                AND EXISTS (SELECT 1 FROM connections c WHERE c.installation_id = i.id) AS smaily,
+              EXISTS (SELECT 1 FROM connections c WHERE c.installation_id = i.id AND c.intelligence_connected) AS ci
+       FROM installations i
+       WHERE i.product = 'connect_woocommerce' AND i.last_report_at IS NOT NULL)
+     SELECT count(*) FILTER (WHERE recent) AS reported_7d,
+            count(*) FILTER (WHERE recent AND smaily) AS smaily_connected_7d,
+            count(*) FILTER (WHERE recent AND smaily AND ci) AS ci_connected_7d
+     FROM w;
+     ```
+  3. Context: live version and active installs on wordpress.org. Use the
+     **1.2** endpoint: the 1.0 `…/info/1.0/smaily-connect.json` has no
      `active_installs` field and prints `None`.
      `curl -s "https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&slug=smaily-connect" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['version'],d.get('active_installs'))"`
-  2. Release cadence (tag and date):
+  4. Release cadence (tag and date):
      `gh release list --repo sendsmaily/smaily-wordpress-plugin --limit 5`
 - **How to read them:** at session end (the scribe pass), record the latest
   gauge values and the date in STATUS.md's handoff header. The next session
   shows the last 3–4 recorded values as a trend. If the numbers stay flat for
   2+ weeks, say so out loud.
-- **Baseline (2026-09-29):** version 3.14.0, active installs 2000 (wordpress.org
-  buckets this figure). Latest releases: 3.14.0 (2026-09-24), 3.13.0
-  (2026-09-10), 3.12.1 (2026-09-08), 3.12.0 (2026-09-07), 3.11.3 (2026-09-07).
+- **Baseline of the Smaily-connected gauge (2026-11-26, the subscription
+  receiver):** 212 connected / 211 reported in 7 days; Campaign
+  Intelligence connected: not yet measured.
+- **Baseline of the wordpress.org context (2026-09-29):** version 3.14.0,
+  active installs 2000 (wordpress.org buckets this figure). Latest releases:
+  3.14.0 (2026-09-24), 3.13.0 (2026-09-10), 3.12.1 (2026-09-08), 3.12.0
+  (2026-09-07), 3.11.3 (2026-09-07).

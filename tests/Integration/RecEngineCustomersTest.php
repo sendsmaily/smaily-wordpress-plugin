@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\Integrations\WooCommerce\CustomerHookHandler;
 use Smaily\Connect\Multilingual\DetectorFactory;
 use Smaily\Connect\Multilingual\DetectorInterface;
+use Smaily\Connect\Multilingual\TranslatePressAdapter;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\ContactAudience;
 use Smaily\Connect\Smaily\ContactSyncMode;
@@ -73,6 +74,7 @@ final class RecEngineCustomersTest extends TestCase {
 		}
 		$this->created_orders = array();
 		DetectorFactory::reset();
+		delete_option( 'trp_settings' );
 		foreach ( $this->created_users as $user_id ) {
 			wp_delete_user( $user_id );
 		}
@@ -211,6 +213,50 @@ final class RecEngineCustomersTest extends TestCase {
 		$this->flusher()->flush();
 
 		self::assertSame( 'lv', $this->sent_customer( $user_id )['language'] ?? null );
+	}
+
+	/**
+	 * CON-457: on a TranslatePress store the order's language is the
+	 * `trp_language` locale TranslatePress stores at checkout; an order
+	 * without one leaves the store default.
+	 */
+	public function test_on_a_translatepress_store_a_buyers_order_carries_its_language(): void {
+		update_option(
+			'trp_settings',
+			array(
+				'default-language'      => 'et_EE',
+				'translation-languages' => array( 'et_EE', 'lv_LV' ),
+			)
+		);
+		$cached = new \ReflectionProperty( DetectorFactory::class, 'cached' );
+		$cached->setAccessible( true );
+		$cached->setValue( null, new TranslatePressAdapter() );
+
+		$user_id = $this->register_customer( 'trp-buyer@example.test' );
+		update_user_meta( $user_id, 'locale', 'en_US' );
+
+		$untagged = $this->buyer_order( $user_id, 'trp-buyer@example.test', '' );
+		$this->flusher()->flush();
+		self::assertSame( 'et', $this->sent_customer( $user_id )['language'] ?? null, 'An order with no stored language: the store default.' );
+
+		$untagged->delete( true );
+		$this->buyer_order( $user_id, 'trp-buyer@example.test', 'lv_LV' );
+		$this->flusher()->flush();
+
+		self::assertSame( 'lv', $this->sent_customer( $user_id )['language'] ?? null );
+	}
+
+	private function buyer_order( int $user_id, string $email, string $trp_language ): \WC_Order {
+		$order = wc_create_order( array( 'customer_id' => $user_id ) );
+		self::assertInstanceOf( \WC_Order::class, $order );
+		$this->created_orders[] = (int) $order->get_id();
+		$order->set_billing_email( $email );
+		if ( $trp_language !== '' ) {
+			$order->update_meta_data( 'trp_language', $trp_language );
+		}
+		$order->save();
+		$order->update_status( 'completed' );
+		return $order;
 	}
 
 	public function test_the_language_is_left_out_when_none_resolves(): void {

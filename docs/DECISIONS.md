@@ -6679,7 +6679,8 @@ happen, never on the strength of another language's mapping.
 inside one template but no routing; following the site mode, which would
 leave Mode C stores with no way to route.
 **Limits:** `for_order` reads only WPML's `wpml_language` order meta (Polylang
-guest orders resolve to the default language); non-short language codes
+guest orders resolve to the default language; since CON-457 it also reads
+TranslatePress's `trp_language`); non-short language codes
 (TranslatePress / site locale) mismatch as they already do for A/B
 automations.
 
@@ -11986,7 +11987,8 @@ their orders" (§4), and §5 defines no language field — so a guest's
 language cannot reach the engine without a contract change. That is an
 engine ask, not plugin work. The resolver reads the order language from
 `wpml_language` only; a Polylang or TranslatePress order language is not
-read (unchanged by this decision).
+read (unchanged by this decision; CON-457 adds TranslatePress's
+`trp_language`).
 **Relationships:** F3-47 (the resolver and its rules), F2-10 (omit an
 empty optional field), CON-246 (which customers reach §4).
 
@@ -12309,3 +12311,42 @@ written outside consent mode (PRO-3406 unchanged).
 **Relationships:** CON-439 (a guest's tick always reaches Smaily — its
 "without a status" part is superseded here), PRO-3609 (soft opt-in: the
 unticked case), CON-395 (stale subscriptions), PRO-4093 (the welcome).
+
+### CON-457 — An order's language is read where TranslatePress stores it too (2026-11-27)
+
+**Context:** a customer with no preferred language takes the language of
+their latest order (F3-47; the engine customer row too since CON-354). The
+resolver read an order's language only from WPML's `wpml_language` order
+meta, so on a TranslatePress or Polylang store such a customer got the
+store default even when they ordered in another language.
+**Decision:** `ContactLanguageResolver` reads an order's language from
+`wpml_language`, else `trp_language`, in `for_user` (latest order) and
+`for_order` alike; the value is normalised (`lv_LV` → `lv`) and clamped to
+the active languages as before. The source: TranslatePress 3.4.1 core
+(`includes/class-woocommerce-emails.php`, `save_language_on_checkout()` and
+`save_language_on_checkout_store_api()`) writes `trp_language` = the
+checkout language (`$TRP_LANGUAGE`, a locale) on every classic and block
+checkout, through `trp_woo_hpos_manipulate_post_meta()` — order meta on
+HPOS, post meta on legacy storage, both read by `WC_Order::get_meta()`. A
+plain meta read beside WPML's, not a detector method: the WPML read was
+never routed through the detector. **Polylang (Erkki, 2026-11-27, option
+a):** Polylang (3.9.2, the suite's) stores no order language; only the
+paid add-on Polylang for WooCommerce does, as a `language` taxonomy term
+behind `PLLWC_Data_Store::load( 'order_language' )->get_language(
+$order_id )` (slug or false, per its vendor stubs,
+`polylang/polylang-wc-stubs`). When both meta keys are empty the resolver
+calls that API, only where the class exists, inside a catch of any
+`Throwable` that logs class + file:line and falls through to the next
+source. It is built against the vendor's published API without a running
+copy of the add-on, and pinned by a unit double of that shape; the check
+on a real store with Polylang for WooCommerce is human acceptance after
+release.
+**Consequence:** on a TranslatePress store and on a store with Polylang
+for WooCommerce a customer's Smaily contact and engine customer row take
+the language of their latest order; with free Polylang alone nothing
+changes; existing
+customers get it on their next re-send or the next import. A WPML store
+reads exactly as before (WPML never writes `trp_language`). An order with
+no stored language leaves the next source, as before.
+**Relationships:** F3-47 (the resolver), CON-354 (the engine customer row),
+CON-203 (TranslatePress locale codes compared in the short form).
