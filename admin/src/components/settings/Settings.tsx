@@ -13,6 +13,7 @@ import { actionToTab } from '../../state/action-to-tab';
 import { buildTabPayload } from '../../state/buildTabPayload';
 import { saveEngineAutomations } from '../../state/engine-automations';
 import { readBoot } from '../../state/hydrate';
+import { mainAccount } from '../../state/main-account';
 import {
   buildSettingsInitialState,
   type ServerEnv,
@@ -178,7 +179,12 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
     if (activeTab === 'integrations' || activeTab === 'events') {
       return;
     }
-    const payload = buildTabPayload(rawState, activeTab);
+    // The Connection save stores the main account (CON-446): in Mode A the
+    // fallback language account once its connection works, as setup does.
+    const payload =
+      activeTab === 'connection'
+        ? { ...buildTabPayload(rawState, activeTab), smailyCredentials: mainAccount(rawState).credentials }
+        : buildTabPayload(rawState, activeTab);
     if (
       activeTab === 'connection' &&
       !confirmWorkflowRemoval(mappingsLosingWorkflow(savedRef.current, payload, rawState.automationMappings))

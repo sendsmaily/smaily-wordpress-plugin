@@ -3,6 +3,7 @@ import { useReducer, useRef, useState } from 'react';
 import { ApiError } from '../../api/client';
 import { saveSettings, type SaveSettingsResponse } from '../../api/saveSettings';
 import { buildTabPayload } from '../../state/buildTabPayload';
+import { mainAccount } from '../../state/main-account';
 import { saveEngineAutomations } from '../../state/engine-automations';
 import { wizardReducer } from '../../state/wizard-reducer';
 import {
@@ -305,27 +306,6 @@ function stepToTab(step: number): SettingsTabKey | null {
     default:
       return null;
   }
-}
-
-/**
- * The account the Connect step saves as the main Smaily account (CON-441).
- * The account-per-language mode (Mode A) shows no shared account: once
- * the fallback language account has passed its test, it is the one the
- * step saves. Otherwise the shared account — the only one in the other
- * modes, and in Mode A the one saved and verified earlier.
- */
-function mainAccount(state: WizardState): {
-  credentials: WizardState['smailyCredentials'];
-  connection: WizardState['smailyConnection'];
-} {
-  const isModeA = state.multilingualMode === 'A' && state.env.detectedLanguages.length > 1;
-  const fallback = isModeA
-    ? state.perLanguageAccounts.find((a) => a.accountKey === state.defaultFallbackAccountKey)
-    : undefined;
-  if (fallback !== undefined && fallback.connection.kind === 'success') {
-    return { credentials: fallback.credentials, connection: fallback.connection };
-  }
-  return { credentials: state.smailyCredentials, connection: state.smailyConnection };
 }
 
 function computeCanAdvance(state: WizardState): boolean {

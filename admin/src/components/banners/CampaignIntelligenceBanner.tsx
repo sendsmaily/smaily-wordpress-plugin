@@ -5,6 +5,7 @@ import { SMAILY_CONSULTATION_URL } from '@admin/lib/links';
 import { getOnboardingStatus, type OnboardingStatus } from '../../api/onboarding';
 import { type SetupExchangeSuccess } from '../../api/recEngine';
 import { type BannerBoot } from '../../state/hydrate';
+import { mainAccount } from '../../state/main-account';
 import { type WizardState } from '../../state/types';
 import { StartWindow, useIntelligenceStart, type IntelligenceStart } from './IntelligenceStart';
 import { PromoBanner, promoCtaClass, promoLinkClass } from './PromoBanner';
@@ -48,7 +49,7 @@ export function campaignIntelligenceBannerVariant(
   if (boot.smailyPlanBlocked) {
     return 'upsell';
   }
-  return state.smailyConnection.kind === 'success' ? 'invite' : null;
+  return mainAccount(state).connection.kind === 'success' ? 'invite' : null;
 }
 
 export interface CampaignIntelligenceBannerProps {

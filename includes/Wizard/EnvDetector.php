@@ -177,6 +177,53 @@ class EnvDetector {
 	}
 
 	/**
+	 * The saved account of each detected language (CON-446), keyed the way
+	 * the per-language blocks key them (`account_<language>`, the language
+	 * as the multilingual plugin lists it). `connected` is true when the
+	 * account holds a complete credential set, as a saved main account
+	 * reads as connected; the password itself never leaves the server.
+	 *
+	 * @return array<int, array{accountKey: string, language: string, credentials: array{subdomain: string, username: string, password: string}, connected: bool}>
+	 */
+	private function language_accounts( Credentials $creds ): array {
+		$accounts = array();
+		foreach ( $this->detected_languages() as $language ) {
+			$set = $creds->get( 'account_' . $language );
+			if ( $set === null ) {
+				continue;
+			}
+			$accounts[] = array(
+				'accountKey'  => 'account_' . $language,
+				'language'    => $language,
+				'credentials' => array(
+					'subdomain' => $set->subdomain,
+					'username'  => $set->username,
+					'password'  => '',
+				),
+				'connected'   => $set->is_complete(),
+			);
+		}
+
+		return $accounts;
+	}
+
+	/**
+	 * The saved fallback account in the form the screens key it. The save
+	 * stores it through sanitize_key(), which lower-cases a language listed
+	 * as `en_GB`; the radio of that language is `account_en_GB` (CON-446).
+	 */
+	private function fallback_account_key(): string {
+		$saved = (string) get_option( 'smly_plus_default_fallback_account', 'default' );
+		foreach ( $this->detected_languages() as $language ) {
+			if ( sanitize_key( 'account_' . $language ) === $saved ) {
+				return 'account_' . $language;
+			}
+		}
+
+		return $saved;
+	}
+
+	/**
 	 * Returns the canonical key for the active multilingual plugin, or
 	 * null when on the SiteLocaleAdapter fallback. The React bundle uses
 	 * this to decide whether the MultilingualModePicker is meaningful
@@ -508,7 +555,10 @@ class EnvDetector {
 			// 'single' otherwise). Once the merchant explicitly saves a
 			// mode via Settings the actual value lands here and wins.
 			'multilingualMode'              => (string) get_option( 'smly_plus_multilingual_mode', '' ),
-			'defaultFallbackAccountKey'     => (string) get_option( 'smly_plus_default_fallback_account', 'default' ),
+			'defaultFallbackAccountKey'     => $this->fallback_account_key(),
+			// CON-446: each language's saved account, for the per-language
+			// blocks — without the password, like the main account.
+			'perLanguageAccounts'           => $this->language_accounts( $creds ),
 
 			// Step 2: subscribers.
 			// Read through the same accessor the sync itself gates on, so the

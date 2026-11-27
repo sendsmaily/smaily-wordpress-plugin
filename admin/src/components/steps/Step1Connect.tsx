@@ -1,6 +1,7 @@
 import { useCallback, type Dispatch } from 'react';
 
 import { __, sprintf } from '@admin/lib/i18n';
+import { mainAccount } from '../../state/main-account';
 import {
   emptyCredentials,
   idleAsync,
@@ -78,7 +79,7 @@ export function Step1Connect({
   // The Smaily invitation (CON-351): while no Smaily account is connected —
   // the server's rule — and none has passed its test on this page yet.
   const banners = bannerBoot();
-  const showInvitation = !banners.smailyAccountConnected && state.smailyConnection.kind !== 'success';
+  const showInvitation = !banners.smailyAccountConnected && mainAccount(state).connection.kind !== 'success';
 
   return (
     <div className="space-y-6">
