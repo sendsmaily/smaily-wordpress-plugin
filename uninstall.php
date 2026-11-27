@@ -9,7 +9,8 @@
  *
  * Removes:
  *   1. Every `smly_plus_*` row in wp_options (Phase-2 BETA fork state), plus
- *      the ProfilingConsent per-contact cache/stale transients (PRO-1336) and
+ *      the ProfilingConsent per-contact cache/stale transients (PRO-1336), the
+ *      UnsubscribeCarryOver per-contact transients (CON-480), and
  *      every `smly_rec_*` row — the rec-engine connection (per-connection API
  *      key, tenant identity, endpoints map, config, connected flag —
  *      `Settings\RecEngineSettings` — plus `NotificationManager::
@@ -19,7 +20,9 @@
  *      never deletes it. A re-install needs a fresh setup token.
  *   2. The explicit `smaily_connect_*` option keys this plugin owns
  *      (credentials, sync settings, schema-version marker), plus the
- *      `smly_profiling_optouts` durable opt-out registry (PRO-1194/PRO-1336).
+ *      `smly_profiling_optouts` durable opt-out registry (PRO-1194/PRO-1336),
+ *      and on a multisite network the network option
+ *      `smly_plus_network_accounts` (CON-467, CON-481).
  *   3. Custom tables created by the migration runner (includes the rec-engine
  *      `smly_rec_event_queue` table), plus the two retired tables schema
  *      migration 012 drops (`smaily_connect_abandoned_carts`,
@@ -114,6 +117,17 @@ $wpdb->query(
 	)
 );
 
+// UnsubscribeCarryOver (includes/Smaily/UnsubscribeCarryOver.php) remembers
+// per account and contact that a Smaily account holds the contact, as a
+// 30-day transient `smly_held_<hash>` — swept the same way (CON-480).
+$wpdb->query(
+	$wpdb->prepare(
+		"DELETE FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+		$wpdb->esc_like( '_transient_smly_held_' ) . '%',
+		$wpdb->esc_like( '_transient_timeout_smly_held_' ) . '%'
+	)
+);
+
 $legacy_options = array(
 	// Credentials + verification state for the default account.
 	'smaily_connect_api_credentials',
@@ -152,6 +166,13 @@ $legacy_options = array(
 );
 foreach ( $legacy_options as $opt ) {
 	delete_option( $opt );
+}
+
+// The network's index of each site's Smaily accounts (NetworkAccounts,
+// CON-467) is a network option in wp_sitemeta, which the LIKE sweep above
+// never reaches; the uninstall runs once per network (CON-481).
+if ( is_multisite() ) {
+	delete_site_option( 'smly_plus_network_accounts' );
 }
 
 // --- 2. Custom tables. ----------------------------------------------------

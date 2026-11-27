@@ -39,7 +39,9 @@ use Smaily\Connect\Smaily\RecEngine\Support\IsoDate;
  * the account-per-language mode its language's account (CON-472, the
  * `$account_for` rule); there the caches are keyed by that account as well,
  * so an answer read from one account is never served for another. The
- * durable opt-out is the store's own record and stays per address.
+ * durable opt-out is the store's own record and stays per address. A
+ * contact that account does not hold is read in the store's other accounts,
+ * and an objection there holds (CON-480).
  *
  * When the decision resolves to "do not profile", two actions fire (the spec):
  *   1. engine opt-out (§10 Client::customer_opt_out) — excluded from recs;
@@ -82,22 +84,30 @@ class ProfilingConsent {
 	/** @var callable(string):string */
 	private $account_for;
 
+	/** @var callable(string):array<int, string> */
+	private $other_accounts;
+
 	/**
-	 * @param callable(string):?SmailyClient $smaily_client_factory The Smaily client of an account key, or null when the email side isn't configured.
-	 * @param PrivacyRequests                $privacy_requests      The queue of the engine's §10 opt-out and opt-in (CON-431).
-	 * @param (callable(string):string)|null $account_for           The account key a contact's address is kept in (CON-472); null: `default` for every contact.
+	 * @param callable(string):?SmailyClient               $smaily_client_factory The Smaily client of an account key, or null when the email side isn't configured.
+	 * @param PrivacyRequests                              $privacy_requests      The queue of the engine's §10 opt-out and opt-in (CON-431).
+	 * @param (callable(string):string)|null               $account_for           The account key a contact's address is kept in (CON-472); null: `default` for every contact.
+	 * @param (callable(string):array<int, string>)|null $other_accounts        The other accounts that can keep a contact, by the account key (CON-480); null: none.
 	 */
 	public function __construct(
 		RecEngineSettings $settings,
 		callable $smaily_client_factory,
 		PrivacyRequests $privacy_requests,
-		?callable $account_for = null
+		?callable $account_for = null,
+		?callable $other_accounts = null
 	) {
 		$this->settings              = $settings;
 		$this->smaily_client_factory = $smaily_client_factory;
 		$this->privacy_requests      = $privacy_requests;
 		$this->account_for           = $account_for ?? static function (): string {
 			return Credentials::DEFAULT_ACCOUNT_KEY;
+		};
+		$this->other_accounts        = $other_accounts ?? static function (): array {
+			return array();
 		};
 	}
 
@@ -172,7 +182,8 @@ class ProfilingConsent {
 		if ( $client instanceof SmailyClient ) {
 			try {
 				$consent    = $client->get_contact_consent( $email );
-				$allowed    = self::is_allowed( $consent['is_unsubscribed'], $consent['smaily_rec_profiling'] );
+				$allowed    = self::is_allowed( $consent['is_unsubscribed'], $consent['smaily_rec_profiling'] )
+					&& ( $consent['found'] || ! $this->objected_elsewhere( $email, $account ) );
 				$carried_at = null;
 				if ( $allowed && $this->is_durably_opted_out( $email ) && ! $this->is_newer_opt_in( $email, $consent ) ) {
 					// PRO-3191: a durable store-side opt-out holds until an
@@ -202,6 +213,29 @@ class ProfilingConsent {
 		$allowed = $this->fallback_on_error( $email, $account );
 		$this->cache( $email, $account, $allowed );
 		return $allowed;
+	}
+
+	/**
+	 * CON-480: a contact the own account does not hold can be kept in
+	 * another account — synced before CON-446, or its language changed.
+	 * Did it object to profiling (or unsubscribe) in any of them? A read
+	 * that fails throws, so the caller answers fallback_on_error().
+	 *
+	 * @throws \Throwable When another account cannot be read.
+	 */
+	private function objected_elsewhere( string $email, string $account ): bool {
+		foreach ( ( $this->other_accounts )( $account ) as $other ) {
+			$client = ( $this->smaily_client_factory )( $other );
+			if ( ! $client instanceof SmailyClient ) {
+				throw new \RuntimeException( 'no Smaily client for another account' );
+			}
+			$consent = $client->get_contact_consent( $email );
+			if ( $consent['found'] && ! self::is_allowed( $consent['is_unsubscribed'], $consent['smaily_rec_profiling'] ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

@@ -183,8 +183,8 @@ plugin), plus the line in the file's header list.
 
 | # | Disposition |
 |---|---|
-| L1 (Low) | **Fixed before 3.27.0** — Linear CON-481, PR #408 (open). |
-| L2 (Low) | **Fixed before 3.27.0** — Linear CON-481, PR #408 (open). |
+| L1 (Low) | **Fixed in PR #408, merged as main `3f27555`** — Linear CON-481. |
+| L2 (Low) | **Fixed in PR #408, merged as main `3f27555`** — Linear CON-481. |
 | I1 | Accepted, no change for 3.27.0. |
 | I2 | Accepted, no change for 3.27.0. |
 | I3 | Accepted, no change for 3.27.0. |

@@ -160,6 +160,28 @@ final class UninstallCleanupTest extends TestCase {
 	 * The drain stamp outlives nothing: migration 012 deletes it, and the
 	 * smly_plus_ LIKE sweep catches it on a store deleted before 012 ran.
 	 */
+	/** CON-480: "this account holds this contact" is a transient per account and contact. */
+	public function test_sweeps_the_unsubscribe_carry_over_transients_by_prefix(): void {
+		$source = $this->uninstall_source();
+		foreach ( array( '_transient_', '_transient_timeout_' ) as $kind ) {
+			self::assertStringContainsString(
+				"esc_like( '" . $kind . \Smaily\Connect\Smaily\UnsubscribeCarryOver::CACHE_PREFIX . "' )",
+				$source
+			);
+		}
+	}
+
+	/**
+	 * The network index lives in wp_sitemeta, out of the smly_plus_ LIKE
+	 * sweep's reach (CON-481).
+	 */
+	public function test_removes_the_network_account_index_on_a_multisite_network(): void {
+		self::assertMatchesRegularExpression(
+			"/if \\( is_multisite\\(\\) \\) \\{\\s*delete_site_option\\( '" . \Smaily\Connect\Smaily\NetworkAccounts::SITE_OPTION . "' \\);/",
+			$this->uninstall_source()
+		);
+	}
+
 	public function test_sweeps_the_legacy_cart_drain_stamp_by_the_smly_plus_prefix(): void {
 		self::assertStringStartsWith( 'smly_plus_', LegacyCartDrain::DRAINED_OPTION );
 		self::assertStringContainsString( "esc_like( 'smly_plus_' )", $this->uninstall_source() );

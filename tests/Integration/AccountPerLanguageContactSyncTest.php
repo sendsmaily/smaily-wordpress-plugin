@@ -141,6 +141,34 @@ final class AccountPerLanguageContactSyncTest extends TestCase {
 		self::assertSame( 'account_not_configured: account_et', $row['last_error'] );
 	}
 
+	/**
+	 * CON-481: the main account's saved credentials are incomplete, so
+	 * Bootstrap cannot build its client. The row that goes there fails alone
+	 * with a plain reason; the row queued after it still reaches its account.
+	 */
+	public function test_a_row_whose_client_cannot_be_built_does_not_stop_the_others(): void {
+		update_option( 'smly_plus_default_fallback_account', 'default' );
+		update_option(
+			'smaily_connect_api_credentials',
+			array(
+				'subdomain' => 'mainsub',
+				'username'  => '',
+				'password'  => '',
+			)
+		);
+		$this->forget_clients();
+		$latvian  = $this->make_user( 'lv' );
+		$estonian = $this->make_user( 'et' );
+
+		$sent = $this->flush_against( 200 );
+
+		$row = $this->row_of( $latvian );
+		self::assertSame( EventQueue::STATUS_FAILED, $row['status'] );
+		self::assertMatchesRegularExpression( '/^RuntimeException at Bootstrap\.php:\d+$/', (string) $row['last_error'] );
+		self::assertSame( 'eestisub', $this->account_of( $sent, $estonian ), 'The next row is sent.' );
+		self::assertSame( EventQueue::STATUS_SENT, $this->row_of( $estonian )['status'] );
+	}
+
 	public function test_a_stale_subscribe_is_still_skipped_in_its_language_account(): void {
 		update_option( ContactSyncMode::OPTION_MODE, ContactSyncMode::MODE_CONSENT );
 		$this->forget_mode_memo();
@@ -150,7 +178,7 @@ final class AccountPerLanguageContactSyncTest extends TestCase {
 		$this->flush_against( 500 );
 		$unsubscribe = $this->change_subscription( $estonian, 0 );
 		$sent        = $this->flush_against( 200 );
-		self::assertSame( array( 'eestisub' ), array_column( $sent, 'account' ) );
+		self::assertSame( 'eestisub', $sent[0]['account'] ?? null );
 		self::assertSame( EventQueue::STATUS_SENT, $this->row( $unsubscribe )['status'] );
 
 		$this->make_due( $subscribe );

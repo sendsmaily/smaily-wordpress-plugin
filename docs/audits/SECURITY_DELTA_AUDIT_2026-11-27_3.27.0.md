@@ -309,7 +309,7 @@ included — is green.
 
 | # | Disposition |
 |---|---|
-| M1 (Medium) | **Fix before 3.27.0** — Linear CON-480 (an opt-out reaches every account; an unsubscribe carries to an account that does not hold the contact; a profiling objection in another account holds) and CON-482 (the first-order email and the cart reminder skip a contact unsubscribed in another account — the gap the CON-480 work found), both in PR #408 (open). |
+| M1 (Medium) | **Fixed in PR #408, merged as main `3f27555`** — Linear CON-480 (an opt-out reaches every account; an unsubscribe carries to an account that does not hold the contact; a profiling objection in another account holds) and CON-482 (the first-order email and the cart reminder skip a contact unsubscribed in another account — the gap the CON-480 work found). |
 | I1 | Accepted, no change for 3.27.0. |
 | I2 | Accepted, no change for 3.27.0. |
 | I3 | Accepted, no change for 3.27.0. |
