@@ -11800,6 +11800,8 @@ ticks the box is synced in every mode, whatever the switch says; in
 consent and checkout-only as subscribed (`is_unsubscribed = 0`), under
 legitimate interest without a status as before (Smaily creates a new
 contact subscribed and keeps an existing contact's status — PRO-3609).
+*Superseded for legitimate interest by CON-442: a tick is sent as
+subscribed there too.*
 (2) The switch only adds guests who did NOT tick, which only legitimate
 interest sends: Settings and the wizard show it for that mode alone,
 labelled "Also sync guest buyers who did not tick the newsletter box".
@@ -12282,3 +12284,28 @@ background (a new message, EN + ET).
 (its pace, on its own queue), PRO-1893 (gates), CON-277/CON-301 (codes,
 never messages, in logs and stored errors), PRO-3906/CON-275 (the eraser's
 other background-job clean-up).
+
+### CON-442 — A checkout tick under legitimate interest makes the shopper a subscriber again (Erkki, 2026-11-26)
+
+**Context:** legitimate interest sent its contacts without a subscription
+status (preset 1, PRO-3609), and Smaily keeps an existing contact's status
+when none is sent. A shopper who had unsubscribed and then ticked the
+newsletter box at checkout therefore stayed unsubscribed in Smaily — the new,
+explicit consent was lost. This held for a guest (sent since CON-439) and for
+a registered customer, whom only the account hooks sent, without a status.
+**Decision (Erkki, 2026-11-26; design approved 2026-11-27):** a tick means
+subscribed. Under legitimate interest a ticked checkout — classic and block,
+guest and registered — sends the contact with `is_unsubscribed = 0`.
+`HookHandler::sync_order_contact()` sets the status for every ticked
+checkout it sends, and sends a registered buyer's tick under legitimate
+interest as its own `order:<id>` row (the account hooks keep sending the
+account without a status). An unticked checkout still sends no status.
+Consent and checkout-only modes, the My Account registration box and the
+welcome are unchanged; `ContactAudience` is unchanged.
+**Consequence:** the subscribe row is a "subscribing" row in the sense of
+CON-395, so a retry of it is closed as stale once a newer delivered row of
+the same contact carries a status. No consent record (`user_newsletter`) is
+written outside consent mode (PRO-3406 unchanged).
+**Relationships:** CON-439 (a guest's tick always reaches Smaily — its
+"without a status" part is superseded here), PRO-3609 (soft opt-in: the
+unticked case), CON-395 (stale subscriptions), PRO-4093 (the welcome).

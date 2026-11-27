@@ -133,13 +133,8 @@ final class GuestCheckoutTickTest extends TestCase {
 
 		$writes = $this->contact_writes( $this->flush(), $email );
 		self::assertCount( 1, $writes, 'The tick reaches Smaily once.' );
-		if ( $mode === ContactSyncMode::MODE_LEGITIMATE_INTEREST ) {
-			// Smaily creates a contact sent without a status as subscribed;
-			// this mode leaves an existing contact's status to Smaily.
-			self::assertArrayNotHasKey( 'is_unsubscribed', $writes[0] );
-		} else {
-			self::assertSame( 0, $writes[0]['is_unsubscribed'], 'Sent as subscribed.' );
-		}
+		// Sent as subscribed in every mode, legitimate interest too (CON-442).
+		self::assertSame( 0, $writes[0]['is_unsubscribed'], 'Sent as subscribed.' );
 	}
 
 	/**

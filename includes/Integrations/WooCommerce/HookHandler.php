@@ -631,14 +631,21 @@ class HookHandler {
 	 * audience says so (F3-48 F1 — the guest / checkout-opt-in path the account
 	 * hooks don't cover). Registered customers in consent / legitimate interest
 	 * are handled by the account hooks; checkout-only routes everyone here.
+	 *
+	 * A ticked box is sent as subscribed in every mode. Under legitimate
+	 * interest that includes a registered buyer: the account hooks send that
+	 * contact without a status, so without this row a shopper who unsubscribed
+	 * earlier would stay unsubscribed despite the tick (CON-442).
 	 */
 	private function sync_order_contact( \WC_Order $order, bool $opted_in ): void {
 		if ( $this->gate_closed() || ! ContactSyncMode::sync_enabled() ) {
 			return;
 		}
 
-		$customer_id = (int) $order->get_customer_id();
-		if ( ! $this->audience()->should_sync_order_email( $customer_id, $opted_in ) ) {
+		$customer_id     = (int) $order->get_customer_id();
+		$li_account_tick = $opted_in && $customer_id > 0
+			&& $this->mode()->mode() === ContactSyncMode::MODE_LEGITIMATE_INTEREST;
+		if ( ! $li_account_tick && ! $this->audience()->should_sync_order_email( $customer_id, $opted_in ) ) {
 			return;
 		}
 
@@ -650,9 +657,9 @@ class HookHandler {
 		$user    = $customer_id > 0 ? get_userdata( $customer_id ) : false;
 		$payload = $user instanceof \WP_User ? $this->build_contact_payload( $user ) : $this->build_guest_payload( $order );
 
-		// An explicit checkout opt-in subscribes (consent / checkout-only); under
-		// legitimate interest Smaily owns consent, so is_unsubscribed is omitted.
-		if ( $opted_in && $this->mode()->mode() !== ContactSyncMode::MODE_LEGITIMATE_INTEREST ) {
+		// An explicit checkout opt-in subscribes, in every mode (CON-442). An
+		// unticked box sends no status: Smaily keeps the contact's own.
+		if ( $opted_in ) {
 			$payload['is_unsubscribed'] = 0;
 		}
 
