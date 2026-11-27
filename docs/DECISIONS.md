@@ -12499,6 +12499,80 @@ account with the same cache keys as before.
 CON-446 (`ContactAccount`, `AutomationConsent`), PRO-2435 (no no-expiry
 transient per contact).
 
+### CON-464 — A Dashboard and a Log page, as in Magento and PrestaShop (Erkki, 2026-11-27)
+
+**Context:** the plugin had no page that told the store owner its state.
+After setup the menu opened Settings; the Event Log was a Settings tab; a
+failed delivery, a Smaily account Smaily refused or an unreachable engine
+showed only as admin notices, and nothing said whether Action Scheduler
+ran the plugin's background work at all. Magento and PrestaShop open a
+Dashboard.
+**Decision (Erkki agreed the design 2026-11-27):** copy the Magento /
+PrestaShop Dashboard — same order, same words — plus PrestaShop's
+Background tasks card, plus an Automations card that neither has yet.
+- **Menu:** Dashboard, Initial setup, Settings, Log (`smaily-connect-
+  dashboard`, `-wizard`, `-settings`, `-log`); the top-level item opens the
+  Dashboard. Until setup is finished the Dashboard, Settings and the Log
+  redirect to the Initial setup (Magento's SetupGuard), on each page's
+  `load-` hook so the redirect is sent before any output — Settings'
+  redirect moved there from its render callback. The setup's Finish opens
+  the Dashboard (was Settings, PRO-3873). "Run setup again" is gone: the
+  menu always names it Initial setup. The older slugs stay; a bookmark to
+  Settings' `#events` tab opens the Log; the "View Event Log" admin notice
+  links to the Log.
+- **One admin route, `GET /dashboard`** (`REST\DashboardEndpoint`, nonce +
+  `manage_options`): failed rows in 24 h (`NotificationManager::
+  failed_last_24h()`, now public static, so the Dashboard and the health
+  notice count alike), contact syncs and catalog items (`catalog.upsert` /
+  `.delete` / `.remove`, not the nightly list) sent in 30 days by
+  `created_at` — a skipped or withdrawn row sent nothing and is left out —
+  pending rows queued since the site's midnight, Smaily's refusal and
+  `engine_down` from the health check's stored notices (so the page and
+  the notices agree; a refused engine is never "down"), the nights since
+  the last nightly product list went out (else since the connection;
+  0 below three, Magento's figure), and the background state. Nothing
+  there calls Smaily or the engine.
+- **Background tasks (Action Scheduler):** "Running" while one of our
+  actions (`smly_plus_*` / `smly_rec_*`, complete or failed) ran in the
+  last 15 minutes (PrestaShop's figure) — the flushers recur every minute,
+  so a working runner always has one; otherwise "Not running", with
+  `DISABLE_WP_CRON` named when it is set, else WP-Cron waiting for visits.
+- **A rejected engine key** (PrestaShop's "Key rejected"): the engine's
+  latest answer to this connection, as `Report\ConnectionHealth` stores
+  it, is `unauthorised` / `http_401` / `http_403` while the connection is
+  not refused (403 `tenant_inactive` stays "Not active"). The Campaign
+  Intelligence card says "Key rejected", and the verdict says so right
+  after "Smaily not connected", with "Open Settings" to reconnect. No
+  engine call: the stored answer clears with the engine's next accepted
+  call (the 15-minute health ping included).
+- **One "failed in 24 hours":** `NotificationManager::failed_last_24h()`
+  (both queues) is the only definition — the health check's
+  `failed_events` notice (both queues before, unchanged), the Log page's
+  banner (`EventsEndpoint`, its private copy removed) and the Dashboard.
+- **Verdict order:** Smaily not connected (incl. a package without API
+  access) > Campaign Intelligence key rejected > background tasks not
+  running (PrestaShop) > Campaign
+  Intelligence account not active > failures > engine unreachable > no
+  nightly product list > all normal. Magento's "Setup incomplete" cannot
+  show: the Dashboard redirects first. The warning banners stay hidden
+  while Smaily is not connected (Magento).
+- **Automations card:** the Smaily automations from the saved settings
+  (a transactional email counts On only with transactional emails on) and
+  the Campaign Intelligence emails from the existing automations proxy,
+  read after the page shows with the proxy's own timeout; an engine that
+  does not answer reads "not available right now".
+- **The CON-463 User Guide link** moved from the Settings header to the
+  Dashboard's quick links.
+**Not built:** the reason a skipped night's product list was not sent —
+the nightly run records no row for a skip (only a debug line), so the
+banner names the nights, not Magento's reason line. PrestaShop's cron line
+has no WooCommerce counterpart.
+**Consequence:** a finished store opens on its state; every figure is a
+local query, so the page never waits for the engine.
+**Relationships:** PRO-3873 (menu after setup), CON-463 (User Guide link),
+CON-350 / CON-351 (invitation banners), PRO-3859 (nightly product list),
+F3-44 / CON-2 (what a skipped row is).
+
 ### CON-467 — Setup and Settings warn when another site of the network keeps contacts in the same Smaily account under another mode (2026-11-27)
 
 **Context:** on a WordPress multisite network each site keeps its own

@@ -12,7 +12,6 @@ import { useSaveSettings } from '../../hooks/useSaveSettings';
 import { actionToTab } from '../../state/action-to-tab';
 import { buildTabPayload } from '../../state/buildTabPayload';
 import { saveEngineAutomations } from '../../state/engine-automations';
-import { readBoot } from '../../state/hydrate';
 import { mainAccount } from '../../state/main-account';
 import {
   buildSettingsInitialState,
@@ -31,6 +30,7 @@ import {
   savedAccounts,
 } from '../../state/workflow-removal';
 import { __, sprintf } from '@admin/lib/i18n';
+import { LOG_URL } from '@admin/lib/links';
 import { dismissNotice } from '../../api/notices';
 import { bannerBoot, CampaignIntelligenceBanner, campaignIntelligenceBannerVariant } from '../banners';
 import { Banner, Button, PillTabs } from '../primitives';
@@ -41,7 +41,7 @@ import {
   Step4Recommendations,
   Step5Integrations,
 } from '../steps';
-import { EventLog } from './EventLog';
+import { VersionLine } from '../VersionLine';
 
 export interface SettingsProps {
   initialEnv?: ServerEnv;
@@ -54,16 +54,15 @@ export interface SettingsProps {
   initialState?: WizardState;
 }
 
-const TABS: Array<{ value: SettingsTabKey | 'integrations' | 'events'; label: string }> = [
+const TABS: Array<{ value: SettingsTabKey | 'integrations'; label: string }> = [
   { value: 'connection', label: __('Connection', 'smaily-connect') },
   { value: 'subscribers', label: __('Contacts', 'smaily-connect') },
   { value: 'woocommerce', label: __('WooCommerce', 'smaily-connect') },
   { value: 'recommendations', label: __('Campaign Intelligence', 'smaily-connect') },
   { value: 'integrations', label: __('Integrations', 'smaily-connect') },
-  { value: 'events', label: __('Event Log', 'smaily-connect') },
 ];
 
-type AnyTab = SettingsTabKey | 'integrations' | 'events';
+type AnyTab = SettingsTabKey | 'integrations';
 
 /**
  * Settings root — orchestrates tab routing + per-tab dirty tracking +
@@ -93,7 +92,10 @@ type AnyTab = SettingsTabKey | 'integrations' | 'events';
  *      Phase 4 polish can snapshot pristine state for an in-place revert,
  *      but for the pilot a hard reload is acceptable and bulletproof.
  *
- *   6. Every tab stays open while the Smaily connection does not work
+ *   6. The Event Log is the Log page of its own (CON-464); a bookmark to
+ *      the old `#events` tab opens it.
+ *
+ *   7. Every tab stays open while the Smaily connection does not work
  *      (CON-431); a notice at the top says so and leads to the Connection
  *      tab. A Connection save that replaces a Smaily account asks first
  *      when automations would lose their workflows (workflow-removal.ts).
@@ -176,7 +178,7 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
   });
 
   const handleSave = useCallback((): void => {
-    if (activeTab === 'integrations' || activeTab === 'events') {
+    if (activeTab === 'integrations') {
       return;
     }
     // The Connection save stores the main account (CON-446): in Mode A the
@@ -216,7 +218,7 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
   // narrow it out alongside 'integrations' so dirtyTabs indexing is
   // safe.
   const tabIsDirty =
-    activeTab !== 'integrations' && activeTab !== 'finish' && activeTab !== 'events'
+    activeTab !== 'integrations' && activeTab !== 'finish'
       ? rawState.dirtyTabs[activeTab]
       : false;
 
@@ -226,10 +228,6 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
   const engineDirty = activeTab === 'woocommerce' && rawState.engineAutomations.dirty;
   const enginePending = rawState.engineAutomations.saveStatus === 'pending';
   const canSaveOrDiscard = tabIsDirty || engineDirty;
-  const version = readBoot()?.version ?? '';
-  // The merchant guide (CON-463): the full documentation, one click from the
-  // plugin's main screen. Constants::docs_url() through the boot payload.
-  const docsUrl = rawState.env.docsUrl ?? '';
 
   // The Campaign Intelligence banner on top of Settings (CON-350). It can be
   // closed (back in 30 days), and it steps aside on the Campaign Intelligence
@@ -252,13 +250,6 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
             <p className="mt-1 text-sm text-text-secondary">
               {__('Manage your Smaily integration. Each tab saves independently.', 'smaily-connect')}
             </p>
-            {docsUrl !== '' && (
-              <p className="mt-1 text-sm">
-                <a href={docsUrl} target="_blank" rel="noopener noreferrer" className="underline">
-                  {__('User Guide', 'smaily-connect')}
-                </a>
-              </p>
-            )}
           </div>
 
           <PillTabs
@@ -268,7 +259,6 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
               badge:
                 t.value !== 'integrations' &&
                 t.value !== 'finish' &&
-                t.value !== 'events' &&
                 (rawState.dirtyTabs[t.value] ||
                   (t.value === 'woocommerce' && rawState.engineAutomations.dirty))
                   ? '•'
@@ -352,12 +342,9 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
           <TabPanel active={activeTab === 'integrations'}>
             <Step5Integrations state={rawState} inSettings />
           </TabPanel>
-          <TabPanel active={activeTab === 'events'}>
-            <EventLog />
-          </TabPanel>
         </main>
 
-        {activeTab !== 'integrations' && activeTab !== 'events' && (
+        {activeTab !== 'integrations' && (
           <footer className="sticky bottom-0 -mx-6 flex items-center justify-end gap-3 border-t border-border-subtle bg-surface px-6 py-4 shadow-card">
             <Button
               variant="ghost"
@@ -379,16 +366,7 @@ export function Settings({ initialEnv = {}, initialState }: SettingsProps): Reac
           </footer>
         )}
 
-        {/* CON-302: the installed version, so support can ask which release a store runs. */}
-        {version !== '' && (
-          <p className="text-center text-xs text-text-secondary">
-            {sprintf(
-              // translators: %s is the installed plugin version, e.g. 3.21.1.
-              __('Smaily Connect %s', 'smaily-connect'),
-              version,
-            )}
-          </p>
-        )}
+        <VersionLine />
       </div>
     </div>
   );
@@ -411,6 +389,13 @@ function useTabRouting(defaultTab: AnyTab): [AnyTab, (next: AnyTab) => void] {
   }, [defaultTab, validTabs]);
 
   const [activeTab, setTab] = useState<AnyTab>(readHash);
+
+  // The Event Log moved to the Log page (CON-464): a bookmark to the old tab opens it.
+  useEffect(() => {
+    if (window.location.hash === '#events') {
+      window.location.replace(LOG_URL);
+    }
+  }, []);
 
   useEffect(() => {
     const onHashChange = (): void => setTab(readHash());

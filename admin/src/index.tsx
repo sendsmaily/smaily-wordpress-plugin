@@ -5,19 +5,19 @@ import { App } from './App';
 import './index.css';
 
 /**
- * Mount detection — admin/settings.php and admin/wizard.php emit a
- * <div id="smaily-connect-app" data-view="settings|wizard"> placeholder.
+ * Mount detection — admin/wizard.php emits a
+ * <div id="smaily-connect-app" data-view="settings|wizard|dashboard|log"> placeholder.
  * The bundle finds it on DOMContentLoaded and mounts <App view=...>.
  *
  * If the mount node is absent (Vite dev / unrelated admin page) we no-op
  * silently — loading the bundle on the wrong screen shouldn't throw.
  */
 
-type View = 'wizard' | 'settings' | 'unknown';
+type View = 'wizard' | 'settings' | 'dashboard' | 'log' | 'unknown';
 
 function resolveView(node: HTMLElement): View {
   const raw = node.getAttribute('data-view');
-  if (raw === 'wizard' || raw === 'settings') {
+  if (raw === 'wizard' || raw === 'settings' || raw === 'dashboard' || raw === 'log') {
     return raw;
   }
   return 'unknown';

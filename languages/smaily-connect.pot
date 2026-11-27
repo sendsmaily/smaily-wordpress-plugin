@@ -3634,14 +3634,272 @@ msgstr ""
 msgid "Smaily refused this contact in the contact import, so it was not imported. The details show Smaily’s answer code."
 msgstr ""
 
-#: admin/src/components/steps/Step2Subscribers.tsx:174
+#: admin/src/components/steps/Step2Subscribers.tsx:175
 msgid "Another site of this network sends contacts to the same Smaily account with a different contact sync mode, so the sites apply contradicting rules to one contact list:"
 msgid_plural "Other sites of this network send contacts to the same Smaily account with a different contact sync mode, so the sites apply contradicting rules to one contact list:"
 msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %1$s is a site name, %2$s is its address, %3$s is its contact sync mode.
-#: admin/src/components/steps/Step2Subscribers.tsx:183
+#: admin/src/components/steps/Step2Subscribers.tsx:184
 #, js-format
 msgid "%1$s (%2$s): %3$s"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:281
+msgid "Account not active on the Smaily side"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:345
+msgid "Action Scheduler runs them through WP-Cron, which needs visits to the site. Ask your host for a server cron that calls wp-cron.php every minute."
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:116
+msgid "All systems normal"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:396
+msgid "Attention"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:478
+msgid "Automations"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:325
+msgid "Background tasks"
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:56
+msgid "Background tasks are not running — nothing goes to Smaily until they run again."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:173
+msgid "Browse tracking"
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:65
+msgid "Campaign Intelligence has stopped accepting data from this store, so product, customer and order data is no longer being sent and recommendations will go stale. Waiting will not fix it — the account has to be made active again on the Smaily side. Your Smaily email sending is unaffected; everything queued here waits and is sent once the account is active."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:361
+msgid "Catalog items"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:158
+#, js-format
+msgid "Connected (%s)"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:357
+msgid "Contact syncs"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:163
+msgid "Credentials missing or invalid"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:288
+msgid "Currently unreachable"
+msgstr ""
+
+#: admin/wizard.php:61
+msgid "Dashboard"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:178
+msgid "Disabled"
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:117
+msgid "Everything is running — deliveries to Smaily are flowing normally."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:319
+#, js-format
+msgid "Last run %s"
+msgstr ""
+
+#: admin/wizard.php:88 admin/src/components/dashboard/Dashboard.tsx:573
+msgid "Log"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:481
+msgid "Manage in Settings"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:447
+msgid "Needs a Campaign Intelligence connection."
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:51
+msgid "Needs attention"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:316
+msgid "Never run"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:519
+msgid "No deliveries yet. Once contacts, orders or catalog changes start flowing, the latest queue rows show up here."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:141
+#, js-format
+msgid "No nightly product list has gone to Campaign Intelligence for %d nights"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:282
+msgid "Not active"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:168 admin/src/components/dashboard/verdict.ts:38
+msgid "Not connected"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:337
+msgid "Not running"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:182
+msgid "On"
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:48
+msgid "Open Connection settings"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:162
+msgid "Package does not include API access"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:365
+msgid "Queued today"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:594
+msgid "Quick links"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:509
+msgid "Recent activity"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:133 admin/src/components/dashboard/verdict.ts:85 admin/src/components/log/LogPage.tsx:11
+msgid "Review failures"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:328
+msgid "Running"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:177
+msgid "Script live on storefront"
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:93
+msgid "Smaily Connect is running, but Campaign Intelligence is currently unreachable — data is queued locally and will sync when it recovers."
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:106
+#, js-format
+msgid "Smaily Connect is running, but no nightly product list has gone to Campaign Intelligence for %d nights."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:103
+msgid "Smaily Connect — Dashboard"
+msgstr ""
+
+#: admin/src/components/log/LogPage.tsx:21
+msgid "Smaily Connect — Log"
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:41
+msgid "Smaily is refusing every request because this account's package does not include API access. Contact sync and email automations stay stopped until the account is on a package that includes it — waiting will not restore them, and the credentials cannot be checked until then."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:63
+msgid "The Dashboard could not be loaded. Reload the page to try again."
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:45
+msgid "The Smaily credentials are missing or Smaily has not accepted them — check them in Settings > Connection and test the connection."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:471
+msgid "The state of the Campaign Intelligence emails is not available right now."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:289
+msgid "Unreachable"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:371
+msgid "View failed deliveries"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:512 admin/src/components/dashboard/verdict.ts:118
+msgid "View full log"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:341
+msgid "WP-Cron is switched off on this site (DISABLE_WP_CRON), so the server's cron has to call wp-cron.php. Ask your host to set it up."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:568
+msgid "connection, contacts, automations, Intelligence and RSS in one tabbed page"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:358
+msgid "delivered, last 30 days"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:366
+msgid "events waiting to send"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:574
+msgid "every delivery with retry for failed rows"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:374
+msgid "last 24 hours"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:580
+msgid "re-run the guided setup at any time; your settings are kept"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:588
+msgid "the full merchant documentation: every feature, setting and troubleshooting steps"
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:126
+#, js-format
+msgid "%d event failed in the last 24 hours"
+msgid_plural "%d events failed in the last 24 hours"
+msgstr[0] ""
+msgstr[1] ""
+
+#: admin/src/components/dashboard/verdict.ts:78
+#, js-format
+msgid "Smaily Connect is running, but %d delivery failed in the last 24 hours."
+msgid_plural "Smaily Connect is running, but %d deliveries failed in the last 24 hours."
+msgstr[0] ""
+msgstr[1] ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:290 admin/src/components/dashboard/verdict.ts:58
+msgid "Campaign Intelligence rejected the stored API key."
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:59
+msgid "The key was revoked or rotated. Disconnect and reconnect with a fresh setup link."
+msgstr ""
+
+#: admin/src/components/dashboard/Dashboard.tsx:291
+msgid "Key rejected"
+msgstr ""
+
+#: admin/src/components/dashboard/verdict.ts:62
+msgid "Open Settings"
 msgstr ""

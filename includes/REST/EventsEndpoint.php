@@ -16,6 +16,7 @@ defined( 'ABSPATH' ) || exit;
 
 use Smaily\Connect\Constants;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
+use Smaily\Connect\Notifications\NotificationManager;
 use Smaily\Connect\Smaily\CartFlusher;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
@@ -189,7 +190,8 @@ class EventsEndpoint {
 				'total'      => $total,
 				'page'       => $page,
 				'per_page'   => $per_page,
-				'failed_24h' => $this->failed_last_24h(),
+				// The one count of both queues the Dashboard and the health notice use too (CON-464).
+				'failed_24h' => NotificationManager::failed_last_24h(),
 			),
 			200
 		);
@@ -595,26 +597,6 @@ class EventsEndpoint {
 		);
 
 		return array( $sql, $params );
-	}
-
-	private function failed_last_24h(): int {
-		global $wpdb;
-
-		$cutoff = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
-		$rec    = $this->rec_table();
-		$smaily = $this->smaily_table();
-
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
-		return (int) $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT
-					( SELECT COUNT(*) FROM {$rec} WHERE status = 'failed' AND created_at >= %s )
-					+ ( SELECT COUNT(*) FROM {$smaily} WHERE status = 'failed' AND created_at >= %s )",
-				$cutoff,
-				$cutoff
-			)
-		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	}
 
 	/**

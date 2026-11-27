@@ -3634,14 +3634,272 @@ msgstr "Paranda andmed ja käivita import uuesti:"
 msgid "Smaily refused this contact in the contact import, so it was not imported. The details show Smaily’s answer code."
 msgstr "Smaily lükkas selle kontakti kontaktide impordis tagasi, seetõttu seda ei imporditud. Üksikasjades on Smaily vastuse kood."
 
-#: admin/src/components/steps/Step2Subscribers.tsx:174
+#: admin/src/components/steps/Step2Subscribers.tsx:175
 msgid "Another site of this network sends contacts to the same Smaily account with a different contact sync mode, so the sites apply contradicting rules to one contact list:"
 msgid_plural "Other sites of this network send contacts to the same Smaily account with a different contact sync mode, so the sites apply contradicting rules to one contact list:"
 msgstr[0] "Selle võrgu teine sait saadab kontakte samasse Smaily kontosse teistsuguse kontaktide sünkroniseerimise valimiga, nii et saidid rakendavad ühele kontaktinimekirjale vastukäivaid reegleid:"
 msgstr[1] "Selle võrgu teised saidid saadavad kontakte samasse Smaily kontosse teistsuguse kontaktide sünkroniseerimise valimiga, nii et saidid rakendavad ühele kontaktinimekirjale vastukäivaid reegleid:"
 
 #. translators: %1$s is a site name, %2$s is its address, %3$s is its contact sync mode.
-#: admin/src/components/steps/Step2Subscribers.tsx:183
+#: admin/src/components/steps/Step2Subscribers.tsx:184
 #, js-format
 msgid "%1$s (%2$s): %3$s"
 msgstr "%1$s (%2$s): %3$s"
+
+#: admin/src/components/dashboard/Dashboard.tsx:281
+msgid "Account not active on the Smaily side"
+msgstr "Konto ei ole Smaily poolel aktiivne"
+
+#: admin/src/components/dashboard/Dashboard.tsx:345
+msgid "Action Scheduler runs them through WP-Cron, which needs visits to the site. Ask your host for a server cron that calls wp-cron.php every minute."
+msgstr "Action Scheduler käivitab need WP-Croni kaudu, mis vajab saidi külastusi. Palu veebimajutajalt serveri cron, mis kutsub wp-cron.php-d iga minut."
+
+#: admin/src/components/dashboard/verdict.ts:116
+msgid "All systems normal"
+msgstr "Kõik toimib normaalselt"
+
+#: admin/src/components/dashboard/Dashboard.tsx:396
+msgid "Attention"
+msgstr "Tähelepanu"
+
+#: admin/src/components/dashboard/Dashboard.tsx:478
+msgid "Automations"
+msgstr "Automaatikad"
+
+#: admin/src/components/dashboard/Dashboard.tsx:325
+msgid "Background tasks"
+msgstr "Taustatööd"
+
+#: admin/src/components/dashboard/verdict.ts:56
+msgid "Background tasks are not running — nothing goes to Smaily until they run again."
+msgstr "Taustatööd ei tööta — Smailysse ei jõua midagi enne, kui need jälle käivituvad."
+
+#: admin/src/components/dashboard/Dashboard.tsx:173
+msgid "Browse tracking"
+msgstr "Sirvimise jälgimine"
+
+#: admin/src/components/dashboard/verdict.ts:65
+msgid "Campaign Intelligence has stopped accepting data from this store, so product, customer and order data is no longer being sent and recommendations will go stale. Waiting will not fix it — the account has to be made active again on the Smaily side. Your Smaily email sending is unaffected; everything queued here waits and is sent once the account is active."
+msgstr "Campaign Intelligence ei võta enam sellest poest andmeid vastu, seega toote-, kliendi- ja tellimusandmeid enam ei saadeta ning soovitused vananevad. Ootamine seda ei lahenda — konto tuleb Smaily poolel uuesti aktiivseks teha. Smaily e-kirjade saatmist see ei mõjuta; kõik siin järjekorras olev ootab ja saadetakse ära, kui konto on taas aktiivne."
+
+#: admin/src/components/dashboard/Dashboard.tsx:361
+msgid "Catalog items"
+msgstr "Kataloogitooted"
+
+#: admin/src/components/dashboard/Dashboard.tsx:158
+#, js-format
+msgid "Connected (%s)"
+msgstr "Ühendatud (%s)"
+
+#: admin/src/components/dashboard/Dashboard.tsx:357
+msgid "Contact syncs"
+msgstr "Kontaktide sünkroonimised"
+
+#: admin/src/components/dashboard/Dashboard.tsx:163
+msgid "Credentials missing or invalid"
+msgstr "Mandaat puudub või on vale"
+
+#: admin/src/components/dashboard/Dashboard.tsx:288
+msgid "Currently unreachable"
+msgstr "Hetkel kättesaamatu"
+
+#: admin/wizard.php:61
+msgid "Dashboard"
+msgstr "Töölaud"
+
+#: admin/src/components/dashboard/Dashboard.tsx:178
+msgid "Disabled"
+msgstr "Väljas"
+
+#: admin/src/components/dashboard/verdict.ts:117
+msgid "Everything is running — deliveries to Smaily are flowing normally."
+msgstr "Kõik töötab — saadetised Smailysse liiguvad tavapäraselt."
+
+#: admin/src/components/dashboard/Dashboard.tsx:319
+#, js-format
+msgid "Last run %s"
+msgstr "Viimane käivitus %s"
+
+#: admin/wizard.php:88 admin/src/components/dashboard/Dashboard.tsx:573
+msgid "Log"
+msgstr "Logi"
+
+#: admin/src/components/dashboard/Dashboard.tsx:481
+msgid "Manage in Settings"
+msgstr "Halda seadetes"
+
+#: admin/src/components/dashboard/Dashboard.tsx:447
+msgid "Needs a Campaign Intelligence connection."
+msgstr "Vajab Campaign Intelligence'i ühendust."
+
+#: admin/src/components/dashboard/verdict.ts:51
+msgid "Needs attention"
+msgstr "Vajab tähelepanu"
+
+#: admin/src/components/dashboard/Dashboard.tsx:316
+msgid "Never run"
+msgstr "Pole kordagi käivitunud"
+
+#: admin/src/components/dashboard/Dashboard.tsx:519
+msgid "No deliveries yet. Once contacts, orders or catalog changes start flowing, the latest queue rows show up here."
+msgstr "Saadetisi veel pole. Kui kontaktid, tellimused või kataloogimuudatused liikuma hakkavad, ilmuvad värskeimad järjekorraread siia."
+
+#: admin/src/components/dashboard/Dashboard.tsx:141
+#, js-format
+msgid "No nightly product list has gone to Campaign Intelligence for %d nights"
+msgstr "Öist tootenimekirja pole Campaign Intelligence'ile saadetud %d ööd"
+
+#: admin/src/components/dashboard/Dashboard.tsx:282
+msgid "Not active"
+msgstr "Ei ole aktiivne"
+
+#: admin/src/components/dashboard/Dashboard.tsx:168 admin/src/components/dashboard/verdict.ts:38
+msgid "Not connected"
+msgstr "Pole ühendatud"
+
+#: admin/src/components/dashboard/Dashboard.tsx:337
+msgid "Not running"
+msgstr "Ei tööta"
+
+#: admin/src/components/dashboard/Dashboard.tsx:182
+msgid "On"
+msgstr "Sees"
+
+#: admin/src/components/dashboard/verdict.ts:48
+msgid "Open Connection settings"
+msgstr "Ava ühenduse seaded"
+
+#: admin/src/components/dashboard/Dashboard.tsx:162
+msgid "Package does not include API access"
+msgstr "Pakett ei sisalda API-ligipääsu"
+
+#: admin/src/components/dashboard/Dashboard.tsx:365
+msgid "Queued today"
+msgstr "Täna järjekorda pandud"
+
+#: admin/src/components/dashboard/Dashboard.tsx:594
+msgid "Quick links"
+msgstr "Kiirlingid"
+
+#: admin/src/components/dashboard/Dashboard.tsx:509
+msgid "Recent activity"
+msgstr "Viimane tegevus"
+
+#: admin/src/components/dashboard/Dashboard.tsx:133 admin/src/components/dashboard/verdict.ts:85 admin/src/components/log/LogPage.tsx:11
+msgid "Review failures"
+msgstr "Vaata ebaõnnestumised üle"
+
+#: admin/src/components/dashboard/Dashboard.tsx:328
+msgid "Running"
+msgstr "Töötab"
+
+#: admin/src/components/dashboard/Dashboard.tsx:177
+msgid "Script live on storefront"
+msgstr "Skript on poes aktiivne"
+
+#: admin/src/components/dashboard/verdict.ts:93
+msgid "Smaily Connect is running, but Campaign Intelligence is currently unreachable — data is queued locally and will sync when it recovers."
+msgstr "Smaily Connect töötab, kuid Campaign Intelligence on hetkel kättesaamatu — andmed on kohalikus järjekorras ja sünkroonitakse, kui ühendus taastub."
+
+#: admin/src/components/dashboard/verdict.ts:106
+#, js-format
+msgid "Smaily Connect is running, but no nightly product list has gone to Campaign Intelligence for %d nights."
+msgstr "Smaily Connect töötab, kuid öist tootenimekirja pole Campaign Intelligence'ile saadetud %d ööd."
+
+#: admin/src/components/dashboard/Dashboard.tsx:103
+msgid "Smaily Connect — Dashboard"
+msgstr "Smaily Connect — Töölaud"
+
+#: admin/src/components/log/LogPage.tsx:21
+msgid "Smaily Connect — Log"
+msgstr "Smaily Connect — Logi"
+
+#: admin/src/components/dashboard/verdict.ts:41
+msgid "Smaily is refusing every request because this account's package does not include API access. Contact sync and email automations stay stopped until the account is on a package that includes it — waiting will not restore them, and the credentials cannot be checked until then."
+msgstr "Smaily keeldub igast päringust, sest selle konto pakett ei sisalda API-ligipääsu. Kontaktide sünkroonimine ja e-posti automaatikad jäävad seisma, kuni konto on paketil, mis seda sisaldab — ootamine neid ei taasta ja kasutajaandmeid ei saa enne seda kontrollida."
+
+#: admin/src/components/dashboard/Dashboard.tsx:63
+msgid "The Dashboard could not be loaded. Reload the page to try again."
+msgstr "Töölaua laadimine ebaõnnestus. Laadi leht uuesti ja proovi veel kord."
+
+#: admin/src/components/dashboard/verdict.ts:45
+msgid "The Smaily credentials are missing or Smaily has not accepted them — check them in Settings > Connection and test the connection."
+msgstr "Smaily kasutajaandmed puuduvad või Smaily pole neid vastu võtnud — kontrolli neid jaotises Seaded > Ühendus ja testi ühendust."
+
+#: admin/src/components/dashboard/Dashboard.tsx:471
+msgid "The state of the Campaign Intelligence emails is not available right now."
+msgstr "Campaign Intelligence'i kirjade olek pole praegu saadaval."
+
+#: admin/src/components/dashboard/Dashboard.tsx:289
+msgid "Unreachable"
+msgstr "Kättesaamatu"
+
+#: admin/src/components/dashboard/Dashboard.tsx:371
+msgid "View failed deliveries"
+msgstr "Vaata ebaõnnestunud saatmisi"
+
+#: admin/src/components/dashboard/Dashboard.tsx:512 admin/src/components/dashboard/verdict.ts:118
+msgid "View full log"
+msgstr "Vaata täislogi"
+
+#: admin/src/components/dashboard/Dashboard.tsx:341
+msgid "WP-Cron is switched off on this site (DISABLE_WP_CRON), so the server's cron has to call wp-cron.php. Ask your host to set it up."
+msgstr "WP-Cron on selles saidis välja lülitatud (DISABLE_WP_CRON), seega peab serveri cron kutsuma wp-cron.php-d. Palu veebimajutajal see seadistada."
+
+#: admin/src/components/dashboard/Dashboard.tsx:568
+msgid "connection, contacts, automations, Intelligence and RSS in one tabbed page"
+msgstr "ühendus, kontaktid, automaatikad, Intelligence ja RSS ühel vahekaartidega lehel"
+
+#: admin/src/components/dashboard/Dashboard.tsx:358
+msgid "delivered, last 30 days"
+msgstr "edastatud, viimased 30 päeva"
+
+#: admin/src/components/dashboard/Dashboard.tsx:366
+msgid "events waiting to send"
+msgstr "saatmist ootavad sündmused"
+
+#: admin/src/components/dashboard/Dashboard.tsx:574
+msgid "every delivery with retry for failed rows"
+msgstr "iga saadetis koos ebaõnnestunud ridade uuesti proovimisega"
+
+#: admin/src/components/dashboard/Dashboard.tsx:374
+msgid "last 24 hours"
+msgstr "viimased 24 tundi"
+
+#: admin/src/components/dashboard/Dashboard.tsx:580
+msgid "re-run the guided setup at any time; your settings are kept"
+msgstr "käivita juhendatud seadistus igal ajal uuesti; sinu seaded säilivad"
+
+#: admin/src/components/dashboard/Dashboard.tsx:588
+msgid "the full merchant documentation: every feature, setting and troubleshooting steps"
+msgstr "täielik kaupmehe dokumentatsioon: kõik funktsioonid, seadistused ja veaotsingu sammud"
+
+#: admin/src/components/dashboard/Dashboard.tsx:126
+#, js-format
+msgid "%d event failed in the last 24 hours"
+msgid_plural "%d events failed in the last 24 hours"
+msgstr[0] "Viimase 24 tunni jooksul ebaõnnestus %d sündmus"
+msgstr[1] "Viimase 24 tunni jooksul ebaõnnestus %d sündmust"
+
+#: admin/src/components/dashboard/verdict.ts:78
+#, js-format
+msgid "Smaily Connect is running, but %d delivery failed in the last 24 hours."
+msgid_plural "Smaily Connect is running, but %d deliveries failed in the last 24 hours."
+msgstr[0] "Smaily Connect töötab, kuid viimase 24 tunni jooksul ebaõnnestus %d saadetis."
+msgstr[1] "Smaily Connect töötab, kuid viimase 24 tunni jooksul ebaõnnestus %d saadetist."
+
+#: admin/src/components/dashboard/Dashboard.tsx:290 admin/src/components/dashboard/verdict.ts:58
+msgid "Campaign Intelligence rejected the stored API key."
+msgstr "Campaign Intelligence lükkas salvestatud API võtme tagasi."
+
+#: admin/src/components/dashboard/verdict.ts:59
+msgid "The key was revoked or rotated. Disconnect and reconnect with a fresh setup link."
+msgstr "Võti on tühistatud või välja vahetatud. Katkesta ühendus ja ühenda uuesti värske seadistuslingiga."
+
+#: admin/src/components/dashboard/Dashboard.tsx:291
+msgid "Key rejected"
+msgstr "Võti tagasi lükatud"
+
+#: admin/src/components/dashboard/verdict.ts:62
+msgid "Open Settings"
+msgstr "Ava seaded"

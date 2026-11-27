@@ -2,9 +2,9 @@
 /**
  * Setup Wizard admin page mount.
  *
- * Registers the `Smaily → Initial setup` submenu, enqueues the
- * Vite-built admin bundle, and renders the React mount node with
- * data-view="wizard". State hydration happens client-side via
+ * Registers the Smaily Connect menu (Dashboard, Initial setup, Settings,
+ * Log), enqueues the Vite-built admin bundle, and renders the React mount
+ * node with the page's data-view. State hydration happens client-side via
  * `window.smailyConnectBoot` (set by wp_localize_script below).
  *
  * The legacy Smaily admin settings PAGE was removed (F3-45) — this is now the
@@ -23,8 +23,9 @@ defined( 'ABSPATH' ) || exit;
 use Smaily\Connect\Wizard\EnvDetector;
 
 /**
- * Registers the wizard + settings submenu pages under a fresh top-level
- * "Smaily Connect" menu. Hooked from Bootstrap::boot() onto admin_menu.
+ * Registers the Dashboard, Initial setup, Settings and Log pages under a
+ * top-level "Smaily Connect" menu. Hooked from Bootstrap::boot() onto
+ * admin_menu.
  */
 function smaily_connect_register_admin_pages(): void {
 	$capability = 'manage_options';
@@ -37,54 +38,44 @@ function smaily_connect_register_admin_pages(): void {
 		? 'data:image/svg+xml;base64,' . base64_encode( (string) file_get_contents( $icon_path ) ) // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		: 'dashicons-email-alt';
 
-	// Until setup is finished the menu opens the wizard. After that it opens
-	// Settings, and the wizard moves to the last submenu item, so a finished
-	// store does not look unfinished on every click (PRO-3873). Both page
-	// slugs stay registered either way, so bookmarks and the links in admin
-	// notices still resolve.
-	if ( ! \Smaily\Connect\Settings\SetupState::completed() ) {
+	// The menu reads Dashboard, Initial setup, Settings, Log, as Magento's
+	// and PrestaShop's do (CON-464). The top-level item opens the Dashboard;
+	// until setup is finished the Dashboard, Settings and the Log send the
+	// store to the Initial setup instead (smaily_connect_require_finished_setup).
+	// The older page slugs stay, so bookmarks and the links in admin notices
+	// still resolve.
+	$gated = array(
 		add_menu_page(
 			__( 'Smaily Connect', 'smaily-connect' ),
 			'Smaily Connect',
 			$capability,
-			'smaily-connect-wizard',
-			'smaily_connect_render_wizard_page',
+			'smaily-connect-dashboard',
+			'smaily_connect_render_dashboard_page',
 			$icon,
 			56
-		);
-
-		add_submenu_page(
-			'smaily-connect-wizard',
-			__( 'Initial setup', 'smaily-connect' ),
-			__( 'Initial setup', 'smaily-connect' ),
-			$capability,
-			'smaily-connect-wizard',
-			'smaily_connect_render_wizard_page'
-		);
-
-		add_submenu_page(
-			'smaily-connect-wizard',
-			__( 'Settings', 'smaily-connect' ),
-			__( 'Settings', 'smaily-connect' ),
-			$capability,
-			'smaily-connect-settings',
-			'smaily_connect_render_settings_page'
-		);
-		return;
-	}
-
-	add_menu_page(
-		__( 'Smaily Connect', 'smaily-connect' ),
-		'Smaily Connect',
-		$capability,
-		'smaily-connect-settings',
-		'smaily_connect_render_settings_page',
-		$icon,
-		56
+		),
 	);
 
 	add_submenu_page(
-		'smaily-connect-settings',
+		'smaily-connect-dashboard',
+		__( 'Dashboard', 'smaily-connect' ),
+		__( 'Dashboard', 'smaily-connect' ),
+		$capability,
+		'smaily-connect-dashboard',
+		'smaily_connect_render_dashboard_page'
+	);
+
+	add_submenu_page(
+		'smaily-connect-dashboard',
+		__( 'Initial setup', 'smaily-connect' ),
+		__( 'Initial setup', 'smaily-connect' ),
+		$capability,
+		'smaily-connect-wizard',
+		'smaily_connect_render_wizard_page'
+	);
+
+	$gated[] = add_submenu_page(
+		'smaily-connect-dashboard',
 		__( 'Settings', 'smaily-connect' ),
 		__( 'Settings', 'smaily-connect' ),
 		$capability,
@@ -92,14 +83,34 @@ function smaily_connect_register_admin_pages(): void {
 		'smaily_connect_render_settings_page'
 	);
 
-	add_submenu_page(
-		'smaily-connect-settings',
-		__( 'Run setup again', 'smaily-connect' ),
-		__( 'Run setup again', 'smaily-connect' ),
+	$gated[] = add_submenu_page(
+		'smaily-connect-dashboard',
+		__( 'Log', 'smaily-connect' ),
+		__( 'Log', 'smaily-connect' ),
 		$capability,
-		'smaily-connect-wizard',
-		'smaily_connect_render_wizard_page'
+		'smaily-connect-log',
+		'smaily_connect_render_log_page'
 	);
+
+	foreach ( $gated as $hook_suffix ) {
+		if ( is_string( $hook_suffix ) && $hook_suffix !== '' ) {
+			add_action( 'load-' . $hook_suffix, 'smaily_connect_require_finished_setup' );
+		}
+	}
+}
+
+/**
+ * Wizard-first gate: until the Initial setup is finished, the Dashboard,
+ * Settings and the Log send the store to it, as Magento's pages do. Runs on
+ * the page's `load-` hook, before any output, so the redirect can still be
+ * sent. The boot payload's `setupCompleted` flag flips when the setup's
+ * Finish runs.
+ */
+function smaily_connect_require_finished_setup(): void {
+	if ( ! \Smaily\Connect\Settings\SetupState::completed() ) {
+		wp_safe_redirect( admin_url( 'admin.php?page=smaily-connect-wizard' ) );
+		exit;
+	}
 }
 
 /**
@@ -116,31 +127,35 @@ function smaily_connect_render_wizard_page(): void {
 
 /**
  * Render the settings mount node. Same React bundle, different data-view.
- *
- * Wizard-first gate (sub-PR 2.I): merchants who haven't completed the
- * setup wizard yet land on the wizard, not Settings. The boot payload's
- * `setupCompleted` flag flips to true when Step 6 Finish runs
- * (sub-PR 2.H.18). Until then a Settings menu click bounces here, into
- * the wizard, so the merchant doesn't see a sea of tabs they can't
- * meaningfully fill in without first connecting.
- *
- * We deliberately keep the Settings menu item registered (rather than
- * remove_submenu_page on the unfinished setup case) so wp-admin's
- * breadcrumbs and direct-link bookmarks still resolve. The redirect
- * fires after the capability check so a perm-denied user still sees
- * the wp_die() rather than getting bounced.
  */
 function smaily_connect_render_settings_page(): void {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( esc_html__( 'You do not have permission to view this page.', 'smaily-connect' ) );
 	}
 
-	if ( ! \Smaily\Connect\Settings\SetupState::completed() ) {
-		wp_safe_redirect( admin_url( 'admin.php?page=smaily-connect-wizard' ) );
-		exit;
+	smaily_connect_emit_mount( 'settings' );
+}
+
+/**
+ * Render the Dashboard mount node (CON-464): the plugin's state at a glance.
+ */
+function smaily_connect_render_dashboard_page(): void {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'You do not have permission to view this page.', 'smaily-connect' ) );
 	}
 
-	smaily_connect_emit_mount( 'settings' );
+	smaily_connect_emit_mount( 'dashboard' );
+}
+
+/**
+ * Render the Log mount node (CON-464): the Event Log on its own page.
+ */
+function smaily_connect_render_log_page(): void {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'You do not have permission to view this page.', 'smaily-connect' ) );
+	}
+
+	smaily_connect_emit_mount( 'log' );
 }
 
 /**
@@ -152,13 +167,13 @@ function smaily_connect_render_settings_page(): void {
  * Settings tabs. With the marker they land here — full-width, above the React
  * tree, like on every other admin page. Core CSS keeps the hr invisible.
  *
- * @param 'wizard'|'settings' $view
+ * @param 'wizard'|'settings'|'dashboard'|'log' $view
  */
 function smaily_connect_emit_mount( string $view ): void {
 	// Always-visible link to the merchant documentation site, right where a
 	// merchant lands during setup — help material one click away on install.
-	// Rendered PHP-side on the wizard; the Settings page carries its "User
-	// Guide" link in its own header (CON-463). URL is centralized in
+	// Rendered PHP-side on the wizard; the Dashboard carries its "User
+	// Guide" link in its quick links (CON-464). URL is centralized in
 	// Constants::docs_url() (one change when docs move to connect.smaily.com).
 	$docs_url = \Smaily\Connect\Constants::docs_url();
 	?>
@@ -254,9 +269,15 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 		? trim( (string) file_get_contents( $build_hash_file ) ) // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 		: 'dev';
 
-	// The same rule the mount node's data-view follows: the Settings page is
-	// the only screen on page=smaily-connect-settings.
-	$view = isset( $_GET['page'] ) && $_GET['page'] === 'smaily-connect-settings' ? 'settings' : 'wizard'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	// The same rule the mount node's data-view follows: each page slug has
+	// its own screen, and every other Smaily Connect page is the wizard.
+	$views = array(
+		'smaily-connect-dashboard' => 'dashboard',
+		'smaily-connect-settings'  => 'settings',
+		'smaily-connect-log'       => 'log',
+	);
+	$page  = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+	$view  = $views[ $page ] ?? 'wizard';
 
 	$boot = array(
 		'buildHash'       => $build_hash,

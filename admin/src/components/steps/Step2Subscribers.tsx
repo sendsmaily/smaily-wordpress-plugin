@@ -2,6 +2,7 @@ import { useEffect, type Dispatch } from 'react';
 
 import { formatUtc } from '@admin/lib/format-utc';
 import { __, _n, sprintf } from '@admin/lib/i18n';
+import { LOG_URL } from '@admin/lib/links';
 import { useBackfillProgress } from '../../hooks/useBackfillProgress';
 import { readBoot } from '../../state/hydrate';
 import {
@@ -336,7 +337,7 @@ export function Step2Subscribers({
                     ),
                     progress.refused.count,
                   )}{' '}
-                  <a href={EVENT_LOG_URL} className="underline">
+                  <a href={LOG_URL} className="underline">
                     { __( 'Open the Event Log', 'smaily-connect' ) }
                   </a>
                 </p>
@@ -395,9 +396,6 @@ export function Step2Subscribers({
     </div>
   );
 }
-
-/** The Settings page's Event Log tab — the page reads its tab from the hash. */
-const EVENT_LOG_URL = 'admin.php?page=smaily-connect-settings#events';
 
 /**
  * One list of customers the contact import skipped — the ones Smaily refused

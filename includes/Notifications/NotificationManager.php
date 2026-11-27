@@ -183,7 +183,7 @@ final class NotificationManager {
 	 */
 	public function run_health_check(): void {
 		$now        = time();
-		$failed     = $this->failed_last_24h();
+		$failed     = self::failed_last_24h();
 		$down_since = $this->probe_engine( $now );
 		$smaily     = $this->probe_smaily( $now );
 
@@ -364,8 +364,13 @@ final class NotificationManager {
 		);
 	}
 
-	/** Failed rows across both durable queues in the last 24h. */
-	private function failed_last_24h(): int {
+	/**
+	 * Failed rows across both durable queues — the Smaily queue and the
+	 * Campaign Intelligence queue — queued in the last 24h. The one
+	 * definition: the health check's `failed_events` notice, the Log page's
+	 * banner (EventsEndpoint) and the Dashboard (CON-464) all read it.
+	 */
+	public static function failed_last_24h(): int {
 		global $wpdb;
 
 		$rec    = $wpdb->prefix . IngestQueue::TABLE_SUFFIX;
@@ -417,7 +422,7 @@ final class NotificationManager {
 			printf(
 				'<div class="notice notice-error"><p>%1$s %2$s %3$s</p></div>',
 				esc_html( $this->message_for( $key, $notice ) ),
-				wp_kses_post( $this->settings_link( 'events', __( 'View Event Log', 'smaily-connect' ) ) ),
+				wp_kses_post( $this->log_link( __( 'View Event Log', 'smaily-connect' ) ) ),
 				wp_kses_post( $this->dismiss_link( $key ) )
 			);
 		}
@@ -621,6 +626,15 @@ final class NotificationManager {
 		return sprintf(
 			'<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
 			esc_url( $url ),
+			esc_html( $label )
+		);
+	}
+
+	/** A link to the Log page, the Event Log's own page since CON-464. */
+	private function log_link( string $label ): string {
+		return sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( admin_url( 'admin.php?page=smaily-connect-log' ) ),
 			esc_html( $label )
 		);
 	}

@@ -114,8 +114,8 @@ from `wp_options` — uninstall.php is what wipes plugin state, and it
 only runs when the merchant explicitly clicks **Delete** in the
 plugins screen. Reactivating a deleted plugin therefore reads back any
 flags that survived (notably `smly_plus_setup_completed`), so the
-wizard-first gate at `/wp-admin/admin.php?page=smaily-connect-settings`
-thinks the merchant has already onboarded.
+wizard-first gate at `/wp-admin/admin.php?page=smaily-connect-dashboard`
+(and Settings, and the Log) thinks the merchant has already onboarded.
 
 To run a TRUE fresh-install test:
 
@@ -140,8 +140,8 @@ To run a TRUE fresh-install test:
    wp db query "DELETE FROM wp_options WHERE option_name LIKE 'smly_plus_%'"
    ```
 
-After any of the above, visiting `/wp-admin/admin.php?page=smaily-connect-settings`
-should redirect to `?page=smaily-connect-wizard`. The previously-misleading
+After any of the above, visiting `/wp-admin/admin.php?page=smaily-connect-dashboard`
+(or `…-settings`, `…-log`) should redirect to `?page=smaily-connect-wizard`. The previously-misleading
 "my fresh install opens Settings" symptom was tracked to leftover
 `wp_options` rows — see commit log for sub-PR 2.J.
 
