@@ -157,19 +157,21 @@ function smaily_connect_render_settings_page(): void {
 function smaily_connect_emit_mount( string $view ): void {
 	// Always-visible link to the merchant documentation site, right where a
 	// merchant lands during setup — help material one click away on install.
-	// Rendered PHP-side (not in the React bundle) so it needs no JS/i18n rebuild
-	// and shows on both the wizard and Settings screens. URL is centralized in
+	// Rendered PHP-side on the wizard; the Settings page carries its "User
+	// Guide" link in its own header (CON-463). URL is centralized in
 	// Constants::docs_url() (one change when docs move to connect.smaily.com).
 	$docs_url = \Smaily\Connect\Constants::docs_url();
 	?>
 	<div class="wrap" id="smaily-connect-wrap">
 		<hr class="wp-header-end">
+		<?php if ( $view === 'wizard' ) : ?>
 		<p class="smaily-connect-docs-link" style="margin:0 0 6px;text-align:right;font-size:13px;">
 			<a href="<?php echo esc_url( $docs_url ); ?>" target="_blank" rel="noopener noreferrer">
 				<span class="dashicons dashicons-book-alt" style="vertical-align:text-bottom;"></span>
 				<?php echo esc_html__( 'Documentation', 'smaily-connect' ); ?>
 			</a>
 		</p>
+		<?php endif; ?>
 		<div
 			id="smaily-connect-app"
 			data-view="<?php echo esc_attr( $view ); ?>"
