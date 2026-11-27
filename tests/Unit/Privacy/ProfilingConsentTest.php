@@ -71,6 +71,51 @@ final class ProfilingConsentTest extends TestCase {
 		);
 	}
 
+	// --- CON-472: the contact's own account ---------------------------------
+
+	public function test_a_contact_kept_in_another_account_is_read_and_cached_there(): void {
+		$email   = 'a@example.com';
+		$entries = array( 'smly_profiling_' . md5( $email ) => '1' ); // the main account's answer.
+		Functions\when( 'get_transient' )->alias(
+			static function ( string $key ) use ( &$entries ) {
+				return $entries[ $key ] ?? false;
+			}
+		);
+		Functions\when( 'set_transient' )->alias(
+			static function ( string $key, $value ) use ( &$entries ): bool {
+				$entries[ $key ] = $value;
+				return true;
+			}
+		);
+		Functions\when( 'get_option' )->justReturn( array() );
+		Functions\when( 'update_option' )->justReturn( true );
+
+		$smaily = $this->createMock( SmailyClient::class );
+		$smaily->expects( self::once() )->method( 'get_contact_consent' )->with( $email )->willReturn(
+			array( 'found' => true, 'is_unsubscribed' => '0', 'smaily_rec_profiling' => '0', 'smaily_rec_profiling_ts' => null )
+		);
+		$asked = array();
+		$rec   = $this->createMock( PrivacyRequests::class );
+
+		$settings = $this->createMock( RecEngineSettings::class );
+		$profiling = new ProfilingConsent(
+			$settings,
+			static function ( string $account_key ) use ( $smaily, &$asked ): SmailyClient {
+				$asked[] = $account_key;
+				return $smaily;
+			},
+			$rec,
+			static fn ( string $address ): string => 'account_et'
+		);
+
+		self::assertFalse( $profiling->may_profile( $email ), 'The opt-out in the contact\'s own account counts; the main account\'s cached yes is not served.' );
+		self::assertSame( array( 'account_et' ), $asked );
+		$key = md5( 'account_et:' . md5( $email ) );
+		self::assertSame( '0', $entries[ 'smly_profiling_' . $key ] ?? null, 'The answer is cached under the account.' );
+		self::assertSame( '0', $entries[ 'smly_profiling_stale_' . $key ] ?? null );
+		self::assertSame( '1', $entries[ 'smly_profiling_' . md5( $email ) ], 'The main account\'s entry is left as it was.' );
+	}
+
 	public function test_may_profile_uses_the_cache_without_a_readback(): void {
 		Functions\when( 'get_transient' )->justReturn( '0' );
 

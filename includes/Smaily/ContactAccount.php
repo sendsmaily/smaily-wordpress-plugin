@@ -31,8 +31,9 @@ use Smaily\Connect\Support\ContactLanguageResolver;
  *
  * The one rule for live contact sync (HookHandler stores the answer on the
  * queue row, so a retry goes to the same account), the contact import, the
- * consent reads that look up where contact sync keeps the contact, and the
- * accounts whose unsubscribes reach WordPress (`distinct_accounts()`).
+ * consent reads that look up where contact sync keeps the contact
+ * (`for_email()` for a contact known only by address), and the accounts
+ * whose unsubscribes reach WordPress (`distinct_accounts()`).
  * Contacts already in another account are not moved.
  */
 final class ContactAccount {
@@ -70,6 +71,23 @@ final class ContactAccount {
 		$fallback = (string) get_option( self::OPTION_FALLBACK, Credentials::DEFAULT_ACCOUNT_KEY );
 
 		return in_array( $fallback, $accounts, true ) ? $fallback : Credentials::DEFAULT_ACCOUNT_KEY;
+	}
+
+	/**
+	 * The account key of a contact known only by address (CON-472): the
+	 * language ContactLanguageResolver gives the store's user of that
+	 * address, else the one it gives a contact known only by email. Every
+	 * other mode answers `default` without reading anything.
+	 */
+	public function for_email( string $email ): string {
+		if ( get_option( Router::OPTION_MODE, Router::MODE_SINGLE ) !== Router::MODE_A ) {
+			return Credentials::DEFAULT_ACCOUNT_KEY;
+		}
+
+		$resolver = new ContactLanguageResolver();
+		$user     = get_user_by( 'email', $email );
+
+		return $this->for_language( $user instanceof \WP_User ? $resolver->for_user( $user ) : $resolver->for_guest() );
 	}
 
 	/**

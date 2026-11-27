@@ -2,7 +2,8 @@
 /**
  * Integration: in the account-per-language mode the plugin reads a contact's
  * consent from every language's Smaily account, not from the main account
- * alone (CON-471).
+ * alone — the unsubscribe sync-back (CON-471) and the profiling opt-out
+ * (CON-472).
  *
  * @package Smaily\Connect\Tests\Integration
  */
@@ -26,7 +27,8 @@ use Smaily\Connect\Tests\Integration\Support\EnvScrub;
 /**
  * The unsubscribe sync-back runs through the REAL daily contact-sync tick on
  * its Action Scheduler hook, the REAL ContactReconciler and the REAL hooks
- * and Flusher for the later profile change. The language comes from the
+ * and Flusher for the later profile change; the profiling read through the
+ * REAL ProfilingConsent Bootstrap builds. The language comes from the
  * REAL ContactLanguageResolver — its final filter gives each test user a
  * language by the first part of its address. Only the Smaily transport is
  * faked, at the pre_http_request seam: each account (subdomain) answers its
@@ -166,7 +168,69 @@ final class AccountPerLanguageConsentReadTest extends TestCase {
 		self::assertFalse( get_option( ContactReconciler::OPTION_ACCOUNT_CURSORS ), 'No language cursor is written.' );
 	}
 
+	public function test_a_profiling_opt_out_in_the_language_account_is_honoured(): void {
+		$estonian = $this->make_subscriber( 'et' );
+		$email    = (string) get_userdata( $estonian )->user_email;
+
+		$requests = $this->record(
+			array(),
+			static function () use ( $email, &$allowed ): void {
+				$allowed = Bootstrap::instance()->profiling_consent()->may_profile( $email );
+			},
+			array(
+				'mainsub'  => $this->contact( $email, '1' ),
+				'eestisub' => $this->contact( $email, '0' ),
+			)
+		);
+		$this->forget_profiling( $email, 'account_et' );
+
+		self::assertFalse( $allowed, 'The contact objected in their language\'s account.' );
+		self::assertSame( array( 'eestisub' ), array_column( $requests, 'account' ), 'Only the contact\'s own account is read.' );
+	}
+
+	public function test_one_account_for_all_languages_reads_profiling_from_the_main_account(): void {
+		update_option( Router::OPTION_MODE, Router::MODE_B );
+		$estonian = $this->make_subscriber( 'et' );
+		$email    = (string) get_userdata( $estonian )->user_email;
+
+		$requests = $this->record(
+			array(),
+			static function () use ( $email, &$allowed ): void {
+				$allowed = Bootstrap::instance()->profiling_consent()->may_profile( $email );
+			},
+			array(
+				'mainsub'  => $this->contact( $email, '1' ),
+				'eestisub' => $this->contact( $email, '0' ),
+			)
+		);
+		$this->forget_profiling( $email, 'default' );
+
+		self::assertTrue( $allowed );
+		self::assertSame( array( 'mainsub' ), array_column( $requests, 'account' ) );
+	}
+
 	// --- helpers -------------------------------------------------------------
+
+	/**
+	 * A Smaily contact as a read answers it.
+	 *
+	 * @return array<string, string>
+	 */
+	private function contact( string $email, string $profiling ): array {
+		return array(
+			'email'                => $email,
+			'is_unsubscribed'      => '0',
+			'smaily_rec_profiling' => $profiling,
+		);
+	}
+
+	/** Drop the profiling caches a read left (EnvScrub does not sweep transients). */
+	private function forget_profiling( string $email, string $account ): void {
+		$hash = md5( $email );
+		$key  = $account === 'default' ? $hash : md5( $account . ':' . $hash );
+		delete_transient( 'smly_profiling_' . $key );
+		delete_transient( 'smly_profiling_stale_' . $key );
+	}
 
 	private function store_account( string $option, string $subdomain ): void {
 		update_option(
@@ -255,16 +319,18 @@ final class AccountPerLanguageConsentReadTest extends TestCase {
 
 	/**
 	 * Every Smaily request $run makes. An action-log read answers that
-	 * account's log from $logs (none: an empty log); any other request
-	 * answers success.
+	 * account's log from $logs (none: an empty log); a contact read answers
+	 * that account's contact from $contacts (none: not found); any other
+	 * request answers success.
 	 *
 	 * @param array<string, array<int, array<string, mixed>>|int> $logs
+	 * @param array<string, array<string, string>>                $contacts
 	 *
 	 * @return array<int, array{account: string, method: string, path: string, query: array<string, mixed>, contact: array<string, mixed>}>
 	 */
-	private function record( array $logs, callable $run ): array {
+	private function record( array $logs, callable $run, array $contacts = array() ): array {
 		$requests = array();
-		$fake     = static function ( $pre, $args, $url ) use ( &$requests, $logs ) {
+		$fake     = static function ( $pre, $args, $url ) use ( &$requests, $logs, $contacts ) {
 			$host    = (string) wp_parse_url( (string) $url, PHP_URL_HOST );
 			$account = (string) strstr( $host, '.', true );
 			$path    = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
@@ -288,6 +354,11 @@ final class AccountPerLanguageConsentReadTest extends TestCase {
 				$log    = $logs[ $account ] ?? array();
 				$status = is_int( $log ) ? $log : 200;
 				$answer = is_int( $log ) ? array( 'code' => 0 ) : $log;
+			} elseif ( $method === 'GET' && strpos( $path, 'contact' ) !== false ) {
+				$answer = $contacts[ $account ] ?? array(
+					'code'    => 206,
+					'message' => '',
+				);
 			}
 
 			return array(

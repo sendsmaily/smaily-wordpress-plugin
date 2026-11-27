@@ -794,7 +794,9 @@ fails the row `account_not_configured: <key>`. The consent sync-back
 `ContactAccount::distinct_accounts()` lists — `default`, then in Mode A each
 complete language account, one per subdomain — each with its own cursor
 (`OPTION_CURSOR` for `default`, `OPTION_ACCOUNT_CURSORS` for the rest) and
-its own try/catch (CON-471). Not yet routed: the profiling-consent read.
+its own try/catch (CON-471). The profiling-consent read (`ProfilingConsent`)
+asks `ContactAccount::for_email()` and keys its caches on that account when
+it is not `default` (CON-472).
 **Integration-test trap:** Bootstrap keeps one Smaily client per account key
 for the whole process (`smaily_clients`) — a test that changes or removes an
 account's credentials clears it (`AccountPerLanguageContactSyncTest::

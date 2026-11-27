@@ -1396,21 +1396,25 @@ final class Bootstrap {
 
 	/**
 	 * Profiling-consent enforcement ((a).0/.1). The Smaily-client factory returns
-	 * the default client only once the email wizard is finished — an un-set-up
-	 * store has no contact to read consent from.
+	 * a client only once the email wizard is finished — an un-set-up store has
+	 * no contact to read consent from. The contact is read in the account
+	 * contact sync keeps it in (ContactAccount, CON-472).
 	 */
 	public function profiling_consent(): ProfilingConsent {
 		$bootstrap = $this;
 
 		return new ProfilingConsent(
 			$this->rec_engine_settings(),
-			static function () use ( $bootstrap ): ?Client {
+			static function ( string $account_key ) use ( $bootstrap ): ?Client {
 				if ( ! SetupState::completed() ) {
 					return null;
 				}
-				return $bootstrap->smaily_client();
+				return $bootstrap->smaily_client( $account_key );
 			},
-			$this->privacy_requests()
+			$this->privacy_requests(),
+			static function ( string $email ): string {
+				return ( new ContactAccount() )->for_email( $email );
+			}
 		);
 	}
 

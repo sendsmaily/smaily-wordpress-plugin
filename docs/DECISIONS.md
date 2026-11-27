@@ -12410,7 +12410,7 @@ stay there; a contact whose language changes later goes to the new
 language's account and the old account keeps its copy. Still read from
 `default` only: the consent sync-back (`ContactReconciler`) and the
 profiling-consent read (`ProfilingConsent`) — follow-ups, since done:
-CON-471 (the sync-back, below).
+CON-471 (the sync-back) and CON-472 (the profiling read), below.
 **Consequence:** a Mode A store's new contact syncs and its next import
 reach the language accounts. Single account and one account for all
 languages are unchanged.
@@ -12457,3 +12457,44 @@ account for all languages read the main account only, as before.
 **Relationships:** F3-48 (the sync-back), CON-446 (`ContactAccount`),
 CON-441 (the fallback account is the main account), CON-301 (no remote
 text in logs).
+
+### CON-472 — In the account-per-language mode a profiling opt-out is read from the contact's own Smaily account (2026-11-27)
+
+**Context:** `ProfilingConsent` reads whether a contact objected to
+Campaign Intelligence profiling (`smaily_rec_profiling`, or a general
+unsubscribe) from the `default` account only. Since CON-446 a Mode A
+contact lives in its language's account, so an objection recorded there
+was never seen and the contact could still be profiled.
+**Decision:** the read goes to the account contact sync keeps the contact
+in — `ContactAccount::for_email()`: the language ContactLanguageResolver
+gives the store's user of that address (`for_user()`), else the one it
+gives a contact known only by email (`for_guest()`), through
+`for_language()`. Every other mode answers `default` without a read.
+- **Mirrors `AutomationConsent` (CON-446):** `ProfilingConsent` takes the
+  rule as a fourth constructor argument (`$account_for`, null = `default`
+  for every contact) and its client factory now takes the account key;
+  Bootstrap passes `ContactAccount::for_email()` and
+  `smaily_client( $account_key )`. A new `ContactAccount` per call — the
+  rule's memo must not outlive a request where hooks keep one
+  `ProfilingConsent` for the process.
+- **The write follows the read:** a My Account opt-out / opt-in and the
+  PRO-3191 carry-over write `smaily_rec_profiling` to the same account.
+- **Caches per account where the account changes the answer:** the daily
+  and the stale cache key on the address alone for `default` — as before,
+  so an update loses no cached answer — and on the account + address for
+  a language account, so an answer read in one account is never served
+  for another. Every TTL is unchanged (daily, a year; never a no-expiry
+  transient). The durable opt-out registry stays per address: it is the
+  store's own record of the person's choice, whichever account holds the
+  contact.
+- In Mode A each decision resolves the contact's language first (a user
+  lookup, its meta, at most its latest order) — local reads, before the
+  cache.
+**Consequence:** a Mode A contact who objected to profiling in their
+language's account is treated as opted out — no recommendations, no
+login merge, no identity on browse events — and the engine opt-out is
+queued. Single account and one account for all languages read the main
+account with the same cache keys as before.
+**Relationships:** F3-31 / PRO-1194 / PRO-3191 (the profiling gate),
+CON-446 (`ContactAccount`, `AutomationConsent`), PRO-2435 (no no-expiry
+transient per contact).
