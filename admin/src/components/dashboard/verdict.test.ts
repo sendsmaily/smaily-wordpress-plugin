@@ -5,6 +5,7 @@ import { dashboardVerdict, LOG_FAILED_URL, type VerdictFacts } from './verdict';
 const HEALTHY: VerdictFacts = {
   smailyConnected: true,
   smailyPlanBlocked: false,
+  engineKeyRejected: false,
   backgroundRunning: true,
   engineRefused: false,
   failed24h: 0,
@@ -42,6 +43,17 @@ describe('dashboardVerdict', () => {
     const verdict = dashboardVerdict({ ...HEALTHY, smailyConnected: false, smailyPlanBlocked: true });
 
     expect(verdict.text).toMatch(/^Smaily is refusing every request because this account's package/);
+  });
+
+  it('puts a rejected Campaign Intelligence key right after the Smaily connection, with the way to reconnect', () => {
+    const verdict = dashboardVerdict({ ...HEALTHY, engineKeyRejected: true, backgroundRunning: false, failed24h: 3 });
+
+    expect(verdict.level).toBe('degraded');
+    expect(verdict.text).toBe(
+      'Campaign Intelligence rejected the stored API key. The key was revoked or rotated. Disconnect and reconnect with a fresh setup link.',
+    );
+    expect(verdict.action).toEqual({ label: 'Open Settings', href: 'admin.php?page=smaily-connect-settings#recommendations' });
+    expect(dashboardVerdict({ ...HEALTHY, engineKeyRejected: true, smailyConnected: false }).level).toBe('disconnected');
   });
 
   it('puts background tasks that do not run above failures', () => {

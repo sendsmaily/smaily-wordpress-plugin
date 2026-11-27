@@ -44,6 +44,20 @@ final class DashboardEndpointTest extends TestCase {
 		self::assertSame( 0, DashboardEndpoint::unsent_nights( null, null, self::NOW ) );
 	}
 
+	public function test_a_401_answer_is_a_rejected_key(): void {
+		self::assertTrue( DashboardEndpoint::key_rejected( 'unauthorised' ) );
+		self::assertTrue( DashboardEndpoint::key_rejected( 'http_401' ) );
+		self::assertTrue( DashboardEndpoint::key_rejected( 'http_403' ) );
+	}
+
+	/** A deactivated account is is_refused(), not a rejected key; an outage or a success is neither. */
+	public function test_other_answers_are_no_rejected_key(): void {
+		self::assertFalse( DashboardEndpoint::key_rejected( null ) );
+		self::assertFalse( DashboardEndpoint::key_rejected( 'tenant_inactive' ) );
+		self::assertFalse( DashboardEndpoint::key_rejected( 'network_error' ) );
+		self::assertFalse( DashboardEndpoint::key_rejected( 'http_503' ) );
+	}
+
 	public function test_background_tasks_run_while_an_action_ran_in_the_last_fifteen_minutes(): void {
 		self::assertTrue( DashboardEndpoint::background_running( self::NOW - 60, self::NOW ) );
 		self::assertTrue( DashboardEndpoint::background_running( self::NOW - 900, self::NOW ) );

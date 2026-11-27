@@ -365,8 +365,10 @@ final class NotificationManager {
 	}
 
 	/**
-	 * Failed rows across both durable queues in the last 24h — the health
-	 * check's count, and the Dashboard's (CON-464), so the two agree.
+	 * Failed rows across both durable queues — the Smaily queue and the
+	 * Campaign Intelligence queue — queued in the last 24h. The one
+	 * definition: the health check's `failed_events` notice, the Log page's
+	 * banner (EventsEndpoint) and the Dashboard (CON-464) all read it.
 	 */
 	public static function failed_last_24h(): int {
 		global $wpdb;

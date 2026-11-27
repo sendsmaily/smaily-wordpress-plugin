@@ -3875,3 +3875,19 @@ msgid "Smaily Connect is running, but %d delivery failed in the last 24 hours."
 msgid_plural "Smaily Connect is running, but %d deliveries failed in the last 24 hours."
 msgstr[0] "Smaily Connect töötab, kuid viimase 24 tunni jooksul ebaõnnestus %d saadetis."
 msgstr[1] "Smaily Connect töötab, kuid viimase 24 tunni jooksul ebaõnnestus %d saadetist."
+
+#: admin/src/components/dashboard/Dashboard.tsx:290 admin/src/components/dashboard/verdict.ts:58
+msgid "Campaign Intelligence rejected the stored API key."
+msgstr "Campaign Intelligence lükkas salvestatud API võtme tagasi."
+
+#: admin/src/components/dashboard/verdict.ts:59
+msgid "The key was revoked or rotated. Disconnect and reconnect with a fresh setup link."
+msgstr "Võti on tühistatud või välja vahetatud. Katkesta ühendus ja ühenda uuesti värske seadistuslingiga."
+
+#: admin/src/components/dashboard/Dashboard.tsx:291
+msgid "Key rejected"
+msgstr "Võti tagasi lükatud"
+
+#: admin/src/components/dashboard/verdict.ts:62
+msgid "Open Settings"
+msgstr "Ava seaded"

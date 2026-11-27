@@ -5,6 +5,7 @@ import { LOG_URL, SETTINGS_URL } from '@admin/lib/links';
 export interface VerdictFacts {
   smailyConnected: boolean;
   smailyPlanBlocked: boolean;
+  engineKeyRejected: boolean;
   backgroundRunning: boolean;
   engineRefused: boolean;
   failed24h: number;
@@ -25,8 +26,9 @@ export const LOG_FAILED_URL = `${LOG_URL}&status=failed`;
 
 /**
  * One sentence for the plugin's state, by priority, in Magento's words
- * (CON-464): Smaily not connected > background tasks not running
- * (PrestaShop's) > Campaign Intelligence account not active > failures >
+ * (CON-464): Smaily not connected > Campaign Intelligence key rejected
+ * (PrestaShop's words) > background tasks not running (PrestaShop's) >
+ * Campaign Intelligence account not active > failures >
  * Campaign Intelligence unreachable > no nightly product list > all good.
  * The Dashboard opens only once setup is finished, so Magento's "Setup
  * incomplete" never shows here.
@@ -49,6 +51,17 @@ export function dashboardVerdict(facts: VerdictFacts): Verdict {
     };
   }
   const attention = __('Needs attention', 'smaily-connect');
+  if (facts.engineKeyRejected) {
+    return {
+      level: 'degraded',
+      kicker: attention,
+      text: `${__('Campaign Intelligence rejected the stored API key.', 'smaily-connect')} ${__(
+        'The key was revoked or rotated. Disconnect and reconnect with a fresh setup link.',
+        'smaily-connect',
+      )}`,
+      action: { label: __('Open Settings', 'smaily-connect'), href: `${SETTINGS_URL}#recommendations` },
+    };
+  }
   if (!facts.backgroundRunning) {
     return {
       level: 'degraded',

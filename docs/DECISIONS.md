@@ -12537,8 +12537,21 @@ Background tasks card, plus an Automations card that neither has yet.
   last 15 minutes (PrestaShop's figure) — the flushers recur every minute,
   so a working runner always has one; otherwise "Not running", with
   `DISABLE_WP_CRON` named when it is set, else WP-Cron waiting for visits.
+- **A rejected engine key** (PrestaShop's "Key rejected"): the engine's
+  latest answer to this connection, as `Report\ConnectionHealth` stores
+  it, is `unauthorised` / `http_401` / `http_403` while the connection is
+  not refused (403 `tenant_inactive` stays "Not active"). The Campaign
+  Intelligence card says "Key rejected", and the verdict says so right
+  after "Smaily not connected", with "Open Settings" to reconnect. No
+  engine call: the stored answer clears with the engine's next accepted
+  call (the 15-minute health ping included).
+- **One "failed in 24 hours":** `NotificationManager::failed_last_24h()`
+  (both queues) is the only definition — the health check's
+  `failed_events` notice (both queues before, unchanged), the Log page's
+  banner (`EventsEndpoint`, its private copy removed) and the Dashboard.
 - **Verdict order:** Smaily not connected (incl. a package without API
-  access) > background tasks not running (PrestaShop) > Campaign
+  access) > Campaign Intelligence key rejected > background tasks not
+  running (PrestaShop) > Campaign
   Intelligence account not active > failures > engine unreachable > no
   nightly product list > all normal. Magento's "Setup incomplete" cannot
   show: the Dashboard redirects first. The warning banners stay hidden

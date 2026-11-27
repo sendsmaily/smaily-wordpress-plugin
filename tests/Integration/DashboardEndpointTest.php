@@ -14,6 +14,8 @@ use PHPUnit\Framework\TestCase;
 use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Notifications\NotificationManager;
 use Smaily\Connect\REST\DashboardEndpoint;
+use Smaily\Connect\Report\ConnectionHealth;
+use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\IngestQueue;
 use Smaily\Connect\Tests\Integration\Support\EnvScrub;
@@ -63,6 +65,40 @@ final class DashboardEndpointTest extends TestCase {
 		self::assertSame( 1, $state['catalog_items_30d'] );
 		self::assertSame( 2, $state['queued_today'] );
 		self::assertSame( 2, $state['failed_24h'] );
+	}
+
+	/** The Dashboard and the Log page count failed rows of both queues alike — Campaign Intelligence rows included. */
+	public function test_failed_catalog_rows_count_on_the_dashboard_as_on_the_log_page(): void {
+		for ( $i = 0; $i < 29; $i++ ) {
+			$this->rec_row( 'catalog.upsert', 'failed', time() - 600, 'http_401' );
+		}
+
+		$events = RestRequestHelper::get( '/events', array( 'per_page' => 10 ) );
+		self::assertSame( 200, $events->get_status() );
+
+		self::assertSame( 29, $this->state()['failed_24h'] );
+		self::assertSame( 29, $events->get_data()['failed_24h'] );
+		self::assertSame( 29, NotificationManager::failed_last_24h() );
+	}
+
+	public function test_an_engine_that_refuses_the_stored_key_reads_as_key_rejected(): void {
+		EnvSeed::connect();
+		update_option( ConnectionHealth::OPTION, array( 'engine' => array( 'error_code' => 'unauthorised' ) ), false );
+
+		self::assertTrue( $this->state()['engine_key_rejected'] );
+
+		// A deactivated account is told apart (is_refused()), not as a rejected key.
+		( new RecEngineSettings() )->mark_refused();
+		self::assertFalse( $this->state()['engine_key_rejected'] );
+	}
+
+	public function test_a_key_the_engine_takes_again_or_no_connection_is_no_rejected_key(): void {
+		update_option( ConnectionHealth::OPTION, array( 'engine' => array( 'error_code' => 'unauthorised' ) ), false );
+		self::assertFalse( $this->state()['engine_key_rejected'], 'not connected' );
+
+		EnvSeed::connect();
+		update_option( ConnectionHealth::OPTION, array( 'engine' => array( 'error_code' => '' ) ), false );
+		self::assertFalse( $this->state()['engine_key_rejected'] );
 	}
 
 	public function test_the_smaily_and_engine_states_come_from_the_health_check(): void {
@@ -165,7 +201,7 @@ final class DashboardEndpointTest extends TestCase {
 		);
 	}
 
-	private function rec_row( string $type, string $status, int $created ): void {
+	private function rec_row( string $type, string $status, int $created, ?string $last_error = null ): void {
 		QueueRowFixture::insert(
 			IngestQueue::TABLE_SUFFIX,
 			array(
@@ -175,6 +211,7 @@ final class DashboardEndpointTest extends TestCase {
 				'payload'    => '{}',
 				'created_at' => gmdate( 'Y-m-d H:i:s', $created ),
 				'status'     => $status,
+				'last_error' => $last_error,
 			)
 		);
 	}

@@ -87,6 +87,7 @@ export function Dashboard({ state }: DashboardProps): React.JSX.Element {
       : dashboardVerdict({
           smailyConnected,
           smailyPlanBlocked,
+          engineKeyRejected: engineConnected && !state.recEngineRefused && dashboard.engine_key_rejected,
           backgroundRunning: dashboard.background.running,
           engineRefused: engineConnected && state.recEngineRefused,
           failed24h: dashboard.failed_24h,
@@ -280,6 +281,14 @@ function engineCard(state: WizardState, dashboard: DashboardState | null): Omit<
       on: false,
       sub: __('Account not active on the Smaily side', 'smaily-connect'),
       pill: { tone: 'danger', label: __('Not active', 'smaily-connect') },
+    };
+  }
+  // The engine's latest answer refused the stored key (PrestaShop's "Key rejected").
+  if (dashboard?.engine_key_rejected === true) {
+    return {
+      on: false,
+      sub: __('Campaign Intelligence rejected the stored API key.', 'smaily-connect'),
+      pill: { tone: 'danger', label: __('Key rejected', 'smaily-connect') },
     };
   }
   if (dashboard?.engine_down === true) {

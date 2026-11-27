@@ -27,6 +27,7 @@ const HEALTHY: DashboardState = {
   queued_today: 7,
   smaily_refusal: '',
   engine_down: false,
+  engine_key_rejected: false,
   unsent_product_list_nights: 0,
   background: { running: true, last_run: '2026-11-27 10:00:00', wp_cron_disabled: false },
 };
@@ -238,6 +239,37 @@ describe('Dashboard', () => {
     render(<Dashboard state={connectedState({ recEngineRefused: true })} />);
     expect(await within(card('Campaign Intelligence')).findByText('Not active')).toBeInTheDocument();
     expect(screen.getByText(/^Campaign Intelligence has stopped accepting data/)).toBeInTheDocument();
+  });
+
+  it('shows a Campaign Intelligence key the engine refuses on its card and in the verdict', async () => {
+    serve({ engine_key_rejected: true, engine_down: true });
+    serveEngineEmails();
+
+    render(<Dashboard state={connectedState()} />);
+
+    const engine = card('Campaign Intelligence');
+    expect(await within(engine).findByText('Key rejected')).toBeInTheDocument();
+    expect(within(engine).getByText('Campaign Intelligence rejected the stored API key.')).toBeInTheDocument();
+    expect(within(engine).queryByText('On')).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Campaign Intelligence rejected the stored API key. The key was revoked or rotated. Disconnect and reconnect with a fresh setup link.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Settings' })).toHaveAttribute(
+      'href',
+      'admin.php?page=smaily-connect-settings#recommendations',
+    );
+  });
+
+  it('counts failed Campaign Intelligence rows in the Failed tile and the warning', async () => {
+    serve({ failed_24h: 29 });
+    serveEngineEmails();
+
+    render(<Dashboard state={connectedState()} />);
+
+    expect(await screen.findByText('29 events failed in the last 24 hours')).toBeInTheDocument();
+    expect(screen.getByText('29')).toBeInTheDocument();
   });
 
   it('lists the Smaily automations and the Campaign Intelligence emails as On, Off or Test mode', async () => {

@@ -18,6 +18,7 @@ use Smaily\Connect\DB\QueueJanitor;
 use Smaily\Connect\Integrations\WooCommerce\CatalogHookHandler;
 use Smaily\Connect\Integrations\WooCommerce\HookHandler;
 use Smaily\Connect\Notifications\NotificationManager;
+use Smaily\Connect\Report\ConnectionHealth;
 use Smaily\Connect\Settings\RecEngineSettings;
 use Smaily\Connect\Smaily\EventQueue;
 use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
@@ -31,6 +32,7 @@ use WP_REST_Response;
  *         failed_24h, contact_syncs_30d, catalog_items_30d, queued_today,
  *         smaily_refusal: '' | 'plan_blocked' | 'credentials_rejected',
  *         engine_down: bool,
+ *         engine_key_rejected: bool,
  *         unsent_product_list_nights: int (0 = the list went out),
  *         background: { running: bool, last_run: 'Y-m-d H:i:s' UTC | '', wp_cron_disabled: bool }
  *       }
@@ -56,6 +58,9 @@ class DashboardEndpoint {
 
 	/** No run of our Action Scheduler actions for longer than this reads "Not running" (PrestaShop's figure). */
 	public const BACKGROUND_STOPPED_SECONDS = 900;
+
+	/** The engine's answers to a key it does not accept: `401 unauthorised` (contract "Authentication"), or a bare 401 / 403. */
+	private const KEY_REJECTED_CODES = array( 'unauthorised', 'http_401', 'http_403' );
 
 	/** The prefixes of the plugin's Action Scheduler hooks (QueueJanitor prunes the same ones). */
 	private const OUR_HOOK_PREFIXES = array( 'smly_plus_', 'smly_rec_' );
@@ -103,6 +108,11 @@ class DashboardEndpoint {
 				'smaily_refusal'             => self::smaily_refusal( $notices ),
 				// A refused account is not an outage (NotificationManager::active_notices()).
 				'engine_down'                => $this->settings->sending_allowed() && isset( $notices['engine_down'] ),
+				// The engine's latest answer to this connection, as the
+				// installation report stores it; a deactivated account
+				// (403 tenant_inactive) is is_refused(), told apart.
+				'engine_key_rejected'        => $this->settings->sending_allowed()
+					&& self::key_rejected( ( new ConnectionHealth() )->engine()['last_error_code'] ),
 				'unsent_product_list_nights' => $this->settings->sending_allowed()
 					? self::unsent_nights( $this->last_manifest_sent(), self::timestamp( $this->settings->issued_at() ), $now )
 					: 0,
@@ -131,6 +141,11 @@ class DashboardEndpoint {
 			return 'credentials_rejected';
 		}
 		return '';
+	}
+
+	/** Whether the engine's latest answer says it does not accept the stored key. */
+	public static function key_rejected( ?string $last_error_code ): bool {
+		return $last_error_code !== null && in_array( $last_error_code, self::KEY_REJECTED_CODES, true );
 	}
 
 	/**

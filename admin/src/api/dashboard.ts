@@ -13,6 +13,8 @@ export interface DashboardState {
   /** Why the health check found Smaily refusing the saved account; '' when it does not. */
   smaily_refusal: '' | 'plan_blocked' | 'credentials_rejected';
   engine_down: boolean;
+  /** The engine's latest answer to this connection refused its stored key (401). */
+  engine_key_rejected: boolean;
   /** Nights with no product list sent to Campaign Intelligence; 0 below the warning's three. */
   unsent_product_list_nights: number;
   background: {
