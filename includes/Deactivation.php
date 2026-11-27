@@ -15,6 +15,7 @@ use Smaily\Connect\DB\LegacyOrderDateIndex;
 use Smaily\Connect\Report\InstallationReport;
 use Smaily\Connect\Report\ReportBuilder;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\NetworkAccounts;
 use Smaily\Connect\Smaily\PaymentReminderCheck;
 use Smaily\Connect\Smaily\RecEngine\Backfill\HistoryProgress;
 use Smaily\Connect\Smaily\RecEngine\CatalogManifest;
@@ -76,6 +77,8 @@ final class Deactivation {
 		// the plugin still runs; it never throws and never holds this up
 		// past its 5-second timeout.
 		Bootstrap::instance()->installation_report()->send_event( ReportBuilder::EVENT_DEACTIVATED );
+		// A deactivated site no longer syncs contacts (CON-467).
+		NetworkAccounts::forget();
 
 		self::cancel_action_scheduler_jobs();
 		// The recurring set is gone, so the "verified" marker is a lie —
