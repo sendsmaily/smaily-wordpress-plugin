@@ -65,6 +65,7 @@ use Smaily\Connect\Smaily\RecEngine\Backfill\ImportsOnConnect;
 use Smaily\Connect\Smaily\RecEngine\Backfill\OrderBackfillJob;
 use Smaily\Connect\Smaily\Client;
 use Smaily\Connect\Smaily\EventQueue;
+use Smaily\Connect\Smaily\NetworkAccounts;
 use Smaily\Connect\Smaily\Flusher;
 use Smaily\Connect\Smaily\PaymentReminderCheck;
 use Smaily\Connect\Smaily\RecEngine\CatalogPayloadBuilder;
@@ -270,6 +271,12 @@ final class Bootstrap {
 		// recorded from the two HTTP clients.
 		add_action( InstallationReport::HOOK, array( $this, 'on_installation_report' ), 10, 2 );
 		( new ConnectionHealth() )->register();
+
+		// The network index of Smaily accounts and contact sync modes
+		// (CON-467): kept current when this site's account or mode changes.
+		if ( is_multisite() ) {
+			NetworkAccounts::register();
+		}
 
 		// Storefront browse-beacon enqueue (3.4.3). wp_enqueue_scripts is a
 		// front-end-only hook; StorefrontBeacon::enqueue() self-gates on

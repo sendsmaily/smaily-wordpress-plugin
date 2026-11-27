@@ -1893,6 +1893,17 @@ privacy_requests()->run()` first (a fake clock: subclass `now()`, as
 `RecEngineMockServer::set_privacy_answers()` and counts the calls
 (`privacy_request_count()`).
 
+### A multisite network shares one index of Smaily accounts and modes (CON-467)
+`Smaily\NetworkAccounts` keeps the network option `smly_plus_network_accounts`
+(blog id => normalised subdomains + contact sync mode); each site writes only
+its own entry, and the contacts step warns about a sharing site with another
+mode (boot `networkSites`). The entry refreshes at `shutdown` after a change of
+an option in `NetworkAccounts::TRACKED` or any `smly_plus_credentials_*` — a
+new option that changes which Smaily account contact sync uses, or its mode,
+goes into that list. Every call returns at once when `! is_multisite()`; wp-env
+is not multisite, so the unit test (`NetworkAccountsTest`) is the only
+automated proof.
+
 ### The installation report goes to subscription.smaily.com — tests and dev sites NEVER reach it (CON-290)
 `Report\InstallationReport` POSTs contract installation-report-v1 (private
 repo `erkkimarkus/subscription`, docs/contracts/installation-report-v1.md) to

@@ -32,6 +32,14 @@ export interface BannerBoot {
   ciBannerDismissed: boolean;
 }
 
+/** See BootPayload.networkSites. */
+export interface NetworkSite {
+  name: string;
+  url: string;
+  /** The site's contact sync mode, as stored (`consent`, `legitimate_interest`, `checkout_optin`). */
+  mode: string;
+}
+
 /**
  * Server-emitted boot payload — admin/wizard.php + admin/settings.php
  * call `wp_localize_script('smaily-connect-admin', 'smailyConnectBoot',
@@ -119,6 +127,12 @@ export interface BootPayload {
    * "Send test email" (CON-455). Absent from a boot blob written before it.
    */
   adminEmail?: string;
+  /**
+   * The other sites of a multisite network that keep contacts in one of
+   * this site's Smaily accounts, with their contact sync mode (CON-467).
+   * Empty when not multisite; absent from a boot blob written before it.
+   */
+  networkSites?: NetworkSite[];
   savedSettings: {
     smailyCredentials: { subdomain: string; username: string; password: string };
     /**

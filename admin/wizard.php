@@ -300,6 +300,10 @@ function smaily_connect_enqueue_admin_bundle( string $hook_suffix ): void {
 		// The signed-in admin's own email: the default address of an
 		// automation's "Send test email" (CON-455). Never a customer's.
 		'adminEmail'      => (string) wp_get_current_user()->user_email,
+		// The other sites of a multisite network that keep contacts in one
+		// of this site's Smaily accounts, and their contact sync mode
+		// (CON-467) — names and addresses only. Empty when not multisite.
+		'networkSites'    => \Smaily\Connect\Smaily\NetworkAccounts::sites_sharing_account(),
 	);
 
 	wp_add_inline_script(

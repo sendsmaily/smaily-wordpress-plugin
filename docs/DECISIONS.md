@@ -12572,3 +12572,49 @@ local query, so the page never waits for the engine.
 **Relationships:** PRO-3873 (menu after setup), CON-463 (User Guide link),
 CON-350 / CON-351 (invitation banners), PRO-3859 (nightly product list),
 F3-44 / CON-2 (what a skipped row is).
+
+### CON-467 — Setup and Settings warn when another site of the network keeps contacts in the same Smaily account under another mode (2026-11-27)
+
+**Context:** on a WordPress multisite network each site keeps its own
+settings, so two sites can send contacts to one Smaily account under
+different contact sync modes (consent / legitimate interest /
+checkout-only). Their rules then contradict each other in one contact
+list — one site's sync-back unsubscribes, the other's audience sends
+everyone. The plugin had no network-wide code. Erkki's cross-connector
+decision of 2026-11-26 (the last criterion of CON-431): warn, never
+block or change anything.
+**Decision:** `Smaily\NetworkAccounts` keeps a network index — one
+network option, `smly_plus_network_accounts`, blog id => the accounts the
+site's contact sync can keep a contact in (`ContactAccount::
+distinct_accounts()`: the main account, plus each complete language
+account in the account-per-language mode; never the transactional
+account) as `Subdomain::normalize()`d subdomains, and its mode. Reading
+another site's options would switch to it once per site per screen, so
+the screens read the index instead.
+- **Each site writes only its own entry:** when an option that decides
+  it changes (the main credentials, any `smly_plus_credentials_*`, the
+  mode, the contact sync switch, the multilingual mode — the
+  `added_option` / `updated_option` / `deleted_option` hooks, refreshed
+  once at `shutdown`), on every update (`Activation::run()`, so a site
+  configured before this existed appears after the update without its
+  owner), and when its setup or Settings screen opens. Deactivation
+  removes it; contact sync off or no complete account means no entry.
+  An entry is written only when it changed.
+- **Bounded read:** a screen reads the one option and looks up
+  (`get_blog_details()`) only the sites that share an account, at most
+  `MAX_LISTED` (10); a removed, archived or spam site is skipped. Not
+  multisite: nothing is hooked, read or written.
+- **The browser gets names, addresses and modes only** — boot payload
+  `networkSites`, every site that shares an account; the contacts step
+  (setup and Settings, one component) warns about those whose mode differs
+  from the one selected, so the warning follows the radio before a save.
+  Credentials never enter the index or the payload.
+- Two sites saving at the same moment can lose one write of the index;
+  that site's next save, update or screen visit puts it back.
+**Consequence:** the owner sees which other sites of the network apply
+other rules to the same contact list, and decides. A site whose plugin
+was network-deactivated keeps its stale entry until it runs again; a
+site removed from the network is skipped when read.
+**Relationships:** CON-431 (Erkki's cross-connector decision), CON-446 /
+CON-471 (`ContactAccount::distinct_accounts()`), PR #392
+(`Subdomain::normalize()` for stored subdomains), F3-48 (the modes).
